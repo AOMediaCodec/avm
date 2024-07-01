@@ -2409,7 +2409,13 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
 
 static MODEL_TYPE get_model_type(BLOCK_SIZE bsize, bool intra) {
   if (!intra) {
-    return (bsize == 3 || bsize == 6 || bsize == 9 || bsize == 12) ? MODEL_INTER : MODEL_OTHER;
+    switch (bsize) {
+      case BLOCK_64X64: return MODEL_INTER_64X64;
+      case BLOCK_32X32: return MODEL_INTER_32X32;
+      case BLOCK_16X16: return MODEL_INTER_16X16;
+      case BLOCK_8X8: return MODEL_INTER_8X8;
+      default: return MODEL_OTHER;
+    }
   } else {
     switch (bsize) {
       case BLOCK_128X128: return MODEL_128X128;
@@ -2647,10 +2653,13 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   for (int i = 0; i < 2; i++) {
     int had_error = model_type[i] != MODEL_OTHER &&
         av2_part_split_prune_tflite_params(
-            model_type[i], cpi->sf.part_sf.prune_split_ml_level, &params[i]);
+            model_type[i], key_frame ? cpi->sf.part_sf.prune_split_ml_level :
+            cpi->sf.part_sf.prune_split_ml_level_inter, &params[i]);
     assert(!had_error);
     if (had_error) return ML_PART_NOT_SURE;
   }
+  //printf("PRUNE LEVEL: %d\n", key_frame ? cpi->sf.part_sf.prune_split_ml_level :
+  //          cpi->sf.part_sf.prune_split_ml_level_inter);
 
   const AV1_COMMON *const cm = &cpi->common;
   int qp_offset;

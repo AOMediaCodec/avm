@@ -28,7 +28,10 @@ struct Context {
   tflite::Model *model_64X64;
   tflite::Model *model_32X32;
   tflite::Model *model_16X16;
-  tflite::Model *model_inter;
+  tflite::Model *model_inter_64x64;
+  tflite::Model *model_inter_32x32;
+  tflite::Model *model_inter_16x16;
+  tflite::Model *model_inter_8x8;
   tflite::MutableOpResolver resolver;
 };
 
@@ -42,8 +45,14 @@ extern "C" void *av2_part_split_prune_tflite_init() {
       a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
   ctx->model_16X16 = (tflite::Model *)tflite::GetModel(
       a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
-  ctx->model_inter = (tflite::Model*)tflite::GetModel(
-      sms_part_split_prune_tflite_model);
+  ctx->model_inter_64x64 = (tflite::Model*)tflite::GetModel(
+      sms_part_split_prune_tflite_model_bs12);
+  ctx->model_inter_32x32 = (tflite::Model*)tflite::GetModel(
+      sms_part_split_prune_tflite_model_bs9);
+  ctx->model_inter_16x16 = (tflite::Model*)tflite::GetModel(
+      sms_part_split_prune_tflite_model_bs6);
+  ctx->model_inter_8x8 = (tflite::Model*)tflite::GetModel(
+      sms_part_split_prune_tflite_model_bs3);
   RegisterSelectedOps(&ctx->resolver);
   return (void *)ctx;
 }
@@ -67,8 +76,17 @@ extern "C" int av2_part_split_prune_tflite_params(
       *params =
           a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite_params[prune_level];
       break;
-    case MODEL_INTER:
-      *params = sms_part_split_prune_tflite_model_params[prune_level];
+    case MODEL_INTER_64X64:
+      *params = sms_part_split_prune_tflite_model_params_bs12[prune_level];
+      break;
+    case MODEL_INTER_32X32:
+      *params = sms_part_split_prune_tflite_model_params_bs9[prune_level];
+      break;
+    case MODEL_INTER_16X16:
+      *params = sms_part_split_prune_tflite_model_params_bs6[prune_level];
+      break;
+    case MODEL_INTER_8X8:
+      *params = sms_part_split_prune_tflite_model_params_bs3[prune_level];
       break;
     default: return -1;
   }
@@ -86,7 +104,10 @@ extern "C" int av2_part_split_prune_tflite_exec(
     case MODEL_64X64: model = ctx->model_64X64; break;
     case MODEL_32X32: model = ctx->model_32X32; break;
     case MODEL_16X16: model = ctx->model_16X16; break;
-    case MODEL_INTER: model = ctx->model_inter; break;
+    case MODEL_INTER_64X64: model = ctx->model_inter_64x64; break;
+    case MODEL_INTER_32X32: model = ctx->model_inter_32x32; break;
+    case MODEL_INTER_16X16: model = ctx->model_inter_16x16; break;
+    case MODEL_INTER_8X8: model = ctx->model_inter_8x8; break;
     default: return -1;
   }
   tflite::InterpreterBuilder builder(model, ctx->resolver);
