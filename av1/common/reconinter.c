@@ -2533,8 +2533,7 @@ void av1_get_optflow_based_mv(
                                        tmp1, gx0, gy0, d0, d1, &grad_prec_bits);
 
     // Subblock wise translational refinement
-    if (damr_refine_subblock(plane, bw, bh, mbmi->comp_refine_type,
-                                  n, n)) {
+    if (damr_refine_subblock(plane, bw, bh, mbmi->comp_refine_type, n, n)) {
       // Find translational parameters per subblock.
       n_blocks = av1_opfl_mv_refinement_nxn(tmp1, bw, gx0, gy0, bw, bw, bh, n,
                                             d0, d1, grad_prec_bits, target_prec,
@@ -3087,7 +3086,8 @@ void av1_opfl_rebuild_inter_predictor(
       ,
       use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
-      , &subpel_params);
+      ,
+      &subpel_params);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -5082,8 +5082,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
   const int apply_pef_opfl =
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
-      (damr_refine_subblock(plane, bw, bh, mi->comp_refine_type,
-                                 opfl_sub_bw, opfl_sub_bh) &&
+      (damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
+                            opfl_sub_bh) &&
        do_affine);
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
@@ -5766,8 +5766,8 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_AFFINE_REFINEMENT
   const int apply_pef_opfl =
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
-      damr_refine_subblock(plane, bw, bh, mi->comp_refine_type,
-                                opfl_sub_bw, opfl_sub_bh);
+      damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
+                           opfl_sub_bh);
 #endif  // CONFIG_AFFINE_REFINEMENT
   enhance_prediction(cm, xd, plane, dst, dst_buf->stride, bw, bh
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -5946,8 +5946,8 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #if CONFIG_AFFINE_REFINEMENT
   const int apply_pef_opfl =
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
-      damr_refine_subblock(plane, bw, bh, mi->comp_refine_type,
-                                opfl_sub_bw, opfl_sub_bh);
+      damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
+                           opfl_sub_bh);
 #endif  // CONFIG_AFFINE_REFINEMENT
   enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh
 #if CONFIG_OPTFLOW_REFINEMENT
