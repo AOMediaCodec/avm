@@ -27,7 +27,7 @@ if("${AOM_ROOT}" STREQUAL "${AOM_CONFIG_DIR}")
       "And re-run CMake from the aom_build directory.")
 endif()
 
-project(AVM C CXX)
+project(AVM C CXX ASM)
 
 # GENERATED source property global visibility.
 if(POLICY CMP0118)
@@ -588,17 +588,17 @@ if(CONFIG_AV1_ENCODER)
   if(CONFIG_TENSORFLOW_LITE)
     include(FetchContent)
 
-    set(TFLITE_TAG "v2.15.0")
+    set(TFLITE_TAG "v2.17.0")
 
     message(STATUS "Fetching TFLite ${TFLITE_TAG}...")
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
 
-    # We don't care about comparing against these delegates (yet), and disabling
-    # it reduces compile time meaningfully
-    set(TFLITE_ENABLE_RUY OFF)
-    set(TFLITE_ENABLE_XNNPACK OFF)
+    # Keep RUY on. Ruy is a general GEMM library.
+    set(TFLITE_ENABLE_RUY ON)
+    # Turn XNNPack on.
+    set(TFLITE_ENABLE_XNNPACK ON)
 
     fetchcontent_declare(
       tflite
