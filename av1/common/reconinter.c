@@ -2728,24 +2728,20 @@ void make_inter_pred_of_nxn(
     CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
     const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
+    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
 #if CONFIG_OPTFLOW_ON_TIP
-    ,
-    int use_4x4
+    int use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-    ,
     SubpelParams *subpel_params) {
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
   const int is_subsampling_422 =
       plane && (xd->plane[plane].subsampling_x == 1 &&
                 xd->plane[plane].subsampling_y == 0);
-  opfl_subblock_size_plane(xd, plane
+  opfl_subblock_size_plane(xd, plane,
 #if CONFIG_OPTFLOW_ON_TIP
-                           ,
-                           use_4x4
+                           use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-                           ,
                            &opfl_sub_bw, &opfl_sub_bh);
 
   int n_blocks = 0;
@@ -3081,12 +3077,10 @@ void av1_opfl_rebuild_inter_predictor(
 #if CONFIG_AFFINE_REFINEMENT
       cm, pu_width, plane, comp_refine_type, wms, mv, use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-      ref, mc_buf, calc_subpel_params_func
+      ref, mc_buf, calc_subpel_params_func,
 #if CONFIG_OPTFLOW_ON_TIP
-      ,
-      use_4x4
+      use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-      ,
       &subpel_params);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -4857,9 +4851,13 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   int use_affine_opfl = do_affine;
   WarpedMotionParams wms[2];
   wms[0] = wms[1] = default_warp_params;
+  const int wms_stride = pu_width / bw;
+  const int sb_idx = (subblk_start_y / bh) * wms_stride + subblk_start_x / bw;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
   if (use_optflow_refinement && do_affine && plane) {
-    memcpy(wms, mi->wm_params, 2 * sizeof(wms[0]));
+    use_affine_opfl = xd->use_affine_opfl;
+    memcpy(mv_refined, xd->mv_refined, 2 * n_blocks * sizeof(mv_refined[0]));
+    memcpy(wms, xd->wm_params_sb + 2 * sb_idx, 2 * sizeof(wms[0]));
   }
 #endif
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -4937,8 +4935,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       }
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 #if CONFIG_AFFINE_REFINEMENT
-      mi->wm_params[0] = wms[0];
-      mi->wm_params[1] = wms[1];
+      xd->use_affine_opfl = use_affine_opfl;
+      memcpy(xd->mv_refined, mv_refined, 2 * n_blocks * sizeof(mv_refined[0]));
+      memcpy(xd->wm_params_sb + 2 * sb_idx, wms, 2 * sizeof(wms[0]));
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
     }
@@ -4963,12 +4962,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane
+  opfl_subblock_size_plane(xd, plane,
 #if CONFIG_OPTFLOW_ON_TIP
-                           ,
-                           use_4x4
+                           use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-                           ,
                            &opfl_sub_bw, &opfl_sub_bh);
 
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
@@ -5553,12 +5550,10 @@ static void build_inter_predictors_8x8_and_bigger(
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane
+  opfl_subblock_size_plane(xd, plane,
 #if CONFIG_OPTFLOW_ON_TIP
-                           ,
-                           use_4x4
+                           use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-                           ,
                            &opfl_sub_bw, &opfl_sub_bh);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -5935,12 +5930,10 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane
+  opfl_subblock_size_plane(xd, plane,
 #if CONFIG_OPTFLOW_ON_TIP
-                           ,
-                           use_4x4
+                           use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-                           ,
                            &opfl_sub_bw, &opfl_sub_bh);
 
 #if CONFIG_AFFINE_REFINEMENT

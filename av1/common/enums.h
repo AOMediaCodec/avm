@@ -929,9 +929,13 @@ enum {
 // Max affine refinement unit size
 #define AFFINE_MAX_UNIT_LOG2 6  // per 64x64 subblock
 #define AFFINE_MAX_UNIT (1 << AFFINE_MAX_UNIT_LOG2)
-#define NUM_AFFINE_PARAMS_1D (1 << (MAX_SB_SIZE_LOG2 - AFFINE_MAX_UNIT_LOG2))
-#define NUM_AFFINE_PARAMS (NUM_AFFINE_PARAMS_1D * NUM_AFFINE_PARAMS_1D)
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
+
+// The array size must be sufficient to hold the warp models per 16x16
+// subblock in the refinemv mode
+#define MAX_NUM_AFFINE_UNITS_1D_LOG2 (MAX_SB_SIZE_LOG2 - 4)
+#define NUM_AFFINE_PARAMS_1D (1 << MAX_NUM_AFFINE_UNITS_1D_LOG2)
+#define NUM_AFFINE_PARAMS (NUM_AFFINE_PARAMS_1D * NUM_AFFINE_PARAMS_1D)
 
 enum {
   COMP_REFINE_NONE,  // No refinement

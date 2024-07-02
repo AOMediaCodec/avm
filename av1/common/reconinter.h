@@ -889,6 +889,7 @@ static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
 
 #if CONFIG_AFFINE_REFINEMENT
 static INLINE int is_damr_allowed_with_refinemv(const PREDICTION_MODE mode) {
+  // if (mode == NEAR_NEARMV_OPTFLOW) return 1;
   (void)mode;
   return 0;
 }
