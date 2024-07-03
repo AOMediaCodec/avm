@@ -978,13 +978,19 @@ static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 #if CONFIG_AFFINE_REFINEMENT
   if (cm->seq_params.enable_affine_refine) {
     if (is_damr_allowed_with_refinemv(mbmi->mode)) return 1;
-    return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
-            mbmi->mode == JOINT_NEWMV);
+    return (
+#if !CONFIG_SKIP_MODE_NO_REFINEMENTS
+        mbmi->skip_mode ||
+#endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
+        mbmi->mode == NEAR_NEARMV || mbmi->mode == JOINT_NEWMV);
   }
 #endif  // CONFIG_AFFINE_REFINEMENT
-  return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
-          mbmi->mode == NEAR_NEARMV_OPTFLOW ||
-          mbmi->mode == JOINT_NEWMV_OPTFLOW);
+  return (
+#if !CONFIG_SKIP_MODE_NO_REFINEMENTS
+      mbmi->skip_mode ||
+#endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
+      mbmi->mode == NEAR_NEARMV || mbmi->mode == NEAR_NEARMV_OPTFLOW ||
+      mbmi->mode == JOINT_NEWMV_OPTFLOW);
 }
 // Check if the compound and equal distance references
 static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
@@ -1054,6 +1060,11 @@ static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
 // check if the refinemv mode is allowed for a given block for skip mode
 static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
                                                 const MB_MODE_INFO *mbmi) {
+#if CONFIG_SKIP_MODE_NO_REFINEMENTS
+  (void)cm;
+  (void)mbmi;
+  return 0;
+#else
   assert(mbmi->skip_mode);
 #if CONFIG_D072_SKIP_MODE_IMPROVE
   if (mbmi->ref_frame[1] == NONE_FRAME) return 0;
@@ -1062,6 +1073,7 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
          cm->superres_scale_denominator == SCALE_NUMERATOR &&
          is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_refinemv_allowed_reference(cm, mbmi);
+#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 }
 static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {

@@ -7320,7 +7320,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
 
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
   const PREDICTION_MODE this_mode =
       cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
               opfl_allowed_for_cur_refs(cm,
@@ -7333,7 +7333,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
           : NEAR_NEARMV;
 #else
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
 
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
@@ -7399,7 +7399,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
   assert(this_mode == (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
                                opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
@@ -7411,7 +7411,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
                            : NEAR_NEARMV));
 #else
   assert(this_mode == NEAR_NEARMV);
-#endif
+#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
 
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
   if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
@@ -7675,7 +7675,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
 
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
       search_state->best_mbmode.mode =
 #if CONFIG_D072_SKIP_MODE_IMPROVE
           !is_compound ? NEARMV :
@@ -7690,8 +7690,12 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
                             ? NEAR_NEARMV_OPTFLOW
                             : NEAR_NEARMV);
 #else
-      search_state->best_mbmode.mode = NEAR_NEARMV;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+      search_state->best_mbmode.mode =
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+          !is_compound ? NEARMV :
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+                       NEAR_NEARMV;
+#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
 #if CONFIG_AFFINE_REFINEMENT
       search_state->best_mbmode.comp_refine_type =
           search_state->best_mbmode.mode == NEAR_NEARMV_OPTFLOW

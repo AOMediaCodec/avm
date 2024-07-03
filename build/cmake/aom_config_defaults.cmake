@@ -315,6 +315,9 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
                    "Enable to improve skip mode")
 
+set_aom_config_var(CONFIG_SKIP_MODE_NO_REFINEMENTS 1
+                   "Disable refinement algorithms for the skip mode")
+
 set_aom_config_var(CONFIG_MF_HOLE_FILL_SIMPLIFY 1
                    "Simplify motion field hole filling")
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
