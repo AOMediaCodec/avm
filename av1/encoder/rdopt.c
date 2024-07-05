@@ -1573,16 +1573,31 @@ static void av1_get_model_rd(const AV1_COMP *const cpi, MACROBLOCKD *xd,
   if (is_compound) {
     model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
         cpi, bsize, x, xd, plane_from, plane_to, rate_sum, dist_sum,
-        &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
+        &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL
+#if CONFIG_MRSSE
+        ,
+        cpi->oxcf.tool_cfg.enable_mrsse
+#endif  // CONFIG_MRSSE
+    );
   } else {
     if (mbmi->motion_mode == INTERINTRA) {
       model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](cpi, bsize, x, xd, plane_from,
                                               plane_to, rate_sum, dist_sum,
-                                              NULL, NULL, NULL, NULL, NULL);
+                                              NULL, NULL, NULL, NULL, NULL
+#if CONFIG_MRSSE
+                                              ,
+                                              cpi->oxcf.tool_cfg.enable_mrsse
+#endif  // CONFIG_MRSSE
+      );
     } else {
       model_rd_sb_fn[MODELRD_CURVFIT](cpi, bsize, x, xd, plane_from, plane_to,
                                       rate_sum, dist_sum, NULL, NULL, NULL,
-                                      NULL, NULL);
+                                      NULL, NULL
+#if CONFIG_MRSSE
+                                      ,
+                                      cpi->oxcf.tool_cfg.enable_mrsse
+#endif  // CONFIG_MRSSE
+      );
     }
   }
 
