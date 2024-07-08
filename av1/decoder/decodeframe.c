@@ -8763,12 +8763,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
     } else {
-#if CONFIG_CCSO
-      if (use_ccso) {
-        ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
-        aom_free(ext_rec_y);
-      }
-#endif
       // In no cdef and no superres case. Provide an optimized version of
       // loop_restoration_filter.
       if (do_loop_restoration) {
