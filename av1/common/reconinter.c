@@ -2943,26 +2943,30 @@ void make_inter_pred_of_nxn(
         }
       } else {
         if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
-          avg_mv.row = (mv_refined[0 * 2 + ref].as_mv.row +
-                        mv_refined[1 * 2 + ref].as_mv.row +
-                        mv_refined[2 * 2 + ref].as_mv.row +
-                        mv_refined[3 * 2 + ref].as_mv.row) >>
-                       2;
-          avg_mv.col = (mv_refined[0 * 2 + ref].as_mv.col +
-                        mv_refined[1 * 2 + ref].as_mv.col +
-                        mv_refined[2 * 2 + ref].as_mv.col +
-                        mv_refined[3 * 2 + ref].as_mv.col) >>
-                       2;
+          avg_mv.row =
+              ROUND_POWER_OF_TWO_SIGNED(mv_refined[0 * 2 + ref].as_mv.row +
+                                            mv_refined[1 * 2 + ref].as_mv.row +
+                                            mv_refined[2 * 2 + ref].as_mv.row +
+                                            mv_refined[3 * 2 + ref].as_mv.row,
+                                        2);
+          avg_mv.col =
+              ROUND_POWER_OF_TWO_SIGNED(mv_refined[0 * 2 + ref].as_mv.col +
+                                            mv_refined[1 * 2 + ref].as_mv.col +
+                                            mv_refined[2 * 2 + ref].as_mv.col +
+                                            mv_refined[3 * 2 + ref].as_mv.col,
+                                        2);
           subblock_mv = &avg_mv;
         } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4 &&
                    is_subsampling_422) {
           const int sub_idx = delta_idx * 2;
-          avg_mv.row = (mv_refined[sub_idx * 2 + ref].as_mv.row +
-                        mv_refined[(sub_idx + 1) * 2 + ref].as_mv.row) >>
-                       1;
-          avg_mv.col = (mv_refined[sub_idx * 2 + ref].as_mv.col +
-                        mv_refined[(sub_idx + 1) * 2 + ref].as_mv.col) >>
-                       1;
+          avg_mv.row = ROUND_POWER_OF_TWO_SIGNED(
+              mv_refined[sub_idx * 2 + ref].as_mv.row +
+                  mv_refined[(sub_idx + 1) * 2 + ref].as_mv.row,
+              1);
+          avg_mv.col = ROUND_POWER_OF_TWO_SIGNED(
+              mv_refined[sub_idx * 2 + ref].as_mv.col +
+                  mv_refined[(sub_idx + 1) * 2 + ref].as_mv.col,
+              1);
           subblock_mv = &avg_mv;
         } else {
           subblock_mv = &(mv_refined[n_blocks * 2 + ref].as_mv);
