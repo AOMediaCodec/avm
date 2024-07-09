@@ -1304,8 +1304,11 @@ typedef struct {
                          [TX_TYPES];
 #endif  // CONFIG_INTRA_TX_IST_PARSE
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
+  //! tx_type_cost_for_length32_side
   int tx_ext_32_costs[2][2];
+  //! intra_tx_type_cost_of_short_side_for_large_txfm_blocks
   int intra_ext_tx_short_side_costs[EXT_TX_SIZES][4];
+  //! inter_tx_type_cost_of_short_side_for_large_txfm_blocks
   int inter_ext_tx_short_side_costs[EOB_TX_CTXS][EXT_TX_SIZES][4];
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   //! cctx_type_cost

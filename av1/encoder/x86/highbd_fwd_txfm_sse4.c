@@ -2571,8 +2571,8 @@ void av1_fwd_txfm2d_32x8_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_8x64_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type, int bd) {
-  __m128i in[64 * 2];
-  __m128i out[64 * 2];
+  __m128i in[128 * 2];
+  __m128i out[128 * 2];
   __m128i *outcoef128 = (__m128i *)coeff;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X64];
   const int txw_idx = get_txw_idx(TX_8X64);
@@ -2607,7 +2607,7 @@ void av1_fwd_txfm2d_8x64_sse4_1(const int16_t *input, int32_t *coeff,
   if (htx_tab[tx_type] == ADST_1D || htx_tab[tx_type] == FLIPADST_1D) {
     row_txfm(out, in, bitrow, 16);
   } else {
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 4; ++i) {
       row_txfm((out + i * 2), (in + i * 2), bitrow, 16);
     }
   }
@@ -2615,7 +2615,7 @@ void av1_fwd_txfm2d_8x64_sse4_1(const int16_t *input, int32_t *coeff,
 
   av1_round_shift_rect_array_32_sse4_1(outcoef128, outcoef128, 128, -shift[2],
                                        NewSqrt2);
-
+  memset(coeff + txfm_size_col * 32, 0, txfm_size_col * 32 * sizeof(*coeff));
   (void)bd;
 }
 
@@ -2653,6 +2653,7 @@ void av1_fwd_txfm2d_4x64_sse4_1(const int16_t *input, int32_t *coeff,
   for (int i = 0; i < 16; ++i)
     row_txfm(out + i, outcoef128 + i * 4, bitrow, 16);
 
+  memset(coeff + txfm_size_col * 32, 0, txfm_size_col * 32 * sizeof(*coeff));
   (void)bd;
 }
 

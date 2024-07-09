@@ -2307,6 +2307,15 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     }
   }
 
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+      tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+    if (txsize_sqr_map[tx_size] >= TX_8X8) {
+      allowed_tx_mask &= 0xF1FF;
+    }
+  }
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
   if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
       txsize_sqr_up_map[tx_size] <= TX_32X32 && plane == PLANE_TYPE_Y) {
     txk_allowed = IDTX;
@@ -2680,7 +2689,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                          7, 8,  9, 11, 12, 13, 14, 15 };
   int txk_map_rect_vert_32[TX_TYPES] = { 0, 11, 1, 2,  3,  4,  5,  6,
                                          7, 8,  9, 10, 12, 13, 14, 15 };
-
+  // tx_mask_32[0:is_rect_horz==false, 1: is_rect_horz==true][0:
+  // long_side_tx_type==DCT_DCT: 1: long_side_tx_type==Identity]
   const uint16_t tx_mask_32[2][2] = {
     { 0x0425 & allowed_tx_mask, 0xAA00 & allowed_tx_mask },
     { 0x0813 & allowed_tx_mask, 0x5600 & allowed_tx_mask }
@@ -2692,13 +2702,15 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   for (int idx = 0; idx < TX_TYPES; ++idx) {
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
     TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
-    if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == 0) {
+    if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == PLANE_TYPE_Y &&
+        !mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
       primary_tx_type = is_rect_horz ? (TX_TYPE)txk_map_rect_horz_32[idx]
                                      : (TX_TYPE)txk_map_rect_vert_32[idx];
       if (idx == 2) {
         best_long_side_tx_type = get_primary_tx_type(best_tx_type);
       }
       if (idx > 1 &&
+          tx_mask_32[is_rect_horz][best_long_side_tx_type != DCT_DCT] != 0 &&
           (!(tx_mask_32[is_rect_horz][best_long_side_tx_type != DCT_DCT] &
              (1 << primary_tx_type)))) {
         continue;
@@ -2740,11 +2752,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       }
       if (primary_tx_type == FLIPADST_DCT &&
           get_primary_tx_type(best_tx_type) == ADST_DCT) {
-        continue;
-      }
-      if (txsize_sqr_map[tx_size] >= TX_8X8 &&
-          (primary_tx_type == IDTX || primary_tx_type == H_DCT ||
-           primary_tx_type == V_DCT)) {
         continue;
       }
     }
