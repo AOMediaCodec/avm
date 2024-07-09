@@ -4695,12 +4695,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     int pu_width, int pu_height, uint16_t *dst0_16_refinemv,
     uint16_t *dst1_16_refinemv, int row_start, int col_start, MV *sb_refined_mv,
     MV *chroma_refined_mv, int build_for_refine_mv_only,
-    ReferenceArea ref_area[2]
-#if CONFIG_TIP_REF_PRED_MERGING
-    ,
-    int_mv *mv_refined
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-) {
+    ReferenceArea ref_area[2], int_mv *mv_refined) {
 #if CONFIG_TIP_REF_PRED_MERGING
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int is_compound = has_second_ref(mi) || tip_ref_frame;
@@ -4809,8 +4804,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   int use_optflow_refinement =
       is_optflow_refinement_enabled(cm, mi, plane, tip_ref_frame);
 #else
-  int_mv mv_refined[2 * N_OF_OFFSETS];
-  memset(mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
   const int use_optflow_refinement = opfl_allowed_for_cur_block(cm, mi);
 #endif  // CONFIG_TIP_REF_PRED_MERGING
   assert(IMPLIES(use_optflow_refinement,
@@ -4845,19 +4838,38 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   );
   const int n_blocks = (bw / n) * (bh / n);
 
+  // optical flow refined MVs in a subblock (16x16) unit
+  int_mv mv_refined_sb[4 * 2];
+  memset(mv_refined_sb, 0, 4 * 2 * sizeof(int_mv));
+  const int opfl_mv_stride = pu_width / n;
+  const int opfl_sb_idx =
+      (subblk_start_y / n) * opfl_mv_stride + subblk_start_x / n;
+  const int sb_rows = bh / n;
+  const int sb_cols = bw / n;
+
 #if CONFIG_AFFINE_REFINEMENT
-  int do_affine = is_damr_allowed_with_refinemv(mi->mode) &&
-                  mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
-  int use_affine_opfl = do_affine;
+  int use_affine_opfl = use_optflow_refinement &&
+                        is_damr_allowed_with_refinemv(mi->mode) &&
+                        mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
   WarpedMotionParams wms[2];
   wms[0] = wms[1] = default_warp_params;
-  const int wms_stride = pu_width / bw;
-  const int sb_idx = (subblk_start_y / bh) * wms_stride + subblk_start_x / bw;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
-  if (use_optflow_refinement && do_affine && plane) {
+  if (use_affine_opfl && plane) {
     use_affine_opfl = xd->use_affine_opfl;
-    memcpy(mv_refined, xd->mv_refined, 2 * n_blocks * sizeof(mv_refined[0]));
+    const int wms_stride = pu_width / bw;
+    const int sb_idx = (subblk_start_y / bh) * wms_stride + subblk_start_x / bw;
     memcpy(wms, xd->wm_params_sb + 2 * sb_idx, 2 * sizeof(wms[0]));
+
+    // Optical flow refined luma MVs are reused for chroma only when affine
+    // refinement is applied
+    for (int i = 0; i < sb_rows; i++) {
+      for (int j = 0; j < sb_cols; j++) {
+        int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
+        int mvidx_sb = i * sb_cols + j;
+        mv_refined_sb[2 * mvidx_sb].as_mv = mv_refined[2 * mvidx].as_mv;
+        mv_refined_sb[2 * mvidx_sb + 1].as_mv = mv_refined[2 * mvidx + 1].as_mv;
+      }
+    }
   }
 #endif
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -4881,8 +4893,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 #if !CONFIG_TIP_REF_PRED_MERGING
     for (int mvi = 0; mvi < n_blocks; mvi++) {
-      mv_refined[mvi * 2].as_mv = mv0;
-      mv_refined[mvi * 2 + 1].as_mv = mv1;
+      mv_refined_sb[mvi * 2].as_mv = mv0;
+      mv_refined_sb[mvi * 2 + 1].as_mv = mv1;
     }
 #endif
     // Refine MV using optical flow. The final output MV will be in 1/16
@@ -4898,15 +4910,15 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     int do_pred = tip_ref_frame ? 0 : 1;
     if (use_optflow_refinement) {
       for (int mvi = 0; mvi < n_blocks; mvi++) {
-        mv_refined[mvi * 2].as_mv = mv0;
-        mv_refined[mvi * 2 + 1].as_mv = mv1;
+        mv_refined_sb[mvi * 2].as_mv = mv0;
+        mv_refined_sb[mvi * 2 + 1].as_mv = mv1;
       }
 #endif
-      av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
+      av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined_sb, bw, bh, mi_x,
                                mi_y, mc_buf, calc_subpel_params_func, gx0, gy0,
                                gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
-                               do_affine ? wms : NULL, &use_affine_opfl,
+                               use_affine_opfl ? wms : NULL, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                vx0, vy0, vx1, vy1, dst0, dst1,
 #if CONFIG_OPTFLOW_ON_TIP
@@ -4917,27 +4929,24 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #endif
 #endif  // CONFIG_OPTFLOW_ON_TIP
                                best_mv_ref, pu_width, pu_height);
+      for (int i = 0; i < sb_rows; i++) {
+        for (int j = 0; j < sb_cols; j++) {
+          int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
+          int mvidx_sb = i * sb_cols + j;
+          mv_refined[2 * mvidx].as_mv = mv_refined_sb[2 * mvidx_sb].as_mv;
+          mv_refined[2 * mvidx + 1].as_mv =
+              mv_refined_sb[2 * mvidx_sb + 1].as_mv;
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-      const int mvi_stride = pu_width / n;
-      const int subblk_rows = bh / n;
-      const int subblk_cols = bw / n;
-      const int cur_subblk_idx =
-          (subblk_start_y / n) * mvi_stride + (subblk_start_x / n);
-      for (int i = 0; i < subblk_rows; i++) {
-        for (int j = 0; j < subblk_cols; j++) {
-          int mvi_idx = cur_subblk_idx + i * mvi_stride + j;
-          int mv_delta_idx = i * subblk_cols + j;
-          xd->mv_delta[mvi_idx].mv[0].as_mv.row = vy0[mv_delta_idx];
-          xd->mv_delta[mvi_idx].mv[0].as_mv.col = vx0[mv_delta_idx];
-          xd->mv_delta[mvi_idx].mv[1].as_mv.row = vy1[mv_delta_idx];
-          xd->mv_delta[mvi_idx].mv[1].as_mv.col = vx1[mv_delta_idx];
+          xd->mv_delta[mvidx].mv[0].as_mv.row = vy0[mvidx_sb];
+          xd->mv_delta[mvidx].mv[0].as_mv.col = vx0[mvidx_sb];
+          xd->mv_delta[mvidx].mv[1].as_mv.row = vy1[mvidx_sb];
+          xd->mv_delta[mvidx].mv[1].as_mv.col = vx1[mvidx_sb];
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
         }
       }
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 #if CONFIG_AFFINE_REFINEMENT
       xd->use_affine_opfl = use_affine_opfl;
-      memcpy(xd->mv_refined, mv_refined, 2 * n_blocks * sizeof(mv_refined[0]));
-      memcpy(xd->wm_params_sb + 2 * sb_idx, wms, 2 * sizeof(wms[0]));
+      memcpy(xd->wm_params_sb + 2 * opfl_sb_idx, wms, 2 * sizeof(wms[0]));
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
     }
@@ -5038,7 +5047,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 #if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
-    if (use_optflow_refinement && (do_affine || plane == 0)) {
+    if (use_optflow_refinement && (use_affine_opfl || plane == 0)) {
 #else
     if (use_optflow_refinement && plane == 0) {
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -5054,8 +5063,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                                        &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
                                        cm, pu_width, mi->comp_refine_type,
-                                       do_affine ? wms : NULL, &mi->mv[ref],
-                                       use_affine_opfl,
+                                       use_affine_opfl ? wms : NULL,
+                                       &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                        ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
@@ -5081,7 +5090,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
       (damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
                             opfl_sub_bh) &&
-       do_affine);
+       use_affine_opfl);
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
   if (use_optflow_refinement && plane == 0 && !tip_ref_frame) {
@@ -5115,24 +5124,20 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_BAWP
     const BUFFER_SET *dst_orig,
 #endif  // CONFIG_BAWP
-    int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf
+    int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
 #if CONFIG_TIP_REF_PRED_MERGING
-    ,
     MV mi_mv[2], CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst,
-    int dst_stride, int pu_width, int pu_height
+    int dst_stride, int pu_width, int pu_height,
 #else
-    ,
-    CalcSubpelParamsFunc calc_subpel_params_func
+    CalcSubpelParamsFunc calc_subpel_params_func,
 #endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
-    ,
-    int build_for_refine_mv_only
+    int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
 #if CONFIG_TIP_REF_PRED_MERGING
-    ,
-    int_mv *mv_refined, bool *ext_warp_used
+    bool *ext_warp_used,
 #endif  // CONFIG_TIP_REF_PRED_MERGING
-) {
+    int_mv *mv_refined) {
 #if CONFIG_TIP_REF_PRED_MERGING
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int is_compound = has_second_ref(mi) || tip_ref_frame;
@@ -5300,17 +5305,17 @@ static void build_inter_predictors_8x8_and_bigger(
 #else
           // mi_x, and mi_y are the top-left position of the luma samples of the
           // sub-block
-          build_inter_predictors_8x8_and_bigger_refinemv(
-              cm, xd, plane, mi, build_for_obmc, refinemv_sb_size_width,
-              refinemv_sb_size_height, mi_x + w * (1 << pd->subsampling_x),
-              mi_y + h * (1 << pd->subsampling_y), mc_buf,
-              calc_subpel_params_func, dst_buf->buf, dst_stride,
+        build_inter_predictors_8x8_and_bigger_refinemv(
+            cm, xd, plane, mi, build_for_obmc, refinemv_sb_size_width,
+            refinemv_sb_size_height, mi_x + w * (1 << pd->subsampling_x),
+            mi_y + h * (1 << pd->subsampling_y), mc_buf,
+            calc_subpel_params_func, dst_buf->buf, dst_stride,
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-              w, h,
+            w, h,
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-              bw, bh, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
-              plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
-              build_for_refine_mv_only, ref_area);
+            bw, bh, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
+            plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
+            build_for_refine_mv_only, ref_area, mv_refined);
 
           if (plane == 0) {
 #endif  // CONFIG_TIP_REF_PRED_MERGING
@@ -5851,8 +5856,6 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #endif  // CONFIG_REFINEMV
 ) {
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
-  int_mv mv_refined[2 * N_OF_OFFSETS];
-  memset(mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
   bool ext_warp_used = false;
 
   struct macroblockd_plane *pd = &xd->plane[plane];
@@ -5901,7 +5904,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #if CONFIG_REFINEMV
             build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-            &mv_refined[tip_mv_offset], &ext_warp_used);
+            &ext_warp_used, &xd->mv_refined[tip_mv_offset]);
       }
     }
 
@@ -5918,7 +5921,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #if CONFIG_REFINEMV
                                           build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-                                          mv_refined, &ext_warp_used);
+                                          &ext_warp_used, xd->mv_refined);
   }
   int apply_sub_block_refinemv =
       !tip_ref_frame && is_sub_block_refinemv_enabled(cm, mi, build_for_obmc,
@@ -5945,7 +5948,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh
 #if CONFIG_OPTFLOW_REFINEMENT
                      ,
-                     mv_refined,
+                     xd->mv_refined,
                      use_optflow_refinement
 #if CONFIG_AFFINE_REFINEMENT
                          && apply_pef_opfl
@@ -5974,6 +5977,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
+  if (plane == AOM_PLANE_Y)
+    memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
 #if CONFIG_EXTENDED_WARP_PREDICTION
   // just for debugging purpose
   // Can be removed later on
@@ -6013,12 +6018,11 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                           dst_orig,
 #endif
                                           build_for_obmc, bw, bh, mi_x, mi_y,
-                                          mc_buf, calc_subpel_params_func
+                                          mc_buf, calc_subpel_params_func,
 #if CONFIG_REFINEMV
-                                          ,
-                                          build_for_refine_mv_only
+                                          build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-    );
+                                          xd->mv_refined);
 #endif  // CONFIG_TIP_REF_PRED_MERGING
   }
 }

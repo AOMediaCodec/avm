@@ -2688,9 +2688,9 @@ typedef struct macroblockd {
 #if CONFIG_AFFINE_REFINEMENT
   /** variable to store if affine refinement was enabled for luma */
   int use_affine_opfl;
+#endif  // CONFIG_AFFINE_REFINEMENT
   /** variable to store optical flow refined MVs per subblock */
   int_mv mv_refined[2 * N_OF_OFFSETS];
-#endif  // CONFIG_AFFINE_REFINEMENT
   /** variable to store affine refinement parameters per subblock */
   WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];
 } MACROBLOCKD;
