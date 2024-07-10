@@ -984,6 +984,7 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
 #endif
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
+  const int is_720p_or_lesser = AOMMIN(cm->width, cm->height) <= 720;
 
   switch (erp_pruning_level) {
     case 6: AOM_FALLTHROUGH_INTENDED;
@@ -1016,6 +1017,17 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
     case 1: AOM_FALLTHROUGH_INTENDED;
     case 0: break;
     default: assert(0 && "Invalid ERP pruning level.");
+  }
+
+  if (cpi->speed >= 1) {
+    if (is_720p_or_lesser && !cm->features.allow_screen_content_tools) {
+      sf->part_sf.simple_motion_search_early_term_none =
+          cm->current_frame.pyramid_level > 4 ? 1 : 0;
+    }
+  }
+
+  if (cpi->speed >= 2) {
+    sf->part_sf.simple_motion_search_early_term_none = 1;
   }
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
