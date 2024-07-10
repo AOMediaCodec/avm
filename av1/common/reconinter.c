@@ -4853,11 +4853,11 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                         mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
   WarpedMotionParams wms[2];
   wms[0] = wms[1] = default_warp_params;
+  const int wms_stride = pu_width / bw;
+  const int sb_idx = (subblk_start_y / bh) * wms_stride + subblk_start_x / bw;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
   if (use_affine_opfl && plane) {
     use_affine_opfl = xd->use_affine_opfl;
-    const int wms_stride = pu_width / bw;
-    const int sb_idx = (subblk_start_y / bh) * wms_stride + subblk_start_x / bw;
     memcpy(wms, xd->wm_params_sb + 2 * sb_idx, 2 * sizeof(wms[0]));
 
     // Optical flow refined luma MVs are reused for chroma only when affine
@@ -4946,7 +4946,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       }
 #if CONFIG_AFFINE_REFINEMENT
       xd->use_affine_opfl = use_affine_opfl;
-      memcpy(xd->wm_params_sb + 2 * opfl_sb_idx, wms, 2 * sizeof(wms[0]));
+      memcpy(xd->wm_params_sb + 2 * sb_idx, wms, 2 * sizeof(wms[0]));
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
     }
@@ -5059,7 +5059,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
 
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
+      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined_sb,
                                        &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
                                        cm, pu_width, mi->comp_refine_type,
@@ -5100,7 +5100,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh
 #if CONFIG_OPTFLOW_REFINEMENT
                        ,
-                       mv_refined,
+                       mv_refined_sb,
                        use_optflow_refinement
 #if CONFIG_AFFINE_REFINEMENT
                            && apply_pef_opfl
