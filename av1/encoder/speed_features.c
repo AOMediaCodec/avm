@@ -1330,7 +1330,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
-  if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed == 0) {
+  if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed <= 1) {
     const int qindex_thresh = 124 + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
 
