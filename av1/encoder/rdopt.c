@@ -9638,7 +9638,7 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 #if CONFIG_OPTFLOW_REFINEMENT
       this_mode < NEAR_NEARMV_OPTFLOW &&
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-      comp_pred) {
+      comp_pred && !has_second_drl(xd->mi[0])) {
     if (compound_skip_by_single_states(cpi, args->search_state, this_mode,
                                        ref_frame, second_ref_frame, x))
       return 1;

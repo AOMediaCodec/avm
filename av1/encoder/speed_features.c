@@ -390,6 +390,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 2;
 
     sf->tx_sf.adaptive_txb_search_level = 2;
+
+    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
   }
 
   if (speed >= 2) {
@@ -414,7 +416,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
-    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->inter_sf.prune_motion_mode_level = 2;
