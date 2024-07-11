@@ -142,12 +142,10 @@ static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
 
 // Get the OPFL sub-block size based on luma component and derive
 // sub-block size for chroma based on sub-sampling.
-static INLINE void opfl_subblock_size_plane(const MACROBLOCKD *xd, int plane
+static INLINE void opfl_subblock_size_plane(const MACROBLOCKD *xd, int plane,
 #if CONFIG_OPTFLOW_ON_TIP
-                                            ,
-                                            int use_4x4
+                                            int use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-                                            ,
                                             int *opfl_sub_bw,
                                             int *opfl_sub_bh) {
   const int width_y = xd->plane[AOM_PLANE_Y].width;

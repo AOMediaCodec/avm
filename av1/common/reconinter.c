@@ -2750,9 +2750,7 @@ void make_inter_pred_of_nxn(
   int sub_bw = opfl_sub_bw;
   int sub_bh = opfl_sub_bh;
 #if CONFIG_AFFINE_REFINEMENT
-  MV ref_mv, cur_mv;
-  ref_mv.row = mv_refined[ref].as_mv.row;
-  ref_mv.col = mv_refined[ref].as_mv.col;
+  MV ref_mv = mv_refined[ref].as_mv;
   if (comp_refine_type >= COMP_AFFINE_REFINE_START &&
       !damr_refine_subblock(plane, bw, bh, comp_refine_type, sub_bw, sub_bh)) {
     sub_bw = bw;
@@ -2831,7 +2829,7 @@ void make_inter_pred_of_nxn(
           // When warp prediction is not allowed, apply translational prediction
           // based on warp parameters
           inter_pred_params->mode = TRANSLATION_PRED;
-          cur_mv = ref_mv;
+          MV cur_mv = ref_mv;
           WarpedMotionParams ref_wm =
               wms_sb ? wms_sb[ref] : default_warp_params;
           // Apply offsets based on current subblock center position
