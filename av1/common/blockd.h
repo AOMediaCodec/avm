@@ -2681,10 +2681,6 @@ typedef struct macroblockd {
   /** block level storage to store luma refined MVs for chroma use */
   REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
 #endif  // CONFIG_REFINEMV
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-  /** variable to stored optical flow refined MVs */
-  SUBMB_INFO mv_delta[N_OF_OFFSETS];
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 #if CONFIG_AFFINE_REFINEMENT
   /** variable to store if affine refinement was enabled for luma */
   int use_affine_opfl;

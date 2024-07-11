@@ -2799,6 +2799,9 @@ void make_inter_pred_of_nxn(
   int wms_stride = bw / affine_sub_bw;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
 
+  int *vx = &xd->opfl_vxy_bufs[N_OF_OFFSETS * ref];
+  int *vy = &xd->opfl_vxy_bufs[N_OF_OFFSETS * (2 + ref)];
+
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
@@ -2855,22 +2858,20 @@ void make_inter_pred_of_nxn(
             // If this is a 4x4 colocated chroma block of a 8x8 luma block,
             // colocated subblocks will be 2x2. In this case we take the average
             // of 4 refined MVs and use it to refine prediction at 4x4 level.
-            if (bw == 4 && bh == 4 && n == 4) {
+            if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
+              cur_mv.col +=
+                  ROUND_POWER_OF_TWO_SIGNED(vx[0] + vx[1] + vx[2] + vx[3], 2);
+              cur_mv.row +=
+                  ROUND_POWER_OF_TWO_SIGNED(vy[0] + vy[1] + vy[2] + vy[3], 2);
+            } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4 &&
+                       is_subsampling_422) {
               cur_mv.col += ROUND_POWER_OF_TWO_SIGNED(
-                  xd->mv_delta[0].mv[ref].as_mv.col +
-                      xd->mv_delta[1].mv[ref].as_mv.col +
-                      xd->mv_delta[2].mv[ref].as_mv.col +
-                      xd->mv_delta[3].mv[ref].as_mv.col,
-                  2);
+                  vx[delta_idx * 2] + vx[delta_idx * 2 + 1], 1);
               cur_mv.row += ROUND_POWER_OF_TWO_SIGNED(
-                  xd->mv_delta[0].mv[ref].as_mv.row +
-                      xd->mv_delta[1].mv[ref].as_mv.row +
-                      xd->mv_delta[2].mv[ref].as_mv.row +
-                      xd->mv_delta[3].mv[ref].as_mv.row,
-                  2);
+                  vy[delta_idx * 2] + vy[delta_idx * 2 + 1], 1);
             } else {
-              cur_mv.col += xd->mv_delta[delta_idx].mv[ref].as_mv.col;
-              cur_mv.row += xd->mv_delta[delta_idx].mv[ref].as_mv.row;
+              cur_mv.col += vx[delta_idx];
+              cur_mv.row += vy[delta_idx];
             }
           }
 #endif  // AFFINE_CHROMA_REFINE_METHOD == 3
@@ -2892,33 +2893,25 @@ void make_inter_pred_of_nxn(
             // of 4 refined MVs and use it to refine prediction at 4x4 level.
             if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
               inter_pred_params->warp_params.wmmat[0] +=
-                  (xd->mv_delta[0].mv[ref].as_mv.col +
-                   xd->mv_delta[1].mv[ref].as_mv.col +
-                   xd->mv_delta[2].mv[ref].as_mv.col +
-                   xd->mv_delta[3].mv[ref].as_mv.col) *
+                  (vx[0] + vx[1] + vx[2] + vx[3]) *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS - 2));
               inter_pred_params->warp_params.wmmat[1] +=
-                  (xd->mv_delta[0].mv[ref].as_mv.row +
-                   xd->mv_delta[1].mv[ref].as_mv.row +
-                   xd->mv_delta[2].mv[ref].as_mv.row +
-                   xd->mv_delta[3].mv[ref].as_mv.row) *
+                  (vy[0] + vy[1] + vy[2] + vy[3]) *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS - 2));
             } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4 &&
                        is_subsampling_422) {
               inter_pred_params->warp_params.wmmat[0] +=
-                  (xd->mv_delta[delta_idx * 2].mv[ref].as_mv.col +
-                   xd->mv_delta[(delta_idx * 2) + 1].mv[ref].as_mv.col) *
+                  (vx[delta_idx * 2] + vx[(delta_idx * 2) + 1]) *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS - 1));
               inter_pred_params->warp_params.wmmat[1] +=
-                  (xd->mv_delta[delta_idx * 2].mv[ref].as_mv.row +
-                   xd->mv_delta[(delta_idx * 2) + 1].mv[ref].as_mv.row) *
+                  (vy[delta_idx * 2] + vy[(delta_idx * 2) + 1]) *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS - 1));
             } else {
               inter_pred_params->warp_params.wmmat[0] +=
-                  xd->mv_delta[delta_idx].mv[ref].as_mv.col *
+                  vx[delta_idx] *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS));
               inter_pred_params->warp_params.wmmat[1] +=
-                  xd->mv_delta[delta_idx].mv[ref].as_mv.row *
+                  vy[delta_idx] *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS));
             }
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -4879,11 +4872,11 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #endif  // CONFIG_AFFINE_REFINEMENT
 
   if (use_optflow_refinement && plane == 0) {
-    // Pointers to hold optical flow MV offsets.
-    int *vx0 = xd->opfl_vxy_bufs;
-    int *vx1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 1);
-    int *vy0 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 2);
-    int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
+    // Pointers to hold optical flow MV offsets in a subblock unit.
+    int vx0_sb[4] = { 0 };
+    int vx1_sb[4] = { 0 };
+    int vy0_sb[4] = { 0 };
+    int vy1_sb[4] = { 0 };
 
     // Pointers to hold gradient and dst buffers.
     int16_t *gx0 = xd->opfl_gxy_bufs;
@@ -4924,7 +4917,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
                                use_affine_opfl ? wms : NULL, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                               vx0, vy0, vx1, vy1, dst0, dst1,
+                               vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1,
 #if CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_TIP_REF_PRED_MERGING
                                use_4x4, do_pred,
@@ -4940,12 +4933,11 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           mv_refined[2 * mvidx].as_mv = mv_refined_sb[2 * mvidx_sb].as_mv;
           mv_refined[2 * mvidx + 1].as_mv =
               mv_refined_sb[2 * mvidx_sb + 1].as_mv;
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-          xd->mv_delta[mvidx].mv[0].as_mv.row = vy0[mvidx_sb];
-          xd->mv_delta[mvidx].mv[0].as_mv.col = vx0[mvidx_sb];
-          xd->mv_delta[mvidx].mv[1].as_mv.row = vy1[mvidx_sb];
-          xd->mv_delta[mvidx].mv[1].as_mv.col = vx1[mvidx_sb];
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
+          // Store subblock MV delta at the prediction block level
+          xd->opfl_vxy_bufs[mvidx] = vx0_sb[mvidx_sb];
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 1 + mvidx] = vx1_sb[mvidx_sb];
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 2 + mvidx] = vy0_sb[mvidx_sb];
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 3 + mvidx] = vy1_sb[mvidx_sb];
         }
       }
 #if CONFIG_AFFINE_REFINEMENT
@@ -5532,14 +5524,6 @@ static void build_inter_predictors_8x8_and_bigger(
                                best_mv_ref, bw, bh
 #endif  // CONFIG_REFINEMV
       );
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-      for (int mvi = 0; mvi < n_blocks; mvi++) {
-        xd->mv_delta[mvi].mv[0].as_mv.row = vy0[mvi];
-        xd->mv_delta[mvi].mv[0].as_mv.col = vx0[mvi];
-        xd->mv_delta[mvi].mv[1].as_mv.row = vy1[mvi];
-        xd->mv_delta[mvi].mv[1].as_mv.col = vx1[mvi];
-      }
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 #if CONFIG_AFFINE_REFINEMENT
       xd->use_affine_opfl = use_affine_opfl;
       memcpy(xd->mv_refined, mv_refined,
