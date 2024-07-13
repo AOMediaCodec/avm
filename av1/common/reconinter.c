@@ -5299,17 +5299,17 @@ static void build_inter_predictors_8x8_and_bigger(
 #else
           // mi_x, and mi_y are the top-left position of the luma samples of the
           // sub-block
-        build_inter_predictors_8x8_and_bigger_refinemv(
-            cm, xd, plane, mi, build_for_obmc, refinemv_sb_size_width,
-            refinemv_sb_size_height, mi_x + w * (1 << pd->subsampling_x),
-            mi_y + h * (1 << pd->subsampling_y), mc_buf,
-            calc_subpel_params_func, dst_buf->buf, dst_stride,
+          build_inter_predictors_8x8_and_bigger_refinemv(
+              cm, xd, plane, mi, build_for_obmc, refinemv_sb_size_width,
+              refinemv_sb_size_height, mi_x + w * (1 << pd->subsampling_x),
+              mi_y + h * (1 << pd->subsampling_y), mc_buf,
+              calc_subpel_params_func, dst_buf->buf, dst_stride,
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-            w, h,
+              w, h,
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-            bw, bh, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
-            plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
-            build_for_refine_mv_only, ref_area, mv_refined);
+              bw, bh, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
+              plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
+              build_for_refine_mv_only, ref_area, mv_refined);
 
           if (plane == 0) {
 #endif  // CONFIG_TIP_REF_PRED_MERGING
