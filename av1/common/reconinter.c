@@ -2721,8 +2721,9 @@ static
 // Makes the interpredictor for the region by dividing it up into nxn blocks
 // and running the interpredictor code on each one.
 void make_inter_pred_of_nxn(
-    uint16_t *dst, int dst_stride, int_mv *const mv_refined,
-    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
+    uint16_t *dst, int dst_stride, int_mv *const mv_refined, int *vxy_bufs,
+    const int vxy_size, InterPredParams *inter_pred_params, MACROBLOCKD *xd,
+    int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
     const AV1_COMMON *cm, int pu_width, int plane,
     CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
@@ -2797,8 +2798,8 @@ void make_inter_pred_of_nxn(
   int wms_stride = bw / affine_sub_bw;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
 
-  int *vx = &xd->opfl_vxy_bufs[N_OF_OFFSETS * ref];
-  int *vy = &xd->opfl_vxy_bufs[N_OF_OFFSETS * (2 + ref)];
+  int *vx = &vxy_bufs[vxy_size * ref];
+  int *vy = &vxy_bufs[vxy_size * (2 + ref)];
 
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
@@ -3054,7 +3055,8 @@ void make_inter_pred_of_nxn(
 // Use a second pass of motion compensation to rebuild inter predictor
 void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
-    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
+    int *vxy_bufs, const int vxy_size, InterPredParams *inter_pred_params,
+    MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
     const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
@@ -3067,16 +3069,17 @@ void av1_opfl_rebuild_inter_predictor(
 ) {
   SubpelParams subpel_params;
 
-  make_inter_pred_of_nxn(
-      dst, dst_stride, mv_refined, inter_pred_params, xd, mi_x, mi_y,
+  make_inter_pred_of_nxn(dst, dst_stride, mv_refined, vxy_bufs, vxy_size,
+                         inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-      cm, pu_width, plane, comp_refine_type, wms, mv, use_affine_opfl,
+                         cm, pu_width, plane, comp_refine_type, wms, mv,
+                         use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-      ref, mc_buf, calc_subpel_params_func,
+                         ref, mc_buf, calc_subpel_params_func,
 #if CONFIG_OPTFLOW_ON_TIP
-      use_4x4,
+                         use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-      &subpel_params);
+                         &subpel_params);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -5053,21 +5056,21 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
 
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined_sb,
-                                       &inter_pred_params, xd, mi_x, mi_y,
+      av1_opfl_rebuild_inter_predictor(
+          dst, dst_stride, plane, mv_refined_sb, xd->opfl_vxy_bufs,
+          N_OF_OFFSETS, &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-                                       cm, pu_width, mi->comp_refine_type,
-                                       use_affine_opfl ? wms : NULL,
-                                       &mi->mv[ref], use_affine_opfl,
+          cm, pu_width, mi->comp_refine_type, use_affine_opfl ? wms : NULL,
+          &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                                       ref, mc_buf, calc_subpel_params_func
+          ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_TIP_REF_PRED_MERGING
-                                       ,
-                                       use_4x4
+          ,
+          use_4x4
 #else
-                                       ,
-                                       1
+          ,
+          1
 #endif
 #endif  // CONFIG_OPTFLOW_ON_TIP
       );
@@ -5691,16 +5694,16 @@ static void build_inter_predictors_8x8_and_bigger(
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
 #if CONFIG_TIP_REF_PRED_MERGING
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
-                                       &inter_pred_params, xd, mi_x, mi_y,
+      av1_opfl_rebuild_inter_predictor(
+          dst, dst_stride, plane, mv_refined, xd->opfl_vxy_bufs, N_OF_OFFSETS,
+          &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-                                       cm, bw, mi->comp_refine_type, wms,
-                                       &mi->mv[ref], use_affine_opfl,
+          cm, bw, mi->comp_refine_type, wms, &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                                       ref, mc_buf, calc_subpel_params_func
+          ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
-                                       ,
-                                       use_4x4
+          ,
+          use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
       );
 #else

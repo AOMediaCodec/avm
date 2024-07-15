@@ -1071,10 +1071,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif  // CONFIG_REFINEMV
 
   // Arrays to hold optical flow offsets.
-  int vx0[4] = { 0 };
-  int vx1[4] = { 0 };
-  int vy0[4] = { 0 };
-  int vy1[4] = { 0 };
+  int vxy_bufs[4 * 4] = { 0 };
+  int *vx0 = vxy_bufs;
+  int *vx1 = vxy_bufs + (4 * 1);
+  int *vy0 = vxy_bufs + (4 * 2);
+  int *vy1 = vxy_bufs + (4 * 3);
 
   // Pointers to gradient and dst buffers
   int16_t *gx0 = cm->gx0, *gy0 = cm->gy0, *gx1 = cm->gx1, *gy1 = cm->gy1;
@@ -1197,8 +1198,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
     if (do_opfl) {
       av1_opfl_rebuild_inter_predictor(
-          dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
-          mi_y,
+          dst, dst_stride, plane, mv_refined, vxy_bufs, 4, &inter_pred_params,
+          xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
           cm, bw, mbmi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mbmi->mv[ref], use_affine_opfl,
