@@ -200,6 +200,10 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
               ,
               REFINEMV_SUBMB_INFO *refinemv_subinfo, int refinemv_step
 #endif  // CONFIG_REFINEMV
+#if CONFIG_AFFINE_REFINEMENT
+              ,
+              const int avg_mv_422
+#endif  // CONFIG_AFFINE_REFINEMENT
 ) {
 #if CONFIG_EXT_WARP_FILTER
   if (pef_mode < 0 || pef_mode > 4) return;
@@ -210,6 +214,21 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
   if (pef_mode < 0 || pef_mode > 2) return;
 #endif  // CONFIG_REFINEMV
 #endif  // CONFIG_EXT_WARP_FILTER
+#if CONFIG_AFFINE_REFINEMENT
+  // For this special case, check the average MVs at the horizontal boundary
+  if (pef_mode == 0 && avg_mv_422) {
+    int mv1y = ROUND_POWER_OF_TWO_SIGNED(
+        mv_refined[0].as_mv.row + mv_refined[1].as_mv.row, 1);
+    int mv1x = ROUND_POWER_OF_TWO_SIGNED(
+        mv_refined[0].as_mv.col + mv_refined[1].as_mv.col, 1);
+    int mv2y = ROUND_POWER_OF_TWO_SIGNED(
+        mv_refined[2].as_mv.row + mv_refined[3].as_mv.row, 1);
+    int mv2x = ROUND_POWER_OF_TWO_SIGNED(
+        mv_refined[2].as_mv.col + mv_refined[3].as_mv.col, 1);
+    *diff_mv = (mv1y != mv2y || mv1x != mv2x);
+    return;
+  }
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP_REF_PRED_MERGING
   if (pef_mode == 0 || pef_mode == 1) {  // opfl mv || refined tip mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[offset];
@@ -286,6 +305,13 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int dst_stride = pef_input->dst_stride;
   const int ss_x = pef_input->ss_x;
   const int ss_y = pef_input->ss_y;
+#if CONFIG_AFFINE_REFINEMENT
+  // Special case: when subsampling is 422 and luma block is 8x8 (with 4x8
+  // chroma), this chroma block has two subblocks refinement units. Each uses
+  // the average MV of two colocated 4x4 luma blocks. In this case, PEF checks
+  // the diff of the two average MVs at this subblock boundary.
+  const int avg_mv_422 = plane && ss_x == 1 && ss_y == 0 && bw == 4 && bh == 8;
+#endif  // CONFIG_AFFINE_REFINEMENT
   uint16_t *dst = pef_input->dst;
 
   // retrieve filter parameters
@@ -453,6 +479,10 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
                                  : NULL,
                  1
 #endif  // CONFIG_REFINEMV
+#if CONFIG_AFFINE_REFINEMENT
+                 ,
+                 0
+#endif  // CONFIG_AFFINE_REFINEMENT
         );
         if (diff_mv) {
           filt_func filt_vert_func =
@@ -485,6 +515,10 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
                                  : NULL,
                  MAX_MIB_SIZE
 #endif  // CONFIG_REFINEMV
+#if CONFIG_AFFINE_REFINEMENT
+                 ,
+                 avg_mv_422
+#endif  // CONFIG_AFFINE_REFINEMENT
         );
         if (diff_mv) {
           filt_func filt_horz_func = x_step == PEF_MCU_SZ
