@@ -756,7 +756,12 @@ static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const int mode) {
   if (!cm->seq_params.enable_affine_refine) return 0;
-  if (mode < NEAR_NEARMV_OPTFLOW) return 0;
+  if (mode < NEAR_NEARMV) return 0;
+
+  if (cm->features.opfl_refine_type == REFINE_NONE ||
+      (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+       mode < NEAR_NEARMV_OPTFLOW))
+    return 0;
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (mbmi->skip_mode && COMP_REFINE_TYPE_FOR_SKIP < COMP_AFFINE_REFINE_START)
@@ -788,8 +793,12 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
                                                     const MACROBLOCKD *xd,
                                                     const MB_MODE_INFO *mbmi) {
   if (cm->features.opfl_refine_type == REFINE_ALL &&
-      opfl_allowed_for_cur_block(cm, mbmi))
-    return 1 << COMP_REFINE_TYPE_FOR_REFINE_ALL;
+      opfl_allowed_for_cur_block(cm, mbmi)) {
+    if (cm->seq_params.enable_affine_refine)
+      return 1 << COMP_REFINE_TYPE_FOR_REFINE_ALL;
+    else
+      return 1 << COMP_REFINE_SUBBLK2P;
+  }
   if (mbmi->mode < NEAR_NEARMV_OPTFLOW) return 1 << COMP_REFINE_NONE;
 
   int mask = 0;

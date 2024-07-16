@@ -776,7 +776,9 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                                 int16_t ctx) {
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = cm->features.opfl_refine_type == REFINE_ALL
-                               ? COMP_REFINE_TYPE_FOR_REFINE_ALL
+                               ? (cm->seq_params.enable_affine_refine
+                                      ? COMP_REFINE_TYPE_FOR_REFINE_ALL
+                                      : COMP_REFINE_SUBBLK2P)
                                : COMP_REFINE_NONE;
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
