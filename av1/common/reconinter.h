@@ -928,6 +928,7 @@ static INLINE int is_refinemv_allowed_mode_precision(
 #if CONFIG_AFFINE_REFINEMENT
   if (cm->seq_params.enable_affine_refine) {
     if (is_damr_allowed_with_refinemv(mode)) return 1;
+    if (cm->features.opfl_refine_type == REFINE_ALL) return 0;
     return mode == NEAR_NEARMV;
   }
 #endif
