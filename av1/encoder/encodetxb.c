@@ -4584,6 +4584,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   int si = eob - 1;
   // populate trellis
+  assert (si<MAX_TRELLIS);
   DECISION trellis[MAX_TRELLIS][TOTALSTATES];
 
   int first_test_pos = si;
@@ -4818,7 +4819,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #endif
 #endif
       }
-
+      assert(scan_pos + 1 < MAX_TRELLIS);
       DECISION *prd = trellis[scan_pos + 1];
       int rate_Q0_a_prd0 = get_coeff_cost_general(
           0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx0,

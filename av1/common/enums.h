@@ -609,7 +609,8 @@ enum {
 #define MIN_TX_SIZE (1 << MIN_TX_SIZE_LOG2)
 #define MAX_TX_SQUARE (MAX_TX_SIZE * MAX_TX_SIZE)
 #if CONFIG_DQ
-#define MAX_TRELLIS MAX_TX_SQUARE
+// #define MAX_TRELLIS MAX_TX_SQUARE
+#define MAX_TRELLIS 1024
 #endif
 
 // Pad 4 extra columns to remove horizontal availability check.
