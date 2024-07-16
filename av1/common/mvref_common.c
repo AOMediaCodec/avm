@@ -76,6 +76,14 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   int *vy0 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 2);
   int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
 
+  int apply_sub_block_refinemv =
+      mi->refinemv_flag &&
+#if CONFIG_AFFINE_REFINEMENT
+      (is_damr_allowed_with_refinemv(mi->mode) ||
+       mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
+#endif  // CONFIG_AFFINE_REFINEMENT
+      !is_tip_ref_frame(mi->ref_frame[0]);
+
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
@@ -89,9 +97,11 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 
         int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
-        if (is_opfl_mode && xd->use_affine_opfl
+        if (is_opfl_mode && xd->use_affine_opfl &&
+            mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-            && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
+            && (is_damr_allowed_with_refinemv(mi->mode) ||
+                !apply_sub_block_refinemv)
 #endif  // CONFIG_REFINEMV
         ) {
           // Apply offsets based on the affine parameters
@@ -127,7 +137,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_REFINEMV
           // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
           // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
-          if (mi->refinemv_flag)
+          if (apply_sub_block_refinemv)
             refined_mv.as_mv =
                 xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
                     .refinemv[idx]
@@ -314,6 +324,14 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   int *vy0 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 2);
   int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
 
+  int apply_sub_block_refinemv =
+      mi->refinemv_flag &&
+#if CONFIG_AFFINE_REFINEMENT
+      (is_damr_allowed_with_refinemv(mi->mode) ||
+       mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
+#endif  // CONFIG_AFFINE_REFINEMENT
+      !is_tip_ref_frame(mi->ref_frame[0]);
+
   for (h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_inside_boundary; w++) {
@@ -327,9 +345,11 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
           if (ref_idx) continue;
           int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
-          if (is_opfl_mode && xd->use_affine_opfl
+          if (is_opfl_mode && xd->use_affine_opfl &&
+              mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-              && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
+              && (is_damr_allowed_with_refinemv(mi->mode) ||
+                  !apply_sub_block_refinemv)
 #endif  // CONFIG_REFINEMV
           ) {
             // Apply offsets based on the affine parameters
@@ -365,7 +385,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #if CONFIG_REFINEMV
             // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
             // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
-            if (mi->refinemv_flag)
+            if (apply_sub_block_refinemv)
               refined_mv.as_mv =
                   xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
                       .refinemv[idx]
