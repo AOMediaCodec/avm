@@ -3502,11 +3502,10 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int pl = (bsize >= BLOCK_8X8)
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
-  const int plane_type = (xd->tree_type == CHROMA_PART);
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
   const PARTITION_TYPE partition =
-      get_preset_partition(cm, plane_type, mi_row, mi_col, bsize, ptree);
+      get_preset_partition(cm, xd->tree_type, mi_row, mi_col, bsize, ptree);
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
   RD_STATS last_part_rdc, invalid_rdc;
@@ -3825,6 +3824,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   }
 
   // If last_part is better set the partitioning to that.
+  const int plane_type = (xd->tree_type == CHROMA_PART);
   mib[0]->sb_type[plane_type] = bsize;
   if (bsize >= BLOCK_8X8) pc_tree->partitioning = partition;
 
