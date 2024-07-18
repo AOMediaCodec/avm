@@ -548,12 +548,20 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_4XN
                                        const MB_MODE_INFO *const mbmi,
                                        TX_SIZE *ts, int32_t *opfl_edge) {
-  if (plane > 0) return;
   const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                        mbmi);
+#if CONFIG_AFFINE_REFINEMENT
+  if (is_opfl_mode && plane &&
+      mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START) {
+    *opfl_edge = 1;
+    *ts = TX_4X4;
+    return;
+  }
+#endif  // CONFIG_AFFINE_REFINEMENT
+  if (plane > 0) return;
   if (is_opfl_mode) {
     *opfl_edge = 1;
     const int opfl_ts = TX_8X8;
