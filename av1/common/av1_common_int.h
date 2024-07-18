@@ -3998,6 +3998,7 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
     return mbmi->mode >= COMP_INTER_MODE_START &&
            mbmi->mode < COMP_OPTFLOW_MODE_START &&
            mbmi->mode != GLOBAL_GLOBALMV && mbmi->cwp_idx == CWP_EQUAL &&
+           mbmi->motion_mode == SIMPLE_TRANSLATION &&
            mbmi->interinter_comp.type == COMPOUND_AVERAGE;
 
   assert(0);
