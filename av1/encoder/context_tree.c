@@ -33,8 +33,8 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   dst_ctx->mbmi_ext_best = src_ctx->mbmi_ext_best;
 
-  dst_ctx->num_4x4_blk = src_ctx->num_4x4_blk;
-  dst_ctx->num_4x4_blk_chroma = src_ctx->num_4x4_blk_chroma;
+  assert(dst_ctx->num_4x4_blk == src_ctx->num_4x4_blk);
+  assert(dst_ctx->num_4x4_blk_chroma == src_ctx->num_4x4_blk_chroma);
   dst_ctx->skippable = src_ctx->skippable;
 
   for (int i = 0; i < num_planes; ++i) {
@@ -92,6 +92,28 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
   }
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+// Get base block size for pick mode context allocation.
+static INLINE int get_num_pix_bsize_base(
+    BLOCK_SIZE bsize, TREE_TYPE tree_type,
+    const CHROMA_REF_INFO *const chroma_ref_info, int num_planes) {
+  if (num_planes == 1 || tree_type == LUMA_PART) {
+    // No chroma pixels required in this case. But we return value 1 to avoid
+    // special cases for malloc(), memcpy() etc.
+    return 1;
+  }
+  BLOCK_SIZE bsize_base = BLOCK_INVALID;
+  if (tree_type == SHARED_PART) {
+    bsize_base = chroma_ref_info->bsize_base;
+  } else {
+    assert(tree_type == CHROMA_PART);
+    bsize_base = bsize;
+  }
+  assert(bsize_base != BLOCK_INVALID);
+  return block_size_wide[bsize_base] * block_size_high[bsize_base];
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
                                  PC_TREE *parent,
@@ -116,14 +138,11 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
   const int num_blk = num_pix / 16;
 
-#if CONFIG_FLEX_PARTITION
-  // Biggest chroma block covering multiple luma blocks is of size 16X32 /
-  // 32x16, when a 32x64 / 64x32 block uses a HORZ / VERTICAL 4A/4B partition.
-  const int num_pix_chroma = AOMMAX(num_pix, 16 * 32);
-#elif CONFIG_EXT_RECUR_PARTITIONS
-  // Biggest chroma block covering multiple luma blocks is of size 8X16 / 16X8,
-  // when a 16X32 / 32X16 block uses a HORZ / VERTICAL 4A/4B partition.
-  const int num_pix_chroma = AOMMAX(num_pix, 16 * 8);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // We need to get actual chroma block size due to possible sub-8x8 luma block
+  // sizes.
+  const int num_pix_bize_base = get_num_pix_bsize_base(
+      bsize, tree_type, &ctx->chroma_ref_info, num_planes);
 #else
   // Biggest chroma block covering multiple luma blocks is of size 8X8,
   // when a 16X16 block uses a HORZ_3 / VERTICAL_3 partition.
@@ -131,9 +150,9 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   // is only allowed for bsize >= BLOCK_8X8, and all these block sizes have at
   // least 64 pixels.
   const int num_pix_chroma = num_pix;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   ctx->num_4x4_blk = num_blk;
-  ctx->num_4x4_blk_chroma = num_pix_chroma / 16;
+  ctx->num_4x4_blk_chroma = num_pix_bize_base / 16;
 
   AOM_CHECK_MEM_ERROR(&error, ctx->tx_type_map,
                       aom_calloc(num_blk, sizeof(*ctx->tx_type_map)));
@@ -171,7 +190,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
 
   if (num_pix <= MAX_PALETTE_SQUARE) {
     for (int i = 0; i < 2; ++i) {
-      const int color_map_size = (i == 0) ? num_pix : num_pix_chroma;
+      const int color_map_size = (i == 0) ? num_pix : num_pix_bize_base;
       AOM_CHECK_MEM_ERROR(
           &error, ctx->color_index_map[i],
           aom_memalign(32, color_map_size * sizeof(*ctx->color_index_map[i])));
@@ -194,7 +213,9 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
     ctx->blk_skip[i] = NULL;
   }
   aom_free(ctx->tx_type_map);
+  ctx->tx_type_map = NULL;
   aom_free(ctx->cctx_type_map);
+  ctx->cctx_type_map = NULL;
   for (int i = 0; i < num_planes; ++i) {
     ctx->coeff[i] = NULL;
     ctx->qcoeff[i] = NULL;
@@ -600,7 +621,7 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
     dst->none_chroma = NULL;
     if (src->none_chroma) {
       dst->none_chroma =
-          av1_alloc_pmc(cm, tree_type, mi_row, mi_col, bsize, dst,
+          av1_alloc_pmc(cm, CHROMA_PART, mi_row, mi_col, bsize, dst,
                         PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
       av1_copy_tree_context(dst->none_chroma, src->none_chroma, num_planes);
     }
@@ -615,9 +636,13 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
         av1_free_pmc(dst->none[cur_region_type], num_planes);
       dst->none[cur_region_type] = NULL;
       if (src->none[cur_region_type]) {
-        dst->none[cur_region_type] =
-            av1_alloc_pmc(cm, tree_type, mi_row, mi_col, bsize, dst,
-                          PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
+        dst->none[cur_region_type] = av1_alloc_pmc(
+            cm,
+            !frame_is_intra_only(cm) && cur_region_type == INTRA_REGION
+                ? LUMA_PART
+                : tree_type,
+            mi_row, mi_col, bsize, dst, PARTITION_NONE, 0, ss_x, ss_y,
+            shared_bufs);
         av1_copy_tree_context(dst->none[cur_region_type],
                               src->none[cur_region_type], num_planes);
 #if CONFIG_MVP_IMPROVEMENT
