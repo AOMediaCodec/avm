@@ -3764,7 +3764,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf
           },
       },
     };
-#endif  // CONFIG_INTRA_TX_IST_PARSE/encoder
+#endif  // CONFIG_INTRA_TX_IST_PARSE
 
 static const aom_cdf_prob default_inter_ext_tx_cdf
     [EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(TX_TYPES)] = {
