@@ -231,73 +231,6 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
 #endif
 }
 
-static void od_ec_encode_q15_dbg(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
-                                 int nsyms) {
-  od_ec_window l;
-  unsigned r;
-  unsigned u;
-  unsigned v;
-  l = enc->low;
-  r = enc->rng;
-#if CONFIG_BYPASS_IMPROVEMENT
-  assert((r & 1) == 0);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-  assert(32768U <= r);
-  assert(fh <= fl);
-  assert(fl <= 32768U);
-  assert(7 - EC_PROB_SHIFT - CDF_SHIFT >= 0);
-  const int N = nsyms - 1;
-  if (fl < CDF_PROB_TOP) {
-#if CONFIG_BYPASS_IMPROVEMENT
-    u = od_ec_prob_scale(fl, r, N - (s - 1));
-    v = od_ec_prob_scale(fh, r, N - (s - 0));
-#else
-    u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >>
-         (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
-        EC_MIN_PROB * (N - (s - 1));
-    v = ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
-         (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
-        EC_MIN_PROB * (N - (s + 0));
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-    l += r - u;
-    {
-      extern int t_dbge;
-      extern double sym_bits;
-      double b = -log2((double)(u-v)/(double)r);
-      sym_bits = b;
-      if (0 && t_dbge) {
-        printf("WRITE entenc fl %d fh %d range0 %d range1 %d bits %4.2lf\n", fl, fh, r, u-v, b);
-      }
-    }
-    r = u - v;
-  } else {
-#if CONFIG_BYPASS_IMPROVEMENT
-    v = od_ec_prob_scale(fh, r, N - (s + 0));
-    {
-      extern int t_dbge;
-      extern double sym_bits;
-      double b = -log2((double)(r-v)/(double)r);
-      sym_bits = b;
-      if (0 && t_dbge) printf("WRITE entenc fh %d range0 %d range1 %d bits %4.2lf\n", fh, r, r-v, b);
-    }
-    r -= v;
-#else
-    r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
-          (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
-         EC_MIN_PROB * (N - (s + 0));
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-  }
-#if CONFIG_BYPASS_IMPROVEMENT
-  od_ec_enc_normalize(enc, l, r, 0);
-#else
-  od_ec_enc_normalize(enc, l, r);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-#if OD_MEASURE_EC_OVERHEAD
-  enc->entropy -= OD_LOG2(((double)(OD_ICDF(fh) - OD_ICDF(fl)) / CDF_PROB_TOP));
-  enc->nb_symbols++;
-#endif
-}
-
 /*Encode a single binary value.
   val: The value to encode (0 or 1).
   f: The probability that the val is one, scaled by 32768.*/
@@ -373,15 +306,6 @@ void od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *icdf,
   assert(s < nsyms);
   assert(icdf[nsyms - 1] == OD_ICDF(CDF_PROB_TOP));
   od_ec_encode_q15(enc, s > 0 ? icdf[s - 1] : OD_ICDF(0), icdf[s], s, nsyms);
-}
-
-void od_ec_encode_cdf_q15_dbg(od_ec_enc *enc, int s, const uint16_t *icdf,
-                          int nsyms) {
-  (void)nsyms;
-  assert(s >= 0);
-  assert(s < nsyms);
-  assert(icdf[nsyms - 1] == OD_ICDF(CDF_PROB_TOP));
-  od_ec_encode_q15_dbg(enc, s > 0 ? icdf[s - 1] : OD_ICDF(0), icdf[s], s, nsyms);
 }
 
 /*Overwrites a few bits at the very start of an existing stream, after they

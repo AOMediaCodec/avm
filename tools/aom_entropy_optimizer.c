@@ -93,12 +93,10 @@ static int parse_counts_for_cdf_opt(aom_count_type **ct_ptr,
       double fr[20] = {};
       int pp = par[total_modes + 1];
       if (!(n & 1)) {
-        for (int i = 0; i < total_modes; i++)
-          p0[i] = cdfs[i];
+        for (int i = 0; i < total_modes; i++) p0[i] = cdfs[i];
         fprintf(probsfile, "), %d /* n %ld */ ", pp, cdf_sum);
       } else {
-        for (int i = 0; i < total_modes; i++)
-          fr[i] = (double)cdfs[i] / p0[i];
+        for (int i = 0; i < total_modes; i++) fr[i] = (double)cdfs[i] / p0[i];
         fprintf(probsfile, "), %d /* n %ld fr[ ", pp, cdf_sum);
         for (int i = 0; i < total_modes; i++)
           fprintf(probsfile, "%d ", (int)((fr[i] - 1.0) * 100.0));
@@ -969,7 +967,7 @@ int main(int argc, const char **argv) {
                          "[CDF_SIZE(2)]",
                          0, &total_count, 0, mem_wanted, "Inter");
     }  // for (int mvd_comp = 0; mvd_comp < 2; mvd_comp++)
-  }    // for (int ibc = 0; ibc < 2; ibc++)
+  }  // for (int ibc = 0; ibc < 2; ibc++)
 
   cts_each_dim[0] = MAX_SEGMENTS;
   optimize_cdf_table(&fc.seg_tree_cnts[0], probsfile, 1, cts_each_dim,
@@ -2159,7 +2157,8 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.coeff_base_lf_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(LF_BASE_SYMBOLS)]",
+      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(LF_BASE_"
+      "SYMBOLS)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
 
   // HF Base, BR
@@ -2171,7 +2170,8 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.coeff_base_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(NUM_BASE_LEVELS + 2)]",
+      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(NUM_BASE_"
+      "LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;

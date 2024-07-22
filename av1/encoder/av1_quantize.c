@@ -525,11 +525,7 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   *v_ac_delta_q = 0;
 
   if (frame_is_intra_only(cm)) {
-#if NEWQINDEX && 0
-      *y_dc_delta_q = 2;
-#else
     *y_dc_delta_q = 0;
-#endif
     *u_dc_delta_q = *v_dc_delta_q = -4;
   }
 }

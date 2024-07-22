@@ -28,8 +28,8 @@ extern "C" {
 
 #define TX_SIZE_CONTEXTS 3
 
-#define INTER_OFFSET(mode) ((mode)-NEARMV)
-#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#define INTER_OFFSET(mode) ((mode) - NEARMV)
+#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
 #if CONFIG_PALETTE_IMPROVEMENTS
 // As can be seen from av1_get_palette_color_index_context(), the possible
@@ -240,8 +240,9 @@ typedef struct frame_contexts {
 #if CONFIG_DQ
   aom_cdf_prob coeff_base_cdf_tcq[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]
                                  [CDF_SIZE(4)];
-  aom_cdf_prob coeff_base_lf_cdf_tcq[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
-                                [CDF_SIZE(LF_BASE_SYMBOLS)];
+  aom_cdf_prob coeff_base_lf_cdf_tcq[TX_SIZES][PLANE_TYPES]
+                                    [LF_SIG_COEF_CONTEXTS]
+                                    [CDF_SIZE(LF_BASE_SYMBOLS)];
 #endif
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
                                 [CDF_SIZE(LF_BASE_SYMBOLS)];

@@ -1,4 +1,3 @@
-#define TEST_DC_ONLY 0
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
@@ -1876,9 +1875,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
          ++mrl_idx) {
       mbmi->mrl_index = mrl_idx;
 
-    int luma_mode_count = TEST_DC_ONLY ? 1 : LUMA_MODE_COUNT;
-    for (int mode_idx = INTRA_MODE_START; mode_idx < luma_mode_count;
-         ++mode_idx) {
+      for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+           ++mode_idx) {
 #if CONFIG_AIMC
         mbmi->y_mode_idx = mode_idx;
         mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
@@ -2087,7 +2085,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   mode_costs = x->mode_costs.y_primary_flag_cost[DC_PRED];
   mode_costs += x->mode_costs.y_first_mode_costs[context][DC_PRED];
 #endif  // CONFIG_AIMC
-#if !TEST_DC_ONLY
   if (try_palette) {
     av1_rd_pick_palette_intra_sby(cpi, x, bsize,
 #if CONFIG_AIMC
@@ -2114,7 +2111,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       best_mbmi = *mbmi;
     }
   }
-#endif
 
   // No mode is identified with less rd value than best_rd passed to this
   // function. In such cases winner mode processing is not necessary and

@@ -158,27 +158,27 @@ static INLINE int aom_read_(aom_reader *r, int prob ACCT_INFO_PARAM) {
     const int frame_idx = aom_bitstream_queue_get_frame_read();
     bitstream_queue_pop(&ref_bit, ref_cdf, &ref_nsymbs);
     if (ref_nsymbs != 2) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] nsymbs error, frame_idx_r %d nsymbs %d ref_nsymbs "
               "%d queue_r %d\n",
               frame_idx, 2, ref_nsymbs, queue_r);
-      exit(0);
+      assert(0);
     }
     if ((ref_nsymbs != 2) || (ref_cdf[0] != (aom_cdf_prob)p) ||
         (ref_cdf[1] != 32767)) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] cdf error, frame_idx_r %d cdf {%d, %d} ref_cdf {%d",
               frame_idx, p, 32767, ref_cdf[0]);
-      for (i = 1; i < ref_nsymbs; ++i) fprintf(stdout, ", %d", ref_cdf[i]);
-      fprintf(stdout, "} queue_r %d\n", queue_r);
-      exit(0);
+      for (i = 1; i < ref_nsymbs; ++i) fprintf(stderr, ", %d", ref_cdf[i]);
+      fprintf(stderr, "} queue_r %d\n", queue_r);
+      assert(0);
     }
     if (bit != ref_bit) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] symb error, frame_idx_r %d symb %d ref_symb %d "
               "queue_r %d\n",
               frame_idx, bit, ref_bit, queue_r);
-      exit(0);
+      assert(0);
     }
   }
 #endif  // CONFIG_BITSTREAM_DEBUG
@@ -208,27 +208,27 @@ static INLINE void bitstream_queue_pop_literal(int data, int bits) {
     const int frame_idx = aom_bitstream_queue_get_frame_read();
     bitstream_queue_pop(&ref_bit, ref_cdf, &ref_nsymbs);
     if (ref_nsymbs != 2) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] nsymbs error, frame_idx_r %d nsymbs %d ref_nsymbs "
               "%d queue_r %d\n",
               frame_idx, 2, ref_nsymbs, queue_r);
-      exit(0);
+      assert(0);
     }
     if ((ref_nsymbs != 2) || (ref_cdf[0] != 128) || (ref_cdf[1] != 32767)) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] cdf error, frame_idx_r %d cdf {%d, %d} ref_cdf {%d",
               frame_idx, 128, 32767, ref_cdf[0]);
-      for (i = 1; i < ref_nsymbs; ++i) fprintf(stdout, ", %d", ref_cdf[i]);
-      fprintf(stdout, "} queue_r %d literal %d size %d bit %d\n", queue_r, data,
+      for (i = 1; i < ref_nsymbs; ++i) fprintf(stderr, ", %d", ref_cdf[i]);
+      fprintf(stderr, "} queue_r %d literal %d size %d bit %d\n", queue_r, data,
               bits, b);
-      exit(0);
+      assert(0);
     }
     if (bit != ref_bit) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** [bit] symb error, frame_idx_r %d symb %d ref_symb %d "
               "queue_r %d literal %d size %d bit %d\n",
               frame_idx, bit, ref_bit, queue_r, data, bits, b);
-      exit(0);
+      assert(0);
     }
   }
 }
@@ -338,31 +338,31 @@ static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
     const int frame_idx = aom_bitstream_queue_get_frame_read();
     bitstream_queue_pop(&ref_symb, ref_cdf, &ref_nsymbs);
     if (nsymbs != ref_nsymbs) {
-      fprintf(stdout,
+      fprintf(stderr,
               "\n *** nsymbs error, frame_idx_r %d nsymbs %d ref_nsymbs %d "
               "queue_r %d\n",
               frame_idx, nsymbs, ref_nsymbs, queue_r);
       cdf_error = 0;
-      exit(0);
+      assert(0);
     } else {
       for (i = 0; i < nsymbs; ++i)
         if (cdf[i] != ref_cdf[i]) cdf_error = 1;
     }
     if (cdf_error) {
-      fprintf(stdout, "\n *** cdf error, frame_idx_r %d cdf {%d", frame_idx,
+      fprintf(stderr, "\n *** cdf error, frame_idx_r %d cdf {%d", frame_idx,
               cdf[0]);
-      for (i = 1; i < nsymbs; ++i) fprintf(stdout, ", %d", cdf[i]);
-      fprintf(stdout, "} ref_cdf {%d", ref_cdf[0]);
-      for (i = 1; i < ref_nsymbs; ++i) fprintf(stdout, ", %d", ref_cdf[i]);
-      fprintf(stdout, "} queue_r %d\n", queue_r);
-      exit(0);
+      for (i = 1; i < nsymbs; ++i) fprintf(stderr, ", %d", cdf[i]);
+      fprintf(stderr, "} ref_cdf {%d", ref_cdf[0]);
+      for (i = 1; i < ref_nsymbs; ++i) fprintf(stderr, ", %d", ref_cdf[i]);
+      fprintf(stderr, "} queue_r %d\n", queue_r);
+      assert(0);
     }
     if (symb != ref_symb) {
       fprintf(
-          stdout,
+          stderr,
           "\n *** symb error, frame_idx_r %d symb %d ref_symb %d queue_r %d\n",
           frame_idx, symb, ref_symb, queue_r);
-      exit(0);
+      assert(0);
     }
   }
 #endif  // CONFIG_BITSTREAM_DEBUG

@@ -2552,11 +2552,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       best_tx_type = intra_txb_rd_info->tx_type;
 #if CONFIG_DQ
 #if DQENABLE
-  if (dq_enable(tx_size, plane))
+      if (dq_enable(tx_size, plane))
 #endif
-      // perform_block_coeff_opt : Whether trellis optimization is done.
-      // we do not skip any optimization in loop of txfm search. so make sure each block is optimized.
-      assert(intra_txb_rd_info->perform_block_coeff_opt);
+        // perform_block_coeff_opt : Whether trellis optimization is done.
+        // we do not skip any optimization in loop of txfm search. so make sure
+        // each block is optimized.
+        assert(intra_txb_rd_info->perform_block_coeff_opt);
 #endif
       skip_trellis |= !intra_txb_rd_info->perform_block_coeff_opt;
       update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
@@ -2623,14 +2624,14 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_DQ
 #if DQENABLE
   if (dq_enable(tx_size, plane))
-#endif //DQENABLE
+#endif  // DQENABLE
     perform_block_coeff_opt = 1;
 #if DQENABLE
   else
     perform_block_coeff_opt =
-      ((uint64_t)block_mse_q8 <=
-       (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
-#endif //DQENABLE
+        ((uint64_t)block_mse_q8 <=
+         (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
+#endif  // DQENABLE
 #else
   perform_block_coeff_opt =
       ((uint64_t)block_mse_q8 <=
@@ -3045,7 +3046,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_INTER_IST
       if (skip_idx) break;
 #endif  // CONFIG_INTER_IST
-    }   // for (int stx_set = 0;
+    }  // for (int stx_set = 0;
 #endif  // CONFIG_IST_ANY_SET
     if (skip_idx) break;
   }

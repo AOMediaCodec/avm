@@ -1264,7 +1264,7 @@ typedef struct {
   unsigned int col_mv_index_cnts[NUM_CTX_COL_MV_INDEX]
                                 [CDF_SIZE(2)];  // placeholder
 #else
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];             // placeholder
+  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
 #endif                                                 // CONFIG_VQ_MVD_CODING
   unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
   nmv_component_count mvd_comp_cnts[2];
@@ -1288,7 +1288,7 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_INTER_IST
   unsigned int stx_cnts[2][TX_SIZES][CDF_SIZE(STX_TYPES)];  // placeholder
 #else
-  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];      // placeholder
+  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];  // placeholder
 #endif  // CONFIG_INTER_IST
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
@@ -1472,8 +1472,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
-                                  [LF_SIG_COEF_CONTEXTS]
-                                  [LF_BASE_SYMBOLS];
+                                  [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
 #if CONFIG_DQ && !CONFIG_LCCHROMA
   unsigned int coeff_base_lf_multi_tcq[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                       [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];

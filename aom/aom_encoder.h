@@ -578,7 +578,7 @@ typedef struct cfg_options {
 #if CONFIG_DQ
   /*!\brief enable dependentquantization
    *
-  */
+   */
   unsigned int enable_dq;
 #endif
   /*!\brief enable ref frame MV

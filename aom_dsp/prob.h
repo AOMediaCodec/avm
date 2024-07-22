@@ -1,4 +1,3 @@
-#define FORCE_PARA0 0
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
@@ -668,9 +667,6 @@ static INLINE uint8_t get_prob(unsigned int num, unsigned int den) {
        };
  ----------------------------------------------------------------------------
  */
-#if FORCE_PARA0
-static const int para_adjustment_list[NUM_PARA_COMBINATIONS][NUM_PARA_INTERVALS] = {};
-#else
 static const int
     para_adjustment_list[NUM_PARA_COMBINATIONS][NUM_PARA_INTERVALS] = {
       { 0, 0, 0 },    { 0, 0, -1 },   { 0, 0, -2 },   { 0, 0, 1 },
@@ -707,7 +703,6 @@ static const int
       { 2, 2, 2 },
     };
 #endif  // CONFIG_ENTROPY_PARA
-#endif
 
 static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
   int rate;

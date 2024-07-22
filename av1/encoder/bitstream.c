@@ -1,9 +1,3 @@
-#define DBGT 0
-// Inter
-#define DBG_COL 0
-#define DBG_ROW 0
-#define DBG_BLK_X 0
-#define DBG_BLK_Y 0
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
@@ -986,28 +980,6 @@ static AOM_INLINE void av1_write_coeffs_txb_facade(
     aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x, MACROBLOCKD *xd,
     MB_MODE_INFO *mbmi, int plane, int block, int blk_row, int blk_col,
     TX_SIZE tx_size) {
-#if DBGT
-  extern int t_dbge;
-  t_dbge = 1;
-  if (mbmi->mi_col_start == DBG_COL && mbmi->mi_row_start == DBG_ROW &&
-      blk_row == DBG_BLK_Y && blk_col == DBG_BLK_X &&
-      plane == 0) {
-    t_dbge = 1;
-  }
-  const int ss_x = 1;
-  const int ss_y = 1;
-  const BLOCK_SIZE plane_bsize =
-      get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
-  const int plane_unit_height =
-      get_plane_tx_unit_height(xd, plane_bsize, plane, blk_row, ss_y);
-  const int plane_unit_width =
-      get_plane_tx_unit_width(xd, plane_bsize, plane, blk_col, ss_x);
-  if (1 || t_dbge) printf("%s: WRITE pl %d mi (%d,%d) blk_col %d blk_row %d tx (%d,%d)\n",
-                          __func__,
-                          plane,
-                          mbmi->mi_col_start, mbmi->mi_row_start,
-                          blk_col, blk_row, 4*plane_unit_width, 4*plane_unit_height);
-#endif
   // code significance and TXB
   const int code_rest =
       av1_write_sig_txtype(cm, x, w, blk_row, blk_col, plane, block, tx_size);

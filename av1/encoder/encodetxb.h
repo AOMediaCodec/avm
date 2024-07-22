@@ -532,10 +532,10 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #endif  // CONFIG_IMPROVEIDTX_RDPH
 
 #if CONFIG_DQ
-int av1_dep_quant(const struct AV1_COMP* cpi, MACROBLOCK* x, int plane,
-    int block, TX_SIZE tx_size, TX_TYPE tx_type, CctxType cctx_type,
-    const TXB_CTX* const txb_ctx, int* rate_cost,
-    int sharpness);
+int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                  int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                  CctxType cctx_type, const TXB_CTX *const txb_ctx,
+                  int *rate_cost, int sharpness);
 #endif
 
 /*!\brief Get the corresponding \ref CB_COEFF_BUFFER of the current macro block.

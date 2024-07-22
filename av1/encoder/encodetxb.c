@@ -1,12 +1,3 @@
-#define DBGT 0
-#define DBGB 0
-#define DBG_COL 0
-#define DBG_ROW 0
-#define DBG_BLK_X 0
-#define DBG_BLK_Y 0
-int t_dbge = 0;
-int t_dbgc = 0;
-int t_dbgsign = 0;
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
@@ -35,28 +26,10 @@ int t_dbgsign = 0;
 #include "av1/encoder/tokenize.h"
 
 #if MORESTATES
-  #define TOTALSTATES    8
+#define TOTALSTATES 8
 #else
-  #define TOTALSTATES    4
+#define TOTALSTATES 4
 #endif
-
-// Debug
-double sym_bits = 0.0;
-double eob_bits[3] = {};
-double coeff_bits[32*32] = {};
-double coeff_trl[32*32] = {};
-int coeff_q[32*32] = {};
-int coeff_dq[32*32] = {};
-sr_t sign_trl[32*32] = {};
-double eob_trl = 0;
-static double sum_eob = 0.0;
-static double sum_sign = 0.0;
-static double sum_sign_lev[4] = {};
-static double sum_coff = 0.0;
-static double sum_gol = 0.0;
-static double sum_tot = 0.0;
-static int sum_eob_pos = 0;
-static int n_blocks = 0;
 
 #if CONFIG_DQ
 static INLINE int get_low_range(int abs_qc, int lf) {
@@ -66,23 +39,6 @@ static INLINE int get_low_range(int abs_qc, int lf) {
   int br_max = COEFF_BASE_RANGE + base_levels - 1 - parity;
   int low = AOMMIN(abs_qc, br_max);
   low -= base_levels - 1;
-#else
-  int abs2 = abs_qc & ~1;
-  int low = AOMMIN(abs2, COEFF_BASE_RANGE + base_levels - 2) + parity;
-  low -= base_levels - 1;
-#endif
-  return low;
-}
-
-static INLINE int get_low_range_dbg(int abs_qc, int lf) {
-  int base_levels = lf ? 6 : 4;
-  int parity = abs_qc & 1;
-#if ((COEFF_BASE_RANGE & 1) == 1)
-  int br_max = COEFF_BASE_RANGE + base_levels - 1 - parity;
-  int low = AOMMIN(abs_qc, br_max);
-  low -= base_levels - 1;
-  printf("DEBUG abs_qc %d lf %d base_levels %d par %d br_max %d aommin %d low %d\n",
-         abs_qc, lf, base_levels, parity, br_max, AOMMIN(abs_qc, br_max), low);
 #else
   int abs2 = abs_qc & ~1;
   int low = AOMMIN(abs2, COEFF_BASE_RANGE + base_levels - 2) + parity;
@@ -676,46 +632,41 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
   switch (eob_multi_size) {
     case 0:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf16[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf16[pl_ctx],
                        EOB_MAX_SYMS - 6);
       break;
     case 1:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf32[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf32[pl_ctx],
                        EOB_MAX_SYMS - 5);
       break;
     case 2:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf64[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf64[pl_ctx],
                        EOB_MAX_SYMS - 4);
       break;
     case 3:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf128[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf128[pl_ctx],
                        EOB_MAX_SYMS - 3);
       break;
     case 4:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf256[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf256[pl_ctx],
                        EOB_MAX_SYMS - 2);
       break;
     case 5:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf512[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf512[pl_ctx],
                        EOB_MAX_SYMS - 1);
       break;
     default:
-      aom_write_symbol_dbg(w, eob_pt - 1, ec_ctx->eob_flag_cdf1024[pl_ctx],
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf1024[pl_ctx],
                        EOB_MAX_SYMS);
       break;
   }
-  if (t_dbge) printf("%s:%d eob_multi_size %d eob_pt %d\n", __func__, __LINE__, eob_multi_size, eob_pt);
-  eob_bits[0] = sym_bits;
-  eob_bits[1] = 0.0;
-  eob_bits[2] = 0.0;
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
     const int eob_ctx = eob_pt - 3;
     int eob_shift = eob_offset_bits - 1;
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
-    aom_write_symbol_dbg(w, bit,
+    aom_write_symbol(w, bit,
                      ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
-    eob_bits[1] = sym_bits;
 #if CONFIG_BYPASS_IMPROVEMENT
     // Zero out top bit; write (eob_offset_bits - 1) lsb bits.
     eob_extra &= (1 << (eob_offset_bits - 1)) - 1;
@@ -727,7 +678,6 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
       aom_write_bit(w, bit);
     }
 #endif
-    eob_bits[2] = eob_offset_bits - 1;
   }
 }
 
@@ -952,11 +902,7 @@ static INLINE void write_coeff_hidden(aom_writer *w, TX_CLASS tx_class,
   const int pos = scan[0];
 
   int ctx_id = get_base_ctx_ph(levels, pos, bwl, tx_class);
-  aom_write_symbol_dbg(w, AOMMIN(q_index, 3), base_cdf_ph[ctx_id], 4);
-  if (t_dbge) {
-    coeff_bits[0] += sym_bits;
-    printf("WRITE hidden coef_base_lf val %d bits %4.2lf\n", AOMMIN(q_index, 3), sym_bits);
-  }
+  aom_write_symbol(w, AOMMIN(q_index, 3), base_cdf_ph[ctx_id], 4);
 
   if (q_index > NUM_BASE_LEVELS) {
     ctx_id = get_par_br_ctx(levels, pos, bwl, tx_class);
@@ -964,12 +910,7 @@ static INLINE void write_coeff_hidden(aom_writer *w, TX_CLASS tx_class,
     const int base_range = q_index - 1 - NUM_BASE_LEVELS;
     for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
       const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-      aom_write_symbol_dbg(w, k, cdf_br, BR_CDF_SIZE);
-      if (t_dbge) {
-        printf("WRITE hidden br k +%d\n", k);
-        coeff_bits[0] += sym_bits;
-        printf("WRITE hidden coef_base_lf br[%d] %d bits %4.2lf\n", idx, level, sym_bits);
-      }
+      aom_write_symbol(w, k, cdf_br, BR_CDF_SIZE);
       if (k < BR_CDF_SIZE - 1) break;
     }
   }
@@ -1062,10 +1003,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #if CONFIG_DQ
   int state = 0;
 #endif
-  memset(coeff_bits, 0, sizeof(coeff_bits));
-  double coff_bits = 0.0;
-  if (0 && t_dbge) printf("WRITE block %d tx (%d,%d)\n",
-                          block, width, height);
   for (int c = eob - 1; c > 0; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
@@ -1075,7 +1012,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     int dq = tcq_quant(state);
 #endif
 
-    double trl = CONFIG_DQ ? coeff_trl[c] - (level != 0) * 1.0 : 0.0; (void)trl;
     if (c == eob - 1) {
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
@@ -1083,58 +1019,34 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #if CONFIG_LCCHROMA
       if (plane > 0) {
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-                           ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx]
-                           , LF_BASE_SYMBOLS - 1);
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                           ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
+                           LF_BASE_SYMBOLS - 1);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3) - 1,
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
                            ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx], 3);
         }
       } else {
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
                            ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][coeff_ctx],
                            LF_BASE_SYMBOLS - 1);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3) - 1,
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
                            ec_ctx->coeff_base_eob_cdf[txs_ctx][coeff_ctx], 3);
         }
       }
-      if (t_dbge) {
-        coeff_bits[c] = sym_bits;
-        printf("WRITE c %2d st %d %s %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf [ trl %4.2lf ] q %d dq %d\n",
-               c, state,
-               limits ? "coef_base_lf_eob" : "coeff_base_eob",
-               AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-               txs_ctx,plane_type,coeff_ctx, sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl,
-               coeff_q[c], coeff_dq[c]);
-      }
 #else
       if (limits) {
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
             ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS - 1);
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base_lf_eob %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf [ trl %4.2lf ] q %d dq %d\n",
-                 c, state, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-                 txs_ctx,plane_type,coeff_ctx, sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
       } else {
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, 3) - 1,
             ec_ctx->coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx], 3);
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base_eob %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf[ trl %4.2lf ] q %d dq %d\n",
-                 c, state, AOMMIN(level, 3) - 1,
-                 txs_ctx,plane_type,coeff_ctx,sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
       }
-      coff_bits += sym_bits;
 #endif
     } else {
       const int row = pos >> bwl;
@@ -1143,92 +1055,77 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #if CONFIG_LCCHROMA
       if (plane > 0) {
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                       [dq]
 #endif
-                           , LF_BASE_SYMBOLS);
+                           ,
+                           LF_BASE_SYMBOLS);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                    [dq]
 #endif
-                           , 4);
+                           ,
+                           4);
         }
       } else {
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                    [dq]
 #endif
-                           , LF_BASE_SYMBOLS);
+                           ,
+                           LF_BASE_SYMBOLS);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                 [dq]
 #endif
-                           , 4);
+                           ,
+                           4);
         }
-      }
-      if (t_dbge) {
-        coeff_bits[c] = sym_bits;
-        printf("WRITE c %2d st %d %s %d bits %4.2lf [ trl %4.2lf ] q %d dq %d\n",
-               c, state,
-               limits ? "coeff_base_lf" : "coeff_base",
-               AOMMIN(level, 5), sym_bits, trl,
-               coeff_q[c], coeff_dq[c]);
       }
 #else
       if (limits) {
 #if CONFIG_DQ
         if (tcq_quant(state) // Q1
-          aom_write_symbol_dbg(
+          aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf_tcq[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
         else
-          aom_write_symbol_dbg(
+          aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
 #else
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
 #endif
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base_lf %d bits %4.2lf [ trl %4.2lf ] q %d dq %d\n", c, state, AOMMIN(level, 5), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
       } else {
 #if CONFIG_DQ
         if (tcq_quant(state) // Q1
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf_tcq[txs_ctx][plane_type][coeff_ctx],
                          4);
         else
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
 #else
-        aom_write_symbol_dbg(w, AOMMIN(level, 3),
+        aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
 #endif
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base %d bits %4.2lf [ trl %4.2lf ] q %d dq %d\n", c, state, AOMMIN(level, 3), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
       }
 #endif  // CONFIG_LCCHROMA
-      coff_bits += sym_bits;
     }
 
     const int row = pos >> bwl;
@@ -1253,11 +1150,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
               level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1278,11 +1171,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           const int base_range = level - 1 - NUM_BASE_LEVELS;
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1306,11 +1195,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
               level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1331,24 +1216,12 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           const int base_range = level - 1 - NUM_BASE_LEVELS;
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
         }
       }
-    }
-    if (t_dbge &&
-        ((limits && level > LF_NUM_BASE_LEVELS) ||
-         (!limits && level > NUM_BASE_LEVELS))) {
-      printf("WRITE ln %d c %2d level %d %s br bits %4.2lf [ trl %4.2lf ]\n", __LINE__,
-             c, level,
-             limits ? "coeff_base_lf" : "coeff_base",
-             coeff_bits[c], trl);
     }
 #else
     if (limits) {
@@ -1357,36 +1230,19 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         aom_cdf_prob *cdf = ec_ctx->coeff_br_lf_cdf[plane_type][br_ctx];
 #if NEWHR
         int br = get_low_range(level, 1);
-        if (t_dbge) {
-          printf("WRITE c %2d level %d br %d pl %d br_ctx %d\n", c, level, br, plane_type, br_ctx);
-        }
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(br, BR_CDF_SIZE - 1);
           br -= k;
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d k +%d coef_base_lf br[%d] %d bits %4.2lf\n", c, k, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d      coef_base_lf br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #else
         const int base_range =
             level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d k +%d coef_base_lf br[%d] %d bits %4.2lf\n", c, k, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d      coef_base_lf br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #endif
       }
@@ -1396,35 +1252,18 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         aom_cdf_prob *cdf = ec_ctx->coeff_br_cdf[plane_type][br_ctx];
 #if NEWHR
         int br = get_low_range(level, 0);
-        if (t_dbge) {
-          printf("WRITE c %2d level %d br %d\n", c, level, br);
-        }
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(br, BR_CDF_SIZE - 1);
           br -= k;
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d k +%d coef_base br[%d] %d bits %4.2lf\n", c, k, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d      coef_base br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #else
         const int base_range = level - 1 - NUM_BASE_LEVELS;
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d k +%d coef_base br[%d] %d bits %4.2lf\n", c, k, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d      coef_base br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #endif
       }
@@ -1433,7 +1272,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #if CONFIG_DQ
 #if DQENABLE
     if (dq_enable(tx_size, plane))
-#endif //DQENABLE
+#endif  // DQENABLE
       state = tcq_next_state(state, level, limits);
 #endif
   }
@@ -1453,9 +1292,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     const tran_low_t level = abs(v);
     write_coeff_hidden(w, tx_class, scan, bwl, levels, level,
                        ec_ctx->coeff_base_ph_cdf, ec_ctx->coeff_br_ph_cdf);
-    if (t_dbge) {
-      printf("WRITE hidden c %d level %d bits %4.2lf\n", 0, level, coeff_bits[0]);
-    }
   } else {
     const int c = 0;
     const int pos = scan[c];
@@ -1466,7 +1302,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     int dq = tcq_quant(state);
 #endif
 
-    double trl = CONFIG_DQ ? coeff_trl[c] - (level != 0) * 1.0 : 0.0; (void)trl;
 #if CONFIG_LCCHROMA
     if (plane > 0) {
       if (c == eob - 1) {
@@ -1474,47 +1309,33 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
                            ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
                            LF_BASE_SYMBOLS - 1);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3) - 1,
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
                            ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx], 3);
-        }
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d %s %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf [ trl %4.2lf * ]\n",
-                 c, state,
-                 limits ? "coef_base_lf_eob" : "coef_base_eob",
-                 AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-                 txs_ctx,plane_type,coeff_ctx, sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl);
         }
       } else {
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                       [dq]
 #endif
-                           , LF_BASE_SYMBOLS);
+                           ,
+                           LF_BASE_SYMBOLS);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                    [dq]
 #endif
-                           , 4);
-        }
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c0 %2d st %d %s %d bits %4.2lf [ trl %4.2lf * ] q %d dq %d\n",
-                 c, state,
-                 limits ? "coef_base_lf" : "coef_base",
-                 AOMMIN(level, 5), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
+                           ,
+                           4);
         }
       }
     } else {
@@ -1523,47 +1344,33 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
                            ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][coeff_ctx],
                            LF_BASE_SYMBOLS - 1);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3) - 1,
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
                            ec_ctx->coeff_base_eob_cdf[txs_ctx][coeff_ctx], 3);
-        }
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d %s %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf [ trl %4.2lf * ]\n",
-                 c, state,
-                 limits ? "coef_base_lf_eob" : "coef_base_eob",
-                 AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-                 txs_ctx,plane_type,coeff_ctx, sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl);
         }
       } else {
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
-          aom_write_symbol_dbg(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                    [dq]
 #endif
-                           , LF_BASE_SYMBOLS);
+                           ,
+                           LF_BASE_SYMBOLS);
         } else {
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
 #if CONFIG_DQ
-                           [dq]
+                                                 [dq]
 #endif
-                           , 4);
-        }
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c0 %2d st %d %s %d bits %4.2lf [ trl %4.2lf * ] q %d dq %d\n",
-                 c, state,
-                 limits ? "coef_base_lf" : "coef_base",
-                 AOMMIN(level, 5), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
+                           ,
+                           4);
         }
       }
     }
@@ -1573,28 +1380,15 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
       if (limits) {
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
             ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS - 1);
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base_lf_eob %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf [ trl %4.2lf * ]\n",
-                 c, state, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
-                 txs_ctx,plane_type,coeff_ctx, sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl);
-        }
       } else {
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, 3) - 1,
             ec_ctx->coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx], 3);
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c %2d st %d coef_base_eob %d ctx[ %d %d %d ] bits %4.2lf w/eob %4.2lf[ trl %4.2lf * ]\n",
-                 c, state, AOMMIN(level, 3) - 1,
-                 txs_ctx,plane_type,coeff_ctx,sym_bits, sym_bits + eob_bits[0] + eob_bits[1] + eob_bits[2], trl);
-        }
       }
-      coff_bits += sym_bits;
     } else {
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
@@ -1602,56 +1396,45 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       if (limits) {
 #if CONFIG_DQ && !CONFIG_LCCHROMA
         if (tcq_quant(state) // Q1
-          aom_write_symbol_dbg(
+          aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf_tcq[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
         else
-          aom_write_symbol_dbg(
+          aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
 #elif CONFIG_DQ
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx][dq],
             LF_BASE_SYMBOLS);
 #else
-        aom_write_symbol_dbg(
+        aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
 #endif
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c0 %2d st %d coef_base_lf %d bits %4.2lf [ trl %4.2lf * ] q %d dq %d\n", c, state, AOMMIN(level, 5), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
       } else {
 #if CONFIG_DQ && !CONFIG_LCCHROMA
         if (tcq_quant(state) // Q1
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf_tcq[txs_ctx][plane_type][coeff_ctx],
                          4);
         else
-          aom_write_symbol_dbg(w, AOMMIN(level, 3),
+          aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
 #elif CONFIG_DQ
-        aom_write_symbol_dbg(w, AOMMIN(level, 3),
-                         ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx][dq],
-                         4);
+        aom_write_symbol(
+            w, AOMMIN(level, 3),
+            ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx][dq], 4);
 #else
-        aom_write_symbol_dbg(w, AOMMIN(level, 3),
+        aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
 #endif
-        if (t_dbge) {
-          coeff_bits[c] = sym_bits;
-          printf("WRITE c0 %2d st %d coef_base %d bits %4.2lf [ trl %4.2lf * ] q %d dq %d\n", c, state, AOMMIN(level, 3), sym_bits, trl,
-                 coeff_q[c], coeff_dq[c]);
-        }
-        coff_bits += sym_bits;
       }
     }
 #endif  // CONFIG_LCCHROMA
@@ -1678,11 +1461,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
               level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1703,11 +1482,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           const int base_range = level - 1 - NUM_BASE_LEVELS;
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1731,11 +1506,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
               level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
@@ -1756,24 +1527,12 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           const int base_range = level - 1 - NUM_BASE_LEVELS;
           for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
             const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-            aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-            if (t_dbge) {
-              coeff_bits[c] += sym_bits;
-              printf("WRITE c %2d k +%d\n", c, k);
-            }
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
             if (k < BR_CDF_SIZE - 1) break;
           }
 #endif
         }
       }
-    }
-    if (t_dbge &&
-        ((limits && level > LF_NUM_BASE_LEVELS) ||
-         (!limits && level > NUM_BASE_LEVELS))) {
-      printf("WRITE c %2d level %d %s br bits %4.2lf [ trl %4.2lf ]\n",
-             c, level,
-             limits ? "coeff_base_lf" : "coeff_base",
-             coeff_bits[c], trl);
     }
 #else
     if (limits) {
@@ -1785,31 +1544,15 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(br, BR_CDF_SIZE - 1);
           br -= k;
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            printf("WRITE c %2d br k +%d\n", c, k);
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d coef_base_lf br[%d] %d bits %4.2lf\n", c, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d coef_base_lf br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #else
         const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            printf("WRITE c %2d br k +%d\n", c, k);
-            coeff_bits[c] += sym_bits;
-            printf("WRITE c %2d coef_base_lf br[%d] %d bits %4.2lf\n", c, idx, level, sym_bits);
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d coef_base_lf br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #endif
       }
@@ -1822,29 +1565,15 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(br, BR_CDF_SIZE - 1);
           br -= k;
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            printf("WRITE c %2d br k +%d\n", c, k);
-            coeff_bits[c] += sym_bits;
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d coef_base br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #else
         const int base_range = level - 1 - NUM_BASE_LEVELS;
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-          aom_write_symbol_dbg(w, k, cdf, BR_CDF_SIZE);
-          if (t_dbge) {
-            printf("WRITE c %2d br k +%d\n", c, k);
-            coeff_bits[c] += sym_bits;
-          }
+          aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
           if (k < BR_CDF_SIZE - 1) break;
-        }
-        if (t_dbge) {
-          printf("WRITE c %2d coef_base br %d bits %4.2lf [ trl %4.2lf ]\n", c, level, coeff_bits[c], trl);
         }
 #endif
       }
@@ -1856,13 +1585,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   for (int c = 0; c < eob; ++c) {
     const tran_low_t v = tcoeff[scan[c]];
     const tran_low_t level = abs(v);
-    printf("ENC blk c=%d,pos=%d,level=%d,dq_coeff=%d\n", c, scan[c], level, v);
+    fprintf(cm->fEncCoeffLog, "c=%d,pos=%d,level=%d,dq_coeff=%d\n", c, scan[c],
+            level, v);
   }
 #endif
 
-  double sign_bits = 0.0;
-  double sign_bits_lev[4] = {};
-  double gol_bits = 0.0;
   // Loop to code all signs in the transform block,
   // starting with the sign of DC (if applicable)
 #if CONFIG_IMPROVEIDTX_RDPH
@@ -1874,7 +1601,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     const tran_low_t level = abs(v);
     const int sign = (v < 0) ? 1 : 0;
     if (level) {
-      sym_bits = 1.0;
 #if CONFIG_IMPROVEIDTX_CTXS
       const int pos = scan[c];
       const int row = pos >> bwl;
@@ -1900,13 +1626,13 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_U) xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
         if (plane == AOM_PLANE_V) {
-          aom_write_symbol_dbg(
+          aom_write_symbol(
               w, sign,
               ec_ctx->v_dc_sign_cdf[xd->tmp_sign[tmp_sign_idx]][dc_sign_ctx],
               2);
         } else {
 #if CONFIG_IMPROVEIDTX_CTXS
-          aom_write_symbol_dbg(
+          aom_write_symbol(
               w, sign,
               ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
               2);
@@ -1916,46 +1642,20 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // CONFIG_IMPROVEIDTX_CTXS
         }
 #else
-        aom_write_symbol_dbg(w, sign, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx],
+        aom_write_symbol(w, sign, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx],
                          2);
 #endif  // CONFIG_CONTEXT_DERIVATION
-        sign_bits += sym_bits;
-        if (t_dbge) {
-          double sym_coeff = sym_bits + coeff_bits[c];
-          if (c == eob - 1) sym_coeff += eob_bits[0] + eob_bits[1] + eob_bits[2];
-          coeff_bits[c] = sym_coeff;
-          printf("WRITE c %2d tcoeff %3d abs %2d qx %d sign_dc %d dc_sign_ctx %d bits %4.2lf w/coeff %4.2lf [ trl %4.2lf (%+4.2lf) sign [%d] %4.2lf (%+4.2lf) ctx %d ]\n",
-                 c, tcoeff[0], abs(tcoeff[0]), -1, sign, dc_sign_ctx, sym_bits,
-                 sym_coeff, coeff_trl[0],
-                 coeff_trl[0] - sym_coeff,
-                 sign_trl[0].rate, sign_trl[0].rate/512.0,
-                 (sign_trl[0].rate/512.0) - sym_bits,
-                 sign_trl[0].ctx);
-        }
       } else {
-        sym_bits = 1.0;
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_U) xd->tmp_sign[scan[c]] = (sign ? 2 : 1);
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U)
           aom_write_bit(w, sign);
         else
-          aom_write_symbol_dbg(w, sign,
+          aom_write_symbol(w, sign,
                            ec_ctx->v_ac_sign_cdf[xd->tmp_sign[scan[c]]], 2);
 #else
         aom_write_bit(w, sign);
 #endif  // CONFIG_CONTEXT_DERIVATION
-        if (t_dbge) {
-          double sym_coeff = sym_bits + coeff_bits[c];
-          if (c == eob - 1) sym_coeff += eob_bits[0] + eob_bits[1] + eob_bits[2];
-          coeff_bits[c] = sym_coeff;
-          printf("WRITE ln %d c %2d tcoeff %3d abs %2d qx %d sign_ac %d ac_sign_ctx %d bits %4.2lf w/coeff %4.2lf [ trl %4.2lf (%+4.2lf) sign [%d] %4.2lf (%+4.2lf) ctx %d ]\n", __LINE__,
-                 c, tcoeff[scan[c]], abs(tcoeff[scan[c]]), -1, sign, -1, sym_bits,
-                 sym_coeff, coeff_trl[c],
-                 coeff_trl[c] - sym_coeff,
-                 sign_trl[c].rate, sign_trl[c].rate/512.0,
-                 (sign_trl[c].rate/512.0) - sym_bits,
-                 sign_trl[c].ctx);
-        }
       }
       if (is_hidden && c == 0) {
         int q_index = level >> 1;
@@ -1969,120 +1669,29 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // !CONFIG_IMPROVEIDTX_CTXS
         int limits = get_lf_limits(row, col, tx_class, plane);
 #if NEWHR
-        double trl = CONFIG_DQ ? coeff_trl[c] - (level != 0) * 1.0 : 0.0;
         if (limits) {
           if (level > COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS - 1) {
             write_golomb(w, get_high_range(level, 1));
-            if (t_dbge) {
-              double b = get_golomb_cost_lf(level) / 512.0;
-              gol_bits += b;
-              coeff_bits[c] += b;
-              printf("WRITE c %2d golomb_lf %d gol_bits %d bits %4.2lf [ trl %4.2lf ]\n", c, level, b, coeff_bits[c], trl);
-            }
           }
         } else {
           if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS - 1) {
             write_golomb(w, get_high_range(level, 0));
-            if (t_dbge) {
-              double b = get_golomb_cost(level) / 512.0;
-              gol_bits += b;
-              coeff_bits[c] += b;
-              printf("WRITE c %2d golomb %d gol_bits %d bits %4.2lf [ trl %4.2lf ]\n", c, level, b, coeff_bits[c], trl);
-            }
           }
         }
 #else
-        double trl = CONFIG_DQ ? coeff_trl[c] - (level != 0) * 1.0 : 0.0;
         if (limits) {
           if (level > COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS) {
             write_golomb(w, level - COEFF_BASE_RANGE - 1 - LF_NUM_BASE_LEVELS);
-            if (t_dbge) {
-              double b = get_golomb_cost_lf(level) / 512.0;
-              gol_bits += b;
-              coeff_bits[c] += b;
-              printf("WRITE c %2d golomb_lf %d gol_bits %4.2lf bits %4.2lf [ trl %4.2lf ]\n", c, level, b, coeff_bits[c], trl);
-            }
           }
         } else {
           if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
             write_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
-            if (t_dbge) {
-              double b = get_golomb_cost(level) / 512.0;
-              gol_bits += b;
-              coeff_bits[c] += b;
-              printf("WRITE c %2d golomb %d gol_bits %4.2lf bits %4.2lf [ trl %4.2lf ]\n", c, level, b, coeff_bits[c], trl);
-            }
           }
         }
 #endif
       }
     }
   }
-  if (t_dbge) {
-    double blk_bits = 0.0;
-    for (int i = eob - 1; i >= 0; i--) {
-      printf("WRITE BLK coeff[%d] bits %4.2lf\n", i, coeff_bits[i]);
-      blk_bits += coeff_bits[i];
-    }
-    printf("WRITE BLK total bits %4.2lf\n", blk_bits);
-  }
-  if (DBGB) {
-    int mi_col = xd->mi[0]->mi_col_start;
-    int mi_row = xd->mi[0]->mi_row_start;
-    double b_eob = eob_bits[0] + eob_bits[1] + eob_bits[2];
-    double b_sign = sign_bits;
-    double b_coff = coff_bits;
-    double b_gol = gol_bits;
-    double b_tot = b_eob + b_sign + b_coff + b_gol;
-    printf("ENC %s mi (%2d,%2d) block %d tx (%2d,%2d) eob %2d bits[ eob %4.2lf sign %4.2lf coeff %4.2lf gol %4.2lf ] tot %4.2lf\n",
-           __func__,
-           mi_col, mi_row,
-           block, width, height, eob,
-           b_eob, b_sign, b_coff, b_gol, b_tot);
-    sum_eob += b_eob;
-    sum_eob_pos += eob;
-    sum_sign += b_sign;
-    sum_coff += b_coff;
-    sum_gol += b_gol;
-    sum_tot += b_tot;
-    n_blocks++;
-    for (int i = 0; i < 4; i++) {
-      sum_sign_lev[i] += sign_bits_lev[i];
-    }
-    if (0 && mi_col >= 112 && mi_row >= 64) {
-      printf("ENC SUM %s bits[ eob %4.2lf sign %4.2lf coeff %4.2lf gol %4.2lf ] tot %4.2lf\n",
-             __func__,
-             sum_eob, sum_sign, sum_coff, sum_gol, sum_tot);
-      printf("ENC SUM %s sign_lev[ %4.2lf %4.2lf %4.2lf %4.2lf ]\n",
-             __func__,
-             sum_sign_lev[0],
-             sum_sign_lev[1],
-             sum_sign_lev[2],
-             sum_sign_lev[3]);
-    }
-  }
-  // check ...
-}
-
-void dump_sum(void)
-{
-  printf("ENC SUM %s bits[ eob %4.2lf sign %4.2lf coeff %4.2lf gol %4.2lf ] tot %4.2lf\n",
-         __func__,
-         sum_eob, sum_sign, sum_coff, sum_gol, sum_tot);
-  printf("ENC AVG %s eob %4.2lf bits[ eob %4.2lf sign %4.2lf coeff %4.2lf gol %4.2lf ] tot %4.2lf\n",
-         __func__,
-         (double)sum_eob_pos / n_blocks,
-         sum_eob/n_blocks,
-         sum_sign/n_blocks,
-         sum_coff/n_blocks,
-         sum_gol/n_blocks,
-         sum_tot/n_blocks);
-  printf("ENC SUM %s sign_lev[ %4.2lf %4.2lf %4.2lf %4.2lf ]\n",
-         __func__,
-         sum_sign_lev[0],
-         sum_sign_lev[1],
-         sum_sign_lev[2],
-         sum_sign_lev[3]);
 }
 
 typedef struct encode_txb_args {
@@ -2115,14 +1724,6 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
       const int plane_end =
           get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
       for (int plane = plane_start; plane < plane_end; ++plane) {
-#if DBGT
-        t_dbge = 0;
-        if (mbmi->mi_col_start == DBG_COL && mbmi->mi_row_start == DBG_ROW &&
-            row == DBG_BLK_Y && col == DBG_BLK_X &&
-            plane == 0) {
-          t_dbge = 1;
-        }
-#endif
         if (plane == AOM_PLANE_Y && !xd->lossless[mbmi->segment_id]) {
           const struct macroblockd_plane *const pd = &xd->plane[plane];
           const int ss_x = pd->subsampling_x;
@@ -2271,10 +1872,6 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
              blk_row += stepr) {
           for (int blk_col = col >> ss_x; blk_col < plane_unit_width;
                blk_col += stepc) {
-            if (t_dbge) printf("WRITE pl %d mi (%d,%d) blk_col %d blk_row %d tx (%d,%d)\n",
-                               plane,
-                               mbmi->mi_col, mbmi->mi_row,
-                               blk_col, blk_row, 4*plane_unit_width, 4*plane_unit_height);
             // Loop order for the two chroma planes is changed for CCTX
             // because the transform information for both planes are needed at
             // once at the decoder side.
@@ -2688,14 +2285,16 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         cost +=
             coeff_costs
-                ->base_lf_eob_cost_uv[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+                ->base_lf_eob_cost_uv[coeff_ctx]
+                                     [AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
       } else {
         cost += coeff_costs->base_eob_cost_uv[coeff_ctx][AOMMIN(level, 3) - 1];
       }
     } else {
       if (limits) {
         cost += coeff_costs
-                    ->base_lf_eob_cost[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+                    ->base_lf_eob_cost[coeff_ctx]
+                                      [AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
       } else {
         cost += coeff_costs->base_eob_cost[coeff_ctx][AOMMIN(level, 3) - 1];
       }
@@ -2805,7 +2404,8 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     }
   }
 #if CONFIG_DQ && CONFIG_LCCHROMA
-  const int(*base_lf_cost)[DQ_CTXS][LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
+  const int(*base_lf_cost)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+      coeff_costs->base_lf_cost;
   const int(*base_cost)[DQ_CTXS][8] = coeff_costs->base_cost;
 #else
   const int(*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
@@ -2835,29 +2435,29 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         cost += base_lf_cost_uv[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                               [0]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                               [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost_uv[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                            [0]
 #endif
-                [AOMMIN(level, 3)];
+                            [AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
         cost += base_lf_cost[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                            [0]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                         [0]
 #endif
-                [AOMMIN(level, 3)];
+                         [AOMMIN(level, 3)];
       }
     }
 #else
@@ -2993,29 +2593,29 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         cost += base_lf_cost_uv[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                               [0]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                               [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost_uv[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                            [0]
 #endif
-                [AOMMIN(level, 3)];
+                            [AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
         cost += base_lf_cost[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                            [0]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost[coeff_ctx]
 #if CONFIG_DQ
-                [0]
+                         [0]
 #endif
-                [AOMMIN(level, 3)];
+                         [AOMMIN(level, 3)];
       }
     }
 #else
@@ -3707,33 +3307,9 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
     const int(*base_cost_ptr)[DQ_CTXS][8] =
         plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-    cost +=
-        limits
-            ? base_lf_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-            : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
-    if (0) {
-      static int nn[2][6] = {};
-      int n = nn[limits][AOMMIN(abs_qc, 5)];
-      if (n < 1) {
-        nn[limits][AOMMIN(abs_qc, 5)]++;
-        printf("DBG n %d plane %d abs_qc %d coeff_ctx %d limits %d cost %d (%4.2lf)\n",
-               n, plane, abs_qc, coeff_ctx, limits, cost, (double)cost / 512.0);
-        if (limits) {
-          for (int i = 0; i < LF_SIG_COEF_CONTEXTS; i++) {
-            for (int j = 0; j < 2; j++) {
-              printf("DBG base_lf_cost[%d][%d][]: %4d %4d %4d %4d %4d %4d\n",
-                     i, j,
-                     base_lf_cost_ptr[i][j][0],
-                     base_lf_cost_ptr[i][j][1],
-                     base_lf_cost_ptr[i][j][2],
-                     base_lf_cost_ptr[i][j][3],
-                     base_lf_cost_ptr[i][j][4],
-                     base_lf_cost_ptr[i][j][5]);
-            }
-          }
-        }
-      }
-    }
+    cost += limits ? base_lf_cost_ptr[coeff_ctx][0]
+                                     [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
+                   : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
 #elif CONFIG_LCCHROMA
     const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
@@ -4445,7 +4021,7 @@ static AOM_FORCE_INLINE void update_coeff_eob(
       abs_qc_low = 0;
       dqc_low = qc_low = 0;
       dist_low = 0;
-#if CONFIG_LCCHROMA
+#if CONFIG_LCCHROMA && CONFIG_DQ
       if (plane > 0) {
         if (limits) {
           rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -4644,44 +4220,45 @@ static INLINE void update_skip(int *accu_rate, int64_t accu_dist, int *eob,
 
 #if CONFIG_DQ
 
-typedef struct _PQData
-{
-    tran_low_t  absLevel;
-    int64_t deltaDist;
-    tran_low_t dqc;
+typedef struct _PQData {
+  tran_low_t absLevel;
+  int64_t deltaDist;
+  tran_low_t dqc;
 } PQData;
 
-static AOM_INLINE void set_levels_buf(DECISION* decision, uint8_t* levels, const int16_t* scan, const int eob_minus1, const int scan_pos, const int bwl, const int sharpness)
-{
-    if (decision->prevId == -2)
-    {
-        return;
+static AOM_INLINE void set_levels_buf(DECISION *decision, uint8_t *levels,
+                                      const int16_t *scan, const int eob_minus1,
+                                      const int scan_pos, const int bwl,
+                                      const int sharpness) {
+  if (decision->prevId == -2) {
+    return;
+  }
+  // update current abs level
+  levels[get_padded_idx(scan[scan_pos], bwl)] =
+      AOMMIN(decision->absLevel, INT8_MAX);
+  // check current node is a new start position? if so, set all previous
+  // position to 0. prevId == -1 means a new start, prevId == -2 ?
+  bool new_eob =
+      decision->prevId < 0 && scan_pos + 1 <= eob_minus1 && sharpness == 0;
+  if (new_eob) {
+    for (int si = scan_pos + 1; si <= eob_minus1; si++) {
+      levels[get_padded_idx(scan[si], bwl)] = 0;
     }
-    // update current abs level
-    levels[get_padded_idx(scan[scan_pos], bwl)] = AOMMIN(decision->absLevel, INT8_MAX);
-    // check current node is a new start position? if so, set all previous position to 0.
-    // prevId == -1 means a new start, prevId == -2 ?
-    bool new_eob = decision->prevId < 0 && scan_pos + 1 <= eob_minus1 && sharpness == 0;
-    if (new_eob)
-    {
-        for (int si = scan_pos + 1; si <= eob_minus1; si++)
-        {
-            levels[get_padded_idx(scan[si], bwl)] = 0;
-        }
-    }
+  }
 }
-#if CONFIG_DQ
-static INLINE int get_coeff_cost_general_q1(int is_last, int ci, tran_low_t abs_qc,
-                                         int sign, int coeff_ctx,
-                                         int dc_sign_ctx,
-                                         const LV_MAP_COEFF_COST *txb_costs,
-                                         int bwl, TX_CLASS tx_class,
-                                         const uint8_t *levels
+
+static INLINE int get_coeff_cost_general_q1(int is_last, int ci,
+                                            tran_low_t abs_qc, int sign,
+                                            int coeff_ctx, int dc_sign_ctx,
+                                            const LV_MAP_COEFF_COST *txb_costs,
+                                            int bwl, TX_CLASS tx_class,
+                                            const uint8_t *levels
 #if CONFIG_CONTEXT_DERIVATION
-                                         ,
-                                         int32_t *tmp_sign
+                                            ,
+                                            int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
-                                         ,int plane, int limits) {
+                                            ,
+                                            int plane, int limits) {
   int cost = 0;
   if (is_last) {
     // quantizer 1 can not be used for last non-zero coeff.
@@ -4692,15 +4269,13 @@ static INLINE int get_coeff_cost_general_q1(int is_last, int ci, tran_low_t abs_
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
     const int(*base_cost_ptr)[DQ_CTXS][8] =
         plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-    cost +=
-        limits
-            ? base_lf_cost_ptr[coeff_ctx][1][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-            : base_cost_ptr[coeff_ctx][1][AOMMIN(abs_qc, 3)];
+    cost += limits ? base_lf_cost_ptr[coeff_ctx][1]
+                                     [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
+                   : base_cost_ptr[coeff_ctx][1][AOMMIN(abs_qc, 3)];
 #else
     if (limits) {
-      cost +=
-          txb_costs
-              ->base_lf_cost_tcq[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
+      cost += txb_costs->base_lf_cost_tcq[coeff_ctx]
+                                         [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
     } else {
       cost += txb_costs->base_cost_tcq[coeff_ctx][AOMMIN(abs_qc, 3)];
     }
@@ -4812,784 +4387,827 @@ static INLINE int get_coeff_cost_general_q1(int is_last, int ci, tran_low_t abs_
   }
   return cost;
 }
-#endif
 
-static void decide(int64_t distA, int64_t distB, int64_t distzero, int64_t rdmult, int rateA, int rateB, int rate_zero, PQData* pqDataA, PQData* pqDataB, int limits, int prev_state, DECISION* decision_02, DECISION* decision_1)
-{
-    int parityA = tcq_parity(pqDataA->absLevel, limits);
-    int parityB = tcq_parity(pqDataB->absLevel, limits);
-    int64_t costA = RDCOST(rdmult, rateA, distA);
-    int64_t costB = RDCOST(rdmult, rateB, distB);
-    int64_t cost_zero = RDCOST(rdmult, rate_zero, distzero);
-    if (parityA)
-    {
-        if (costA < decision_1->rdCost)
-        {
-            decision_1->rdCost = costA;
-            decision_1->dist = distA;
-            decision_1->rate = rateA;
-            decision_1->prevId = prev_state;
-            decision_1->absLevel = pqDataA->absLevel;            
-            decision_1->dqc = pqDataA->dqc;    
-        }
+static void decide(int64_t distA, int64_t distB, int64_t distzero,
+                   int64_t rdmult, int rateA, int rateB, int rate_zero,
+                   PQData *pqDataA, PQData *pqDataB, int limits, int prev_state,
+                   DECISION *decision_02, DECISION *decision_1) {
+  int parityA = tcq_parity(pqDataA->absLevel, limits);
+  int parityB = tcq_parity(pqDataB->absLevel, limits);
+  int64_t costA = RDCOST(rdmult, rateA, distA);
+  int64_t costB = RDCOST(rdmult, rateB, distB);
+  int64_t cost_zero = RDCOST(rdmult, rate_zero, distzero);
+  if (parityA) {
+    if (costA < decision_1->rdCost) {
+      decision_1->rdCost = costA;
+      decision_1->dist = distA;
+      decision_1->rate = rateA;
+      decision_1->prevId = prev_state;
+      decision_1->absLevel = pqDataA->absLevel;
+      decision_1->dqc = pqDataA->dqc;
     }
-    else
-    {
-        if (costA < decision_02->rdCost)
-        {
-            decision_02->rdCost = costA;
-            decision_02->dist = distA;
-            decision_02->rate = rateA;
-            decision_02->prevId = prev_state;
-            decision_02->absLevel = pqDataA->absLevel;            
-            decision_02->dqc = pqDataA->dqc;
-        }
+  } else {
+    if (costA < decision_02->rdCost) {
+      decision_02->rdCost = costA;
+      decision_02->dist = distA;
+      decision_02->rate = rateA;
+      decision_02->prevId = prev_state;
+      decision_02->absLevel = pqDataA->absLevel;
+      decision_02->dqc = pqDataA->dqc;
     }
+  }
 
-    if (parityB)
-    {
-        if (costB < decision_1->rdCost)
-        {
-            decision_1->rdCost = costB;
-            decision_1->dist = distB;
-            decision_1->rate = rateB;
-            decision_1->prevId = prev_state;
-            decision_1->absLevel = pqDataB->absLevel;            
-            decision_1->dqc = pqDataB->dqc;      
-        }
+  if (parityB) {
+    if (costB < decision_1->rdCost) {
+      decision_1->rdCost = costB;
+      decision_1->dist = distB;
+      decision_1->rate = rateB;
+      decision_1->prevId = prev_state;
+      decision_1->absLevel = pqDataB->absLevel;
+      decision_1->dqc = pqDataB->dqc;
     }
-    else
-    {
-        if (costB < decision_02->rdCost)
-        {
-            decision_02->rdCost = costB;
-            decision_02->dist = distB;
-            decision_02->rate = rateB;
-            decision_02->prevId = prev_state;
-            decision_02->absLevel = pqDataB->absLevel;
-            decision_02->dqc = pqDataB->dqc;
-        }
+  } else {
+    if (costB < decision_02->rdCost) {
+      decision_02->rdCost = costB;
+      decision_02->dist = distB;
+      decision_02->rate = rateB;
+      decision_02->prevId = prev_state;
+      decision_02->absLevel = pqDataB->absLevel;
+      decision_02->dqc = pqDataB->dqc;
     }
-    if (cost_zero < decision_02->rdCost)
-    {
-        decision_02->rdCost = cost_zero;
-        decision_02->dist = distzero;
-        decision_02->rate = rate_zero;
-        decision_02->prevId = prev_state;
-        decision_02->absLevel = 0;        
-        decision_02->dqc = 0;
-    }
+  }
+  if (cost_zero < decision_02->rdCost) {
+    decision_02->rdCost = cost_zero;
+    decision_02->dist = distzero;
+    decision_02->rate = rate_zero;
+    decision_02->prevId = prev_state;
+    decision_02->absLevel = 0;
+    decision_02->dqc = 0;
+  }
 }
 
+void pre_quant(tran_low_t tqc, PQData *pqData, const int32_t *quant_ptr,
+               int dqv, int log_scale, int scan_pos) {
+  // calculate qIdx
+  const int shift = 16 - log_scale + QUANT_FP_BITS;
+  tran_low_t add = -((3 << shift) >> 1);
+  tran_low_t abs_tqc = abs(tqc);
 
-void pre_quant(tran_low_t tqc, PQData* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos)
-{
-    //calculate qIdx
-    const int shift = 16 - log_scale + QUANT_FP_BITS;
-    tran_low_t add = -((2 << shift) >> 1);
-    tran_low_t abs_tqc = abs(tqc);
+  tran_low_t qIdx = (int)AOMMAX(
+      1, AOMMIN(((1 << 16) - 1),
+                (abs_tqc * quant_ptr[scan_pos != 0] + add) >> shift));
 
-    tran_low_t qIdx = (int)AOMMAX(1, AOMMIN(((1 << 16) - 1), (abs_tqc * quant_ptr[scan_pos != 0] + add) >> shift));
+  const int64_t dist0 = get_coeff_dist(abs_tqc, 0, log_scale - 1);
 
-    const int64_t dist0 = get_coeff_dist(abs_tqc, 0, log_scale - 1);
+  int Idx_a = qIdx & 3;
 
-    int Idx_a = qIdx & 3;
+  tran_low_t dqca = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv,
+                                                      QUANT_TABLE_BITS) >>
+                    log_scale;
 
-    tran_low_t dqca = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv, QUANT_TABLE_BITS) >> log_scale;
+  pqData[Idx_a].absLevel = (++qIdx) >> 1;
+  pqData[Idx_a].deltaDist =
+      get_coeff_dist(abs_tqc, dqca, log_scale - 1) - dist0;
+  pqData[Idx_a].dqc = dqca;
 
-    pqData[Idx_a].absLevel = (++qIdx) >> 1;
-    pqData[Idx_a].deltaDist = get_coeff_dist(abs_tqc, dqca, log_scale - 1) - dist0;
-    pqData[Idx_a].dqc = dqca;
+  int Idx_b = qIdx & 3;
 
-    int Idx_b = qIdx & 3;
+  tran_low_t dqcb = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv,
+                                                      QUANT_TABLE_BITS) >>
+                    log_scale;
 
-    tran_low_t dqcb = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv, QUANT_TABLE_BITS) >> log_scale;
+  pqData[Idx_b].absLevel = (++qIdx) >> 1;
+  pqData[Idx_b].deltaDist =
+      get_coeff_dist(abs_tqc, dqcb, log_scale - 1) - dist0;
+  pqData[Idx_b].dqc = dqcb;
 
-    pqData[Idx_b].absLevel = (++qIdx) >> 1;
-    pqData[Idx_b].deltaDist = get_coeff_dist(abs_tqc, dqcb, log_scale - 1) - dist0;
-    pqData[Idx_b].dqc = dqcb;
+  int Idx_c = qIdx & 3;
 
-    int Idx_c = qIdx & 3;
+  tran_low_t dqcc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv,
+                                                      QUANT_TABLE_BITS) >>
+                    log_scale;
 
-    tran_low_t dqcc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv, QUANT_TABLE_BITS) >> log_scale;
+  pqData[Idx_c].absLevel = (++qIdx) >> 1;
+  pqData[Idx_c].deltaDist =
+      get_coeff_dist(abs_tqc, dqcc, log_scale - 1) - dist0;
+  pqData[Idx_c].dqc = dqcc;
 
-    pqData[Idx_c].absLevel = (++qIdx) >> 1;
-    pqData[Idx_c].deltaDist = get_coeff_dist(abs_tqc, dqcc, log_scale - 1) - dist0;
-    pqData[Idx_c].dqc = dqcc;
+  int Idx_d = qIdx & 3;
 
-    int Idx_d = qIdx & 3;
+  tran_low_t dqcd = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv,
+                                                      QUANT_TABLE_BITS) >>
+                    log_scale;
 
-    tran_low_t dqcd = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * dqv, QUANT_TABLE_BITS) >> log_scale;
-
-    pqData[Idx_d].absLevel = (++qIdx) >> 1;
-    pqData[Idx_d].deltaDist = get_coeff_dist(abs_tqc, dqcd, log_scale - 1) - dist0;
-    pqData[Idx_d].dqc = dqcd;
+  pqData[Idx_d].absLevel = (++qIdx) >> 1;
+  pqData[Idx_d].deltaDist =
+      get_coeff_dist(abs_tqc, dqcd, log_scale - 1) - dist0;
+  pqData[Idx_d].dqc = dqcd;
 }
 
-int av1_dep_quant(const struct AV1_COMP* cpi, MACROBLOCK* x, int plane,
-                  int block, TX_SIZE tx_size, TX_TYPE tx_type, CctxType cctx_type,
-                  const TXB_CTX* const txb_ctx, int* rate_cost,
-                  int sharpness) {
-    MACROBLOCKD* xd = &x->e_mbd;
-    const struct macroblock_plane* p = &x->plane[plane];
+int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                  int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                  CctxType cctx_type, const TXB_CTX *const txb_ctx,
+                  int *rate_cost, int sharpness) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  const struct macroblock_plane *p = &x->plane[plane];
 
-    const SCAN_ORDER* scan_order =
-        get_scan(tx_size, get_primary_tx_type(tx_type));
+  const SCAN_ORDER *scan_order =
+      get_scan(tx_size, get_primary_tx_type(tx_type));
 
-    const int16_t* scan = scan_order->scan;
-    const int shift = av1_get_tx_scale(tx_size);
-    int eob = p->eobs[block];    
+  const int16_t *scan = scan_order->scan;
+  const int shift = av1_get_tx_scale(tx_size);
+  int eob = p->eobs[block];
 
-    const int32_t* dequant = p->dequant_QTX;
-    const int32_t* quant = p->quant_fp_QTX; // quant_QTX
+  const int32_t *dequant = p->dequant_QTX;
+  const int32_t *quant = p->quant_fp_QTX;  // quant_QTX
 
-    const qm_val_t* iqmatrix =
-        av1_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
-    const int block_offset = BLOCK_OFFSET(block);
-    tran_low_t* qcoeff = p->qcoeff + block_offset;
-    tran_low_t* dqcoeff = p->dqcoeff + block_offset;
-    const tran_low_t* tcoeff = p->coeff + block_offset;
-    const CoeffCosts* coeff_costs = &x->coeff_costs;
+  const qm_val_t *iqmatrix =
+      av1_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
+  const int block_offset = BLOCK_OFFSET(block);
+  tran_low_t *qcoeff = p->qcoeff + block_offset;
+  tran_low_t *dqcoeff = p->dqcoeff + block_offset;
+  const tran_low_t *tcoeff = p->coeff + block_offset;
+  const CoeffCosts *coeff_costs = &x->coeff_costs;
 
-    // This function is not called if eob = 0.
-    assert(eob > 0);
+  // This function is not called if eob = 0.
+  assert(eob > 0);
 
-    const AV1_COMMON* cm = &cpi->common;
-    const PLANE_TYPE plane_type = get_plane_type(plane);
-    const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+  const AV1_COMMON *cm = &cpi->common;
+  const PLANE_TYPE plane_type = get_plane_type(plane);
+  const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
 
-    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
 
-    const MB_MODE_INFO* mbmi = xd->mi[0];
-    const int bwl = get_txb_bwl(tx_size);
-    const int width = get_txb_wide(tx_size);
-    const int height = get_txb_high(tx_size);
-    assert(width == (1 << bwl));
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const int bwl = get_txb_bwl(tx_size);
+  const int width = get_txb_wide(tx_size);
+  const int height = get_txb_high(tx_size);
+  assert(width == (1 << bwl));
 
-    const int is_inter = is_inter_block(mbmi, xd->tree_type);
-    const int bob_code = p->bobs[block];
-    const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int bob_code = p->bobs[block];
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane == PLANE_TYPE_Y) ||
                      use_inter_fsc(&cpi->common, plane, tx_type, is_inter);
-    const LV_MAP_COEFF_COST* txb_costs =
-        &coeff_costs->coeff_costs[txs_ctx][plane_type];
-    const int eob_multi_size = txsize_log2_minus4[tx_size];
-    const LV_MAP_EOB_COST* txb_eob_costs =
-        &coeff_costs->eob_costs[eob_multi_size][plane_type];
+  const LV_MAP_COEFF_COST *txb_costs =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
+  const int eob_multi_size = txsize_log2_minus4[tx_size];
+  const LV_MAP_EOB_COST *txb_eob_costs =
+      &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
-#if DBGT
-    int dbg = mbmi->mi_col_start == DBG_COL && mbmi->mi_row_start == DBG_ROW && block == 0 && plane == 0;
-    t_dbgc = dbg;
-    if (dbg) {
-      static const char *mode_str_tbl[] = {
-        "DC",        // DC_PRED
-        "V",         // V_PRED
-        "H",         // H_PRED
-        "D45",       // D45_PRED
-        "D135",      // D135_PRED
-        "D113",      // D113_PRED
-        "D157",      // D157_PRED
-        "D203",      // D203_PRED
-        "D67",       // D67_PRED
-        "SM",    // SMOOTH_PRED
-        "SMV",  // SMOOTH_V_PRED
-        "SMH",  // SMOOTH_H_PRED
-        "PAE",     // PAETH_PRED
-      };
-      const char *mode_str =
-          mbmi->filter_intra_mode_info.use_filter_intra && plane == 0 ? "FI" :
-          mbmi->palette_mode_info.palette_size[plane_type] != 0 ? "PAL" :
-          mbmi->mode < 13 ? mode_str_tbl[mbmi->mode] : "-";
-      printf("TR mi (%d,%d) block %d tx (%d,%d) mode %d (%s) tx_type %d\n",
-             mbmi->mi_col_start, mbmi->mi_row_start, block,
-             width, height,
-             mbmi->mode, mode_str, tx_type);
-      int dqv0 = get_dqv(dequant, scan[0], iqmatrix);
-      int dqv1 = get_dqv(dequant, scan[1], iqmatrix);
-      printf("TR tx_size %d txs_ctx %d plane %d dqv %d %d\n", tx_size, txs_ctx, plane, dqv0, dqv1);
-    }
-#endif
-    const int rshift =
-        (sharpness +
-            (cpi->oxcf.q_cfg.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
-                ? 7 - mbmi->segment_id
-                : 2) +
-            (cpi->oxcf.q_cfg.aq_mode != VARIANCE_AQ &&
+  const int rshift =
+      (sharpness +
+       (cpi->oxcf.q_cfg.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
+            ? 7 - mbmi->segment_id
+            : 2) +
+       (cpi->oxcf.q_cfg.aq_mode != VARIANCE_AQ &&
                 cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL &&
                 cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
-                ? (3 - x->sb_energy_level)
-                : 0));
-    int64_t rdmult =
-        (((int64_t)x->rdmult *
-            (plane_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8)))) +
-            2) >>
-        rshift;
+            ? (3 - x->sb_energy_level)
+            : 0));
+  int64_t rdmult = (((int64_t)x->rdmult * (plane_rd_mult[is_inter][plane_type]
+                                           << (2 * (xd->bd - 8)))) +
+                    2) >>
+                   rshift;
 
-    // getting context from previous level buf, updating levels on current level buf.
-    // initialization all value by 0, since we update every position.
-    int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
-    uint8_t** const levels = (uint8_t**)malloc(sizeof(uint8_t*) * TOTALSTATES);
-    uint8_t** const prev_levels = (uint8_t**)malloc(sizeof(uint8_t*) * TOTALSTATES);
-    for (int i = 0; i < TOTALSTATES; i++)
-    {
-        levels[i] = (uint8_t*)malloc(sizeof(uint8_t) * bufsize);
-        prev_levels[i] = (uint8_t*)malloc(sizeof(uint8_t) * bufsize);
-        if (eob > 1) memset(levels[i], 0, sizeof(uint8_t) * bufsize);
+  // getting context from previous level buf, updating levels on current level
+  // buf. initialization all value by 0, since we update every position.
+  int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
+  uint8_t **const levels = (uint8_t **)malloc(sizeof(uint8_t *) * TOTALSTATES);
+  uint8_t **const prev_levels =
+      (uint8_t **)malloc(sizeof(uint8_t *) * TOTALSTATES);
+  for (int i = 0; i < TOTALSTATES; i++) {
+    levels[i] = (uint8_t *)malloc(sizeof(uint8_t) * bufsize);
+    prev_levels[i] = (uint8_t *)malloc(sizeof(uint8_t) * bufsize);
+    if (eob > 1) memset(levels[i], 0, sizeof(uint8_t) * bufsize);
+  }
+
+  int si = eob - 1;
+  // populate trellis
+  DECISION trellis[MAX_TRELLIS][TOTALSTATES];
+
+  int first_test_pos = si;
+  for (int scan_pos = first_test_pos; scan_pos >= 0; scan_pos--) {
+    int blk_pos = scan[scan_pos];
+    DECISION *decision = trellis[scan_pos];
+
+    PQData pqData[4];
+    int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
+    // preQuant tcoeff qcoeff dqcoeff shift dequant, scan[si], iqmatrix
+
+    pre_quant(tcoeff[blk_pos], pqData, quant, tempdqv, shift + 1, scan_pos);
+    // pre_quant(tcoeff[blk_pos], pqData, quant, tempdqv, shift, scan_pos);
+
+    // init state
+    for (int state = 0; state < TOTALSTATES; state++) {
+      decision[state].rdCost = INT64_MAX >> 1;
+      decision[state].dist = INT64_MAX >> 1;
+      decision[state].rate = INT32_MAX >> 1;
+      decision[state].absLevel = -1;
+      decision[state].prevId = -2;
+      decision[state].dqc = INT32_MAX;
     }
+    const int coeff_sign = tcoeff[blk_pos] < 0;
 
-    int si = eob - 1;
-    //populate trellis
-    DECISION trellis[MAX_TRELLIS][TOTALSTATES];
+    const int row = blk_pos >> bwl;
+    const int col = blk_pos - (row << bwl);
+    int limits = get_lf_limits(row, col, tx_class, plane);
 
-    int first_test_pos = si;
-    for (int scan_pos = first_test_pos; scan_pos >= 0; scan_pos--)
-    {
-        int blk_pos = scan[scan_pos];
-        DECISION* decision = trellis[scan_pos];
-
-        PQData pqData[4];
-        int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
-        //preQuant tcoeff qcoeff dqcoeff shift dequant, scan[si], iqmatrix
-
-        pre_quant(tcoeff[blk_pos], pqData, quant, tempdqv, shift + 1, scan_pos);
-        // pre_quant(tcoeff[blk_pos], pqData, quant, tempdqv, shift, scan_pos);
-
-        //init state
-        for (int state = 0; state < TOTALSTATES; state++)
-        {
-            decision[state].rdCost = INT64_MAX >> 1;
-            decision[state].dist = INT64_MAX >> 1;
-            decision[state].rate = INT32_MAX >> 1;
-            decision[state].absLevel = -1;
-            decision[state].prevId = -2;
-            decision[state].dqc = INT32_MAX;
-        }
-        const int coeff_sign = tcoeff[blk_pos] < 0;
-
-        const int row = blk_pos >> bwl;
-        const int col = blk_pos - (row << bwl);
-        int limits = get_lf_limits(row, col, tx_class, plane);
-
-        //calculate rate distortion
-        bool is_first_pos = (scan_pos == first_test_pos);
-        if (is_first_pos)
-        {
-            //try to quantize first coeff to nzcoeff
-            int coeff_ctx = get_lower_levels_ctx_eob(bwl, height, si);
+    // calculate rate distortion
+    bool is_first_pos = (scan_pos == first_test_pos);
+    if (is_first_pos) {
+      // try to quantize first coeff to nzcoeff
+      int coeff_ctx = get_lower_levels_ctx_eob(bwl, height, si);
 #if CONFIG_EOB_POS_LUMA
-            const int eob_rate = get_eob_cost(si + 1, txb_eob_costs, txb_costs, is_inter);
+      const int eob_rate =
+          get_eob_cost(si + 1, txb_eob_costs, txb_costs, is_inter);
 #else
-            const int eob_rate = get_eob_cost(si + 1, txb_eob_costs, txb_costs);
+      const int eob_rate = get_eob_cost(si + 1, txb_eob_costs, txb_costs);
 #endif  // CONFIG_EOB_POS_LUMA
 
-            int rate_Q0_a = get_coeff_cost_eob(blk_pos, pqData[0].absLevel, (qcoeff[blk_pos] < 0), coeff_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
+      int rate_Q0_a =
+          get_coeff_cost_eob(blk_pos, pqData[0].absLevel, (qcoeff[blk_pos] < 0),
+                             coeff_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl,
+                             tx_class
 #if CONFIG_CONTEXT_DERIVATION
-                                          ,
-                                          xd->tmp_sign
+                             ,
+                             xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
-                                          , plane) + eob_rate;
-            int rate_Q0_b = get_coeff_cost_eob(blk_pos, pqData[2].absLevel, (qcoeff[blk_pos] < 0), coeff_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
+                             ,
+                             plane) +
+          eob_rate;
+      int rate_Q0_b =
+          get_coeff_cost_eob(blk_pos, pqData[2].absLevel, (qcoeff[blk_pos] < 0),
+                             coeff_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl,
+                             tx_class
 #if CONFIG_CONTEXT_DERIVATION
-                                          ,
-                                          xd->tmp_sign
+                             ,
+                             xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
-                                          , plane) + eob_rate;
+                             ,
+                             plane) +
+          eob_rate;
 #if MORESTATES
-            decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2], limits, -1, &decision[0], &decision[4]);
+      decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult,
+             rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2],
+             limits, -1, &decision[0], &decision[4]);
 #else
-            decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2], limits, -1, &decision[0], &decision[2]);
+      decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult,
+             rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2],
+             limits, -1, &decision[0], &decision[2]);
 #endif
-        }
-        else
-        {
-
-            int coeff_ctx0 = 0;
-            int coeff_ctx1 = 0;
-            int coeff_ctx2 = 0;
-            int coeff_ctx3 = 0;
-#if MORESTATES
-            int coeff_ctx4 = 0;
-            int coeff_ctx5 = 0;
-            int coeff_ctx6 = 0;
-            int coeff_ctx7 = 0;
-#endif
-            if (limits) {
-              coeff_ctx0 = get_lower_levels_lf_ctx( prev_levels[0], blk_pos, bwl, tx_class);
-              coeff_ctx1 = get_lower_levels_lf_ctx( prev_levels[1], blk_pos, bwl, tx_class);
-              coeff_ctx2 = get_lower_levels_lf_ctx( prev_levels[2], blk_pos, bwl, tx_class);
-              coeff_ctx3 = get_lower_levels_lf_ctx( prev_levels[3], blk_pos, bwl, tx_class);
-#if MORESTATES
-              coeff_ctx4 = get_lower_levels_lf_ctx( prev_levels[4], blk_pos, bwl, tx_class);
-              coeff_ctx5 = get_lower_levels_lf_ctx( prev_levels[5], blk_pos, bwl, tx_class);
-              coeff_ctx6 = get_lower_levels_lf_ctx( prev_levels[6], blk_pos, bwl, tx_class);
-              coeff_ctx7 = get_lower_levels_lf_ctx( prev_levels[7], blk_pos, bwl, tx_class);
-
-#endif
-            } else {
-              coeff_ctx0 = get_lower_levels_ctx( prev_levels[0], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx1 = get_lower_levels_ctx( prev_levels[1], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx2 = get_lower_levels_ctx( prev_levels[2], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx3 = get_lower_levels_ctx( prev_levels[3], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-#if MORESTATES
-              coeff_ctx4 = get_lower_levels_ctx( prev_levels[4], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx5 = get_lower_levels_ctx( prev_levels[5], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx6 = get_lower_levels_ctx( prev_levels[6], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-              coeff_ctx7 = get_lower_levels_ctx( prev_levels[7], blk_pos, bwl, tx_class
-#if CONFIG_CHROMA_TX_COEFF_CODING
-                                              ,
-                                              plane
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
-              );
-#endif
-            }
-            // calculate RDcost
-
-            int rate_zero_0 = 0;
-            int rate_zero_1 = 0;
-            int rate_zero_2 = 0;
-            int rate_zero_3 = 0;
-#if MORESTATES
-            int rate_zero_4 = 0;
-            int rate_zero_5 = 0;
-            int rate_zero_6 = 0;
-            int rate_zero_7 = 0;
-
-#endif
-            if (limits) {
-#if CONFIG_LCCHROMA
-              const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
-                  plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-              rate_zero_0 = base_lf_cost_ptr[coeff_ctx0][0][0];
-              rate_zero_1 = base_lf_cost_ptr[coeff_ctx1][0][0];
-              rate_zero_2 = base_lf_cost_ptr[coeff_ctx2][1][0];
-              rate_zero_3 = base_lf_cost_ptr[coeff_ctx3][1][0];
-#if MORESTATES
-              rate_zero_4 = base_lf_cost_ptr[coeff_ctx4][0][0];
-              rate_zero_5 = base_lf_cost_ptr[coeff_ctx5][0][0];
-              rate_zero_6 = base_lf_cost_ptr[coeff_ctx6][1][0];
-              rate_zero_7 = base_lf_cost_ptr[coeff_ctx7][1][0];
-#endif
-#else
-              rate_zero_0 = txb_costs->base_lf_cost[coeff_ctx0][0];
-              rate_zero_1 = txb_costs->base_lf_cost[coeff_ctx1][0];
-              rate_zero_2 = txb_costs->base_lf_cost_tcq[coeff_ctx2][0];
-              rate_zero_3 = txb_costs->base_lf_cost_tcq[coeff_ctx3][0];
-#if MORESTATES
-              rate_zero_4 = txb_costs->base_lf_cost[coeff_ctx4][0];
-              rate_zero_5 = txb_costs->base_lf_cost[coeff_ctx5][0];
-              rate_zero_6 = txb_costs->base_lf_cost_tcq[coeff_ctx6][0];
-              rate_zero_7 = txb_costs->base_lf_cost_tcq[coeff_ctx7][0];
-#endif
-#endif
-
-            } else {
-#if CONFIG_LCCHROMA
-              const int(*base_cost_ptr)[DQ_CTXS][8] =
-                  plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-              rate_zero_0 = base_cost_ptr[coeff_ctx0][0][0];
-              rate_zero_1 = base_cost_ptr[coeff_ctx1][0][0];
-              rate_zero_2 = base_cost_ptr[coeff_ctx2][1][0];
-              rate_zero_3 = base_cost_ptr[coeff_ctx3][1][0];
-#if MORESTATES
-              rate_zero_4 = base_cost_ptr[coeff_ctx4][0][0];
-              rate_zero_5 = base_cost_ptr[coeff_ctx5][0][0];
-              rate_zero_6 = base_cost_ptr[coeff_ctx6][1][0];
-              rate_zero_7 = base_cost_ptr[coeff_ctx7][1][0];
-#endif
-#else
-              rate_zero_0 = txb_costs->base_cost[coeff_ctx0][0];
-              rate_zero_1 = txb_costs->base_cost[coeff_ctx1][0];
-              rate_zero_2 = txb_costs->base_cost_tcq[coeff_ctx2][0];
-              rate_zero_3 = txb_costs->base_cost_tcq[coeff_ctx3][0];
-#if MORESTATES
-              rate_zero_4 = txb_costs->base_cost[coeff_ctx4][0];
-              rate_zero_5 = txb_costs->base_cost[coeff_ctx5][0];
-              rate_zero_6 = txb_costs->base_cost_tcq[coeff_ctx6][0];
-              rate_zero_7 = txb_costs->base_cost_tcq[coeff_ctx7][0];
-#endif
-#endif
-            }
-
-            DECISION* prd = trellis[scan_pos + 1];
-            int rate_Q0_a_prd0 = get_coeff_cost_general(0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx0, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[0]
-#if CONFIG_CONTEXT_DERIVATION
-                                                        , xd->tmp_sign
-#endif 
-                                                        , plane, limits);
-            int rate_Q0_a_prd1 = get_coeff_cost_general(0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx1, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[1]
-#if CONFIG_CONTEXT_DERIVATION
-                                                        , xd->tmp_sign
-#endif 
-                                                        , plane, limits);
-            int rate_Q0_b_prd0 = get_coeff_cost_general(0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx0, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[0]
-#if CONFIG_CONTEXT_DERIVATION
-                                                        , xd->tmp_sign
-#endif 
-                                                        , plane, limits);
-            int rate_Q0_b_prd1 = get_coeff_cost_general(0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx1, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[1]
-#if CONFIG_CONTEXT_DERIVATION
-                                                        , xd->tmp_sign
-#endif 
-                                                        , plane, limits);
-            int rate_Q1_a_prd2 = get_coeff_cost_general_q1(0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx2, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[2]
-#if CONFIG_CONTEXT_DERIVATION
-                                                           , xd->tmp_sign
-#endif 
-                                                           , plane, limits);
-            int rate_Q1_a_prd3 = get_coeff_cost_general_q1(0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx3, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[3]
-#if CONFIG_CONTEXT_DERIVATION
-                                                           , xd->tmp_sign
-#endif 
-                                                           , plane, limits);
-            int rate_Q1_b_prd2 = get_coeff_cost_general_q1(0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx2, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[2]
-#if CONFIG_CONTEXT_DERIVATION
-                                                           , xd->tmp_sign
-#endif 
-                                                           , plane, limits);
-            int rate_Q1_b_prd3 = get_coeff_cost_general_q1(0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx3, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[3]
-#if CONFIG_CONTEXT_DERIVATION
-                                                           , xd->tmp_sign
-#endif 
-                                                           , plane, limits);    
-#if MORESTATES
-            int rate_Q0_a_prd4 = get_coeff_cost_general(0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx4, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[4]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q0_a_prd5 = get_coeff_cost_general(0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx5, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[5]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q0_b_prd4 = get_coeff_cost_general(0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx4, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[4]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q0_b_prd5 = get_coeff_cost_general(0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx5, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[5]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);                                
-            int rate_Q1_a_prd6 = get_coeff_cost_general_q1(0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx6, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[6]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q1_a_prd7 = get_coeff_cost_general_q1(0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx7, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[7]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q1_b_prd6 = get_coeff_cost_general_q1(0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx6, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[6]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);
-            int rate_Q1_b_prd7 = get_coeff_cost_general_q1(0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx7, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[7]
-#if CONFIG_CONTEXT_DERIVATION
-                                  , xd->tmp_sign
-#endif 
-                                , plane, limits);    
-#endif
-            rate_Q0_a_prd0 += prd[0].rate;
-            rate_Q0_a_prd1 += prd[1].rate;
-            rate_Q0_b_prd0 += prd[0].rate;
-            rate_Q0_b_prd1 += prd[1].rate;
-            rate_Q1_a_prd2 += prd[2].rate;
-            rate_Q1_a_prd3 += prd[3].rate;
-            rate_Q1_b_prd2 += prd[2].rate;
-            rate_Q1_b_prd3 += prd[3].rate;
-#if MORESTATES
-            rate_Q0_a_prd4 += prd[4].rate;
-            rate_Q0_a_prd5 += prd[5].rate;
-            rate_Q0_b_prd4 += prd[4].rate;
-            rate_Q0_b_prd5 += prd[5].rate;
-            rate_Q1_a_prd6 += prd[6].rate;
-            rate_Q1_a_prd7 += prd[7].rate;
-            rate_Q1_b_prd6 += prd[6].rate;
-            rate_Q1_b_prd7 += prd[7].rate;
-
-#endif
-            {
-                int64_t dist_Q0_a_prd0 = pqData[0].deltaDist + prd[0].dist;
-                int64_t dist_Q0_a_prd1 = pqData[0].deltaDist + prd[1].dist;
-                int64_t dist_Q0_b_prd0 = pqData[2].deltaDist + prd[0].dist;
-                int64_t dist_Q0_b_prd1 = pqData[2].deltaDist + prd[1].dist;
-                int64_t dist_Q1_a_prd2 = pqData[1].deltaDist + prd[2].dist;
-                int64_t dist_Q1_a_prd3 = pqData[1].deltaDist + prd[3].dist;
-                int64_t dist_Q1_b_prd2 = pqData[3].deltaDist + prd[2].dist;
-                int64_t dist_Q1_b_prd3 = pqData[3].deltaDist + prd[3].dist;
-#if MORESTATES
-                int64_t dist_Q0_a_prd4 = pqData[0].deltaDist + prd[4].dist;
-                int64_t dist_Q0_a_prd5 = pqData[0].deltaDist + prd[5].dist;
-                int64_t dist_Q0_b_prd4 = pqData[2].deltaDist + prd[4].dist;
-                int64_t dist_Q0_b_prd5 = pqData[2].deltaDist + prd[5].dist;
-                int64_t dist_Q1_a_prd6 = pqData[1].deltaDist + prd[6].dist;
-                int64_t dist_Q1_a_prd7 = pqData[1].deltaDist + prd[7].dist;
-                int64_t dist_Q1_b_prd6 = pqData[3].deltaDist + prd[6].dist;
-                int64_t dist_Q1_b_prd7 = pqData[3].deltaDist + prd[7].dist;
-
-#endif
-                // todo: Q0 can skip the sig_flag or skip some another flag. This is not included in the calculation of RDcost now.
-#if MORESTATES
-                //pre_state is 0
-                decide(dist_Q0_a_prd0, dist_Q0_b_prd0, prd[0].dist, rdmult, rate_Q0_a_prd0, rate_Q0_b_prd0, rate_zero_0 + prd[0].rate, &pqData[0], &pqData[2], limits, 0, &decision[0], &decision[4]);
-                //pre_state is 1
-                decide(dist_Q0_a_prd1, dist_Q0_b_prd1, prd[1].dist, rdmult, rate_Q0_a_prd1, rate_Q0_b_prd1, rate_zero_1 + prd[1].rate, &pqData[0], &pqData[2], limits, 1, &decision[4], &decision[0]);
-                //pre_state is 2  
-                decide(dist_Q1_a_prd2, dist_Q1_b_prd2, prd[2].dist, rdmult, rate_Q1_a_prd2, rate_Q1_b_prd2, rate_zero_2 + prd[2].rate, &pqData[1], &pqData[3], limits, 2, &decision[1], &decision[5]);
-                //pre_state is 3
-                decide(dist_Q1_a_prd3, dist_Q1_b_prd3, prd[3].dist, rdmult, rate_Q1_a_prd3, rate_Q1_b_prd3, rate_zero_3 + prd[3].rate, &pqData[1], &pqData[3], limits, 3, &decision[5], &decision[1]);
-                //pre_state is 4
-                decide(dist_Q0_a_prd4, dist_Q0_b_prd4, prd[4].dist, rdmult, rate_Q0_a_prd4, rate_Q0_b_prd4, rate_zero_4 + prd[4].rate, &pqData[0], &pqData[2], limits, 4, &decision[6], &decision[2]);
-                //pre_state is 5
-                decide(dist_Q0_a_prd5, dist_Q0_b_prd5, prd[5].dist, rdmult, rate_Q0_a_prd5, rate_Q0_b_prd5, rate_zero_5 + prd[5].rate, &pqData[0], &pqData[2], limits, 5, &decision[2], &decision[6]);
-                //pre_state is 6  
-                decide(dist_Q1_a_prd6, dist_Q1_b_prd6, prd[6].dist, rdmult, rate_Q1_a_prd6, rate_Q1_b_prd6, rate_zero_6 + prd[6].rate, &pqData[1], &pqData[3], limits, 6, &decision[7], &decision[3]);
-                //pre_state is 7
-                decide(dist_Q1_a_prd7, dist_Q1_b_prd7, prd[7].dist, rdmult, rate_Q1_a_prd7, rate_Q1_b_prd7, rate_zero_7 + prd[7].rate, &pqData[1], &pqData[3], limits, 7, &decision[3], &decision[7]);
-
-#else
-                //pre_state is 0
-                decide(dist_Q0_a_prd0, dist_Q0_b_prd0, prd[0].dist, rdmult, rate_Q0_a_prd0, rate_Q0_b_prd0, rate_zero_0 + prd[0].rate, &pqData[0], &pqData[2], limits, 0, &decision[0], &decision[2]);
-                //pre_state is 1
-                decide(dist_Q0_a_prd1, dist_Q0_b_prd1, prd[1].dist, rdmult, rate_Q0_a_prd1, rate_Q0_b_prd1, rate_zero_1 + prd[1].rate, &pqData[0], &pqData[2], limits, 1, &decision[2], &decision[0]);
-                //pre_state is 2  
-                decide(dist_Q1_a_prd2, dist_Q1_b_prd2, prd[2].dist, rdmult, rate_Q1_a_prd2, rate_Q1_b_prd2, rate_zero_2 + prd[2].rate, &pqData[1], &pqData[3], limits, 2, &decision[1], &decision[3]);
-                //pre_state is 3
-                decide(dist_Q1_a_prd3, dist_Q1_b_prd3, prd[3].dist, rdmult, rate_Q1_a_prd3, rate_Q1_b_prd3, rate_zero_3 + prd[3].rate, &pqData[1], &pqData[3], limits, 3, &decision[3], &decision[1]);
-#endif
-                //assume current state is 0, current coeff is new eob.
-                //input: scan_pos,pqData[0],pqData[2], decison[0] and decision[2]
-                // update eob if better use current position as eob
-
-                if (sharpness == 0)
-                {
-#if CONFIG_EOB_POS_LUMA
-                    const int new_eob_rate = get_eob_cost(scan_pos + 1, txb_eob_costs, txb_costs, is_inter);
-#else
-                    const int new_eob_rate = get_eob_cost(scan_pos + 1, txb_eob_costs, txb_costs);
-#endif  // CONFIG_EOB_POS_LUMA
-                    int new_eob_ctx = get_lower_levels_ctx_eob(bwl, height, scan_pos);
-                    int rate_Q0_a = get_coeff_cost_eob(blk_pos, pqData[0].absLevel, (qcoeff[blk_pos] < 0), new_eob_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
-#if CONFIG_CONTEXT_DERIVATION
-                                          ,
-                                          xd->tmp_sign
-#endif  // CONFIG_CONTEXT_DERIVATION
-                                    , plane) + new_eob_rate;
-                    int rate_Q0_b = get_coeff_cost_eob(blk_pos, pqData[2].absLevel, (qcoeff[blk_pos] < 0), new_eob_ctx, txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
-#if CONFIG_CONTEXT_DERIVATION
-                                          ,
-                                          xd->tmp_sign
-#endif  // CONFIG_CONTEXT_DERIVATION
-                                    , plane) + new_eob_rate;
-#if MORESTATES
-                    decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2], limits, -1, &decision[0], &decision[4]);
-#else
-                    decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1, rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0], &pqData[2], limits, -1, &decision[0], &decision[2]);
-#endif
-                }
-            }           
-        }
-
-       // copy corresponding context from previous level buffer
-            for (int state = 0; state < TOTALSTATES && scan_pos != si; state++)
-            {
-                if (decision[state].prevId >= 0)
-                    memcpy(levels[state], prev_levels[decision[state].prevId], sizeof(uint8_t) * bufsize);
-            }
-            // update levels_buf
-            for (int state = 0; state < TOTALSTATES && scan_pos != 0; state++)
-            {
-                set_levels_buf(&decision[state], levels[state], scan, si, scan_pos, bwl, sharpness);
-            }
-            if (scan_pos != 0)
-            {
-                for(int state = 0; state < TOTALSTATES; state++)
-                    memcpy(prev_levels[state], levels[state], sizeof(uint8_t) * bufsize);
-            }
-    }
-
-    for (int i = 0; i < TOTALSTATES; i++)
-    {
-        free(levels[i]);
-        free(prev_levels[i]);
-    }
-    free(levels);
-    free(prev_levels);
-
-    //find best path  
-    int64_t min_path_cost = INT64_MAX;
-    int min_rate = INT32_MAX;
-    int64_t min_dist = INT32_MAX;
-    DECISION decision;
-    decision.prevId = -2;
-    for (int state = 0; state < TOTALSTATES; state++)
-    {
-        if (trellis[0][state].rdCost < min_path_cost)
-        {
-            decision.prevId = state;
-            min_path_cost = trellis[0][state].rdCost;
-            min_rate = trellis[0][state].rate;
-            min_dist = trellis[0][state].dist;
-        }
-    }
-#if DBGT
-    if (dbg) {
-      printf("TR prevId %d deltas [ minrd %" PRId64 " minrate %d mindist %" PRId64 " ]\n",
-             decision.prevId,
-             min_path_cost,
-             min_rate,
-             min_dist);
-    }
-#endif
-    //backward scannig  dqc,tqc,qc,level
-    int scan_pos = 0;
-    //printf("quantization... \n");
-    eob_trl = eob;
-    for (; decision.prevId >= 0; scan_pos++)
-    {
-        decision = trellis[scan_pos][decision.prevId];
-        //printf("%d ", decision.absLevel);
-        int blk_pos = scan[scan_pos];
-        qcoeff[blk_pos] = (tcoeff[blk_pos] < 0 ? -decision.absLevel : decision.absLevel);
-        dqcoeff[blk_pos] = (tcoeff[blk_pos] < 0 ? -decision.dqc : decision.dqc); 
-#if DBGT
-        if (dbg) {
-          int32_t next_rate = decision.prevId >= 0 ? trellis[scan_pos + 1][decision.prevId].rate : 0;
-          int32_t next_dist = decision.prevId >= 0 ? trellis[scan_pos + 1][decision.prevId].dist : 0;
-          int prev_id = decision.prevId >= 0 ? decision.prevId : 0;
-          coeff_q[scan_pos] = qcoeff[blk_pos];
-          coeff_dq[scan_pos] = dqcoeff[blk_pos];
-          coeff_trl[scan_pos] = (decision.rate - next_rate) / 512.0;
-          sign_trl[scan_pos] = decision.sr;
-          printf("TR pos %d id %d qcoeff %2d tcoeff %5d dqcoeff %5d rate %d %.2lf rate_coeff %.2lf dist %.2lf dist_coeff %.2lf\n",
-                 scan_pos, prev_id,
-                 qcoeff[blk_pos],
-                 tcoeff[blk_pos],
-                 dqcoeff[blk_pos],
-                 decision.rate,
-                 decision.rate / 512.0,
-                 (decision.rate - next_rate) / 512.0,
-                 decision.dist / 512.0,
-                 (decision.dist - next_dist) / 512.0);
-        }
-#endif
-    }
-
-    eob = scan_pos;
-    for (; scan_pos <= first_test_pos; scan_pos++)
-    {
-        int blk_pos = scan[scan_pos];
-        qcoeff[blk_pos] = 0;
-        dqcoeff[blk_pos] = 0;
-    }
-
-#if DBGT
-    if (dbg) for (int i = 0; i < height; i++) {
-      printf("QCOEFF %2d [ ", i);
-      for (int j = 0; j < width; j++) {
-        printf("%2d ", qcoeff[i *width + j]);
-      }
-      printf("]\n");
-    }
-#endif
-
-#if CONFIG_CONTEXT_DERIVATION
-    int txb_skip_ctx = txb_ctx->txb_skip_ctx;
-    int non_skip_cost = 0;
-    int skip_cost = 0;
-    if (plane == AOM_PLANE_V) {
-      txb_skip_ctx +=
-          (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
-      non_skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][0];
-      skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][1];
     } else {
-#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
-      const int pred_mode_ctx =
-          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
-      non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
-      skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+      int coeff_ctx0 = 0;
+      int coeff_ctx1 = 0;
+      int coeff_ctx2 = 0;
+      int coeff_ctx3 = 0;
+#if MORESTATES
+      int coeff_ctx4 = 0;
+      int coeff_ctx5 = 0;
+      int coeff_ctx6 = 0;
+      int coeff_ctx7 = 0;
+#endif
+      if (limits) {
+        coeff_ctx0 =
+            get_lower_levels_lf_ctx(prev_levels[0], blk_pos, bwl, tx_class);
+        coeff_ctx1 =
+            get_lower_levels_lf_ctx(prev_levels[1], blk_pos, bwl, tx_class);
+        coeff_ctx2 =
+            get_lower_levels_lf_ctx(prev_levels[2], blk_pos, bwl, tx_class);
+        coeff_ctx3 =
+            get_lower_levels_lf_ctx(prev_levels[3], blk_pos, bwl, tx_class);
+#if MORESTATES
+        coeff_ctx4 =
+            get_lower_levels_lf_ctx(prev_levels[4], blk_pos, bwl, tx_class);
+        coeff_ctx5 =
+            get_lower_levels_lf_ctx(prev_levels[5], blk_pos, bwl, tx_class);
+        coeff_ctx6 =
+            get_lower_levels_lf_ctx(prev_levels[6], blk_pos, bwl, tx_class);
+        coeff_ctx7 =
+            get_lower_levels_lf_ctx(prev_levels[7], blk_pos, bwl, tx_class);
+
+#endif
+      } else {
+        coeff_ctx0 = get_lower_levels_ctx(prev_levels[0], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx1 = get_lower_levels_ctx(prev_levels[1], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx2 = get_lower_levels_ctx(prev_levels[2], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx3 = get_lower_levels_ctx(prev_levels[3], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+#if MORESTATES
+        coeff_ctx4 = get_lower_levels_ctx(prev_levels[4], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx5 = get_lower_levels_ctx(prev_levels[5], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx6 = get_lower_levels_ctx(prev_levels[6], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+        coeff_ctx7 = get_lower_levels_ctx(prev_levels[7], blk_pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+        );
+#endif
+      }
+      // calculate RDcost
+
+      int rate_zero_0 = 0;
+      int rate_zero_1 = 0;
+      int rate_zero_2 = 0;
+      int rate_zero_3 = 0;
+#if MORESTATES
+      int rate_zero_4 = 0;
+      int rate_zero_5 = 0;
+      int rate_zero_6 = 0;
+      int rate_zero_7 = 0;
+
+#endif
+      if (limits) {
+#if CONFIG_LCCHROMA
+        const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+            plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
+        rate_zero_0 = base_lf_cost_ptr[coeff_ctx0][0][0];
+        rate_zero_1 = base_lf_cost_ptr[coeff_ctx1][0][0];
+        rate_zero_2 = base_lf_cost_ptr[coeff_ctx2][1][0];
+        rate_zero_3 = base_lf_cost_ptr[coeff_ctx3][1][0];
+#if MORESTATES
+        rate_zero_4 = base_lf_cost_ptr[coeff_ctx4][0][0];
+        rate_zero_5 = base_lf_cost_ptr[coeff_ctx5][0][0];
+        rate_zero_6 = base_lf_cost_ptr[coeff_ctx6][1][0];
+        rate_zero_7 = base_lf_cost_ptr[coeff_ctx7][1][0];
+#endif
 #else
-      non_skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][0];
-      skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][1];
+        rate_zero_0 = txb_costs->base_lf_cost[coeff_ctx0][0];
+        rate_zero_1 = txb_costs->base_lf_cost[coeff_ctx1][0];
+        rate_zero_2 = txb_costs->base_lf_cost_tcq[coeff_ctx2][0];
+        rate_zero_3 = txb_costs->base_lf_cost_tcq[coeff_ctx3][0];
+#if MORESTATES
+        rate_zero_4 = txb_costs->base_lf_cost[coeff_ctx4][0];
+        rate_zero_5 = txb_costs->base_lf_cost[coeff_ctx5][0];
+        rate_zero_6 = txb_costs->base_lf_cost_tcq[coeff_ctx6][0];
+        rate_zero_7 = txb_costs->base_lf_cost_tcq[coeff_ctx7][0];
+#endif
+#endif
+
+      } else {
+#if CONFIG_LCCHROMA
+        const int(*base_cost_ptr)[DQ_CTXS][8] =
+            plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
+        rate_zero_0 = base_cost_ptr[coeff_ctx0][0][0];
+        rate_zero_1 = base_cost_ptr[coeff_ctx1][0][0];
+        rate_zero_2 = base_cost_ptr[coeff_ctx2][1][0];
+        rate_zero_3 = base_cost_ptr[coeff_ctx3][1][0];
+#if MORESTATES
+        rate_zero_4 = base_cost_ptr[coeff_ctx4][0][0];
+        rate_zero_5 = base_cost_ptr[coeff_ctx5][0][0];
+        rate_zero_6 = base_cost_ptr[coeff_ctx6][1][0];
+        rate_zero_7 = base_cost_ptr[coeff_ctx7][1][0];
+#endif
+#else
+        rate_zero_0 = txb_costs->base_cost[coeff_ctx0][0];
+        rate_zero_1 = txb_costs->base_cost[coeff_ctx1][0];
+        rate_zero_2 = txb_costs->base_cost_tcq[coeff_ctx2][0];
+        rate_zero_3 = txb_costs->base_cost_tcq[coeff_ctx3][0];
+#if MORESTATES
+        rate_zero_4 = txb_costs->base_cost[coeff_ctx4][0];
+        rate_zero_5 = txb_costs->base_cost[coeff_ctx5][0];
+        rate_zero_6 = txb_costs->base_cost_tcq[coeff_ctx6][0];
+        rate_zero_7 = txb_costs->base_cost_tcq[coeff_ctx7][0];
+#endif
+#endif
+      }
+
+      DECISION *prd = trellis[scan_pos + 1];
+      int rate_Q0_a_prd0 = get_coeff_cost_general(
+          0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx0,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[0]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_a_prd1 = get_coeff_cost_general(
+          0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx1,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[1]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_b_prd0 = get_coeff_cost_general(
+          0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx0,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[0]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_b_prd1 = get_coeff_cost_general(
+          0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx1,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[1]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_a_prd2 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx2,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[2]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_a_prd3 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx3,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[3]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_b_prd2 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx2,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[2]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_b_prd3 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx3,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[3]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+#if MORESTATES
+      int rate_Q0_a_prd4 = get_coeff_cost_general(
+          0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx4,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[4]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_a_prd5 = get_coeff_cost_general(
+          0, blk_pos, pqData[0].absLevel, coeff_sign, coeff_ctx5,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[5]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_b_prd4 = get_coeff_cost_general(
+          0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx4,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[4]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q0_b_prd5 = get_coeff_cost_general(
+          0, blk_pos, pqData[2].absLevel, coeff_sign, coeff_ctx5,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[5]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_a_prd6 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx6,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[6]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_a_prd7 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[1].absLevel, coeff_sign, coeff_ctx7,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[7]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_b_prd6 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx6,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[6]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+      int rate_Q1_b_prd7 = get_coeff_cost_general_q1(
+          0, blk_pos, pqData[3].absLevel, coeff_sign, coeff_ctx7,
+          txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class, prev_levels[7]
+#if CONFIG_CONTEXT_DERIVATION
+          ,
+          xd->tmp_sign
+#endif
+          ,
+          plane, limits);
+#endif
+      rate_Q0_a_prd0 += prd[0].rate;
+      rate_Q0_a_prd1 += prd[1].rate;
+      rate_Q0_b_prd0 += prd[0].rate;
+      rate_Q0_b_prd1 += prd[1].rate;
+      rate_Q1_a_prd2 += prd[2].rate;
+      rate_Q1_a_prd3 += prd[3].rate;
+      rate_Q1_b_prd2 += prd[2].rate;
+      rate_Q1_b_prd3 += prd[3].rate;
+#if MORESTATES
+      rate_Q0_a_prd4 += prd[4].rate;
+      rate_Q0_a_prd5 += prd[5].rate;
+      rate_Q0_b_prd4 += prd[4].rate;
+      rate_Q0_b_prd5 += prd[5].rate;
+      rate_Q1_a_prd6 += prd[6].rate;
+      rate_Q1_a_prd7 += prd[7].rate;
+      rate_Q1_b_prd6 += prd[6].rate;
+      rate_Q1_b_prd7 += prd[7].rate;
+
+#endif
+      {
+        int64_t dist_Q0_a_prd0 = pqData[0].deltaDist + prd[0].dist;
+        int64_t dist_Q0_a_prd1 = pqData[0].deltaDist + prd[1].dist;
+        int64_t dist_Q0_b_prd0 = pqData[2].deltaDist + prd[0].dist;
+        int64_t dist_Q0_b_prd1 = pqData[2].deltaDist + prd[1].dist;
+        int64_t dist_Q1_a_prd2 = pqData[1].deltaDist + prd[2].dist;
+        int64_t dist_Q1_a_prd3 = pqData[1].deltaDist + prd[3].dist;
+        int64_t dist_Q1_b_prd2 = pqData[3].deltaDist + prd[2].dist;
+        int64_t dist_Q1_b_prd3 = pqData[3].deltaDist + prd[3].dist;
+#if MORESTATES
+        int64_t dist_Q0_a_prd4 = pqData[0].deltaDist + prd[4].dist;
+        int64_t dist_Q0_a_prd5 = pqData[0].deltaDist + prd[5].dist;
+        int64_t dist_Q0_b_prd4 = pqData[2].deltaDist + prd[4].dist;
+        int64_t dist_Q0_b_prd5 = pqData[2].deltaDist + prd[5].dist;
+        int64_t dist_Q1_a_prd6 = pqData[1].deltaDist + prd[6].dist;
+        int64_t dist_Q1_a_prd7 = pqData[1].deltaDist + prd[7].dist;
+        int64_t dist_Q1_b_prd6 = pqData[3].deltaDist + prd[6].dist;
+        int64_t dist_Q1_b_prd7 = pqData[3].deltaDist + prd[7].dist;
+
+#endif
+        // todo: Q0 can skip the sig_flag or skip some another flag. This is not
+        // included in the calculation of RDcost now.
+#if MORESTATES
+        // pre_state is 0
+        decide(dist_Q0_a_prd0, dist_Q0_b_prd0, prd[0].dist, rdmult,
+               rate_Q0_a_prd0, rate_Q0_b_prd0, rate_zero_0 + prd[0].rate,
+               &pqData[0], &pqData[2], limits, 0, &decision[0], &decision[4]);
+        // pre_state is 1
+        decide(dist_Q0_a_prd1, dist_Q0_b_prd1, prd[1].dist, rdmult,
+               rate_Q0_a_prd1, rate_Q0_b_prd1, rate_zero_1 + prd[1].rate,
+               &pqData[0], &pqData[2], limits, 1, &decision[4], &decision[0]);
+        // pre_state is 2
+        decide(dist_Q1_a_prd2, dist_Q1_b_prd2, prd[2].dist, rdmult,
+               rate_Q1_a_prd2, rate_Q1_b_prd2, rate_zero_2 + prd[2].rate,
+               &pqData[1], &pqData[3], limits, 2, &decision[1], &decision[5]);
+        // pre_state is 3
+        decide(dist_Q1_a_prd3, dist_Q1_b_prd3, prd[3].dist, rdmult,
+               rate_Q1_a_prd3, rate_Q1_b_prd3, rate_zero_3 + prd[3].rate,
+               &pqData[1], &pqData[3], limits, 3, &decision[5], &decision[1]);
+        // pre_state is 4
+        decide(dist_Q0_a_prd4, dist_Q0_b_prd4, prd[4].dist, rdmult,
+               rate_Q0_a_prd4, rate_Q0_b_prd4, rate_zero_4 + prd[4].rate,
+               &pqData[0], &pqData[2], limits, 4, &decision[6], &decision[2]);
+        // pre_state is 5
+        decide(dist_Q0_a_prd5, dist_Q0_b_prd5, prd[5].dist, rdmult,
+               rate_Q0_a_prd5, rate_Q0_b_prd5, rate_zero_5 + prd[5].rate,
+               &pqData[0], &pqData[2], limits, 5, &decision[2], &decision[6]);
+        // pre_state is 6
+        decide(dist_Q1_a_prd6, dist_Q1_b_prd6, prd[6].dist, rdmult,
+               rate_Q1_a_prd6, rate_Q1_b_prd6, rate_zero_6 + prd[6].rate,
+               &pqData[1], &pqData[3], limits, 6, &decision[7], &decision[3]);
+        // pre_state is 7
+        decide(dist_Q1_a_prd7, dist_Q1_b_prd7, prd[7].dist, rdmult,
+               rate_Q1_a_prd7, rate_Q1_b_prd7, rate_zero_7 + prd[7].rate,
+               &pqData[1], &pqData[3], limits, 7, &decision[3], &decision[7]);
+
+#else
+        // pre_state is 0
+        decide(dist_Q0_a_prd0, dist_Q0_b_prd0, prd[0].dist, rdmult,
+               rate_Q0_a_prd0, rate_Q0_b_prd0, rate_zero_0 + prd[0].rate,
+               &pqData[0], &pqData[2], limits, 0, &decision[0], &decision[2]);
+        // pre_state is 1
+        decide(dist_Q0_a_prd1, dist_Q0_b_prd1, prd[1].dist, rdmult,
+               rate_Q0_a_prd1, rate_Q0_b_prd1, rate_zero_1 + prd[1].rate,
+               &pqData[0], &pqData[2], limits, 1, &decision[2], &decision[0]);
+        // pre_state is 2
+        decide(dist_Q1_a_prd2, dist_Q1_b_prd2, prd[2].dist, rdmult,
+               rate_Q1_a_prd2, rate_Q1_b_prd2, rate_zero_2 + prd[2].rate,
+               &pqData[1], &pqData[3], limits, 2, &decision[1], &decision[3]);
+        // pre_state is 3
+        decide(dist_Q1_a_prd3, dist_Q1_b_prd3, prd[3].dist, rdmult,
+               rate_Q1_a_prd3, rate_Q1_b_prd3, rate_zero_3 + prd[3].rate,
+               &pqData[1], &pqData[3], limits, 3, &decision[3], &decision[1]);
+#endif
+        // assume current state is 0, current coeff is new eob.
+        // input: scan_pos,pqData[0],pqData[2], decison[0] and decision[2]
+        //  update eob if better use current position as eob
+
+        if (sharpness == 0) {
+#if CONFIG_EOB_POS_LUMA
+          const int new_eob_rate =
+              get_eob_cost(scan_pos + 1, txb_eob_costs, txb_costs, is_inter);
+#else
+          const int new_eob_rate =
+              get_eob_cost(scan_pos + 1, txb_eob_costs, txb_costs);
+#endif  // CONFIG_EOB_POS_LUMA
+          int new_eob_ctx = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+          int rate_Q0_a =
+              get_coeff_cost_eob(blk_pos, pqData[0].absLevel,
+                                 (qcoeff[blk_pos] < 0), new_eob_ctx,
+                                 txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
+#if CONFIG_CONTEXT_DERIVATION
+                                 ,
+                                 xd->tmp_sign
+#endif  // CONFIG_CONTEXT_DERIVATION
+                                 ,
+                                 plane) +
+              new_eob_rate;
+          int rate_Q0_b =
+              get_coeff_cost_eob(blk_pos, pqData[2].absLevel,
+                                 (qcoeff[blk_pos] < 0), new_eob_ctx,
+                                 txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class
+#if CONFIG_CONTEXT_DERIVATION
+                                 ,
+                                 xd->tmp_sign
+#endif  // CONFIG_CONTEXT_DERIVATION
+                                 ,
+                                 plane) +
+              new_eob_rate;
+#if MORESTATES
+          decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1,
+                 rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0],
+                 &pqData[2], limits, -1, &decision[0], &decision[4]);
+#else
+          decide(pqData[0].deltaDist, pqData[2].deltaDist, INT32_MAX >> 1,
+                 rdmult, rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, &pqData[0],
+                 &pqData[2], limits, -1, &decision[0], &decision[2]);
+#endif
+        }
+      }
+    }
+
+    // copy corresponding context from previous level buffer
+    for (int state = 0; state < TOTALSTATES && scan_pos != si; state++) {
+      if (decision[state].prevId >= 0)
+        memcpy(levels[state], prev_levels[decision[state].prevId],
+               sizeof(uint8_t) * bufsize);
+    }
+    // update levels_buf
+    for (int state = 0; state < TOTALSTATES && scan_pos != 0; state++) {
+      set_levels_buf(&decision[state], levels[state], scan, si, scan_pos, bwl,
+                     sharpness);
+    }
+    if (scan_pos != 0) {
+      for (int state = 0; state < TOTALSTATES; state++)
+        memcpy(prev_levels[state], levels[state], sizeof(uint8_t) * bufsize);
+    }
+  }
+
+  for (int i = 0; i < TOTALSTATES; i++) {
+    free(levels[i]);
+    free(prev_levels[i]);
+  }
+  free(levels);
+  free(prev_levels);
+
+  // find best path
+  int64_t min_path_cost = INT64_MAX;
+  int min_rate = INT32_MAX;
+  int64_t min_dist = INT32_MAX;
+  DECISION decision;
+  decision.prevId = -2;
+  for (int state = 0; state < TOTALSTATES; state++) {
+    if (trellis[0][state].rdCost < min_path_cost) {
+      decision.prevId = state;
+      min_path_cost = trellis[0][state].rdCost;
+      min_rate = trellis[0][state].rate;
+      min_dist = trellis[0][state].dist;
+    }
+  }
+  // backward scannig  dqc,tqc,qc,level
+  int scan_pos = 0;
+  // printf("quantization... \n");
+  for (; decision.prevId >= 0; scan_pos++) {
+    decision = trellis[scan_pos][decision.prevId];
+    // printf("%d ", decision.absLevel);
+    int blk_pos = scan[scan_pos];
+    qcoeff[blk_pos] =
+        (tcoeff[blk_pos] < 0 ? -decision.absLevel : decision.absLevel);
+    dqcoeff[blk_pos] = (tcoeff[blk_pos] < 0 ? -decision.dqc : decision.dqc);
+  }
+
+  eob = scan_pos;
+  for (; scan_pos <= first_test_pos; scan_pos++) {
+    int blk_pos = scan[scan_pos];
+    qcoeff[blk_pos] = 0;
+    dqcoeff[blk_pos] = 0;
+  }
+
+#if CONFIG_CONTEXT_DERIVATION
+  int txb_skip_ctx = txb_ctx->txb_skip_ctx;
+  int non_skip_cost = 0;
+  int skip_cost = 0;
+  if (plane == AOM_PLANE_V) {
+    txb_skip_ctx +=
+        (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
+    non_skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][0];
+    skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][1];
+  } else {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+    skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+#else
+    non_skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][0];
+    skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][1];
 #endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   }
 #else
-    const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
-    const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
+  const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
+  const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 #endif  // CONFIG_CONTEXT_DERIVATION
 
   int accu_rate = 0;
   set_bob(x, plane, block, tx_size, tx_type);
 
-  if (eob == 0) assert(0); // in current implementation, this could not happen.
-  else
-  {
-      const int tx_type_cost = get_tx_type_cost(x, xd, plane, tx_size, tx_type,
-          cm->features.reduced_tx_set_used,
-          eob, bob_code, is_fsc
-      );
-      accu_rate += non_skip_cost + tx_type_cost + min_rate;
-// skip block
-      if (RDCOST(rdmult, accu_rate, min_dist) > RDCOST(rdmult, skip_cost, 0) && sharpness == 0)
-      {
-          for (int scan_idx = 0; scan_idx <= first_test_pos; scan_idx++)
-          {
-              int blk_idx = scan[scan_idx];
-              qcoeff[blk_idx] = 0;
-              dqcoeff[blk_idx] = 0;
-          }
-          accu_rate = skip_cost;
-          eob = 0;
+  if (eob == 0)
+    assert(0);  // in current implementation, this could not happen.
+  else {
+    const int tx_type_cost = get_tx_type_cost(x, xd, plane, tx_size, tx_type,
+                                              cm->features.reduced_tx_set_used,
+                                              eob, bob_code, is_fsc);
+    accu_rate += non_skip_cost + tx_type_cost + min_rate;
+    // skip block
+    if (RDCOST(rdmult, accu_rate, min_dist) > RDCOST(rdmult, skip_cost, 0) &&
+        sharpness == 0) {
+      for (int scan_idx = 0; scan_idx <= first_test_pos; scan_idx++) {
+        int blk_idx = scan[scan_idx];
+        qcoeff[blk_idx] = 0;
+        dqcoeff[blk_idx] = 0;
       }
+      accu_rate = skip_cost;
+      eob = 0;
+    }
   }
 
-    p->eobs[block] = eob;
-    p->txb_entropy_ctx[block] =
-        av1_get_txb_entropy_context(qcoeff, scan_order, p->eobs[block]);
+  p->eobs[block] = eob;
+  p->txb_entropy_ctx[block] =
+      av1_get_txb_entropy_context(qcoeff, scan_order, p->eobs[block]);
 
-    accu_rate += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
+  accu_rate += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
 
-    *rate_cost = accu_rate;
-    return eob;
+  *rate_cost = accu_rate;
+  return eob;
 }
 #endif
 
@@ -6958,7 +6576,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
                             coeff_contexts, plane);
 
-  // select quantizer when DQ is on, 0 for Q0 and 1 for Q1
+    // select quantizer when DQ is on, 0 for Q0 and 1 for Q1
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding &&
         !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
@@ -6976,8 +6594,9 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
       const int coeff_ctx = coeff_contexts[pos];
       const tran_low_t v = qcoeff[pos];
       const tran_low_t level = abs(v);
+#if CONFIG_DQ
       const int dq = tcq_quant(state);
-
+#endif
       if (allow_update_cdf) {
         if (c == eob - 1) {
           assert(coeff_ctx < 4);
@@ -7025,42 +6644,46 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                     [dq]
 #endif
-                         , AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                         ,
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                  [dq]
 #endif
-                         , AOMMIN(level, 3), 4);
+                         ,
+                         AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                  [dq]
 #endif
-                         , AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                         ,
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                               [dq]
 #endif
-                         , AOMMIN(level, 3), 4);
+                         ,
+                         AOMMIN(level, 3), 4);
             }
           }
 #else
           if (limits) {
 #if CONFIG_DQ
-            if (dq) // quantizer 1, update its ctx
-              update_cdf(
-                ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            if (dq)  // quantizer 1, update its ctx
+              update_cdf(ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type]
+                                                      [coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             else
               update_cdf(
-                ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                  ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
 #else
             update_cdf(
                 ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -7068,14 +6691,14 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif
           } else {
 #if CONFIG_DQ
-            if (dq) // quantizer 1, update its ctx
+            if (dq)  // quantizer 1, update its ctx
               update_cdf(
-                ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, 3), 4);
+                  ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, 3), 4);
             else
               update_cdf(
-                ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, 3), 4);
+                  ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, 3), 4);
 #else
             update_cdf(
                 ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -7129,54 +6752,57 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #if CONFIG_LCCHROMA
         if (plane > 0) {
           if (limits) {
-            ++td->counts->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
+            ++td->counts
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                          [dq]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                                          [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                             [dq]
 #endif
-                [AOMMIN(level, 3)];
+                                             [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
-            ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
+            ++td->counts
+                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                       [dq]
 #endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+                                       [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                          [dq]
 #endif
-                [AOMMIN(level, 3)];
+                                          [AOMMIN(level, 3)];
           }
         }
 #else
         if (limits) {
 #if CONFIG_DQ
-          if (dq) // quantizer 1, update its ctx
-            ++td->counts->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
-                [coeff_ctx]
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
-          else
-#endif
-          ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
+          if (dq)  // quantizer 1, update its ctx
+            ++td->counts
+                  ->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
                                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
-        } else {
-#if CONFIG_DQ
-          if (dq) // quantizer 1, update its ctx
-            ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
-                [coeff_ctx][AOMMIN(level, 3)];
           else
 #endif
-          ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
-                                        [coeff_ctx][AOMMIN(level, 3)];
+            ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
+                                             [coeff_ctx][AOMMIN(
+                                                 level, LF_BASE_SYMBOLS - 1)];
+        } else {
+#if CONFIG_DQ
+          if (dq)  // quantizer 1, update its ctx
+            ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
+                                              [coeff_ctx][AOMMIN(level, 3)];
+          else
+#endif
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
+                                          [coeff_ctx][AOMMIN(level, 3)];
         }
 #endif  // CONFIG_LCCHROMA
 #endif
@@ -7326,9 +6952,9 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif  // CONFIG_LCCHROMA
 #if CONFIG_DQ
 #if DQENABLE
-    if (dq_enable(tx_size, plane))
-#endif //DQENABLE
-      state = tcq_next_state(state, level, limits);
+      if (dq_enable(tx_size, plane))
+#endif  // DQENABLE
+        state = tcq_next_state(state, level, limits);
 #endif
     }
 
@@ -7400,48 +7026,54 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_DQ
           int dq = tcq_quant(state);
+#endif
 #if CONFIG_LCCHROMA
           if (plane > 0) {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                     [dq]
 #endif
-                         , AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                         ,
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                  [dq]
 #endif
-                         , AOMMIN(level, 3), 4);
+                         ,
+                         AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                                  [dq]
 #endif
-                         , AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                         ,
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                         [dq]
+                                               [dq]
 #endif
-                         , AOMMIN(level, 3), 4);
+                         ,
+                         AOMMIN(level, 3), 4);
             }
           }
 #else
           if (limits) {
 #if CONFIG_DQ
-            if (dq) // quantizer 1, update its ctx
-              update_cdf(
-                ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            if (dq)  // quantizer 1, update its ctx
+              update_cdf(ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type]
+                                                      [coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             else
               update_cdf(
-                ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+                  ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
 #else
             update_cdf(
                 ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -7449,14 +7081,14 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif
           } else {
 #if CONFIG_DQ
-            if (dq) // quantizer 1, update its ctx
+            if (dq)  // quantizer 1, update its ctx
               update_cdf(
-                ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, 3), 4);
+                  ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, 3), 4);
             else
               update_cdf(
-                ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
-                AOMMIN(level, 3), 4);
+                  ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
+                  AOMMIN(level, 3), 4);
 #else
             update_cdf(
                 ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -7510,31 +7142,31 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #if CONFIG_LCCHROMA
         if (plane > 0) {
           if (limits) {
-            ++td->counts->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_DQ
-                [dq]
-#endif
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
-          } else {
             ++td->counts
-                  ->coeff_base_multi_uv[cdf_idx][coeff_ctx]
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                          [dq]
 #endif
-                [AOMMIN(level, 3)];
+                                          [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+          } else {
+            ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
+#if CONFIG_DQ
+                                             [dq]
+#endif
+                                             [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
             ++td->counts
                   ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                       [dq]
 #endif
                                        [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
 #if CONFIG_DQ
-                [dq]
+                                          [dq]
 #endif
                                           [AOMMIN(level, 3)];
           }
@@ -7542,24 +7174,25 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #else
         if (limits) {
 #if CONFIG_DQ
-          if (dq) // quantizer 1, update its ctx
-            ++td->counts->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
-                [coeff_ctx]
-                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
-          else
-#endif
-          ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
+          if (dq)  // quantizer 1, update its ctx
+            ++td->counts
+                  ->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
                                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
-        } else {
-#if CONFIG_DQ
-          if (dq) // quantizer 1, update its ctx
-            ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
-                [coeff_ctx][AOMMIN(level, 3)];
           else
 #endif
-          ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
-                                        [coeff_ctx][AOMMIN(level, 3)];
+            ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
+                                             [coeff_ctx][AOMMIN(
+                                                 level, LF_BASE_SYMBOLS - 1)];
+        } else {
+#if CONFIG_DQ
+          if (dq)  // quantizer 1, update its ctx
+            ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
+                                              [coeff_ctx][AOMMIN(level, 3)];
+          else
+#endif
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
+                                          [coeff_ctx][AOMMIN(level, 3)];
         }
 #endif  // CONFIG_LCCHROMA
 #endif

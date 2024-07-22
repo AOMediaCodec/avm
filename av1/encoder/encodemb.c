@@ -203,17 +203,18 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_DQ
 #if DQENABLE
   if (dq_enable(tx_size, plane))
-#endif //DQENABLE
+#endif  // DQENABLE
   {
-      return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-          txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+    return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                         txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
   }
 #if DQENABLE
   else
-#endif //DQENABLE
-#endif //#if CONFIG_DQ
-  return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                              txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+#endif  // DQENABLE
+#endif  // #if CONFIG_DQ
+    return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type,
+                                cctx_type, txb_ctx, rate_cost,
+                                cpi->oxcf.algo_cfg.sharpness);
 }
 
 // This function returns the multiplier of dequantization for current position.
@@ -805,31 +806,33 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #else
         get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX_RDPH
-// Settings for optimization type. NOTE: To set optimization type for all intra
-// frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should be set.
-// TODO(yjshen): These settings are hard-coded and look okay for now. They
-// should be made configurable later.
-// Blocks of key frames ONLY.
-  OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-  OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-  OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Settings for optimization type. NOTE: To set optimization type for all
+    // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+    // be set.
+    // TODO(yjshen): These settings are hard-coded and look okay for now. They
+    // should be made configurable later.
+    // Blocks of key frames ONLY.
+    OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Blocks of intra frames (key frames EXCLUSIVE).
+    OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+    // default if trellis optimization is on for inter frames.)
+    OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
 #if CONFIG_DQ
 #if DQENABLE
-  if (dq_enable(tx_size, plane))
+    if (dq_enable(tx_size, plane))
 #endif
-  {
-// Dropout setting should be disabled when Dependent quantization is enabled.
-    KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-    INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-    INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
-  }
+    {
+      // Dropout setting should be disabled when Dependent quantization is
+      // enabled.
+      KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
+      // Blocks of intra frames (key frames EXCLUSIVE).
+      INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
+      // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+      // default if trellis optimization is on for inter frames.)
+      INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
+    }
 #endif
 
     // Whether trellis or dropout optimization is required for inter frames.
@@ -1429,31 +1432,33 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     }
 #endif
 
-// Settings for optimization type. NOTE: To set optimization type for all intra
-// frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should be set.
-// TODO(yjshen): These settings are hard-coded and look okay for now. They
-// should be made configurable later.
-// Blocks of key frames ONLY.
-  OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-  OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-  OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Settings for optimization type. NOTE: To set optimization type for all
+    // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+    // be set.
+    // TODO(yjshen): These settings are hard-coded and look okay for now. They
+    // should be made configurable later.
+    // Blocks of key frames ONLY.
+    OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Blocks of intra frames (key frames EXCLUSIVE).
+    OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+    // default if trellis optimization is on for inter frames.)
+    OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
 #if CONFIG_DQ
 #if DQENABLE
-  if (dq_enable(tx_size, plane))
+    if (dq_enable(tx_size, plane))
 #endif
-  {
-// Dropout setting should be disabled when Dependent quantization is enabled.
-    KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-    INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-    INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
-  }
+    {
+      // Dropout setting should be disabled when Dependent quantization is
+      // enabled.
+      KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
+      // Blocks of intra frames (key frames EXCLUSIVE).
+      INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
+      // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+      // default if trellis optimization is on for inter frames.)
+      INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
+    }
 #endif
 
     // Whether trellis or dropout optimization is required for key frames and
@@ -1751,16 +1756,17 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   av1_setup_quant(tx_size, use_trellis, quant_idx,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
-// Settings for optimization type. NOTE: To set optimization type for all intra
-// frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should be set.
-// TODO(yjshen): These settings are hard-coded and look okay for now. They
-// should be made configurable later.
-// Blocks of key frames ONLY.
+  // Settings for optimization type. NOTE: To set optimization type for all
+  // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+  // be set.
+  // TODO(yjshen): These settings are hard-coded and look okay for now. They
+  // should be made configurable later.
+  // Blocks of key frames ONLY.
   OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
+  // Blocks of intra frames (key frames EXCLUSIVE).
   OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
+  // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
+  // if trellis optimization is on for inter frames.)
   OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
 #if CONFIG_DQ
@@ -1768,12 +1774,13 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   if (dq_enable(tx_size, AOM_PLANE_U))
 #endif
   {
-// Dropout setting should be disabled when Dependent quantization is enabled.
+    // Dropout setting should be disabled when Dependent quantization is
+    // enabled.
     KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
+    // Blocks of intra frames (key frames EXCLUSIVE).
     INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
+    // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+    // default if trellis optimization is on for inter frames.)
     INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
   }
 #endif

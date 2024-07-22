@@ -202,7 +202,7 @@ typedef struct {
 #if CONFIG_DQ && CONFIG_LCCHROMA
                   [DQ_CTXS]
 #endif
-      [LF_BASE_SYMBOLS * 2];
+                  [LF_BASE_SYMBOLS * 2];
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];

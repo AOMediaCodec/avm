@@ -1178,7 +1178,8 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
         for (int dq = 0; dq < DQ_CTXS; dq++) {
           av1_cost_tokens_from_cdf(pcost->base_lf_cost[ctx][dq],
-                                   fc->coeff_base_lf_cdf[tx_size][ctx][dq], NULL);
+                                   fc->coeff_base_lf_cdf[tx_size][ctx][dq],
+                                   NULL);
         }
       }
       for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS_UV; ++ctx) {
@@ -1244,7 +1245,8 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_cost_tcq[ctx],
-                                  fc->coeff_base_cdf_tcq[tx_size][plane][ctx], NULL);
+                                 fc->coeff_base_cdf_tcq[tx_size][plane][ctx],
+                                 NULL);
 #endif
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_BOB; ++ctx)
         av1_cost_tokens_from_cdf(
@@ -1726,40 +1728,13 @@ static double interp_bicubic(const double *p, int p_stride, double x,
 */
 
 static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0,
-  0,
-  0,
-  1,
-  1,
-  1,
-  2,
-  2,
-  2,
-  3,
-  3,
-  3,
-  3,
-  3,
-  3,
-  3,
+  0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
 #if CONFIG_BLOCK_256
-  3,
-  3,
-  3,
+  3, 3, 3,
 #endif  // CONFIG_BLOCK_256
-  1,
-  1,
-  2,
-  2,
-  3,
-  3,
+  1, 1, 2, 2, 3, 3,
 #if CONFIG_FLEX_PARTITION
-  1,
-  1,
-  2,
-  2,
-  2,
-  2,
+  1, 1, 2, 2, 2, 2,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
@@ -1785,40 +1760,13 @@ static double get_rate_clamplinear(double l, double a, double b) {
 }
 
 static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0,
-  0,
-  0,
-  0,
-  1,
-  1,
-  2,
-  3,
-  3,
-  4,
-  5,
-  5,
-  6,
-  7,
-  7,
-  8,
+  0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8,
 #if CONFIG_BLOCK_256
-  8,
-  8,
-  8,
+  8, 8, 8,
 #endif  // CONFIG_BLOCK_256
-  0,
-  0,
-  2,
-  2,
-  4,
-  4,
+  0, 0, 2, 2, 4, 4,
 #if CONFIG_FLEX_PARTITION
-  1,
-  1,
-  3,
-  3,
-  2,
-  2,
+  1, 1, 3, 3, 2, 2,
 #endif  // CONFIG_FLEX_PARTITION
 };
 

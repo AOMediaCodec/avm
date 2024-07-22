@@ -70,7 +70,8 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   // check whether default can be used
   av1_copy(cm->fc->coeff_base_lf_cdf_tcq,
            av1_default_coeff_base_lf_multi_tcq_cdfs[index]);
-  av1_copy(cm->fc->coeff_base_cdf_tcq, av1_default_coeff_base_multi_tcq_cdfs[index]);
+  av1_copy(cm->fc->coeff_base_cdf_tcq,
+           av1_default_coeff_base_multi_tcq_cdfs[index]);
 #endif
   av1_copy(cm->fc->idtx_sign_cdf, av1_default_idtx_sign_cdfs[index]);
   av1_copy(cm->fc->coeff_base_cdf_idtx,

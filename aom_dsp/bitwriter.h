@@ -130,40 +130,10 @@ static INLINE void aom_write_cdf(aom_writer *w, int symb,
   od_ec_encode_cdf_q15(&w->ec, symb, cdf, nsymbs);
 }
 
-static INLINE void aom_write_cdf_dbg(aom_writer *w, int symb,
-                                     const aom_cdf_prob *cdf, int nsymbs) {
-#if CONFIG_BITSTREAM_DEBUG
-  bitstream_queue_push(symb, cdf, nsymbs);
-#endif  // CONFIG_BITSTREAM_DEBUG
-  {
-    extern int t_dbge;
-    if (0 && t_dbge) {
-      printf("WRITE cdf[ ");
-      for (int i = 0; i < nsymbs - 1; i++) printf("%d ", cdf[i]);
-      printf("]\n");
-    }
-  }
-  od_ec_encode_cdf_q15_dbg(&w->ec, symb, cdf, nsymbs);
-}
-
 static INLINE void aom_write_symbol(aom_writer *w, int symb, aom_cdf_prob *cdf,
                                     int nsymbs) {
   aom_write_cdf(w, symb, cdf, nsymbs);
   if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
-}
-
-static INLINE void aom_write_symbol_dbg(aom_writer *w, int symb, aom_cdf_prob *cdf,
-                                    int nsymbs) {
-  aom_write_cdf_dbg(w, symb, cdf, nsymbs);
-  if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
-}
-
-static INLINE void aom_write_symbol_dbg_noupd(aom_writer *w, int symb, aom_cdf_prob *cdf,
-                                              int nsymbs) {
-  aom_write_cdf_dbg(w, symb, cdf, nsymbs);
-#if 1
-  if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
-#endif
 }
 
 #if ENABLE_LR_4PART_CODE
