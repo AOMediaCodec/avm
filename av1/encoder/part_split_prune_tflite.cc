@@ -110,11 +110,21 @@ extern "C" int av2_part_split_prune_tflite_exec(
     case MODEL_INTER_8X8: model = ctx->model_inter_8x8; break;
     default: return -1;
   }
-  tflite::InterpreterBuilder builder(model, ctx->resolver);
 
+  const int num_threads = 1;
+  TfLiteXNNPackDelegateOptions xnnpack_options =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options.num_threads = AOMMAX(num_threads, 1);
+  TfLiteDelegate *xnnpack_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
+
+  tflite::InterpreterBuilder builder(model, ctx->resolver);
+  tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
   std::unique_ptr<tflite::Interpreter> interpreter;
   builder(&interpreter);
-  tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+    reporter->Report("Failed at modifying graph with XNNPack delegate");
+    exit(1);
+  }
 
   if (interpreter->AllocateTensors() != kTfLiteOk) {
     reporter->Report("Failed at allocating tensors");
