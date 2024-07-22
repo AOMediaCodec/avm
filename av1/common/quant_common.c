@@ -87,6 +87,7 @@ static const uint16_t ac_qlookup_QTX_full[QINDEX_RANGE_8_BITS] = {
 // addition, the minimum allowable quantizer is 4; smaller values will
 // underflow to 0 in the actual quantization routines.
 
+#if CONFIG_DQ
 bool tcq_quant(const int state) {
   // 8-states: A0: state 0/1/4/5, A1: state 2/3/6/7
   // 4-states: A0: state 0/1, A1: state 2/3
@@ -140,6 +141,7 @@ bool dq_enable(TX_SIZE tx_size, int plane) {
   return ((width * height <= DQMAX) &&
           (width * height >= DQMIN));  // try other constraints?
 }
+#endif
 #endif
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,

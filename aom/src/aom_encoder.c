@@ -100,9 +100,6 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
 #endif  // CONFIG_BLOCK_256
     cfg->encoder_cfg.min_partition_size = 4;
     cfg->encoder_cfg.enable_trellis_quant = 3;
-#if CONFIG_DQ
-    cfg->encoder_cfg.enable_dq = 1;
-#endif
   }
   return res;
 }
