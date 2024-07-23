@@ -8231,6 +8231,7 @@ static INLINE void search_partition_vert_3(
 
 static AOM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
                                           int curr_depth) {
+  if (pc_tree == NULL) return curr_depth;
   const PARTITION_TYPE partition = pc_tree->partitioning;
   int max_depth = curr_depth;
 #if CONFIG_EXTENDED_SDP
