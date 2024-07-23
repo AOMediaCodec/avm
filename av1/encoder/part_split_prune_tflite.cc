@@ -24,36 +24,55 @@
 #include "av1/encoder/sms_part_split_prune_tflite_model.h"
 
 struct Context {
-  tflite::Model *model_128X128;
-  tflite::Model *model_64X64;
-  tflite::Model *model_32X32;
-  tflite::Model *model_16X16;
-  tflite::Model *model_inter_64x64;
-  tflite::Model *model_inter_32x32;
-  tflite::Model *model_inter_16x16;
-  tflite::Model *model_inter_8x8;
-  tflite::MutableOpResolver resolver;
+  std::unique_ptr<tflite::Interpreter> model_128X128;
+  std::unique_ptr<tflite::Interpreter> model_64X64;
+  std::unique_ptr<tflite::Interpreter> model_32X32;
+  std::unique_ptr<tflite::Interpreter> model_16X16;
+  std::unique_ptr<tflite::Interpreter> model_inter_64x64;
+  std::unique_ptr<tflite::Interpreter> model_inter_32x32;
+  std::unique_ptr<tflite::Interpreter> model_inter_16x16;
+  std::unique_ptr<tflite::Interpreter> model_inter_8x8;
 };
+
+static std::unique_ptr<tflite::Interpreter> create_interpreter(unsigned char* model_def) {
+  tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
+
+  const int num_threads = 1;
+  TfLiteXNNPackDelegateOptions xnnpack_options =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options.num_threads = AOMMAX(num_threads, 1);
+  TfLiteDelegate *xnnpack_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
+
+  tflite::MutableOpResolver resolver;
+  RegisterSelectedOps(&resolver);
+
+  tflite::InterpreterBuilder builder(model, resolver);
+  tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
+  std::unique_ptr<tflite::Interpreter> interpreter;
+  builder(&interpreter);
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+    reporter->Report("Failed at modifying graph with XNNPack delegate");
+    exit(1);
+  }
+
+  if (interpreter->AllocateTensors() != kTfLiteOk) {
+    reporter->Report("Failed at allocating tensors");
+    exit(1);
+  }
+
+  return interpreter;
+}
 
 extern "C" void *av2_part_split_prune_tflite_init() {
   Context *ctx = new Context();
-  ctx->model_128X128 = (tflite::Model *)tflite::GetModel(
-      a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
-  ctx->model_64X64 = (tflite::Model *)tflite::GetModel(
-      a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite);
-  ctx->model_32X32 = (tflite::Model *)tflite::GetModel(
-      a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
-  ctx->model_16X16 = (tflite::Model *)tflite::GetModel(
-      a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
-  ctx->model_inter_64x64 = (tflite::Model*)tflite::GetModel(
-      sms_part_split_prune_tflite_model_bs12);
-  ctx->model_inter_32x32 = (tflite::Model*)tflite::GetModel(
-      sms_part_split_prune_tflite_model_bs9);
-  ctx->model_inter_16x16 = (tflite::Model*)tflite::GetModel(
-      sms_part_split_prune_tflite_model_bs6);
-  ctx->model_inter_8x8 = (tflite::Model*)tflite::GetModel(
-      sms_part_split_prune_tflite_model_bs3);
-  RegisterSelectedOps(&ctx->resolver);
+  ctx->model_128X128 = create_interpreter(a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
+  ctx->model_64X64 = create_interpreter(a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite);
+  ctx->model_32X32 = create_interpreter(a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
+  ctx->model_16X16 = create_interpreter(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
+  ctx->model_inter_64x64 = create_interpreter(sms_part_split_prune_tflite_model_bs12);
+  ctx->model_inter_32x32 = create_interpreter(sms_part_split_prune_tflite_model_bs9);
+  ctx->model_inter_16x16 = create_interpreter(sms_part_split_prune_tflite_model_bs6);
+  ctx->model_inter_8x8 = create_interpreter(sms_part_split_prune_tflite_model_bs3);
   return (void *)ctx;
 }
 
@@ -96,40 +115,20 @@ extern "C" int av2_part_split_prune_tflite_params(
 extern "C" int av2_part_split_prune_tflite_exec(
     void *context, const float *ml_input, int input_len, float *ml_output,
     int output_len, MODEL_TYPE model_type) {
-  // Build the interpreter.
   Context *ctx = (Context *)context;
-  tflite::Model *model;
+  tflite::Interpreter *interpreter;
   switch (model_type) {
-    case MODEL_128X128: model = ctx->model_128X128; break;
-    case MODEL_64X64: model = ctx->model_64X64; break;
-    case MODEL_32X32: model = ctx->model_32X32; break;
-    case MODEL_16X16: model = ctx->model_16X16; break;
-    case MODEL_INTER_64X64: model = ctx->model_inter_64x64; break;
-    case MODEL_INTER_32X32: model = ctx->model_inter_32x32; break;
-    case MODEL_INTER_16X16: model = ctx->model_inter_16x16; break;
-    case MODEL_INTER_8X8: model = ctx->model_inter_8x8; break;
+    case MODEL_128X128: interpreter = ctx->model_128X128.get(); break;
+    case MODEL_64X64: interpreter = ctx->model_64X64.get(); break;
+    case MODEL_32X32: interpreter = ctx->model_32X32.get(); break;
+    case MODEL_16X16: interpreter = ctx->model_16X16.get(); break;
+    case MODEL_INTER_64X64: interpreter = ctx->model_inter_64x64.get(); break;
+    case MODEL_INTER_32X32: interpreter = ctx->model_inter_32x32.get(); break;
+    case MODEL_INTER_16X16: interpreter = ctx->model_inter_16x16.get(); break;
+    case MODEL_INTER_8X8: interpreter = ctx->model_inter_8x8.get(); break;
     default: return -1;
   }
-
-  const int num_threads = 1;
-  TfLiteXNNPackDelegateOptions xnnpack_options =
-      TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options.num_threads = AOMMAX(num_threads, 1);
-  TfLiteDelegate *xnnpack_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
-
-  tflite::InterpreterBuilder builder(model, ctx->resolver);
   tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
-  std::unique_ptr<tflite::Interpreter> interpreter;
-  builder(&interpreter);
-  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
-    reporter->Report("Failed at modifying graph with XNNPack delegate");
-    exit(1);
-  }
-
-  if (interpreter->AllocateTensors() != kTfLiteOk) {
-    reporter->Report("Failed at allocating tensors");
-    exit(1);
-  }
 
   float *input = interpreter->typed_input_tensor<float>(0);
   for (int i = 0; i < input_len; i++) {
