@@ -9,20 +9,20 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 const struct ModelParams sms_part_split_prune_tflite_model_params_bs12[] = {
-    {0.0001, 0.95, 75, 165}, {0.005, 0.9, 75, 165}, {0.01, 0.85, 75, 165},
-    {0.02, 0.8, 75, 165}};
+    {0.0001, 0.95, 75, 150}, {0.005, 0.9, 75, 150}, {0.01, 0.85, 75, 150},
+    {0.02, 0.8, 75, 150}};
 
 const struct ModelParams sms_part_split_prune_tflite_model_params_bs9[] = {
-    {0.001, 0.99, 75, 165}, {0.005, 0.95, 75, 165}, {0.02, 0.9, 75, 165},
-    {0.04, 0.85, 75, 165}};
+    {0.001, 0.99, 75, 150}, {0.005, 0.95, 75, 150}, {0.02, 0.9, 75, 150},
+    {0.04, 0.85, 75, 150}};
 
 const struct ModelParams sms_part_split_prune_tflite_model_params_bs6[] = {
-    {0.01, 1, 75, 165}, {0.02, 1, 75, 165}, {0.05, 1, 75, 165},
-    {0.1, 1, 75, 165}};
+    {0.01, 1, 75, 150}, {0.02, 1, 75, 150}, {0.05, 1, 75, 150},
+    {0.1, 1, 75, 150}};
 
 const struct ModelParams sms_part_split_prune_tflite_model_params_bs3[] = {
-    {0.05, 1, 75, 165}, {0.1, 1, 75, 165}, {0.25, 1, 75, 165},
-    {0.35, 1, 75, 165}};
+    {0.05, 1, 75, 150}, {0.1, 1, 75, 150}, {0.25, 1, 75, 150},
+    {0.35, 1, 75, 150}};
 
 // git_part_prune_bs3_6_9_12_qp_110_135_160_nnz_psnr_vect_satdq_32_16_a2_a3_bs12_tflite_model.cc
 unsigned char sms_part_split_prune_tflite_model_bs12[] = {
