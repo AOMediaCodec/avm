@@ -2418,6 +2418,9 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   }
 #endif  // CONFIG_REFINED_MVS_IN_TMVP
 
+  // Note: the copying here must match corresponding encoder-side copying in
+  // av1_update_state().
+  // TODO(any): Refactor.
   if (xd->tree_type != SHARED_PART) {
     const int bh = mi_size_high[bsize];
     const int bw = mi_size_wide[bsize];
@@ -2445,6 +2448,15 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
           xd->mi[y * idx + x]->uv_mode = xd->mi[0]->uv_mode;
           xd->mi[y * idx + x]->angle_delta[PLANE_TYPE_UV] =
               xd->mi[0]->angle_delta[PLANE_TYPE_UV];
+          xd->mi[y * idx + x]->cfl_alpha_signs = xd->mi[0]->cfl_alpha_signs;
+          xd->mi[y * idx + x]->cfl_alpha_idx = xd->mi[0]->cfl_alpha_idx;
+          xd->mi[y * idx + x]->partition = xd->mi[0]->partition;
+#if CONFIG_EXT_RECUR_PARTITIONS
+          xd->mi[y * idx + x]->chroma_mi_row_start =
+              xd->mi[0]->chroma_mi_row_start;
+          xd->mi[y * idx + x]->chroma_mi_col_start =
+              xd->mi[0]->chroma_mi_col_start;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
           if (av1_allow_palette(cm->features.allow_screen_content_tools,
                                 bsize)) {
             xd->mi[y * idx + x]->palette_mode_info.palette_size[PLANE_TYPE_UV] =
