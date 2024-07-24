@@ -400,6 +400,9 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
   // Restore the coding context of the MB to that that was in place
   // when the mode was picked for it
+  // Note: the copying here must match corresponding decoder-side copying in
+  // parse_decode_block().
+  // TODO(any): Refactor.
   for (y = 0; y < mi_height; y++) {
     for (x_idx = 0; x_idx < mi_width; x_idx++) {
       if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > x_idx &&
