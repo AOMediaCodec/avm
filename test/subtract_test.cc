@@ -77,7 +77,7 @@ class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
 
  private:
   ACMRandom rnd_;
-  size_t max_width_;
+  int max_width_;
   int block_height_;
   int block_width_;
   aom_bit_depth_t bit_depth_;
