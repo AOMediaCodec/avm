@@ -223,7 +223,9 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
       for (int idx = 0; idx < 2; ++idx) {
         mv->ref_frame[idx] = NONE_FRAME;
         mv->mv[idx].as_int = 0;
+      }
 
+      for (int idx = 0; idx < 2; ++idx) {
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame) && !is_tip_ref_frame(ref_frame)) {
           if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
@@ -239,12 +241,7 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #endif  // !CONFIG_MF_HOLE_FILL_SIMPLIFY
               get_tip_mv(cm, blk_mv, cur_tpl_col + w, cur_tpl_row + h, this_mv);
 #if !CONFIG_MF_HOLE_FILL_SIMPLIFY
-          if (!is_mfmv_valid) {
-            mv->ref_frame[0] = NONE_FRAME;
-            mv->ref_frame[1] = NONE_FRAME;
-            mv->mv[0].as_int = 0;
-            mv->mv[1].as_int = 0;
-          } else {
+          if (is_mfmv_valid) {
 #endif  // !CONFIG_MF_HOLE_FILL_SIMPLIFY
             if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
                 (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
