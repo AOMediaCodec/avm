@@ -1345,11 +1345,12 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       level &= 0xfffff;
       cul_level += level;
 #if CONFIG_DQ
+      if (!xd->lossless[mbmi->segment_id]
 #if DQENABLE
-      if (dq_enable(tx_size, plane)) {
+          && dq_enable(tx_size, plane)
 #endif
+      ) {
         tcoeffs[pos] = sign ? -level : level;
-#if DQENABLE
       } else {
         tran_low_t dq_coeff;
         // Bitmasking to clamp dq_coeff to valid range:
@@ -1368,7 +1369,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         quant_coeffs[pos] = sign ? -level : level;
 #endif  // CONFIG_INSPECTION
       }
-#endif
 #else
       tran_low_t dq_coeff;
       // Bitmasking to clamp dq_coeff to valid range:
@@ -1390,10 +1390,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 #if CONFIG_DQ
+  if (!xd->lossless[mbmi->segment_id]
 #if DQENABLE
-  if (dq_enable(tx_size, plane))
+      && dq_enable(tx_size, plane)
 #endif
-  {
+  ) {
 #if CONFIG_DQ
     state = 0;
 #else

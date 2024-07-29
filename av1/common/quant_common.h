@@ -37,6 +37,7 @@ extern "C" {
 #else
 #define DQENABLE 0   // Determine whether to use DQ by dq_enable()
 #define NEWQINDEX 0  // QP shift
+#define MORESTATES 0
 #define NEWHR \
   0  // 1:parity is determined by (base + LR) levels and not changed by HR
 #endif
