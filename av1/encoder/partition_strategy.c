@@ -1809,9 +1809,8 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     return;
   }
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
-  //av1_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, NULL);
-  // We need to update the rd-mult here to in case we are doing simple motion
-  // search on a subblock of the current coding block.
+  //  We need to update the rd-mult here to in case we are doing simple motion
+  //  search on a subblock of the current coding block.
   const int orig_rdmult = x->rdmult;
   const AQ_MODE aq_mode = cpi->oxcf.q_cfg.aq_mode;
   MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
@@ -2148,7 +2147,7 @@ enum {
   FEATURE_INTER_SQ_2_ANGLE_RAD,
   FEATURE_INTER_SQ_3_LOG_MAG,
   FEATURE_INTER_SQ_3_ANGLE_RAD,
-  // 
+  //
   FEATURE_INTER_FULL_LOG_SATDQ,
   FEATURE_INTER_SQ_0_LOG_SATDQ,
   FEATURE_INTER_SQ_1_LOG_SATDQ,
@@ -2384,7 +2383,8 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
     out_features[FEATURE_INTRA_LOG_ABOVE_HEIGHT] =
         (float)mi_size_high_log2[above_bsize];
     out_features[FEATURE_INTRA_HAS_LEFT] = (float)has_left;
-    out_features[FEATURE_INTRA_LOG_LEFT_WIDTH] = (float)mi_size_wide_log2[left_bsize];
+    out_features[FEATURE_INTRA_LOG_LEFT_WIDTH] =
+        (float)mi_size_wide_log2[left_bsize];
     out_features[FEATURE_INTRA_LOG_LEFT_HEIGHT] =
         (float)mi_size_high_log2[left_bsize];
   }
@@ -2427,7 +2427,6 @@ static MODEL_TYPE get_model_type(BLOCK_SIZE bsize, bool intra) {
   }
 }
 
-
 static double log_mag(MV mv) {
   double mag = sqrt(mv.col * mv.col + mv.row * mv.row);
   return logf(1.0f + mag);
@@ -2450,8 +2449,10 @@ struct ResidualStats {
 // block. This is used as ML features for prediction. The information computed
 // is NNZ (Number of Non-Zero coefficients of the transformed and quantized
 // residual), MAX_COEFF, PSNR.
-static struct ResidualStats compute_residual_stats(
-    AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x, BLOCK_SIZE bsize) {
+static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
+                                                   ThreadData *td,
+                                                   MACROBLOCK *x,
+                                                   BLOCK_SIZE bsize) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
@@ -2484,12 +2485,11 @@ static struct ResidualStats compute_residual_stats(
   QUANT_PARAM quant_param;
 
   av1_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
-  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_B,
-                  cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
+  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
+                  &quant_param);
   av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
                     &quant_param);
-  av1_xform_quant(cm, x, plane, block, 0, 0, bsize, &txfm_param,
-                  &quant_param);
+  av1_xform_quant(cm, x, plane, block, 0, 0, bsize, &txfm_param, &quant_param);
   const int n_coeffs = av1_get_max_eob(txfm_param.tx_size);
   for (int i = 0; i < n_coeffs; i++) {
     int abs_qcoeff = abs(qcoeff[i]);
@@ -2578,16 +2578,15 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
                                              const TileInfo *tile_info,
                                              ThreadData *td,
                                              float *out_features) {
-  if (cpi->common.current_frame.frame_type != INTER_FRAME)
-    return;
+  if (cpi->common.current_frame.frame_type != INTER_FRAME) return;
 
   SimpleMotionData *blk_none =
       av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize);
-  struct ResidualStats stats_none = compute_motion_data(cpi, tile_info, td, x,
-      blk_none, mi_row, mi_col, bsize);
+  struct ResidualStats stats_none = compute_motion_data(
+      cpi, tile_info, td, x, blk_none, mi_row, mi_col, bsize);
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
-     get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
+      get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
   if (subsize_sq == BLOCK_INVALID) {
     subsize_sq = get_partition_subsize(
         get_partition_subsize(bsize, PARTITION_VERT), PARTITION_HORZ);
@@ -2603,38 +2602,41 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
         cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq);
     struct ResidualStats stats_sq_1 = compute_motion_data(
-        cpi, tile_info, td, x, blk_sq_1, mi_row, mi_col + w_sub_mi,
-        subsize_sq);
+        cpi, tile_info, td, x, blk_sq_1, mi_row, mi_col + w_sub_mi, subsize_sq);
     SimpleMotionData *blk_sq_2 = av1_get_sms_data(
         cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq);
     struct ResidualStats stats_sq_2 = compute_motion_data(
-        cpi, tile_info, td, x, blk_sq_2, mi_row + h_sub_mi, mi_col,
-        subsize_sq);
+        cpi, tile_info, td, x, blk_sq_2, mi_row + h_sub_mi, mi_col, subsize_sq);
     SimpleMotionData *blk_sq_3 = av1_get_sms_data(
         cpi, tile_info, x, mi_row + h_sub_mi, mi_col + w_sub_mi, subsize_sq);
-    struct ResidualStats stats_sq_3 = compute_motion_data(
-        cpi, tile_info, td, x, blk_sq_3, mi_row + h_sub_mi, mi_col + w_sub_mi,
-        subsize_sq);
+    struct ResidualStats stats_sq_3 =
+        compute_motion_data(cpi, tile_info, td, x, blk_sq_3, mi_row + h_sub_mi,
+                            mi_col + w_sub_mi, subsize_sq);
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];
       out_features[FEATURE_INTER_RD_MULT] = logf(1.0f + blk_none->rdmult);
 
       blk_features(out_features, FEATURE_INTER_FULL_PSNR,
-          FEATURE_INTER_FULL_LOG_MAG, FEATURE_INTER_FULL_LOG_SATDQ,
-          FEATURE_INTER_FULL_LOG_SATD, blk_none, &stats_none, blk_area);
+                   FEATURE_INTER_FULL_LOG_MAG, FEATURE_INTER_FULL_LOG_SATDQ,
+                   FEATURE_INTER_FULL_LOG_SATD, blk_none, &stats_none,
+                   blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_0_PSNR,
-          FEATURE_INTER_SQ_0_LOG_MAG, FEATURE_INTER_SQ_0_LOG_SATDQ,
-          FEATURE_INTER_SQ_0_LOG_SATD, blk_sq_0, &stats_sq_0, blk_area);
+                   FEATURE_INTER_SQ_0_LOG_MAG, FEATURE_INTER_SQ_0_LOG_SATDQ,
+                   FEATURE_INTER_SQ_0_LOG_SATD, blk_sq_0, &stats_sq_0,
+                   blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_1_PSNR,
-          FEATURE_INTER_SQ_1_LOG_MAG, FEATURE_INTER_SQ_1_LOG_SATDQ,
-          FEATURE_INTER_SQ_1_LOG_SATD, blk_sq_1, &stats_sq_1, blk_area);
+                   FEATURE_INTER_SQ_1_LOG_MAG, FEATURE_INTER_SQ_1_LOG_SATDQ,
+                   FEATURE_INTER_SQ_1_LOG_SATD, blk_sq_1, &stats_sq_1,
+                   blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_2_PSNR,
-          FEATURE_INTER_SQ_2_LOG_MAG, FEATURE_INTER_SQ_2_LOG_SATDQ,
-          FEATURE_INTER_SQ_2_LOG_SATD, blk_sq_2, &stats_sq_2, blk_area);
+                   FEATURE_INTER_SQ_2_LOG_MAG, FEATURE_INTER_SQ_2_LOG_SATDQ,
+                   FEATURE_INTER_SQ_2_LOG_SATD, blk_sq_2, &stats_sq_2,
+                   blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_3_PSNR,
-          FEATURE_INTER_SQ_3_LOG_MAG, FEATURE_INTER_SQ_3_LOG_SATDQ,
-          FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, &stats_sq_3, blk_area);
+                   FEATURE_INTER_SQ_3_LOG_MAG, FEATURE_INTER_SQ_3_LOG_SATDQ,
+                   FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, &stats_sq_3,
+                   blk_area);
     }
   }
 
@@ -2647,19 +2649,20 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const MACROBLOCKD *xd = &x->e_mbd;
   int qp = cpi->common.quant_params.base_qindex;
   bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
-  MODEL_TYPE model_type[] = {get_model_type(bsize, true), get_model_type(bsize, false)};
+  MODEL_TYPE model_type[] = { get_model_type(bsize, true),
+                              get_model_type(bsize, false) };
 
   struct ModelParams params[2];
   for (int i = 0; i < 2; i++) {
     int had_error = model_type[i] != MODEL_OTHER &&
-        av2_part_split_prune_tflite_params(
-            model_type[i], key_frame ? cpi->sf.part_sf.prune_split_ml_level :
-            cpi->sf.part_sf.prune_split_ml_level_inter, &params[i]);
+                    av2_part_split_prune_tflite_params(
+                        model_type[i],
+                        key_frame ? cpi->sf.part_sf.prune_split_ml_level
+                                  : cpi->sf.part_sf.prune_split_ml_level_inter,
+                        &params[i]);
     assert(!had_error);
     if (had_error) return ML_PART_NOT_SURE;
   }
-  //printf("PRUNE LEVEL: %d\n", key_frame ? cpi->sf.part_sf.prune_split_ml_level :
-  //          cpi->sf.part_sf.prune_split_ml_level_inter);
 
   const AV1_COMMON *const cm = &cpi->common;
   int qp_offset;
@@ -2669,11 +2672,11 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     default: qp_offset = 0; break;
   }
 
-  bool model_disabled[2] = {false, false};
+  bool model_disabled[2] = { false, false };
   for (int i = 0; i < 2; i++) {
     model_disabled[i] = model_type[i] == MODEL_OTHER ||
-      qp > (params[i].qp_high + qp_offset) ||
-      qp < (params[i].qp_low + qp_offset);
+                        qp > (params[i].qp_high + qp_offset) ||
+                        qp < (params[i].qp_low + qp_offset);
   }
   // use intra model only for key frames for now
   model_disabled[0] |= !key_frame;
@@ -2681,7 +2684,7 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   if (xd->tree_type == CHROMA_PART || (model_disabled[0] && model_disabled[1]))
     return ML_PART_NOT_SURE;
 
-  int vote[2] = {ML_PART_NOT_SURE, ML_PART_NOT_SURE};
+  int vote[2] = { ML_PART_NOT_SURE, ML_PART_NOT_SURE };
   if (!model_disabled[0]) {
     float ml_input[FEATURE_INTRA_MAX] = { 0.0f };
     av1_ml_part_split_features(cpi, x, mi_row, mi_col, bsize, ml_input);
@@ -2698,17 +2701,17 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       bool high_test = ml_output[0] > params[0].thresh_high;
       bool low_test = ml_output[0] < params[0].thresh_low;
       vote[0] = high_test ? ML_PART_FORCE_SPLIT
-              : (low_test ? ML_PART_PRUNE_SPLIT : ML_PART_NOT_SURE);
+                          : (low_test ? ML_PART_PRUNE_SPLIT : ML_PART_NOT_SURE);
     }
   }
   if (!model_disabled[1]) {
-    float ml_output[1] = {0.0f};
-    float ml_input[FEATURE_INTER_MAX] = {0.0f};
-    av1_ml_part_split_features_inter(cpi, x, mi_row, mi_col, bsize,
-                                     tile_info, td, ml_input);
+    float ml_output[1] = { 0.0f };
+    float ml_input[FEATURE_INTER_MAX] = { 0.0f };
+    av1_ml_part_split_features_inter(cpi, x, mi_row, mi_col, bsize, tile_info,
+                                     td, ml_input);
     bool has_error = av2_part_split_prune_tflite_exec(
-        cpi->common.partition_model, ml_input, FEATURE_INTER_MAX, ml_output,
-        1, model_type[1]);
+        cpi->common.partition_model, ml_input, FEATURE_INTER_MAX, ml_output, 1,
+        model_type[1]);
     assert(!has_error);
     if (has_error)
       vote[1] = ML_PART_NOT_SURE;
@@ -2716,7 +2719,7 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       bool high_test = ml_output[0] > params[1].thresh_high;
       bool low_test = ml_output[0] < params[1].thresh_low;
       vote[1] = high_test ? ML_PART_FORCE_SPLIT
-              : (low_test ? ML_PART_PRUNE_SPLIT : ML_PART_NOT_SURE);
+                          : (low_test ? ML_PART_PRUNE_SPLIT : ML_PART_NOT_SURE);
     }
   }
   int final_vote = 255;

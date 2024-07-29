@@ -751,7 +751,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_split_ml_level = 0;  // default pruning
   part_sf->prune_split_ml_level_inter = 3;
-#endif                                // CONFIG_ML_PART_SPLIT
+#endif  // CONFIG_ML_PART_SPLIT
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -1033,9 +1033,6 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   }
 #if CONFIG_ML_PART_SPLIT
   bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
-  printf("PRUNE LEVEL: %d\n", key_frame ?
-      sf->part_sf.prune_split_ml_level :
-      sf->part_sf.prune_split_ml_level_inter);
 #endif  // CONFIG_ML_PART_SPLIT
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

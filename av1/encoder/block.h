@@ -549,12 +549,6 @@ enum {
  */
 #define kSMSMaxStartMVs 1
 
-typedef struct {
-  int q_coeff_max;
-  int q_coeff_nonz;
-  double psnr;
-} ResidualStats;
-
 /*! \brief Contains data for simple motion
  */
 typedef struct SimpleMotionData {
@@ -580,9 +574,8 @@ typedef struct SimpleMotionData {
   struct PICK_MODE_CONTEXT *mode_cache[1]; /*!< mode cache */
   struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */
 
-  int ref_frame;                           /*!< ref frame used */
-  int rdmult;                              /*!< rd_mult for the block */
-  ResidualStats residual_stats;            /*!< NNZ+MAX_COEF+PSNR for ML */
+  int ref_frame; /*!< ref frame used */
+  int rdmult;    /*!< rd_mult for the block */
 } SimpleMotionData;
 
 /*!\cond */

@@ -1624,7 +1624,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       assert(ref0 < ref1);
       for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
-            const int bit = ref0 == i || ref1 == i;
+        const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(
@@ -8919,8 +8919,7 @@ BEGIN_PARTITION_SEARCH:
     //        prune either one or both.
     if (!force_prune_flags[PRUNE_OTHER]) {
       int ml_result =
-          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize,
-                                  tile_info, td);
+          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize, tile_info, td);
       if (ml_result == ML_PART_FORCE_SPLIT) {
         part_search_state.prune_partition_none = 1;
         part_search_state.prune_partition_3[0] = 1;
