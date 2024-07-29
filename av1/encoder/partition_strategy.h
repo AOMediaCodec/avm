@@ -257,10 +257,4 @@ static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
              KFFLT_OVERLAY_UPDATE &&
          cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
 }
-#if CONFIG_ML_PART_SPLIT
-enum { ML_PART_NOT_SURE = 0, ML_PART_FORCE_SPLIT, ML_PART_PRUNE_SPLIT };
-int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
-                            int mi_col, BLOCK_SIZE bsize,
-                            const TileInfo *tile_info, ThreadData *td);
-#endif  // CONFIG_ML_PART_SPLIT
 #endif  // AOM_AV1_ENCODER_PARTITION_STRATEGY_H_

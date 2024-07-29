@@ -9,14 +9,6 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-const struct ModelParams
-    a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite_params[] = {
-      { 0.3f, 0.98f, 60, 116 },
-      { 0.4f, 0.97f, 60, 116 },
-      { 0.5f, 0.95f, 60, 116 },
-      { 0.7f, 0.95f, 60, 116 }
-    };
-
 unsigned char a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite[] = {
   0x1c, 0x00, 0x00, 0x00, 0x54, 0x46, 0x4c, 0x33, 0x14, 0x00, 0x20, 0x00, 0x1c,
   0x00, 0x18, 0x00, 0x14, 0x00, 0x10, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x08, 0x00,
@@ -737,4 +729,6 @@ void RegisterSelectedOps(::tflite::MutableOpResolver *resolver) {
                        ::tflite::ops::builtin::Register_FULLY_CONNECTED());
   resolver->AddBuiltin(::tflite::BuiltinOperator_LOGISTIC,
                        ::tflite::ops::builtin::Register_LOGISTIC());
+  resolver->AddBuiltin(::tflite::BuiltinOperator_CONCATENATION,
+                       ::tflite::ops::builtin::Register_CONCATENATION());
 }

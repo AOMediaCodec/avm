@@ -15,6 +15,8 @@
 #include <cstdio>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
+#include <iostream>
 
 #include "common/tf_lite_includes.h"
 
@@ -23,6 +25,8 @@
 #include "av1/encoder/simple_intrapred_tflite_model_32x32.h"
 #include "av1/encoder/simple_intrapred_tflite_model_64x64.h"
 #include "av1/encoder/sms_part_split_prune_tflite_model.h"
+#include "av1/encoder/sms_part_none_prune_tflite_model.h"
+#include "av1/encoder/sms_part_none_prune_rect_tflite_model.h"
 
 #if HAVE_FEXCEPT
 #ifndef _GNU_SOURCE
@@ -35,15 +39,9 @@ typedef std::unique_ptr<TfLiteDelegate, decltype(&TfLiteXNNPackDelegateDelete)>
     TfLiteDelegateType;
 
 struct PartSplitContext {
-  std::unique_ptr<tflite::Interpreter> model_128X128;
-  std::unique_ptr<tflite::Interpreter> model_64X64;
-  std::unique_ptr<tflite::Interpreter> model_32X32;
-  std::unique_ptr<tflite::Interpreter> model_16X16;
-  std::unique_ptr<tflite::Interpreter> model_inter_64x64;
-  std::unique_ptr<tflite::Interpreter> model_inter_32x32;
-  std::unique_ptr<tflite::Interpreter> model_inter_16x16;
-  std::unique_ptr<tflite::Interpreter> model_inter_8x8;
-
+  std::unique_ptr<tflite::Interpreter> models[MODEL_COUNT];
+  bool old_model[MODEL_COUNT];
+  uint8_t input_order[MODEL_COUNT][8];  // 8 inputs max
   std::vector<TfLiteDelegateType> to_delete;
 };
 
@@ -85,99 +83,129 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
   return interpreter;
 }
 
+struct ModelDef {
+  unsigned char *model_def;
+  size_t model_size;
+  const struct InputNorm input_norm;
+  MODEL_TYPE type;
+  const char *var_name;
+  const char *enum_name;
+  int part_type;
+  int n_features;
+  int model_version;
+};
+
+#define MODELDEF(data, type, part_type, n_features, model_version) \
+  { data,      sizeof(data), { false, NULL, NULL, NULL },          \
+    type,      #data,        #type,                                \
+    part_type, n_features,   model_version }
+#define MODELDEF_NORM(data, type, part_type, n_features, model_version)         \
+  { data,      sizeof(data), { true, data##_mean, data##_std, data##_std_inv }, \
+    type,      #data,        #type,                                             \
+    part_type, n_features,   model_version }
+
+const ModelDef models[] = {
+  MODELDEF(NULL, MODEL_OTHER, PT_INVAL, 0, 0),
+  MODELDEF(a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite, MODEL_128X128,
+           PT_SPLIT, 39, 0),
+  MODELDEF(a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite, MODEL_64X64, PT_SPLIT,
+           39, 0),
+  MODELDEF(a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite, MODEL_32X32, PT_SPLIT,
+           39, 0),
+  MODELDEF(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite, MODEL_16X16, PT_SPLIT,
+           39, 0),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs12_110,
+                MODEL_INTER_NONE_64X64_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs12_135,
+                MODEL_INTER_NONE_64X64_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs9_110,
+                MODEL_INTER_NONE_32X32_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs9_135,
+                MODEL_INTER_NONE_32X32_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs6_110,
+                MODEL_INTER_NONE_16X16_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs6_135,
+                MODEL_INTER_NONE_16X16_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs11_110,
+                MODEL_INTER_NONE_BS11_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs11_135,
+                MODEL_INTER_NONE_BS11_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs10_110,
+                MODEL_INTER_NONE_BS10_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs10_135,
+                MODEL_INTER_NONE_BS10_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs8_110,
+                MODEL_INTER_NONE_BS8_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs8_135,
+                MODEL_INTER_NONE_BS8_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs7_110,
+                MODEL_INTER_NONE_BS7_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs7_135,
+                MODEL_INTER_NONE_BS7_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs5_110,
+                MODEL_INTER_NONE_BS5_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs5_135,
+                MODEL_INTER_NONE_BS5_135, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs4_110,
+                MODEL_INTER_NONE_BS4_110, PT_NONE, 66, 6),
+  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs4_135,
+                MODEL_INTER_NONE_BS4_135, PT_NONE, 66, 6),
+  MODELDEF(sms_part_split_prune_tflite_model_bs12, MODEL_INTER_SPLIT_64X64,
+           PT_SPLIT, 66, 0),
+  MODELDEF(sms_part_split_prune_tflite_model_bs9, MODEL_INTER_SPLIT_32X32,
+           PT_SPLIT, 66, 0),
+  MODELDEF(sms_part_split_prune_tflite_model_bs6, MODEL_INTER_SPLIT_16X16,
+           PT_SPLIT, 66, 0),
+  MODELDEF(sms_part_split_prune_tflite_model_bs3, MODEL_INTER_SPLIT_8X8,
+           PT_SPLIT, 66, 0),
+};
+
+static void get_input_order(tflite::Interpreter *interpreter, uint8_t *order) {
+  static const std::unordered_map<std::string, uint8_t> order_lut = {
+    { "serving_default_input:0", 0 },   { "serving_default_input_1:0", 0 },
+    { "serving_default_input_2:0", 1 }, { "serving_default_input_3:0", 2 },
+    { "serving_default_input_4:0", 3 },
+  };
+  memset(order, 0, 8 * sizeof(order[0]));
+
+  for (int i = 0; i < interpreter->inputs().size(); ++i) {
+    int input_index = interpreter->inputs()[i];
+    const TfLiteTensor *input_tensor = interpreter->tensor(input_index);
+    try {
+      auto value = order_lut.at(input_tensor->name);
+      order[value] = input_index;
+    } catch (const std::out_of_range &oor) {
+      std::cout << "Model with unsupported input name: " << input_tensor->name
+                << std::endl;
+      exit(-1);
+    }
+  }
+}
+
 static void ensure_tflite_init(void **context, MODEL_TYPE model_type) {
   assert(model_type != MODEL_OTHER);
 
   if (*context == nullptr) *context = new PartSplitContext();
   PartSplitContext *ctx = (PartSplitContext *)*context;
-  switch (model_type) {
-    case MODEL_128X128:
-      if (!ctx->model_128X128) {
-        ctx->model_128X128 = create_interpreter(
-            a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite, ctx->to_delete);
-      }
-      break;
-    case MODEL_64X64:
-      if (!ctx->model_64X64) {
-        ctx->model_64X64 = create_interpreter(
-            a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite, ctx->to_delete);
-      }
-      break;
-    case MODEL_32X32:
-      if (!ctx->model_32X32) {
-        ctx->model_32X32 = create_interpreter(
-            a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite, ctx->to_delete);
-      }
-      break;
-    case MODEL_16X16:
-      if (!ctx->model_16X16) {
-        ctx->model_16X16 = create_interpreter(
-            a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite, ctx->to_delete);
-      }
-      break;
-    case MODEL_INTER_64X64:
-      if (!ctx->model_inter_64x64) {
-        ctx->model_inter_64x64 = create_interpreter(
-            sms_part_split_prune_tflite_model_bs12, ctx->to_delete);
-      }
-      break;
-    case MODEL_INTER_32X32:
-      if (!ctx->model_inter_32x32) {
-        ctx->model_inter_32x32 = create_interpreter(
-            sms_part_split_prune_tflite_model_bs9, ctx->to_delete);
-      }
-      break;
-    case MODEL_INTER_16X16:
-      if (!ctx->model_inter_16x16) {
-        ctx->model_inter_16x16 = create_interpreter(
-            sms_part_split_prune_tflite_model_bs6, ctx->to_delete);
-      }
-      break;
-    case MODEL_INTER_8X8:
-      if (!ctx->model_inter_8x8) {
-        ctx->model_inter_8x8 = create_interpreter(
-            sms_part_split_prune_tflite_model_bs3, ctx->to_delete);
-      }
-      break;
-    default: break;
+  ModelDef def = models[model_type];
+  if (!ctx->models[model_type]) {
+    if (def.model_def != NULL) {
+      ctx->models[model_type] =
+          create_interpreter(def.model_def, ctx->to_delete);
+      get_input_order(ctx->models[model_type].get(),
+                      &ctx->input_order[model_type][0]);
+    } else {
+      printf("\x1b[91mUsing undefined model: %s(%d)\x1b[0m\n",
+             models[model_type].enum_name, model_type);
+    }
   }
 }
 
-extern "C" int av2_part_split_prune_tflite_params(MODEL_TYPE model_type,
-                                                  int prune_level,
-                                                  struct ModelParams *params) {
+extern "C" int av2_model_input_norm(MODEL_TYPE model_type,
+                                    struct InputNorm *norm) {
   assert(model_type != MODEL_OTHER);
-  switch (model_type) {
-    case MODEL_128X128:
-      *params =
-          a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite_params[prune_level];
-      break;
-    case MODEL_64X64:
-      *params =
-          a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite_params[prune_level];
-      break;
-    case MODEL_32X32:
-      *params =
-          a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite_params[prune_level];
-      break;
-    case MODEL_16X16:
-      *params =
-          a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite_params[prune_level];
-      break;
-    case MODEL_INTER_64X64:
-      *params = sms_part_split_prune_tflite_model_params_bs12[prune_level];
-      break;
-    case MODEL_INTER_32X32:
-      *params = sms_part_split_prune_tflite_model_params_bs9[prune_level];
-      break;
-    case MODEL_INTER_16X16:
-      *params = sms_part_split_prune_tflite_model_params_bs6[prune_level];
-      break;
-    case MODEL_INTER_8X8:
-      *params = sms_part_split_prune_tflite_model_params_bs3[prune_level];
-      break;
-    default: return -1;
-  }
+  ModelDef def = models[model_type];
+  *norm = def.input_norm;
   return 0;
 }
 
@@ -192,32 +220,100 @@ extern "C" int av2_part_split_prune_tflite_params(MODEL_TYPE model_type,
 
 // Simple intra ML TFLite based inference
 
-extern "C" int av2_part_split_prune_tflite_exec(void **context,
-                                                const float *ml_input,
-                                                int input_len, float *ml_output,
-                                                int output_len,
-                                                MODEL_TYPE model_type) {
+static inline float norm(const float *input, int feature,
+                         struct InputNorm norm) {
+  return norm.valid
+             ? (input[feature] - norm.mean[feature]) * norm.invstd[feature]
+             : input[feature];
+}
+
+extern "C" int av2_part_prune_tflite_exec(void **context, const float *ml_input,
+                                          float *ml_output,
+                                          MODEL_TYPE model_type) {
   assert(model_type != MODEL_OTHER);
 
   ensure_tflite_init(context, model_type);
   PartSplitContext *ctx = (PartSplitContext *)*context;
-  tflite::Interpreter *interpreter;
-  switch (model_type) {
-    case MODEL_128X128: interpreter = ctx->model_128X128.get(); break;
-    case MODEL_64X64: interpreter = ctx->model_64X64.get(); break;
-    case MODEL_32X32: interpreter = ctx->model_32X32.get(); break;
-    case MODEL_16X16: interpreter = ctx->model_16X16.get(); break;
-    case MODEL_INTER_64X64: interpreter = ctx->model_inter_64x64.get(); break;
-    case MODEL_INTER_32X32: interpreter = ctx->model_inter_32x32.get(); break;
-    case MODEL_INTER_16X16: interpreter = ctx->model_inter_16x16.get(); break;
-    case MODEL_INTER_8X8: interpreter = ctx->model_inter_8x8.get(); break;
-    default: return -1;
-  }
+  tflite::Interpreter *interpreter = ctx->models[model_type].get();
   tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
 
-  float *input = interpreter->typed_input_tensor<float>(0);
-  for (int i = 0; i < input_len; i++) {
-    input[i] = ml_input[i];
+  int model_version = models[model_type].model_version;
+  struct InputNorm input_norm = models[model_type].input_norm;
+  int input_len = models[model_type].n_features;
+  int output_len = 1;
+
+  if (model_version == 0) {
+    const TfLiteTensor *input_tensor = interpreter->input_tensor(0);
+    int num_input_features = input_tensor->dims->data[1];
+    if (num_input_features > input_len) {
+      printf("\x1b[91mERROR:\x1b[0m Not enough input features: %d>%d\n",
+             num_input_features, input_len);
+      exit(1);
+    }
+    if (num_input_features != input_len && !ctx->old_model[model_type]) {
+      printf(
+          "\x1b[95mWARN:\x1b[0m Too many input features for model %s: %d<%d"
+          " (is it an old model?)\n",
+          models[model_type].var_name, num_input_features, input_len);
+      ctx->old_model[model_type] = true;
+    }
+    float *input = interpreter->typed_input_tensor<float>(0);
+    if (input_norm.valid) {
+      for (int i = 0; i < num_input_features; i++) {
+        input[i] = (ml_input[i] - input_norm.mean[i]) * input_norm.invstd[i];
+      }
+    } else {
+      for (int i = 0; i < num_input_features; i++) {
+        input[i] = ml_input[i];
+      }
+    }
+  } else if (model_version == 6) {
+    uint8_t *input_order = &ctx->input_order[model_type][0];
+
+    float *input0 = interpreter->typed_input_tensor<float>(input_order[0]);
+    float *input1 = interpreter->typed_input_tensor<float>(input_order[1]);
+    float *input2 = interpreter->typed_input_tensor<float>(input_order[2]);
+    float *input3 = interpreter->typed_input_tensor<float>(input_order[3]);
+
+    int kV6Inp0[] = { FEATURE_INTER_RD_MULT, FEATURE_INTER_SWITCH,
+                      FEATURE_INTER_PART_T };
+    int kV6Inp1[] = {
+      FEATURE_INTER_FULL_PSNR,         FEATURE_INTER_SQ_0_PSNR,
+      FEATURE_INTER_SQ_1_PSNR,         FEATURE_INTER_SQ_2_PSNR,
+      FEATURE_INTER_SQ_3_PSNR,         FEATURE_INTER_FULL_Q_COEFF_MAX,
+      FEATURE_INTER_SQ_0_Q_COEFF_MAX,  FEATURE_INTER_SQ_1_Q_COEFF_MAX,
+      FEATURE_INTER_SQ_2_Q_COEFF_MAX,  FEATURE_INTER_SQ_3_Q_COEFF_MAX,
+      FEATURE_INTER_FULL_Q_COEFF_NONZ, FEATURE_INTER_SQ_0_Q_COEFF_NONZ,
+      FEATURE_INTER_SQ_1_Q_COEFF_NONZ, FEATURE_INTER_SQ_2_Q_COEFF_NONZ,
+      FEATURE_INTER_SQ_3_Q_COEFF_NONZ, FEATURE_INTER_FULL_LOG_SATDQ,
+      FEATURE_INTER_SQ_0_LOG_SATDQ,    FEATURE_INTER_SQ_1_LOG_SATDQ,
+      FEATURE_INTER_SQ_2_LOG_SATDQ,    FEATURE_INTER_SQ_3_LOG_SATDQ
+    };
+    int kV6Inp2[] = {
+      FEATURE_INTER_FULL_PSNR,          FEATURE_INTER_HOR_0_PSNR,
+      FEATURE_INTER_HOR_1_PSNR,         FEATURE_INTER_FULL_Q_COEFF_MAX,
+      FEATURE_INTER_HOR_0_Q_COEFF_MAX,  FEATURE_INTER_HOR_1_Q_COEFF_MAX,
+      FEATURE_INTER_FULL_Q_COEFF_NONZ,  FEATURE_INTER_HOR_0_Q_COEFF_NONZ,
+      FEATURE_INTER_HOR_1_Q_COEFF_NONZ, FEATURE_INTER_FULL_LOG_SATDQ,
+      FEATURE_INTER_HOR_0_LOG_SATDQ,    FEATURE_INTER_HOR_1_LOG_SATDQ
+    };
+    int kV6Inp3[] = {
+      FEATURE_INTER_FULL_PSNR,          FEATURE_INTER_VER_0_PSNR,
+      FEATURE_INTER_VER_1_PSNR,         FEATURE_INTER_FULL_Q_COEFF_MAX,
+      FEATURE_INTER_VER_0_Q_COEFF_MAX,  FEATURE_INTER_VER_1_Q_COEFF_MAX,
+      FEATURE_INTER_FULL_Q_COEFF_NONZ,  FEATURE_INTER_VER_0_Q_COEFF_NONZ,
+      FEATURE_INTER_VER_1_Q_COEFF_NONZ, FEATURE_INTER_FULL_LOG_SATDQ,
+      FEATURE_INTER_VER_0_LOG_SATDQ,    FEATURE_INTER_VER_1_LOG_SATDQ
+    };
+
+    for (int i = 0; i < sizeof(kV6Inp0) / sizeof(kV6Inp0[0]); i++)
+      input0[i] = norm(ml_input, kV6Inp0[i], input_norm);
+    for (int i = 0; i < sizeof(kV6Inp1) / sizeof(kV6Inp1[0]); i++)
+      input1[i] = norm(ml_input, kV6Inp1[i], input_norm);
+    for (int i = 0; i < sizeof(kV6Inp2) / sizeof(kV6Inp2[0]); i++)
+      input2[i] = norm(ml_input, kV6Inp2[i], input_norm);
+    for (int i = 0; i < sizeof(kV6Inp3) / sizeof(kV6Inp3[0]); i++)
+      input3[i] = norm(ml_input, kV6Inp3[i], input_norm);
   }
 
   FLOATING_POINT_DISABLE_EXCEPTIONS
@@ -236,8 +332,15 @@ extern "C" int av2_part_split_prune_tflite_exec(void **context,
   return 0;
 }
 
-extern "C" void av2_part_split_prune_tflite_close(void **context) {
+extern "C" void av2_part_prune_tflite_close(void **context) {
   PartSplitContext *ctx = (PartSplitContext *)*context;
   if (ctx != nullptr) delete ctx;
   *context = nullptr;
+}
+
+extern "C" int get_model_part_type(MODEL_TYPE type) {
+  if (type >= MODEL_COUNT) {
+    return PT_INVAL;
+  }
+  return models[type].part_type;
 }

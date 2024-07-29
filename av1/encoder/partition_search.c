@@ -15,6 +15,7 @@
 #if CONFIG_BRU
 #include "av1/common/bru.h"
 #endif  // CONFIG_BRU
+#include "aom_ports/aom_timer.h"
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
@@ -42,6 +43,10 @@
 
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
+#endif
+
+#if CONFIG_ML_PART_SPLIT
+#include "av1/encoder/partition_ml.h"
 #endif
 
 static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
@@ -4327,6 +4332,7 @@ static void none_partition_search(
     partition_timer_on = 0;
   }
 #endif
+
   *pb_source_variance = x->source_variance;
   if (none_rd) *none_rd = this_rdc->rdcost;
   part_search_state->none_rd = this_rdc->rdcost;
@@ -6756,36 +6762,47 @@ BEGIN_PARTITION_SEARCH:
     // Note2: prune split doesn't mean prune both splits on l2, it means
     //        prune either one or both.
     if (!force_prune_flags[PRUNE_OTHER]) {
+      bool prune_list[2];
       int ml_result =
-          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize, tile_info, td);
-      if (ml_result == ML_PART_FORCE_SPLIT) {
-        part_search_state.prune_partition_none = 1;
+          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize, tile_info, td,
+                                  search_none_after_rect, prune_list);
+      if (ml_result == ML_PART_FORCE_NONE || ml_result == ML_PART_FORCE_SPLIT) {
         part_search_state.prune_partition_3[0] = 1;
         part_search_state.prune_partition_3[1] = 1;
         part_search_state.prune_partition_4a[0] = 1;
         part_search_state.prune_partition_4a[1] = 1;
         part_search_state.prune_partition_4b[0] = 1;
         part_search_state.prune_partition_4b[1] = 1;
+      }
+      if (ml_result == ML_PART_FORCE_NONE) {
+        part_search_state.prune_rect_part[VERT] = 1;
+        part_search_state.prune_rect_part[HORZ] = 1;
+      } else if (ml_result == ML_PART_FORCE_SPLIT) {
+        part_search_state.prune_partition_none = 1;
         if (is_square_split_eligible(bsize, cm->sb_size)) {
           part_search_state.prune_rect_part[VERT] = 1;
           part_search_state.prune_rect_part[HORZ] = 1;
         } else {
-          // 64x64 and smaller
           next_force_prune_flags[HORZ][PRUNE_OTHER] = 1;
           next_force_prune_flags[VERT][PRUNE_OTHER] = 1;
           next_force_prune_flags[HORZ][PRUNE_HORZ] = 1;
           next_force_prune_flags[VERT][PRUNE_VERT] = 1;
-          // left with HORZ,VERT and VERT,HORZ
         }
-      } else if (ml_result == ML_PART_PRUNE_SPLIT) {
-        if (is_square_split_eligible(bsize, cm->sb_size)) {
-          part_search_state.prune_partition_split = 1;
-        } else {
-          next_force_prune_flags[HORZ][PRUNE_VERT] = 1;
-          next_force_prune_flags[VERT][PRUNE_HORZ] = 1;
+      } else {
+        if (prune_list[PT_NONE]) {
+          part_search_state.prune_partition_none = 1;
+        }
+        if (prune_list[PT_SPLIT]) {
+          if (is_square_split_eligible(bsize, cm->sb_size)) {
+            part_search_state.prune_partition_split = 1;
+          } else {
+            next_force_prune_flags[HORZ][PRUNE_VERT] = 1;
+            next_force_prune_flags[VERT][PRUNE_HORZ] = 1;
+          }
         }
       }
     }
+    // td->prune_tot[bsize] += 1;
   }
 #endif  // CONFIG_ML_PART_SPLIT
   // PARTITION_NONE search stage.

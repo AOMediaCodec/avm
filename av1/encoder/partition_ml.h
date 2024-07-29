@@ -1,0 +1,71 @@
+#ifndef AV1_ENCODER_PARTITION_ML_H_
+#define AV1_ENCODER_PARTITION_ML_H_
+
+#include "av1/encoder/block.h"
+#include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodemb.h"
+#include "av1/encoder/encoder.h"
+#include "av1/encoder/part_split_prune_tflite.h"
+#include "av1/common/reconintra.h"
+
+enum {
+  FEATURE_INTRA_LOG_QP_SQUARED = 0,
+  FEATURE_INTRA_HAS_ABOVE,
+  FEATURE_INTRA_LOG_ABOVE_WIDTH,
+  FEATURE_INTRA_LOG_ABOVE_HEIGHT,
+  FEATURE_INTRA_HAS_LEFT,
+  FEATURE_INTRA_LOG_LEFT_WIDTH,
+  FEATURE_INTRA_LOG_LEFT_HEIGHT,
+  FEATURE_INTRA_NORM_BEST_0_SSE,
+  FEATURE_INTRA_NORM_BEST_0_VAR,
+  FEATURE_INTRA_NORM_BEST_1_SSE,
+  FEATURE_INTRA_NORM_BEST_1_VAR,
+  FEATURE_INTRA_NORM_BEST_2_SSE,
+  FEATURE_INTRA_NORM_BEST_2_VAR,
+  FEATURE_INTRA_NORM_BEST_SSE_0_00,
+  FEATURE_INTRA_NORM_BEST_VAR_0_00,
+  FEATURE_INTRA_NORM_BEST_SSE_0_01,
+  FEATURE_INTRA_NORM_BEST_VAR_0_01,
+  FEATURE_INTRA_NORM_BEST_SSE_0_10,
+  FEATURE_INTRA_NORM_BEST_VAR_0_10,
+  FEATURE_INTRA_NORM_BEST_SSE_0_11,
+  FEATURE_INTRA_NORM_BEST_VAR_0_11,
+  FEATURE_INTRA_NORM_BEST_SSE_1_00,
+  FEATURE_INTRA_NORM_BEST_VAR_1_00,
+  FEATURE_INTRA_NORM_BEST_SSE_1_01,
+  FEATURE_INTRA_NORM_BEST_VAR_1_01,
+  FEATURE_INTRA_NORM_BEST_SSE_1_10,
+  FEATURE_INTRA_NORM_BEST_VAR_1_10,
+  FEATURE_INTRA_NORM_BEST_SSE_1_11,
+  FEATURE_INTRA_NORM_BEST_VAR_1_11,
+  FEATURE_INTRA_NORM_BEST_SSE_2_00,
+  FEATURE_INTRA_NORM_BEST_VAR_2_00,
+  FEATURE_INTRA_NORM_BEST_SSE_2_01,
+  FEATURE_INTRA_NORM_BEST_VAR_2_01,
+  FEATURE_INTRA_NORM_BEST_SSE_2_10,
+  FEATURE_INTRA_NORM_BEST_VAR_2_10,
+  FEATURE_INTRA_NORM_BEST_SSE_2_11,
+  FEATURE_INTRA_NORM_BEST_VAR_2_11,
+  // V1 features
+  // NONE w RECT switch, search_none_after_rect
+  FEATURE_INTRA_SWITCH,
+  // partition type: mixed, luma, chroma
+  FEATURE_INTRA_PART_T,
+
+  FEATURE_INTRA_MAX
+};
+
+void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
+                            BLOCK_SIZE bsize, ResidualStats *out);
+enum {
+  ML_PART_DONT_FORCE = 0,
+  ML_PART_FORCE_NONE,
+  ML_PART_FORCE_SPLIT,
+};
+
+int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
+                            int mi_col, BLOCK_SIZE bsize,
+                            const TileInfo *tile_info, ThreadData *td,
+                            bool search_none_after_rect, bool *prune_list);
+
+#endif  // AV1_ENCODER_PARTITION_ML_H_

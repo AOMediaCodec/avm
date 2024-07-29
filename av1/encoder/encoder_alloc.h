@@ -86,7 +86,6 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   av1_setup_shared_coeff_buffer(&cpi->common, &cpi->td.shared_coeff_buf);
   av1_setup_sms_tree(cpi, &cpi->td);
   av1_setup_sms_bufs(&cpi->common, &cpi->td);
-
   cpi->td.firstpass_ctx =
       av1_alloc_pmc(cm, SHARED_PART, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
                     cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
@@ -277,7 +276,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_sms_tree(&cpi->td);
   av1_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
-  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+  av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
   intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));

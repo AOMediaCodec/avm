@@ -836,7 +836,7 @@ void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
   av1_free_sms_tree(&cpi->td);
   av1_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
-  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+  av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
   intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
@@ -913,7 +913,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
     av1_free_sms_tree(&cpi->td);
     av1_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
-    av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+    av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
     intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));

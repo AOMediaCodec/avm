@@ -964,7 +964,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       av1_free_sms_tree(&cpi->td);
       av1_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
-      av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+      av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
       intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
@@ -1426,7 +1426,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     av1_free_sms_tree(thread_data->td);
     av1_free_sms_bufs(thread_data->td);
 #if CONFIG_ML_PART_SPLIT
-    av2_part_split_prune_tflite_close(&(thread_data->td->partition_model));
+    av2_part_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
     intra_dip_mode_prune_close(&(thread_data->td->dip_pruning_model));
@@ -1625,7 +1625,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     fclose(cpi->common.fEncCoeffLog);
   }
 #endif
-
   aom_free(cpi->subgop_config_str);
   aom_free(cpi->subgop_config_path);
   aom_free(cpi);
@@ -2193,7 +2192,7 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
       av1_free_sms_tree(&cpi->td);
       av1_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
-      av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+      av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
       intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));

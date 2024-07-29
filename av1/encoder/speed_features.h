@@ -494,6 +494,7 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_split_with_ml;
   int prune_split_ml_level;
   int prune_split_ml_level_inter;
+  int prune_none_with_ml;
 #endif  // CONFIG_ML_PART_SPLIT
 } PARTITION_SPEED_FEATURES;
 
