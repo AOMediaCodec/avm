@@ -6759,6 +6759,8 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
 #if CONFIG_LR_IMPROVEMENTS
+  seq_params->lr_tools_disable_mask[0] = 0;
+  seq_params->lr_tools_disable_mask[1] = 0;
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
       seq_params->lr_tools_disable_mask[0] |= (aom_rb_read_bit(rb) << i);
