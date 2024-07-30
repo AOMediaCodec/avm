@@ -2664,7 +2664,7 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
 #endif  // CONFIG_BLOCK_256
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
-                                          int mi_col, BLOCK_SIZE bsize) {
+                                          int mi_col, BLOCK_SIZE bsize, int ctx_mode) {
   const int plane = xd->tree_type == CHROMA_PART;
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
@@ -2677,8 +2677,42 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+  const int bsize_map[BLOCK_SIZES] = {
+    0, //BLOCK_4X4,
+    0, //BLOCK_4X8,
+    0, //BLOCK_8X4,
+    0, //BLOCK_8X8,
+    6, //BLOCK_8X16,
+    6, //BLOCK_16X8,
+    6, //BLOCK_16X16,
+    9, //BLOCK_16X32,
+    9, //BLOCK_32X16,
+    9, //BLOCK_32X32,
+    12, //BLOCK_32X64,
+    12, //BLOCK_64X32,
+    12, //BLOCK_64X64,
+    13, //BLOCK_64X128,
+    14, //BLOCK_128X64,
+    15, //BLOCK_128X128,
+  #if CONFIG_BLOCK_256
+    16, //BLOCK_128X256,
+    17, //BLOCK_256X128,
+    18, //BLOCK_256X256,
+  #endif  // CONFIG_BLOCK_256
+    19, //BLOCK_4X16,
+    20, //BLOCK_16X4,
+    21, //BLOCK_8X32,
+    22, //BLOCK_32X8,
+    23, //BLOCK_16X64,
+    24, //BLOCK_64X16,
+  };
+  int ctx = 0;
+  if (ctx_mode == 1) // all part ctx except rect mode
+    ctx = (left * 2 + above) + bsize_map[bsize] * PARTITION_PLOFFSET;
+  else
+    ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
+//  ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
 
-  const int ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
   assert(ctx >= 0);
   assert(ctx < PARTITION_CONTEXTS);
   return ctx;

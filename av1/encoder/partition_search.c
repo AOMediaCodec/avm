@@ -2831,7 +2831,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_CB1TO4_SPLIT
   );
   const int ctx = is_partition_root
-                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
+                      ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
                       : -1;
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -3574,7 +3574,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int hbw = mi_size_wide[bsize] / 2;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int pl = (bsize >= BLOCK_8X8)
-                     ? partition_plane_context(xd, mi_row, mi_col, bsize)
+                     ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
                      : 0;
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
@@ -4049,7 +4049,7 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
 ) {
   const MACROBLOCK *const x = &td->mb;
   const MACROBLOCKD *const xd = &x->e_mbd;
-  const int pl = partition_plane_context(xd, mi_row, mi_col, bsize);
+  const int pl = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
   RD_STATS sum_rdc;
   av1_init_rd_stats(&sum_rdc);
   sum_rdc.rate =
@@ -4354,7 +4354,7 @@ static void init_partition_search_state_params(
 #else
       blk_params->bsize_at_least_8x8
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-          ? partition_plane_context(xd, mi_row, mi_col, bsize)
+          ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
           : 0;
 
   // Partition cost buffer update

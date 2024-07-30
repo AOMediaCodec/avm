@@ -2571,7 +2571,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
-  const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
+  const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
+  const int rect_type_ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2610,7 +2611,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
-    rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx],
+    rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][rect_type_ctx],
                                 NUM_RECT_PARTS, ACCT_INFO("rect_type"));
   }
 
