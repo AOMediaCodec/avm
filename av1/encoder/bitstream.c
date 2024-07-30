@@ -4432,6 +4432,7 @@ static AOM_INLINE void write_wienerns_filter(
       for (int i = 6; i < end_feat; i++) {
         if (wienerns_info_nsfilter[i] != 0) {
           filter_length_bit = 1;
+          break;
         }
       }
       aom_write_symbol(wb, filter_length_bit,

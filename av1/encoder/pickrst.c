@@ -2461,6 +2461,7 @@ static int64_t count_wienerns_bits(
       for (int i = 6; i < end_feat; i++) {
         if (wienerns_info_nsfilter[i] != 0) {
           filter_length_bit = 1;
+          break;
         }
       }
       bits += length_cost[is_uv][filter_length_bit];
@@ -2704,6 +2705,7 @@ static int64_t finer_tile_search_wienerns(
       for (int i = 6; i < end_feat; i++) {
         if (rui_wienerns_info_nsfilter[i] != 0) {
           filter_length_bit = 1;
+          break;
         }
       }
 
@@ -2968,7 +2970,7 @@ static int compute_quantized_wienerns_filter(
   double best_cost = DBL_MAX;
 
   assert((num_feat & 1) == 0);
-  const int reduce_step = num_feat - 6;
+  const int reduce_step = (num_feat > 6) ? num_feat - 6 : 1;
   const int max_reduce_steps_search = (num_feat > 6) ? reduce_step : 0;
   for (int reduce = 0; reduce <= max_reduce_steps_search;
        reduce += reduce_step) {
@@ -2978,6 +2980,7 @@ static int compute_quantized_wienerns_filter(
     int linsolve_successful = 0;
     for (int c_id = 0; c_id < num_classes; ++c_id) {
       int16_t *nsfilter = nsfilter_taps(&rui->wienerns_info, c_id);
+      memset(nsfilter, 0, num_feat * sizeof(*nsfilter));
       linsolve_successful = compute_wienerns_filter(
           num_feat - reduce, A + c_id * stride_A, num_feat, b + c_id * stride_b,
           rsc->wienerns_tmpbuf, nsfilter, nsfilter_params);
@@ -3022,7 +3025,6 @@ static int compute_quantized_wienerns_filter(
 }
 
 #if CONFIG_LR_MERGE_COEFFS
-
 int get_merge_begin_index(const RestSearchCtxt *rsc,
                           const WienernsFilterParameters *nsfilter_params,
                           const WienerNonsepInfo *token_wienerns_info,
