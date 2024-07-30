@@ -1196,7 +1196,21 @@ typedef struct AV1EncoderConfig {
   // format.
   bool save_as_annexb;
 
-  /*!\endcond */
+
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    /*!
+     * log file for per-transform-block info
+     *
+   */
+  const char* txfmblk_enclogfile;
+    /*!
+     * decoder log file for per-transform-block info
+     *
+   */
+  const char* txfmblk_declogfile;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
+    /*!\endcond */
 } AV1EncoderConfig;
 
 /*!\cond */

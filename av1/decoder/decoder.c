@@ -341,6 +341,12 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   }
 #endif
 
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    if (pbi->common.fDecTxfmLog != NULL) {
+    fclose(pbi->common.fDecTxfmLog);
+  }
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
   aom_free(pbi);
 }
 

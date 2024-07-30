@@ -842,4 +842,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+        .txfmblk_enclogfile = ARG_DEF(NULL, "txfmblk-enclogfile", 1,
+                             "Per transform block log file at encoder"),
+        .txfmblk_declogfile = ARG_DEF(NULL, "txfmblk-declogfile", 1,
+                                "Per transform block log file at decoder"),
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 };

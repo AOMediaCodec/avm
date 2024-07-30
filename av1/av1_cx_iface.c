@@ -1862,6 +1862,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
 
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    oxcf->txfmblk_enclogfile = cfg->txfmblk_enclogfile;
+    oxcf->txfmblk_declogfile = cfg->txfmblk_declogfile;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
   if (update_config) {
     update_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
@@ -4537,6 +4542,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_REFRESH_FLAG
     },  // cfg
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    NULL,      // txfmblk_enclogfile
+    NULL,      // txfmblk_declogfile
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 } };
 
 // This data structure and function are exported in aom/aomcx.h
