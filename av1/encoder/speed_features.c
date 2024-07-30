@@ -1130,7 +1130,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   sf->part_sf.prune_rect_with_ml = cpi->oxcf.part_cfg.use_ml_erp_pruning & 1;
 #if CONFIG_ML_PART_SPLIT
-  sf->part_sf.prune_split_with_ml = cpi->oxcf.part_cfg.use_ml_erp_pruning & 2;
+  if (cpi->oxcf.gf_cfg.lag_in_frames > 0) {
+    sf->part_sf.prune_split_with_ml = !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 2);
+  }
 #endif
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
