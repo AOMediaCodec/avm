@@ -3317,6 +3317,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   const int class_dim_A = WIENERNS_MAX * WIENERNS_MAX;
   double solver_b_AVG[WIENERNS_MAX];
   const int class_dim_b = WIENERNS_MAX;
+  const int coeffs_dim_A = nsfilter_params->ncoeffs * nsfilter_params->ncoeffs;
+  const int coeffs_dim_b = nsfilter_params->ncoeffs;
 
   int is_uv = (rsc->plane != AOM_PLANE_Y);
   Vector *current_unit_stack = rsc->unit_stack;
@@ -3461,17 +3463,17 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       double cost_nomerge_cand = cost_nomerge_base;
       const int offset_A = c_id * class_dim_A;
       memcpy(solver_A_AVG, unit_stats->A + offset_A,
-             class_dim_A * sizeof(*unit_stats->A));
+             coeffs_dim_A * sizeof(*unit_stats->A));
 
       const int offset_b = c_id * class_dim_b;
       memcpy(solver_b_AVG, unit_stats->b + offset_b,
-             class_dim_b * sizeof(*unit_stats->b));
+             coeffs_dim_b * sizeof(*unit_stats->b));
 
       // Get current cost and the average of A and b.
       cost_nomerge_cand += accumulate_merge_stats(
           rsc, nsfilter_params, &token_wienerns_info_cand, begin_idx_cand,
           current_unit_stack, current_unit_indices, solver_A_AVG, solver_b_AVG,
-          class_dim_A, class_dim_b, offset_A, offset_b, c_id);
+          coeffs_dim_A, coeffs_dim_b, offset_A, offset_b, c_id);
 
       // Generate new filter.
       RestorationUnitInfo rui_merge_cand = rui_merge_best;
