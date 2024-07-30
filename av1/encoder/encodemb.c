@@ -183,7 +183,15 @@ int av1_optimize_fsc(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
                    CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                   int *rate_cost) {
+                   int *rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                    ,
+                   int blk_row,
+                   int blk_col,
+                   BLOCK_SIZE bsize,
+                   RUN_TYPE dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                   ) {
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblock_plane *const p = &x->plane[plane];
   const int eob = p->eobs[block];
@@ -206,8 +214,12 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (dq_enable(tx_size, plane))
 #endif  // DQENABLE
   {
-    return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                         txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+      return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
+          txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+              , blk_row, blk_col, bsize, dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+          );
   }
 #if DQENABLE
   else
@@ -846,7 +858,14 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                , blk_row,
+                blk_col,
+                plane_bsize,
+                args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       );
     }
     if (!quant_param.use_optimize_b && do_dropout && !fsc_mode &&
         !enable_parity_hiding) {
@@ -1376,6 +1395,23 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d", tx_type, *eob);
     }
 #endif
+
+#if CONFIG_TXFMBLK_LOGS
+      // log basic info of skipped blocks
+      if (!args->dry_run) {
+          fprintf(cm->fEncTxfmLog, "[AV2ENC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %4d %04d %04d %02d\n",
+                  cm->current_frame.absolute_poc, // 1: POC (picture number)
+                  plane,                          // 2: plain ID (Y/U/V)
+                  x->e_mbd.mi_row,                // 3: macroblock row index
+                  x->e_mbd.mi_col,                // 4: macroblock coloumn index
+                  blk_row,                        // 5: transform block row index
+                  blk_col,                        // 6: transform block column index
+                  plane_bsize,                    // 7: bsize
+                  tx_size,                        // 8: transform size
+                  tx_type,                        // 9: transform type
+                  0);                             //10: coded flag: 0 for skipped blocks
+      }
+#endif  // CONFIG_TXFMBLK_LOGS
   } else {
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
 
@@ -1427,6 +1463,23 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     }
 #endif
 
+#if CONFIG_TXFMBLK_LOGS
+      // log basic info of coded block
+    if (!args->dry_run) {
+      fprintf(cm->fEncTxfmLog, "[AV2ENC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %4d %04d %04d %02d\n",
+              cm->current_frame.absolute_poc, // 1: POC (picture number)
+              plane,                          // 2: plane ID (Y/U/V)
+              x->e_mbd.mi_row,                // 3: macroblock row index
+              x->e_mbd.mi_col,                // 4: macroblock coloumn index
+              blk_row,                        // 5: transform block row index
+              blk_col,                        // 6: transform block column index
+              plane_bsize,                    // 7: bsize
+              tx_size,                        // 8: transform size
+              tx_type,                        // 9: transform type
+              1);                             //10: coded flag: 0 for skipped blocks
+    }
+#endif  // CONFIG_TXFMBLK_LOGS
+
     // Settings for optimization type. NOTE: To set optimization type for all
     // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
     // be set.
@@ -1476,7 +1529,14 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                , blk_row,
+                       blk_col,
+                       plane_bsize,
+                       args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       );
     }
 
     if (do_dropout && !fsc_mode && !enable_parity_hiding) {
@@ -1506,7 +1566,15 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         else
 #endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         CCTX_NONE, &txb_ctx, &dummy_rate_cost);
+                         CCTX_NONE, &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                  , blk_row,
+                         blk_col,
+                         plane_bsize,
+                         args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
+                         );
       }
       if (do_dropout && !fsc_mode && !enable_parity_hiding) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1834,7 +1902,14 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                , blk_row,
+                       blk_col,
+                       plane_bsize,
+                       args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       );
     }
     if (do_dropout) {
       av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1864,7 +1939,14 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         else
 #endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         cctx_type, &txb_ctx, &dummy_rate_cost);
+                         cctx_type, &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                  , blk_row,
+                         blk_col,
+                         plane_bsize,
+                         args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         );
       }
       if (do_dropout) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1983,3 +2065,140 @@ void av1_encode_intra_block_joint_uv(const struct AV1_COMP *cpi, MACROBLOCK *x,
       xd, plane_bsize, AOM_PLANE_U, encode_block_intra_and_set_context_joint_uv,
       &arg);
 }
+
+
+
+#if CONFIG_TXFMBLK_LOGS
+void av2_tcq_log_blkrd(const AV1_COMMON *const cm,
+                       MACROBLOCK *x,
+                       const int plane,
+                       const int block,
+                       const int blk_row,
+                       const int blk_col,
+                       const BLOCK_SIZE bsize,
+                       TX_SIZE tx_size,
+                       TX_TYPE tx_type,
+                       bool is_inter,
+                       const int sq_step_dc,
+                       const int sq_step_ac,
+                       const int vq_step_dc,
+                       const int vq_step_ac,
+                       const int64_t rdmult,
+                       const int n_coeffs,
+                       const int neob_sq,
+                       const int neob_vq,
+                       const int rneob_sq,
+                       const int rneob_vq,
+                       const int rate_sq,
+                       const int rate_vq,
+                       const int rate_skip,
+                       const uint64_t dist_sq,
+                       const uint64_t dist_vq,
+                       const uint64_t dist_skip,
+                       const uint64_t rd_sq,
+                       const uint64_t rd_vq,
+                       const uint64_t rd_skip,
+                       const int dry_run) {
+
+  FILE *fp = cm->fEncTxfmLog? cm->fEncTxfmLog:stdout;
+
+  fprintf(fp, "[AV2ENC-TCQ-BLKRD]  %03d %4d %03d %03d %3d %3d %3d %4d  ",
+          cm->current_frame.absolute_poc, // 1: POC (picture number)
+          plane,                          // 2: plain ID (Y/U/V)
+          x->e_mbd.mi_row,                // 3: macroblock row index
+          x->e_mbd.mi_col,                // 4: macroblock coloumn index
+          block,                          // 5: transform block ID
+          blk_row,                        // 6: transform block row index
+          blk_col,                        // 7: transform block column index
+          dry_run);                       // 8: coding pass on this block (0: final; 1 or above: dry_run)
+
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld ",
+          bsize,                          // 9:  plane_bsize
+          tx_size,                        // 10: transform size
+          tx_type,                        // 11: transform type
+          is_inter,                       // 12: inter/intra mode
+          sq_step_dc,                     // 13: SQ step size for DC coefficients
+          sq_step_ac,                     // 14: SQ step size for AC coefficients
+          vq_step_dc,                     // 15: TCQ step size for DC coefficients
+          vq_step_ac,                     // 16: TCQ step size for AC coefficients
+          rdmult);                        // 17: RD multiplier
+
+  fprintf(fp, "%06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld %16lld %16lld \n",
+          n_coeffs,       // 18: number of coefficients in the transform block
+          neob_sq,        // 19: number of coded coefficients (neob) via SQ
+          neob_vq,        // 20: number of coded coefficients (neob) via TCQ
+          rneob_sq,       // 21: estimated rate of NEOB for SQ
+          rneob_vq,       // 22: estimated rate of NEOB for TCQ
+          rate_sq,        // 23: estimated rate for coding the block with SQ
+          rate_vq,        // 24: estimated rate for coding the block with TCQ
+          rate_skip,      // 25: estimated rate for coding the block with skip_txfm
+          dist_sq,        // 26: distortion from coding the block with SQ
+          dist_vq,        // 27: distortion from coding the block with TCQ
+          dist_skip,      // 28: distortion from coding the block with skip_txfm
+          rd_sq,          // 29: combined RD cost from coding the block with SQ
+          rd_vq,          // 30: combined RD cost from coding the block with TCQ
+          rd_skip);       // 31: combined RD cost from coding the block with skip_txfm
+
+  fflush(fp);
+}
+#endif // CONFIG_TXFMBLK_LOGS
+
+#if CONFIG_COEFF_LOGS
+void av2_tcq_log_percoeff(const AV1_COMMON *const cm,
+                          MACROBLOCK *x,
+                          const int plane,
+                          const int block,
+                          const int blk_row,
+                          const int blk_col,
+                          const BLOCK_SIZE bsize,
+                          TX_SIZE tx_size,
+                          TX_TYPE tx_type,
+                          bool is_inter,
+                          const int sq_step_dc,
+                          const int sq_step_ac,
+                          const int vq_step_dc,
+                          const int vq_step_ac,
+                          const int64_t rdmult,
+                          const int n_coeffs,
+                          const int dry_run,
+                          const int neob,
+                          const int * vec,
+                          const char * tag,
+                          const bool in_scan_order) {
+
+  FILE *fp = cm->fEncTxfmLog? cm->fEncTxfmLog:stdout;
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const int16_t *const scan = scan_order->scan;
+
+  fprintf(fp, "[AV2ENC-TCQ-%s]  %03d %4d %03d %03d %3d %3d %3d %4d %4d  ",
+          tag,
+          cm->current_frame.absolute_poc, // 1: POC (picture number)
+          plane,                          // 2: plain ID (Y/U/V)
+          x->e_mbd.mi_row,                // 3: macroblock row index
+          x->e_mbd.mi_col,                // 4: macroblock coloumn index
+          block,                          // 5: transform block ID
+          blk_row,                        // 6: transform block row index
+          blk_col,                        // 7: transform block column index
+          dry_run,                        // 8: coding pass on this block (0: final; 1 or above: dry_run)
+          cm->sb_size);                   // 9: superblock size
+
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld %06d %6d",
+          bsize,                          // 10:  plane_bsize
+          tx_size,                        // 11: transform size
+          tx_type,                        // 12: transform type
+          is_inter,                       // 13: inter/intra mode
+          sq_step_dc,                     // 14: SQ step size for DC coefficients
+          sq_step_ac,                     // 15: SQ step size for AC coefficients
+          vq_step_dc,                     // 16: TCQ step size for DC coefficients
+          vq_step_ac,                     // 17: TCQ step size for AC coefficients
+          rdmult,                         // 18: RD multiplier
+          n_coeffs,                       // 19: number of coefficients in the transform block
+          neob);                          // 20: number of coded coefficients (neob) via SQ
+
+  for (int i=0; i<n_coeffs; i++) {
+    const int val = in_scan_order?  vec[scan[i]] : vec[i];
+    fprintf(fp, "  %6d", val);
+  }
+  fprintf(fp, "\n");
+}
+#endif  // CONFIG_COEFF_LOGS

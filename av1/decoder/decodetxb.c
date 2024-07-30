@@ -660,6 +660,22 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     if (plane == 0) {
       xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
     }
+
+#if CONFIG_TXFMBLK_LOGS
+      fprintf(cm->fDecTxfmLog, "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
+              cm->current_frame.absolute_poc, // 1: POC (picture number)
+              plane,                          // 2: plane ID (Y/U/V)
+              xd->mi_row,                     // 3: macroblock row index
+              xd->mi_col,                     // 4: macroblock coloumn index
+              blk_row,                        // 5: transform block row index
+              blk_col,                        // 6: transform block column index
+              tx_size,                        // 7: transform size
+              0,                              // 8: transform type (filler for skipped blocks)
+              0,                              // 9: eob (# of coded coefficients)
+              0);                             // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
+
+#endif // CONFIG_TXFMBLK_LOGS
+
     return 0;
   }
   decode_eob(dcb, r, plane, tx_size);
@@ -957,6 +973,24 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if DEBUG_EXTQUANT
   fprintf(cm->fDecCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
 #endif
+
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    const int neob = *eob;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
+#if CONFIG_TXFMBLK_LOGS
+    fprintf(cm->fDecTxfmLog, "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
+            cm->current_frame.absolute_poc, // 1: POC (picture number)
+            plane,                          // 2: plane ID (Y/U/V)
+            xd->mi_row,                     // 3: macroblock row index
+            xd->mi_col,                     // 4: macroblock coloumn index
+            blk_row,                        // 5: transform block row index
+            blk_col,                        // 6: transform block column index
+            tx_size,                        // 7: transform size
+            tx_type,                        // 8: transform type
+            neob,                           // 9: eob (# of coded coefficients)
+            1);                             // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
+#endif // CONFIG_TXFMBLK_LOGS
 
 #if CONFIG_DQ
   int state = 0;
