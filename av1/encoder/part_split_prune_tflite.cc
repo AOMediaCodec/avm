@@ -34,14 +34,16 @@ struct Context {
   std::unique_ptr<tflite::Interpreter> model_inter_8x8;
 };
 
-static std::unique_ptr<tflite::Interpreter> create_interpreter(unsigned char* model_def) {
+static std::unique_ptr<tflite::Interpreter> create_interpreter(
+    unsigned char *model_def) {
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
   const int num_threads = 1;
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = AOMMAX(num_threads, 1);
-  TfLiteDelegate *xnnpack_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
+  TfLiteDelegate *xnnpack_delegate =
+      TfLiteXNNPackDelegateCreate(&xnnpack_options);
 
   tflite::MutableOpResolver resolver;
   RegisterSelectedOps(&resolver);
@@ -65,19 +67,28 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(unsigned char* mo
 
 extern "C" void *av2_part_split_prune_tflite_init() {
   Context *ctx = new Context();
-  ctx->model_128X128 = create_interpreter(a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
-  ctx->model_64X64 = create_interpreter(a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite);
-  ctx->model_32X32 = create_interpreter(a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
-  ctx->model_16X16 = create_interpreter(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
-  ctx->model_inter_64x64 = create_interpreter(sms_part_split_prune_tflite_model_bs12);
-  ctx->model_inter_32x32 = create_interpreter(sms_part_split_prune_tflite_model_bs9);
-  ctx->model_inter_16x16 = create_interpreter(sms_part_split_prune_tflite_model_bs6);
-  ctx->model_inter_8x8 = create_interpreter(sms_part_split_prune_tflite_model_bs3);
+  ctx->model_128X128 =
+      create_interpreter(a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
+  ctx->model_64X64 =
+      create_interpreter(a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite);
+  ctx->model_32X32 =
+      create_interpreter(a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
+  ctx->model_16X16 =
+      create_interpreter(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
+  ctx->model_inter_64x64 =
+      create_interpreter(sms_part_split_prune_tflite_model_bs12);
+  ctx->model_inter_32x32 =
+      create_interpreter(sms_part_split_prune_tflite_model_bs9);
+  ctx->model_inter_16x16 =
+      create_interpreter(sms_part_split_prune_tflite_model_bs6);
+  ctx->model_inter_8x8 =
+      create_interpreter(sms_part_split_prune_tflite_model_bs3);
   return (void *)ctx;
 }
 
-extern "C" int av2_part_split_prune_tflite_params(
-    MODEL_TYPE model_type, int prune_level, struct ModelParams *params) {
+extern "C" int av2_part_split_prune_tflite_params(MODEL_TYPE model_type,
+                                                  int prune_level,
+                                                  struct ModelParams *params) {
   switch (model_type) {
     case MODEL_128X128:
       *params =
@@ -112,9 +123,11 @@ extern "C" int av2_part_split_prune_tflite_params(
   return 0;
 }
 // Simple intra ML TFLite based inference
-extern "C" int av2_part_split_prune_tflite_exec(
-    void *context, const float *ml_input, int input_len, float *ml_output,
-    int output_len, MODEL_TYPE model_type) {
+extern "C" int av2_part_split_prune_tflite_exec(void *context,
+                                                const float *ml_input,
+                                                int input_len, float *ml_output,
+                                                int output_len,
+                                                MODEL_TYPE model_type) {
   Context *ctx = (Context *)context;
   tflite::Interpreter *interpreter;
   switch (model_type) {
