@@ -147,7 +147,8 @@ bool dq_enable(TX_SIZE tx_size, int plane) {
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
 #if NEWQINDEX
-  qindex += 2;
+  if (qindex != 0)
+    qindex += 2;
 #endif
   int q_clamped;
   if ((qindex == 0) && (delta + base_dc_delta_q <= 0))
@@ -210,7 +211,8 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
 
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #if NEWQINDEX
-  qindex += 2;
+  if (qindex != 0)
+    qindex += 2;
 #endif
   int q_clamped;
   if ((qindex == 0) && (delta <= 0))
