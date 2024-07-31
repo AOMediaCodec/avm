@@ -1687,6 +1687,10 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
       get_filter_set(set_index);
   const uint8_t *filter_selector = get_filter_selector(set_index);
   assert(rui->pcwiener_buffers->buffer_width > 0);
+  bool classify_only = false;
+#if CONFIG_COMBINE_PC_NS_WIENER
+  classify_only = rui->skip_filtering ? true : false;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth,
                        rui->pcwiener_buffers);
@@ -1701,8 +1705,8 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
         src + j, w, stripe_height, src_stride, dst + j, dst_stride,
         rui->tskip + (j >> MI_SIZE_LOG2), rui->tskip_stride,
         rui->wiener_class_id + (j >> MI_SIZE_LOG2), rui->wiener_class_id_stride,
-        rui->plane != AOM_PLANE_Y, bit_depth, false, pcwiener_filters_luma,
-        filter_selector, rui->pcwiener_buffers);
+        rui->plane != AOM_PLANE_Y, bit_depth, classify_only,
+        pcwiener_filters_luma, filter_selector, rui->pcwiener_buffers);
   }
 }
 

@@ -1287,6 +1287,12 @@ static AOM_INLINE void search_pc_wiener_visitor(
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
+#if CONFIG_COMBINE_PC_NS_WIENER
+  const int pc_wiener_disabled =
+      rsc->cm->seq_params.lr_tools_disable_mask[rsc->plane] &
+      (1 << RESTORE_PC_WIENER);
+  rui.skip_filtering = pc_wiener_disabled ? 1 : 0;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   rui.restoration_type = RESTORE_PC_WIENER;
   rusi->sse[RESTORE_PC_WIENER] =
@@ -1294,6 +1300,15 @@ static AOM_INLINE void search_pc_wiener_visitor(
 
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
+
+#if CONFIG_COMBINE_PC_NS_WIENER
+  if (pc_wiener_disabled) {
+    rusi->best_rtype[RESTORE_PC_WIENER - 1] = RESTORE_NONE;
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rsc->bits += bits_none;
+    return;
+  }
+#endif
 
   const int64_t bits_pc_wiener =
       x->mode_costs.pc_wiener_restore_cost[1] +
@@ -5854,7 +5869,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
         for (RestorationType r = 0; r < num_rtypes; ++r) {
 #if CONFIG_LR_IMPROVEMENTS
-          if (cpi->common.features.lr_tools_disable_mask[plane > 0] & (1 << r))
+          if (
+#if CONFIG_COMBINE_PC_NS_WIENER
+              // Need classification and related stats.
+              (r != RESTORE_PC_WIENER) &&
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+              cpi->common.features.lr_tools_disable_mask[plane > 0] & (1 << r))
             continue;
           if (plane != AOM_PLANE_Y && r == RESTORE_PC_WIENER) continue;
 

@@ -439,6 +439,7 @@ typedef struct {
    * Whether classification needs to be computed.
    */
   int compute_classification;
+  int skip_filtering;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #endif  // CONFIG_LR_IMPROVEMENTS
 } RestorationUnitInfo;
