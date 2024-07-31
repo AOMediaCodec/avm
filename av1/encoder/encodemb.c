@@ -2078,13 +2078,14 @@ void av2_tcq_log_blkrd(const AV1_COMMON *const cm,
                        const BLOCK_SIZE bsize,
                        TX_SIZE tx_size,
                        TX_TYPE tx_type,
-                       bool is_inter,
+                       const int is_inter,
                        const int sq_step_dc,
                        const int sq_step_ac,
                        const int vq_step_dc,
                        const int vq_step_ac,
                        const int64_t rdmult,
                        const int n_coeffs,
+                       const int nz_counter,
                        const int neob_sq,
                        const int neob_vq,
                        const int rneob_sq,
@@ -2123,21 +2124,22 @@ void av2_tcq_log_blkrd(const AV1_COMMON *const cm,
           vq_step_ac,                     // 16: TCQ step size for AC coefficients
           rdmult);                        // 17: RD multiplier
 
-  fprintf(fp, "%06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld %16lld %16lld \n",
+  fprintf(fp, "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld %16lld %16lld \n",
           n_coeffs,       // 18: number of coefficients in the transform block
-          neob_sq,        // 19: number of coded coefficients (neob) via SQ
-          neob_vq,        // 20: number of coded coefficients (neob) via TCQ
-          rneob_sq,       // 21: estimated rate of NEOB for SQ
-          rneob_vq,       // 22: estimated rate of NEOB for TCQ
-          rate_sq,        // 23: estimated rate for coding the block with SQ
-          rate_vq,        // 24: estimated rate for coding the block with TCQ
-          rate_skip,      // 25: estimated rate for coding the block with skip_txfm
-          dist_sq,        // 26: distortion from coding the block with SQ
-          dist_vq,        // 27: distortion from coding the block with TCQ
-          dist_skip,      // 28: distortion from coding the block with skip_txfm
-          rd_sq,          // 29: combined RD cost from coding the block with SQ
-          rd_vq,          // 30: combined RD cost from coding the block with TCQ
-          rd_skip);       // 31: combined RD cost from coding the block with skip_txfm
+          nz_counter,     // 19: number of non-zero pre-quantized coefficients
+          neob_sq,        // 20: number of coded coefficients (neob) via SQ
+          neob_vq,        // 21: number of coded coefficients (neob) via TCQ
+          rneob_sq,       // 22: estimated rate of NEOB for SQ
+          rneob_vq,       // 23: estimated rate of NEOB for TCQ
+          rate_sq,        // 24: estimated rate for coding the block with SQ
+          rate_vq,        // 25: estimated rate for coding the block with TCQ
+          rate_skip,      // 26: estimated rate for coding the block with skip_txfm
+          dist_sq,        // 27: distortion from coding the block with SQ
+          dist_vq,        // 28: distortion from coding the block with TCQ
+          dist_skip,      // 29: distortion from coding the block with skip_txfm
+          rd_sq,          // 30: combined RD cost from coding the block with SQ
+          rd_vq,          // 31: combined RD cost from coding the block with TCQ
+          rd_skip);       // 32: combined RD cost from coding the block with skip_txfm
 
   fflush(fp);
 }
@@ -2153,7 +2155,7 @@ void av2_tcq_log_percoeff(const AV1_COMMON *const cm,
                           const BLOCK_SIZE bsize,
                           TX_SIZE tx_size,
                           TX_TYPE tx_type,
-                          bool is_inter,
+                          const int is_inter,
                           const int sq_step_dc,
                           const int sq_step_ac,
                           const int vq_step_dc,
