@@ -27,7 +27,7 @@ if("${AOM_ROOT}" STREQUAL "${AOM_CONFIG_DIR}")
       "And re-run CMake from the aom_build directory.")
 endif()
 
-project(AVM C CXX ASM)
+project(AVM C CXX)
 
 # GENERATED source property global visibility.
 if(POLICY CMP0118)

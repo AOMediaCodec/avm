@@ -211,9 +211,15 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
 
 #if CONFIG_IMPROVED_CFL
 // Get neighbor luma reconstruction pixels
+#if CONFIG_CFL_SIMPLIFICATION
+void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+                                      MACROBLOCKD *const xd, int row, int col,
+                                      TX_SIZE tx_size, int is_top_sb_boundary);
+#else
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
                                       TX_SIZE tx_size);
+#endif  // CONFIG_CFL_SIMPLIFICATION
 // Calculate luma DC
 void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);
 
