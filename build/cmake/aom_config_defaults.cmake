@@ -442,6 +442,9 @@ set_aom_config_var(
   "Parsing dependency removal for intra tx type and IST set signaling.")
 set_aom_config_var(CONFIG_INTER_IST 1 "Enable IST for inter blocks.")
 set_aom_config_var(CONFIG_IBP_WEIGHT 1 "Reduce IBP weights memory.")
+set_aom_config_var(CONFIG_WEDGE_TMVP 1
+                   "Improvements to tmvp MV storing for wedge mode.")
+
 #
 # Variables in this section control optional features of the build system.
 #

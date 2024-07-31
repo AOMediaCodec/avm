@@ -4702,7 +4702,7 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
-      av1_copy_frame_mvs(cm, mi, xd->mi_row, xd->mi_col, x_inside_boundary,
+      av1_copy_frame_mvs(cm, xd, mi, xd->mi_row, xd->mi_col, x_inside_boundary,
                          y_inside_boundary);
   }
 }

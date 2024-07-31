@@ -363,9 +363,19 @@ DECLARE_ALIGNED(
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_mask_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES * MAX_WEDGE_SQUARE]);
+#if CONFIG_WEDGE_TMVP
+DECLARE_ALIGNED(16, static uint8_t,
+                wedge_tmvp_decision_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES *
+                                        MAX_WEDGE_SQUARE]);
+#endif  // CONFIG_WEDGE_TMVP
 #else
 DECLARE_ALIGNED(16, static uint8_t,
                 wedge_mask_buf[2 * MAX_WEDGE_TYPES * 4 * MAX_WEDGE_SQUARE]);
+#if CONFIG_WEDGE_TMVP
+DECLARE_ALIGNED(
+    16, static uint8_t,
+    wedge_tmvp_decision_buf[2 * MAX_WEDGE_TYPES * 4 * MAX_WEDGE_SQUARE]);
+#endif  // CONFIG_WEDGE_TMVP
 #endif  // CONFIG_WEDGE_MOD_EXT
 
 DECLARE_ALIGNED(16, static uint8_t,
@@ -375,6 +385,9 @@ DECLARE_ALIGNED(16, static uint8_t,
 DECLARE_ALIGNED(16, static int8_t, cwp_mask[2][MAX_CWP_NUM][MAX_SB_SQUARE]);
 
 static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
+#if CONFIG_WEDGE_TMVP
+static wedge_decisions_type wedge_tmvp_decisions[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_WEDGE_TMVP
 
 #if CONFIG_WEDGE_MOD_EXT
 static const wedge_code_type wedge_codebook_16[MAX_WEDGE_TYPES] = {
@@ -438,6 +451,61 @@ static const wedge_code_type wedge_codebook_16_heqw[16] = {
 #endif  // CONFIG_WEDGE_MOD_EXT
 
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_WEDGE_TMVP
+const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X8],
+    wedge_tmvp_decisions[BLOCK_8X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X16],
+    wedge_tmvp_decisions[BLOCK_8X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X8],
+    wedge_tmvp_decisions[BLOCK_16X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X16],
+    wedge_tmvp_decisions[BLOCK_16X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X32],
+    wedge_tmvp_decisions[BLOCK_16X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X16],
+    wedge_tmvp_decisions[BLOCK_32X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X32],
+    wedge_tmvp_decisions[BLOCK_32X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X64],
+    wedge_tmvp_decisions[BLOCK_32X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X32],
+    wedge_tmvp_decisions[BLOCK_64X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X64],
+    wedge_tmvp_decisions[BLOCK_64X64] },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#if CONFIG_BLOCK_256
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#endif  // CONFIG_BLOCK_256
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X32],
+    wedge_tmvp_decisions[BLOCK_8X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X8],
+    wedge_tmvp_decisions[BLOCK_32X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X64],
+    wedge_tmvp_decisions[BLOCK_16X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X16],
+    wedge_tmvp_decisions[BLOCK_64X16] },
+#if CONFIG_FLEX_PARTITION
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X64],
+    wedge_tmvp_decisions[BLOCK_8X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X8],
+    wedge_tmvp_decisions[BLOCK_64X8] },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#endif  // CONFIG_FLEX_PARTITION
+};
+#else
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
@@ -473,6 +541,55 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X8] },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+#endif  // CONFIG_FLEX_PARTITION
+};
+#endif  // CONFIG_WEDGE_TMVP
+#else
+#if CONFIG_WEDGE_TMVP
+const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_heqw, wedge_signflip_lookup[BLOCK_8X8],
+    wedge_masks[BLOCK_8X8], wedge_tmvp_decisions[BLOCK_8X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_8X16],
+    wedge_masks[BLOCK_8X16], wedge_tmvp_decisions[BLOCK_8X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hltw, wedge_signflip_lookup[BLOCK_16X8],
+    wedge_masks[BLOCK_16X8], wedge_tmvp_decisions[BLOCK_16X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_heqw, wedge_signflip_lookup[BLOCK_16X16],
+    wedge_masks[BLOCK_16X16], wedge_tmvp_decisions[BLOCK_16X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_16X32],
+    wedge_masks[BLOCK_16X32], wedge_tmvp_decisions[BLOCK_16X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hltw, wedge_signflip_lookup[BLOCK_32X16],
+    wedge_masks[BLOCK_32X16], wedge_tmvp_decisions[BLOCK_32X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_heqw, wedge_signflip_lookup[BLOCK_32X32],
+    wedge_masks[BLOCK_32X32], wedge_tmvp_decisions[BLOCK_32X32] },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#if CONFIG_BLOCK_256
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#endif  // CONFIG_BLOCK_256
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_8X32],
+    wedge_masks[BLOCK_8X32], wedge_tmvp_decisions[BLOCK_8X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16_hltw, wedge_signflip_lookup[BLOCK_32X8],
+    wedge_masks[BLOCK_32X8], wedge_tmvp_decisions[BLOCK_32X8] },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+#if CONFIG_FLEX_PARTITION
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL, NULL },
 #endif  // CONFIG_FLEX_PARTITION
 };
 #else
@@ -522,6 +639,7 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
 #endif  // CONFIG_FLEX_PARTITION
 };
+#endif  // CONFIG_WEDGE_TMVP
 #endif
 
 // Init the cwp masks, called by init_cwp_masks
@@ -577,6 +695,41 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
 #endif  // CONFIG_WEDGE_MOD_EXT
   return master;
 }
+
+#if CONFIG_WEDGE_TMVP
+static void get_wedge_tmvp_decision(const uint8_t *mask, int mask_stride,
+                                    int bw, int bh, uint8_t *decision,
+                                    int decision_stride) {
+  for (int h_start = 0; h_start < bh; h_start += 8) {
+    for (int w_start = 0; w_start < bw; w_start += 8) {
+      const uint8_t *mask_start = mask + h_start * mask_stride + w_start;
+      uint8_t *decision_start = decision + h_start * decision_stride + w_start;
+      int ref0_count = 0;
+      int ref1_count = 0;
+      for (int h = 0; h < 8; h++) {
+        for (int w = 0; w < 8; w++) {
+          if (mask_start[h * mask_stride + w] > 60) {
+            ref0_count++;
+          } else if (mask_start[h * mask_stride + w] < 4) {
+            ref1_count++;
+          }
+        }
+      }
+      int this_decision = 2;
+      if (ref0_count >= 60) {
+        this_decision = 0;
+      } else if (ref1_count >= 60) {
+        this_decision = 1;
+      }
+      for (int h = 0; h < 8; h++) {
+        for (int w = 0; w < 8; w++) {
+          decision_start[h * decision_stride + w] = this_decision;
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_WEDGE_TMVP
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type) {
@@ -785,6 +938,10 @@ static AOM_INLINE void init_wedge_masks() {
   uint8_t *dst = wedge_mask_buf;
   BLOCK_SIZE bsize;
   memset(wedge_masks, 0, sizeof(wedge_masks));
+#if CONFIG_WEDGE_TMVP
+  uint8_t *dst_tmvp_decision = wedge_tmvp_decision_buf;
+  memset(wedge_tmvp_decisions, 0, sizeof(wedge_tmvp_decisions));
+#endif  // CONFIG_WEDGE_TMVP
   for (bsize = BLOCK_4X4; bsize < BLOCK_SIZES_ALL; ++bsize) {
     const wedge_params_type *wedge_params = &av1_wedge_params_lookup[bsize];
     const int wtypes = wedge_params->wedge_types;
@@ -798,12 +955,22 @@ static AOM_INLINE void init_wedge_masks() {
       aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw /* dst_stride */, bw,
                         bh);
       wedge_params->masks[0][w] = dst;
+#if CONFIG_WEDGE_TMVP
+      get_wedge_tmvp_decision(dst, bw, bw, bh, dst_tmvp_decision, bw);
+      wedge_params->tmvp_mv_decisions[0][w] = dst_tmvp_decision;
+      dst_tmvp_decision += bw * bh;
+#endif  // CONFIG_WEDGE_TMVP
       dst += bw * bh;
 
       mask = get_wedge_mask_inplace(w, 1, bsize);
       aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw /* dst_stride */, bw,
                         bh);
       wedge_params->masks[1][w] = dst;
+#if CONFIG_WEDGE_TMVP
+      wedge_params->tmvp_mv_decisions[1][w] = dst_tmvp_decision;
+      get_wedge_tmvp_decision(dst, bw, bw, bh, dst_tmvp_decision, bw);
+      dst_tmvp_decision += bw * bh;
+#endif  // CONFIG_WEDGE_TMVP
       dst += bw * bh;
     }
     assert(sizeof(wedge_mask_buf) >= (size_t)(dst - wedge_mask_buf));

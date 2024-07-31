@@ -465,7 +465,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);
   const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
   if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
-    av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_inside_boundary,
+    av1_copy_frame_mvs(cm, xd, mi, mi_row, mi_col, x_inside_boundary,
                        y_inside_boundary);
 }
 

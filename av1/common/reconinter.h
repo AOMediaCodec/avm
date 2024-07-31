@@ -157,12 +157,18 @@ typedef struct {
 } wedge_code_type;
 
 typedef uint8_t *wedge_masks_type[MAX_WEDGE_TYPES];
+#if CONFIG_WEDGE_TMVP
+typedef uint8_t *wedge_decisions_type[MAX_WEDGE_TYPES];
+#endif  // CONFIG_WEDGE_TMVP
 
 typedef struct {
   int wedge_types;
   const wedge_code_type *codebook;
   uint8_t *signflip;
   wedge_masks_type *masks;
+#if CONFIG_WEDGE_TMVP
+  wedge_decisions_type *tmvp_mv_decisions;
+#endif  // CONFIG_WEDGE_TMVP
 } wedge_params_type;
 
 extern const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL];
@@ -1484,6 +1490,14 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
                                                           BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type].masks[wedge_sign][wedge_index];
 }
+
+#if CONFIG_WEDGE_TMVP
+static INLINE const uint8_t *av1_get_contiguous_soft_mask_decision(
+    int8_t wedge_index, int8_t wedge_sign, BLOCK_SIZE sb_type) {
+  return av1_wedge_params_lookup[sb_type]
+      .tmvp_mv_decisions[wedge_sign][wedge_index];
+}
+#endif  // CONFIG_WEDGE_TMVP
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
