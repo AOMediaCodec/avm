@@ -1610,7 +1610,9 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
     const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     const TxSetType tx_set_type = av1_get_ext_tx_set_type(
         tx_size, is_inter, features->reduced_tx_set_used);
