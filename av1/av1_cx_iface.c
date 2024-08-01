@@ -146,8 +146,8 @@ struct av1_extracfg {
 #endif              // CONFIG_IDIF
   int enable_ist;   // enable intra secondary transform
 #if CONFIG_INTER_IST
-  int enable_inter_ist;     // enable inter secondary transform
-#endif                      // CONFIG_INTER_IST
+  int enable_inter_ist;  // enable inter secondary transform
+#endif                   // CONFIG_INTER_IST
 #if CONFIG_INTER_ADST_REPL
   int enable_inter_ddt;     // enable inter data-driven transform
 #endif                      // CONFIG_INTER_ADST_REPL
@@ -426,7 +426,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // enable_pef
   1,  // enable_lf_sub_pu
 #else
-  1,  // enable_pef
+  1,                        // enable_pef
 #endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
   0,                            // enable_obmc
@@ -469,7 +469,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // use ml model for erp pruning
   1,  // enable extended partitions
 #else
-  0,  // disable ML based partition speed up features
+  0,                        // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -515,7 +515,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_BLOCK_256
   256,  // max_partition_size
 #else
-  128,  // max_partition_size
+  128,                      // max_partition_size
 #endif  // CONFIG_BLOCK_256
   1,    // enable intra edge filter
   1,    // frame order hint
@@ -544,7 +544,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_warp_delta at sequence level
   1,  // enable_warp_extend at sequence level
 #else
-  1,  // allow_warped_motion at frame level
+  1,                        // allow_warped_motion at frame level
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   0,    // enable filter intra at sequence level
   1,    // enable smooth intra modes usage for sequence
@@ -554,7 +554,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  1,  // enable overlay
+  1,                        // enable overlay
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,    // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
