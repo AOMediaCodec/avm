@@ -1242,8 +1242,8 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
   assert(s2 >= 0);
   if (shift - s1 - s2 < 0) {
     // bit depth not large enough to hold the result
-    return ((a > 0) ^ (b > 0)) ? -((1 << (max_bd - 1)) - 1)
-                               : ((1 << (max_bd - 1)) - 1);
+    return ((a > 0) ^ (b > 0)) ? -(((int64_t)1 << (max_bd - 1)) - 1)
+                               : (((int64_t)1 << (max_bd - 1)) - 1);
   }
   return ROUND_POWER_OF_TWO_SIGNED_64(
       ROUND_POWER_OF_TWO_SIGNED_64(a, s1) * ROUND_POWER_OF_TWO_SIGNED_64(b, s2),

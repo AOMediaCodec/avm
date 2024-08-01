@@ -4455,7 +4455,7 @@ void pre_quant(tran_low_t tqc, PQData *pqData, const int32_t *quant_ptr,
 
   tran_low_t qIdx = (int)AOMMAX(
       1, AOMMIN(((1 << 16) - 1),
-                (abs_tqc * quant_ptr[scan_pos != 0] + add) >> shift));
+                ((int64_t)abs_tqc * quant_ptr[scan_pos != 0] + add) >> shift));
 
   const int64_t dist0 = get_coeff_dist(abs_tqc, 0, log_scale - 1);
 
@@ -4601,8 +4601,8 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     // init state
     for (int state = 0; state < TOTALSTATES; state++) {
       decision[state].rdCost = INT64_MAX >> 1;
-      decision[state].dist = INT64_MAX >> 1;
-      decision[state].rate = INT32_MAX >> 1;
+      decision[state].dist = INT64_MAX >> 10;
+      decision[state].rate = INT32_MAX >> 10;
       decision[state].absLevel = -1;
       decision[state].prevId = -2;
       decision[state].dqc = INT32_MAX;
