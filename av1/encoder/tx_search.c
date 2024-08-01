@@ -4063,6 +4063,20 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
       *rd_stats = this_rd_stats;
     }
     if (cur_tx_size == TX_4X4) break;
+    if (x->prune_tx_partition && type == 0) {
+      for (int i = 0; i < TOP_TX_PART_COUNT; i++) {
+        if (cur_rd < x->top_tx_part_rd[i]) {
+          for (int j = TOP_TX_PART_COUNT - 1; j > i; j--) {
+            x->top_tx_part_rd[j] = x->top_tx_part_rd[j - 1];
+          }
+          x->top_tx_part_rd[i] = cur_rd;
+          break;
+        }
+      }
+      if (x->top_tx_part_rd[TOP_TX_PART_COUNT - 1] != INT64_MAX &&
+          cur_rd > x->top_tx_part_rd[TOP_TX_PART_COUNT - 1])
+        break;
+    }
   }
 
   if (rd_stats->rate != INT_MAX) {

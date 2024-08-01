@@ -1905,6 +1905,10 @@ typedef struct macroblock {
    */
   int palette_pixels;
 #endif  // CONFIG_SCC_DETERMINATION
+  /*! \brief Whether to prune current transform partition search. */
+  int prune_tx_partition;
+  /*! \brief Keep records of top rdcosts of transform partition search. */
+  int64_t top_tx_part_rd[TOP_TX_PART_COUNT];
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

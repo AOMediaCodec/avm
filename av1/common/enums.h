@@ -916,7 +916,8 @@ enum {
 } UENUM1BYTE(CFL_TYPE);
 
 // Number of top model rd to store for pruning y modes in intra mode decision
-#define TOP_INTRA_MODEL_COUNT 4
+#define TOP_INTRA_MODEL_COUNT 6
+#define TOP_TX_PART_COUNT 4
 // Total number of luma intra prediction modes (include both directional and
 // non-directional modes)
 #define LUMA_MODE_COUNT 61
