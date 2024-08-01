@@ -4227,40 +4227,6 @@ static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n,
   }
 }
 
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-static void encode_wienerns_merge_map(struct aom_write_bit_buffer *wb,
-                                      int *merged_to_indices,
-                                      int num_filter_classes,
-                                      int num_classes_before_merge) {
-  assert(num_filter_classes < num_classes_before_merge);
-  assert(num_filter_classes >= 2);
-  assert(num_classes_before_merge >= 4);
-  merged_to_indices[0] = 0;
-  int continue_writing = 1;  // ??????? to be updated
-  int curr_max_id_after_merge = 0;
-  for (int c_id = 1; c_id < num_classes_before_merge; c_id++) {
-    if (num_filter_classes >= num_classes_before_merge / 2 - 1) {
-      int is_merged = merged_to_indices[c_id] <= curr_max_id_after_merge;
-      aom_wb_write_bit(wb, is_merged);
-      if (!is_merged) {
-        ++curr_max_id_after_merge;
-        assert(merged_to_indices[c_id] == curr_max_id_after_merge);
-      } else {
-        int bit_per_idx = curr_max_id_after_merge
-                              ? av1_ceil_log2(curr_max_id_after_merge + 1)
-                              : 0;
-        if (bit_per_idx > 0)
-          aom_wb_write_literal(wb, merged_to_indices[c_id], bit_per_idx);
-        else
-          assert(merged_to_indices[c_id] == curr_max_id_after_merge);
-      }
-    } else {
-      int bit_per_idx = av1_ceil_log2(num_filter_classes);
-      aom_wb_write_literal(wb, merged_to_indices[c_id], bit_per_idx);
-    }
-  }
-}
-#endif
 #if CONFIG_LR_IMPROVEMENTS
 // Converts frame restoration type to a coded index depending on lr tools
 // that are enabled for the frame for a given plane.
@@ -4337,11 +4303,6 @@ static AOM_INLINE void encode_restoration_mode(
     const int is_wiener_nonsep_possible =
         rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
-//    if (is_wiener_nonsep_possible)
-//      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
-//                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
-//                                             :
-//                                             NUM_WIENERNS_CLASS_INIT_CHROMA));
 #else
     switch (rsi->frame_restoration_type) {
       case RESTORE_NONE:
@@ -4388,47 +4349,10 @@ static AOM_INLINE void encode_restoration_mode(
           }
           if (!rsi->temporal_pred_flag) {
 #endif  // CONFIG_TEMP_LR
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-            if (rsi->frame_filters_on) {
-#if SIXTEEN_CLASSES_BEFORE_MERGE  // only allow 1 or 16
-              assert(rsi->num_classes_before_merge == 16 ||
-                     rsi->num_classes_before_merge == 1);
-              aom_wb_write_bit(wb, rsi->num_classes_before_merge == 16);
-              if (rsi->num_classes_before_merge == 16) {
-#else
+            if (rsi->frame_filters_on)
               aom_wb_write_literal(
-                  wb, encode_num_filter_classes(rsi->num_classes_before_merge),
+                  wb, encode_num_filter_classes(rsi->num_filter_classes),
                   NUM_FILTER_CLASSES_BITS);
-              if (rsi->num_classes_before_merge == 16) {
-#endif
-                assert(rsi->num_filter_classes >= 2 &&
-                       rsi->num_filter_classes <=
-                           rsi->num_classes_before_merge);
-                int bit_num =
-                    encode_num_filter_classes(rsi->num_classes_before_merge);
-                aom_wb_write_literal(wb, rsi->num_filter_classes - 1, bit_num);
-
-                if (rsi->num_filter_classes < rsi->num_classes_before_merge)
-                  encode_wienerns_merge_map(wb, rsi->merged_to_indices,
-                                            rsi->num_filter_classes,
-                                            rsi->num_classes_before_merge);
-              } else {
-                assert(rsi->num_filter_classes ==
-                       rsi->num_classes_before_merge);
-              }
-
-#if 0  // debug_point
-          printf ("Frame_fitler_num: %d, %d \n", rsi->num_classes_before_merge, rsi->num_filter_classes);
-#endif
-            } else {
-              assert(rsi->num_filter_classes == 1);
-            }
-#else
-          if (rsi->frame_filters_on)
-            aom_wb_write_literal(
-                wb, encode_num_filter_classes(rsi->num_filter_classes),
-                NUM_FILTER_CLASSES_BITS);
-#endif
 #if CONFIG_TEMP_LR
           }
           if (rsi->frame_filters_on)
@@ -4699,25 +4623,7 @@ static int check_and_write_merge_info(
 #if CONFIG_COMBINE_PC_NS_WIENER
 static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
                                        aom_writer *wb) {
-  int using_two = use_two_predictors[wienerns_info->num_classes];
-  int using_two_send =
-      use_two_predictors[wienerns_info->num_classes] &&
-      wienerns_info->num_classes > MIN_CLASS_FOR_CUMUL_USE_TWO_BIT;
-  if (using_two_send) {
-    using_two = 0;
-    for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id)
-      if (get_second_match_index(wienerns_info->match_indices[c_id],
-                                 wienerns_info->num_classes) != ILLEGAL_MATCH) {
-        using_two = 1;
-        break;
-      }
-  }
-
-  int total_bits = 0;  // change to accomodate use_two table
-  if (using_two_send) {
-    aom_write_bit(wb, using_two ? 1 : 0);
-    total_bits += 1;
-  }
+  int total_bits = 0;
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int num_bits = 0;
     int encoded_match =
@@ -4725,20 +4631,8 @@ static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
                            wienerns_info->num_classes);
     aom_write_literal(wb, encoded_match, num_bits);
     total_bits += num_bits;
-    if (using_two) {
-      encoded_match =
-          encode_second_match(wienerns_info->match_indices[c_id], c_id,
-                              &num_bits, wienerns_info->num_classes);
-      aom_write_bit(wb, encoded_match != ILLEGAL_MATCH ? 1 : 0);
-      total_bits += 1;
-      if (encoded_match != ILLEGAL_MATCH && num_bits) {
-        aom_write_literal(wb, encoded_match, num_bits);
-        total_bits += num_bits;
-      }
-    }
   }
-  int count_bits = count_match_indices_bits(wienerns_info->match_indices,
-                                            wienerns_info->num_classes);
+  int count_bits = count_match_indices_bits(wienerns_info->num_classes);
   assert(total_bits == count_bits);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

@@ -319,11 +319,8 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
     set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma);
   }
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  for (int c_id = 0; c_id < WIENERNS_MAX_CLASSES; ++c_id) {
-#else
+
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-#endif
     bank->bank_size_for_class[c_id] = 0;
     bank->bank_ptr_for_class[c_id] = 0;
   }
@@ -411,8 +408,8 @@ const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   const WienerNonsepInfo *from_info,
                                   int wiener_class_id) {
-  //  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
-  //  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
+  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
+  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
   const int offset = wiener_class_id * WIENERNS_YUV_MAX;
   memcpy(to_info->allfiltertaps + offset, from_info->allfiltertaps + offset,
          WIENERNS_YUV_MAX * sizeof(*to_info->allfiltertaps));
@@ -518,7 +515,12 @@ void translate_filters(const AV1_COMMON *cm) {
   is_translated = 1;
 }
 
-// TODO: Clean this up into a container, probably rsi.
+static inline int num_sampled_pc_wiener_filters(int num_ref_filters,
+                                                int num_classes) {
+  return AOMMIN(AOMMAX(max_num_base_filters(num_classes) - num_ref_filters, 0),
+                NUM_PC_WIENER_FILTERS);
+}
+
 void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
                                       int16_t *match_filter_dictionary,
                                       int dict_stride, const char *prefix) {
@@ -541,7 +543,6 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   // ---------------------------------------------------------------------------
 
   // Copy available reference filters to the dictionary. -----------------------
-  // TODO: Prefer based on current number of classes.
   int num_ref_filters = 0;
 #if CONFIG_TEMP_LR
   const int allowed_num_base_filters = max_num_base_filters(num_classes);
@@ -633,10 +634,10 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   // ---------------------------------------------------------------------------
 }
 
-void add_nsfilter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
-                                const WienernsFilterParameters *nsfilter_params,
-                                int16_t *match_filter_dictionary,
-                                int dict_stride) {
+void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
+                              const WienernsFilterParameters *nsfilter_params,
+                              int16_t *match_filter_dictionary,
+                              int dict_stride) {
   assert(match_filter_dictionary != NULL);
   assert(dict_stride > 0);
   if (class_id == filter->num_classes - 1) return;

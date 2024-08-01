@@ -3338,40 +3338,6 @@ static RestorationType index_to_frame_restoration_type(
 }
 #endif  // CONFIG_LR_IMPROVEMENTS
 
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-static void decode_wienerns_merge_map(struct aom_read_bit_buffer *rb,
-                                      int *merged_to_indices,
-                                      int num_filter_classes,
-                                      int num_classes_before_merge) {
-  assert(num_filter_classes < num_classes_before_merge);
-  assert(num_filter_classes >= 2);
-  assert(num_classes_before_merge >= 4);
-  merged_to_indices[0] = 0;
-  int continue_reading = 1;  // ??????? to be updated
-  int curr_max_id_after_merge = 0;
-  for (int c_id = 1; c_id < num_classes_before_merge; c_id++) {
-    if (num_filter_classes >= num_classes_before_merge / 2 - 1) {
-      bool is_merged = aom_rb_read_literal(rb, 1);
-      if (!is_merged) {
-        ++curr_max_id_after_merge;
-        merged_to_indices[c_id] = curr_max_id_after_merge;
-      } else {
-        int bit_per_idx = curr_max_id_after_merge
-                              ? av1_ceil_log2(curr_max_id_after_merge + 1)
-                              : 0;
-        if (bit_per_idx > 0)
-          merged_to_indices[c_id] = aom_rb_read_literal(rb, bit_per_idx);
-        else
-          merged_to_indices[c_id] = curr_max_id_after_merge;
-      }
-    } else {
-      int bit_per_idx = av1_ceil_log2(num_filter_classes);
-      merged_to_indices[c_id] = aom_rb_read_literal(rb, bit_per_idx);
-    }
-  }
-}
-#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-
 static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
@@ -3442,13 +3408,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (is_wiener_nonsep_possible) {
 #if CONFIG_COMBINE_PC_NS_WIENER
       rsi->frame_filters_initialized = 0;
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-      for (int c_id = 0; c_id < WIENERNS_MAX_CLASSES; c_id++) {
-        rsi->merged_to_indices[c_id] = c_id;
-      }
-#endif
       if (p == AOM_PLANE_Y) {
-        // TODO: Figure out how to set this with CONFIG_LR_FLEX_SYNTAX.
         int read_num_classes = 1;
         read_num_classes = read_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (read_num_classes) {
@@ -3478,45 +3438,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
             av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
           } else {
 #endif  // CONFIG_TEMP_LR
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-            if (rsi->frame_filters_on) {
-#if SIXTEEN_CLASSES_BEFORE_MERGE  // only allow 1 or 16
-              rsi->num_classes_before_merge = aom_rb_read_bit(rb) ? 16 : 1;
-              if (rsi->num_classes_before_merge == 16) {
-#else
-              rsi->num_classes_before_merge = decode_num_filter_classes(
+            if (rsi->frame_filters_on)
+              rsi->num_filter_classes = decode_num_filter_classes(
                   aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-              if (rsi->num_classes_before_merge == 16) {
-#endif
-                int bit_num =
-                    encode_num_filter_classes(rsi->num_classes_before_merge);
-                rsi->num_filter_classes = aom_rb_read_literal(rb, bit_num) + 1;
-                assert(rsi->num_filter_classes >= 2 &&
-                       rsi->num_filter_classes <=
-                           rsi->num_classes_before_merge);
-                if (rsi->num_filter_classes < rsi->num_classes_before_merge)
-                  decode_wienerns_merge_map(rb, rsi->merged_to_indices,
-                                            rsi->num_filter_classes,
-                                            rsi->num_classes_before_merge);
-              } else {
-                rsi->num_filter_classes = rsi->num_classes_before_merge;
-                // init merged_to_indices array
-                for (int c_id = 0; c_id < rsi->num_filter_classes; ++c_id) {
-                  rsi->merged_to_indices[c_id] = c_id;
-                }
-              }
-            } else {
+            else
               rsi->num_filter_classes = 1;
-              rsi->num_classes_before_merge = 1;
-            }
-#else
-          if (rsi->frame_filters_on)  // ??????? should this be signalled only
-                                      // when frame_mode_on?
-            rsi->num_filter_classes = decode_num_filter_classes(
-                aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-          else
-            rsi->num_filter_classes = 1;
-#endif
 #if CONFIG_TEMP_LR
           }
 #endif
@@ -3793,39 +3719,14 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_match_indices(WienerNonsepInfo *wienerns_info,
                                aom_reader *rb) {
-  int using_two = use_two_predictors[wienerns_info->num_classes];
-  int using_two_receive =
-      use_two_predictors[wienerns_info->num_classes] &&
-      wienerns_info->num_classes > MIN_CLASS_FOR_CUMUL_USE_TWO_BIT;
-  if (using_two_receive) {
-    using_two = aom_read_bit(rb, ACCT_STR);
-  }
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int decoded_match = aom_read_literal(
         rb, first_match_bits(c_id, wienerns_info->num_classes), ACCT_STR);
     int first_match = decode_first_match(decoded_match, c_id);
-    int second_match = ILLEGAL_MATCH;
-    if (using_two) {
-      if (aom_read_bit(rb, ACCT_STR)) {
-        const int num_bits = second_match_bits(c_id);
-        if (num_bits) {
-          decoded_match = aom_read_literal(rb, num_bits, ACCT_STR);
-        } else {
-          decoded_match = 0;
-        }
-        second_match = decode_second_match(decoded_match, c_id,
-                                           wienerns_info->num_classes);
-      }
-    }
-    fflush(stdout);
-    wienerns_info->match_indices[c_id] = combine_to_single_index(
-        first_match, second_match, wienerns_info->num_classes);
+    wienerns_info->match_indices[c_id] = first_match;
     assert(first_match ==
            get_first_match_index(wienerns_info->match_indices[c_id],
                                  wienerns_info->num_classes));
-    assert(second_match ==
-           get_second_match_index(wienerns_info->match_indices[c_id],
-                                  wienerns_info->num_classes));
   }
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -4006,9 +3907,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  rui->wienerns_info.num_classes_before_merge = rsi->num_classes_before_merge;
-#endif
 #endif  // CONFIG_LR_IMPROVEMENTS
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -4103,11 +4001,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
 #endif  // CONFIG_LR_IMPROVEMENTS
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  for (int c_id = 0; c_id < WIENERNS_MAX_CLASSES; c_id++) {
-    rui->wienerns_info.merged_to_indices[c_id] = rsi->merged_to_indices[c_id];
-  }
-#endif
 }
 static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {

@@ -1977,15 +1977,6 @@ typedef struct {
 static const int num_frame_first_predictor_bits[WIENERNS_MAX_CLASSES + 1] = {
   6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
 };
-// Only use the previous classes as the second filter.
-// ceil(log_2(NUM_WIENERNS_CLASS_INIT_LUMA))
-#define NUM_FRAME_SECOND_PREDICTOR_BITS 4
-
-#define MIN_CLASS_FOR_CUMUL_USE_TWO_BIT WIENERNS_MAX_CLASSES  // 2
-static const int use_two_predictors[WIENERNS_MAX_CLASSES + 1] = {
-  //  0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  0
-};  // use_two doesn't make sense for num_classes = 1
 
 static inline int num_dictionary_slots(int num_classes) {
   // +1 for the spurious add.
@@ -2017,17 +2008,6 @@ static inline int max_num_base_filters(int num_classes) {
   return num_dictionary_slots(num_classes) - num_classes;
 }
 
-static inline int num_sampled_pc_wiener_filters(int num_ref_filters,
-                                                int num_classes) {
-  // TODO: NUM_PC_WIENER_FILTERS should be visible here instead of
-  //  NUM_PC_WIENER_FILTERS or move all to restoration.h
-  const int num_pc_wiener_filters = 64;  // NUM_PC_WIENER_FILTERS
-  return AOMMIN(AOMMAX(max_num_base_filters(num_classes) - num_ref_filters, 0),
-                num_pc_wiener_filters);
-}
-
-#define SCALE_1 1
-#define SCALE_2 1
 #else
 #define WIENERNS_MAX_CLASSES 1
 #define NUM_WIENERNS_CLASS_INIT_LUMA 1
@@ -2069,16 +2049,6 @@ typedef struct {
    * to be used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
-#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  /*!
-   * Filter data - number of classes before merge
-   */
-  int num_classes_before_merge;
-  /*!
-   * Class indices of each class merges to.
-   */
-  int merged_to_indices[WIENERNS_MAX_CLASSES];
-#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
 #if CONFIG_TEMP_LR
   // whether frame filter is predicted from a reference picture
   uint8_t temporal_pred_flag;

@@ -1878,15 +1878,19 @@ typedef struct AV1Common {
 
 /*!\cond */
 #if CONFIG_COMBINE_PC_NS_WIENER
-#define PRINT_FILTER 0
+#define PRINT_FILTER 1
 #define PRINT_REFS 0
+void translate_filters(const AV1_COMMON *cm);
 int16_t *allocate_match_filter_dictionary(int *dict_stride);
 void free_match_filter_dictionary(int16_t *match_filter_dictionary,
                                   int *dict_stride);
-void add_nsfilter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
-                                const WienernsFilterParameters *nsfilter_params,
-                                int16_t *match_filter_dictionary,
-                                int dict_stride);
+
+// Useful in allowing previous class filters to be used in predicting the
+// filters of the next class.
+void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
+                              const WienernsFilterParameters *nsfilter_params,
+                              int16_t *match_filter_dictionary,
+                              int dict_stride);
 void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
                                       int16_t *match_filter_dictionary,
                                       int dict_stride, const char *prefix);
