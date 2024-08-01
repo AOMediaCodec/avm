@@ -750,7 +750,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_split_ml_level = 0;  // default pruning
-  part_sf->prune_split_ml_level_inter = 3;
+  part_sf->prune_split_ml_level_inter = 2;
 #endif  // CONFIG_ML_PART_SPLIT
 }
 
