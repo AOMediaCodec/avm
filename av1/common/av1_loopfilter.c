@@ -613,6 +613,7 @@ MB_MODE_INFO **get_chroma_ref_mi(const AV1_COMMON *const cm, int scale_horz,
           this_mi[0]->chroma_mi_col_start;
       assert(top_left_mi[0]->chroma_ref_info.is_chroma_ref);
       assert(top_left_mi[0]->region_type == INTRA_REGION);
+      return top_left_mi;
     } else {
       // 2. Shared luma/chroma tree.
       // Get bottom-right mi location using chroma_ref_info.
@@ -630,6 +631,7 @@ MB_MODE_INFO **get_chroma_ref_mi(const AV1_COMMON *const cm, int scale_horz,
             bottom_mi_row * cm->mi_params.mi_stride + right_mi_col;
         assert(bottom_right_mi[0]->chroma_ref_info.is_chroma_ref);
         assert(bottom_right_mi[0]->region_type == MIXED_INTER_INTRA_REGION);
+        return bottom_right_mi;
       }
     }
   }
