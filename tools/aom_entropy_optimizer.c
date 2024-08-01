@@ -1023,7 +1023,12 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = EOB_TX_CTXS;
   cts_each_dim[2] = EXT_TX_SIZES;
   cts_each_dim[3] = TX_TYPES;
-  int inter_ext_tx_types_each_ctx[EXT_TX_SETS_INTER] = { 0, 16, 12, 2 };
+  int inter_ext_tx_types_each_ctx[EXT_TX_SETS_INTER] = {
+    0,
+    INTER_TX_SET1,
+    INTER_TX_SET2,
+    INTER_TX_SET3,
+  };
   optimize_cdf_table_var_modes_4d(
       &fc.inter_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
       inter_ext_tx_types_each_ctx,

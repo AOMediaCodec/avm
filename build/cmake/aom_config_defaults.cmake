@@ -360,6 +360,9 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
 set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 
+set_aom_config_var(CONFIG_INTER_ADST_REPL 1
+                   "AV2 reduced transform set with data-driven transforms.")
+
 set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
                    "Enable to improve temporal motion projection")
 

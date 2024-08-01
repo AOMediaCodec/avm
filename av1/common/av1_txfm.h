@@ -34,15 +34,31 @@ extern "C" {
 
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
-#if CONFIG_ADST_TUNED
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#define TXFM_KERNEL_SIZE4 16
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#if CONFIG_ADST_TUNED
+#define USE_TUNED_ADST4 1
+#define USE_TUNED_ADST8 1
+#define USE_TUNED_ADST16 1
+#if USE_TUNED_ADST8
 // 8 point kernel: Graph Fourier Transform with self-loop of 1.5 using matrix
 // multiplication
 extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
+#endif  // USE_TUNED_ADST8
+#if USE_TUNED_ADST16
 // 16-point kernel: DST-7 using matrix multiplication
 extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
+#endif  // USE_TUNED_ADST16
 #endif  // CONFIG_ADST_TUNED
+
+#if CONFIG_INTER_ADST_REPL
+#define REPLACE_ADST4 0
+#define REPLACE_ADST8 1
+#define REPLACE_ADST16 1
+#endif  // CONFIG_INTER_ADST_REPL
 
 #define CCTX_PREC_BITS 8
 extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
@@ -52,11 +68,11 @@ extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
 static const int cos_bit_min = 10;
 static const int cos_bit_max = 16;
 
-#if CONFIG_ADST_TUNED
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 // Round shift bits for the ADST forward and inverse transforms
 #define FWD_ADST_BIT 12
 #define INV_ADST_BIT 7
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 
 #define NewSqrt2Bits ((int32_t)12)
 // 2^12 * sqrt(2)
@@ -129,7 +145,11 @@ typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
-                              TX_TYPE tx_type, int bd);
+                              TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                              int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                              int bd);
 
 enum {
   TXFM_TYPE_DCT4,
@@ -242,12 +262,11 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
-#if CONFIG_ADST_TUNED
-// Apply transform by matrix multiplication with a kernel
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size, int8_t bit,
                           int8_t clamp);
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];
 static INLINE int get_txw_idx(TX_SIZE tx_size) {

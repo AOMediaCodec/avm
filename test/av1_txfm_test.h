@@ -77,7 +77,11 @@ void fliplrud(Type *dest, int width, int height, int stride);
 typedef void (*TxfmFunc)(const int32_t *in, int32_t *out, const int8_t cos_bit,
                          const int8_t *range_bit);
 
-typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE, int);
+typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE,
+#if CONFIG_INTER_ADST_REPL
+                              int,
+#endif  // CONFIG_INTER_ADST_REPL
+                              int);
 typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
                                  TX_SIZE, int);
 
@@ -105,7 +109,7 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
     tx_set_type = EXT_TX_SET_DCT_IDTX;
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   } else {
-    tx_set_type = EXT_TX_SET_ALL16;
+    tx_set_type = EXT_TX_SET_ALL;
   }
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||

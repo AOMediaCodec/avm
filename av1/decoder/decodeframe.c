@@ -168,8 +168,13 @@ static AOM_INLINE void inverse_transform_block(DecoderCodingBlock *dcb,
     scan_line = AOMMAX(eob_data_c1->max_scan_line, eob_data_c2->max_scan_line);
     eob = AOMMAX(eob_data_c1->eob, eob_data_c2->eob);
   }
-  av1_inverse_transform_block(&dcb->xd, dqcoeff, plane, tx_type, tx_size, dst,
-                              stride, eob, reduced_tx_set);
+  av1_inverse_transform_block(
+      &dcb->xd, dqcoeff, plane, tx_type, tx_size, dst, stride, eob,
+#if CONFIG_INTER_ADST_REPL
+      replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
+                          cm->features.allow_screen_content_tools, &dcb->xd),
+#endif  // CONFIG_INTER_ADST_REPL
+      reduced_tx_set);
   const int width = tx_size_wide[tx_size] <= 32 ? tx_size_wide[tx_size] : 32;
   const int height = tx_size_high[tx_size] <= 32 ? tx_size_high[tx_size] : 32;
   const int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
@@ -6825,6 +6830,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_INTER_IST
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
+#endif  // CONFIG_INTER_ADST_REPL
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
   seq_params->enable_tip = aom_rb_read_literal(rb, 2);

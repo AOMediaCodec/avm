@@ -1565,7 +1565,7 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       const uint8_t stx_flag = aom_read_symbol(
           r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
 #endif  // CONFIG_INTER_IST
-        *tx_type |= (stx_flag << 4);
+        *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTER_IST
         if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
@@ -1593,7 +1593,7 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       const uint8_t stx_flag = aom_read_symbol(
           r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
 #endif  // // CONFIG_INTER_IST
-      *tx_type |= (stx_flag << 4);
+      *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTER_IST
       if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);

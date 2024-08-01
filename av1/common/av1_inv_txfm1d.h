@@ -15,6 +15,10 @@
 
 #include "av1/common/av1_txfm.h"
 
+#if CONFIG_INTER_ADST_REPL
+#include "av1/common/ddtx_bases.h"
+#endif  // CONFIG_INTER_ADST_REPL
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,6 +46,8 @@ void av1_idct64(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
+void av1_iadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
+                    const int8_t *stage_range);
 void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -54,16 +60,14 @@ void av1_iidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_iidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
-#if CONFIG_ADST_TUNED
-// New inverse ADST functions
-void av2_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
+#if CONFIG_INTER_ADST_REPL
+void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
+               const int8_t *stage_range);
+void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
+               const int8_t *stage_range);
+void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
-void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
-                const int8_t *stage_range);
-void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
-                 const int8_t *stage_range);
-#endif  // CONFIG_ADST_TUNED
-
+#endif  // CONFIG_INTER_ADST_REPL
 #ifdef __cplusplus
 }
 #endif

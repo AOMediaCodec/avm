@@ -148,6 +148,9 @@ struct av1_extracfg {
 #if CONFIG_INTER_IST
   int enable_inter_ist;     // enable inter secondary transform
 #endif                      // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  int enable_inter_ddt;     // enable inter data-driven transform
+#endif                      // CONFIG_INTER_ADST_REPL
   int enable_cctx;          // enable cross-chroma component transform
   int enable_ibp;           // enable intra bi-prediction
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
@@ -423,7 +426,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // enable_pef
   1,  // enable_lf_sub_pu
 #else
-  1,                        // enable_pef
+  1,  // enable_pef
 #endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
   0,                            // enable_obmc
@@ -466,7 +469,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // use ml model for erp pruning
   1,  // enable extended partitions
 #else
-  0,                        // disable ML based partition speed up features
+  0,  // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -491,6 +494,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_INTER_IST
   1,    // enable inter secondary transform
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  1,    // enable inter data-driven transform
+#endif  // CONFIG_INTER_ADST_REPL
   1,    // enable cross-chroma component transform
   1,    // enable intra bi-prediction
   1,    // enable adaptive mvd resolution
@@ -509,7 +515,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_BLOCK_256
   256,  // max_partition_size
 #else
-  128,                      // max_partition_size
+  128,  // max_partition_size
 #endif  // CONFIG_BLOCK_256
   1,    // enable intra edge filter
   1,    // frame order hint
@@ -538,7 +544,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_warp_delta at sequence level
   1,  // enable_warp_extend at sequence level
 #else
-  1,                        // allow_warped_motion at frame level
+  1,  // allow_warped_motion at frame level
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   0,    // enable filter intra at sequence level
   1,    // enable smooth intra modes usage for sequence
@@ -548,7 +554,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  1,                        // enable overlay
+  1,  // enable overlay
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,    // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
@@ -1021,6 +1027,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_INTER_IST
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  cfg->enable_inter_ddt = extra_cfg->enable_inter_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   cfg->enable_cctx = extra_cfg->enable_cctx;
   cfg->enable_ibp = extra_cfg->enable_ibp;
   cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
@@ -1150,6 +1159,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_INTER_IST
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  extra_cfg->enable_inter_ddt = cfg->enable_inter_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   extra_cfg->enable_cctx = cfg->enable_cctx;
   extra_cfg->enable_ibp = cfg->enable_ibp;
   extra_cfg->enable_adaptive_mvd = cfg->enable_adaptive_mvd;
@@ -1763,6 +1775,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->enable_inter_ist =
       extra_cfg->enable_inter_ist && !extra_cfg->lossless;
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  txfm_cfg->enable_inter_ddt =
+      extra_cfg->enable_inter_ddt && !extra_cfg->lossless;
+#endif  // CONFIG_INTER_ADST_REPL
   txfm_cfg->enable_cctx =
       tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_cctx;
 
@@ -3967,6 +3983,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_inter_ist = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ddt,
+                              argv, err_string)) {
+    extra_cfg.enable_inter_ddt = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_INTER_ADST_REPL
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cctx, argv,
                               err_string)) {
     extra_cfg.enable_cctx = arg_parse_int_helper(&arg, err_string);
@@ -4478,6 +4499,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_INTER_IST
         1,  // inter IST
 #endif      // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+        1,  // inter DDT
+#endif      // CONFIG_INTER_ADST_REPL
         1,  // enable_cctx
         1, 1,   1,
 #if CONFIG_IMPROVED_CFL

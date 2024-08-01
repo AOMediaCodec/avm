@@ -15,6 +15,10 @@
 
 #include "av1/common/av1_txfm.h"
 
+#if CONFIG_INTER_ADST_REPL
+#include "av1/common/ddtx_bases.h"
+#endif  // CONFIG_INTER_ADST_REPL
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +35,8 @@ void av1_fdct64(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
+void av1_fadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
+                    const int8_t *stage_range);
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -43,15 +49,14 @@ void av1_fidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_fidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
-#if CONFIG_ADST_TUNED
-// New forward ADST functions
-void av2_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
+#if CONFIG_INTER_ADST_REPL
+void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
+               const int8_t *stage_range);
+void av1_fddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
+               const int8_t *stage_range);
+void av1_fddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
-void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
-                const int8_t *stage_range);
-void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
-                 const int8_t *stage_range);
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_INTER_ADST_REPL
 #ifdef __cplusplus
 }
 #endif

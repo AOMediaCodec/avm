@@ -30,15 +30,6 @@ const int txfm_size_num = 5;
 
 const int txfm_size_ls[] = { 4, 8, 16, 32, 64 };
 
-#if CONFIG_ADST_TUNED
-const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
-  { av1_fdct4, av2_fadst4, av1_fidentity4_c },
-  { av1_fdct8, av2_fadst8, av1_fidentity8_c },
-  { av1_fdct16, av2_fadst16, av1_fidentity16_c },
-  { av1_fdct32, NULL, av1_fidentity32_c },
-  { av1_fdct64, NULL, NULL },
-};
-#else
 const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
   { av1_fdct4, av1_fadst4, av1_fidentity4_c },
   { av1_fdct8, av1_fadst8, av1_fidentity8_c },
@@ -46,7 +37,6 @@ const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
   { av1_fdct32, NULL, av1_fidentity32_c },
   { av1_fdct64, NULL, NULL },
 };
-#endif  // CONFIG_ADST_TUNED
 
 // the maximum stage number of fwd/inv 1d dct/adst txfm is 12
 const int8_t cos_bit = 14;

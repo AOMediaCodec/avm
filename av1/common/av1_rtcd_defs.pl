@@ -130,7 +130,9 @@ if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
 add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
 specialize qw/inv_stxfm sse4_1 avx2/;
 add_proto qw/void av1_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
-if (aom_config("CONFIG_ADST_TUNED") eq "yes") {
+if (aom_config("CONFIG_ADST_TUNED") eq "yes"
+  || aom_config("CONFIG_INTER_ADST_REPL") eq "yes"
+) {
     specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2/;
 } else {
     specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2 neon/;
@@ -196,62 +198,112 @@ if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
     add_proto qw/void av1_highbd_iwht4x4_16_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
     add_proto qw/void av1_highbd_iwht4x4_1_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
     add_proto qw/void av1_highbd_iwht4x4_16_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
-}
-add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_4x8 neon/;
-add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_8x4 neon/;
-add_proto qw/void av1_inv_txfm2d_add_8x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_8x16 neon/;
-add_proto qw/void av1_inv_txfm2d_add_16x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_16x8 neon/;
-add_proto qw/void av1_inv_txfm2d_add_16x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_16x32 neon/;
-add_proto qw/void av1_inv_txfm2d_add_32x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_32x16 neon/;
-add_proto qw/void av1_inv_txfm2d_add_4x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_4x4 sse4_1 neon/;
-add_proto qw/void av1_inv_txfm2d_add_8x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_8x8 sse4_1 neon/;
-add_proto qw/void av1_inv_txfm2d_add_16x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_16x16 neon/;
-add_proto qw/void av1_inv_txfm2d_add_32x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_32x32 neon/;
-
-if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
     add_proto qw/void av1_inv_idfm2d_add_4x4_vert/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
     add_proto qw/void av1_inv_idfm2d_add_4x4_horz/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 }
 
-add_proto qw/void av1_inv_txfm2d_add_64x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_64x64 neon/;
-add_proto qw/void av1_inv_txfm2d_add_32x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_32x64 neon/;
-add_proto qw/void av1_inv_txfm2d_add_64x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_64x32 neon/;
-add_proto qw/void av1_inv_txfm2d_add_16x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_16x64 neon/;
-add_proto qw/void av1_inv_txfm2d_add_64x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_64x16 neon/;
+if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+  add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x8 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x4 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x8 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_4x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x4 sse4_1 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x8 sse4_1 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x32 neon/;
 
-add_proto qw/void av1_inv_txfm2d_add_4x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_4x16 neon/;
-add_proto qw/void av1_inv_txfm2d_add_16x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_16x4 neon/;
-add_proto qw/void av1_inv_txfm2d_add_8x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_8x32 neon/;
-add_proto qw/void av1_inv_txfm2d_add_32x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-specialize qw/av1_inv_txfm2d_add_32x8 neon/;
-if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
-  add_proto qw/void av1_inv_txfm2d_add_4x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_inv_txfm2d_add_32x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_inv_txfm2d_add_8x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_inv_txfm2d_add_64x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_inv_txfm2d_add_4x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_inv_txfm2d_add_64x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_64x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_64x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_64x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x16 neon/;
+
+  add_proto qw/void av1_inv_txfm2d_add_4x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x4 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x8 neon/;
+
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    add_proto qw/void av1_inv_txfm2d_add_4x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_32x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_8x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_64x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_4x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_64x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  }
+} else {
+  add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x8 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x4 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x8 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_4x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x4 sse4_1 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x8 sse4_1 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x32 neon/;
+
+  add_proto qw/void av1_inv_txfm2d_add_64x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_64x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x64 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_64x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_64x16 neon/;
+
+  add_proto qw/void av1_inv_txfm2d_add_4x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_4x16 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_16x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_16x4 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_8x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_8x32 neon/;
+  add_proto qw/void av1_inv_txfm2d_add_32x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  specialize qw/av1_inv_txfm2d_add_32x8 neon/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    add_proto qw/void av1_inv_txfm2d_add_4x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_32x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_8x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_64x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_4x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_txfm2d_add_64x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  }
 }
 
-# directional intra predictor functions
+  # directional intra predictor functions
 add_proto qw/void av1_highbd_dr_prediction_z1/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_above, int dx, int dy, int bd, int mrl_index";
 specialize qw/av1_highbd_dr_prediction_z1 avx2/;
 add_proto qw/void av1_highbd_dr_prediction_z2/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_above, int upsample_left, int dx, int dy, int bd, int mrl_index";
@@ -327,21 +379,37 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
   specialize qw/fwd_stxfm sse4_1 avx2/;
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  add_proto qw/void av1_fwd_txfm2d_4x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_8x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_8x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_16x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_16x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_32x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_4x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_16x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_8x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_32x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_4x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_8x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_16x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-
+  if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+    add_proto qw/void av1_fwd_txfm2d_4x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_4x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_4x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+  } else {
+    add_proto qw/void av1_fwd_txfm2d_4x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_4x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_4x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_16x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+  }
   if (aom_config("CONFIG_ADST_TUNED") eq "yes") {
       specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2/;
       specialize qw/av1_fwd_txfm2d_4x8 sse4_1/;
@@ -376,29 +444,56 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       specialize qw/av1_fwd_txfm2d_32x32 sse4_1 avx2 neon/;
   }
 
-  add_proto qw/void av1_fwd_txfm2d_64x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2 neon/;
-  add_proto qw/void av1_fwd_txfm2d_32x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  specialize qw/av1_fwd_txfm2d_32x64 sse4_1 neon/;
-  add_proto qw/void av1_fwd_txfm2d_64x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  specialize qw/av1_fwd_txfm2d_64x32 sse4_1 neon/;
-  add_proto qw/void av1_fwd_txfm2d_16x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  specialize qw/av1_fwd_txfm2d_16x64 sse4_1 neon/;
-  add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-  specialize qw/av1_fwd_txfm2d_64x16 sse4_1 neon/;
-  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
-    add_proto qw/void av1_fwd_txfm2d_4x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_4x32 sse4_1/;
-    add_proto qw/void av1_fwd_txfm2d_32x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_32x4 sse4_1/;
-    add_proto qw/void av1_fwd_txfm2d_8x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_8x64 sse4_1/;
-    add_proto qw/void av1_fwd_txfm2d_64x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_64x8 sse4_1/;
-    add_proto qw/void av1_fwd_txfm2d_4x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_4x64 sse4_1/;
-    add_proto qw/void av1_fwd_txfm2d_64x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
-    specialize qw/av1_fwd_txfm2d_64x4 sse4_1/;
+  if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+    add_proto qw/void av1_fwd_txfm2d_64x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2 neon/;
+    add_proto qw/void av1_fwd_txfm2d_32x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    specialize qw/av1_fwd_txfm2d_32x64 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_64x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    specialize qw/av1_fwd_txfm2d_64x32 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_16x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    specialize qw/av1_fwd_txfm2d_16x64 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+    specialize qw/av1_fwd_txfm2d_64x16 sse4_1 neon/;
+    if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+      add_proto qw/void av1_fwd_txfm2d_4x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_4x32 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_32x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_32x4 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_8x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_8x64 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_64x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_64x8 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_4x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_4x64 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_64x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
+      specialize qw/av1_fwd_txfm2d_64x4 sse4_1/;
+    }
+  } else {
+    add_proto qw/void av1_fwd_txfm2d_64x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2 neon/;
+    add_proto qw/void av1_fwd_txfm2d_32x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    specialize qw/av1_fwd_txfm2d_32x64 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_64x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    specialize qw/av1_fwd_txfm2d_64x32 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_16x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    specialize qw/av1_fwd_txfm2d_16x64 sse4_1 neon/;
+    add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    specialize qw/av1_fwd_txfm2d_64x16 sse4_1 neon/;
+    if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+      add_proto qw/void av1_fwd_txfm2d_4x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_4x32 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_32x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_32x4 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_8x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_8x64 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_64x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_64x8 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_4x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_4x64 sse4_1/;
+      add_proto qw/void av1_fwd_txfm2d_64x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+      specialize qw/av1_fwd_txfm2d_64x4 sse4_1/;
+    }
   }
 
   #

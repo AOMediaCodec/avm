@@ -32,10 +32,18 @@ using libaom_test::ACMRandom;
 using std::tuple;
 
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
-                          TX_TYPE tx_type, int bd);
+                          TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                          int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                          int bd);
 
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
-                           TX_TYPE tx_type, int bd);
+                           TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                           int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                           int bd);
 static const char *tx_type_name[] = {
   "DCT_DCT",
   "ADST_DCT",
@@ -145,10 +153,21 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
       output_[j] = output_ref_[j];
     }
 
-    txfm_ref_(input_, coeffs_, stride, tx_type_, bit_depth_);
-    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, bit_depth_);
-    ASM_REGISTER_STATE_CHECK(
-        inv_txfm_(coeffs_, output_, stride, tx_type_, bit_depth_));
+    txfm_ref_(input_, coeffs_, stride, tx_type_,
+#if CONFIG_INTER_ADST_REPL
+              0,
+#endif  // CONFIG_INTER_ADST_REPL
+              bit_depth_);
+    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_,
+#if CONFIG_INTER_ADST_REPL
+                  0,
+#endif  // CONFIG_INTER_ADST_REPL
+                  bit_depth_);
+    ASM_REGISTER_STATE_CHECK(inv_txfm_(coeffs_, output_, stride, tx_type_,
+#if CONFIG_INTER_ADST_REPL
+                                       0,
+#endif  // CONFIG_INTER_ADST_REPL
+                                       bit_depth_));
 
     for (int j = 0; j < num_coeffs_; ++j) {
       EXPECT_EQ(output_ref_[j], output_[j])
@@ -237,7 +256,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   txfm_param.tx_size = tx_size_;
   txfm_param.lossless = 0;
   txfm_param.bd = bit_depth_;
-  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
+  txfm_param.tx_set_type = EXT_TX_SET_ALL;
 
   for (int cnt = 0; cnt < randTimes; ++cnt) {
     for (int r = 0; r < BLK_WIDTH; ++r) {
@@ -248,7 +267,11 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
         ref_output[r * stride + c] = output[r * stride + c];
       }
     }
-    fwd_func_(input, inv_input, stride, tx_type_, bit_depth_);
+    fwd_func_(input, inv_input, stride, tx_type_,
+#if CONFIG_INTER_ADST_REPL
+              0,
+#endif  // CONFIG_INTER_ADST_REPL
+              bit_depth_);
 
     // produce eob input by setting high freq coeffs to zero
     const int eob = AOMMIN(cnt + 1, eobmax);

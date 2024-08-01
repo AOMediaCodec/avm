@@ -344,6 +344,12 @@ typedef struct {
    */
   bool enable_inter_ist;
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  /*!
+   * Flag to indicate if inter data-driven transform should be enabled.
+   */
+  bool enable_inter_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   /*!
    * Flag to indicate if cross chroma component transform is enabled.
    */

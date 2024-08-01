@@ -647,6 +647,9 @@ enum {
   ADST_1D,
   FLIPADST_1D,
   IDTX_1D,
+#if CONFIG_INTER_ADST_REPL
+  DDT_1D,
+#endif  // CONFIG_INTER_ADST_REPL
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
 
@@ -693,9 +696,9 @@ enum {
   CCTX_START = CCTX_NONE + 1,
 } UENUM1BYTE(CctxType);
 
-#if CONFIG_ADST_TUNED
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 enum { FWD_TXFM, INV_TXFM, TXFM_DIRECTIONS } UENUM1BYTE(TXFM_DIRECTION);
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 
 enum {
   REG_REG,
@@ -728,7 +731,7 @@ enum {
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
-  EXT_TX_SET_ALL16,
+  EXT_TX_SET_ALL,
   EXT_NEW_TX_SET,
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
@@ -736,8 +739,11 @@ enum {
 #define EOB_TX_CTXS 3
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
-#define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
+#define INTER_TX_SET1 16
+#define INTER_TX_SET2 12
+#define INTER_TX_SET3 2
 
+#define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
 #define INTRA_TX_SET1 7
 #define INTRA_TX_SET2 2
 

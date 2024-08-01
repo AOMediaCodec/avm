@@ -91,7 +91,7 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   {
       // Inter
       EXT_TX_SET_DCTONLY,
-      EXT_TX_SET_ALL16,
+      EXT_TX_SET_ALL,
       EXT_TX_SET_DTT9_IDTX_1DDCT,
       EXT_TX_SET_DCT_IDTX,
   },
@@ -538,7 +538,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
               fc->intra_ext_tx_cdf[s + cdf_offset][i][j],
               tx_set_type == EXT_NEW_TX_SET
                   ? av1_md_idx2type[av1_size_class[i]][av1_md_class[j]]
-                  : av1_ext_tx_inv[tx_set_type]);
+                  : av1_ext_tx_inv_intra[tx_set_type]);
         }
 #endif  // CONFIG_INTRA_TX_IST_PARSE
       }

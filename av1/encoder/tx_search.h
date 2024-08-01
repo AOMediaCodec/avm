@@ -20,6 +20,15 @@
 extern "C" {
 #endif
 
+// Set this macro as 1 to collect data about tx type selection.
+#define COLLECT_TX_TYPE_DATA 0
+
+#if COLLECT_TX_TYPE_DATA
+static const char av1_tx_type_data_output_file[] = "tx_type_data.txt";
+static const int av1_tx_type_data_sparsity = 17;
+static int av1_tx_type_data_current_idx = 0;
+#endif
+
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 

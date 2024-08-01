@@ -85,6 +85,7 @@ const int32_t av1_sinpi_arr_data[7][5] = {
 };
 
 #if CONFIG_ADST_TUNED
+#if USE_TUNED_ADST8
 const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8] = {
   {
       519,   1278,  1989,  2628, 3169,  3594,  3886,  4035,  1529,  3327,
@@ -103,7 +104,8 @@ const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8] = {
       -106, 124,  -104, 57,  126, -121, 112, -99,  82,   -62, 41,  -20,
   }
 };
-
+#endif  // USE_TUNED_ADST8
+#if USE_TUNED_ADST16
 const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
   {
       383,   763,   1136,  1499,  1848,  2181,  2493,  2783,  3048,  3286,
@@ -158,10 +160,12 @@ const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
       47,   -36,  24,   -12,
   }
 };
+#endif  // USE_TUNED_ADST16
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 #define TXFM_SIZE_MAX 16
 #define STAGE_RANGE_MAX 30
-
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size, int8_t bit,
                           int8_t clamp) {
@@ -183,7 +187,7 @@ void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
       output[i] = clamp_value(output[i], clamp);
   }
 }
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 
 void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
   int i;

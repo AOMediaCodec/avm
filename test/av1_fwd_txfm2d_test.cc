@@ -76,7 +76,11 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
         ref_output_[ni] = 0;
       }
 
-      fwd_txfm_(input_, output_, tx_width_, tx_type_, bd);
+      fwd_txfm_(input_, output_, tx_width_, tx_type_,
+#if CONFIG_INTER_ADST_REPL
+                0,
+#endif  // CONFIG_INTER_ADST_REPL
+                bd);
 
       if (lr_flip_ && ud_flip_) {
         libaom_test::fliplrud(ref_input_, tx_width_, tx_height_, tx_width_);
@@ -288,9 +292,13 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         }
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-        param.tx_set_type = EXT_TX_SET_ALL16;
+        param.tx_set_type = EXT_TX_SET_ALL;
         param.bd = bd;
-        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
+        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
+#if CONFIG_INTER_ADST_REPL
+                 0,
+#endif  // CONFIG_INTER_ADST_REPL
+                 bd);
         target_func(input, output, input_stride, &param);
         const int check_rows = AOMMIN(32, rows);
         const int check_cols = AOMMIN(32, rows * cols / check_rows);
@@ -338,14 +346,18 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-        param.tx_set_type = EXT_TX_SET_ALL16;
+        param.tx_set_type = EXT_TX_SET_ALL;
         param.bd = bd;
 
         aom_usec_timer ref_timer, test_timer;
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
+#if CONFIG_INTER_ADST_REPL
+                   0,
+#endif  // CONFIG_INTER_ADST_REPL
+                   bd);
         }
         aom_usec_timer_mark(&ref_timer);
         const int elapsed_time_c =
@@ -482,10 +494,14 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           }
           param.tx_type = (TX_TYPE)tx_type;
           param.tx_size = (TX_SIZE)tx_size;
-          param.tx_set_type = EXT_TX_SET_ALL16;
+          param.tx_set_type = EXT_TX_SET_ALL;
           param.bd = bd;
 
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
+#if CONFIG_INTER_ADST_REPL
+                   0,
+#endif  // CONFIG_INTER_ADST_REPL
+                   bd);
           target_func(input, output, input_stride, &param);
           const int check_rows = AOMMIN(32, rows);
           const int check_cols = AOMMIN(32, rows * cols / check_rows);
@@ -536,14 +552,18 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-        param.tx_set_type = EXT_TX_SET_ALL16;
+        param.tx_set_type = EXT_TX_SET_ALL;
         param.bd = bd;
 
         aom_usec_timer ref_timer, test_timer;
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
+#if CONFIG_INTER_ADST_REPL
+                   0,
+#endif  // CONFIG_INTER_ADST_REPL
+                   bd);
         }
         aom_usec_timer_mark(&ref_timer);
         const int elapsed_time_c =

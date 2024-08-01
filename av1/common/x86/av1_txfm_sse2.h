@@ -257,7 +257,7 @@ static INLINE void flip_buf_sse2(__m128i *in, __m128i *out, int size) {
   }
 }
 
-#if CONFIG_ADST_TUNED
+#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 static INLINE void matrix_coef_mult_sse2(const __m128i w0, const __m128i w1,
                                          const __m128i in0, const __m128i in1,
                                          __m128i *out0, __m128i *out1) {
@@ -270,74 +270,162 @@ static INLINE void matrix_coef_mult_sse2(const __m128i w0, const __m128i w1,
   *out0 = _mm_madd_epi16(t0, v0);
   *out1 = _mm_madd_epi16(t1, v1);
 }
-#endif  // CONFIG_ADST_TUNED
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
 
 void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type, int bd);
+                                   int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                   int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                   int bd);
 
 void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type, int bd);
+                                   int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                   int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                   int bd);
 
 void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type, int bd);
+                                   int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                   int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                   int bd);
 
 void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type, int bd);
+                                   int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                   int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                   int bd);
 
 void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type, int bd);
+                                     int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                     int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                     int bd);
 
 #if CONFIG_FLEX_PARTITION
 void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 
 void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type, int bd);
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                                    int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                                    int bd);
 #endif  // CONFIG_FLEX_PARTITION
 
 typedef void (*transform_1d_sse2)(const __m128i *input, __m128i *output,

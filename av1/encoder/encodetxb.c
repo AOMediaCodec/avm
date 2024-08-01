@@ -1655,10 +1655,11 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
     const int ext_tx_set =
         get_ext_tx_set(tx_size, is_inter, reduced_tx_set_used);
     if (is_inter) {
-      if (ext_tx_set > 0) {
+      if (ext_tx_set != 0) {
         const int esc_eob = is_fsc ? bob_code : eob;
         const int eob_tx_ctx =
             get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), esc_eob);
+        TX_TYPE ptx_type = get_primary_tx_type(tx_type);
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
         const TxSetType tx_set_type =
             av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
@@ -1669,19 +1670,17 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
           tx_type_cost =
-              x->mode_costs
-                  .inter_tx_type_costs[ext_tx_set][eob_tx_ctx][square_tx_size]
-                                      [get_primary_tx_type(tx_type)];
+              x->mode_costs.inter_tx_type_costs[ext_tx_set][eob_tx_ctx]
+                                               [square_tx_size][ptx_type];
         } else {
-          bool is_long_side_dct =
-              is_dct_type(tx_size, get_primary_tx_type(tx_type));
+          bool is_long_side_dct = is_dct_type(tx_size, ptx_type);
           if (tx_size_sqr_up == TX_32X32) {
             tx_type_cost +=
                 x->mode_costs.tx_ext_32_costs[is_inter][is_long_side_dct];
           }
 
           int tx_idx_for_large_txfm = get_idx_from_txtype_for_large_txfm(
-              tx_set_type, get_primary_tx_type(tx_type),
+              tx_set_type, ptx_type,
               is_long_side_dct);  // 0: DCT_DCT, 1: ADST, 2: FLIPADST, // 3:
                                   // Identity
           tx_type_cost +=
@@ -1701,11 +1700,8 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
               x->mode_costs.stx_flag_cost[is_inter][square_tx_size]
                                          [get_secondary_tx_type(tx_type)];
         }
-        return tx_type_cost;
-#else
-        return x->mode_costs.inter_tx_type_costs[ext_tx_set][eob_tx_ctx]
-                                                [square_tx_size][tx_type];
 #endif  // CONFIG_INTER_IST
+        return tx_type_cost;
       }
     } else {
       if (ext_tx_set > 0) {
@@ -4670,7 +4666,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     const int eset = get_ext_tx_set(tx_size, is_inter, reduced_tx_set_used);
-    if (eset > 0) {
+    if (eset != 0) {
       const TxSetType tx_set_type =
           av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -4684,11 +4680,12 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+          TX_TYPE ptx_type = get_primary_tx_type(tx_type);
           if (allow_update_cdf) {
 #if CONFIG_INTER_IST
             update_cdf(
                 fc->inter_ext_tx_cdf[eset][eob_tx_ctx][txsize_sqr_map[tx_size]],
-                av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
+                av1_ext_tx_ind[tx_set_type][ptx_type],
                 av1_num_ext_tx_set[tx_set_type]);
 #if !CONFIG_TX_TYPE_FLEX_IMPROVE
             // Modified condition for CDF update
@@ -4707,8 +4704,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
           }
 #if CONFIG_ENTROPY_STATS
           ++counts->inter_ext_tx[eset][eob_tx_ctx][txsize_sqr_map[tx_size]]
-                                [av1_ext_tx_ind[tx_set_type]
-                                               [get_primary_tx_type(tx_type)]];
+                                [av1_ext_tx_ind[tx_set_type][ptx_type]];
 #endif  // CONFIG_ENTROPY_STATS
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
         } else {

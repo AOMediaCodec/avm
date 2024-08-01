@@ -1858,13 +1858,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                  INTRA_TX_SET1, CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2],
                  INTRA_TX_SET2, CDF_SIZE(TX_TYPES));
-
-  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[1], ctx_tr->inter_ext_tx_cdf[1], 16,
-                 CDF_SIZE(TX_TYPES));
-  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[2], ctx_tr->inter_ext_tx_cdf[2], 12,
-                 CDF_SIZE(TX_TYPES));
-  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[3], ctx_tr->inter_ext_tx_cdf[3], 2,
-                 CDF_SIZE(TX_TYPES));
+  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[1], ctx_tr->inter_ext_tx_cdf[1],
+                 INTER_TX_SET1, CDF_SIZE(TX_TYPES));
+  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[2], ctx_tr->inter_ext_tx_cdf[2],
+                 INTER_TX_SET2, CDF_SIZE(TX_TYPES));
+  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[3], ctx_tr->inter_ext_tx_cdf[3],
+                 INTER_TX_SET3, CDF_SIZE(TX_TYPES));
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);

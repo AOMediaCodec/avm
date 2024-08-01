@@ -40,6 +40,9 @@ typedef struct txfm_param {
 #if CONFIG_INTER_IST
   int is_inter;
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+  int use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   CctxType cctx_type;
   TX_SIZE tx_size;
   int lossless;

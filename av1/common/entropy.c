@@ -477,6 +477,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                            CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[2], INTRA_TX_SET2,
                            CDF_SIZE(TX_TYPES));
+  RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], INTER_TX_SET1,
+                           CDF_SIZE(TX_TYPES));
+  RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], INTER_TX_SET2,
+                           CDF_SIZE(TX_TYPES));
+  RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], INTER_TX_SET3,
+                           CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], 16, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], 12, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));

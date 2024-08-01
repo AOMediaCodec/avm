@@ -3815,8 +3815,8 @@ static const aom_cdf_prob default_inter_ext_tx_cdf
               { 0 },
           },
       },
-      {
 #if CONFIG_ENTROPY_PARA
+      {
           {
               { AOM_CDF16(9037, 10470, 11932, 13873, 15828, 17558, 19436, 20576,
                           21620, 22970, 23724, 24861, 27101, 28740, 30607),
@@ -3927,6 +3927,7 @@ static const aom_cdf_prob default_inter_ext_tx_cdf
           },
       },
 #else
+      {
           {
               { AOM_CDF16(10569, 11484, 12610, 14058, 15880, 17184, 18929,
                           19803, 20702, 21995, 22642, 23795, 26269, 28128,
@@ -4057,6 +4058,7 @@ static const aom_cdf_prob
         { AOM_CDF7(7769, 8772, 9617, 10150, 16729, 28132) } }
     };
 #endif  // CONFIG_ENTROPY_PARA
+
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {
   AOM_CDF8(5534, 6742, 11998, 19905, 28459, 29805, 32596), 62

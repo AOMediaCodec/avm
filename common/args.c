@@ -107,6 +107,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_INTER_IST
     GET_PARAMS(enable_inter_ist);
 #endif  // CONFIG_INTER_IST
+#if CONFIG_INTER_ADST_REPL
+    GET_PARAMS(enable_inter_ddt);
+#endif  // CONFIG_INTER_ADST_REPL
     GET_PARAMS(enable_cctx);
     GET_PARAMS(enable_ibp);
     GET_PARAMS(enable_adaptive_mvd);
