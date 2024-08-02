@@ -2880,7 +2880,11 @@ void av1_lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type, bd);
+    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type,
+#if CONFIG_INTER_ADST_REPL
+                           use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                           bd);
   }
 }
 
@@ -2950,7 +2954,11 @@ void av1_lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
                                      width, height);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
+#if CONFIG_INTER_ADST_REPL
+                           use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                           bd);
   }
 }
 
@@ -3021,7 +3029,11 @@ void av1_lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
+#if CONFIG_INTER_ADST_REPL
+                           use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                           bd);
   }
 }
 
@@ -3089,7 +3101,11 @@ void av1_lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
                                      width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type, bd);
+    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type,
+#if CONFIG_INTER_ADST_REPL
+                           use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                           bd);
   }
 }
 

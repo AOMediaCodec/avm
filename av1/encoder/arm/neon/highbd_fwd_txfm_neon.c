@@ -3489,7 +3489,14 @@ void av1_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type, int bd) {
+                               TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                               int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                               int bd) {
+#if CONFIG_INTER_ADST_REPL
+  (void)use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   (void)bd;
 
   int32x4_t in[128];
@@ -3609,7 +3616,14 @@ void av1_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type, int bd) {
+                               TX_TYPE tx_type,
+#if CONFIG_INTER_ADST_REPL
+                               int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                               int bd) {
+#if CONFIG_INTER_ADST_REPL
+  (void)use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   int32x4_t in[128];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X16];
@@ -3639,10 +3653,11 @@ void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
+                              TX_TYPE tx_type,
 #if CONFIG_INTER_ADST_REPL
                               int use_ddt,
 #endif  // CONFIG_INTER_ADST_REPL
-                              TX_TYPE tx_type, int bd) {
+                              int bd) {
 #if CONFIG_INTER_ADST_REPL
   (void)use_ddt;
 #endif  // CONFIG_INTER_ADST_REPL
@@ -3682,10 +3697,11 @@ void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *coeff, int stride,
+                              TX_TYPE tx_type,
 #if CONFIG_INTER_ADST_REPL
                               int use_ddt,
 #endif  // CONFIG_INTER_ADST_REPL
-                              TX_TYPE tx_type, int bd) {
+                              int bd) {
 #if CONFIG_INTER_ADST_REPL
   (void)use_ddt;
 #endif  // CONFIG_INTER_ADST_REPL
@@ -4030,11 +4046,11 @@ static INLINE void fwd_txfm2d_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
-                               int stride,
+                               int stride, TX_TYPE tx_type,
 #if CONFIG_INTER_ADST_REPL
                                int use_ddt,
 #endif  // CONFIG_INTER_ADST_REPL
-                               TX_TYPE tx_type, int bd) {
+                               int bd) {
 #if CONFIG_INTER_ADST_REPL
   (void)use_ddt;
 #endif  // CONFIG_INTER_ADST_REPL
