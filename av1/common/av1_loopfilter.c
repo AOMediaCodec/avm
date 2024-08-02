@@ -274,6 +274,20 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
+                                      TREE_TYPE tree_type,
+                                      int *chroma_mi_row_start,
+                                      int *chroma_mi_col_start) {
+  assert(tree_type == SHARED_PART || tree_type == CHROMA_PART);
+  if (tree_type == SHARED_PART) {
+    *chroma_mi_row_start = mbmi->chroma_ref_info.mi_row_chroma_base;
+    *chroma_mi_col_start = mbmi->chroma_ref_info.mi_col_chroma_base;
+  } else {
+    *chroma_mi_row_start = mbmi->chroma_mi_row_start;
+    *chroma_mi_col_start = mbmi->chroma_mi_col_start;
+  }
+}
+
 static bool is_tu_edge_helper(TX_SIZE tx_size, EDGE_DIR edge_dir,
                               int relative_row, int relative_col) {
   assert(relative_row >= 0);
@@ -317,9 +331,13 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 #if CONFIG_EXT_RECUR_PARTITIONS
     tx_size = av1_get_max_uv_txsize(bsize_base, plane_ptr->subsampling_x,
                                     plane_ptr->subsampling_y);
+    int chroma_mi_row_start;
+    int chroma_mi_col_start;
+    get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
+                              &chroma_mi_col_start);
     *tu_edge =
-        is_tu_edge_helper(tx_size, edge_dir, mi_row - mbmi->chroma_mi_row_start,
-                          mi_col - mbmi->chroma_mi_col_start);
+        is_tu_edge_helper(tx_size, edge_dir, mi_row - chroma_mi_row_start,
+                          mi_col - chroma_mi_col_start);
 #else
     tx_size = av1_get_max_uv_txsize(mbmi->sb_type[plane_type],
 
