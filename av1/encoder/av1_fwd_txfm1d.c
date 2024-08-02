@@ -701,16 +701,8 @@ void av1_fddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
 #endif  // CONFIG_INTER_ADST_REPL
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST4
-// av1_fadst4 is length-4 forward DST type-4
-// av1_fadst4_alt is length-4 forward DST type-7
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
-#else
-// av1_fadst4 is length-4 forward DST type-7
-// av1_fadst4_alt is length-4 forward DST type-4
-void av1_fadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
-                    const int8_t *stage_range) {
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
   const int32_t size = 4;
   const int32_t *cospi;
 
@@ -765,14 +757,9 @@ void av1_fadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[3] = -bf0[1];
   av1_range_check_buf(5, input, bf1, size, stage_range[5]);
 }
-
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST4
-void av1_fadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
-                    const int8_t *stage_range) {
 #else
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
   int bit = cos_bit;
   const int32_t *sinpi = sinpi_arr(bit);
   int32_t x0, x1, x2, x3;
@@ -829,6 +816,7 @@ void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[3] = round_shift(s3, bit);
   av1_range_check_buf(6, input, output, 4, stage_range[6]);
 }
+#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST8
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,

@@ -31,8 +31,6 @@ void av1_fdct64(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
-void av1_fadst4_alt(const int32_t *input, int32_t *output, int8_t cos_bit,
-                    const int8_t *stage_range);
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,

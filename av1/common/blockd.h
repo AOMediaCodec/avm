@@ -3052,26 +3052,10 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
-  {
-      // Intra
-      0,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      1,
-  },
-  {
-      // Inter
-      0,
-      3,
-      -1,
-      -1,
-      2,
-      1,
-      -1,
-  },
+  { // Intra
+    0, -1, -1, -1, -1, -1, 1 },
+  { // Inter
+    0, 3, -1, -1, 2, 1, -1 },
 };
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
@@ -3678,13 +3662,13 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
  *
  * This function masks secondary transform type used by the transform block
  *
- * If data deriven transform is enabled (DDT) :
- * Bits 7~10 of tx_type stores secondary tx_set
- * Bits 5~6 of tx_type stores secondary tx_type
- * Bits 0~4 of tx_type stores primary tx_type
  */
 static INLINE void disable_secondary_tx_type(TX_TYPE *tx_type) {
+#if CONFIG_IST_SET_FLAG
+  *tx_type &= 0x000f;
+#else
   *tx_type &= 0x0f;
+#endif
 }
 /*
  * This function masks primary transform type used by the transform block
@@ -3697,10 +3681,14 @@ static INLINE void disable_primary_tx_type(TX_TYPE *tx_type) {
 #endif  // CONFIG_IST_SET_FLAG
 }
 /*
- * This function returns primary transform type used by the transform block.
+ * This function returns primary transform type used by the transform block
  */
 static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
+#if CONFIG_IST_SET_FLAG
+  return tx_type & 0x000f;
+#else
   return tx_type & 0x0f;
+#endif
 }
 
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -4053,6 +4041,10 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     // TX_32X32 while tx_type is by default DCT_DCT.
     disable_primary_tx_type(&tx_type);
   }
+#if CONFIG_IST_SET_FLAG
+  assert(tx_type <
+         (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS + SECONDARY_TX_SET_BITS)));
+#endif  // CONFIG_IST_SET_FLAG
   return tx_type;
 }
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
