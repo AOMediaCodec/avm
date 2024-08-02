@@ -588,11 +588,13 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
+#if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES]
-#if !CONFIG_INTRA_TX_IST_PARSE
-                               [INTRA_MODES]
-#endif  // CONFIG_INTRA_TX_IST_PARSE
                                [CDF_SIZE(TX_TYPES)];
+#else
+  aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
+                               [CDF_SIZE(TX_TYPES)];
+#endif  // CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -623,26 +625,6 @@ typedef struct frame_contexts {
   aom_cdf_prob cctx_type_cdf[EXT_TX_SIZES][CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)];
   int initialized;
 } FRAME_CONTEXT;
-
-static const int av1_ext_tx_ind_intra[EXT_TX_SET_TYPES][TX_TYPES] = {
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 2, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 4, 5, 3, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0 },
-  { 2, 3, 4, 7, 5, 6, 8, 9, 10, 0, 0, 1, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-};
-
-static const int av1_ext_tx_inv_intra[EXT_TX_SET_TYPES][TX_TYPES] = {
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 10, 11, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 10, 11, 0, 1, 2, 4, 5, 3, 6, 7, 8, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-};
 
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -802,14 +784,14 @@ static INLINE int av1_tx_type_to_idx(int tx_type, int tx_set_type,
                                      int intra_mode, int size_idx) {
   return tx_set_type == EXT_NEW_TX_SET
              ? av1_md_type2idx[size_idx][av1_md_class[intra_mode]][tx_type]
-             : av1_ext_tx_ind_intra[tx_set_type][tx_type];
+             : av1_ext_tx_ind[tx_set_type][tx_type];
 }
 
 static INLINE int av1_tx_idx_to_type(int tx_idx, int tx_set_type,
                                      int intra_mode, int size_idx) {
   return tx_set_type == EXT_NEW_TX_SET
              ? av1_md_idx2type[size_idx][av1_md_class[intra_mode]][tx_idx]
-             : av1_ext_tx_inv_intra[tx_set_type][tx_idx];
+             : av1_ext_tx_inv[tx_set_type][tx_idx];
 }
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas);
@@ -932,7 +914,6 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int row_flag, int prev_row_flag
 #endif
 );
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
