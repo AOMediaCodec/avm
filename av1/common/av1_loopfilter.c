@@ -640,10 +640,17 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
         // For sub8x8 block, if this mi is NOT a chroma ref, then chroma
         // prediction mode is obtained from the bottom/right mi. So, for chroma
         // plane, mi_row and mi_col should map to the bottom/right mi structure.
-        const int bottom_mi_row = chroma_ref_info->mi_row_chroma_base +
-                                  mi_size_high[chroma_ref_info->bsize_base] - 1;
-        const int right_mi_col = chroma_ref_info->mi_col_chroma_base +
-                                 mi_size_wide[chroma_ref_info->bsize_base] - 1;
+        // Also, mi_grid_base array is only filled in for on-screen mi's, even
+        // though chroma block can extend over the edge. So, make sure we stay
+        // within mi_grid_base array's bottom and right limits.
+        const int bottom_mi_row =
+            AOMMIN(chroma_ref_info->mi_row_chroma_base +
+                       mi_size_high[chroma_ref_info->bsize_base] - 1,
+                   cm->mi_params.mi_rows - 1);
+        const int right_mi_col =
+            AOMMIN(chroma_ref_info->mi_col_chroma_base +
+                       mi_size_wide[chroma_ref_info->bsize_base] - 1,
+                   cm->mi_params.mi_cols - 1);
         MB_MODE_INFO **bottom_right_mi =
             cm->mi_params.mi_grid_base +
             bottom_mi_row * cm->mi_params.mi_stride + right_mi_col;
