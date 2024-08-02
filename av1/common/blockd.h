@@ -3003,7 +3003,7 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
 
 static const TxSetType av1_ext_tx_set_lookup[2][2] = {
   { EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX },
-  { EXT_TX_SET_ALL, EXT_TX_SET_DTT9_IDTX_1DDCT },
+  { EXT_TX_SET_ALL16, EXT_TX_SET_DTT9_IDTX_1DDCT },
 };
 
 #if CONFIG_TX_TYPE_FLEX_IMPROVE

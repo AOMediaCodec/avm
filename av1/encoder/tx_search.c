@@ -1631,7 +1631,7 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // to ensure we can try ones even outside of ext_tx_set of current block
   // this function should only be called for size < 16
   assert(txsize_sqr_up_map[tx_size] <= TX_16X16);
-  txfm_param.tx_set_type = EXT_TX_SET_ALL;
+  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
 
   int rate_cost = 0;
   int64_t dist = 0, sse = 0;
@@ -1895,7 +1895,7 @@ static INLINE float get_adaptive_thresholds(
     { 4, 1 }, { 6, 3 }, { 9, 6 }, { 9, 6 }, { 12, 9 }
   };
   int pruning_aggressiveness = 0;
-  if (tx_set_type == EXT_TX_SET_ALL)
+  if (tx_set_type == EXT_TX_SET_ALL16)
     pruning_aggressiveness =
         prune_aggr_table[prune_2d_txfm_mode - TX_TYPE_PRUNE_1][0];
   else if (tx_set_type == EXT_TX_SET_DTT9_IDTX_1DDCT)
@@ -1979,7 +1979,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
     H_DCT,        H_ADST,        H_FLIPADST,        IDTX
   };
-  if (tx_set_type != EXT_TX_SET_ALL &&
+  if (tx_set_type != EXT_TX_SET_ALL16 &&
       tx_set_type != EXT_TX_SET_DTT9_IDTX_1DDCT)
     return;
 #if CONFIG_NN_V2
@@ -2663,7 +2663,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                           &txk_allowed, txk_map);
 #if COLLECT_TX_TYPE_DATA
   if (!plane) {
-    if (tx_set_type == EXT_TX_SET_ALL) tx_mask = (1 << TX_TYPES) - 1;
+    if (tx_set_type == EXT_TX_SET_ALL16) tx_mask = (1 << TX_TYPES) - 1;
     if (tx_set_type == EXT_TX_SET_DTT9_IDTX_1DDCT) tx_mask = (1 << V_ADST) - 1;
   }
 #endif
@@ -3071,7 +3071,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if COLLECT_TX_TYPE_DATA
         if (!plane && is_inter &&
             (tx_set_type == EXT_TX_SET_DTT9_IDTX_1DDCT ||
-             tx_set_type == EXT_TX_SET_ALL)) {
+             tx_set_type == EXT_TX_SET_ALL16)) {
           tx_rd_costs[primary_tx_type] = (int)AOMMIN(rd, INT_MAX);
           if (eobs_ptr[block] == 0) has_zero_eob = 1;
         }
@@ -3168,7 +3168,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   do {
     if (plane || !is_inter || !within_border ||
         (tx_set_type != EXT_TX_SET_DTT9_IDTX_1DDCT &&
-         tx_set_type != EXT_TX_SET_ALL) ||
+         tx_set_type != EXT_TX_SET_ALL16) ||
         has_zero_eob)
       break;
     av1_tx_type_data_current_idx =

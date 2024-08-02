@@ -125,7 +125,7 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   txfm_param.sec_tx_type = 0;
   txfm_param.tx_size = tx_size;
   txfm_param.lossless = 0;
-  txfm_param.tx_set_type = EXT_TX_SET_ALL;
+  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
 #if CONFIG_INTER_ADST_REPL
   txfm_param.use_ddt = 0;
 #endif  // CONFIG_INTER_ADST_REPL

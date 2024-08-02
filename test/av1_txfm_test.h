@@ -109,7 +109,7 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
     tx_set_type = EXT_TX_SET_DCT_IDTX;
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   } else {
-    tx_set_type = EXT_TX_SET_ALL;
+    tx_set_type = EXT_TX_SET_ALL16;
   }
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||

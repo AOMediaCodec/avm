@@ -731,7 +731,7 @@ enum {
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
-  EXT_TX_SET_ALL,
+  EXT_TX_SET_ALL16,
   EXT_NEW_TX_SET,
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
