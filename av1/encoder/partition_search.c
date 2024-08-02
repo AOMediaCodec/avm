@@ -1624,7 +1624,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       assert(ref0 < ref1);
       for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
-        const int bit = ref0 == i || ref1 == i;
+            const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(
