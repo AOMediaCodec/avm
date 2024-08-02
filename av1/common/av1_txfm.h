@@ -39,6 +39,11 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
 #endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_ADST_REPL
+extern const int32_t ddt4_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE4];
+extern const int32_t ddt8_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
+extern const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
+#endif  // CONFIG_INTER_ADST_REPL
 #if CONFIG_ADST_TUNED
 #define USE_TUNED_ADST4 1
 #define USE_TUNED_ADST8 1

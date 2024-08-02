@@ -15,10 +15,6 @@
 
 #include "av1/common/av1_txfm.h"
 
-#if CONFIG_INTER_ADST_REPL
-#include "av1/common/ddtx_bases.h"
-#endif  // CONFIG_INTER_ADST_REPL
-
 #ifdef __cplusplus
 extern "C" {
 #endif
