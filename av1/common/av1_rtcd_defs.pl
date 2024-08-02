@@ -393,7 +393,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_16x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
     add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
   }
-  if (aom_config("CONFIG_ADST_TUNED") eq "yes") {
+  if (aom_config("CONFIG_ADST_TUNED") eq "yes"
+	  || aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
       specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2/;
       specialize qw/av1_fwd_txfm2d_4x8 sse4_1/;
       specialize qw/av1_fwd_txfm2d_8x4 sse4_1/;
