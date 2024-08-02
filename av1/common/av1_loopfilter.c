@@ -599,9 +599,9 @@ static AOM_INLINE void check_sub_pu_edge(
 }
 #endif  // CONFIG_LF_SUB_PU
 
-MB_MODE_INFO **get_chroma_ref_mi(const AV1_COMMON *const cm, int scale_horz,
-                                 int scale_vert, uint32_t x, uint32_t y,
-                                 int *mi_row, int *mi_col) {
+MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
+                               int scale_vert, uint32_t x, uint32_t y,
+                               int *mi_row, int *mi_col) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int this_mi_row = (y << scale_vert) >> MI_SIZE_LOG2;
   const int this_mi_col = (x << scale_horz) >> MI_SIZE_LOG2;
@@ -708,7 +708,7 @@ static TX_SIZE set_lpf_parameters(
   int mi_row;
   int mi_col;
   MB_MODE_INFO **mi =
-      get_chroma_ref_mi(cm, scale_horz, scale_vert, x, y, &mi_row, &mi_col);
+      get_mi_location(cm, scale_horz, scale_vert, x, y, &mi_row, &mi_col);
   const MB_MODE_INFO *mbmi = mi[0];
   // If current mbmi is not correctly setup, return an invalid value to stop
   // filtering. One example is that if this tile is not coded, then its mbmi
@@ -779,7 +779,7 @@ static TX_SIZE set_lpf_parameters(
           assert(prev_x <= x && prev_y <= y);
           int pv_row;
           int pv_col;
-          MB_MODE_INFO **mi_prev_ptr = get_chroma_ref_mi(
+          MB_MODE_INFO **mi_prev_ptr = get_mi_location(
               cm, scale_horz, scale_vert, prev_x, prev_y, &pv_row, &pv_col);
           const MB_MODE_INFO *const mi_prev = mi_prev_ptr[0];
 #else
