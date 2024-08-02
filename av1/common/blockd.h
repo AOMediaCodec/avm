@@ -1967,7 +1967,6 @@ typedef struct {
 
 #if CONFIG_LR_IMPROVEMENTS
 #if CONFIG_COMBINE_PC_NS_WIENER
-// Currently allowed number of classes are [16, 8, 4, 2, 1].
 #define WIENERNS_MAX_CLASSES 16
 #define NUM_WIENERNS_CLASS_INIT_LUMA 16
 #define NUM_WIENERNS_CLASS_INIT_CHROMA 1
@@ -1979,13 +1978,10 @@ static const int num_frame_first_predictor_bits[WIENERNS_MAX_CLASSES + 1] = {
 };
 
 static inline int num_dictionary_slots(int num_classes) {
-  // +1 for the spurious add.
-  // return (1 << num_frame_first_predictor_bits[num_classes]) + 1;
   return 1 << num_frame_first_predictor_bits[num_classes];
 }
 
 static inline int prev_filters_begin(int num_classes) {
-  // return num_dictionary_slots(num_classes) - num_classes;
   (void)num_classes;
   return 1;
 }
@@ -2045,15 +2041,15 @@ typedef struct {
 #endif  // CONFIG_LR_MERGE_COEFFS
 #if CONFIG_COMBINE_PC_NS_WIENER
   /*!
-   * Indices of trained filters that can be used to populate the first bank slot
-   * to be used as frame filter predictors.
+   * Indices of match dictionary filters that will be used to populate the first
+   * bank slot and in turn used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
 #if CONFIG_TEMP_LR
   // whether frame filter is predicted from a reference picture
   uint8_t temporal_pred_flag;
-#endif
-#endif  // CONFIG_COMBINE_PC_NS_WIENE
+#endif  // CONFIG_TEMP_LR
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfo;
 
 /*!\brief Parameters related to Nonseparable Wiener Filter Bank */

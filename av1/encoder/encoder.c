@@ -3527,7 +3527,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
 #if CONFIG_TEMP_LR
   cm->cur_frame->rst_info[AOM_PLANE_Y].frame_filters_on = 0;
-#endif
+#endif  // CONFIG_TEMP_LR
 
   // Special case code to reduce pulsing when key frames are forced at a
   // fixed interval. Note the reconstruction error if it is the frame before

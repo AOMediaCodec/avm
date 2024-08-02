@@ -470,7 +470,7 @@ void free_match_filter_dictionary(int16_t *match_filter_dictionary,
 static int16_t translated_pcwiener_filters[NUM_PC_WIENER_FILTERS]
                                           [NUM_PC_WIENER_TAPS_LUMA];
 
-void translate_filters(const AV1_COMMON *cm) {
+void translate_pcwiener_filters_to_wienerns(const AV1_COMMON *cm) {
   static int is_translated = 0;
   if (is_translated) {
     return;
@@ -521,9 +521,9 @@ static inline int num_sampled_pc_wiener_filters(int num_ref_filters,
                 NUM_PC_WIENER_FILTERS);
 }
 
-void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
-                                      int16_t *match_filter_dictionary,
-                                      int dict_stride, const char *prefix) {
+void set_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
+                                 int16_t *match_filter_dictionary,
+                                 int dict_stride, const char *prefix) {
   assert(match_filter_dictionary != NULL);
   assert(dict_stride > 0);
   const int base_qindex = cm->quant_params.base_qindex;

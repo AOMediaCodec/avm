@@ -2379,7 +2379,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
 #if CONFIG_TEMP_LR
     if (rsi->frame_filters_on)  // temporal solution for decoder crash/mismatch
       av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
-#endif
+#endif  // CONFIG_TEMP_LR
   }
 }
 

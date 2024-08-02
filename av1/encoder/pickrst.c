@@ -209,7 +209,7 @@ typedef struct {
   // reference picture index for frame level filter prediction
   uint8_t rst_ref_pic_idx;
   WienerNonsepInfo frame_filters;
-#endif
+#endif  // CONFIG_TEMP_LR
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -3006,8 +3006,8 @@ static void initialize_bank_with_best_frame_filter_match(
   // TODO: Lose the allocation.
   int16_t *match_filter_dictionary =
       allocate_match_filter_dictionary(&dict_stride);
-  set_base_match_filter_dictionary(rsc->cm, filter->num_classes,
-                                   match_filter_dictionary, dict_stride, NULL);
+  set_match_filter_dictionary(rsc->cm, filter->num_classes,
+                              match_filter_dictionary, dict_stride, NULL);
   find_best_match_for_filter(rsc, filter, base_qindex, match_filter_dictionary,
                              dict_stride);
   av1_reset_wienerns_bank(bank, base_qindex, filter->num_classes,
@@ -4101,7 +4101,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     int dict_stride = 0;
     int16_t *match_filter_dictionary =
         allocate_match_filter_dictionary(&dict_stride);
-    set_base_match_filter_dictionary(
+    set_match_filter_dictionary(
         rsc->cm, rsc->frame_filter_dictionary.filter->num_classes,
         match_filter_dictionary, dict_stride, NULL);
     // Initialize bank for first call.
@@ -4438,7 +4438,7 @@ static void copy_unit_info_visitor(const RestorationTileLimits *limits,
   assert(rsi->temporal_pred_flag == rsc->temporal_pred_flag);
   rsi->unit_info[rest_unit_idx].wienerns_info.temporal_pred_flag =
       rsi->temporal_pred_flag;
-#endif
+#endif  // CONFIG_TEMP_LR
 }
 
 static void finalize_frame_and_unit_info(RestorationType frame_rtype,
@@ -4457,7 +4457,7 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_filters = rsc->frame_filters;
   rsi->temporal_pred_flag = rsc->temporal_pred_flag;
   rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
-#endif
+#endif  // CONFIG_TEMP_LR
 #endif
   if (frame_rtype != RESTORE_NONE) {
     process_by_rutile(rsc, copy_unit_info_visitor);
@@ -4783,7 +4783,7 @@ static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
   // cost += frame level infor cos, to be added;
   return cost;
 }
-#endif
+#endif  // CONFIG_TEMP_LR
 
 static double optimize_frame_filters_for_target_classes(
     RestSearchCtxt *rsc, WienerNonsepInfo *filter, int *best_utilization,
@@ -5002,7 +5002,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   initialize_stat_weights(rsc);
 #if CONFIG_TEMP_LR
   rsc->temporal_pred_flag = 0;
-#endif
+#endif  // CONFIG_TEMP_LR
   for (int i = 0; i < num_try; ++i) {
     const int num_target_classes = num_classes_to_try[i];
     assert(decode_num_filter_classes(encode_num_filter_classes(
@@ -5113,7 +5113,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   } else {
     rsc->temporal_pred_flag = 0;
   }
-#endif
+#endif  // CONFIG_TEMP_LR
 
   rsc->frame_filters_total_cost = best_cost;
   av1_reset_wienerns_bank(&rsc->frame_filter_dictionary,
@@ -5130,7 +5130,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
 #if CONFIG_TEMP_LR
   rsc->frame_filters = best_filter;
-#endif
+#endif  // CONFIG_TEMP_LR
 
   aom_free(best_cost_array);
   aom_free(work_cost_array);
@@ -5271,7 +5271,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_TEMP_LR
   int8_t best_temp_pred_flag = 0;
   int8_t best_temp_ref_idx = -1;
-#endif
+#endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   uint16_t *luma = NULL;
@@ -5322,7 +5322,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     best_temp_pred_flag = 0;
     best_temp_ref_idx = -1;
     rsc.temporal_pred_flag = 0;
-#endif
+#endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_LR_IMPROVEMENTS || CONFIG_COMBINE_PC_NS_WIENER
@@ -5449,7 +5449,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
                 best_temp_pred_flag = 0;
                 best_temp_ref_idx = -1;
               }
-#endif
+#endif  // CONFIG_TEMP_LR
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
           }
@@ -5470,7 +5470,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_TEMP_LR
         rsc.temporal_pred_flag = best_temp_pred_flag;
         rsc.rst_ref_pic_idx = best_temp_ref_idx;
-#endif
+#endif  // CONFIG_TEMP_LR
       }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_LR_IMPROVEMENTS
