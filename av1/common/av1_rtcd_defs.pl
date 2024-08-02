@@ -430,15 +430,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_64x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
-    specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2 neon/;
+    specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2/;
     add_proto qw/void av1_fwd_txfm2d_32x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
-    specialize qw/av1_fwd_txfm2d_32x64 sse4_1 neon/;
+    specialize qw/av1_fwd_txfm2d_32x64 sse4_1/;
     add_proto qw/void av1_fwd_txfm2d_64x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
-    specialize qw/av1_fwd_txfm2d_64x32 sse4_1 neon/;
+    specialize qw/av1_fwd_txfm2d_64x32 sse4_1/;
     add_proto qw/void av1_fwd_txfm2d_16x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
-    specialize qw/av1_fwd_txfm2d_16x64 sse4_1 neon/;
+    specialize qw/av1_fwd_txfm2d_16x64 sse4_1/;
     add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
-    specialize qw/av1_fwd_txfm2d_64x16 sse4_1 neon/;
+    specialize qw/av1_fwd_txfm2d_64x16 sse4_1/;
     if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
       add_proto qw/void av1_fwd_txfm2d_4x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
       specialize qw/av1_fwd_txfm2d_4x32 sse4_1/;

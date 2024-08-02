@@ -3639,7 +3639,13 @@ void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
+#if CONFIG_INTER_ADST_REPL
+                              int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
                               TX_TYPE tx_type, int bd) {
+#if CONFIG_INTER_ADST_REPL
+  (void)use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   int32x4_t in[64];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X32];
@@ -3676,7 +3682,13 @@ void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *coeff, int stride,
+#if CONFIG_INTER_ADST_REPL
+                              int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
                               TX_TYPE tx_type, int bd) {
+#if CONFIG_INTER_ADST_REPL
+  (void)use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   int32x4_t in[64];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X8];
@@ -4018,7 +4030,14 @@ static INLINE void fwd_txfm2d_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
-                               int stride, TX_TYPE tx_type, int bd) {
+                               int stride,
+#if CONFIG_INTER_ADST_REPL
+                               int use_ddt,
+#endif  // CONFIG_INTER_ADST_REPL
+                               TX_TYPE tx_type, int bd) {
+#if CONFIG_INTER_ADST_REPL
+  (void)use_ddt;
+#endif  // CONFIG_INTER_ADST_REPL
   DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);
   TXFM_2D_FLIP_CFG cfg;
   av1_get_fwd_txfm_cfg(tx_type, TX_32X32, &cfg);
