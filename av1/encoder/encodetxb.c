@@ -4573,13 +4573,13 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // getting context from previous level buf, updating levels on current level
   // buf. initialization all value by 0, since we update every position.
   int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
-  uint8_t **const levels = (uint8_t **)malloc(sizeof(uint8_t *) * TOTALSTATES);
-  uint8_t **const prev_levels =
-      (uint8_t **)malloc(sizeof(uint8_t *) * TOTALSTATES);
-  for (int i = 0; i < TOTALSTATES; i++) {
-    levels[i] = (uint8_t *)malloc(sizeof(uint8_t) * bufsize);
-    prev_levels[i] = (uint8_t *)malloc(sizeof(uint8_t) * bufsize);
-    if (eob > 1) memset(levels[i], 0, sizeof(uint8_t) * bufsize);
+  int mem_tcq_sz = sizeof(uint8_t) * bufsize * 2 * TOTALSTATES;
+  uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
+  if (!mem_tcq) {
+    exit(1);
+  }
+  if (eob > 1) {
+    memset(mem_tcq, 0, mem_tcq_sz);
   }
 
   int si = eob - 1;
@@ -4588,6 +4588,18 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   int first_test_pos = si;
   for (int scan_pos = first_test_pos; scan_pos >= 0; scan_pos--) {
+    uint8_t *levels[TOTALSTATES];
+    uint8_t *prev_levels[TOTALSTATES];
+    for (int i = 0; i < TOTALSTATES; i++) {
+      if (scan_pos & 1) {
+        levels[i] = &mem_tcq[(TOTALSTATES + i) * bufsize];
+        prev_levels[i] = &mem_tcq[i * bufsize];
+      } else {
+        levels[i] = &mem_tcq[i * bufsize];
+        prev_levels[i] = &mem_tcq[(TOTALSTATES + i) * bufsize];
+      }
+    }
+
     int blk_pos = scan[scan_pos];
     DECISION *decision = trellis[scan_pos];
 
@@ -5106,18 +5118,9 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       set_levels_buf(&decision[state], levels[state], scan, si, scan_pos, bwl,
                      sharpness);
     }
-    if (scan_pos != 0) {
-      for (int state = 0; state < TOTALSTATES; state++)
-        memcpy(prev_levels[state], levels[state], sizeof(uint8_t) * bufsize);
-    }
   }
 
-  for (int i = 0; i < TOTALSTATES; i++) {
-    free(levels[i]);
-    free(prev_levels[i]);
-  }
-  free(levels);
-  free(prev_levels);
+  free(mem_tcq);
 
   // find best path
   int64_t min_path_cost = INT64_MAX;
