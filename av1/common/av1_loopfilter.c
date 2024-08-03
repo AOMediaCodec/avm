@@ -285,6 +285,7 @@ static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
 
 static bool is_tu_edge_helper(TX_SIZE tx_size, EDGE_DIR edge_dir,
                               int relative_row, int relative_col) {
+  assert(tx_size != TX_INVALID);
   assert(relative_row >= 0);
   assert(relative_col >= 0);
   const int relative_coord =
