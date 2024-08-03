@@ -8900,13 +8900,7 @@ BEGIN_PARTITION_SEARCH:
   // partition.
   if (cpi->sf.part_sf.prune_split_with_ml &&
       part_search_state.forced_partition == PARTITION_INVALID &&
-      !x->must_find_valid_partition &&
-      is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                         ,
-                         blk_params.parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-                         )) {
+      !x->must_find_valid_partition && is_partition_point(bsize)) {
     part_search_state.prune_partition_none |= force_prune_flags[PRUNE_OTHER];
     part_search_state.prune_partition_3[0] |= force_prune_flags[PRUNE_OTHER];
     part_search_state.prune_partition_3[1] |= force_prune_flags[PRUNE_OTHER];
