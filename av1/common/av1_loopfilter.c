@@ -629,7 +629,6 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
           cm->mi_params.mi_grid_base +
           this_mi[0]->chroma_mi_row_start * cm->mi_params.mi_stride +
           this_mi[0]->chroma_mi_col_start;
-      assert(top_left_mi[0]->chroma_ref_info.is_chroma_ref);
       assert(top_left_mi[0]->region_type == INTRA_REGION);
       return top_left_mi;
     } else {
