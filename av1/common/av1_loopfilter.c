@@ -1052,7 +1052,8 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   for (int y = 0; y < y_range; y++) {
     uint16_t *p = dst_ptr + y * MI_SIZE * dst_stride;
 #if CONFIG_EXT_RECUR_PARTITIONS
-    uint32_t prev_x = ((mi_col - 1) * MI_SIZE) >> scale_horz;
+    uint32_t prev_x =
+        (mi_col == 0) ? 0 : ((mi_col - 1) * MI_SIZE) >> scale_horz;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     for (int x = 0; x < x_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
@@ -1117,7 +1118,8 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   for (int x = 0; x < x_range; x++) {
     uint16_t *p = dst_ptr + x * MI_SIZE;
 #if CONFIG_EXT_RECUR_PARTITIONS
-    uint32_t prev_y = ((mi_row - 1) * MI_SIZE) >> scale_vert;
+    uint32_t prev_y =
+        (mi_row == 0) ? 0 : ((mi_row - 1) * MI_SIZE) >> scale_vert;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     for (int y = 0; y < y_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
