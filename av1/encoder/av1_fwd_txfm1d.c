@@ -675,6 +675,7 @@ void av1_fdct32(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 
 #if CONFIG_INTER_ADST_REPL
+// Forward length 4 data-driven transform
 void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
@@ -683,6 +684,7 @@ void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                        0);
 }
 
+// Forward length 8 data-driven transform
 void av1_fddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
@@ -691,6 +693,7 @@ void av1_fddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                        0);
 }
 
+// Forward length 16 data-driven transform
 void av1_fddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   (void)cos_bit;

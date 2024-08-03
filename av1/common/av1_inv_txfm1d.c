@@ -655,6 +655,7 @@ void av1_idct32(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 
 #if CONFIG_INTER_ADST_REPL
+// Inverse length 4 data-driven transform
 void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
@@ -663,6 +664,7 @@ void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                        0);
 }
 
+// Inverse length 8 data-driven transform
 void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
@@ -671,6 +673,7 @@ void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                        0);
 }
 
+// Inverse length 16 data-driven transform
 void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   (void)cos_bit;

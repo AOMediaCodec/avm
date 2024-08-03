@@ -538,7 +538,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
               fc->intra_ext_tx_cdf[s + cdf_offset][i][j],
               tx_set_type == EXT_NEW_TX_SET
                   ? av1_md_idx2type[av1_size_class[i]][av1_md_class[j]]
-                  : av1_ext_tx_inv_intra[tx_set_type]);
+                  : av1_ext_tx_inv[tx_set_type]);
         }
 #endif  // CONFIG_INTRA_TX_IST_PARSE
       }

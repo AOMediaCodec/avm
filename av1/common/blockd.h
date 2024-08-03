@@ -2752,6 +2752,7 @@ static const int ph_allowed_tx_types[TX_TYPES] = {
 #endif  // CONFIG_IMPROVEIDTX_RDPH
 
 #if CONFIG_INTER_ADST_REPL
+// Determine whether to replace ADST by DDT or not
 static INLINE int replace_adst_by_ddt(const int enable_inter_ddt,
                                       const int allow_scc_tools,
                                       const MACROBLOCKD *xd) {
@@ -2759,7 +2760,6 @@ static INLINE int replace_adst_by_ddt(const int enable_inter_ddt,
   (void)allow_scc_tools;
   if (is_intrabc_block(xd->mi[0], xd->tree_type)) return 0;
   return is_inter_block(xd->mi[0], xd->tree_type);
-  // return !allow_scc_tools && is_inter_block(xd->mi[0], xd->tree_type);
 }
 #endif  // CONFIG_INTER_ADST_REPL
 
