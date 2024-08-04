@@ -1650,6 +1650,8 @@ typedef struct AV1Common {
 
 #if CONFIG_COMBINE_PC_NS_WIENER
   int16_t *match_filter_dictionary;
+  int16_t *translated_pcwiener_filters;
+  int translation_done;
   int match_dictionary_stride;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -1880,10 +1882,9 @@ typedef struct AV1Common {
 #if CONFIG_COMBINE_PC_NS_WIENER
 #define PRINT_FILTER 1
 #define PRINT_REFS 0
-void translate_pcwiener_filters_to_wienerns(const AV1_COMMON *cm);
-int16_t *allocate_match_filter_dictionary(int *dict_stride);
-void free_match_filter_dictionary(int16_t *match_filter_dictionary,
-                                  int *dict_stride);
+void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm);
+void allocate_match_filter_dictionary(AV1_COMMON *cm);
+void free_match_filter_dictionary(AV1_COMMON *cm);
 
 // Useful in allowing previous class filters to be used in predicting the
 // filters of the next class.

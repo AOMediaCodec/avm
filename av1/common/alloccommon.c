@@ -65,8 +65,7 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
 
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (cm->match_filter_dictionary == NULL) {
-    cm->match_filter_dictionary =
-        allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+    allocate_match_filter_dictionary(cm);
     translate_pcwiener_filters_to_wienerns(cm);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -141,8 +140,7 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
     boundaries->stripe_boundary_below = NULL;
   }
 #if CONFIG_COMBINE_PC_NS_WIENER
-  free_match_filter_dictionary(cm->match_filter_dictionary,
-                               &cm->match_dictionary_stride);
+  free_match_filter_dictionary(cm);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
   aom_free_frame_buffer(&cm->rst_frame);
 }

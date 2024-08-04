@@ -3447,8 +3447,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           }
 #endif  // CONFIG_TEMP_LR
           if (cm->match_filter_dictionary == NULL) {
-            cm->match_filter_dictionary =
-                allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+            allocate_match_filter_dictionary(cm);
             translate_pcwiener_filters_to_wienerns(cm);
           }
           if (rsi->frame_filters_on) {

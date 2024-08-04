@@ -1690,7 +1690,8 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   bool classify_only = false;
 #if CONFIG_COMBINE_PC_NS_WIENER
   classify_only = rui->skip_pcwiener_filtering ? true : false;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+  assert(!rui->skip_pcwiener_filtering);  /////////////////////// remove
+#endif                                    // CONFIG_COMBINE_PC_NS_WIENER
 
   setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth,
                        rui->pcwiener_buffers);
@@ -2319,6 +2320,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
 #endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsi->unit_info[rest_unit_idx].compute_classification = 1;
+  rsi->unit_info[rest_unit_idx].skip_pcwiener_filtering = 0;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   av1_loop_restoration_filter_unit(

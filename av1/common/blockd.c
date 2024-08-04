@@ -448,31 +448,33 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 
-static int max_dictionary_size() {
+int max_dictionary_size() {
   const int max_num_predictors = num_dictionary_slots(WIENERNS_MAX_CLASSES);
   return max_num_predictors * NUM_PC_WIENER_TAPS_LUMA;
 }
 
-int16_t *allocate_match_filter_dictionary(int *dict_stride) {
-  int16_t *match_filter_dictionary =
-      aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
-  *dict_stride = NUM_PC_WIENER_TAPS_LUMA;
-  return match_filter_dictionary;
+void allocate_match_filter_dictionary(AV1_COMMON *cm) {
+  cm->match_filter_dictionary =
+      aom_calloc(max_dictionary_size(), sizeof(*cm->match_filter_dictionary));
+  cm->translated_pcwiener_filters =
+      aom_calloc(NUM_PC_WIENER_FILTERS * NUM_PC_WIENER_TAPS_LUMA,
+                 sizeof(*cm->translated_pcwiener_filters));
+  cm->translation_done = 0;
+  cm->match_dictionary_stride = NUM_PC_WIENER_TAPS_LUMA;
 }
 
-void free_match_filter_dictionary(int16_t *match_filter_dictionary,
-                                  int *dict_stride) {
-  aom_free(match_filter_dictionary);
-  match_filter_dictionary = NULL;
-  *dict_stride = 0;
+void free_match_filter_dictionary(AV1_COMMON *cm) {
+  aom_free(cm->match_filter_dictionary);
+  aom_free(cm->translated_pcwiener_filters);
+  cm->match_filter_dictionary = NULL;
+  cm->translated_pcwiener_filters = NULL;
+  cm->translation_done = 0;
+  cm->match_dictionary_stride = 0;
 }
 
-static int16_t translated_pcwiener_filters[NUM_PC_WIENER_FILTERS]
-                                          [NUM_PC_WIENER_TAPS_LUMA];
-
-void translate_pcwiener_filters_to_wienerns(const AV1_COMMON *cm) {
-  static int is_translated = 0;
-  if (is_translated) {
+// TODO: Refactor so that this gets called only once during encoding/decoding.
+void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
+  if (cm->translation_done) {
     return;
   }
   const int base_qindex = cm->quant_params.base_qindex;
@@ -504,15 +506,18 @@ void translate_pcwiener_filters_to_wienerns(const AV1_COMMON *cm) {
 
     const int dict_index = pc_wiener_cnt;
 
+    assert(cm->translated_pcwiener_filters != NULL);
     for (int i = 0; i < num_feat; ++i) {
       const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
           pcwiener_filter[tap_translator[i]], precision_diff);
-      translated_pcwiener_filters[dict_index][i] = clip_to_wienerns_range(
-          scaled_tap, wienerns_coeffs[i][WIENERNS_MIN_ID],
-          (1 << wienerns_coeffs[i][WIENERNS_BIT_ID]));
+      cm->translated_pcwiener_filters[dict_index * NUM_PC_WIENER_TAPS_LUMA +
+                                      i] =
+          clip_to_wienerns_range(scaled_tap,
+                                 wienerns_coeffs[i][WIENERNS_MIN_ID],
+                                 (1 << wienerns_coeffs[i][WIENERNS_BIT_ID]));
     }
   }
-  is_translated = 1;
+  cm->translation_done = 1;
 }
 
 static inline int num_sampled_pc_wiener_filters(int num_ref_filters,
@@ -607,6 +612,8 @@ void set_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
                                  ? NUM_PC_WIENER_FILTERS / num_pc_wiener_filters
                                  : NUM_PC_WIENER_FILTERS;
   const int pc_wiener_offset = pc_wiener_skip / 2;
+  assert(cm->translated_pcwiener_filters != NULL);
+  assert(cm->translation_done);
   for (int pc_wiener_cnt = 0; pc_wiener_cnt < num_pc_wiener_filters;
        ++pc_wiener_cnt) {
     int filter_index = pc_wiener_cnt * pc_wiener_skip + pc_wiener_offset;
@@ -615,7 +622,8 @@ void set_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
       filter_index = NUM_PC_WIENER_FILTERS - 1;
     }
 
-    const int16_t *pcwiener_filter = translated_pcwiener_filters[filter_index];
+    const int16_t *pcwiener_filter = cm->translated_pcwiener_filters +
+                                     filter_index * NUM_PC_WIENER_TAPS_LUMA;
 
     const int dict_index = ref_filter_offset + num_ref_filters + pc_wiener_cnt;
     assert(dict_index < max_predictors);

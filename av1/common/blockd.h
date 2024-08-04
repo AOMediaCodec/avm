@@ -2004,6 +2004,7 @@ static inline int max_num_base_filters(int num_classes) {
   return num_dictionary_slots(num_classes) - num_classes;
 }
 
+int max_dictionary_size();
 #else
 #define WIENERNS_MAX_CLASSES 1
 #define NUM_WIENERNS_CLASS_INIT_LUMA 1

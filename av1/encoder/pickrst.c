@@ -1241,6 +1241,9 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->plane = rsc->plane;
   rui->wienerns_info.num_classes = rsc->num_filter_classes;
   rui->wienerns_info.frame_filters_on = rsc->frame_filters_on;
+#if CONFIG_COMBINE_PC_NS_WIENER
+  rui->skip_pcwiener_filtering = 0;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 }
 
 static int count_pc_wiener_bits() {
@@ -1276,10 +1279,10 @@ static AOM_INLINE void search_pc_wiener_visitor(
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
 #if CONFIG_COMBINE_PC_NS_WIENER
-  const int pc_wiener_disabled =
+  const int pcwiener_disabled =
       rsc->cm->seq_params.lr_tools_disable_mask[rsc->plane] &
       (1 << RESTORE_PC_WIENER);
-  rui.skip_pcwiener_filtering = pc_wiener_disabled ? 1 : 0;
+  rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   rui.restoration_type = RESTORE_PC_WIENER;
@@ -1290,7 +1293,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-  if (pc_wiener_disabled) {
+  if (pcwiener_disabled) {
     rusi->best_rtype[RESTORE_PC_WIENER - 1] = RESTORE_NONE;
     rsc->sse += rusi->sse[RESTORE_NONE];
     rsc->bits += bits_none;
@@ -3001,11 +3004,13 @@ static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank) {
   const int base_qindex = rsc->cm->quant_params.base_qindex;
-  int dict_stride = 0;
+  int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
   assert(rsc->cm->match_filter_dictionary != NULL);
+  assert(rsc->cm->translated_pcwiener_filters != NULL);
+  assert(rsc->cm->translation_done);
   // TODO: Lose the allocation.
   int16_t *match_filter_dictionary =
-      allocate_match_filter_dictionary(&dict_stride);
+      aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
   set_match_filter_dictionary(rsc->cm, filter->num_classes,
                               match_filter_dictionary, dict_stride, NULL);
   find_best_match_for_filter(rsc, filter, base_qindex, match_filter_dictionary,
@@ -4098,9 +4103,12 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   if (!rsc->adjust_switchable_for_frame_filters && rsc->frame_filters_on &&
       rsc->plane == AOM_PLANE_Y &&
       rsc->wienerns_bank.bank_size_for_class[0] == 1) {
-    int dict_stride = 0;
+    assert(rsc->cm->match_filter_dictionary != NULL);
+    assert(rsc->cm->translated_pcwiener_filters != NULL);
+    assert(rsc->cm->translation_done);
+    int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
     int16_t *match_filter_dictionary =
-        allocate_match_filter_dictionary(&dict_stride);
+        aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
     set_match_filter_dictionary(
         rsc->cm, rsc->frame_filter_dictionary.filter->num_classes,
         match_filter_dictionary, dict_stride, NULL);
