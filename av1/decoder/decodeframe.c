@@ -3867,26 +3867,29 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-static void read_frame_level_filters(AV1_COMMON *cm, MACROBLOCKD *xd, int is_uv,
-                                     WienerNonsepInfo *wienerns_info,
+static void read_frame_level_filters(AV1_COMMON *cm, MACROBLOCKD *xd,
                                      aom_reader *rb) {
-  assert(!is_uv);
   const int plane = AOM_PLANE_Y;
+  RestorationInfo *rsi = (RestorationInfo *)cm->rst_info + plane;
+  WienerNonsepInfo *wienerns_info = &rsi->frame_filters;
   WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
-  const int filters_not_read =
+  const int read_filters =
 #if CONFIG_TEMP_LR
       !wienerns_info->temporal_pred_flag &&
 #endif  // CONFIG_TEMP_LR
       wienerns_info->frame_filters_on && !bank->frame_filter_predictors_are_set;
-  assert(filters_not_read);
+  if (PRINT_FILTER)
+    printf("read_frame_level_filters: tp: %2d fon: %2d bs: %2d\n",
+           wienerns_info->temporal_pred_flag, wienerns_info->frame_filters_on,
+           bank->frame_filter_predictors_are_set);
+  if (!read_filters) return;
 
   int16_t *match_filter_dictionary = cm->match_filter_dictionary;
   int dict_stride = cm->match_dictionary_stride;
-  read_wienerns_filter(xd, is_uv, wienerns_info, bank, rb,
+  read_wienerns_filter(xd, /*is_uv=*/0, wienerns_info, bank, rb,
                        cm->quant_params.base_qindex, match_filter_dictionary,
                        dict_stride);
 
-  RestorationInfo *rsi = (RestorationInfo *)cm->rst_info + plane;
   assert(rsi->frame_filters_on && !rsi->frame_filters_initialized
 #if CONFIG_TEMP_LR
          && !rsi->temporal_pred_flag
@@ -3895,12 +3898,6 @@ static void read_frame_level_filters(AV1_COMMON *cm, MACROBLOCKD *xd, int is_uv,
 
   rsi->frame_filters_initialized = 1;
   assert(bank->frame_filter_predictors_are_set);
-  rsi->frame_filters.num_classes = bank->filter[0].num_classes;
-  for (int c_id = 0; c_id < rsi->frame_filters.num_classes; ++c_id) {
-    copy_nsfilter_taps_for_class(&rsi->frame_filters,
-                                 av1_constref_from_wienerns_bank(bank, 0, c_id),
-                                 c_id);
-  }
 #if CONFIG_TEMP_LR
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif  // CONFIG_TEMP_LR
@@ -8917,6 +8914,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
   const int tile_count_tg = end_tile - start_tile + 1;
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+  read_frame_level_filters(cm, xd, &pbi->tile_data->bit_reader);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
   if (initialize_flag) setup_frame_info(pbi);
   const int num_planes = av1_num_planes(cm);
 #if CONFIG_LPF_MASK

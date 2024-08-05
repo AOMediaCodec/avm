@@ -1880,7 +1880,7 @@ typedef struct AV1Common {
 
 /*!\cond */
 #if CONFIG_COMBINE_PC_NS_WIENER
-#define PRINT_FILTER 1
+#define PRINT_FILTER 0
 #define PRINT_REFS 0
 void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm);
 void allocate_match_filter_dictionary(AV1_COMMON *cm);
