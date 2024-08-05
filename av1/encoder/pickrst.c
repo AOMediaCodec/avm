@@ -4456,13 +4456,17 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_filters_initialized = 0;
   rsi->num_filter_classes = rsc->num_filter_classes;
   rsi->frame_filters = rsc->frame_filter_dictionary.filter[0];
-  for (int c_id = 0; c_id < rsi->frame_filters.num_classes; ++c_id) {
-    assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] == 1);
+  if (rsc->plane == AOM_PLANE_Y) {
+    for (int c_id = 0; c_id < rsi->frame_filters.num_classes; ++c_id) {
+      assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] == 1);
+    }
   }
 #if CONFIG_TEMP_LR
   rsi->frame_filters = rsc->frame_filters;
-  rsi->temporal_pred_flag = rsc->temporal_pred_flag;
-  rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
+  if (rsc->plane == AOM_PLANE_Y) {
+    rsi->temporal_pred_flag = rsc->temporal_pred_flag;
+    rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
+  }
 #endif  // CONFIG_TEMP_LR
 #endif
   if (frame_rtype != RESTORE_NONE) {
@@ -4815,8 +4819,9 @@ static double optimize_frame_filters_for_target_classes(
   initialize_rui_for_nonsep_search(rsc, &rui);
   rui.restoration_type = RESTORE_WIENER_NONSEP;
 
-  double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
-                                                  sizeof(*work_cost_array)));
+  int work_array_dim = (int)rsc->wienerns_stats->size;
+  double *work_cost_array =
+      (double *)(aom_malloc((work_array_dim + 1) * sizeof(*work_cost_array)));
 
   // First run is with the initial stats. Then we try to refine
   // num_ru_perc_to_try times. Then a final round to better optimize the best
@@ -4848,7 +4853,7 @@ static double optimize_frame_filters_for_target_classes(
       best_cost = cost;
       *best_utilization = rd_results.utilization;
       *filter = tmp_filter;
-      for (int i = 0; i < (int)rsc->wienerns_stats->size; ++i)
+      for (int i = 0; i < work_array_dim; ++i)
         best_cost_array[i] = work_cost_array[i];
     } else {
       tmp_filter = *filter;
@@ -4856,14 +4861,13 @@ static double optimize_frame_filters_for_target_classes(
     if (cnt <= num_ru_perc_to_try) {
       // Sorting will change the order in the arrays. Preserve data and ordering
       // in best_cost_array.
-      for (int i = 0; i < (int)rsc->wienerns_stats->size; ++i)
+      for (int i = 0; i < work_array_dim; ++i)
         work_cost_array[i] = best_cost_array[i];
-      qsort(work_cost_array, rsc->wienerns_stats->size,
-            sizeof(*work_cost_array), cost_compar);
+      qsort(work_cost_array, work_array_dim, sizeof(*work_cost_array),
+            cost_compar);
 
-      const int pnt = (int)(fraction_rus_to_include[cnt - 1][0] *
-                                rsc->wienerns_stats->size +
-                            .5);
+      const int pnt =
+          (int)(fraction_rus_to_include[cnt - 1][0] * work_array_dim + .5);
       const double max_cost_allowed = work_cost_array[pnt];
 
       int stat_slot = -1;
@@ -4997,10 +5001,11 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   WienerNonsepInfo tmp_filter = { 0 };    // Set all including bank ref to 0.
   WienerNonsepInfo best_filter;
 
-  double *best_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
-                                                  sizeof(*best_cost_array)));
-  double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
-                                                  sizeof(*work_cost_array)));
+  int work_array_dim = (int)rsc->wienerns_stats->size;
+  double *best_cost_array =
+      (double *)(aom_malloc((work_array_dim + 1) * sizeof(*best_cost_array)));
+  double *work_cost_array =
+      (double *)(aom_malloc((work_array_dim + 1) * sizeof(*work_cost_array)));
   double best_cost = DBL_MAX;
   int best_utilization = 0;
   int best_num_classes = -1;
@@ -5030,9 +5035,12 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       best_utilization = utilization;
       best_num_classes = num_target_classes;
       best_filter = tmp_filter;
-      double *tmp_array = work_cost_array;
-      work_cost_array = best_cost_array;
-      best_cost_array = tmp_array;
+      for (int n = 0; n < work_array_dim; ++n) {
+        best_cost_array[n] = work_cost_array[n];
+      }
+      //      double *tmp_array = work_cost_array;
+      //      work_cost_array = best_cost_array;
+      //      best_cost_array = tmp_array;
     }
   }
 
@@ -5184,10 +5192,10 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   rsc->num_wiener_nonsep = 0;
   double cost_again = search_rest_type(rsc, RESTORE_WIENER_NONSEP);
   if (rsc->num_wiener_nonsep) cost_again += rsc->frame_filter_cost;
-
-    // should match the earlier calculated cost.
+  (void)cost_again;
+  // should match the earlier calculated cost.
 #if 0  // debug_point
-  assert(fabs(cost - rsc->frame_filters_total_cost) < 1e-3);
+  assert(fabs(cost_again - rsc->frame_filters_total_cost) < 1e-3);
 #endif
   cost_again = rsc->frame_filters_total_cost;
   const int num_wiener_nonsep = rsc->num_wiener_nonsep;

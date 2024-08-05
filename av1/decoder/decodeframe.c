@@ -3868,6 +3868,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
+#if 0
 static void read_frame_level_filters(AV1_COMMON *cm, MACROBLOCKD *xd,
                                      aom_reader *rb) {
   const int plane = AOM_PLANE_Y;
@@ -3903,6 +3904,7 @@ static void read_frame_level_filters(AV1_COMMON *cm, MACROBLOCKD *xd,
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif  // CONFIG_TEMP_LR
 }
+#endif  // 0
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #endif  // CONFIG_LR_IMPROVEMENTS
 
@@ -8916,7 +8918,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   const int tile_count_tg = end_tile - start_tile + 1;
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-  read_frame_level_filters(cm, xd, &pbi->tile_data->bit_reader);
+//  read_frame_level_filters(cm, xd, &pbi->tile_data->bit_reader);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
   if (initialize_flag) setup_frame_info(pbi);
   const int num_planes = av1_num_planes(cm);

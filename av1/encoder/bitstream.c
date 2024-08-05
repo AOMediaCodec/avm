@@ -4150,7 +4150,7 @@ static AOM_INLINE void write_modes_sb(
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-static void write_frame_level_filters(AV1_COMP *const cpi, aom_writer *wb);
+// static void write_frame_level_filters(AV1_COMP *const cpi, aom_writer *wb);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 static AOM_INLINE void write_modes(AV1_COMP *const cpi,
@@ -4165,7 +4165,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   const int mi_col_end = tile->mi_col_end;
   const int num_planes = av1_num_planes(cm);
 #if CONFIG_COMBINE_PC_NS_WIENER
-  if (tile_row == 0 && tile_col == 0) write_frame_level_filters(cpi, w);
+  // if (tile_row == 0 && tile_col == 0) write_frame_level_filters(cpi, w);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   av1_zero_above_context(cm, xd, mi_col_start, mi_col_end, tile->tile_row);
@@ -4766,6 +4766,7 @@ static AOM_INLINE void write_wienerns_filter(
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
+#if 0
 static void write_frame_level_filters(AV1_COMP *const cpi, aom_writer *wb) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
@@ -4800,6 +4801,7 @@ static void write_frame_level_filters(AV1_COMP *const cpi, aom_writer *wb) {
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif  // CONFIG_TEMP_LR
 }
+#endif  // 0
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #endif  // CONFIG_LR_IMPROVEMENTS
