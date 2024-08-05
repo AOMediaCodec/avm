@@ -3719,8 +3719,9 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 static void read_match_indices(WienerNonsepInfo *wienerns_info,
                                aom_reader *rb) {
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
-    int decoded_match = aom_read_literal(
-        rb, first_match_bits(c_id, wienerns_info->num_classes), ACCT_STR);
+    int decoded_match =
+        aom_read_literal(rb, first_match_bits(c_id, wienerns_info->num_classes),
+                         ACCT_INFO("match"));
     int first_match = decode_first_match(decoded_match, c_id);
     wienerns_info->match_indices[c_id] = first_match;
     assert(first_match ==
