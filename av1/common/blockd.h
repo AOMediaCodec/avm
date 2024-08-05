@@ -2042,8 +2042,8 @@ typedef struct {
 #endif  // CONFIG_LR_MERGE_COEFFS
 #if CONFIG_COMBINE_PC_NS_WIENER
   /*!
-   * Indices of match dictionary filters that will be used to populate the first
-   * bank slot and in turn used as frame filter predictors.
+   * Indices of frame filter dictionary filters that will be used to populate
+   * the first bank slot and in turn used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
 #if CONFIG_TEMP_LR
@@ -2069,7 +2069,7 @@ typedef struct {
   int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
 #if CONFIG_COMBINE_PC_NS_WIENER
   /*!
-   * Whether the bank has been initialized with side-information used to better
+   * Whether the bank has been initialized with predictions used to better
    * code the frame-level filters.
    */
   int frame_filter_predictors_are_set;

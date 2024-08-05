@@ -2905,17 +2905,15 @@ typedef struct BestMatchResults {
 
 static BestMatchResults find_best_match_for_class(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter, int class_id,
-    const int16_t *match_filter_dictionary, int dict_stride,
-    const WienernsFilterParameters *nsfilter_params, WienerNonsepInfoBank *bank,
-    int use_prev_filters) {
+    const int16_t *frame_filter_dictionary, int dict_stride,
+    const WienernsFilterParameters *nsfilter_params,
+    WienerNonsepInfoBank *bank) {
   BestMatchResults best_match_results = { 0 };
   const int bank_ref = 0;
   assert(bank->bank_size_for_class[class_id] == 0);
   WienerNonsepInfo tmp_filter;
   tmp_filter.num_classes = filter->num_classes;
 
-  (void)use_prev_filters;
-  assert(use_prev_filters == 1);
   int64_t best_scr = INT_MAX;
   int64_t all_zeros_score = 0;  // debug
   int best_filter_index = ILLEGAL_MATCH;
@@ -2925,7 +2923,7 @@ static BestMatchResults find_best_match_for_class(
     if (!is_match_allowed(filter_index, class_id, filter->num_classes))
       continue;
     filter->match_indices[class_id] = filter_index;
-    fill_filter_with_match(&tmp_filter, match_filter_dictionary, dict_stride,
+    fill_filter_with_match(&tmp_filter, frame_filter_dictionary, dict_stride,
                            filter->match_indices, nsfilter_params, class_id);
     av1_upd_to_wienerns_bank(bank, bank_ref, &tmp_filter, class_id);
     bank->bank_size_for_class[class_id] = 1;
@@ -2951,9 +2949,8 @@ static BestMatchResults find_best_match_for_class(
 static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                        WienerNonsepInfo *filter,
                                        int base_qindex,
-                                       int16_t *match_filter_dictionary,
+                                       int16_t *frame_filter_dictionary,
                                        int dict_stride) {
-  const int use_prev_filters = 1;
   assert(rsc->plane == AOM_PLANE_Y);
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
@@ -2962,11 +2959,11 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
   av1_reset_wienerns_bank(&tmp_bank, base_qindex, filter->num_classes, 0);
   BestMatchResults best_match_results[WIENERNS_MAX_CLASSES];
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
-    best_match_results[c_id] = find_best_match_for_class(
-        rsc, filter, c_id, match_filter_dictionary, dict_stride,
-        nsfilter_params, &tmp_bank, use_prev_filters);
+    best_match_results[c_id] =
+        find_best_match_for_class(rsc, filter, c_id, frame_filter_dictionary,
+                                  dict_stride, nsfilter_params, &tmp_bank);
     add_filter_to_dictionary(filter, c_id, nsfilter_params,
-                             match_filter_dictionary, dict_stride);
+                             frame_filter_dictionary, dict_stride);
   }
 
   int use_one_match_indices[WIENERNS_MAX_CLASSES] = { 0 };
@@ -2982,7 +2979,7 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
     filter->match_indices[c_id] = best_match_indices[c_id];
     // Debug.
-    fill_filter_with_match(&tmp_filter, match_filter_dictionary, dict_stride,
+    fill_filter_with_match(&tmp_filter, frame_filter_dictionary, dict_stride,
                            filter->match_indices, nsfilter_params, c_id);
     av1_upd_to_wienerns_bank(&tmp_bank, /*bank_ref=*/0, &tmp_filter, c_id);
     tmp_bank.bank_size_for_class[c_id] = 1;
@@ -2999,22 +2996,22 @@ static void initialize_bank_with_best_frame_filter_match(
     WienerNonsepInfoBank *bank) {
   const int base_qindex = rsc->cm->quant_params.base_qindex;
   int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
-  assert(rsc->cm->match_filter_dictionary != NULL);
+  assert(rsc->cm->frame_filter_dictionary != NULL);
   assert(rsc->cm->translated_pcwiener_filters != NULL);
   assert(rsc->cm->translation_done);
   // TODO: Lose the allocation.
-  int16_t *match_filter_dictionary =
-      aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
-  set_match_filter_dictionary(rsc->cm, filter->num_classes,
-                              match_filter_dictionary, dict_stride, NULL);
-  find_best_match_for_filter(rsc, filter, base_qindex, match_filter_dictionary,
+  int16_t *frame_filter_dictionary =
+      aom_calloc(max_dictionary_size(), sizeof(*frame_filter_dictionary));
+  set_frame_filter_dictionary(rsc->cm, filter->num_classes,
+                              frame_filter_dictionary, dict_stride);
+  find_best_match_for_filter(rsc, filter, base_qindex, frame_filter_dictionary,
                              dict_stride);
   av1_reset_wienerns_bank(bank, base_qindex, filter->num_classes,
                           rsc->plane != AOM_PLANE_Y);
   fill_first_slot_of_bank_with_filter_match(
       bank, filter, filter->match_indices, base_qindex, ALL_WIENERNS_CLASSES,
-      match_filter_dictionary, dict_stride);
-  aom_free(match_filter_dictionary);
+      frame_filter_dictionary, dict_stride);
+  aom_free(frame_filter_dictionary);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -3549,7 +3546,6 @@ static int64_t decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
   const int64_t bits = (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
   rsc->bits += bits;
 
-  // TODO: Is this needed?
   if (cost_wienerns < cost_none)
     av1_add_to_wienerns_bank(&rsc->wienerns_bank, &rusi->wienerns_info,
                              ALL_WIENERNS_CLASSES);
@@ -4100,22 +4096,22 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   if (!rsc->adjust_switchable_for_frame_filters && rsc->frame_filters_on &&
       rsc->plane == AOM_PLANE_Y &&
       rsc->wienerns_bank.bank_size_for_class[0] == 1) {
-    assert(rsc->cm->match_filter_dictionary != NULL);
+    assert(rsc->cm->frame_filter_dictionary != NULL);
     assert(rsc->cm->translated_pcwiener_filters != NULL);
     assert(rsc->cm->translation_done);
     int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
-    int16_t *match_filter_dictionary =
-        aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
-    set_match_filter_dictionary(
+    int16_t *frame_filter_dictionary =
+        aom_calloc(max_dictionary_size(), sizeof(*frame_filter_dictionary));
+    set_frame_filter_dictionary(
         rsc->cm, rsc->frame_filter_dictionary.filter->num_classes,
-        match_filter_dictionary, dict_stride, NULL);
+        frame_filter_dictionary, dict_stride);
     // Initialize bank for first call.
     const int base_qindex = rsc->cm->quant_params.base_qindex;
     fill_first_slot_of_bank_with_filter_match(
         &rsc->wienerns_bank, rsc->frame_filter_dictionary.filter,
         rsc->frame_filter_dictionary.filter->match_indices, base_qindex,
-        ALL_WIENERNS_CLASSES, match_filter_dictionary, dict_stride);
-    aom_free(match_filter_dictionary);
+        ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride);
+    aom_free(frame_filter_dictionary);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -4777,8 +4773,9 @@ static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
                                                   WienerNonsepInfo *filter) {
   assert(rsc->temporal_pred_flag);
 
-  double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
-                                                  sizeof(*work_cost_array)));
+  const int work_array_dim = (int)rsc->wienerns_stats->size;
+  double *work_cost_array =
+      (double *)(aom_malloc((work_array_dim + 1) * sizeof(*work_cost_array)));
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
   rui.restoration_type = RESTORE_WIENER_NONSEP;
@@ -4791,6 +4788,7 @@ static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
       rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
       rsc->cm->seq_params.bit_depth);
   // cost += frame level infor cos, to be added;
+  aom_free(work_cost_array);
   return cost;
 }
 #endif  // CONFIG_TEMP_LR
@@ -4819,7 +4817,7 @@ static double optimize_frame_filters_for_target_classes(
   initialize_rui_for_nonsep_search(rsc, &rui);
   rui.restoration_type = RESTORE_WIENER_NONSEP;
 
-  int work_array_dim = (int)rsc->wienerns_stats->size;
+  const int work_array_dim = (int)rsc->wienerns_stats->size;
   double *work_cost_array =
       (double *)(aom_malloc((work_array_dim + 1) * sizeof(*work_cost_array)));
 
@@ -4966,27 +4964,6 @@ static double optimize_frame_filters_with_rounding(
 
   return cost;
 }
-
-static int count_changes_in_filters(RestSearchCtxt *rsc,
-                                    const WienerNonsepInfo *filter1,
-                                    const WienerNonsepInfo *filter2) {
-  const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
-      rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
-  const int num_feat = nsfilter_params->ncoeffs;
-  int num_changes = 0;
-  for (int c_id = 0; c_id < filter1->num_classes; ++c_id) {
-    const int16_t *filter1_taps = const_nsfilter_taps(filter1, c_id);
-    const int16_t *filter2_taps = const_nsfilter_taps(filter2, c_id);
-    for (int tap = 0; tap < num_feat; ++tap) {
-      if (filter1_taps[tap] != filter2_taps[tap]) {
-        ++num_changes;
-        break;
-      }
-    }
-  }
-  return num_changes;
-}
-
 #endif  // USE_FINER_TILE
 
 // At the end of this routine all stats will be collapsed to one.
@@ -5001,7 +4978,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   WienerNonsepInfo tmp_filter = { 0 };    // Set all including bank ref to 0.
   WienerNonsepInfo best_filter;
 
-  int work_array_dim = (int)rsc->wienerns_stats->size;
+  const int work_array_dim = (int)rsc->wienerns_stats->size;
   double *best_cost_array =
       (double *)(aom_malloc((work_array_dim + 1) * sizeof(*best_cost_array)));
   double *work_cost_array =
@@ -5046,49 +5023,24 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
   assert(best_num_classes != -1);
   (void)best_utilization;
-#ifndef NDEBUG
-  if (0) {
-    printf(
-        "Plane %2d, found best num classes: %2d, utilization: %3d (%3d), cost: "
-        "%f\n",
-        rsc->plane, best_num_classes, best_utilization,
-        (int)rsc->wienerns_stats->size, best_cost);
-  }
-#endif  // NDEBUG
 
   rsc->num_filter_classes = best_num_classes;
   rsc->best_num_filter_classes = best_num_classes;
 
 #if USE_FINER_TILE
-  const double old_cost = best_cost;
   const double tmp_cost =
       optimize_frame_filters_with_rounding(rsc, &best_filter, best_cost_array);
-  const int num_changes =
-      count_changes_in_filters(rsc, &tmp_filter, &best_filter);
   if (tmp_cost >= 0 && tmp_cost < best_cost) {
     best_cost = tmp_cost;
   } else {
     best_filter = tmp_filter;
   }
-  (void)num_changes;
 #endif  // USE_FINER_TILE
   initialize_bank_with_best_frame_filter_match(rsc, &best_filter, &tmp_bank);
 
   rsc->frame_filter_cost =
       calculate_frame_filters_cost(rsc, &tmp_bank, &best_filter);
 
-#if USE_FINER_TILE
-  (void)old_cost;
-#ifndef NDEBUG
-  if (0) {
-    printf(
-        "optimize_frame_filters_with_rounding changes: %3d out of %3d (%15.1f, "
-        "f:%15.1f) (i:%2d) poc: %5d\n",
-        num_changes, best_filter.num_classes, best_cost, rsc->frame_filter_cost,
-        tmp_cost < old_cost ? 1 : 0, rsc->cm->cur_frame->absolute_poc);
-  }
-#endif  // NDEBUG
-#endif  // USE_FINER_TILE
 #if CONFIG_TEMP_LR
   int8_t best_ref_idx = -1;
   const int num_ref_frames = rsc->cm->current_frame.frame_type == KEY_FRAME
@@ -5098,8 +5050,6 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     RestorationInfo rsi =
         get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
     if (!rsi.frame_filters_on) continue;
-    //    assert(rsi.frame_restoration_type == RESTORE_WIENER_NONSEP ||
-    //    rsi.frame_restoration_type == RESTORE_SWITCHABLE);
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;
@@ -5217,6 +5167,7 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   return final_r;
 }
 
+#ifdef NDEBUG
 void print_costs(double cost, char best_highlight, int r, char highlight,
                  const RestSearchCtxt *rsc, int unit_size) {
   if (!PRINT_FILTER) return;
@@ -5230,6 +5181,7 @@ void print_costs(double cost, char best_highlight, int r, char highlight,
     printf(".\n");
   }
 }
+#endif  // NDEBUG
 
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -5370,7 +5322,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_LR_IMPROVEMENTS
           if (
 #if CONFIG_COMBINE_PC_NS_WIENER
-              // Need classification and related stats.
+              // Need classification and related stats. Run
+              // search_pc_wiener_visitor without any filtering. (Follow
+              // pcwiener_disabled.)
               (r != RESTORE_PC_WIENER) &&
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
               cpi->common.features.lr_tools_disable_mask[plane > 0] & (1 << r))
@@ -5434,13 +5388,17 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_SWITCHABLE && plane == AOM_PLANE_Y &&
               cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
+#ifdef NDEBUG
             print_costs(cost, cost < best_cost ? '*' : ' ', r, ' ', &rsc,
                         rsi->restoration_unit_size);
+#endif  // NDEBUG
             real_r = replace_with_frame_filters(&rsc, &cost);
           }
+#ifdef NDEBUG
           print_costs(cost, cost < best_cost ? '*' : ' ', real_r,
                       rsc.frame_filters_on ? 'f' : ' ', &rsc,
                       rsi->restoration_unit_size);
+#endif
           assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
           if (r == RESTORE_PC_WIENER && plane == AOM_PLANE_Y) {
             rsc.classification_is_buffered = 1;  // Buffer is set.

@@ -1114,8 +1114,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   mi_params->mi_alloc_bsize = BLOCK_4X4;
 #if CONFIG_COMBINE_PC_NS_WIENER
-  cm->match_dictionary_stride = 0;
-  cm->match_filter_dictionary = NULL;
+  cm->frame_filter_dictionary_stride = 0;
+  cm->frame_filter_dictionary = NULL;
+  cm->translated_pcwiener_filters = NULL;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   CHECK_MEM_ERROR(cm, cm->fc,

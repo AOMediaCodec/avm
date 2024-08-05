@@ -228,8 +228,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->mi_params.set_mb_mi = dec_set_mb_mi;
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-  cm->match_dictionary_stride = 0;
-  cm->match_filter_dictionary = NULL;
+  cm->frame_filter_dictionary_stride = 0;
+  cm->frame_filter_dictionary = NULL;
+  cm->translated_pcwiener_filters = NULL;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   av1_loop_filter_init(cm);

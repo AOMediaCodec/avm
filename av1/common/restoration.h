@@ -226,17 +226,18 @@ static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index);
-int wienerns_to_pcwiener_translator(const NonsepFilterConfig *nsfilter_config,
-                                    int *tap_translator, int max_num_taps);
+int wienerns_to_pcwiener_tap_config_translator(
+    const NonsepFilterConfig *nsfilter_config, int *tap_translator,
+    int max_num_taps);
 void fill_filter_with_match(WienerNonsepInfo *filter,
-                            const int16_t *match_filter_dictionary,
+                            const int16_t *frame_filter_dictionary,
                             int dict_stride, const int *match_indices,
                             const WienernsFilterParameters *nsfilter_params,
                             int class_id);
 void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
-    int16_t *match_filter_dictionary, int dict_stride);
+    int16_t *frame_filter_dictionary, int dict_stride);
 
 #define ILLEGAL_MATCH -1
 
@@ -247,21 +248,19 @@ static inline int get_first_match_index(int compound_match_index,
          ((1 << num_frame_first_predictor_bits[num_classes]) - 1);
 }
 
-static inline int first_match_bits(int class_id, int num_classes) {
+static inline int first_match_bits(int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
-  (void)class_id;
   return num_frame_first_predictor_bits[num_classes];
 }
 
-static inline int encode_first_match(int compound_match_index, int class_id,
-                                     int *num_bits, int num_classes) {
+static inline int encode_first_match(int compound_match_index, int *num_bits,
+                                     int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
-  *num_bits = first_match_bits(class_id, num_classes);
+  *num_bits = first_match_bits(num_classes);
   return get_first_match_index(compound_match_index, num_classes);
 }
 
-static inline int decode_first_match(int encoded_match_index, int class_id) {
-  (void)class_id;
+static inline int decode_first_match(int encoded_match_index) {
   return encoded_match_index;
 }
 
@@ -270,7 +269,7 @@ static inline int count_match_indices_bits(int num_classes) {
   int total_bits = 0;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    total_bits += first_match_bits(c_id, num_classes);
+    total_bits += first_match_bits(num_classes);
   }
   return total_bits;
 }
