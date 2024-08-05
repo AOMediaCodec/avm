@@ -2914,6 +2914,7 @@ static BestMatchResults find_best_match_for_class(
   WienerNonsepInfo tmp_filter;
   tmp_filter.num_classes = filter->num_classes;
 
+  (void)use_prev_filters;
   assert(use_prev_filters == 1);
   int64_t best_scr = INT_MAX;
   int64_t all_zeros_score = 0;  // debug
@@ -2996,6 +2997,7 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
     const int64_t taps_score =
         count_wienerns_bits_set(AOM_PLANE_Y, &rsc->x->mode_costs, filter,
                                 &tmp_bank, nsfilter_params, c_id);
+    (void)taps_score;
     assert(taps_score == best_match_results[c_id].use_one_taps_score);
   }
 }
@@ -3491,6 +3493,7 @@ static int64_t evaluate_frame_filter(RestSearchCtxt *rsc,
   // Assume one set of filters for now.
   const int num_frame_filters =
       rsc->frame_filter_dictionary.bank_size_for_class[0];
+  (void)num_frame_filters;
   assert(num_frame_filters == 1);
   for (int c_id = 1; c_id < num_classes; ++c_id) {
     assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] ==
@@ -3528,10 +3531,12 @@ static int decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
   const int is_equal = check_wienerns_bank_eq(
       bank_to_use, &rusi->wienerns_info, nsfilter_params->ncoeffs,
       ALL_WIENERNS_CLASSES, equal_ref_for_class);
+  (void)is_equal;
   assert(is_equal == 0);
 
   const int num_frame_filters =
       rsc->frame_filter_dictionary.bank_size_for_class[0];
+  (void)num_frame_filters;
   for (int c_id = 1; c_id < rsc->num_filter_classes; ++c_id) {
     assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] ==
            num_frame_filters);
@@ -5039,6 +5044,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   }
 
   assert(best_num_classes != -1);
+  (void)best_utilization;
 #ifndef NDEBUG
   if (0) {
     printf(
@@ -5071,6 +5077,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       calculate_frame_filters_cost(rsc, &tmp_bank, &best_filter);
 
 #if USE_FINER_TILE
+  (void)old_cost;
 #ifndef NDEBUG
   if (0) {
     printf(
@@ -5212,7 +5219,6 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
 void print_costs(double cost, char best_highlight, int r, char highlight,
                  const RestSearchCtxt *rsc, int unit_size) {
   if (!PRINT_FILTER) return;
-#ifndef NDEBUG
   if (rsc->plane != AOM_PLANE_Y) return;
   printf("%c U(%4d) Plane[%1d], %cr[%1d], %15.1f", best_highlight, unit_size,
          rsc->plane, highlight, r, cost);
@@ -5222,7 +5228,6 @@ void print_costs(double cost, char best_highlight, int r, char highlight,
   } else {
     printf(".\n");
   }
-#endif  // NDEBUG
 }
 
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

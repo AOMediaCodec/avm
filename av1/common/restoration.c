@@ -2896,6 +2896,7 @@ void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 int wienerns_to_pcwiener_translator(const NonsepFilterConfig *nsfilter_config,
                                     int *tap_translator, int max_num_taps) {
   const int num_sym_taps = nsfilter_config->num_pixels / 2;
+  (void)max_num_taps;
   assert(num_sym_taps <= max_num_taps);
   for (int i = 0; i < num_sym_taps; ++i) {
     const int filter_pos_row = nsfilter_config->config[2 * i][0];
@@ -2917,6 +2918,8 @@ int wienerns_to_pcwiener_translator(const NonsepFilterConfig *nsfilter_config,
 static inline const int16_t *get_matching_filter(
     const int16_t *match_filter_dictionary, int dict_stride, int filter_index,
     int c_id, int num_classes) {
+  (void)c_id;
+  (void)num_classes;
   assert(filter_index >= 0 && filter_index < num_dictionary_slots(num_classes));
   assert(is_match_allowed(filter_index, c_id, num_classes));
   return match_filter_dictionary + filter_index * dict_stride;

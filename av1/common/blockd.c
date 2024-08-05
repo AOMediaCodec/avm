@@ -487,6 +487,7 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   int tap_translator[WIENERNS_YUV_MAX];
   const int num_taps = wienerns_to_pcwiener_translator(
       &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_YUV_MAX);
+  (void)num_taps;
   assert(num_taps == num_feat);
   const int set_index =
       0;  // get_filter_set_index(base_qindex + qindex_offset);
