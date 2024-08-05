@@ -78,9 +78,9 @@ typedef void (*TxfmFunc)(const int32_t *in, int32_t *out, const int8_t cos_bit,
                          const int8_t *range_bit);
 
 typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                               int,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                               int);
 typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
                                  TX_SIZE, int);

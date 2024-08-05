@@ -1418,7 +1418,7 @@ void av1_fdct8x64_new_sse2(const __m128i *input, __m128i *output,
   output[63] = x10[63];
 }
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void fddt4x4_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit) {
   (void)cos_bit;
@@ -1475,7 +1475,7 @@ static void fddt8x4_new_sse2(const __m128i *input, __m128i *output,
   }
   for (int i = 0; i < 4; ++i) output[i] = x[i];
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST4
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
@@ -1593,7 +1593,7 @@ static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit);
 
@@ -1601,7 +1601,7 @@ static void fddt4x8_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit) {
   fddt8x8_new_sse2(input, output, cos_bit);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST8
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1827,7 +1827,7 @@ static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit) {
   (void)cos_bit;
@@ -1859,7 +1859,7 @@ static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
   }
   for (int i = 0; i < 8; ++i) output[i] = x[i];
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST8
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1984,7 +1984,7 @@ static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void fddt8x16_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
   const int32_t *kernel = ddt16_kernel[FWD_TXFM];
@@ -2017,7 +2017,7 @@ static void fddt8x16_new_sse2(const __m128i *input, __m128i *output,
   }
   for (int i = 0; i < 16; ++i) output[i] = x[i];
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST16
 static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
@@ -2239,7 +2239,7 @@ static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static const transform_1d_sse2 col_txfm4x4_arr_inter[TX_TYPES] = {
   fdct4x4_new_sse2,       // DCT_DCT
   fddt4x4_new_sse2,       // ADST_DCT
@@ -2429,7 +2429,7 @@ static const transform_1d_sse2 row_txfm8x16_arr_inter[TX_TYPES] = {
   fidentity8x16_new_sse2,  // V_FLIPADST
   fddt8x16_new_sse2,       // H_FLIPADST
 };
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 static const transform_1d_sse2 col_txfm4x4_arr[TX_TYPES] = {
   fdct4x4_new_sse2,       // DCT_DCT
@@ -2642,9 +2642,9 @@ static const transform_1d_sse2 row_txfm8x32_arr[TX_TYPES] = {
 
 void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                    int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                    int bd) {
   (void)bd;
 
@@ -2656,7 +2656,7 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 4;
   const int height = 4;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST4)
                                          ? col_txfm4x4_arr_inter[tx_type]
                                          : col_txfm4x4_arr[tx_type];
@@ -2666,7 +2666,7 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm4x4_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm4x4_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2694,9 +2694,9 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                    int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                    int bd) {
   (void)stride;
   (void)bd;
@@ -2709,7 +2709,7 @@ void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 4;
   const int height = 8;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST8)
                                          ? col_txfm4x8_arr_inter[tx_type]
                                          : col_txfm4x8_arr[tx_type];
@@ -2719,7 +2719,7 @@ void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm4x8_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x4_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2747,9 +2747,9 @@ void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
 
@@ -2761,7 +2761,7 @@ void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 4;
   const int height = 16;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST16)
                                          ? col_txfm8x16_arr_inter[tx_type]
                                          : col_txfm8x16_arr[tx_type];
@@ -2771,7 +2771,7 @@ void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x16_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x4_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2803,9 +2803,9 @@ void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                    int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                    int bd) {
   (void)bd;
 
@@ -2817,7 +2817,7 @@ void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 8;
   const int height = 4;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST4)
                                          ? col_txfm8x4_arr_inter[tx_type]
                                          : col_txfm8x4_arr[tx_type];
@@ -2827,7 +2827,7 @@ void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x4_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm4x8_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2854,9 +2854,9 @@ void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                    int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                    int bd) {
   (void)bd;
 
@@ -2868,7 +2868,7 @@ void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 8;
   const int height = 8;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST8)
                                          ? col_txfm8x8_arr_inter[tx_type]
                                          : col_txfm8x8_arr[tx_type];
@@ -2878,7 +2878,7 @@ void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x8_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x8_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2905,9 +2905,9 @@ void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
 
@@ -2919,7 +2919,7 @@ void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 8;
   const int height = 16;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST16)
                                          ? col_txfm8x16_arr_inter[tx_type]
                                          : col_txfm8x16_arr[tx_type];
@@ -2929,7 +2929,7 @@ void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x16_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x8_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2961,14 +2961,14 @@ void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
   __m128i buf0[32], buf1[32];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X32];
@@ -3013,9 +3013,9 @@ void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
 
@@ -3027,7 +3027,7 @@ void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 16;
   const int height = 4;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST4)
                                          ? col_txfm8x4_arr_inter[tx_type]
                                          : col_txfm8x4_arr[tx_type];
@@ -3037,7 +3037,7 @@ void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x4_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x16_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   __m128i *buf;
   int ud_flip, lr_flip;
 
@@ -3070,9 +3070,9 @@ void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
 
@@ -3084,7 +3084,7 @@ void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 16;
   const int height = 8;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST8)
                                          ? col_txfm8x8_arr_inter[tx_type]
                                          : col_txfm8x8_arr[tx_type];
@@ -3094,7 +3094,7 @@ void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x8_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x16_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   __m128i *buf;
   int ud_flip, lr_flip;
 
@@ -3127,9 +3127,9 @@ void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
 
@@ -3141,7 +3141,7 @@ void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 16;
   const int height = 16;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_sse2 col_txfm = (use_ddt && REPLACE_ADST16)
                                          ? col_txfm8x16_arr_inter[tx_type]
                                          : col_txfm8x16_arr[tx_type];
@@ -3151,7 +3151,7 @@ void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
 #else
   const transform_1d_sse2 col_txfm = col_txfm8x16_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm8x16_arr[tx_type];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -3188,9 +3188,9 @@ void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
 
@@ -3243,18 +3243,18 @@ void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
     }
   } else {
     av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                            use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                            bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
   (void)bd;
 
@@ -3310,18 +3310,18 @@ void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
     }
   } else {
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                            use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                            bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
 
@@ -3378,18 +3378,18 @@ void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
     }
   } else {
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                            use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                            bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
 
@@ -3447,24 +3447,24 @@ void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
     }
   } else {
     av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                            use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                            bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
   (void)tx_type;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
   const TX_SIZE tx_size = TX_64X16;
   __m128i buf0[64], buf1[128];
@@ -3505,15 +3505,15 @@ void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                      int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                      int bd) {
   (void)bd;
   (void)tx_type;
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   const TX_SIZE tx_size = TX_16X64;
   __m128i buf0[64], buf1[128];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
@@ -3556,13 +3556,13 @@ void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
 #if CONFIG_FLEX_PARTITION
 void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   __m128i buf0[32], buf1[32];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X32];
@@ -3607,13 +3607,13 @@ void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   __m128i buf0[32], buf1[32];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X4];
@@ -3661,13 +3661,13 @@ void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   (void)tx_type;
 
@@ -3724,13 +3724,13 @@ void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   (void)tx_type;
 
@@ -3785,13 +3785,13 @@ void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   __m128i buf0[64], buf1[64];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X64];
@@ -3842,13 +3842,13 @@ void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                     int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                     int bd) {
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   (void)use_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   (void)bd;
   (void)tx_type;
 
@@ -3938,8 +3938,8 @@ void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,
     av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
   else
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                     txfm_param->use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                     txfm_param->bd);
 }

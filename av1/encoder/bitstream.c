@@ -5588,9 +5588,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_INTER_IST
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
 #endif  // CONFIG_INTER_IST
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
   aom_wb_write_bit(wb, seq_params->enable_mrls);
   aom_wb_write_literal(wb, seq_params->enable_tip, 2);

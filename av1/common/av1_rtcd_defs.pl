@@ -131,7 +131,7 @@ add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTI
 specialize qw/inv_stxfm sse4_1 avx2/;
 add_proto qw/void av1_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 if (aom_config("CONFIG_ADST_TUNED") eq "yes"
-  || aom_config("CONFIG_INTER_ADST_REPL") eq "yes"
+  || aom_config("CONFIG_INTER_DDT") eq "yes"
 ) {
     specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2/;
 } else {
@@ -202,7 +202,7 @@ if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
     add_proto qw/void av1_inv_idfm2d_add_4x4_horz/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 }
 
-if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+if (aom_config("CONFIG_INTER_DDT") eq "yes") {
   add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
   add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
   add_proto qw/void av1_inv_txfm2d_add_8x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
@@ -362,7 +362,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
   specialize qw/fwd_stxfm sse4_1 avx2/;
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+  if (aom_config("CONFIG_INTER_DDT") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_4x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
     add_proto qw/void av1_fwd_txfm2d_8x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
     add_proto qw/void av1_fwd_txfm2d_8x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
@@ -394,7 +394,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
   }
   if (aom_config("CONFIG_ADST_TUNED") eq "yes"
-	  || aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+	  || aom_config("CONFIG_INTER_DDT") eq "yes") {
       specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2/;
       specialize qw/av1_fwd_txfm2d_4x8 sse4_1/;
       specialize qw/av1_fwd_txfm2d_8x4 sse4_1/;
@@ -428,7 +428,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       specialize qw/av1_fwd_txfm2d_32x32 sse4_1 avx2 neon/;
   }
 
-  if (aom_config("CONFIG_INTER_ADST_REPL") eq "yes") {
+  if (aom_config("CONFIG_INTER_DDT") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_64x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";
     specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2/;
     add_proto qw/void av1_fwd_txfm2d_32x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int use_ddt, int bd";

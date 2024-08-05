@@ -370,12 +370,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_inter_ist;
 #endif  // CONFIG_INTER_IST
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   /*!\brief enable Inter data-driven transform
    *
    */
   unsigned int enable_inter_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   /*!\brief enable cross-chroma component transform
    *
    */

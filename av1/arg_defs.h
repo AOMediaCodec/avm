@@ -173,9 +173,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_INTER_IST
   arg_def_t enable_inter_ist;
 #endif  // CONFIG_INTER_IST
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   arg_def_t enable_inter_ddt;
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
   arg_def_t enable_cctx;
   arg_def_t enable_ibp;
   arg_def_t enable_adaptive_mvd;

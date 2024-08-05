@@ -654,7 +654,7 @@ void av1_idct32(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[31] = clamp_value(bf0[0] - bf0[31], stage_range[stage]);
 }
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 // Inverse length 4 data-driven transform
 void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
@@ -681,7 +681,7 @@ void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
   av2_txfm_matrix_mult(input, output, ddt16_kernel[INV_TXFM], 16, INV_ADST_BIT,
                        0);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST4
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,

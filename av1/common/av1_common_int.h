@@ -492,9 +492,9 @@ typedef struct SequenceHeader {
 #if CONFIG_INTER_IST
   uint8_t enable_inter_ist;  // enables/disables inter secondary transform
 #endif                       // CONFIG_INTER_IST
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
-#endif                       // CONFIG_INTER_ADST_REPL
+#endif                       // CONFIG_INTER_DDT
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution

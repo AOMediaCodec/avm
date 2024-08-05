@@ -77,9 +77,9 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
       }
 
       fwd_txfm_(input_, output_, tx_width_, tx_type_,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                 0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                 bd);
 
       if (lr_flip_ && ud_flip_) {
@@ -295,9 +295,9 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         param.tx_set_type = EXT_TX_SET_ALL16;
         param.bd = bd;
         ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                  0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                  bd);
         target_func(input, output, input_stride, &param);
         const int check_rows = AOMMIN(32, rows);
@@ -354,9 +354,9 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                    0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);
@@ -498,9 +498,9 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           param.bd = bd;
 
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                    0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                    bd);
           target_func(input, output, input_stride, &param);
           const int check_rows = AOMMIN(32, rows);
@@ -560,9 +560,9 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                    0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);

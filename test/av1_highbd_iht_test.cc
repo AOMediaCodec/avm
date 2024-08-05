@@ -33,16 +33,16 @@ using std::tuple;
 
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                           int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                           int bd);
 
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
                            TX_TYPE tx_type,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                            int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                            int bd);
 static const char *tx_type_name[] = {
   "DCT_DCT",
@@ -154,19 +154,19 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
     }
 
     txfm_ref_(input_, coeffs_, stride, tx_type_,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
               0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
               bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                   0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                   bit_depth_);
     ASM_REGISTER_STATE_CHECK(inv_txfm_(coeffs_, output_, stride, tx_type_,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                        0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                        bit_depth_));
 
     for (int j = 0; j < num_coeffs_; ++j) {
@@ -268,9 +268,9 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
       }
     }
     fwd_func_(input, inv_input, stride, tx_type_,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
               0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
               bit_depth_);
 
     // produce eob input by setting high freq coeffs to zero

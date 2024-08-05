@@ -31,9 +31,9 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
     for (int j = 0; j < width - 16; j += 16) {
       av1_fwd_txfm2d_16x4(src + i * buf->y_stride + j, coeff, buf->y_stride,
                           H_DCT,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                           0,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                           bd);
       for (int k = 1; k < 16; ++k) {
         const uint64_t this_energy = ((int64_t)coeff[k] * coeff[k]) +

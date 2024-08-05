@@ -163,7 +163,7 @@ const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
 #endif  // USE_TUNED_ADST16
 #endif  // CONFIG_ADST_TUNED
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 // Quantized with 2^10 and scale factor 1.41421356
 const int32_t ddt4_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE4] = {
   { 110, 922, 3277, 4685, 613, 3093, 3667, -3188, 3038, 3893, -2810, 1128, 4892,
@@ -235,9 +235,9 @@ const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
     71,   -109, 118,  -128, 137,  -123, 118,  -98,  95,   -81,  69,   -58,
     45,   -28,  6,    3 },
 };
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 #define TXFM_SIZE_MAX 16
 #define STAGE_RANGE_MAX 30
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
@@ -261,7 +261,7 @@ void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
       output[i] = clamp_value(output[i], clamp);
   }
 }
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 
 void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
   int i;

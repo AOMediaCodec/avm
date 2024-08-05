@@ -1537,14 +1537,14 @@ static void idct16_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
   }
 }
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void iddt16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                              int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
                          ddt16_kernel[INV_TXFM], 16, 1);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST16
 static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
@@ -1733,14 +1733,14 @@ static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void iddt16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                              int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
                          ddt16_kernel[INV_TXFM], 16, 8);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST16
 static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -2073,14 +2073,14 @@ static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void iddt16_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
                         int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
                          ddt16_kernel[INV_TXFM], 16, 16);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST16
 static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                          int bd, int out_shift) {
@@ -2622,7 +2622,7 @@ static void idct8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   }
 }
 
-#if CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 void iadst_matrix_mult_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                             int bd, int out_shift, const int32_t *kernel,
                             int kernel_size, int num_cols) {
@@ -2666,16 +2666,16 @@ void iadst_matrix_mult_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     out[i] = _mm256_min_epi32(x[i], clamp_hi);
   }
 }
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void iddt8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
                          ddt8_kernel[INV_TXFM], 8, 1);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST8
 static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -2776,14 +2776,14 @@ static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
 }
 #endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static void iddt8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                          int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
                          ddt8_kernel[INV_TXFM], 8, 8);
 }
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 #if CONFIG_ADST_TUNED && USE_TUNED_ADST8
 static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -4224,7 +4224,7 @@ static void idct64_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
 typedef void (*transform_1d_avx2)(__m256i *in, __m256i *out, int bit,
                                   int do_cols, int bd, int out_shift);
 
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
 static const transform_1d_avx2
     highbd_txfm_all_1d_zeros_w8_arr_inter[TX_SIZES][ITX_TYPES_1D][4] = {
       {
@@ -4263,7 +4263,7 @@ static const transform_1d_avx2
           { NULL, NULL, NULL, NULL },
       }
     };
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
 static const transform_1d_avx2
     highbd_txfm_all_1d_zeros_w8_arr[TX_SIZES][ITX_TYPES_1D][4] = {
@@ -4300,9 +4300,9 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
                                                    uint16_t *output, int stride,
                                                    TX_TYPE tx_type,
                                                    TX_SIZE tx_size,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                                    int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                                    int eob, const int bd) {
   __m256i buf1[64 * 8];
   int eobx, eoby;
@@ -4319,7 +4319,7 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
   const int fun_idx_x = highbd_txfm_all_1d_zeros_idx[eobx];
   const int fun_idx_y = highbd_txfm_all_1d_zeros_idx[eoby];
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
   const transform_1d_avx2 row_txfm =
       use_ddt
           ? highbd_txfm_all_1d_zeros_w8_arr_inter[txw_idx][hitx_1d_tab[tx_type]]
@@ -4337,7 +4337,7 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
       highbd_txfm_all_1d_zeros_w8_arr[txw_idx][hitx_1d_tab[tx_type]][fun_idx_x];
   const transform_1d_avx2 col_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txh_idx][vitx_1d_tab[tx_type]][fun_idx_y];
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
 
   assert(col_txfm != NULL);
   assert(row_txfm != NULL);
@@ -4400,9 +4400,9 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
 void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
                                              uint16_t *output, int stride,
                                              TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                              int use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                              int eob, const int bd) {
   switch (tx_type) {
     case DCT_DCT:
@@ -4416,9 +4416,9 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     case FLIPADST_ADST:
       highbd_inv_txfm2d_add_no_identity_avx2(input, output, stride, tx_type,
                                              tx_size,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                              use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                              eob, bd);
       break;
     case IDTX:
@@ -4430,9 +4430,9 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     case V_FLIPADST:
       av1_highbd_inv_txfm2d_add_universe_sse4_1(input, output, stride, tx_type,
                                                 tx_size,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
                                                 use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
                                                 eob, bd);
       break;
     default: assert(0); break;
@@ -4475,9 +4475,9 @@ void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
     default:
       av1_highbd_inv_txfm2d_add_universe_avx2(
           input, dest, stride, txfm_param->tx_type, txfm_param->tx_size,
-#if CONFIG_INTER_ADST_REPL
+#if CONFIG_INTER_DDT
           txfm_param->use_ddt,
-#endif  // CONFIG_INTER_ADST_REPL
+#endif  // CONFIG_INTER_DDT
           txfm_param->eob, txfm_param->bd);
       break;
   }
