@@ -221,11 +221,12 @@ set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
                    "AV2 experiment flag to enable LR coefficient merging")
 # End: CWG-C016
 set_aom_config_var(
-    CONFIG_COMBINE_PC_NS_WIENER 1 NUMBER
-    "AV2 pixel-classified, frame-level, nonsep Wiener filter experiment flag")
+  CONFIG_COMBINE_PC_NS_WIENER 1 NUMBER
+  "AV2 pixel-classified, frame-level, nonsep Wiener filter experiment flag")
 
-set_aom_config_var(CONFIG_TEMP_LR 1 "AV2 experiment flag to use temporal LR when frame-level filter is on")
-
+set_aom_config_var(
+  CONFIG_TEMP_LR 1
+  "AV2 experiment flag to use temporal LR when frame-level filter is on")
 
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
