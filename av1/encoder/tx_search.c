@@ -2859,8 +2859,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (skip_stx && stx) continue;
 
         set_secondary_tx_type(&tx_type, stx);
-        assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
-                                SECONDARY_TX_SET_BITS)));
         txfm_param.tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
         TX_TYPE tx_type1 = tx_type;  // does not keep set info
@@ -2874,6 +2872,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
         assert(stx_set < IST_SET_SIZE);
         set_secondary_tx_set(&tx_type, stx_set);
+        assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
+                                SECONDARY_TX_SET_BITS)));
         txfm_param.sec_tx_set = stx_set;
 #endif  // !CONFIG_IST_ANY_SET && CONFIG_IST_SET_FLAG
 #if CONFIG_IST_ANY_SET
