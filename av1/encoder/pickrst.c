@@ -3509,8 +3509,8 @@ static int64_t evaluate_frame_filter(RestSearchCtxt *rsc,
   return sse;
 }
 
-static int decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
-                                  double cost_none, int64_t bits_none) {
+static int64_t decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
+                                      double cost_none, int64_t bits_none) {
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);

@@ -4639,6 +4639,7 @@ static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
   }
   int count_bits = count_match_indices_bits(wienerns_info->num_classes);
   (void)count_bits;
+  (void)total_bits;
   assert(total_bits == count_bits);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
