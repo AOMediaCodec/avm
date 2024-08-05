@@ -5028,6 +5028,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   rsc->best_num_filter_classes = best_num_classes;
 
 #if USE_FINER_TILE
+  tmp_filter = best_filter;
   const double tmp_cost =
       optimize_frame_filters_with_rounding(rsc, &best_filter, best_cost_array);
   if (tmp_cost >= 0 && tmp_cost < best_cost) {
@@ -5036,6 +5037,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     best_filter = tmp_filter;
   }
 #endif  // USE_FINER_TILE
+  assert(best_filter.num_classes == best_num_classes);
   initialize_bank_with_best_frame_filter_match(rsc, &best_filter, &tmp_bank);
 
   rsc->frame_filter_cost =
