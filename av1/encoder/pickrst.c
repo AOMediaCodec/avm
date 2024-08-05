@@ -2970,21 +2970,16 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
   }
 
   int use_one_match_indices[WIENERNS_MAX_CLASSES] = { 0 };
-  int64_t total_single_score = 0;
-  int64_t total_all_zero_score = 0;
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
-    total_single_score += best_match_results[c_id].use_one_taps_score;
     use_one_match_indices[c_id] = best_match_results[c_id].use_one_match_index;
     assert(best_match_results[c_id].use_one_match_index ==
            get_first_match_index(use_one_match_indices[c_id],
                                  filter->num_classes));
-    total_all_zero_score += best_match_results[c_id].all_zero_taps_score;
   }
   int *best_match_indices = use_one_match_indices;
   const int scale = 1 << AV1_PROB_COST_SHIFT;
   const int64_t single_overhead =
       scale * count_match_indices_bits(filter->num_classes);
-  total_single_score += single_overhead;
 
   WienerNonsepInfo tmp_filter = *filter;
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
@@ -3554,7 +3549,7 @@ static int decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
       (cost_wienerns < cost_none) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
   rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = rtype;
   rsc->sse += rusi->sse[rtype];
-  const int bits = (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
+  const int64_t bits = (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
   rsc->bits += bits;
 
   // TODO: Is this needed?
@@ -4219,6 +4214,7 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
 #if CONFIG_LR_IMPROVEMENTS
   rsi->sw_lr_tools_disable_mask = 0;
   uint8_t sw_lr_tools_disable_mask = 0;
+  (void)sw_lr_tools_disable_mask;
 #endif  // CONFIG_LR_IMPROVEMENTS
   if (rsi->frame_restoration_type == RESTORE_NONE) return;
   int tool_count[RESTORE_SWITCHABLE_TYPES] = { 0 };
