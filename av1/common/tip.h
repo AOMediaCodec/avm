@@ -51,11 +51,13 @@ void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm);
 void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm);
 
 // Compute scale factor for temporal scaling
-static AOM_INLINE int tip_derive_scale_factor(int num, int den) {
+static AOM_INLINE int tip_derive_scale_factor(int num, int den_signed) {
+  int den = den_signed < 0 ? -den_signed : den_signed;
+  int sign = den_signed < 0 ? -1 : 1;
   den = AOMMIN(den, MAX_FRAME_DISTANCE);
   num = num > 0 ? AOMMIN(num, MAX_FRAME_DISTANCE)
                 : AOMMAX(num, -MAX_FRAME_DISTANCE);
-  return num * div_mult[den];
+  return sign * num * div_mult[den];
 }
 
 // SMVP candidate which is derived from TIP mode

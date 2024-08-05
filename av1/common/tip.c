@@ -268,6 +268,9 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
   int mvs_cols = 0;
   int mvs_stride = 0;
   int sb_tmvp_size = 0;
+#if CONFIG_TMVP_MEM_OPT
+  int sample = cm->tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
 
   compute_tmvp_mi_info(cm, &mvs_rows, &mvs_cols, &mvs_stride, &sb_tmvp_size);
 
@@ -279,14 +282,24 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
     for (int sb_col = 0; sb_col < mvs_cols; sb_col += sb_tmvp_size) {
       const int start_col = sb_col;
       const int end_col = AOMMIN(sb_col + sb_tmvp_size, mvs_cols);
+#if CONFIG_TMVP_MEM_OPT
+      for (int row = start_row; row < end_row; row += sample) {
+        for (int col = start_col; col < end_col; col += sample) {
+#else
       for (int row = start_row; row < end_row; row++) {
         for (int col = start_col; col < end_col; col++) {
+#endif  // CONFIG_TMVP_MEM_OPT
           const int cur_tpl_offset = row * mvs_stride + col;
           const TPL_MV_REF *cur_tpl_mvs = tpl_mvs_base + cur_tpl_offset;
           if (cur_tpl_mvs->mfmv0.as_int != INVALID_MV) {
             for (int dir = 0; dir < 4; ++dir) {
+#if CONFIG_TMVP_MEM_OPT
+              const int neighbor_row = row + dirs[dir][0] * sample;
+              const int neighbor_col = col + dirs[dir][1] * sample;
+#else
               const int neighbor_row = row + dirs[dir][0];
               const int neighbor_col = col + dirs[dir][1];
+#endif  // CONFIG_TMVP_MEM_OPT
               const int neighbor_tpl_offset =
                   neighbor_row * mvs_stride + neighbor_col;
               if (neighbor_row >= start_row && neighbor_row < end_row &&
@@ -314,11 +327,19 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
   const int total_units = mvs_rows * mvs_cols;
+#if CONFIG_TMVP_MEM_OPT
+  int sample = cm->tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
 
   MV_REF *tmvp_mvs = cm->cur_frame->mvs;
   int write_pos = 0;
+#if CONFIG_TMVP_MEM_OPT
+  for (int blk_row = 0; blk_row < mvs_rows; blk_row += sample) {
+    for (int blk_col = 0; blk_col < mvs_cols; blk_col += sample) {
+#else
   for (int blk_row = 0; blk_row < mvs_rows; ++blk_row) {
     for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
+#endif  // CONFIG_TMVP_MEM_OPT
       const int tpl_offset = blk_row * mvs_stride + blk_col;
       TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
       if (tpl_mvs->mfmv0.as_int != INVALID_MV) {
@@ -341,8 +362,13 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
       const int cur_col = tmvp_mvs[i].mv[0].as_mv.col;
       const int cur_tpl_offset = cur_row * mvs_stride + cur_col;
       for (int dir = 0; dir < ITER_DIR; ++dir) {
+#if CONFIG_TMVP_MEM_OPT
+        const int next_row = cur_row + dirs[dir][0] * sample;
+        const int next_col = cur_col + dirs[dir][1] * sample;
+#else
         const int next_row = cur_row + dirs[dir][0];
         const int next_col = cur_col + dirs[dir][1];
+#endif  // CONFIG_TMVP_MEM_OPT
         const int next_tpl_offset = next_row * mvs_stride + next_col;
         if (next_row < 0 || next_row >= mvs_rows || next_col < 0 ||
             next_col >= mvs_cols ||
@@ -369,6 +395,9 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
   int mvs_cols = 0;
   int mvs_stride = 0;
   int sb_tmvp_size = 0;
+#if CONFIG_TMVP_MEM_OPT
+  int sample = cm->tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
 
   compute_tmvp_mi_info(cm, &mvs_rows, &mvs_cols, &mvs_stride, &sb_tmvp_size);
 
@@ -387,12 +416,21 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
     for (int sb_col = 0; sb_col < mvs_cols; sb_col += sb_tmvp_size) {
       const int start_col = sb_col;
       const int end_col = AOMMIN(sb_col + sb_tmvp_size, mvs_cols);
-      for (int row = start_row; row < end_row; row++) {
+#if CONFIG_TMVP_MEM_OPT
+      for (int row = start_row; row < end_row; row += sample) {
+        const int i0 = row - sample;
+        const int i1 = row + sample;
+        for (int col = start_col; col < end_col; col += sample) {
+          const int j0 = col - sample;
+          const int j1 = col + sample;
+#else
+      for (int row = start_row; row < end_row; row ++) {
         const int i0 = row - 1;
         const int i1 = row + 1;
-        for (int col = start_col; col < end_col; col++) {
+        for (int col = start_col; col < end_col; col ++) {
           const int j0 = col - 1;
           const int j1 = col + 1;
+#endif  // CONFIG_TMVP_MEM_OPT
           int weights = 0;
           int sum_mv_row = 0;
           int sum_mv_col = 0;
@@ -454,8 +492,13 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
         }
       }
 
+#if CONFIG_TMVP_MEM_OPT
+      for (int row = start_row; row < end_row; row += sample) {
+        for (int col = start_col; col < end_col; col += sample) {
+#else
       for (int row = start_row; row < end_row; row++) {
         for (int col = start_col; col < end_col; col++) {
+#endif  // CONFIG_TMVP_MEM_OPT
           const int tpl_offset = row * mvs_stride + col;
           const int blk_pos_in_sb = (row - sb_row) * sb_stride + (col - sb_col);
           tpl_mvs_base[tpl_offset].mfmv0.as_int = tpl_mfs[blk_pos_in_sb].as_int;
@@ -472,14 +515,26 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
+#if CONFIG_TMVP_MEM_OPT
+  int sample = cm->tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
 
   MV_REF *avg_mvs = cm->cur_frame->mvs;
+#if CONFIG_TMVP_MEM_OPT
+  for (int i = 0; i < mvs_rows; i += sample) {
+    const int i0 = i - sample;
+    const int i1 = i + sample;
+    for (int j = 0; j < mvs_cols; j += sample) {
+      const int j0 = j - sample;
+      const int j1 = j + sample;
+#else
   for (int i = 0; i < mvs_rows; i++) {
     const int i0 = i - 1;
     const int i1 = i + 1;
     for (int j = 0; j < mvs_cols; j++) {
       const int j0 = j - 1;
       const int j1 = j + 1;
+#endif  // CONFIG_TMVP_MEM_OPT
       int count = 1;
       MV this_mv;
       const int cur_pos = i * mvs_stride + j;
@@ -518,8 +573,13 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
     }
   }
 
+#if CONFIG_TMVP_MEM_OPT
+  for (int i = 0; i < mvs_rows; i += sample) {
+    for (int j = 0; j < mvs_cols; j += sample) {
+#else
   for (int i = 0; i < mvs_rows; i++) {
     for (int j = 0; j < mvs_cols; j++) {
+#endif  // CONFIG_TMVP_MEM_OPT
       const int tpl_offset = i * mvs_stride + j;
       tpl_mvs_base[tpl_offset].mfmv0.as_int = avg_mvs[tpl_offset].mv[0].as_int;
     }
@@ -632,9 +692,18 @@ static void tip_check_enable_tip_mode(AV1_COMMON *cm) {
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
 
+#if CONFIG_TMVP_MEM_OPT
+  const int sample = cm->tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
+
   int count = 0;
+#if CONFIG_TMVP_MEM_OPT
+  for (int blk_row = 0; blk_row < mvs_rows; blk_row += sample) {
+    for (int blk_col = 0; blk_col < mvs_cols; blk_col += sample) {
+#else
   for (int blk_row = 0; blk_row < mvs_rows; ++blk_row) {
     for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
+#endif  // CONFIG_TMVP_MEM_OPT
       const int tpl_offset = blk_row * mvs_stride + blk_col;
       const TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
       if (tpl_mvs->mfmv0.as_int != INVALID_MV) {
@@ -642,6 +711,10 @@ static void tip_check_enable_tip_mode(AV1_COMMON *cm) {
       }
     }
   }
+
+#if CONFIG_TMVP_MEM_OPT
+  count *= sample * sample;
+#endif  // CONFIG_TMVP_MEM_OPT
 
   // Percentage of number of blocks with available motion field
   const int percent = (count * 100) / (mvs_rows * mvs_cols);
@@ -735,6 +808,9 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold) {
       tip_fill_motion_field_holes(cm);
       tip_blk_average_filter_mv(cm);
     }
+#if CONFIG_TMVP_MEM_OPT
+    av1_fill_tpl_mvs_sample_gap(cm);
+#endif  // CONFIG_TMVP_MEM_OPT
     tip_motion_field_within_frame(cm);
   }
 }

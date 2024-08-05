@@ -38,7 +38,58 @@ typedef struct mvp_unit_status {
 } MVP_UNIT_STATUS;
 #endif  // CONFIG_MVP_SIMPLIFY
 
+#if CONFIG_TMVP_MEM_OPT
+#define TIP_MFMV_STACK_SIZE 3  // The limit for original TMVP w/ TIP.
+#define MFMV_STACK_SIZE 4      // The total limit of motion field candidates.
+#else
 #define MFMV_STACK_SIZE 3
+#endif  // CONFIG_TMVP_MEM_OPT
+
+#if CONFIG_TMVP_MEM_OPT
+// Check and make sure that the MVs are stored to the correct slots.
+static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
+  if (mv->ref_frame[0] != NONE_FRAME && mv->ref_frame[1] == NONE_FRAME) {
+    mv->ref_frame[1] = mv->ref_frame[0];
+    mv->mv[1] = mv->mv[0];
+  } else if (mv->ref_frame[0] == NONE_FRAME && mv->ref_frame[1] != NONE_FRAME) {
+    mv->ref_frame[0] = mv->ref_frame[1];
+    mv->mv[0] = mv->mv[1];
+  } else if (mv->ref_frame[0] != NONE_FRAME && mv->ref_frame[1] != NONE_FRAME) {
+    int ref_display_order[2] = {
+      get_ref_frame_buf(cm, mv->ref_frame[0])->display_order_hint,
+      get_ref_frame_buf(cm, mv->ref_frame[1])->display_order_hint
+    };
+    int cur_display_order = cm->cur_frame->display_order_hint;
+
+    bool to_switch = false;
+    if (ref_display_order[0] < cur_display_order &&
+        ref_display_order[1] < cur_display_order) {
+      if (ref_display_order[0] < ref_display_order[1]) {
+        to_switch = true;
+      }
+    } else if (ref_display_order[0] > cur_display_order &&
+               ref_display_order[1] > cur_display_order) {
+      if (ref_display_order[1] > ref_display_order[0]) {
+        to_switch = true;
+      }
+    } else if (ref_display_order[0] > cur_display_order &&
+               ref_display_order[1] < cur_display_order) {
+      to_switch = true;
+    }
+
+    if (to_switch) {
+      int tmp_ref = mv->ref_frame[0];
+      int_mv tmp_mv = mv->mv[0];
+
+      mv->ref_frame[0] = mv->ref_frame[1];
+      mv->mv[0] = mv->mv[1];
+
+      mv->ref_frame[1] = tmp_ref;
+      mv->mv[1] = tmp_mv;
+    }
+  }
+}
+#endif  // CONFIG_TMVP_MEM_OPT
 
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define ADJACENT_SMVP_WEIGHT 1
@@ -199,6 +250,9 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         mv->ref_frame[idx] = ref_frame;
         mv->mv[idx].as_int = refined_mv.as_int;
       }
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, mv);
+#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -291,6 +345,9 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           break;
         }
       }
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, mv);
+#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -447,6 +504,9 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
           mv->mv[idx].as_int = refined_mv.as_int;
         }
       }
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, mv);
+#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -504,7 +564,9 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 #if CONFIG_MVP_IMPROVEMENT
       }
 #endif  // CONFIG_MVP_IMPROVEMENT
-
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, mv);
+#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -860,49 +922,114 @@ static AOM_INLINE void add_ref_mv_candidate(
                !is_tip_ref_frame(rf[0]) &&
                !is_tip_ref_frame(candidate->ref_frame[ref]) &&
                cm->seq_params.order_hint_info.enable_order_hint) {
-        const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
-        const int cand_blk_ref_side =
-            cm->ref_frame_side[candidate->ref_frame[ref]];
-
-        const int same_side = (cur_blk_ref_side > 0 && cand_blk_ref_side > 0) ||
-                              (cur_blk_ref_side == 0 && cand_blk_ref_side == 0);
-
-        if (same_side) {
-          const int cur_to_ref_dist = cm->ref_frame_relative_dist[rf[0]];
-          const int cand_to_ref_dist =
-              cm->ref_frame_relative_dist[candidate->ref_frame[ref]];
-
-          const int is_gm_block = is_global_mv_block(
-              candidate, gm_params[candidate->ref_frame[ref]].wmtype);
-          const int_mv cand_refmv = is_gm_block ? gm_mv_candidates[0]
-                                                : get_block_mv(candidate,
+        const int is_gm_block = is_global_mv_block(
+            candidate, gm_params[candidate->ref_frame[ref]].wmtype);
+        const int_mv cand_refmv = is_gm_block ? gm_mv_candidates[0]
+                                              : get_block_mv(candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
-                                                               submi,
+                                                             submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-                                                               ref);
+                                                             ref);
+#if CONFIG_MV_TRAJECTORY
+        const int frame_mvs_stride =
+            ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
-          int_mv this_refmv;
-          get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
-                            cur_to_ref_dist, cand_to_ref_dist);
+        int cand_ref_mv_row;
+        int cand_ref_mv_col;
+        int valid;
+        if (cand_refmv.as_int == 0) {
+          valid = 1;
+          cand_ref_mv_row = mi_row_cand >> 1;
+          cand_ref_mv_col = mi_col_cand >> 1;
+        } else {
+          valid = get_block_position(cm, &cand_ref_mv_row, &cand_ref_mv_col,
+                                     mi_row_cand >> 1, mi_col_cand >> 1,
+                                     cand_refmv.as_mv, 0);
+        }
+        int traj_id = valid
+                          ? cm->blk_id_map[candidate->ref_frame[ref]]
+                                          [cand_ref_mv_row * frame_mvs_stride +
+                                           cand_ref_mv_col]
+                          : -1;
+        if (traj_id >= 0 && cm->features.allow_ref_frame_mvs &&
+            cm->id_offset_map[rf[0]][traj_id].as_int != INVALID_MV &&
+            cm->id_offset_map[candidate->ref_frame[ref]][traj_id].as_int !=
+                INVALID_MV) {
+          int_mv mv_traj_cand_ref =
+              cm->id_offset_map[candidate->ref_frame[ref]][traj_id];
+          int_mv mv_traj_cur_ref = cm->id_offset_map[rf[0]][traj_id];
+
+          const int clamp_max = MV_UPP - 1;
+          const int clamp_min = MV_LOW + 1;
+          int_mv derived_mv;
+          derived_mv.as_mv.row = clamp(
+              cand_refmv.as_mv.row +
+                  (mv_traj_cur_ref.as_mv.row - mv_traj_cand_ref.as_mv.row),
+              clamp_min, clamp_max);
+          derived_mv.as_mv.col = clamp(
+              cand_refmv.as_mv.col +
+                  (mv_traj_cur_ref.as_mv.col - mv_traj_cand_ref.as_mv.col),
+              clamp_min, clamp_max);
+
 #if !CONFIG_C071_SUBBLK_WARPMV
-          lower_mv_precision(&this_refmv.as_mv, precision);
+          lower_mv_precision(&derived_mv.as_mv, precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
+
           for (index = 0; index < *derived_mv_count; ++index) {
-            if (derived_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+            if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
               derived_mv_weight[index] += weight;
               break;
             }
           }
-
           // Add a new item to the list.
           if (index == *derived_mv_count &&
               *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-            derived_mv_stack[index].this_mv = this_refmv;
+            derived_mv_stack[index].this_mv = derived_mv;
             derived_mv_weight[index] = weight;
             derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
             ++(*derived_mv_count);
           }
+        } else {
+#endif  // CONFIG_MV_TRAJECTORY
+          const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
+          const int cand_blk_ref_side =
+              cm->ref_frame_side[candidate->ref_frame[ref]];
+
+          const int same_side =
+              (cur_blk_ref_side > 0 && cand_blk_ref_side > 0) ||
+              (cur_blk_ref_side == 0 && cand_blk_ref_side == 0);
+
+          if (same_side) {
+            const int cur_to_ref_dist = cm->ref_frame_relative_dist[rf[0]];
+            const int cand_to_ref_dist =
+                cm->ref_frame_relative_dist[candidate->ref_frame[ref]];
+
+            int_mv this_refmv;
+            get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
+                              cur_to_ref_dist, cand_to_ref_dist);
+#if !CONFIG_C071_SUBBLK_WARPMV
+            lower_mv_precision(&this_refmv.as_mv, precision);
+#endif  // !CONFIG_C071_SUBBLK_WARPMV
+
+            for (index = 0; index < *derived_mv_count; ++index) {
+              if (derived_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+                derived_mv_weight[index] += weight;
+                break;
+              }
+            }
+
+            // Add a new item to the list.
+            if (index == *derived_mv_count &&
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
+              derived_mv_stack[index].this_mv = this_refmv;
+              derived_mv_weight[index] = weight;
+              derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+              ++(*derived_mv_count);
+            }
+          }
+#if CONFIG_MV_TRAJECTORY
         }
+#endif  // CONFIG_MV_TRAJECTORY
       }
 #endif  // CONFIG_MVP_IMPROVEMENT
     }
@@ -960,6 +1087,98 @@ static AOM_INLINE void add_ref_mv_candidate(
       }
 #if CONFIG_MVP_IMPROVEMENT
       else if (add_more_mvs) {
+#if CONFIG_MV_TRAJECTORY
+        if (cm->seq_params.order_hint_info.enable_order_hint &&
+            rf[0] != rf[1] && is_inter_ref_frame(rf[0]) &&
+            is_inter_ref_frame(rf[1])) {
+          const int frame_mvs_stride =
+              ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+
+          for (ref = 0; ref < 2; ref++) {
+            if (!is_inter_ref_frame(candidate->ref_frame[ref]) ||
+                is_tip_ref_frame(candidate->ref_frame[ref]))
+              continue;
+            const int is_gm_block = is_global_mv_block(
+                candidate, gm_params[candidate->ref_frame[ref]].wmtype);
+            const int_mv cand_refmv = is_gm_block ? gm_mv_candidates[ref]
+                                                  : get_block_mv(candidate,
+#if CONFIG_C071_SUBBLK_WARPMV
+                                                                 submi,
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+                                                                 ref);
+            int cand_ref_mv_row;
+            int cand_ref_mv_col;
+            int valid;
+            if (cand_refmv.as_int == 0) {
+              valid = 1;
+              cand_ref_mv_row = (mi_row_cand >> 1);
+              cand_ref_mv_col = (mi_col_cand >> 1);
+            } else {
+              valid = get_block_position(
+                cm, &cand_ref_mv_row, &cand_ref_mv_col, mi_row_cand >> 1,
+                mi_col_cand >> 1, cand_refmv.as_mv, 0);
+            }
+            int traj_id =
+                valid ? cm->blk_id_map[candidate->ref_frame[ref]]
+                                      [cand_ref_mv_row * frame_mvs_stride +
+                                       cand_ref_mv_col]
+                      : -1;
+            if (traj_id >= 0) {
+              int_mv mv_traj_cand_ref =
+                  cm->id_offset_map[candidate->ref_frame[ref]][traj_id];
+              int_mv mv_traj_cur_ref0 = cm->id_offset_map[rf[0]][traj_id];
+              int_mv mv_traj_cur_ref1 = cm->id_offset_map[rf[1]][traj_id];
+
+              if (mv_traj_cand_ref.as_int == INVALID_MV ||
+                  mv_traj_cur_ref0.as_int == INVALID_MV ||
+                  mv_traj_cur_ref1.as_int == INVALID_MV) {
+                continue;
+              }
+
+              int_mv this_refmv[2];
+              const int clamp_max = MV_UPP - 1;
+              const int clamp_min = MV_LOW + 1;
+              this_refmv[0].as_mv.row = clamp(
+                  cand_refmv.as_mv.row +
+                      (mv_traj_cur_ref0.as_mv.row - mv_traj_cand_ref.as_mv.row),
+                  clamp_min, clamp_max);
+              this_refmv[0].as_mv.col = clamp(
+                  cand_refmv.as_mv.col +
+                      (mv_traj_cur_ref0.as_mv.col - mv_traj_cand_ref.as_mv.col),
+                  clamp_min, clamp_max);
+              this_refmv[1].as_mv.row = clamp(
+                  cand_refmv.as_mv.row +
+                      (mv_traj_cur_ref1.as_mv.row - mv_traj_cand_ref.as_mv.row),
+                  clamp_min, clamp_max);
+              this_refmv[1].as_mv.col = clamp(
+                  cand_refmv.as_mv.col +
+                      (mv_traj_cur_ref1.as_mv.col - mv_traj_cand_ref.as_mv.col),
+                  clamp_min, clamp_max);
+
+              for (index = 0; index < *derived_mv_count; ++index) {
+                if ((derived_mv_stack[index].this_mv.as_int ==
+                     this_refmv[0].as_int) &&
+                    (derived_mv_stack[index].comp_mv.as_int ==
+                     this_refmv[1].as_int)) {
+                  derived_mv_weight[index] += weight;
+                  break;
+                }
+              }
+
+              // Add a new item to the list.
+              if (index == *derived_mv_count &&
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
+                derived_mv_stack[index].this_mv = this_refmv[0];
+                derived_mv_stack[index].comp_mv = this_refmv[1];
+                derived_mv_weight[index] = weight;
+                derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+                ++(*derived_mv_count);
+              }
+            }
+          }
+        }
+#endif  // CONFIG_MV_TRAJECTORY
+
         // Compound reference frame, but only have one reference frame
         // is the same as the reference frame of the neighboring block
         int candidate_ref_idx0 = -1;
@@ -1771,7 +1990,10 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const TPL_MV_REF *prev_frame_mvs =
       cm->tpl_mvs + tpl_row * tpl_stride + tpl_col;
+
+#if !CONFIG_MV_TRAJECTORY
   if (prev_frame_mvs->mfmv0.as_int == INVALID_MV) return 0;
+#endif  // !CONFIG_MV_TRAJECTORY
 
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
@@ -1779,6 +2001,23 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_tip_ref_frame(rf[0])) {
     return 0;
   }
+
+#if CONFIG_MV_TRAJECTORY
+  const int tpl_mv_offset = tpl_row * tpl_stride + tpl_col;
+  bool linear_available = prev_frame_mvs->mfmv0.as_int != INVALID_MV;
+  bool mvtj_available[2] = { true, true };
+  if (rf[0] == NONE_FRAME || rf[0] >= cm->ref_frames_info.num_total_refs ||
+      cm->id_offset_map[rf[0]][tpl_mv_offset].as_int == INVALID_MV) {
+    mvtj_available[0] = false;
+  }
+  if (rf[1] == NONE_FRAME || rf[1] >= cm->ref_frames_info.num_total_refs ||
+      cm->id_offset_map[rf[1]][tpl_mv_offset].as_int == INVALID_MV) {
+    mvtj_available[1] = false;
+  }
+  bool mvtj_ok = rf[1] == NONE_FRAME ? mvtj_available[0]
+                                     : mvtj_available[0] && mvtj_available[1];
+  if (!linear_available && !mvtj_ok) return 0;
+#endif  // CONFIG_MV_TRAJECTORY
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_frame_index = cm->cur_frame->display_order_hint;
@@ -1799,8 +2038,18 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 
   int_mv this_refmv;
+#if CONFIG_MV_TRAJECTORY
+  if (mvtj_available[0]) {
+    this_refmv = cm->id_offset_map[rf[0]][tpl_mv_offset];
+  } else {
+    assert(linear_available);
+    get_mv_projection(&this_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
+                      cur_offset_0, prev_frame_mvs->ref_frame_offset);
+  }
+#else
   get_mv_projection(&this_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                     cur_offset_0, prev_frame_mvs->ref_frame_offset);
+#endif  // CONFIG_MV_TRAJECTORY
 #if !CONFIG_C071_SUBBLK_WARPMV
   lower_mv_precision(&this_refmv.as_mv, fr_mv_precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -1846,6 +2095,24 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   } else {
     // Process compound inter mode
+    int_mv comp_refmv;
+#if CONFIG_MV_TRAJECTORY
+    if (mvtj_available[1]) {
+      comp_refmv = cm->id_offset_map[rf[1]][tpl_mv_offset];
+    } else {
+      assert(linear_available);
+      const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int frame1_index = buf_1->display_order_hint;
+#else
+      const int frame1_index = buf_1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int cur_offset_1 = get_relative_dist(
+          &cm->seq_params.order_hint_info, cur_frame_index, frame1_index);
+      get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
+                        cur_offset_1, prev_frame_mvs->ref_frame_offset);
+    }
+#else
     const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int frame1_index = buf_1->display_order_hint;
@@ -1854,10 +2121,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int cur_offset_1 = get_relative_dist(&cm->seq_params.order_hint_info,
                                                cur_frame_index, frame1_index);
-
-    int_mv comp_refmv;
     get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                       cur_offset_1, prev_frame_mvs->ref_frame_offset);
+#endif  // CONFIG_MV_TRAJECTORY
 #if !CONFIG_C071_SUBBLK_WARPMV
     lower_mv_precision(&comp_refmv.as_mv, fr_mv_precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -3694,6 +3960,903 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_MF_IMPROVEMENT
 
+// Check if a reference frame is an overlay frame (i.e., has the same
+// order_hint as the current frame).
+static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  if (!order_hint_info->enable_order_hint) return -1;
+  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
+  if (buf == NULL) return -1;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int ref_order_hint = buf->display_order_hint;
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
+    if (buf->ref_display_order_hint[r] == -1) continue;
+    const int ref_ref_order_hint = buf->ref_display_order_hint[r];
+    if (get_relative_dist(order_hint_info, ref_order_hint,
+                          ref_ref_order_hint) == 0)
+      return 1;
+  }
+#else
+  const int ref_order_hint = buf->order_hint;
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
+    if (buf->ref_order_hints[r] == -1) continue;
+    const int ref_ref_order_hint = buf->ref_order_hints[r];
+    if (get_relative_dist(order_hint_info, ref_order_hint,
+                          ref_ref_order_hint) == 0)
+      return 1;
+  }
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  return 0;
+}
+
+#if CONFIG_TMVP_MEM_OPT
+static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
+                                 int *rf_stack, int *visited, int *stack_count,
+                                 int rf) {
+  visited[rf] = 1;
+  const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    if (buf->ref_display_order_hint[i] < 0) continue;
+    int found_rf = -1;
+    for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
+      if ((int)get_ref_frame_buf(cm, j)->display_order_hint ==
+          buf->ref_display_order_hint[i]) {
+        if (is_overlay[j]) continue;
+        found_rf = j;
+        break;
+      }
+    }
+    if (found_rf == -1) continue;
+    if (visited[found_rf] == 0) {
+      recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, stack_count,
+                           found_rf);
+    }
+  }
+  rf_stack[*stack_count] = rf;
+  *stack_count = *stack_count + 1;
+}
+
+static int has_future_ref(const AV1_COMMON *cm, int rf) {
+  if (rf < 0) return 0;
+  RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    if (buf->ref_display_order_hint[i] >= 0 &&
+        buf->ref_display_order_hint[i] > (int)buf->display_order_hint) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int has_past_ref(const AV1_COMMON *cm, int rf) {
+  if (rf < 0) return 0;
+  RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    if (buf->ref_display_order_hint[i] >= 0 &&
+        buf->ref_display_order_hint[i] < (int)buf->display_order_hint) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+struct ProcessRefTMVP {
+  int type;  // 0 means with side, 1 means with target frame.
+  int side;  // 0 means right to left, 1 means left to right.
+  int start_frame;
+  int target_frame;
+};
+
+static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
+                                      int type, int start_frame,
+                                      int target_frame, int side,
+                                      int checked_ref[INTER_REFS_PER_FRAME][2],
+                                      int *checked_count,
+                                      struct ProcessRefTMVP *process_ref,
+                                      int *process_count) {
+  if (get_ref_frame_buf(cm, start_frame) == NULL ||
+      get_ref_frame_buf(cm, start_frame)->frame_type != INTER_FRAME)
+    return;
+  if (!checked_ref[start_frame][side] && *checked_count < max_check) {
+    checked_ref[start_frame][side] = 1;
+    (*checked_count)++;
+  }
+  if (checked_ref[start_frame][side]) {
+    process_ref[*process_count].type = type;
+    process_ref[*process_count].start_frame = start_frame;
+    process_ref[*process_count].side = side;
+    process_ref[*process_count].target_frame = target_frame;
+    (*process_count)++;
+  }
+}
+
+#if CONFIG_MV_TRAJECTORY
+// Check if the mv intersects with exisiting trajectories, and if yes, update
+// the trajectories.
+static INLINE void check_traj_intersect(AV1_COMMON *cm,
+                                        MV_REFERENCE_FRAME start_frame,
+                                        MV_REFERENCE_FRAME end_frame,
+                                        const MV *mv, int start_row,
+                                        int start_col, int mvs_cols) {
+  int start_offset = start_row * mvs_cols + start_col;
+  assert(start_row % cm->tmvp_sample_step == 0);
+  assert(start_col % cm->tmvp_sample_step == 0);
+  // Check starting point
+  if (cm->blk_id_map[start_frame][start_offset] >= 0) {
+    if (end_frame != NONE_FRAME) {
+      int traj_id = cm->blk_id_map[start_frame][start_offset];
+      int traj_row = traj_id / mvs_cols;
+      int traj_col = traj_id % mvs_cols;
+      assert(traj_row % cm->tmvp_sample_step == 0);
+      assert(traj_col % cm->tmvp_sample_step == 0);
+      if (cm->id_offset_map[end_frame][traj_id].as_int == INVALID_MV) {
+        // Update trajectory mv
+        cm->id_offset_map[end_frame][traj_id].as_mv.row =
+            cm->id_offset_map[start_frame][traj_id].as_mv.row + mv->row;
+        cm->id_offset_map[end_frame][traj_id].as_mv.col =
+            cm->id_offset_map[start_frame][traj_id].as_mv.col + mv->col;
+        // Update reverse mapping
+        int end_row = 0, end_col = 0;
+        int pos_valid;
+        if (cm->id_offset_map[end_frame][traj_id].as_int == 0) {
+          pos_valid = 1;
+          end_row = traj_row;
+          end_col = traj_col;
+        } else {
+          pos_valid =
+            get_block_position(cm, &end_row, &end_col, traj_row, traj_col,
+                               cm->id_offset_map[end_frame][traj_id].as_mv, 0);
+          end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+        }
+        if (pos_valid) {
+          cm->blk_id_map[end_frame][end_row * mvs_cols + end_col] = traj_id;
+        }
+      }
+    }
+    return;
+  }
+
+  // Check ending point
+  if (end_frame != NONE_FRAME) {
+    int end_row = 0, end_col = 0;
+    int pos_valid;
+    if (mv->col == 0 && mv->row == 0) {
+      pos_valid = 1;
+      end_row = start_row;
+      end_col = start_col;
+    } else {
+      pos_valid = get_block_position(cm, &end_row, &end_col, start_row,
+                                         start_col, *mv, 0);
+      end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+      end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+    }
+    int end_offset = end_row * mvs_cols + end_col;
+    if (pos_valid && cm->blk_id_map[end_frame][end_offset] >= 0) {
+      int traj_id = cm->blk_id_map[end_frame][end_offset];
+      int traj_row = traj_id / mvs_cols;
+      int traj_col = traj_id % mvs_cols;
+      assert(traj_row % cm->tmvp_sample_step == 0);
+      assert(traj_col % cm->tmvp_sample_step == 0);
+      if (cm->id_offset_map[start_frame][traj_id].as_int == INVALID_MV) {
+        // Update trajectory mv
+        cm->id_offset_map[start_frame][traj_id].as_mv.row =
+            cm->id_offset_map[end_frame][traj_id].as_mv.row - mv->row;
+        cm->id_offset_map[start_frame][traj_id].as_mv.col =
+            cm->id_offset_map[end_frame][traj_id].as_mv.col - mv->col;
+        // Update reverse mapping
+        int new_start_row = 0, new_start_col = 0;
+        int new_pos_valid;
+        if (cm->id_offset_map[start_frame][traj_id].as_int == 0) {
+          new_pos_valid = 1;
+          new_start_row = traj_row;
+          new_start_col = traj_col;
+        } else {
+          new_pos_valid = get_block_position(
+              cm, &new_start_row, &new_start_col, traj_row, traj_col,
+              cm->id_offset_map[start_frame][traj_id].as_mv, 0);
+          new_start_row =
+              (new_start_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          new_start_col =
+              (new_start_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+        }
+        if (new_pos_valid) {
+          cm->blk_id_map[start_frame]
+                        [new_start_row * mvs_cols + new_start_col] = traj_id;
+        }
+      }
+
+      return;
+    }
+  }
+}
+#endif  // CONFIG_MV_TRAJECTORY
+
+static int motion_field_projection_start_target(
+    AV1_COMMON *cm, MV_REFERENCE_FRAME start_frame,
+    MV_REFERENCE_FRAME target_frame) {
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+  int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
+  int target_order_hint =
+      get_ref_frame_buf(cm, target_frame)->display_order_hint;
+
+  OrderHintInfo *order_hint_info = &cm->seq_params.order_hint_info;
+
+  int ref_frame_offset =
+      get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
+
+  const RefCntBuffer *const start_frame_buf =
+      get_ref_frame_buf(cm, start_frame);
+  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
+
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
+
+  const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
+
+  int start_to_current_frame_offset =
+      get_relative_dist(order_hint_info, start_order_hint, cur_order_hint);
+
+  const int is_backward = ref_frame_offset < 0;
+  int mv_idx = is_backward ? 1 : 0;
+  if (is_backward) {
+    ref_frame_offset = -ref_frame_offset;
+    start_to_current_frame_offset = -start_to_current_frame_offset;
+  }
+
+  const int temporal_scale_factor =
+      tip_derive_scale_factor(start_to_current_frame_offset, ref_frame_offset);
+#if CONFIG_MV_TRAJECTORY
+  const int ref_temporal_scale_factor = tip_derive_scale_factor(
+      -ref_frame_offset + start_to_current_frame_offset, -ref_frame_offset);
+#endif  // CONFIG_MV_TRAJECTORY
+
+  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
+  const MV_REF *mv_ref_base = start_frame_buf->mvs;
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int mvs_stride = mvs_cols;
+  for (int blk_row = 0; blk_row < mvs_rows; blk_row += cm->tmvp_sample_step) {
+    for (int blk_col = 0; blk_col < mvs_cols; blk_col += cm->tmvp_sample_step) {
+      const MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_stride + blk_col];
+      if (is_inter_ref_frame(mv_ref->ref_frame[mv_idx])) {
+        const int ref_frame_order_hint =
+            ref_order_hints[mv_ref->ref_frame[mv_idx]];
+        if (ref_frame_order_hint == target_order_hint) {
+#if CONFIG_MV_TRAJECTORY
+          check_traj_intersect(cm, start_frame, target_frame,
+                               &mv_ref->mv[mv_idx].as_mv, blk_row, blk_col,
+                               mvs_cols);
+#endif  // CONFIG_MV_TRAJECTORY
+          MV ref_mv = mv_ref->mv[mv_idx].as_mv;
+          int_mv this_mv;
+          int mi_r = 0;
+          int mi_c = 0;
+          tip_get_mv_projection(&this_mv.as_mv, ref_mv, temporal_scale_factor);
+          int pos_valid;
+          if (this_mv.as_int == 0) {
+            pos_valid = 1;
+            mi_r = blk_row;
+            mi_c = blk_col;
+          } else {
+            pos_valid = get_block_position(cm, &mi_r, &mi_c, blk_row,
+                                           blk_col, this_mv.as_mv, 0);
+            mi_r = (mi_r / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+            mi_c = (mi_c / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          }
+
+          if (pos_valid) {
+            const int mi_offset = mi_r * mvs_stride + mi_c;
+            if (tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
+#if CONFIG_MV_TRAJECTORY
+              int traj_id = mi_offset;
+
+              cm->id_offset_map[start_frame][traj_id].as_mv.row =
+                  -this_mv.as_mv.row;
+              cm->id_offset_map[start_frame][traj_id].as_mv.col =
+                  -this_mv.as_mv.col;
+              cm->blk_id_map[start_frame][blk_row * mvs_cols + blk_col] =
+                  traj_id;
+
+              MV target_frame_mv;
+              tip_get_mv_projection(&target_frame_mv, ref_mv,
+                                    ref_temporal_scale_factor);
+              cm->id_offset_map[target_frame][traj_id].as_mv = target_frame_mv;
+              int target_row = 0, target_col = 0;
+              int target_pos_valid;
+              if (ref_mv.row == 0 && ref_mv.col == 0) {
+                target_pos_valid = 1;
+                target_row = blk_row;
+                target_col = blk_col;
+              } else {
+                target_pos_valid = get_block_position(
+                    cm, &target_row, &target_col, blk_row, blk_col, ref_mv, 0);
+                target_row =
+                    (target_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+                target_col =
+                    (target_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+              }
+
+              if (target_pos_valid) {
+                cm->blk_id_map[target_frame]
+                              [target_row * mvs_cols + target_col] = traj_id;
+              }
+#endif  // CONFIG_MV_TRAJECTORY
+
+              if (is_backward) {
+                ref_mv.row = -ref_mv.row;
+                ref_mv.col = -ref_mv.col;
+              }
+              tpl_mvs_base[mi_offset].mfmv0.as_mv.row = ref_mv.row;
+              tpl_mvs_base[mi_offset].mfmv0.as_mv.col = ref_mv.col;
+              tpl_mvs_base[mi_offset].ref_frame_offset = ref_frame_offset;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+static int motion_field_projection_side(AV1_COMMON *cm,
+                                        MV_REFERENCE_FRAME start_frame,
+                                        int side_idx) {
+  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
+  int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
+
+  const RefCntBuffer *const start_frame_buf =
+      get_ref_frame_buf(cm, start_frame);
+  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int start_frame_order_hint = start_frame_buf->display_order_hint;
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
+  const int start_frame_order_hint = start_frame_buf->order_hint;
+  const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  int start_to_current_frame_offset = get_relative_dist(
+      &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
+
+  if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) {
+    return 0;
+  }
+
+  int temporal_scale_factor[REF_FRAMES] = { 0 };
+#if CONFIG_MV_TRAJECTORY
+  int ref_temporal_scale_factor[REF_FRAMES] = { 0 };
+#endif  // CONFIG_MV_TRAJECTORY
+  int ref_abs_offset[REF_FRAMES] = { 0 };
+
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int *const ref_order_hints =
+      &start_frame_buf->ref_display_order_hint[0];
+#else
+  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
+    if (ref_order_hints[rf] != -1) {
+      ref_offset[rf] =
+          get_relative_dist(&cm->seq_params.order_hint_info,
+                            start_frame_order_hint, ref_order_hints[rf]);
+      ref_abs_offset[rf] = abs(ref_offset[rf]);
+      temporal_scale_factor[rf] = tip_derive_scale_factor(
+          start_to_current_frame_offset, ref_offset[rf]);
+#if CONFIG_MV_TRAJECTORY
+      int ref_to_current_frame_offset =
+          -ref_offset[rf] + start_to_current_frame_offset;
+      ref_temporal_scale_factor[rf] =
+          tip_derive_scale_factor(ref_to_current_frame_offset, -ref_offset[rf]);
+#endif  // CONFIG_MV_TRAJECTORY
+    }
+  }
+
+#if CONFIG_MV_TRAJECTORY
+  int start_ref_map[INTER_REFS_PER_FRAME];
+  for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
+    start_ref_map[k] = NONE_FRAME;
+    for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+      if ((int)get_ref_frame_buf(cm, rf)->display_order_hint ==
+          start_frame_buf->ref_display_order_hint[k]) {
+        start_ref_map[k] = rf;
+        break;
+      }
+    }
+  }
+#endif  // CONFIG_MV_TRAJECTORY
+
+  MV_REF *mv_ref_base = start_frame_buf->mvs;
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int mvs_stride = mvs_cols;
+  for (int blk_row = 0; blk_row < mvs_rows; blk_row += cm->tmvp_sample_step) {
+    for (int blk_col = 0; blk_col < mvs_cols; blk_col += cm->tmvp_sample_step) {
+      MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_cols + blk_col];
+      const MV_REFERENCE_FRAME ref_frame = mv_ref->ref_frame[side_idx];
+      if (is_inter_ref_frame(ref_frame)) {
+#if CONFIG_MV_TRAJECTORY
+        MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
+        check_traj_intersect(cm, start_frame, end_frame,
+                             &mv_ref->mv[side_idx].as_mv, blk_row, blk_col,
+                             mvs_cols);
+#endif  // CONFIG_MV_TRAJECTORY
+
+        int ref_frame_offset = ref_offset[ref_frame];
+        int pos_valid = ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
+        if ((side_idx == 0 && ref_frame_offset < 0) ||
+            (side_idx == 1 && ref_frame_offset > 0)) {
+          pos_valid = 0;
+        }
+        if (pos_valid) {
+          MV ref_mv = mv_ref->mv[side_idx].as_mv;
+          int_mv this_mv;
+          int mi_r = blk_row;
+          int mi_c = blk_col;
+          if (mv_ref->mv[side_idx].as_int != 0) {
+            tip_get_mv_projection(&this_mv.as_mv, ref_mv,
+                                  temporal_scale_factor[ref_frame]);
+            pos_valid = get_block_position(cm, &mi_r, &mi_c, blk_row, blk_col,
+                                           this_mv.as_mv, 0);
+            mi_r = (mi_r / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+            mi_c = (mi_c / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          } else {
+            this_mv.as_int = 0;
+          }
+          if (pos_valid) {
+            const int mi_offset = mi_r * mvs_stride + mi_c;
+            if (tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
+#if CONFIG_MV_TRAJECTORY
+              int traj_id = mi_offset;
+
+              cm->id_offset_map[start_frame][traj_id].as_mv.row =
+                  -this_mv.as_mv.row;
+              cm->id_offset_map[start_frame][traj_id].as_mv.col =
+                  -this_mv.as_mv.col;
+              cm->blk_id_map[start_frame][blk_row * mvs_cols + blk_col] =
+                  traj_id;
+
+              if (end_frame != NONE_FRAME) {
+                MV end_frame_mv;
+                tip_get_mv_projection(&end_frame_mv, ref_mv,
+                                      ref_temporal_scale_factor[ref_frame]);
+                cm->id_offset_map[end_frame][traj_id].as_mv = end_frame_mv;
+                int end_row = 0, end_col = 0;
+                int end_pos_valid;
+                if (ref_mv.row == 0 && ref_mv.col == 0) {
+                  end_pos_valid = 1;
+                  end_row = blk_row;
+                  end_col = blk_col;
+                } else {
+                  end_pos_valid = get_block_position(
+                      cm, &end_row, &end_col, blk_row, blk_col, ref_mv, 0);
+                  end_row =
+                      (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+                  end_col =
+                      (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+                }
+
+                if (end_pos_valid) {
+                  cm->blk_id_map[end_frame][end_row * mvs_cols + end_col] =
+                      traj_id;
+                }
+              }
+#endif  // CONFIG_MV_TRAJECTORY
+
+              if (side_idx == 1) {
+                ref_mv.row = -ref_mv.row;
+                ref_mv.col = -ref_mv.col;
+                ref_frame_offset = ref_abs_offset[ref_frame];
+              }
+              tpl_mvs_base[mi_offset].mfmv0.as_mv.row = ref_mv.row;
+              tpl_mvs_base[mi_offset].mfmv0.as_mv.col = ref_mv.col;
+              tpl_mvs_base[mi_offset].ref_frame_offset = ref_frame_offset;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+#define DO_AVG_FILL 1
+void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
+  if (cm->tmvp_sample_step != 2) {
+    return;
+  }
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+
+  for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
+    for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
+      int offset = r * mvs_cols + c;
+      if (cm->tpl_mvs[offset].mfmv0.as_int == INVALID_MV) continue;
+
+      int avg_offset[3] = { 0 };  // [hor, ver, diag]
+      int avg[3][2] = { 0 };      // [hor, ver, diag][row, col]
+
+      // this
+      if (cm->tpl_mvs[offset].mfmv0.as_int != INVALID_MV) {
+        avg_offset[0] += cm->tpl_mvs[offset].ref_frame_offset;
+        avg_offset[1] += cm->tpl_mvs[offset].ref_frame_offset;
+        avg_offset[2] += cm->tpl_mvs[offset].ref_frame_offset;
+
+        avg[0][0] += cm->tpl_mvs[offset].mfmv0.as_mv.row;
+        avg[1][0] += cm->tpl_mvs[offset].mfmv0.as_mv.row;
+        avg[2][0] += cm->tpl_mvs[offset].mfmv0.as_mv.row;
+
+        avg[0][1] += cm->tpl_mvs[offset].mfmv0.as_mv.col;
+        avg[1][1] += cm->tpl_mvs[offset].mfmv0.as_mv.col;
+        avg[2][1] += cm->tpl_mvs[offset].mfmv0.as_mv.col;
+      }
+
+      if (DO_AVG_FILL) {
+        // right
+        int offset_right = offset + cm->tmvp_sample_step;
+        if (c + cm->tmvp_sample_step < mvs_cols &&
+            cm->tpl_mvs[offset_right].mfmv0.as_int != INVALID_MV) {
+          avg_offset[0] += cm->tpl_mvs[offset_right].ref_frame_offset;
+          avg_offset[2] += cm->tpl_mvs[offset_right].ref_frame_offset;
+
+          avg[0][0] += cm->tpl_mvs[offset_right].mfmv0.as_mv.row;
+          avg[2][0] += cm->tpl_mvs[offset_right].mfmv0.as_mv.row;
+
+          avg[0][1] += cm->tpl_mvs[offset_right].mfmv0.as_mv.col;
+          avg[2][1] += cm->tpl_mvs[offset_right].mfmv0.as_mv.col;
+        }
+
+        // lower
+        int offset_lower = offset + cm->tmvp_sample_step * mvs_cols;
+        if (r + cm->tmvp_sample_step < mvs_rows &&
+            cm->tpl_mvs[offset_lower].mfmv0.as_int != INVALID_MV) {
+          avg_offset[1] += cm->tpl_mvs[offset_lower].ref_frame_offset;
+          avg_offset[2] += cm->tpl_mvs[offset_lower].ref_frame_offset;
+
+          avg[1][0] += cm->tpl_mvs[offset_lower].mfmv0.as_mv.row;
+          avg[2][0] += cm->tpl_mvs[offset_lower].mfmv0.as_mv.row;
+
+          avg[1][1] += cm->tpl_mvs[offset_lower].mfmv0.as_mv.col;
+          avg[2][1] += cm->tpl_mvs[offset_lower].mfmv0.as_mv.col;
+        }
+
+        // lower_right
+        int offset_lower_right =
+            offset + cm->tmvp_sample_step * mvs_cols + cm->tmvp_sample_step;
+        if (r + cm->tmvp_sample_step < mvs_rows &&
+            c + cm->tmvp_sample_step < mvs_cols &&
+            cm->tpl_mvs[offset_lower_right].mfmv0.as_int != INVALID_MV) {
+          avg_offset[2] += cm->tpl_mvs[offset_lower_right].ref_frame_offset;
+
+          avg[2][0] += cm->tpl_mvs[offset_lower_right].mfmv0.as_mv.row;
+          avg[2][1] += cm->tpl_mvs[offset_lower_right].mfmv0.as_mv.col;
+        }
+      }
+
+      if (c + 1 < mvs_cols && avg_offset[0] > 0) {
+        assert(cm->tpl_mvs[offset + 1].mfmv0.as_int == INVALID_MV);
+        cm->tpl_mvs[offset + 1].mfmv0.as_mv.row = DIVIDE_AND_ROUND_SIGNED(
+            avg[0][0] * cm->tpl_mvs[offset].ref_frame_offset, avg_offset[0]);
+        cm->tpl_mvs[offset + 1].mfmv0.as_mv.col = DIVIDE_AND_ROUND_SIGNED(
+            avg[0][1] * cm->tpl_mvs[offset].ref_frame_offset, avg_offset[0]);
+        cm->tpl_mvs[offset + 1].ref_frame_offset =
+            cm->tpl_mvs[offset].ref_frame_offset;
+      }
+      if (r + 1 < mvs_rows && avg_offset[1] > 0) {
+        assert(cm->tpl_mvs[offset + mvs_cols].mfmv0.as_int == INVALID_MV);
+        cm->tpl_mvs[offset + mvs_cols].mfmv0.as_mv.row =
+            DIVIDE_AND_ROUND_SIGNED(
+                avg[1][0] * cm->tpl_mvs[offset].ref_frame_offset,
+                avg_offset[1]);
+        cm->tpl_mvs[offset + mvs_cols].mfmv0.as_mv.col =
+            DIVIDE_AND_ROUND_SIGNED(
+                avg[1][1] * cm->tpl_mvs[offset].ref_frame_offset,
+                avg_offset[1]);
+        cm->tpl_mvs[offset + mvs_cols].ref_frame_offset =
+            cm->tpl_mvs[offset].ref_frame_offset;
+      }
+      if (r + 1 < mvs_rows && c + 1 < mvs_cols && avg_offset[2] > 0) {
+        assert(cm->tpl_mvs[offset + mvs_cols + 1].mfmv0.as_int == INVALID_MV);
+        cm->tpl_mvs[offset + mvs_cols + 1].mfmv0.as_mv.row =
+            DIVIDE_AND_ROUND_SIGNED(
+                avg[2][0] * cm->tpl_mvs[offset].ref_frame_offset,
+                avg_offset[2]);
+        cm->tpl_mvs[offset + mvs_cols + 1].mfmv0.as_mv.col =
+            DIVIDE_AND_ROUND_SIGNED(
+                avg[2][1] * cm->tpl_mvs[offset].ref_frame_offset,
+                avg_offset[2]);
+        cm->tpl_mvs[offset + mvs_cols + 1].ref_frame_offset =
+            cm->tpl_mvs[offset].ref_frame_offset;
+      }
+    }
+  }
+}
+
+#if CONFIG_MV_TRAJECTORY
+static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
+  if (cm->tmvp_sample_step != 2) {
+    return;
+  }
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+    for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
+      for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
+        int offset = r * mvs_cols + c;
+        if (cm->id_offset_map[rf][offset].as_int == INVALID_MV) continue;
+
+        int count[3] = { 0 };   // [hor, ver, diag]
+        int avg[3][2] = { 0 };  // [hor, ver, diag][row, col]
+
+        // this
+        if (cm->id_offset_map[rf][offset].as_int != INVALID_MV) {
+          count[0]++;
+          count[1]++;
+          count[2]++;
+
+          avg[0][0] += cm->id_offset_map[rf][offset].as_mv.row;
+          avg[1][0] += cm->id_offset_map[rf][offset].as_mv.row;
+          avg[2][0] += cm->id_offset_map[rf][offset].as_mv.row;
+
+          avg[0][1] += cm->id_offset_map[rf][offset].as_mv.col;
+          avg[1][1] += cm->id_offset_map[rf][offset].as_mv.col;
+          avg[2][1] += cm->id_offset_map[rf][offset].as_mv.col;
+        }
+
+        if (DO_AVG_FILL) {
+          // right
+          int offset_right = offset + cm->tmvp_sample_step;
+          if (c + cm->tmvp_sample_step < mvs_cols &&
+              cm->id_offset_map[rf][offset_right].as_int != INVALID_MV) {
+            count[0]++;
+            count[2]++;
+
+            avg[0][0] += cm->id_offset_map[rf][offset_right].as_mv.row;
+            avg[2][0] += cm->id_offset_map[rf][offset_right].as_mv.row;
+
+            avg[0][1] += cm->id_offset_map[rf][offset_right].as_mv.col;
+            avg[2][1] += cm->id_offset_map[rf][offset_right].as_mv.col;
+          }
+
+          // lower
+          int offset_lower = offset + cm->tmvp_sample_step * mvs_cols;
+          if (r + cm->tmvp_sample_step < mvs_rows &&
+              cm->id_offset_map[rf][offset_lower].as_int != INVALID_MV) {
+            count[1]++;
+            count[2]++;
+
+            avg[1][0] += cm->id_offset_map[rf][offset_lower].as_mv.row;
+            avg[2][0] += cm->id_offset_map[rf][offset_lower].as_mv.row;
+
+            avg[1][1] += cm->id_offset_map[rf][offset_lower].as_mv.col;
+            avg[2][1] += cm->id_offset_map[rf][offset_lower].as_mv.col;
+          }
+
+          // lower_right
+          int offset_lower_right =
+              offset + cm->tmvp_sample_step * mvs_cols + cm->tmvp_sample_step;
+          if (r + cm->tmvp_sample_step < mvs_rows &&
+              c + cm->tmvp_sample_step < mvs_cols &&
+              cm->id_offset_map[rf][offset_lower_right].as_int != INVALID_MV) {
+            count[2]++;
+
+            avg[2][0] += cm->id_offset_map[rf][offset_lower_right].as_mv.row;
+            avg[2][1] += cm->id_offset_map[rf][offset_lower_right].as_mv.col;
+          }
+        }
+
+        if (c + 1 < mvs_cols && count[0] > 0) {
+          assert(cm->id_offset_map[rf][offset + 1].as_int == INVALID_MV);
+          cm->id_offset_map[rf][offset + 1].as_mv.row =
+              DIVIDE_AND_ROUND_SIGNED(avg[0][0], count[0]);
+          cm->id_offset_map[rf][offset + 1].as_mv.col =
+              DIVIDE_AND_ROUND_SIGNED(avg[0][1], count[0]);
+        }
+        if (r + 1 < mvs_rows && count[1] > 0) {
+          assert(cm->id_offset_map[rf][offset + mvs_cols].as_int == INVALID_MV);
+          cm->id_offset_map[rf][offset + mvs_cols].as_mv.row =
+              DIVIDE_AND_ROUND_SIGNED(avg[1][0], count[1]);
+          cm->id_offset_map[rf][offset + mvs_cols].as_mv.col =
+              DIVIDE_AND_ROUND_SIGNED(avg[1][1], count[1]);
+        }
+        if (r + 1 < mvs_rows && c + 1 < mvs_cols && count[2] > 0) {
+          assert(cm->id_offset_map[rf][offset + 1 + mvs_cols].as_int ==
+                 INVALID_MV);
+          cm->id_offset_map[rf][offset + mvs_cols + 1].as_mv.row =
+              DIVIDE_AND_ROUND_SIGNED(avg[2][0], count[2]);
+          cm->id_offset_map[rf][offset + mvs_cols + 1].as_mv.col =
+              DIVIDE_AND_ROUND_SIGNED(avg[2][1], count[2]);
+        }
+      }
+    }
+  }
+}
+
+static void fill_block_id_sample_gap(AV1_COMMON *cm) {
+  if (cm->tmvp_sample_step != 2) {
+    return;
+  }
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+    for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
+      for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
+        int offset = r * mvs_cols + c;
+        if (cm->blk_id_map[rf][offset] == -1) continue;
+
+        int count[3] = { 0 };   // [hor, ver, diag]
+        int avg[3][2] = { 0 };  // [hor, ver, diag][row, col]
+
+        int this_traj_row = -1;
+        int this_traj_col = -1;
+        // this
+        if (cm->blk_id_map[rf][offset] != -1) {
+          this_traj_row = cm->blk_id_map[rf][offset] / mvs_cols;
+          this_traj_col = cm->blk_id_map[rf][offset] % mvs_cols;
+
+          count[0]++;
+          count[1]++;
+          count[2]++;
+
+          avg[0][0] += this_traj_row;
+          avg[1][0] += this_traj_row + 1;
+          avg[2][0] += this_traj_row + 1;
+
+          avg[0][1] += this_traj_col + 1;
+          avg[1][1] += this_traj_col;
+          avg[2][1] += this_traj_col + 1;
+        }
+
+        if (DO_AVG_FILL) {
+          // right
+          int offset_right = offset + cm->tmvp_sample_step;
+          if (c + cm->tmvp_sample_step < mvs_cols &&
+              cm->blk_id_map[rf][offset_right] != -1) {
+            int traj_row = cm->blk_id_map[rf][offset_right] / mvs_cols;
+            int traj_col = cm->blk_id_map[rf][offset_right] % mvs_cols;
+            count[0]++;
+            count[2]++;
+
+            avg[0][0] += traj_row;
+            avg[2][0] += traj_row + 1;
+
+            avg[0][1] += traj_col - 1;
+            avg[2][1] += traj_col - 1;
+          }
+
+          // lower
+          int offset_lower = offset + cm->tmvp_sample_step * mvs_cols;
+          if (r + cm->tmvp_sample_step < mvs_rows &&
+              cm->blk_id_map[rf][offset_lower] != -1) {
+            int traj_row = cm->blk_id_map[rf][offset_lower] / mvs_cols;
+            int traj_col = cm->blk_id_map[rf][offset_lower] % mvs_cols;
+            count[1]++;
+            count[2]++;
+
+            avg[1][0] += traj_row - 1;
+            avg[2][0] += traj_row - 1;
+
+            avg[1][1] += traj_col;
+            avg[2][1] += traj_col + 1;
+          }
+
+          // lower_right
+          int offset_lower_right =
+              offset + cm->tmvp_sample_step * mvs_cols + cm->tmvp_sample_step;
+          if (r + cm->tmvp_sample_step < mvs_rows &&
+              c + cm->tmvp_sample_step < mvs_cols &&
+              cm->blk_id_map[rf][offset_lower_right] != -1) {
+            int traj_row = cm->blk_id_map[rf][offset_lower_right] / mvs_cols;
+            int traj_col = cm->blk_id_map[rf][offset_lower_right] % mvs_cols;
+
+            count[2]++;
+
+            avg[2][0] += traj_row - 1;
+            avg[2][1] += traj_col - 1;
+          }
+        }
+
+        if (c + 1 < mvs_cols && count[0] > 0) {
+          assert(cm->blk_id_map[rf][offset + 1] == -1);
+          const int traj_row = DIVIDE_AND_ROUND_SIGNED(avg[0][0], count[0]);
+          const int traj_col = DIVIDE_AND_ROUND_SIGNED(avg[0][1], count[0]);
+          if (traj_row >= 0 && traj_row < mvs_rows && traj_col >= 0 &&
+              traj_col < mvs_cols) {
+            cm->blk_id_map[rf][offset + 1] = traj_row * mvs_cols + traj_col;
+          }
+        }
+        if (r + 1 < mvs_rows && count[1] > 0) {
+          assert(cm->blk_id_map[rf][offset + mvs_cols] == -1);
+          const int traj_row = DIVIDE_AND_ROUND_SIGNED(avg[1][0], count[1]);
+          const int traj_col = DIVIDE_AND_ROUND_SIGNED(avg[1][1], count[1]);
+          if (traj_row >= 0 && traj_row < mvs_rows && traj_col >= 0 &&
+              traj_col < mvs_cols) {
+            cm->blk_id_map[rf][offset + mvs_cols] =
+                traj_row * mvs_cols + traj_col;
+          }
+        }
+        if (r + 1 < mvs_rows && c + 1 < mvs_cols && count[2] > 0) {
+          assert(cm->blk_id_map[rf][offset + mvs_cols + 1] == -1);
+          const int traj_row = DIVIDE_AND_ROUND_SIGNED(avg[2][0], count[2]);
+          const int traj_col = DIVIDE_AND_ROUND_SIGNED(avg[2][1], count[2]);
+          if (traj_row >= 0 && traj_row < mvs_rows && traj_col >= 0 &&
+              traj_col < mvs_cols) {
+            cm->blk_id_map[rf][offset + mvs_cols + 1] =
+                traj_row * mvs_cols + traj_col;
+          }
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_MV_TRAJECTORY
+
+void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
+  RefCntBuffer *buf = get_ref_frame_buf(cm, ref);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  int64_t avg_row = 0;
+  int64_t avg_col = 0;
+  int64_t count = 0;
+  for (int r = 0; r < mvs_rows; r += 2) {
+    for (int c = 0; c < mvs_cols; c += 2) {
+      const MV_REF *mv_ref = &buf->mvs[r * mvs_cols + c];
+      if (mv_ref->ref_frame[side] != NONE_FRAME) {
+        const int dist =
+            abs((int)buf->display_order_hint -
+                (int)buf->ref_display_order_hint[mv_ref->ref_frame[side]]);
+        avg_row += abs(mv_ref->mv[side].as_mv.row * 2 / dist);
+        avg_col += abs(mv_ref->mv[side].as_mv.col * 2 / dist);
+        count++;
+      }
+    }
+  }
+  buf->avg_row[side] = count == 0 ? 0 : avg_row / count;
+  buf->avg_col[side] = count == 0 ? 0 : avg_col / count;
+  return;
+}
+
+void determine_tmvp_sample_step(AV1_COMMON *cm,
+                                int checked_ref[INTER_REFS_PER_FRAME][2]) {
+  cm->tmvp_sample_step = 1;
+  int small_count = 0;
+  int large_count = 0;
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    for (int j = 0; j < 2; j++) {
+      if (!checked_ref[i][j]) continue;
+      calc_and_set_avg_lengths(cm, i, j);
+      const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
+      const int dist = abs((int)cm->cur_frame->display_order_hint -
+                           (int)buf->display_order_hint);
+      if (buf->avg_row[j] * dist / 16 > 8 || buf->avg_col[j] * dist / 16 > 16) {
+        large_count++;
+      } else {
+        small_count++;
+      }
+    }
+  }
+  if (large_count > small_count * 2) {
+    cm->tmvp_sample_step = 2;
+  } else {
+    cm->tmvp_sample_step = 1;
+  }
+}
+#else
 // Note: motion_filed_projection finds motion vectors of current frame's
 // reference frame, and projects them to current frame. To make it clear,
 // let's call current frame's reference frame as start frame.
@@ -3894,37 +5057,12 @@ static int motion_field_projection(AV1_COMMON *cm,
 
   return 1;
 }
-
-// Check if a reference frame is an overlay frame (i.e., has the same
-// order_hint as the current frame).
-static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-  if (!order_hint_info->enable_order_hint) return -1;
-  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
-  if (buf == NULL) return -1;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int ref_order_hint = buf->display_order_hint;
-  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
-    if (buf->ref_display_order_hint[r] == -1) continue;
-    const int ref_ref_order_hint = buf->ref_display_order_hint[r];
-    if (get_relative_dist(order_hint_info, ref_order_hint,
-                          ref_ref_order_hint) == 0)
-      return 1;
-  }
-#else
-  const int ref_order_hint = buf->order_hint;
-  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
-    if (buf->ref_order_hints[r] == -1) continue;
-    const int ref_ref_order_hint = buf->ref_order_hints[r];
-    if (get_relative_dist(order_hint_info, ref_order_hint,
-                          ref_ref_order_hint) == 0)
-      return 1;
-  }
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  return 0;
-}
+#endif  // CONFIG_TMVP_MEM_OPT
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
+#if CONFIG_TMVP_MEM_OPT
+  cm->tmvp_sample_step = 0;
+#endif  // CONFIG_TMVP_MEM_OPT
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
@@ -3995,6 +5133,210 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   }
 
   cm->has_bwd_ref = cm->ref_frames_info.num_future_refs ? 1 : 0;
+
+#if CONFIG_TMVP_MEM_OPT
+  (void)ref_buf;
+#if CONFIG_MV_TRAJECTORY
+  int_mv **id_offset_map = cm->id_offset_map;
+  int **blk_id_map = cm->blk_id_map;
+  for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
+    for (int i = 0; i < mvs_rows * mvs_cols; i++) {
+      id_offset_map[rf][i].as_int = INVALID_MV;
+      blk_id_map[rf][i] = -1;
+    }
+  }
+#endif  // CONFIG_MV_TRAJECTORY
+
+  // Find the sorted map of refs.
+  int sort_ref[INTER_REFS_PER_FRAME] = { 0, 1, 2, 3, 4, 5, 6 };
+  int disp_order[INTER_REFS_PER_FRAME] = { 0 };
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+    disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
+  }
+  // Sort the points by x.
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+    for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
+      if (disp_order[j] < disp_order[i]) {
+        int16_t tmp = disp_order[i];
+        disp_order[i] = disp_order[j];
+        disp_order[j] = tmp;
+
+        tmp = sort_ref[i];
+        sort_ref[i] = sort_ref[j];
+        sort_ref[j] = tmp;
+      }
+    }
+  }
+  int cur_disp_order = cm->cur_frame->display_order_hint;
+  // The idx of rf in sort_ref that is before current frame, and closest.
+  int cur_frame_sort_idx = -1;
+  for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
+    if (disp_order[rf_idx] < cur_disp_order) {
+      cur_frame_sort_idx = rf_idx;
+    } else {
+      break;
+    }
+  }
+
+  bool is_overlay[INTER_REFS_PER_FRAME] = { false };
+  for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
+    if (is_ref_overlay(cm, rf)) {
+      is_overlay[rf] = true;
+    }
+  }
+  int rf_stack[INTER_REFS_PER_FRAME];
+  int visited[INTER_REFS_PER_FRAME] = { 0 };
+  int stack_count = 0;
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+    if (visited[rf] == 0) {
+      recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, &stack_count, rf);
+    }
+  }
+
+  if (stack_count < 2) return;
+
+  int rf_topo_stack_idx[INTER_REFS_PER_FRAME];
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+    rf_topo_stack_idx[rf] = -1;
+    for (int stack_idx = 0; stack_idx < stack_count; stack_idx++) {
+      if (rf_stack[stack_idx] == rf) {
+        rf_topo_stack_idx[rf] = stack_idx;
+        break;
+      }
+    }
+  }
+
+  struct ProcessRefTMVP process_ref[20];
+  int process_count = 0;
+  int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
+  int checked_count = 0;
+
+  if (cm->seq_params.enable_tip) {
+    if (cur_frame_sort_idx >= 0 &&
+        cur_frame_sort_idx < cm->ref_frames_info.num_total_refs - 1) {
+      cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+      cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
+      int start_frame, target_frame;
+      int side;
+      if (rf_topo_stack_idx[cm->tip_ref.ref_frame[0]] >
+          rf_topo_stack_idx[cm->tip_ref.ref_frame[1]]) {
+        start_frame = cm->tip_ref.ref_frame[0];
+        target_frame = cm->tip_ref.ref_frame[1];
+        side = 1;  // pointing from left to right
+      } else {
+        start_frame = cm->tip_ref.ref_frame[1];
+        target_frame = cm->tip_ref.ref_frame[0];
+        side = 0;  // pointing from right to left
+      }
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 1, start_frame,
+                                target_frame, side, checked_ref, &checked_count,
+                                process_ref, &process_count);
+    } else {
+      cm->tip_ref.ref_frame[0] = NONE_FRAME;
+      cm->tip_ref.ref_frame[1] = NONE_FRAME;
+    }
+  }
+
+  for (int group_idx = 0; group_idx < 2; ++group_idx) {
+    int past_ref_sort_idx =
+        cur_frame_sort_idx >= group_idx ? cur_frame_sort_idx - group_idx : -1;
+    if (past_ref_sort_idx >= 0 &&
+        !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
+      past_ref_sort_idx = -1;
+
+    int future_ref_sort_idx =
+        cur_frame_sort_idx < cm->ref_frames_info.num_total_refs - group_idx - 1
+            ? cur_frame_sort_idx + 1 + group_idx
+            : -1;
+    if (future_ref_sort_idx >= 0 &&
+        !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
+      future_ref_sort_idx = -1;
+
+    const int past_ref_to_its_ref_dist =
+        past_ref_sort_idx >= 0
+            ? get_dist_to_closest_interp_ref(cm, sort_ref[past_ref_sort_idx], 0)
+            : -1;
+
+    const int future_ref_to_its_ref_dist =
+        future_ref_sort_idx >= 0 ? get_dist_to_closest_interp_ref(
+                                       cm, sort_ref[future_ref_sort_idx], 1)
+                                 : -1;
+
+    if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
+      if (future_ref_sort_idx != -1) {
+        check_and_add_process_ref(
+            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[future_ref_sort_idx], -1, 0,
+            checked_ref, &checked_count, process_ref, &process_count);
+      }
+      if (past_ref_sort_idx != -1) {
+        check_and_add_process_ref(
+            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[past_ref_sort_idx], -1, 1,
+            checked_ref, &checked_count, process_ref, &process_count);
+      }
+    } else {
+      if (past_ref_sort_idx != -1) {
+        check_and_add_process_ref(
+            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[past_ref_sort_idx], -1, 1,
+            checked_ref, &checked_count, process_ref, &process_count);
+      }
+      if (future_ref_sort_idx != -1) {
+        check_and_add_process_ref(
+            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[future_ref_sort_idx], -1, 0,
+            checked_ref, &checked_count, process_ref, &process_count);
+      }
+    }
+  }
+
+  if (cur_frame_sort_idx >= 0) {
+    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                              sort_ref[cur_frame_sort_idx], -1, 0, checked_ref,
+                              &checked_count, process_ref, &process_count);
+  }
+  if (cur_frame_sort_idx >= 1) {
+    check_and_add_process_ref(
+        cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[cur_frame_sort_idx - 1], -1, 0,
+        checked_ref, &checked_count, process_ref, &process_count);
+  }
+
+  for (int ri = stack_count - 1; ri > 0; ri--) {
+    int side;
+    if (get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint <
+        cm->cur_frame->display_order_hint) {
+      side = 1;
+    } else {
+      side = 0;
+    }
+
+    if (!checked_ref[rf_stack[ri]][side]) {
+      check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
+                                checked_ref, &checked_count, process_ref,
+                                &process_count);
+    }
+
+    side = !side;
+    if (!checked_ref[rf_stack[ri]][side]) {
+      check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
+                                checked_ref, &checked_count, process_ref,
+                                &process_count);
+    }
+  }
+
+  determine_tmvp_sample_step(cm, checked_ref);
+
+  for (int pi = 0; pi < process_count; pi++) {
+    if (process_ref[pi].type == 0) {
+      motion_field_projection_side(cm, process_ref[pi].start_frame,
+                                   process_ref[pi].side);
+    } else {
+      motion_field_projection_start_target(cm, process_ref[pi].start_frame,
+                                           process_ref[pi].target_frame);
+    }
+  }
+#if CONFIG_MV_TRAJECTORY
+  fill_id_offset_sample_gap(cm);
+  fill_block_id_sample_gap(cm);
+#endif  // CONFIG_MV_TRAJECTORY
+#else
   if (cm->seq_params.enable_tip) {
     av1_derive_tip_nearest_ref_frames_motion_projection(cm);
   }
@@ -4098,6 +5440,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     motion_field_projection(cm, closest_ref[0][1], 2, 0);
   }
 #endif  // CONFIG_MF_IMPROVEMENT
+#endif  // #if CONFIG_TMVP_MEM_OPT
 }
 
 void av1_setup_ref_frame_sides(AV1_COMMON *cm) {

@@ -452,6 +452,11 @@ set_aom_config_var(CONFIG_INTER_IST 1 "Enable IST for inter blocks.")
 set_aom_config_var(CONFIG_IBP_WEIGHT 1 "Reduce IBP weights memory.")
 set_aom_config_var(CONFIG_WEDGE_TMVP 1
                    "Improvements to tmvp MV storing for wedge mode.")
+set_aom_config_var(
+  CONFIG_TMVP_MEM_OPT 1
+  "Enables directional storage and adaptive sampling for TMVP MVs.")
+set_aom_config_var(CONFIG_MV_TRAJECTORY 1
+                   "Enables TMVP MV trajectory tracking.")
 
 #
 # Variables in this section control optional features of the build system.

@@ -176,4 +176,8 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DRL_WRL_SIMPLIFY 0 !CONFIG_MVP_IMPROVEMENT)
   endif()
 
+  # CONFIG_MV_TRAJECTORY depends on CONFIG_TMVP_MEM_OPT
+  if(NOT CONFIG_TMVP_MEM_OPT AND CONFIG_MV_TRAJECTORY)
+    change_config_and_warn(CONFIG_MV_TRAJECTORY 0 !CONFIG_TMVP_MEM_OPT)
+  endif()
 endmacro()

@@ -8742,6 +8742,15 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->cur_frame->frame_context = *cm->fc;
     }
   }
+
+#if CONFIG_TMVP_MEM_OPT
+  if (cm->features.allow_ref_frame_mvs &&
+      cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
+    // TPL mvs at non-sampled locations will be filled after it is hole-filled
+    // and smoothed.
+    av1_fill_tpl_mvs_sample_gap(cm);
+  }
+#endif  // CONFIG_TMVP_MEM_OPT
 }
 
 uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,

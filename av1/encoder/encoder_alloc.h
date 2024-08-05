@@ -212,6 +212,14 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;
+#if CONFIG_MV_TRAJECTORY
+  for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
+    aom_free(cm->id_offset_map[rf]);
+    aom_free(cm->blk_id_map[rf]);
+    cm->id_offset_map[rf] = NULL;
+    cm->blk_id_map[rf] = NULL;
+  }
+#endif  // CONFIG_MV_TRAJECTORY
 
 #if !CONFIG_TIP_REF_PRED_MERGING
   aom_free(cm->tip_ref.available_flag);

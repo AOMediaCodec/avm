@@ -47,13 +47,22 @@ typedef struct position {
 #define MAX_OFFSET_HEIGHT_LOG2 (MAX_OFFSET_HEIGHT >> TMVP_MI_SZ_LOG2)
 #define MAX_OFFSET_WIDTH_LOG2 (MAX_OFFSET_WIDTH >> TMVP_MI_SZ_LOG2)
 
-static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2) {
+static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2
+#if CONFIG_TMVP_MEM_OPT
+                                          ,
+                                          int tmvp_sample_step
+#endif  // CONFIG_TMVP_MEM_OPT
+) {
 #if CONFIG_BLOCK_256
   (void)mib_size_log2;
 #endif  // CONFIG_BLOCK_256
 
   int mi_size_log2 = INT_MIN;
-  if (sb_size <= 64) {
+  if (sb_size <= 64
+#if CONFIG_TMVP_MEM_OPT
+      || tmvp_sample_step == 1
+#endif  // CONFIG_TMVP_MEM_OPT
+  ) {
     mi_size_log2 = mi_size_high_log2[BLOCK_64X64];
   } else {
 #if CONFIG_BLOCK_256
@@ -65,13 +74,18 @@ static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2) {
   return mi_size_log2 + MI_SIZE_LOG2;
 }
 
-static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
-                                         int blk_row, int blk_col, MV mv,
-                                         int sign_bias) {
+static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
+                                         int *mi_c, int blk_row, int blk_col,
+                                         MV mv, int sign_bias) {
 #if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
-  const int mf_sb_size_log2 = get_mf_sb_size_log2(sb_size, cm->mib_size_log2);
+  const int mf_sb_size_log2 = get_mf_sb_size_log2(sb_size, cm->mib_size_log2
+#if CONFIG_TMVP_MEM_OPT
+                                                  ,
+                                                  cm->tmvp_sample_step
+#endif  // CONFIG_TMVP_MEM_OPT
+  );
   const int mf_sb_size = (1 << mf_sb_size_log2);
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
@@ -98,18 +112,37 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
+#if CONFIG_TMVP_MEM_OPT
+  if (cm->tmvp_sample_step > 1) {
+#endif  // CONFIG_TMVP_MEM_OPT
 #if CONFIG_MF_IMPROVEMENT
-  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-      row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
-      col < base_blk_col - sb_tmvp_size ||
-      col >= base_blk_col + (sb_tmvp_size << 1))
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - sb_tmvp_size ||
+        col >= base_blk_col + (sb_tmvp_size << 1))
 #else
-  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-      row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-      col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-      col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
+        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
 #endif  // CONFIG_MF_IMPROVEMENT
-    return 0;
+      return 0;
+#if CONFIG_TMVP_MEM_OPT
+  } else {
+#if CONFIG_MF_IMPROVEMENT
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - (sb_tmvp_size >> 1) ||
+        col >= base_blk_col + sb_tmvp_size + (sb_tmvp_size >> 1))
+#else
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
+        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+#endif  // CONFIG_MF_IMPROVEMENT
+      return 0;
+  }
+#endif  // CONFIG_TMVP_MEM_OPT
 
   *mi_r = row;
   *mi_c = col;
@@ -1133,6 +1166,10 @@ bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
 int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                               const MB_MODE_INFO *mbmi);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_TMVP_MEM_OPT
+void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm);
+#endif  // CONFIG_TMVP_MEM_OPT
 
 static INLINE int is_ref_motion_field_eligible(
     const AV1_COMMON *const cm, const RefCntBuffer *const start_frame_buf) {

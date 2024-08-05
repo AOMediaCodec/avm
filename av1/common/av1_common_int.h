@@ -125,6 +125,10 @@ extern "C" {
 #define MAX_SB_TMVP_SIZE (1 << MAX_SB_TMVP_SIZE_LOG2)
 #endif  // CONFIG_MF_HOLE_FILL_SIMPLIFY
 
+#if CONFIG_TMVP_MEM_OPT
+#define TMVP_SAMPLE_STEP 2
+#endif  // CONFIG_TMVP_MEM_OPT
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
 #define MIN_BSIZE_WARP_DELTA 8
 
@@ -262,6 +266,10 @@ typedef struct RefCntBuffer {
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   MV_REF *mvs;
+#if CONFIG_TMVP_MEM_OPT
+  int64_t avg_row[2];
+  int64_t avg_col[2];
+#endif  // CONFIG_TMVP_MEM_OPT
   uint8_t *seg_map;
   struct segmentation seg;
   int mi_rows;
@@ -1751,6 +1759,16 @@ typedef struct AV1Common {
    * stride = cm->mi_params.mi_stride / 2
    */
   TPL_MV_REF *tpl_mvs;
+
+#if CONFIG_TMVP_MEM_OPT
+  int tmvp_sample_step;
+#endif  // CONFIG_TMVP_MEM_OPT
+
+#if CONFIG_MV_TRAJECTORY
+  int_mv *id_offset_map[INTER_REFS_PER_FRAME];
+  int *blk_id_map[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_MV_TRAJECTORY
+
   /*!
    * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
    */
@@ -2121,6 +2139,10 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
         cm, buf->seg_map,
         (uint8_t *)aom_calloc(mi_params->mi_rows * mi_params->mi_cols,
                               sizeof(*buf->seg_map)));
+#if CONFIG_TMVP_MEM_OPT
+    buf->avg_row[0] = -1;
+    buf->avg_row[1] = -1;
+#endif  // CONFIG_TMVP_MEM_OPT
   }
 
   const int is_tpl_mvs_mem_size_too_small = (cm->tpl_mvs_mem_size < mem_size);
@@ -2130,6 +2152,16 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     CHECK_MEM_ERROR(cm, cm->tpl_mvs,
                     (TPL_MV_REF *)aom_calloc(mem_size, sizeof(*cm->tpl_mvs)));
     cm->tpl_mvs_mem_size = mem_size;
+#if CONFIG_MV_TRAJECTORY
+    for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
+      aom_free(cm->id_offset_map[rf]);
+      aom_free(cm->blk_id_map[rf]);
+      cm->id_offset_map[rf] =
+          (int_mv *)aom_malloc(mem_size * sizeof(*cm->id_offset_map[rf]));
+      cm->blk_id_map[rf] =
+          (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[rf]));
+    }
+#endif  // CONFIG_MV_TRAJECTORY
   }
 
 #if !CONFIG_TIP_REF_PRED_MERGING

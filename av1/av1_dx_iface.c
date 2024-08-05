@@ -141,6 +141,14 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     aom_get_worker_interface()->end(worker);
     aom_free(frame_worker_data->pbi->common.tpl_mvs);
     frame_worker_data->pbi->common.tpl_mvs = NULL;
+#if CONFIG_MV_TRAJECTORY
+    for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
+      aom_free(frame_worker_data->pbi->common.id_offset_map[rf]);
+      aom_free(frame_worker_data->pbi->common.blk_id_map[rf]);
+      frame_worker_data->pbi->common.id_offset_map[rf] = NULL;
+      frame_worker_data->pbi->common.blk_id_map[rf] = NULL;
+    }
+#endif  // CONFIG_MV_TRAJECTORY
     av1_remove_common(&frame_worker_data->pbi->common);
     av1_free_restoration_buffers(&frame_worker_data->pbi->common);
     av1_decoder_remove(frame_worker_data->pbi);
