@@ -2977,9 +2977,6 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                  filter->num_classes));
   }
   int *best_match_indices = use_one_match_indices;
-  const int scale = 1 << AV1_PROB_COST_SHIFT;
-  const int64_t single_overhead =
-      scale * count_match_indices_bits(filter->num_classes);
 
   WienerNonsepInfo tmp_filter = *filter;
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
