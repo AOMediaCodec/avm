@@ -487,16 +487,19 @@ typedef struct AV1_DEBLOCKING_PARAMETERS {
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
-                                       const int plane, const int scale_horz,
-                                       const int scale_vert,
-                                       const EDGE_DIR edge_dir) {
+                                       int plane, TREE_TYPE tree_type,
+                                       int scale_horz, int scale_vert,
+                                       EDGE_DIR edge_dir) {
   uint32_t pu_starting_mi;
   const bool vert_edge = (edge_dir == VERT_EDGE);
   if (plane == AOM_PLANE_Y) {
     pu_starting_mi = vert_edge ? mbmi->mi_col_start : mbmi->mi_row_start;
   } else {
-    pu_starting_mi =
-        vert_edge ? mbmi->chroma_mi_col_start : mbmi->chroma_mi_row_start;
+    int chroma_mi_row_start;
+    int chroma_mi_col_start;
+    get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
+                              &chroma_mi_col_start);
+    pu_starting_mi = vert_edge ? chroma_mi_col_start : chroma_mi_row_start;
   }
   const uint32_t pu_stating_coord_luma = pu_starting_mi * MI_SIZE;
   const int scale = vert_edge ? scale_horz : scale_vert;
@@ -558,9 +561,9 @@ static AOM_INLINE void check_rfmv_edge(const MB_MODE_INFO *const mbmi,
 // Check whether current block is sub-prediction mode
 static AOM_INLINE void check_sub_pu_edge(
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
-    const MB_MODE_INFO *const mbmi, const int plane, const int scale_horz,
-    const int scale_vert, const EDGE_DIR edge_dir, const uint32_t coord,
-    TX_SIZE *ts, int32_t *sub_pu_edge) {
+    const MB_MODE_INFO *const mbmi, const int plane, TREE_TYPE tree_type,
+    const int scale_horz, const int scale_vert, const EDGE_DIR edge_dir,
+    const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge) {
   if (!cm->features.allow_lf_sub_pu) return;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (!is_inter) return;
@@ -589,8 +592,8 @@ static AOM_INLINE void check_sub_pu_edge(
                                         ? tx_size_wide[temp_ts] - 1
                                         : tx_size_high[temp_ts] - 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
-      const uint32_t pu_starting_coord =
-          get_pu_starting_cooord(mbmi, plane, scale_horz, scale_vert, edge_dir);
+      const uint32_t pu_starting_coord = get_pu_starting_cooord(
+          mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
       assert(coord >= pu_starting_coord);
       const uint32_t relative_coord = coord - pu_starting_coord;
       *sub_pu_edge = (relative_coord & sub_pu_masks) ? (0) : (1);
@@ -766,8 +769,8 @@ static TX_SIZE set_lpf_parameters(
 
 #if CONFIG_LF_SUB_PU
     int32_t sub_pu_edge = 0;
-    check_sub_pu_edge(cm, xd, mbmi, plane, scale_horz, scale_vert, edge_dir,
-                      coord, &ts, &sub_pu_edge);
+    check_sub_pu_edge(cm, xd, mbmi, plane, tree_type, scale_horz, scale_vert,
+                      edge_dir, coord, &ts, &sub_pu_edge);
     if (!tu_edge && !sub_pu_edge)
 #else
     if (!tu_edge)
@@ -844,7 +847,7 @@ static TX_SIZE set_lpf_parameters(
                                    is_inter_block(mi_prev, tree_type);
 #if CONFIG_EXT_RECUR_PARTITIONS
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
-              mbmi, plane, scale_horz, scale_vert, edge_dir);
+              mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
           const bool pu_edge = (coord == pu_starting_coord);
 #else
           const BLOCK_SIZE bsize = get_mb_plane_block_size_from_tree_type(
