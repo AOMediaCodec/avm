@@ -1114,9 +1114,9 @@ static AOM_INLINE void add_ref_mv_candidate(
               cand_ref_mv_row = (mi_row_cand >> 1);
               cand_ref_mv_col = (mi_col_cand >> 1);
             } else {
-              valid = get_block_position(
-                cm, &cand_ref_mv_row, &cand_ref_mv_col, mi_row_cand >> 1,
-                mi_col_cand >> 1, cand_refmv.as_mv, 0);
+              valid = get_block_position(cm, &cand_ref_mv_row, &cand_ref_mv_col,
+                                         mi_row_cand >> 1, mi_col_cand >> 1,
+                                         cand_refmv.as_mv, 0);
             }
             int traj_id =
                 valid ? cm->blk_id_map[candidate->ref_frame[ref]]
@@ -4103,9 +4103,9 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
           end_row = traj_row;
           end_col = traj_col;
         } else {
-          pos_valid =
-            get_block_position(cm, &end_row, &end_col, traj_row, traj_col,
-                               cm->id_offset_map[end_frame][traj_id].as_mv, 0);
+          pos_valid = get_block_position(
+              cm, &end_row, &end_col, traj_row, traj_col,
+              cm->id_offset_map[end_frame][traj_id].as_mv, 0);
           end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
           end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
         }
@@ -4127,7 +4127,7 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
       end_col = start_col;
     } else {
       pos_valid = get_block_position(cm, &end_row, &end_col, start_row,
-                                         start_col, *mv, 0);
+                                     start_col, *mv, 0);
       end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
       end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
     }
@@ -4241,8 +4241,8 @@ static int motion_field_projection_start_target(
             mi_r = blk_row;
             mi_c = blk_col;
           } else {
-            pos_valid = get_block_position(cm, &mi_r, &mi_c, blk_row,
-                                           blk_col, this_mv.as_mv, 0);
+            pos_valid = get_block_position(cm, &mi_r, &mi_c, blk_row, blk_col,
+                                           this_mv.as_mv, 0);
             mi_r = (mi_r / cm->tmvp_sample_step) * cm->tmvp_sample_step;
             mi_c = (mi_c / cm->tmvp_sample_step) * cm->tmvp_sample_step;
           }
