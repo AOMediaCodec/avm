@@ -1089,8 +1089,8 @@ static AOM_INLINE void add_ref_mv_candidate(
       else if (add_more_mvs) {
 #if CONFIG_MV_TRAJECTORY
         if (cm->seq_params.order_hint_info.enable_order_hint &&
-            rf[0] != rf[1] && is_inter_ref_frame(rf[0]) &&
-            is_inter_ref_frame(rf[1])) {
+            cm->features.allow_ref_frame_mvs && rf[0] != rf[1] &&
+            is_inter_ref_frame(rf[0]) && is_inter_ref_frame(rf[1])) {
           const int frame_mvs_stride =
               ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
