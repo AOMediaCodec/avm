@@ -579,9 +579,9 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         printf(
             "txfm_size[%d] \t txfm_type[%d] \t c_time=%d \t simd_time=%d \t "
-            "gain=%d \n",
+            "gain=%.3f \n",
             tx_size, tx_type, elapsed_time_c, elapsed_time_simd,
-            (elapsed_time_c / elapsed_time_simd));
+            ((float)elapsed_time_c / elapsed_time_simd));
       }
     }
   }
@@ -620,8 +620,11 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdFwdTxfm2dTest,
                                  Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_SSE4_1
 #if HAVE_AVX2
-static TX_SIZE Highbd_fwd_txfm_for_avx2[] = { TX_8X8,   TX_16X16, TX_32X32,
-                                              TX_64X64, TX_8X16,  TX_16X8 };
+static TX_SIZE Highbd_fwd_txfm_for_avx2[] = {
+  TX_8X8,   TX_16X16, TX_32X32, TX_64X64, TX_8X16, TX_16X8,
+  TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_8X32, TX_32X8,
+  TX_16X64, TX_64X16, TX_8X64,  TX_64X8
+};
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_avx2),
