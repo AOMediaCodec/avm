@@ -121,10 +121,10 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
         col < base_blk_col - sb_tmvp_size ||
         col >= base_blk_col + (sb_tmvp_size << 1))
 #else
-    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+      row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
+      col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
+      col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
 #endif  // CONFIG_MF_IMPROVEMENT
       return 0;
 #if CONFIG_TMVP_MEM_OPT

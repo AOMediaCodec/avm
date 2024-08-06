@@ -424,10 +424,10 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
           const int j0 = col - sample;
           const int j1 = col + sample;
 #else
-      for (int row = start_row; row < end_row; row ++) {
+      for (int row = start_row; row < end_row; row++) {
         const int i0 = row - 1;
         const int i1 = row + 1;
-        for (int col = start_col; col < end_col; col ++) {
+        for (int col = start_col; col < end_col; col++) {
           const int j0 = col - 1;
           const int j1 = col + 1;
 #endif  // CONFIG_TMVP_MEM_OPT
