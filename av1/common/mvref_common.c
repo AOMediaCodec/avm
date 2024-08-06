@@ -4839,8 +4839,9 @@ void determine_tmvp_sample_step(AV1_COMMON *cm,
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     for (int j = 0; j < 2; j++) {
       if (!checked_ref[i][j]) continue;
-      calc_and_set_avg_lengths(cm, i, j);
       const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
+      if (!is_ref_motion_field_eligible(cm, buf)) continue;
+      calc_and_set_avg_lengths(cm, i, j);
       const int dist = abs((int)cm->cur_frame->display_order_hint -
                            (int)buf->display_order_hint);
       if (buf->avg_row[j] * dist / 16 > 8 || buf->avg_col[j] * dist / 16 > 16) {
