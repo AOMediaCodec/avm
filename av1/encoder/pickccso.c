@@ -435,6 +435,36 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
   int rec_luma_idx[2];
   const int inv_quant_step = quant_step_size * -1;
   int rec_idx[2];
+#if CONFIG_CCSO_FT_SHAPE
+  // Input sample locations for CCSO
+  // 4 2 0 3 5
+  // 6 1 x 1 6
+  // 5 3 0 2 4
+  if (ext_filter_support == 0) {
+    rec_idx[0] = -1 * ccso_stride_ext;
+    rec_idx[1] = 1 * ccso_stride_ext;
+  } else if (ext_filter_support == 1) {
+    rec_idx[0] = -1;
+    rec_idx[1] = 1;
+  } else if (ext_filter_support == 4) {
+    rec_idx[0] = -ccso_stride_ext - 2;
+    rec_idx[1] = ccso_stride_ext + 2;
+  } else if (ext_filter_support == 5) {
+    rec_idx[0] = ccso_stride_ext - 2;
+    rec_idx[1] = -ccso_stride_ext + 2;
+  } else if (ext_filter_support == 2) {
+    rec_idx[0] = -1 * ccso_stride_ext - 1;
+    rec_idx[1] = 1 * ccso_stride_ext + 1;
+  } else if (ext_filter_support == 3) {
+    rec_idx[0] = -1 * ccso_stride_ext + 1;
+    rec_idx[1] = 1 * ccso_stride_ext - 1;
+  } else if (ext_filter_support == 6) {
+    rec_idx[0] = 2;
+    rec_idx[1] = -2;
+  } else {
+    printf("wrong ccso filter shape\n");
+  }
+#else
   if (ext_filter_support == 0) {
     rec_idx[0] = -1 * ccso_stride_ext;
     rec_idx[1] = 1 * ccso_stride_ext;
@@ -454,6 +484,7 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
     rec_idx[0] = 0 * ccso_stride_ext - 5;
     rec_idx[1] = 0 * ccso_stride_ext + 5;
   }
+#endif
   int ccso_stride_idx[1 << (CCSO_BLK_SIZE + 1)];
   int ccso_stride_ext_idx[1 << (CCSO_BLK_SIZE + 1)];
   for (int i = 0; i < (1 << (CCSO_BLK_SIZE + 1)); i++) {
@@ -672,7 +703,12 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   uint8_t final_edge_classifier = 0;
   const int total_edge_classifier = 2;
   int8_t filter_offset[CCSO_BAND_NUM * 16];
+#if CONFIG_CCSO_FT_SHAPE
+  const int total_filter_support = 7;
+#else
   const int total_filter_support = 6;
+#endif
+
   const int total_quant_idx = 4;
   const int total_band_log2_plus1 = 4;
   uint8_t frame_bits = 1;

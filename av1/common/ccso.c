@@ -72,6 +72,36 @@ void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
 /* Derive sample locations for CCSO */
 void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support) {
+#if CONFIG_CCSO_FT_SHAPE
+  // Input sample locations for CCSO
+  // 4 2 0 3 5
+  // 6 1 x 1 6
+  // 5 3 0 2 4
+  if (ext_filter_support == 0) {
+    rec_idx[0] = -1 * ccso_stride;
+    rec_idx[1] = 1 * ccso_stride;
+  } else if (ext_filter_support == 1) {
+    rec_idx[0] = -1;
+    rec_idx[1] = 1;
+  } else if (ext_filter_support == 4) {
+    rec_idx[0] = -ccso_stride - 2;
+    rec_idx[1] = ccso_stride + 2;
+  } else if (ext_filter_support == 5) {
+    rec_idx[0] = ccso_stride - 2;
+    rec_idx[1] = -ccso_stride + 2;
+  } else if (ext_filter_support == 2) {
+    rec_idx[0] = -1 * ccso_stride - 1;
+    rec_idx[1] = 1 * ccso_stride + 1;
+  } else if (ext_filter_support == 3) {
+    rec_idx[0] = -1 * ccso_stride + 1;
+    rec_idx[1] = 1 * ccso_stride - 1;
+  } else if (ext_filter_support == 6) {
+    rec_idx[0] = 2;
+    rec_idx[1] = -2;
+  } else {
+    printf("wrong ccso filter shape\n");
+  }
+#else
   // Input sample locations for CCSO
   //         2 1 4
   // 6 o 5 o 3 o 3 o 5 o 6
@@ -101,6 +131,7 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
     rec_idx[0] = -5;
     rec_idx[1] = 5;
   }
+#endif
 }
 
 void ccso_filter_block_hbd_wo_buf_c(

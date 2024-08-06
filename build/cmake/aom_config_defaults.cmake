@@ -331,6 +331,8 @@ set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
 set_aom_config_var(CONFIG_E125_MHCCP_SIMPLIFY 1
                    "Simplify the parameter derivation for MHCCP")
+set_aom_config_var(CONFIG_CCSO_FT_SHAPE 1
+                   "Change CCSO filter shape to meet hardware requirement")
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 
