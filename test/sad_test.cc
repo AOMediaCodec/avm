@@ -1841,11 +1841,17 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_sse2, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_sse2, 12),
 
+#if !CONFIG_COMPOUND_4XN
   make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 8),
+#endif  // !CONFIG_COMPOUND_4XN
   make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 8),
+#if !CONFIG_COMPOUND_4XN
   make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 10),
+#endif  // !CONFIG_COMPOUND_4XN
   make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 10),
+#if !CONFIG_COMPOUND_4XN
   make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 12),
+#endif  // !CONFIG_COMPOUND_4XN
   make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 12),
 
 #if CONFIG_FLEX_PARTITION
