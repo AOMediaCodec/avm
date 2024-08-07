@@ -5495,7 +5495,7 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_COMPOUND_4XN
   assert(IMPLIES(
-      use_affine_opfl,
+      use_optflow_refinement,
       !is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART])));
 #endif  // CONFIG_COMPOUND_4XN
 
