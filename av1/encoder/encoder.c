@@ -1390,10 +1390,10 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     av1_free_sms_bufs(thread_data->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    aom_free(thread_data->td);
 #if CONFIG_ML_PART_SPLIT
     av2_part_split_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
+    aom_free(thread_data->td);
   }
 }
 
