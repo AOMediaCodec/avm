@@ -2356,8 +2356,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_CFL_SIMPLIFICATION
       const int row_start =
           ((xd->mi_row + (blk_row << cfl->subsampling_y)) << MI_SIZE_LOG2);
-      const int sb_size_height = mi_size_high[cm->sb_size] << 2;
-      int is_top_sb_boundary = (row_start % sb_size_height) == 0 ? 1 : 0;
+      const int sb_height = block_size_high[cm->sb_size];
+      const int is_top_sb_boundary = !(row_start % sb_height);
 #endif  // CONFIG_CFL_SIMPLIFICATION
 
 #if CONFIG_ENABLE_MHCCP
@@ -2365,15 +2365,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
       {
 #endif  // CONFIG_ENABLE_MHCCP
+        cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
+                                         blk_col << cfl->subsampling_x,
 #if CONFIG_CFL_SIMPLIFICATION
-        cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
-                                         blk_col << cfl->subsampling_x,
-                                         luma_tx_size, is_top_sb_boundary);
-#else
-        cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
-                                         blk_col << cfl->subsampling_x,
+                                         is_top_sb_boundary,
+#endif  // CONFIG_CFL_SIMPLIFICATION
                                          luma_tx_size);
-#endif
         cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
       }
 #if CONFIG_ENABLE_MHCCP

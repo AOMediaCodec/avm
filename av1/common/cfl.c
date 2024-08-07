@@ -186,15 +186,29 @@ static void cfl_compute_parameters_alt(CFL_CTX *const cfl, TX_SIZE tx_size) {
                             cfl->avg_l);
   cfl->are_parameters_computed = 1;
 }
+
+static void get_top_bottom_offsets(
 #if CONFIG_CFL_SIMPLIFICATION
-void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
-                                      MACROBLOCKD *const xd, int row, int col,
-                                      TX_SIZE tx_size, int is_top_sb_boundary) {
-#else
-void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
-                                      MACROBLOCKD *const xd, int row, int col,
-                                      TX_SIZE tx_size) {
+    int is_top_sb_boundary,
 #endif  // CONFIG_CFL_SIMPLIFICATION
+    int *top_offset, int *bottom_offset) {
+#if CONFIG_CFL_SIMPLIFICATION
+  // If it is sb boundary, input points to the immediately line above
+  *top_offset = 2 - is_top_sb_boundary;
+  *bottom_offset = 1 - is_top_sb_boundary;
+#else
+  *top_offset = 2;
+  *bottom_offset = 1;
+#endif  // CONFIG_CFL_SIMPLIFICATION
+}
+
+void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+                                      MACROBLOCKD *const xd, int row, int col,
+#if CONFIG_CFL_SIMPLIFICATION
+                                      int is_top_sb_boundary,
+#endif  // CONFIG_CFL_SIMPLIFICATION
+                                      TX_SIZE tx_size) {
+
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   int input_stride = pd->dst.stride;
@@ -221,25 +235,16 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   // top boundary
   uint16_t *output_q3 = cfl->recon_yuv_buf_above[0];
   if (have_top) {
+    // If this is the above super block boundary, use only the above line and
+    // repeated it.
+    int top_offset = 0;
+    int bottom_offset = 0;
+    get_top_bottom_offsets(is_top_sb_boundary, &top_offset, &bottom_offset);
+
     if (sub_x && sub_y) {
-#if CONFIG_CFL_SIMPLIFICATION
-      uint16_t *input =
-          dst - (2 - is_top_sb_boundary) *
-                    input_stride;  // If it is sb boundary, input points to the
-                                   // immediately line above
-#else
-      uint16_t *input = dst - 2 * input_stride;
-#endif
+      uint16_t *input = dst - top_offset * input_stride;
       for (int i = 0; i < width; i += 2) {
-#if CONFIG_CFL_SIMPLIFICATION
-        const int bot =
-            i +
-            (1 - is_top_sb_boundary) *
-                input_stride;  // If it is sb boundary, bot point to the same
-                               // line with input (1 - is_top_sb_boundary = 0)
-#else
-        const int bot = i + input_stride;
-#endif  // CONFIG_CFL_SIMPLIFICATION
+        const int bot = i + bottom_offset * input_stride;
 #if CONFIG_IMPROVED_CFL
         const int filter_type = cm->seq_params.enable_cfl_ds_filter;
         if (filter_type == 1) {
@@ -247,15 +252,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                               input[i + 1] + input[bot + AOMMAX(-1, -i)] +
                               2 * input[bot] + input[bot + 1];
         } else if (filter_type == 2) {
-#if CONFIG_CFL_SIMPLIFICATION
-          const int top =
-              i -
-              (1 - is_top_sb_boundary) *
-                  input_stride;  // If it is sb boundary, top points to the same
-                                 // line of input (1 - is_top_sb_boundary = 0 )
-#else
-          const int top = i - input_stride;
-#endif  // CONFIG_CFL_SIMPLIFICATION
+          const int top = i - top_offset * input_stride;
           output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
                               input[i + 1] + input[top] + input[bot];
         } else {
@@ -283,24 +280,9 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       }
 #endif  // CONFIG_IMPROVED_CFL
     } else if (sub_y) {
-#if CONFIG_CFL_SIMPLIFICATION
-      uint16_t *input =
-          dst - (2 - is_top_sb_boundary) *
-                    input_stride;  // If it is sb boundary, input points to the
-                                   // immediately line above
-#else
-      uint16_t *input = dst - 2 * input_stride;
-#endif
+      uint16_t *input = dst - top_offset * input_stride;
       for (int i = 0; i < width; ++i) {
-#if CONFIG_CFL_SIMPLIFICATION
-        const int bot =
-            i +
-            (1 - is_top_sb_boundary) *
-                input_stride;  // If it is sb boundary, bot point to the same
-                               // line with input (1 - is_top_sb_boundary = 0)
-#else
-        const int bot = i + input_stride;
-#endif
+        const int bot = i + bottom_offset * input_stride;
         output_q3[i] = (input[i] + input[bot]) << 2;
       }
     } else {
@@ -533,24 +515,23 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_CFL_SIMPLIFICATION
-  int numb_sample = 8;
   int numb_up = 0;
   int numb_left = 0;
 
   if (have_top && have_left) {
     if (width > (height * 2)) {
       numb_left = 0;
-      numb_up = numb_sample;
+      numb_up = NUM_REF_SAM_CFL;
     } else if (height > (width * 2)) {
       numb_up = 0;
-      numb_left = numb_sample;
+      numb_left = NUM_REF_SAM_CFL;
     } else {
-      numb_up = numb_sample >> 1;
-      numb_left = numb_sample >> 1;
+      numb_up = NUM_REF_SAM_CFL >> 1;
+      numb_left = NUM_REF_SAM_CFL >> 1;
     }
   } else {
-    numb_up = have_top ? numb_sample : 0;
-    numb_left = have_left ? numb_sample : 0;
+    numb_up = have_top ? NUM_REF_SAM_CFL : 0;
+    numb_left = have_left ? NUM_REF_SAM_CFL : 0;
   }
   numb_up = (numb_up > width) ? width : numb_up;
   numb_left = (numb_left > height) ? height : numb_left;
@@ -561,37 +542,35 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
 
   uint16_t *l, *c;
 #if CONFIG_CFL_SIMPLIFICATION
-  if (numb_up) {
+  if (numb_up > 0) {
     l = cfl->recon_yuv_buf_above[0];
     c = cfl->recon_yuv_buf_above[plane];
 
-    int step = (int)width / numb_up;  // = width >> log2(num_up)
-    step = (step < 1) ? 1 : step;
-    int start = (step == 1) ? 0 : (step >> 1);  // int start = step >> 1;
+    const int step_up = AOMMAX((int)width / numb_up, 1);
+    const int start_up = (step_up == 1) ? 0 : (step_up >> 1);
 
-    for (int i = start; i < width; i += step) {
+    for (int i = start_up; i < width; i += step_up) {
       sum_x += l[i] >> 3;
       sum_y += c[i];
       sum_xy += (l[i] >> 3) * c[i];
       sum_xx += (l[i] >> 3) * (l[i] >> 3);
-      count += 1;
+      ++count;
     }
   }
 
-  if (numb_left) {
+  if (numb_left > 0) {
     l = cfl->recon_yuv_buf_left[0];
     c = cfl->recon_yuv_buf_left[plane];
 
-    int step_left = (int)height / numb_left;
-    step_left = (step_left < 1) ? 1 : step_left;
-    int start_left = (step_left == 1) ? 0 : (step_left >> 1);
+    const int step_left = AOMMAX((int)height / numb_left, 1);
+    const int start_left = (step_left == 1) ? 0 : (step_left >> 1);
 
     for (int i = start_left; i < height; i += step_left) {
       sum_x += l[i] >> 3;
       sum_y += c[i];
       sum_xy += (l[i] >> 3) * c[i];
       sum_xx += (l[i] >> 3) * (l[i] >> 3);
-      count += 1;
+      ++count;
     }
   }
 #else
@@ -620,7 +599,7 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
     }
     count += height;
   }
-#endif
+#endif  // CONFIG_CFL_SIMPLIFICATION
   const int shift = 3 + CFL_ADD_BITS_ALPHA;
   mbmi->cfl_implicit_alpha[plane - 1] = derive_linear_parameters_alpha(
       sum_x, sum_y, sum_xx, sum_xy, count, shift, 0);
