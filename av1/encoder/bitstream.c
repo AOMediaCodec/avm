@@ -3703,7 +3703,8 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
-  const int rect_type_ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 0);
+  const int rect_type_ctx =
+      partition_plane_context(xd, mi_row, mi_col, bsize, 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS

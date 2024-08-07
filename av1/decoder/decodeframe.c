@@ -76,9 +76,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_THROUGHPUT_ANALYSIS
 int64_t tot_ctx_syms = { 0 };
@@ -2572,7 +2572,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
-  const int rect_type_ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 0);
+  const int rect_type_ctx =
+      partition_plane_context(xd, mi_row, mi_col, bsize, 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -4356,8 +4357,7 @@ static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
 #if CONFIG_BLOCK_256
     BLOCK_256X256,
 #endif
-    BLOCK_128X128,
-    BLOCK_64X64
+    BLOCK_128X128, BLOCK_64X64
   };
   int index = 0;
   bool bit = aom_rb_read_bit(rb);
