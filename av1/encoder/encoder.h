@@ -1997,6 +1997,9 @@ typedef struct ThreadData {
   // Buffer used to store quantized and dequantized transform coefficients.
   coeff_info *coef_info;
   PICK_MODE_CONTEXT *firstpass_ctx;
+#if CONFIG_ML_PART_SPLIT
+  void *partition_model;
+#endif  // CONFIG_ML_PART_SPLIT
 } ThreadData;
 
 struct EncWorkerData;

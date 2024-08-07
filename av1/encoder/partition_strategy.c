@@ -26,6 +26,7 @@
 #include "av1/encoder/partition_model_weights.h"
 #include "av1/encoder/partition_cnn_weights.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/reconinter_enc.h"
 
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_search.h"
@@ -2554,6 +2555,7 @@ static struct ResidualStats compute_motion_data(AV1_COMP *const cpi,
   mbmi->mv[0].as_mv = sms->submv;
   mbmi->mode = NEWMV;
   mbmi->refinemv_flag = 0;
+
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                 AOM_PLANE_Y, AOM_PLANE_Y);
 
@@ -2692,7 +2694,7 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     float ml_output[1] = { 0.0f };
 
     bool has_error = av2_part_split_prune_tflite_exec(
-        cpi->common.partition_model, ml_input, FEATURE_INTRA_MAX, ml_output, 1,
+        &td->partition_model, ml_input, FEATURE_INTRA_MAX, ml_output, 1,
         model_type[0]);
     assert(!has_error);
     if (has_error)
@@ -2710,9 +2712,10 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     av1_ml_part_split_features_inter(cpi, x, mi_row, mi_col, bsize, tile_info,
                                      td, ml_input);
     bool has_error = av2_part_split_prune_tflite_exec(
-        cpi->common.partition_model, ml_input, FEATURE_INTER_MAX, ml_output, 1,
+        &td->partition_model, ml_input, FEATURE_INTER_MAX, ml_output, 1,
         model_type[1]);
     assert(!has_error);
+
     if (has_error)
       vote[1] = ML_PART_NOT_SURE;
     else {
