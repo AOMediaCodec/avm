@@ -2571,9 +2571,14 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
+#if CONFIG_PARTITION_CONTEXT_REDUCE
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
   const int rect_type_ctx =
       partition_plane_context(xd, mi_row, mi_col, bsize, 0);
+#else
+  const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
+  const int rect_type_ctx = ctx;
+#endif
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
