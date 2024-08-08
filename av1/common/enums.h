@@ -40,7 +40,7 @@ extern "C" {
 
 #if CONFIG_CFL_SIMPLIFICATION
 #define NUM_REF_SAM_CFL 8
-#endif
+#endif  // CONFIG_CFL_SIMPLIFICATION
 
 #if CONFIG_D071_IMP_MSK_BLD
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight

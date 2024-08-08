@@ -193,7 +193,8 @@ static void get_top_bottom_offsets(
 #endif  // CONFIG_CFL_SIMPLIFICATION
     int *top_offset, int *bottom_offset) {
 #if CONFIG_CFL_SIMPLIFICATION
-  // If it is sb boundary, input points to the immediately line above
+  // If this is the above super block boundary, use only the above line and
+  // repeated it. This can be done by changing the offset.
   *top_offset = 2 - is_top_sb_boundary;
   *bottom_offset = 1 - is_top_sb_boundary;
 #else
@@ -239,7 +240,11 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     // repeated it.
     int top_offset = 0;
     int bottom_offset = 0;
+#if CONFIG_CFL_SIMPLIFICATION
     get_top_bottom_offsets(is_top_sb_boundary, &top_offset, &bottom_offset);
+#else
+    get_top_bottom_offsets(&top_offset, &bottom_offset);
+#endif
 
     if (sub_x && sub_y) {
       uint16_t *input = dst - top_offset * input_stride;
@@ -515,6 +520,13 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_CFL_SIMPLIFICATION
+  // Distribute number of reference samples above and left based on the width,
+  // height and the availability of the above and left. If only one side is
+  // available, the number is distributed to the avalable reference side. Else,
+  // if one side is larger than the other side by more than 2 times, the number
+  // is distributed to the larger side. Else, the number is distributed equally
+  // to two side. NUM_REF_SAM_CFL is 8, so the division can be replaced by bit
+  // right shift by 3.
   int numb_up = 0;
   int numb_left = 0;
 
