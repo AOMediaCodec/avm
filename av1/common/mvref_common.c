@@ -5151,9 +5151,22 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   // Find the sorted map of refs.
   int sort_ref[INTER_REFS_PER_FRAME] = { 0, 1, 2, 3, 4, 5, 6 };
   int disp_order[INTER_REFS_PER_FRAME] = { 0 };
+
+  bool is_overlay[INTER_REFS_PER_FRAME] = { false };
+  for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
+    if (is_ref_overlay(cm, rf) &&
+        get_ref_frame_buf(cm, rf)->frame_type != KEY_FRAME) {
+      is_overlay[rf] = true;
+    }
+  }
+
+  printf("\ndisplay orders for %d: ", cm->cur_frame->display_order_hint);
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
+    printf("[%d: %d, %d %d] ", rf, disp_order[rf],
+           get_ref_frame_buf(cm, rf)->frame_type, is_overlay[rf]);
   }
+  printf("\n");
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
@@ -5179,12 +5192,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     }
   }
 
-  bool is_overlay[INTER_REFS_PER_FRAME] = { false };
-  for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
-    if (is_ref_overlay(cm, rf)) {
-      is_overlay[rf] = true;
-    }
-  }
   int rf_stack[INTER_REFS_PER_FRAME];
   int visited[INTER_REFS_PER_FRAME] = { 0 };
   int stack_count = 0;
