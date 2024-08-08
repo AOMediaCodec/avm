@@ -244,7 +244,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     get_top_bottom_offsets(is_top_sb_boundary, &top_offset, &bottom_offset);
 #else
     get_top_bottom_offsets(&top_offset, &bottom_offset);
-#endif
+#endif  // CONFIG_CFL_SIMPLIFICATION
 
     if (sub_x && sub_y) {
       uint16_t *input = dst - top_offset * input_stride;
