@@ -4584,7 +4584,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   int si = eob - 1;
   // populate trellis
-  assert (si<MAX_TRELLIS);
+  assert(si < MAX_TRELLIS);
   DECISION trellis[MAX_TRELLIS][TOTALSTATES];
 
   int first_test_pos = si;
