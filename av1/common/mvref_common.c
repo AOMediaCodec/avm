@@ -5160,13 +5160,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     }
   }
 
-  printf("\ndisplay orders for %d: ", cm->cur_frame->display_order_hint);
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
-    printf("[%d: %d, %d %d] ", rf, disp_order[rf],
-           get_ref_frame_buf(cm, rf)->frame_type, is_overlay[rf]);
   }
-  printf("\n");
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
