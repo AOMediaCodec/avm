@@ -3912,6 +3912,7 @@ static AOM_INLINE void write_modes_sb(
   if (!is_sb_root && !frame_is_intra_only(cm) && parent && partition &&
       parent->region_type != INTRA_REGION && cm->seq_params.enable_sdp &&
       ptree->extended_sdp_allowed_flag &&
+      is_extended_sdp_allowed(parent->bsize, parent->partition) &&
       is_bsize_allowed_for_extended_sdp(bsize, ptree->partition)) {
     const int ctx = get_intra_region_context(bsize);
     assert(xd->tree_type != CHROMA_PART);
