@@ -7090,7 +7090,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_MORPH_PRED
 
 #if CONFIG_IMPROVED_MORPH_PRED
-    int allow_morph_pred = av1_allow_intrabc_morph_pred(cm, bsize);
+    int allow_morph_pred = av1_allow_intrabc_morph_pred(cm);
     int num_modes_to_search = 1 + allow_morph_pred;
 #else
     int num_modes_to_search =

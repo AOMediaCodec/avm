@@ -101,11 +101,7 @@ static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
 
 #if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
 // Function to check morph prediction is allowed or not
-static INLINE int av1_allow_intrabc_morph_pred(const AV1_COMMON *const cm,
-                                               BLOCK_SIZE bsize) {
-  if (block_size_wide[bsize] > 64 || block_size_high[bsize] > 64) {
-    return 0;
-  }
+static INLINE int av1_allow_intrabc_morph_pred(const AV1_COMMON *const cm) {
   return cm->features.allow_screen_content_tools && frame_is_intra_only(cm);
 }
 #endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED

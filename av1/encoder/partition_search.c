@@ -1509,7 +1509,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_MORPH_PRED
 #if CONFIG_IMPROVED_MORPH_PRED
-      if (av1_allow_intrabc_morph_pred(cm, bsize)) {
+      if (av1_allow_intrabc_morph_pred(cm)) {
 #endif  // CONFIG_IMPROVED_MORPH_PRED
         const int morph_pred_ctx = get_morph_pred_ctx(xd);
         update_cdf(fc->morph_pred_cdf[morph_pred_ctx], mbmi->morph_pred, 2);

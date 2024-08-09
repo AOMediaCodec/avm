@@ -88,7 +88,7 @@ static AOM_INLINE void write_intrabc_info(
     int max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    const AV1_COMMON *const cm, BLOCK_SIZE bsize,
+    const AV1_COMMON *const cm,
 #endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     aom_writer *w);
@@ -2624,7 +2624,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         cm->features.max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        cm, bsize,
+        cm,
 #endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
         xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
@@ -3127,7 +3127,7 @@ static AOM_INLINE void write_intrabc_info(
     int max_bvp_drl_bits,
 #endif  //  CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    const AV1_COMMON *const cm, BLOCK_SIZE bsize,
+    const AV1_COMMON *const cm,
 #endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     aom_writer *w) {
@@ -3197,7 +3197,7 @@ static AOM_INLINE void write_intrabc_info(
 
 #if CONFIG_MORPH_PRED
 #if CONFIG_IMPROVED_MORPH_PRED
-    if (av1_allow_intrabc_morph_pred(cm, bsize)) {
+    if (av1_allow_intrabc_morph_pred(cm)) {
 #endif  // CONFIG_IMPROVED_MORPH_PRED
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
       aom_write_symbol(w, mbmi->morph_pred,
@@ -3285,7 +3285,7 @@ static AOM_INLINE void write_mb_modes_kf(
         cm->features.max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        cm, mbmi->sb_type[xd->tree_type == CHROMA_PART],
+        cm,
 #endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
         xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;

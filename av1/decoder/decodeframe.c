@@ -1369,7 +1369,7 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
     assert(av1_allow_intrabc(cm, xd));
 #endif  // CONFIG_ENABLE_IBC_NAT
 #if CONFIG_IMPROVED_MORPH_PRED
-    assert(av1_allow_intrabc_morph_pred(cm, bsize));
+    assert(av1_allow_intrabc_morph_pred(cm));
 #endif  // CONFIG_IMPROVED_MORPH_PRED
     assert(is_intrabc_block(mbmi, xd->tree_type));
     av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);

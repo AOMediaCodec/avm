@@ -1824,7 +1824,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
 #if CONFIG_MORPH_PRED
 #if CONFIG_IMPROVED_MORPH_PRED
-    if (av1_allow_intrabc_morph_pred(cm, bsize)) {
+    if (av1_allow_intrabc_morph_pred(cm)) {
 #endif  // CONFIG_IMPROVED_MORPH_PRED
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
       mbmi->morph_pred = aom_read_symbol(
