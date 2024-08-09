@@ -36,16 +36,16 @@ void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
       const int32x4_t coeffB = vld1q_s32(cf + width);
       const int16x8_t coeffAB =
           vcombine_s16(vqmovn_s32(coeffA), vqmovn_s32(coeffB));
-      const uint16x8_t absAB = vreinterpretq_u16_s16(vqabsq_s16(coeffAB));
-      const uint8x8_t absABs = vqmovn_u16(absAB);
+      const int16x8_t absAB = vqabsq_s16(coeffAB);
+      const int8x8_t absABs = vqmovn_s16(absAB);
 #if defined(__aarch64__)
-      const uint8x16_t absAB8 =
-          vcombine_u8(absABs, vreinterpret_u8_s32(vget_low_s32(zeros)));
+      const int8x16_t absAB8 =
+          vcombine_s8(absABs, vreinterpret_s8_s32(vget_low_s32(zeros)));
       const uint8x16_t lsAB =
-          vreinterpretq_u8_s32(vzip1q_s32(vreinterpretq_s32_u8(absAB8), zeros));
+          vreinterpretq_u8_s32(vzip1q_s32(vreinterpretq_s32_s8(absAB8), zeros));
 #else
       const int32x2x2_t absAB8 =
-          vzip_s32(vreinterpret_s32_u8(absABs), vget_low_s32(zeros));
+          vzip_s32(vreinterpret_s32_s8(absABs), vget_low_s32(zeros));
       const uint8x16_t lsAB =
           vreinterpretq_u8_s32(vcombine_s32(absAB8.val[0], absAB8.val[1]));
 #endif
@@ -60,9 +60,9 @@ void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
       const int32x4_t coeffB = vld1q_s32(cf + 4);
       const int16x8_t coeffAB =
           vcombine_s16(vqmovn_s32(coeffA), vqmovn_s32(coeffB));
-      const uint16x8_t absAB = vreinterpretq_u16_s16(vqabsq_s16(coeffAB));
-      const uint8x16_t absAB8 = vcombine_u8(
-          vqmovn_u16(absAB), vreinterpret_u8_s32(vget_low_s32(zeros)));
+      const int16x8_t absAB = vqabsq_s16(coeffAB);
+      const uint8x16_t absAB8 = vreinterpretq_u8_s8(vcombine_s8(
+          vqmovn_s16(absAB), vreinterpret_s8_s32(vget_low_s32(zeros))));
       vst1q_u8(ls, absAB8);
       ls += stride;
       cf += width;
@@ -80,10 +80,10 @@ void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
             vcombine_s16(vqmovn_s32(coeffA), vqmovn_s32(coeffB));
         const int16x8_t coeffCD =
             vcombine_s16(vqmovn_s32(coeffC), vqmovn_s32(coeffD));
-        const uint16x8_t absAB = vreinterpretq_u16_s16(vqabsq_s16(coeffAB));
-        const uint16x8_t absCD = vreinterpretq_u16_s16(vqabsq_s16(coeffCD));
-        const uint8x16_t absABCD =
-            vcombine_u8(vqmovn_u16(absAB), vqmovn_u16(absCD));
+        const int16x8_t absAB = vqabsq_s16(coeffAB);
+        const int16x8_t absCD = vqabsq_s16(coeffCD);
+        const uint8x16_t absABCD = vreinterpretq_u8_s8(
+            vcombine_s8(vqmovn_s16(absAB), vqmovn_s16(absCD)));
         vst1q_u8((ls + j), absABCD);
         j += 16;
         cf += 16;

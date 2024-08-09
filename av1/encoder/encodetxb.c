@@ -532,7 +532,7 @@ void av1_txb_init_levels_signs_c(const tran_low_t *const coeff, const int width,
     }
     for (int j = 0; j < width; j++) {
       *si++ = (int8_t)(coeff[i * width + j] > 0) ? 1 : -1;
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
     }
 #if !CONFIG_IMPROVEIDTX_RDPH
     // right 4 pad
@@ -559,7 +559,7 @@ void av1_txb_init_levels_skip_c(const tran_low_t *const coeff, const int width,
       *ls++ = 0;
     }
     for (int j = 0; j < width; j++) {
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
     }
   }
 }
@@ -574,7 +574,7 @@ void av1_txb_init_levels_c(const tran_low_t *const coeff, const int width,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
     }
     for (int j = 0; j < TX_PAD_HOR; j++) {
       *ls++ = 0;
