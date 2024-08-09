@@ -199,7 +199,6 @@ extern "C" int av2_part_split_prune_tflite_exec(void **context,
 
 extern "C" void av2_part_split_prune_tflite_close(void **context) {
   Context *ctx = (Context *)*context;
-  if (ctx != nullptr)
-    delete ctx;
+  if (ctx != nullptr) delete ctx;
   *context = nullptr;
 }
