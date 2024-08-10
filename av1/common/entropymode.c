@@ -485,7 +485,8 @@ static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
 // clang-format off
 #if CONFIG_FLEX_PARTITION
 #if CONFIG_PARTITION_CONTEXT_REDUCE
-static const aom_cdf_prob default_do_split_cdf[2][100][CDF_SIZE(2)] = {
+static aom_cdf_prob
+    default_do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)] = {
   {
     { AOM_CDF2(16384),   0 },
     { AOM_CDF2(16384),   0 },
@@ -692,7 +693,8 @@ static const aom_cdf_prob default_do_split_cdf[2][100][CDF_SIZE(2)] = {
   },
 };
 
-static const aom_cdf_prob default_rect_type_cdf[2][100][CDF_SIZE(2)] = {
+static aom_cdf_prob
+    default_rect_type_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)] = {
   {
     { AOM_CDF2(16384),  75 },
     { AOM_CDF2(16384), 118 },
@@ -902,7 +904,9 @@ static const aom_cdf_prob default_rect_type_cdf[2][100][CDF_SIZE(2)] = {
 // Note: For the partition CDFs below, most entries are unused. An optimized
 // implementation could create smaller arrays with only used values + some
 // mapping tables.
-static const aom_cdf_prob default_do_ext_partition_cdf[2][2][100][CDF_SIZE(2)] = {
+static aom_cdf_prob default_do_ext_partition_cdf
+    [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
+    [CDF_SIZE(2)] = {
   {
     {
       { AOM_CDF2(16384),   0 },
@@ -1317,7 +1321,9 @@ static const aom_cdf_prob default_do_ext_partition_cdf[2][2][100][CDF_SIZE(2)] =
   },
 };
 
-static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][2][100][CDF_SIZE(2)] = {
+static aom_cdf_prob default_do_uneven_4way_partition_cdf
+    [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
+    [CDF_SIZE(2)] = {
   {
     {
       { AOM_CDF2(16384),   0 },
@@ -1732,7 +1738,9 @@ static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][2][100][CDF_SI
   },
 };
 
-static const aom_cdf_prob default_uneven_4way_partition_type_cdf[2][2][100][CDF_SIZE(2)] = {
+static aom_cdf_prob default_uneven_4way_partition_type_cdf
+    [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
+    [CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)] = {
   {
     {
       { AOM_CDF2(16384),   0 },
