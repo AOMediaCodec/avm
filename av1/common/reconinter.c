@@ -452,6 +452,7 @@ static const wedge_code_type wedge_codebook_16_heqw[16] = {
 
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_WEDGE_TMVP
+// Look up table of params for wedge mode for different block sizes.
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL, NULL },
@@ -546,6 +547,7 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_WEDGE_TMVP
 #else
 #if CONFIG_WEDGE_TMVP
+// Look up table of params for wedge mode for different block sizes.
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL, NULL },
@@ -697,6 +699,9 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
 }
 
 #if CONFIG_WEDGE_TMVP
+// For each 8x8 block, decide (if using wedge mode), whether it should store
+// both MVs as the TMVP MVs, or just 1 of them (and in this case which one to
+// store).
 static void get_wedge_tmvp_decision(const uint8_t *mask, int mask_stride,
                                     int bw, int bh, uint8_t *decision,
                                     int decision_stride) {
