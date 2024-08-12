@@ -688,6 +688,9 @@ static INLINE int32_t divide_and_round_signed(int64_t num, int64_t den) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_AFFINE_REFINEMENT
+int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
+                          const int msb_a, const int msb_b, const int max_bd,
+                          int *rem_shift);
 int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol);
 void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
                                        int16_t *gx, int16_t *gy,

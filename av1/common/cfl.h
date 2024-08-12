@@ -140,7 +140,8 @@ void gaussBacksubstitution(int64_t *x,
 void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                       int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
                       int64_t *y0, int64_t *x0, int numEq, int bd);
-void xGetDivScaleRoundShift(int64_t denom, int *scale, int *round, int *shift);
+void xGetDivScaleRoundShift(uint64_t denom, int *scale, uint64_t *round,
+                            int *shift);
 #endif
 
 #if !MHCCP_DIVISION_REMOVAL

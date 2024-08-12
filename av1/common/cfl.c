@@ -18,6 +18,10 @@
 
 #include "config/av1_rtcd.h"
 
+#if MHCCP_DIVISION_REMOVAL
+#include "av1/common/reconinter.h"
+#endif
+
 #if CONFIG_IMPROVED_CFL
 #include "av1/common/warped_motion.h"
 #endif
@@ -1141,38 +1145,31 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 
 static inline int floorLog2Uint64(uint64_t x) {
   if (x == 0) {
-    // note: ceilLog2() expects -1 as return value
-    return -1;
+    return 0;
   }
   int result = 0;
   if (x & 0xffffffff00000000) {
-    x >>= 32;
     result += 32;
   }
   if (x & 0xffff0000) {
-    x >>= 16;
     result += 16;
   }
   if (x & 0xff00) {
-    x >>= 8;
     result += 8;
   }
   if (x & 0xf0) {
-    x >>= 4;
     result += 4;
   }
   if (x & 0xc) {
-    x >>= 2;
     result += 2;
   }
   if (x & 0x2) {
-    x >>= 1;
     result += 1;
   }
   return result;
 }
 
-void xGetDivScaleRoundShift(int64_t denom, int *scale, int *round,
+void xGetDivScaleRoundShift(uint64_t denom, int *scale, uint64_t *round,
                             int *shift)  // Note: assumes positive denominator
 {
   static const int pow2W[8] = {
@@ -1185,9 +1182,17 @@ void xGetDivScaleRoundShift(int64_t denom, int *scale, int *round,
                                 11764, 12195, 12870, 13782 };  // DIV_PREC_BITS
 
   *shift = floorLog2Uint64(denom);
-  *round = 1 << (*shift) >> 1;
-  int normDiff = (((denom << DIV_PREC_BITS) + *round) >> (*shift)) &
-                 ((1 << DIV_PREC_BITS) - 1);
+  if (*shift == 0)
+    *round = 0;
+  else
+    *round = (uint64_t)(1ULL << (*shift) >> 1);
+  int normDiff = 0;
+  if (*shift > DIV_PREC_BITS)
+    normDiff = (int)((denom >> ((*shift) - DIV_PREC_BITS)) &
+                     ((1 << DIV_PREC_BITS) - 1));
+  else
+    normDiff = (int)((denom << (DIV_PREC_BITS - (*shift))) &
+                     ((1 << DIV_PREC_BITS) - 1));
   int diffFull = normDiff >> DIV_INTR_BITS;
   int normDiff2 = normDiff - pow2O[diffFull];
 
@@ -1205,7 +1210,9 @@ void gaussBacksubstitution(int64_t *x,
     x[i] = C[i][col];
 
     for (int j = i + 1; j < numEq; j++) {
-      x[i] -= FIXED_MULT(C[i][j], x[j]);
+      x[i] -= stable_mult_shift(C[i][j], x[j], MHCCP_DECIM_BITS,
+                                get_msb_signed_64(C[i][j]),
+                                get_msb_signed_64(x[j]), 32, NULL);
     }
   }
 }
@@ -1230,24 +1237,28 @@ void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
   for (int i = 0; i < numEq; i++) {
     int64_t *src = C[i];
-    int64_t diag = src[i] < 1 ? 1 : src[i];
+    uint64_t diag = src[i] < 1 ? 1 : src[i];
 
-    int scale, round, shift;
-
+    uint64_t round;
+    int scale, shift;
     xGetDivScaleRoundShift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
-      src[j] = ((int64_t)(src[j]) * scale + round) >> shift;
+      src[j] =
+          stable_mult_shift(src[j], scale, shift, get_msb_signed_64(src[j]),
+                            get_msb_signed_64(scale), 32, NULL);
     }
 
     for (int j = i + 1; j < numEq; j++) {
       int64_t *dst = C[j];
-      int64_t scale = dst[i];
+      int64_t scale_factor = dst[i];
 
       // On row j all elements with k < i+1 are now zero (not zeroing those here
       // as backsubstitution does not need them)
       for (int k = i + 1; k < numEq + 1; k++) {
-        dst[k] -= FIXED_MULT(scale, src[k]);
+        dst[k] -= stable_mult_shift(scale_factor, src[k], MHCCP_DECIM_BITS,
+                                    get_msb_signed_64(scale_factor),
+                                    get_msb_signed_64(src[k]), 32, NULL);
       }
     }
   }
@@ -1349,9 +1360,11 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
   for (int i = 0; i < numParams; i++) {
-    sum += params[i] * vector[i];
+    sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
+                             get_msb_signed_64(params[i]),
+                             get_msb_signed(vector[i]), 32, NULL);
   }
-  return (int16_t)((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS);
+  return (int16_t)sum;
 }
 
 void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
