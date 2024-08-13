@@ -2266,7 +2266,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         }
       } else {
         if (level > NUM_BASE_LEVELS) {
-          const int ctx = 0; /* get_br_ctx_eob */
+          const int ctx = 0;
 #if CONFIG_COEFF_HR_ADAPTIVE
           const int hr_ctx = 0; /* eob */
           cost += get_br_cost(level, lps_cost[ctx], hr_ctx, &hr_level);
