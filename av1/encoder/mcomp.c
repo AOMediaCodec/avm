@@ -3369,7 +3369,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
       aom_highbd_comp_mask_upsampled_pred(
           xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h, subpel_x_q3,
           subpel_y_q3, ref, ref_stride, mask, mask_stride, invert_mask, xd->bd,
-          subpel_search_type);
+          subpel_search_type, is_scaled_ref);
     } else {
       if (get_cwp_idx(xd->mi[0]) != CWP_EQUAL) {
         DIST_WTD_COMP_PARAMS jcp_param;
@@ -3378,13 +3378,13 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
         aom_highbd_dist_wtd_comp_avg_upsampled_pred(
             xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h,
             subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd, &jcp_param,
-            subpel_search_type);
+            subpel_search_type, is_scaled_ref);
       } else
 
         aom_highbd_comp_avg_upsampled_pred(xd, cm, mi_row, mi_col, this_mv,
                                            pred, second_pred, w, h, subpel_x_q3,
                                            subpel_y_q3, ref, ref_stride, xd->bd,
-                                           subpel_search_type);
+                                           subpel_search_type, is_scaled_ref);
     }
   } else {
     aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred, w, h,
@@ -5692,10 +5692,13 @@ static int upsampled_obmc_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   const int mi_col = xd->mi_col;
 
   unsigned int besterr;
+  const int is_scaled_ref = ms_buffers->src->width == ms_buffers->ref->width &&
+                            ms_buffers->src->height == ms_buffers->ref->height;
+
   DECLARE_ALIGNED(16, uint16_t, pred[MAX_SB_SQUARE]);
   aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred, w, h,
                             subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd,
-                            subpel_search_type, 0);
+                            subpel_search_type, is_scaled_ref);
   besterr = vfp->ovf(pred, w, wsrc, mask, sse);
 
   return besterr;

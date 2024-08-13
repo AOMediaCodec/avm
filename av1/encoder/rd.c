@@ -2088,7 +2088,14 @@ YV12_BUFFER_CONFIG *av1_get_scaled_ref_frame(const AV1_COMP *cpi,
     return NULL;
   }
 
+#if CONFIG_SUPER_RES_COMPOUND_MVD_SEARCH_FIX
+  if (ref_frame >= cpi->common.ref_frames_info.num_total_refs) {
+    return NULL;
+  }
+#else
   assert(ref_frame < cpi->common.ref_frames_info.num_total_refs);
+#endif  // CONFIG_SUPER_RES_COMPOUND_MVD_SEARCH_FIX
+
   RefCntBuffer *const scaled_buf = cpi->scaled_ref_buf[ref_frame];
   const RefCntBuffer *const ref_buf =
       get_ref_frame_buf(&cpi->common, ref_frame);

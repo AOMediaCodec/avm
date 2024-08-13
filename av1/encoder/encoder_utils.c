@@ -765,7 +765,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-static AOM_INLINE void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
+void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
   // Note: this is heavier than it needs to be. We can avoid reallocating some
   // of the buffers.
   AV1_COMMON *const cm = &cpi->common;
@@ -844,6 +844,9 @@ void av1_setup_frame(AV1_COMP *cpi) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
   if (cm->sb_size != old_sb_size) {
+    // Reallocate sb_size-dependent buffers if the sb_size has changed.
+    reallocate_sb_size_dependent_buffers(cpi);
+  } else if (cpi->alloc_width < cm->width || cpi->alloc_height < cm->height) {
     av1_free_context_buffers(cm);
     av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
     av1_free_sms_tree(&cpi->td);
@@ -859,11 +862,6 @@ void av1_setup_frame(AV1_COMP *cpi) {
       aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate context buffers");
     }
-  }
-
-  if (cm->seq_params.sb_size != old_sb_size) {
-    // Reallocate sb_size-dependent buffers if the sb_size has changed.
-    reallocate_sb_size_dependent_buffers(cpi);
   }
 
   av1_zero(cm->cur_frame->interp_filter_selected);
@@ -1317,6 +1315,7 @@ static void save_extra_coding_context(AV1_COMP *cpi) {
   cc->cdef_info = cm->cdef_info;
   cc->rc = cpi->rc;
   cc->mv_stats = cpi->mv_stats;
+  cc->features = cm->features;
 }
 
 void av1_save_all_coding_context(AV1_COMP *cpi) {

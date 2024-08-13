@@ -384,7 +384,7 @@ static void set_good_speed_features_framesize_independent(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   sf->rd_sf.perform_coeff_opt = 1;
-  sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
+  sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
 
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;

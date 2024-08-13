@@ -55,7 +55,9 @@ static AOM_INLINE void alloc_context_buffers_ext(
 static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   TokenInfo *token_info = &cpi->token_info;
-
+  cpi->alloc_width = cm->width;
+  cpi->alloc_height = cm->height;
+  cpi->alloc_sb_size = cm->sb_size;
   if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
@@ -288,6 +290,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     aom_free(cpi->consec_zero_mv);
     cpi->consec_zero_mv = NULL;
   }
+  cpi->alloc_width = 0;
+  cpi->alloc_height = 0;
+  cpi->alloc_sb_size = 0;
 }
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {

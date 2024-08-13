@@ -2113,7 +2113,6 @@ void av1_check_initial_width(AV1_COMP *cpi, int subsampling_x,
 // Returns 1 if the assigned width or height was <= 0.
 int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
-  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   av1_check_initial_width(cpi, cm->seq_params.subsampling_x,
                           cm->seq_params.subsampling_y);
 
@@ -2122,20 +2121,31 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
   cm->width = width;
   cm->height = height;
 
-  if (initial_dimensions->width && initial_dimensions->height &&
-      (cm->width > initial_dimensions->width ||
-       cm->height > initial_dimensions->height)) {
-    av1_free_context_buffers(cm);
-    av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
-    av1_free_sms_tree(&cpi->td);
+  const BLOCK_SIZE old_sb_size = cm->sb_size;
+  const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
+  if (!cpi->seq_params_locked) {
+    set_sb_size(cm, sb_size);
+  } else {
+    av1_set_frame_sb_size(cm, sb_size);
+  }
+  cpi->td.sb_size = cm->sb_size;
+
+  if (cpi->alloc_width && cpi->alloc_height) {
+    if (old_sb_size != cm->sb_size) {
+      // Reallocate sb_size-dependent buffers if the sb_size has changed.
+      reallocate_sb_size_dependent_buffers(cpi);
+    } else if (cm->width > cpi->alloc_width || cm->height > cpi->alloc_height) {
+      av1_free_context_buffers(cm);
+      av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+      av1_free_sms_tree(&cpi->td);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    av1_free_sms_bufs(&cpi->td);
+      av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
-    cpi->td.firstpass_ctx = NULL;
-    alloc_compressor_data(cpi);
-    realloc_segmentation_maps(cpi);
-    initial_dimensions->width = initial_dimensions->height = 0;
+      av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
+      cpi->td.firstpass_ctx = NULL;
+      alloc_compressor_data(cpi);
+      realloc_segmentation_maps(cpi);
+    }
   }
   update_frame_size(cpi);
 
@@ -3606,7 +3616,19 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // Compute sse and rate.
   if (sse != NULL) {
-    *sse = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+    int64_t tip_as_ref_sse =
+        aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+#if CONFIG_TIP_DIRECT_FRAME_MV
+    tip_as_ref_sse += aom_highbd_sse(
+        cpi->source->u_buffer, cpi->source->uv_stride,
+        cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
+        cpi->source->uv_width, cpi->source->uv_height);
+    tip_as_ref_sse += aom_highbd_sse(
+        cpi->source->v_buffer, cpi->source->uv_stride,
+        cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
+        cpi->source->uv_width, cpi->source->uv_height);
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
+    *sse = tip_as_ref_sse;
   }
   if (rate != NULL) {
     const int64_t bits = (*size << 3);
@@ -3628,11 +3650,35 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
                                             uint8_t *dest,
                                             int *largest_tile_id) {
-  const AV1_COMMON *const cm = &cpi->common;
+  AV1_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.enable_superres);
   assert(av1_superres_in_recode_allowed(cpi));
   aom_codec_err_t err = AOM_CODEC_OK;
   av1_save_all_coding_context(cpi);
+  FrameProbInfo *const frame_probs = &cpi->frame_probs;
+  const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+  int warped_probs_tmp = frame_probs->warped_probs[update_type];
+
+  aom_superres_mode orig_superres_mode = cpi->superres_mode;
+  cpi->superres_mode = AOM_SUPERRES_NONE;
+  int top_index = 0, bottom_index = 0, full_res_q = 0;
+  full_res_q =
+      av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
+                               cpi->gf_group.index, &bottom_index, &top_index);
+  const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, full_res_q);
+
+  cpi->superres_mode = orig_superres_mode;
+  int q_th = 160 + (MAXQ_OFFSET * (cm->seq_params.bit_depth - 8));
+
+  int do_not_search_superres = full_res_q <= q_th;
+  if (do_not_search_superres) {
+    restore_all_coding_context(cpi);
+    cpi->superres_mode = AOM_SUPERRES_NONE;
+    frame_probs->warped_probs[update_type] = warped_probs_tmp;
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
+                                             largest_tile_id);
+    return err;
+  }
 
   int64_t sse1 = INT64_MAX;
   int64_t rate1 = INT64_MAX;
@@ -3641,6 +3687,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   int64_t rate2 = INT64_MAX;
   int largest_tile_id2;
   double proj_rdcost1 = DBL_MAX;
+  const int search_step = 2;
 
   // Encode with superres.
   if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
@@ -3652,13 +3699,18 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     const GF_GROUP *const gf_group = &cpi->gf_group;
     if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
         gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
-      for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-           ++denom) {
+      for (int denom = SCALE_NUMERATOR + 2; denom <= 2 * SCALE_NUMERATOR;
+           denom += search_step) {
         superres_cfg->superres_scale_denominator = denom;
         superres_cfg->superres_kf_scale_denominator = denom;
         const int this_index = denom - (SCALE_NUMERATOR + 1);
 
         cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
+        frame_probs->warped_probs[update_type] = warped_probs_tmp;
+        if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
+            superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
+          cpi->common.features.allow_screen_content_tools = 0;
+        }
         err = encode_with_recode_loop_and_filter(
             cpi, size, dest, &superres_sses[this_index],
             &superres_rates[this_index],
@@ -3680,18 +3732,15 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     }
     // Encode without superres.
     assert(cpi->superres_mode == AOM_SUPERRES_NONE);
+    frame_probs->warped_probs[update_type] = warped_probs_tmp;
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
                                              &largest_tile_id2);
     if (err != AOM_CODEC_OK) return err;
 
-    // Note: Both use common rdmult based on base qindex of fullres.
-    const int64_t rdmult =
-        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
-
     // Find the best rdcost among all superres denoms.
     int best_denom = -1;
-    for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-         ++denom) {
+    for (int denom = SCALE_NUMERATOR + 2; denom <= 2 * SCALE_NUMERATOR;
+         denom += search_step) {
       const int this_index = denom - (SCALE_NUMERATOR + 1);
       const int64_t this_sse = superres_sses[this_index];
       const int64_t this_rate = superres_rates[this_index];
@@ -3721,6 +3770,11 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       int64_t rate3 = INT64_MAX;
       cpi->superres_mode =
           AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+      frame_probs->warped_probs[update_type] = warped_probs_tmp;
+      if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
+          superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
+        cpi->common.features.allow_screen_content_tools = 0;
+      }
       err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                                largest_tile_id);
       cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
@@ -3737,6 +3791,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     assert(cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_DUAL);
     cpi->superres_mode =
         AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+    frame_probs->warped_probs[update_type] = warped_probs_tmp;
+    if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
+      cpi->common.features.allow_screen_content_tools = 0;
+    }
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
                                              &largest_tile_id1);
     cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
@@ -3744,13 +3802,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     restore_all_coding_context(cpi);
     // Encode without superres.
     assert(cpi->superres_mode == AOM_SUPERRES_NONE);
+    frame_probs->warped_probs[update_type] = warped_probs_tmp;
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
                                              &largest_tile_id2);
+
     if (err != AOM_CODEC_OK) return err;
 
-    // Note: Both use common rdmult based on base qindex of fullres.
-    const int64_t rdmult =
-        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
     proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
                                                   cm->seq_params.bit_depth);
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
@@ -3765,6 +3822,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       int64_t rate3 = INT64_MAX;
       cpi->superres_mode =
           AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+      frame_probs->warped_probs[update_type] = warped_probs_tmp;
+      if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
+        cpi->common.features.allow_screen_content_tools = 0;
+      }
       err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                                largest_tile_id);
       cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).

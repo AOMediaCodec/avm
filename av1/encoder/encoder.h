@@ -2539,6 +2539,7 @@ typedef struct {
   YV12_BUFFER_CONFIG copy_buffer;
   RATE_CONTROL rc;
   MV_STATS mv_stats;
+  FeatureFlags features;
 } CODING_CONTEXT;
 
 typedef struct {
@@ -3197,6 +3198,18 @@ typedef struct AV1_COMP {
    */
   int last_encoded_frame_order_hint;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+  /*!
+   * allocation width
+   */
+  int alloc_width;
+  /*!
+   * allocation height
+   */
+  int alloc_height;
+  /*!
+   * allocation sb_size
+   */
+  int alloc_sb_size;
 } AV1_COMP;
 
 /*!

@@ -812,7 +812,17 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   }
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
-  if (mbmi->skip_mode) return;
+  if (mbmi->skip_mode) {
+    // Go back to unscaled reference.
+    if (scaled_ref_frame) {
+      // We had temporarily setup pred block based on scaled reference above. Go
+      // back to unscaled reference now, for subsequent use.
+      av1_setup_pred_block(xd, yv12_mb[ref_frame_idx], yv12, sf, sf,
+                           num_planes);
+    }
+
+    return;
+  }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   // Gets an initial list of candidate vectors from neighbours and orders them

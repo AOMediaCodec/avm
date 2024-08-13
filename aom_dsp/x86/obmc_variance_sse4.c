@@ -141,7 +141,7 @@ static INLINE void highbd_10_obmc_variance(const uint16_t *pre8, int pre_stride,
   } else if (w < 128 || h < 128) {
     hbd_obmc_variance_w8n(pre8, pre_stride, wsrc, mask, &sse64, &sum64, w, h);
   } else {
-    assert(w == 128 && h == 128);
+    assert(w >= 128 && h >= 128);
 
     do {
       hbd_obmc_variance_w8n(pre8, pre_stride, wsrc, mask, &sse64, &sum64, w,

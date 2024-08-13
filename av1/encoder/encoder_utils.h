@@ -1070,6 +1070,7 @@ static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
   cm->cdef_info = cc->cdef_info;
   cpi->rc = cc->rc;
   cpi->mv_stats = cc->mv_stats;
+  cm->features = cc->features;
 }
 
 static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
@@ -1264,6 +1265,8 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
   }
   av1_calculate_tile_rows(cm, mi_params->mi_rows, tiles);
 }
+
+void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
