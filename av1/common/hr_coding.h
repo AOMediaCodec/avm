@@ -19,8 +19,6 @@
 #include "aom_dsp/bitwriter.h"
 #include "aom_dsp/bitreader.h"
 
-void write_exp_golomb(aom_writer *w, int level, int k);
-int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k);
 
 static INLINE int get_exp_golomb_length(int level, int k) {
   return 2 * get_msb(level + (1 << k)) + 1 - k;
@@ -38,15 +36,11 @@ static INLINE int get_exp_golomb_length_diff(int level, int k, int *diff) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
-
-void write_truncated_rice(aom_writer *w, int level, int m, int k, int cmax);
-int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k, int cmax);
+int get_adaptive_param(int ctx);
 int get_truncated_rice_length(int level, int m, int k, int cmax);
 int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
                                    int *diff);
 
-void write_adaptive_hr(aom_writer *w, int level, int ctx);
-int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx);
 int get_adaptive_hr_length(int level, int ctx);
 int get_adaptive_hr_length_diff(int level, int ctx, int *diff);
 

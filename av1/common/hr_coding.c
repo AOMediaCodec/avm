@@ -13,86 +13,14 @@
 #include "av1/common/hr_coding.h"
 #include "aom/internal/aom_codec_internal.h"
 
-void write_exp_golomb(aom_writer *w, int level, int k) {
-  int x = level + (1 << k);
-  int length = 0;
-
-  length = get_msb(x) + 1;
-  assert(length > k);
-
-#if CONFIG_BYPASS_IMPROVEMENT
-  aom_write_literal(w, 0, length - 1 - k);
-  aom_write_literal(w, x, length);
-#else
-  for (int i = 0; i < length - 1 - k; ++i) aom_write_bit(w, 0);
-  for (int i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-}
-
-int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
-#if CONFIG_BYPASS_IMPROVEMENT
-  int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
-  if (length > 20) {
-    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                       "Invalid length in read_exp_golomb");
-  }
-  length += k;
-  int x = 1 << length;
-  x += aom_read_literal(r, length, ACCT_INFO("hr"));
-#else
-  int x = 1;
-  int length = 0;
-  int i = 0;
-  while (!i) {
-    i = aom_read_bit(r, ACCT_INFO("hr"));
-    ++length;
-    if (length > 20) {
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid length in read_exp_golomb");
-      break;
-    }
-  }
-  length += k;
-  for (i = 0; i < length - 1; ++i) {
-    x <<= 1;
-    x += aom_read_bit(r, ACCT_INFO("hr"));
-  }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-
-  return x - (1 << k);
-}
-
 #if CONFIG_COEFF_HR_ADAPTIVE
-
 static int adaptive_table[] = { 4, 8, 16, 32, 64 };
 
-static int get_adaptive_param(int ctx) {
+int get_adaptive_param(int ctx) {
   const int table_size = sizeof(adaptive_table) / sizeof(int);
   int m = 0;
   while (m < table_size && ctx >= adaptive_table[m]) ++m;
   return m + 1;
-}
-
-void write_truncated_rice(aom_writer *w, int level, int m, int k, int cmax) {
-  int q = level >> m;
-
-  if (q >= cmax) {
-    aom_write_literal(w, 0, cmax);
-    write_exp_golomb(w, level - (cmax << m), k);
-  } else {
-    const int mask = (1 << m) - 1;
-    aom_write_literal(w, 0, q);
-    aom_write_literal(w, 1, 1);
-    aom_write_literal(w, level & mask, m);
-  }
-}
-
-int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
-                        int cmax) {
-  int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
-  int rem = (q == cmax) ? read_exp_golomb(xd, r, k)
-                        : aom_read_literal(r, m, ACCT_INFO("hr"));
-  return rem + (q << m);
 }
 
 int get_truncated_rice_length(int level, int m, int k, int cmax) {
@@ -126,15 +54,6 @@ int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
   return q + 1 + m;
 }
 
-void write_adaptive_hr(aom_writer *w, int level, int ctx) {
-  int m = get_adaptive_param(ctx);
-  write_truncated_rice(w, level, m, m + 1, AOMMIN(m + 4, 6));
-}
-
-int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
-  int m = get_adaptive_param(ctx);
-  return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
-}
 
 int get_adaptive_hr_length(int level, int ctx) {
   int m = get_adaptive_param(ctx);
