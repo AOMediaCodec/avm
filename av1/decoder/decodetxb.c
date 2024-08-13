@@ -23,16 +23,16 @@
 
 int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 #if CONFIG_BYPASS_IMPROVEMENT
-    int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
-    if (length > 20) {
-        aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                           "Invalid length in read_exp_golomb");
-    }
-    length += k;
-    int x = 1 << length;
-    x += aom_read_literal(r, length, ACCT_INFO("hr"));
+  int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
+  if (length > 20) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid length in read_exp_golomb");
+  }
+  length += k;
+  int x = 1 << length;
+  x += aom_read_literal(r, length, ACCT_INFO("hr"));
 #else
-    int x = 1;
+  int x = 1;
   int length = 0;
   int i = 0;
   while (!i) {
@@ -51,24 +51,23 @@ int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
   }
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 
-    return x - (1 << k);
+  return x - (1 << k);
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
 int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
                         int cmax) {
-    int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
-    int rem = (q == cmax) ? read_exp_golomb(xd, r, k)
-                          : aom_read_literal(r, m, ACCT_INFO("hr"));
-    return rem + (q << m);
+  int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
+  int rem = (q == cmax) ? read_exp_golomb(xd, r, k)
+                        : aom_read_literal(r, m, ACCT_INFO("hr"));
+  return rem + (q << m);
 }
 
 int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
-    int m = get_adaptive_param(ctx);
-    return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
+  int m = get_adaptive_param(ctx);
+  return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
 }
-#endif // CONFIG_COEFF_HR_ADAPTIVE
-
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
 static INLINE int rec_eob_pos(const int eob_token, const int extra) {
   int eob = av1_eob_group_start[eob_token];

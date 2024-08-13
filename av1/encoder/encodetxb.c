@@ -101,43 +101,42 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
 void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
 
 void write_exp_golomb(aom_writer *w, int level, int k) {
-    int x = level + (1 << k);
-    int length = 0;
+  int x = level + (1 << k);
+  int length = 0;
 
-    length = get_msb(x) + 1;
-    assert(length > k);
+  length = get_msb(x) + 1;
+  assert(length > k);
 
 #if CONFIG_BYPASS_IMPROVEMENT
-    aom_write_literal(w, 0, length - 1 - k);
-    aom_write_literal(w, x, length);
+  aom_write_literal(w, 0, length - 1 - k);
+  aom_write_literal(w, x, length);
 #else
-    for (int i = 0; i < length - 1 - k; ++i) aom_write_bit(w, 0);
+  for (int i = 0; i < length - 1 - k; ++i) aom_write_bit(w, 0);
   for (int i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 }
 
-
 #if CONFIG_COEFF_HR_ADAPTIVE
 void write_truncated_rice(aom_writer *w, int level, int m, int k, int cmax) {
-    int q = level >> m;
+  int q = level >> m;
 
-    if (q >= cmax) {
-        aom_write_literal(w, 0, cmax);
-        write_exp_golomb(w, level - (cmax << m), k);
-    } else {
-        const int mask = (1 << m) - 1;
-        aom_write_literal(w, 0, q);
-        aom_write_literal(w, 1, 1);
-        aom_write_literal(w, level & mask, m);
-    }
+  if (q >= cmax) {
+    aom_write_literal(w, 0, cmax);
+    write_exp_golomb(w, level - (cmax << m), k);
+  } else {
+    const int mask = (1 << m) - 1;
+    aom_write_literal(w, 0, q);
+    aom_write_literal(w, 1, 1);
+    aom_write_literal(w, level & mask, m);
+  }
 }
 
 void write_adaptive_hr(aom_writer *w, int level, int ctx) {
-    int m = get_adaptive_param(ctx);
-    write_truncated_rice(w, level, m, m + 1, AOMMIN(m + 4, 6));
+  int m = get_adaptive_param(ctx);
+  write_truncated_rice(w, level, m, m + 1, AOMMIN(m + 4, 6));
 }
 
-#endif // CONFIG_COEFF_HR_ADAPTIVE
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
 static AOM_FORCE_INLINE int64_t get_coeff_dist(tran_low_t tcoeff,
                                                tran_low_t dqcoeff, int shift) {
@@ -2269,7 +2268,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         if (level > NUM_BASE_LEVELS) {
           const int ctx = 0; /* get_br_ctx_eob */
 #if CONFIG_COEFF_HR_ADAPTIVE
-          int hr_ctx = 0;    /* eob */
+          int hr_ctx = 0; /* eob */
           cost += get_br_cost(level, lps_cost[ctx], hr_ctx, &hr_level);
 #else
           cost += get_br_cost(level, lps_cost[ctx]);
