@@ -2513,11 +2513,10 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (q_index > NUM_BASE_LEVELS) {
         const int ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
 #if CONFIG_COEFF_HR_ADAPTIVE
-        // // Use context divided by 2 since the coefficient is also divided by
+        // Use context divided by 2 since the coefficient is also divided by
         // 2
         cost += get_br_cost(q_index, coeff_costs_ph->lps_ph_cost[ctx],
                             hr_level_avg >> 1, &hr_level);
-        hr_level_avg = (hr_level_avg + q_index) >> 1;
 #else
         cost += get_br_cost(q_index, coeff_costs_ph->lps_ph_cost[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2591,7 +2590,6 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #if CONFIG_COEFF_HR_ADAPTIVE
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_level_avg,
                                    &hr_level);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2602,7 +2600,6 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #if CONFIG_COEFF_HR_ADAPTIVE
             cost +=
                 get_br_cost(level, lps_cost_uv[ctx], hr_level_avg, &hr_level);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
             cost += get_br_cost(level, lps_cost_uv[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2615,7 +2612,6 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #if CONFIG_COEFF_HR_ADAPTIVE
             cost += get_br_lf_cost(level, lps_lf_cost[ctx], hr_level_avg,
                                    &hr_level);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
             cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2625,7 +2621,6 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
             const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
 #if CONFIG_COEFF_HR_ADAPTIVE
             cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
             cost += get_br_cost(level, lps_cost[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
