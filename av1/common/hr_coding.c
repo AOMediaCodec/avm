@@ -54,7 +54,6 @@ int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
   return q + 1 + m;
 }
 
-
 int get_adaptive_hr_length(int level, int ctx) {
   int m = get_adaptive_param(ctx);
   return get_truncated_rice_length(level, m, m + 1, AOMMIN(m + 4, 6));
