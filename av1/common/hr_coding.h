@@ -19,7 +19,6 @@
 #include "aom_dsp/bitwriter.h"
 #include "aom_dsp/bitreader.h"
 
-
 static INLINE int get_exp_golomb_length(int level, int k) {
   return 2 * get_msb(level + (1 << k)) + 1 - k;
 }
