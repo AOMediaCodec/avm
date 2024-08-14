@@ -23,6 +23,13 @@
 #include "av1/encoder/simple_intrapred_tflite_model_64x64.h"
 #include "av1/encoder/sms_part_split_prune_tflite_model.h"
 
+#if HAVE_FEXCEPT
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <fenv.h>
+#endif
+
 struct Context {
   std::unique_ptr<tflite::Interpreter> model_128X128;
   std::unique_ptr<tflite::Interpreter> model_64X64;
@@ -156,6 +163,18 @@ extern "C" int av2_part_split_prune_tflite_params(MODEL_TYPE model_type,
   }
   return 0;
 }
+
+#if HAVE_FEXCEPT && CONFIG_DEBUG
+#define FLOATING_POINT_DISABLE_EXCEPTIONS \
+  const int float_excepts =           \
+      fedisableexcept(FE_UNDERFLOW | FE_OVERFLOW);
+#define FLOATING_POINT_RESTORE_EXCEPTIONS \
+  feenableexcept(float_excepts);
+#else
+#define FLOATING_POINT_DISABLE_EXCEPTIONS
+#define FLOATING_POINT_RESTORE_EXCEPTIONS
+#endif  // HAVE_FEXCEPT && CONFIG_DEBUG
+
 // Simple intra ML TFLite based inference
 
 extern "C" int av2_part_split_prune_tflite_exec(void **context,
@@ -184,7 +203,10 @@ extern "C" int av2_part_split_prune_tflite_exec(void **context,
     input[i] = ml_input[i];
   }
 
+  FLOATING_POINT_DISABLE_EXCEPTIONS
   auto status = interpreter->Invoke();
+  FLOATING_POINT_RESTORE_EXCEPTIONS
+
   if (status != kTfLiteOk) {
     reporter->Report("Failed at invoke");
     exit(1);
