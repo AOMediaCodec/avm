@@ -952,6 +952,9 @@ typedef struct {
   bool enable_mrsse;
 #endif  // CONFIG_MRSSE
 
+#if CONFIG_CB1TO4_SPLIT
+  bool enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64

@@ -3697,6 +3697,10 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(
           &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+#if CONFIG_CB1TO4_SPLIT
+          ptree->parent ? ptree->parent->bsize : BLOCK_INVALID,
+          cm->seq_params.enable_unrestricted_cb1to4_partitioning,
+#endif  // CONFIG_CB1TO4_SPLIT
           ptree_luma, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(p == derived_partition);
@@ -5900,6 +5904,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_REFRESH_FLAG
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  aom_wb_write_bit(wb, seq_params->enable_unrestricted_cb1to4_partitioning);
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 static AOM_INLINE void write_global_motion_params(

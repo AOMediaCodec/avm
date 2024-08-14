@@ -1192,9 +1192,20 @@ static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
          block_size_allowed;
 }
 
-static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+static INLINE int is_partition_point(
+    BLOCK_SIZE bsize
+#if CONFIG_CB1TO4_SPLIT
+    ,
+    BLOCK_SIZE parent_bsize, bool enable_unrestricted_cb1to4_partitioning
+#endif  // CONFIG_CB1TO4_SPLIT
+) {
 #if CONFIG_EXT_RECUR_PARTITIONS
-  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES
+#if CONFIG_CB1TO4_SPLIT
+         && (enable_unrestricted_cb1to4_partitioning ||
+             parent_bsize == BLOCK_INVALID || parent_bsize <= BLOCK_LARGEST)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
 #else
   return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1228,7 +1239,12 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
     return BLOCK_INVALID;
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    if (is_partition_point(bsize))
+    if (is_partition_point(bsize
+#if CONFIG_CB1TO4_SPLIT
+                           ,
+                           BLOCK_INVALID, true
+#endif  // CONFIG_CB1TO4_SPLIT
+                           ))
       return subsize_lookup[partition][bsize];
     else
       return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
@@ -1248,7 +1264,12 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
                                                  PARTITION_TYPE partition) {
   assert(partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
   assert(index >= 0 && index <= 3);
-  if (!is_partition_point(bsize) ||
+  if (!is_partition_point(bsize
+#if CONFIG_CB1TO4_SPLIT
+                          ,
+                          BLOCK_INVALID, true
+#endif  // CONFIG_CB1TO4_SPLIT
+                          ) ||
       subsize_lookup[partition][bsize] == BLOCK_INVALID) {
     return BLOCK_INVALID;
   }
@@ -1345,7 +1366,12 @@ static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
 #if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (p == PARTITION_SPLIT) return 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
-  if (is_partition_point(bsize))
+  if (is_partition_point(bsize
+#if CONFIG_CB1TO4_SPLIT
+                         ,
+                         BLOCK_INVALID, true
+#endif  // CONFIG_CB1TO4_SPLIT
+                         ))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else
     return p == PARTITION_NONE;

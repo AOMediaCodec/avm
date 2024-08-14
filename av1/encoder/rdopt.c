@@ -9995,7 +9995,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
     // block, and we have searched any of the rectangular subblock.
+#if CONFIG_CB1TO4_SPLIT
+    if (!is_partition_point(bsize, BLOCK_INVALID, true) ||
+        (!cm->seq_params.enable_unrestricted_cb1to4_partitioning &&
+         bsize > BLOCK_LARGEST)) {
+#else
     if (!is_partition_point(bsize)) {
+#endif  // CONFIG_CB1TO4_SPLIT
       prune_ref_frames = true;
 #if CONFIG_CB1TO4_SPLIT
     } else if (bsize > BLOCK_LARGEST) {

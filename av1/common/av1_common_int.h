@@ -580,6 +580,15 @@ typedef struct SequenceHeader {
 #if CONFIG_REFRESH_FLAG
   uint8_t enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  // If true, rectangular 1:4/4:1 coding blocks can be partitioned for any
+  // number of levels (unrestricted). If false, partitioning of these blocks
+  // will be restricted to 1 level only.
+  // TODO(urvang): Temporary flag, that should be eventually removed, to always
+  // enable unrestricted partitioning.
+  bool enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
+
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -3226,9 +3235,17 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
 static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
     const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
     int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+#if CONFIG_CB1TO4_SPLIT
+    BLOCK_SIZE parent_bsize, bool enable_unrestricted_cb1to4_partitioning,
+#endif  // CONFIG_CB1TO4_SPLIT
     const PARTITION_TREE *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info) {
   // Return NONE if this block size is not splittable
-  if (!is_partition_point(bsize)) {
+  if (!is_partition_point(bsize
+#if CONFIG_CB1TO4_SPLIT
+                          ,
+                          parent_bsize, enable_unrestricted_cb1to4_partitioning
+#endif  // CONFIG_CB1TO4_SPLIT
+                          )) {
     return PARTITION_NONE;
   }
 

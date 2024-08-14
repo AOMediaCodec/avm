@@ -254,6 +254,9 @@ struct av1_extracfg {
 #if CONFIG_REFRESH_FLAG
   int enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  bool enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 };
 
 // Example subgop configs. Currently not used by default.
@@ -609,6 +612,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_REFRESH_FLAG
   1,    // enable_short_refresh_frame_flags
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  1,    // enable_unrestricted_cb1to4_partitioning
+#endif  // CONFIG_CB1TO4_SPLIT
 };
 
 struct aom_codec_alg_priv {
@@ -1095,6 +1101,10 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  cfg->enable_unrestricted_cb1to4_partitioning =
+      extra_cfg->enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1227,6 +1237,10 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  extra_cfg->enable_unrestricted_cb1to4_partitioning =
+      cfg->enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1527,6 +1541,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  tool_cfg->enable_unrestricted_cb1to4_partitioning =
+      extra_cfg->enable_unrestricted_cb1to4_partitioning;
+  if (tool_cfg->enable_unrestricted_cb1to4_partitioning) {
+    if (cfg->g_lag_in_frames == 0) {
+      tool_cfg->enable_unrestricted_cb1to4_partitioning = 0;
+    }
+  }
+#endif  // CONFIG_CB1TO4_SPLIT
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
   q_cfg->qm_minlevel = extra_cfg->qm_min;
@@ -4556,7 +4579,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_REFRESH_FLAG
         1,
 #endif  // CONFIG_REFRESH_FLAG
-    },  // cfg
+#if CONFIG_CB1TO4_SPLIT
+        1,  // enable_unrestricted_cb1to4_partitioning
+#endif      // CONFIG_CB1TO4_SPLIT
+    },      // cfg
 } };
 
 // This data structure and function are exported in aom/aomcx.h

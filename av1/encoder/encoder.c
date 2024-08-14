@@ -531,6 +531,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  seq->enable_unrestricted_cb1to4_partitioning =
+      tool_cfg->enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {

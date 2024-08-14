@@ -2595,6 +2595,10 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(
           &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+#if CONFIG_CB1TO4_SPLIT
+          ptree->parent ? ptree->parent->bsize : BLOCK_INVALID,
+          cm->seq_params.enable_unrestricted_cb1to4_partitioning,
+#endif  // CONFIG_CB1TO4_SPLIT
           ptree_luma, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     return derived_partition;
@@ -2823,14 +2827,20 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->mi_col = mi_col;
     ptree->is_settled = 1;
     PARTITION_TREE *parent = ptree->parent;
+    const BLOCK_SIZE parent_bsize = parent ? parent->bsize : BLOCK_INVALID;
     set_chroma_ref_info(
         xd->tree_type, mi_row, mi_col, ptree->index, bsize,
         &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
-        parent ? parent->bsize : BLOCK_INVALID,
-        parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
+        parent_bsize, parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
     partition =
-        !is_partition_point(bsize)
+        !is_partition_point(
+            bsize
+#if CONFIG_CB1TO4_SPLIT
+            ,
+            parent_bsize, cm->seq_params.enable_unrestricted_cb1to4_partitioning
+#endif  // CONFIG_CB1TO4_SPLIT
+            )
             ? PARTITION_NONE
             : read_partition(cm, xd, mi_row, mi_col, reader, has_rows, has_cols,
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -7127,6 +7137,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  seq_params->enable_unrestricted_cb1to4_partitioning = aom_rb_read_bit(rb);
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,

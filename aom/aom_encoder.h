@@ -637,6 +637,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  /*!\brief enable unrestricted partitioning for rect 1:4/4:1 coding blocks.
+   *
+   */
+  unsigned int enable_unrestricted_cb1to4_partitioning;
+#endif  // CONFIG_CB1TO4_SPLIT
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

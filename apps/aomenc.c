@@ -761,6 +761,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_REFRESH_FLAG
   config->enable_short_refresh_frame_flags = 1;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_CB1TO4_SPLIT
+  config->enable_unrestricted_cb1to4_partitioning = 1;
+#endif  // CONFIG_CB1TO4_SPLIT
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
