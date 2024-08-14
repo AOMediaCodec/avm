@@ -57,7 +57,22 @@ int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 #if CONFIG_COEFF_HR_ADAPTIVE
 int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
                         int cmax) {
+#if CONFIG_BYPASS_IMPROVEMENT
   int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
+#else
+  int q = 0;
+  int i = 0;
+  while (!i) {
+    i = aom_read_bit(r, ACCT_INFO("hr"));
+    ++q;
+    if (q > cmax - 1) {
+      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                         "Invalid length in read_truncated_rice");
+      break;
+    }
+  }
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
   int rem = (q == cmax) ? read_exp_golomb(xd, r, k)
                         : aom_read_literal(r, m, ACCT_INFO("hr"));
   return rem + (q << m);
