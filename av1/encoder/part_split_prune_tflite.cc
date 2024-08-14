@@ -166,10 +166,8 @@ extern "C" int av2_part_split_prune_tflite_params(MODEL_TYPE model_type,
 
 #if HAVE_FEXCEPT && CONFIG_DEBUG
 #define FLOATING_POINT_DISABLE_EXCEPTIONS \
-  const int float_excepts =           \
-      fedisableexcept(FE_UNDERFLOW | FE_OVERFLOW);
-#define FLOATING_POINT_RESTORE_EXCEPTIONS \
-  feenableexcept(float_excepts);
+  const int float_excepts = fedisableexcept(FE_UNDERFLOW | FE_OVERFLOW);
+#define FLOATING_POINT_RESTORE_EXCEPTIONS feenableexcept(float_excepts);
 #else
 #define FLOATING_POINT_DISABLE_EXCEPTIONS
 #define FLOATING_POINT_RESTORE_EXCEPTIONS
