@@ -2894,15 +2894,15 @@ static int64_t finer_tile_search_wienerns(
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 typedef struct BestMatchResults {
-  int use_one_match_index;
-  int64_t use_one_taps_score;
-
-  int use_two_match_indices[2];
-  int64_t use_two_taps_score;
-
-  int64_t all_zero_taps_score;
+  int use_one_match_index;      // Index of the best matching dictionary-filter.
+  int64_t use_one_taps_score;   // debug: Bits to encode the filter with match.
+  int64_t all_zero_taps_score;  // debug: Bits to encode with all zeros.
 } BestMatchResults;
 
+// Returns the index of the dictionary-filter in frame_filter_dictionary that
+// best matches WienerNonsepInfo *filter. This is useful when encoding filter
+// where the match index is first encoded and then the filter is encoded
+// conditioned on the relevant dictionary-filter.
 static BestMatchResults find_best_match_for_class(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter, int class_id,
     const int16_t *frame_filter_dictionary, int dict_stride,
@@ -3473,6 +3473,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 
+// Returns the sse of using the frame filters on the RU specified with limits.
 static int64_t evaluate_frame_filter(RestSearchCtxt *rsc,
                                      const RestorationTileLimits *limits,
                                      RestorationUnitInfo *rui) {
@@ -3506,6 +3507,9 @@ static int64_t evaluate_frame_filter(RestSearchCtxt *rsc,
   return sse;
 }
 
+// Determines the cost of using the frame filters on an RU
+// (RESTORE_WIENER_NONSEP mode), compares the cost to none (RESTORE_NONE), and
+// updates the RU mode, sse, bits accordingly.
 static int64_t decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
                                       double cost_none, int64_t bits_none) {
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -4487,7 +4491,13 @@ const uint8_t *get_class_converter(const RestSearchCtxt *rsc,
   return get_converter(set_index, num_stats_classes, num_target_classes);
 }
 
-// Reduces the class granularity of the stats to target_classes.
+// Reduces the class granularity of the stats to target_classes. Stats are
+// initially calculated for WIENERNS_MAX_CLASSES. Frame-level filters are then
+// derived for num_classes <= WIENERNS_MAX_CLASSES. Once stats are used at a
+// particular num_classes they are used to calculate the stats for the next
+// target_classes < num_classes (without recalculating stats from data). This is
+// possible since the classification design resuls in class labels over a tree
+// having WIENERNS_MAX_CLASSES leaves reduced to the single-class root.
 static void collapse_stats_to_target_classes(int target_classes,
                                              const uint8_t *class_converter,
                                              RstUnitStats *unit_stats) {
@@ -4538,6 +4548,9 @@ static void collapse_all_stats(RestSearchCtxt *rsc, int num_stats_classes,
   }
 }
 
+// Returns the number of classes that are not active on a given picture. While
+// all class labels tend to be active at high rates at lower rates some class
+// labels are no longer active as the picture loses detail. Useful in debugging.
 static int count_classes_with_no_pixels(const RestSearchCtxt *rsc) {
   int pixel_count[WIENERNS_MAX_CLASSES] = { 0 };
   int num_classes = -1;
@@ -4677,11 +4690,13 @@ static double get_scaled_filter_distortion(const RstUnitStats *stats,
   return distortion;
 }
 
+// Solves frame-filters with the help of sum_stats using least-squares and basic
+// integerization. Solution is returned in WienerNonsepInfo *filter. If no
+// solution is found for a particular class, correspondinf filter is set to
+// zeros.
 static void solve_filters_from_stats_wienerns(const RestSearchCtxt *rsc,
                                               const RstUnitStats *sum_stats,
-                                              WienerNonsepInfo *filter,
-                                              WienerNonsepInfoBank *bank) {
-  (void)bank;
+                                              WienerNonsepInfo *filter) {
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
   const int num_feat = nsfilter_params->ncoeffs;
@@ -4705,6 +4720,12 @@ static void solve_filters_from_stats_wienerns(const RestSearchCtxt *rsc,
 #define RU_ON_WEIGHT 1
 #define RU_OFF_WEIGHT 1e-10
 
+// Calculates the cost of using frame-level filters on a picture by
+//   (i) determining per RU on-off mode based on R-D,
+//  (ii) calculating resulting per RU cost.
+// Results are returned in the RdResults struct. RUs with on-mode are assigned
+// the weight RU_ON_WEIGHT, off-mode RU_OFF_WEIGHT. Useful in optimizing
+// frame-level filters in conjunction with on-off mode-decisions.
 static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
                                                   RestorationUnitInfo *rui,
                                                   double *work_cost_array,
@@ -4769,6 +4790,8 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
   return results;
 }
 #if CONFIG_TEMP_LR
+// Returns the cost of using frame-level filters directly obtained from
+// reference frames.
 static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
                                                   WienerNonsepInfo *filter) {
   assert(rsc->temporal_pred_flag);
@@ -4793,6 +4816,12 @@ static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
 }
 #endif  // CONFIG_TEMP_LR
 
+// Optimizes frame-level filters for a given num_target_classes. Optimization
+// progresses by weighting the stats of all RUs with RU_ON_WEIGHT and including
+// all RUs when solving for the filters. Then fewer and fewer RUs are included
+// to solve for filters more specialized on the included RUs. Once the reduction
+// process is completed the overall best is determined and the relevant cost
+// returned.
 static double optimize_frame_filters_for_target_classes(
     RestSearchCtxt *rsc, WienerNonsepInfo *filter, int *best_utilization,
     double *best_cost_array) {
@@ -4831,7 +4860,7 @@ static double optimize_frame_filters_for_target_classes(
     for (int n = 0; n < solve_iterations; ++n) {
       weighted_sum_all_stats(rsc, &sum_stats, num_feat);
       assert(sum_stats.num_stats_classes == num_target_classes);
-      solve_filters_from_stats_wienerns(rsc, &sum_stats, &tmp_filter, &bank);
+      solve_filters_from_stats_wienerns(rsc, &sum_stats, &tmp_filter);
       rui.wienerns_info = tmp_filter;
       RdResults iter_rd_results =
           update_cost_and_weights_wienerns(rsc, &rui, work_cost_array, 1);
@@ -4911,6 +4940,12 @@ static AOM_INLINE void initialize_stat_weights(RestSearchCtxt *rsc) {
 
 #if USE_FINER_TILE
 
+// Uses finer_tile_search_wienerns() to fine-tune the frame-level filters over
+// the RUs using them. Without this routine the frame-level filters are
+// optimized with aggregate stats which do not incorporate rounding. This
+// routine establishes fine-grain optimization that also accounts for rounding
+// that follows the filtering process, i.e., the actual final distortion after
+// rounding is used to guide the optimization.
 static double optimize_frame_filters_with_rounding(
     RestSearchCtxt *rsc, WienerNonsepInfo *best_filter, double *cost_array) {
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
@@ -5136,6 +5171,16 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_COMBINE_PC_NS_WIENER
+// Incorporates frame-level filters into the decision flow that compares
+// RESTORE_WIENER_NONSEP and RESTORE_SWITCHABLE by replacing
+// per-RU-specified filters (regular-RESTORE_WIENER_NONSEP) with
+// frame-level-specified filters (frame-level-RESTORE_WIENER_NONSEP.)
+//
+// av1_pick_filter_restoration() proceeds by evaluating the cost of frame-level
+// filters followed by regular-RESTORE_WIENER_NONSEP and RESTORE_SWITCHABLE with
+// regular-RESTORE_WIENER_NONSEP. This routine decides whether the final mode
+// should be frame-level-RESTORE_WIENER_NONSEP or RESTORE_SWITCHABLE with
+// frame-level-RESTORE_WIENER_NONSEP.
 static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   rsc->frame_filters_on = 1;
   rsc->num_filter_classes = rsc->best_num_filter_classes;
