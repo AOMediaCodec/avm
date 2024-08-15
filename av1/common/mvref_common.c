@@ -3990,6 +3990,8 @@ static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
 }
 
 #if CONFIG_TMVP_MEM_OPT
+// Performs a topological sort on the reference frames so they are sorted by
+// their dependency.
 static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
                                  int *rf_stack, int *visited, int *stack_count,
                                  int rf) {
@@ -4016,6 +4018,7 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
   *stack_count = *stack_count + 1;
 }
 
+// Whether a reference frame buffer had a reference frame in the future.
 static int has_future_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
@@ -4028,6 +4031,7 @@ static int has_future_ref(const AV1_COMMON *cm, int rf) {
   return 0;
 }
 
+// Whether a reference frame buffer had a reference frame in the past.
 static int has_past_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
@@ -4040,6 +4044,7 @@ static int has_past_ref(const AV1_COMMON *cm, int rf) {
   return 0;
 }
 
+// Struct to store the reference frame motion field candidates.
 struct ProcessRefTMVP {
   int type;  // 0 means with side, 1 means with target frame.
   int side;  // 0 means right to left, 1 means left to right.
@@ -4047,6 +4052,8 @@ struct ProcessRefTMVP {
   int target_frame;
 };
 
+// Add a reference frame motion field candidate, if we have not reached the
+// maximum allowed.
 static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
                                       int type, int start_frame,
                                       int target_frame, int side,
@@ -4078,7 +4085,7 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
                                         MV_REFERENCE_FRAME end_frame,
                                         const MV *mv, int start_row,
                                         int start_col, int mvs_cols) {
-  int start_offset = start_row * mvs_cols + start_col;
+  const int start_offset = start_row * mvs_cols + start_col;
   assert(start_row % cm->tmvp_sample_step == 0);
   assert(start_col % cm->tmvp_sample_step == 0);
   // Check starting point
@@ -4131,7 +4138,7 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
       end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
       end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
     }
-    int end_offset = end_row * mvs_cols + end_col;
+    const int end_offset = end_row * mvs_cols + end_col;
     if (pos_valid && cm->blk_id_map[end_frame][end_offset] >= 0) {
       int traj_id = cm->blk_id_map[end_frame][end_offset];
       int traj_row = traj_id / mvs_cols;
@@ -4172,6 +4179,8 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
 }
 #endif  // CONFIG_MV_TRAJECTORY
 
+// Calculate the projected motion field from the TMVP mvs that points from
+// start_frame to target_frame.
 static int motion_field_projection_start_target(
     AV1_COMMON *cm, MV_REFERENCE_FRAME start_frame,
     MV_REFERENCE_FRAME target_frame) {
@@ -4301,6 +4310,8 @@ static int motion_field_projection_start_target(
   return 1;
 }
 
+// Calculate the projected motion field from the TMVP mvs that points from
+// start_frame to one side.
 static int motion_field_projection_side(AV1_COMMON *cm,
                                         MV_REFERENCE_FRAME start_frame,
                                         int side_idx) {
@@ -4467,7 +4478,9 @@ static int motion_field_projection_side(AV1_COMMON *cm,
   return 1;
 }
 
+// Whether to do interpolation for sampled TMVP mvs.
 #define DO_AVG_FILL 1
+// Interpolate the sampled tpl_mvs.
 void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
   if (cm->tmvp_sample_step != 2) {
     return;
@@ -4582,6 +4595,7 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
 }
 
 #if CONFIG_MV_TRAJECTORY
+// Interpolate the sampled id_offset_map.
 static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
   if (cm->tmvp_sample_step != 2) {
     return;
@@ -4683,6 +4697,7 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
   }
 }
 
+// Interpolate the sampled blk_id_map.
 static void fill_block_id_sample_gap(AV1_COMMON *cm) {
   if (cm->tmvp_sample_step != 2) {
     return;
@@ -4804,6 +4819,8 @@ static void fill_block_id_sample_gap(AV1_COMMON *cm) {
 }
 #endif  // CONFIG_MV_TRAJECTORY
 
+// Calculate the average MV length in the reference frame motion field
+// candidate.
 void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
   RefCntBuffer *buf = get_ref_frame_buf(cm, ref);
   const int mvs_cols =
@@ -4831,6 +4848,7 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
   return;
 }
 
+// Determine whether we should use sampling of TMVP mvs for the current frame.
 void determine_tmvp_sample_step(AV1_COMMON *cm,
                                 int checked_ref[INTER_REFS_PER_FRAME][2]) {
   cm->tmvp_sample_step = 1;
