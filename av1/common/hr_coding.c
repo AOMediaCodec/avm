@@ -14,6 +14,18 @@
 #include "aom/internal/aom_codec_internal.h"
 
 #if CONFIG_COEFF_HR_ADAPTIVE
+
+/*
+ * This is a table hosting the threshold values for deriving the
+ * Rice parameter m based on input context value ctx. For context
+ * value between two adjacent threshold values, the Rice parameter
+ * m corresponds to the table index i, m=i+1, such that:
+ *
+ * adaptive_table[i] <= ctx < adaptive_table[i+1]
+ *
+ * For context values greater than 64, the Rice parameter stays at m=6.
+ *
+ */
 static int adaptive_table[] = { 4, 8, 16, 32, 64 };
 
 int get_adaptive_param(int ctx) {

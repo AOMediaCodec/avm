@@ -19,10 +19,41 @@
 #include "aom_dsp/bitwriter.h"
 #include "av1/common/blockd.h"
 
+/*!\brief Calculates the code length of an input symbol when it is coded
+ * using Exp-Golomb distribution with order k
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function derives the code length of the input symbol when it is coded
+ * using Exp-Golomb distribution with order k
+ *
+ * \param[in]    level          input symbol (i.e., a portion of the
+ *                              coefficient level)
+ * \param[in]    k              order of the Exp-Golomb distribution
+ *
+ */
 static INLINE int get_exp_golomb_length(int level, int k) {
   return 2 * get_msb(level + (1 << k)) + 1 - k;
 }
 
+/*!\brief Calculates the difference in code length when coding the input integer
+ * symbol as is vs. reduced by 1, using Exp-Golomb code with order k
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function computes the difference in code length when coding the input
+ * integer symbol as is vs. reduced by 1, using Exp-Golomb code with order k
+ *
+ * \param[in]    level          input integer symbol, corresponding to the
+ *                              portion of the coefficient level coded using
+ *                              Exp-Golomb code
+ *
+ * \param[in]    k              order of the Exp-Golomb distribution
+ *
+ * \param[out]   diff           the difference in output code length between
+ *                              coding the symbol as is or reduce it by 1
+ *
+ */
 static INLINE int get_exp_golomb_length_diff(int level, int k, int *diff) {
   if (level == 0) {
     *diff = k + 1;
@@ -35,12 +66,89 @@ static INLINE int get_exp_golomb_length_diff(int level, int k, int *diff) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
+/*!\brief Derive the Rice parameter m based on input context value
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function derives the adaptive Rice parameter m by comparing the input
+ * context value against a table of different thresholds. For an input context
+ * value ctx between two threshold values in the table: t[i] <= ctx < t[i+1],
+ * the Rice parameter is chosen as m = i + 1.
+ *
+ * \param[in]    ctx         context value
+ *
+ */
 int get_adaptive_param(int ctx);
+
+/*!\brief Calculates the code length of an input symbol when it is coded
+ * using Truncated Rice
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function derives the code length when the input symbol is coded
+ * using Truncated Rice, with Rice parameter m and Exp-Golomb of order k
+ *
+ * \param[in]    level          input integer symbol (i.e., coefficient level)
+ * \param[in]        m          Rice parameter
+ * \param[in]        k          order of the Exp-Golomb distribution
+ * \param[in]      cmax         maximum length for the unary prefix
+ *
+ */
 int get_truncated_rice_length(int level, int m, int k, int cmax);
+
+/*!\brief Calculates the difference in code length when coding a input integer
+ * symbol as is vs. reduced by 1 using Truncated Rice
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function derives the difference in code length when the input integer
+ * symbol is coded as is vs. reduced by 1 using Truncated Rice, with Rice
+ * parameter m and Exp-Golomb of order k
+ *
+ * \param[in]    level          input integer symbol (i.e., coefficient level)
+ * \param[in]        m          Rice parameter
+ * \param[in]        k          order of the Exp-Golomb distribution
+ * \param[in]      cmax         maximum length for the unary prefix
+ * \param[out]     diff         difference in code length
+ */
 int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
                                    int *diff);
 
+/*!\brief Calculates the code length of an input symbol when it is coded
+ * using the adaptive high-range (HR) coding scheme
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function derives the code length of the input symbol when it is coded
+ * using the adaptive high-range (HR) coding scheme, where its parameters are
+ * derived based on input context
+ *
+ * \param[in]    level          input integer symbol (i.e., coefficient level)
+ * \param[in]    ctx            context value
+ *
+ */
 int get_adaptive_hr_length(int level, int ctx);
+
+/*!\brief Calculates the difference in code length when coding a input integer
+ * symbol as is vs. reduced by 1 using the adaptive high-range (HR) coding
+ * scheme
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function calculates the difference in code length when the input integer
+ * symbol is coded as is vs. reduced by 1, using the adaptive high-range (HR)
+ * coding scheme based on Truncated Rice. The Rice parameter m is derived based
+ * on input context value by comparing it against a set of thresholds;
+ * the Exp-Golomb parameters (order k and maximum unary prefix length cmax)
+ * are subsequently derived as k=m+1 and cmax = min(m+4, 6), respectively.
+ *
+ * \param[in]    level          input integer symbol (i.e., coefficient level)
+ * \param[in]        m          Rice parameter
+ * \param[in]        k          order of the Exp-Golomb distribution
+ * \param[in]      cmax         maximum length for the unary prefix
+ * \param[out]     diff         difference in code length
+ *
+ */
 int get_adaptive_hr_length_diff(int level, int ctx, int *diff);
 
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
