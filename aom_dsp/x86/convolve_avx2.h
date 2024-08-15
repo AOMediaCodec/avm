@@ -521,6 +521,33 @@ static INLINE void prepare_coeffs(const InterpFilterParams *const filter_params,
   coeffs[3] = _mm256_shuffle_epi32(coeff, 0xff);
 }
 
+static INLINE void prepare_coeffs_4t(
+    const InterpFilterParams *const filter_params, const int subpel_q4,
+    __m256i *const coeffs /* [4] */) {
+  const int16_t *filter = av1_get_interp_filter_subpel_kernel(
+      filter_params, subpel_q4 & SUBPEL_MASK);
+
+  const __m128i coeff_8 = _mm_loadu_si128((__m128i *)filter);
+  const __m256i coeff = _mm256_broadcastsi128_si256(coeff_8);
+
+  // coeffs 2 3 2 3 2 3 2 3
+  coeffs[0] = _mm256_shuffle_epi32(coeff, 0x55);
+  // coeffs 4 5 4 5 4 5 4 5
+  coeffs[1] = _mm256_shuffle_epi32(coeff, 0xaa);
+}
+
+// Preparation of filter coefficient registers for BILINEAR interpolation
+// filter.
+static INLINE __m256i prepare_coeffs_bilinear(
+    const InterpFilterParams *const filter_params, const int subpel_q4) {
+  const int16_t *filter = av1_get_interp_filter_subpel_kernel(
+      filter_params, subpel_q4 & SUBPEL_MASK);
+  const int16_t *filter_pos = filter;
+  if (filter_params->taps == 8) filter_pos = filter + 3;
+  const int filter_coeff = ((filter_pos[1] << 16) | filter_pos[0]);
+  return _mm256_set1_epi32(filter_coeff);
+}
+
 static INLINE __m256i convolve_lowbd(const __m256i *const s,
                                      const __m256i *const coeffs) {
   const __m256i res_01 = _mm256_maddubs_epi16(s[0], coeffs[0]);

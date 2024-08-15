@@ -261,8 +261,8 @@ static AOM_INLINE int get_filter_tap(
     const InterpFilterParams *const filter_params, int subpel_qn) {
   const int16_t *const filter = av1_get_interp_filter_subpel_kernel(
       filter_params, subpel_qn & SUBPEL_MASK);
-  if (filter_params->taps == 12) {
-    return 12;
+  if (filter_params->taps == 12 || filter_params->taps == 2) {
+    return filter_params->taps;
   }
   if (filter[0] | filter[7]) {
     return 8;

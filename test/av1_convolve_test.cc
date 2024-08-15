@@ -498,12 +498,21 @@ class AV1Convolve2DHighbdTest
   void RunTest() {
     for (int sub_x = 0; sub_x < 16; ++sub_x) {
       for (int sub_y = 0; sub_y < 16; ++sub_y) {
-        for (int h_f = EIGHTTAP_REGULAR; h_f < INTERP_FILTERS_ALL; ++h_f) {
-          for (int v_f = EIGHTTAP_REGULAR; v_f < INTERP_FILTERS_ALL; ++v_f) {
+        for (int h_f = EIGHTTAP_REGULAR; h_f <= BILINEAR; ++h_f) {
+          for (int v_f = EIGHTTAP_REGULAR; v_f <= BILINEAR; ++v_f) {
             TestConvolve(static_cast<InterpFilter>(h_f),
                          static_cast<InterpFilter>(v_f), sub_x, sub_y);
           }
         }
+      }
+    }
+  }
+
+  void SpeedTest() {
+    for (int h_f = EIGHTTAP_REGULAR; h_f <= BILINEAR; ++h_f) {
+      for (int v_f = EIGHTTAP_REGULAR; v_f <= BILINEAR; ++v_f) {
+        TestConvolveSpeed(static_cast<InterpFilter>(h_f),
+                          static_cast<InterpFilter>(v_f), 50000, 8, 8);
       }
     }
   }
@@ -533,9 +542,49 @@ class AV1Convolve2DHighbdTest
                               &conv_params2, bit_depth);
     AssertOutputBufferEq(reference, test, width, height);
   }
+
+  void TestConvolveSpeed(const InterpFilter h_f, const InterpFilter v_f,
+                         int num_iters, int sub_x, int sub_y) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+    const InterpFilterParams *filter_params_x;
+    const InterpFilterParams *filter_params_y;
+
+    const uint16_t *input = FirstRandomInput12(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    ConvolveParams conv_params1 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av1_highbd_convolve_2d_sr_c(input, width, reference, kOutputStride, width,
+                                  height, filter_params_x, filter_params_y,
+                                  sub_x, sub_y, &conv_params1, bit_depth);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+    ConvolveParams conv_params2 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input, width, test, kOutputStride, width,
+                                height, filter_params_x, filter_params_y, sub_x,
+                                sub_y, &conv_params2, bit_depth);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    printf("%d - %d %3dx%-3d: ref: %d mod: %d (%3.2f)\n", h_f, v_f, width,
+           height, time1, time2, (double)time1 / time2);
+    AssertOutputBufferEq(reference, test, width, height);
+  }
 };
 
 TEST_P(AV1Convolve2DHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV1Convolve2DHighbdTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DHighbdTest,
                          BuildHighbdParams(av1_highbd_convolve_2d_sr_c));
