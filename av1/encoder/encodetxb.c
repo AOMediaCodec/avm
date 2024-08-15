@@ -100,6 +100,19 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
 
 void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
 
+/*!\brief Code an input integer value using Exp-Golomb coding with order k
+ * and write the resulting codeword to bitstream
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function codes an input integer value level using Exp-Golomb coding
+ * with order k and writes the resulting codeword to bitstream
+ *
+ * \param[in]    w         Pointer to the bitstream writer
+ * \param[in]    level     Input integer value to be coded
+ * \param[in]    k         Order of Exp-Golomb coding
+ *
+ */
 static void write_exp_golomb(aom_writer *w, int level, int k) {
   int x = level + (1 << k);
   int length = 0;
@@ -117,6 +130,31 @@ static void write_exp_golomb(aom_writer *w, int level, int k) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
+/*!\brief Encode an input integer value using Truncated-Rice coding and write
+ * to bitstream
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function encodes an input integer value using Truncated-Rice
+ * coding with a given set of parameters: Rice parameter m, maximum
+ * unary prefix length cmax, and Exp-Golomb order of k.
+ *
+ * It first derives the unary prefix q based on the input integer level and
+ * Rice parameter m. Given a shorter prefix (q < cmax), it encodes the
+ * remaining offset of the integer using Golomb-Rice coding; otherwise
+ * (i.e., when q >= cmax) it keeps the prefix length at cmax, and encodes the
+ * remaining offset using Exp-Golomb with order k.
+ *
+ * Finally, it writes the resulting binary codeword to the bitstream w.
+ *
+ * \param[in]    w         Pointer to the bitstream writer
+ * \param[in]    level     Input integer value to be coded
+ * \param[in]    m         Parameter of the Rice distribution
+ * \param[in]    k         Order of the Exp-Golomb code
+ * \param[in]    cmax      Maximum unary prefix length above which Exp-Golomb
+ *                         is used instead of Golomb-Rice coding
+ *
+ */
 static void write_truncated_rice(aom_writer *w, int level, int m, int k,
                                  int cmax) {
   int q = level >> m;
@@ -132,6 +170,25 @@ static void write_truncated_rice(aom_writer *w, int level, int m, int k,
   }
 }
 
+/*!\brief Encode and write to bitstream the input high range (HR) value of the
+ * coefficient level using adaptive Truncated-Rice coding .
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function encodes the input high range (HR) value of the coefficient
+ * level level using adaptive Truncated-Rice. It first derives the Rice
+ * parameter m from the input context value ctx. It then invokes the
+ * write_truncated_rice function to encode the input value (level) with
+ * Rice parameter m, Exp-Golomb at order k = m + 1, and maximum unary prefix
+ * length of cmax = AOMMIN(m + 4, 6). The write_truncated_rice function is
+ * also in charge of writing the resulting codeword to the bitstream w.
+ *
+ * \param[in]    w         Pointer to the bitstream writer
+ * \param[in]    level     Input high range (HR) value of the coefficient level
+ *                         to be coded
+ * \param[in]    ctx       Context value
+ *
+ */
 static void write_adaptive_hr(aom_writer *w, int level, int ctx) {
   int m = get_adaptive_param(ctx);
   write_truncated_rice(w, level, m, m + 1, AOMMIN(m + 4, 6));

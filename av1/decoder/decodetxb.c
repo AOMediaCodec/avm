@@ -21,6 +21,20 @@
 #include "av1/common/txb_common.h"
 #include "av1/decoder/decodemv.h"
 
+/*!\brief Read and decode from bitstream an integer value following Exp-Golomb
+ * coding with order k
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function reads and decodes from the bitstream r an integer value which
+ * was coded in Exp-Golomb with order k
+ *
+ * \param[in]    xd        Pointer to structure holding the data for the
+ *                         current macroblockd
+ * \param[in]    r         Pointer to the bitstream reader
+ * \param[in]    k         Order of Exp-Golomb coding
+ *
+ */
 static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 #if CONFIG_BYPASS_IMPROVEMENT
   int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
@@ -55,6 +69,28 @@ static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
+/*!\brief Read and decode from the bitstream a Truncated-Rice coded integer
+ * value, which represents the high range (HR) value of the coefficient level.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function reads and decodes from the bitstream the high range (HR)
+ * value of the coefficient level, which was coded using the Truncated-Rice
+ * scheme with Rice parameter m. It first reads and decodes the unary prefix
+ * q from the input bitstream r. Given a shorter prefix (q < cmax), it decodes
+ * the remaining offset of the integer using Golomb-Rice coding; otherwise
+ * (i.e., when q == cmax) it shifts to use Exp-Golomb to decode the remainder
+ * value.
+ *
+ * \param[in]    xd        Pointer to structure holding the data for the
+ *                         current macroblockd
+ * \param[in]    r         Pointer to the reader of the bitstream
+ * \param[in]    m         Parameter of the Rice distribution
+ * \param[in]    k         Order of the Exp-Golomb code
+ * \param[in]    cmax      Maximum unary prefix length above which Exp-Golomb
+ *                         is used instead of Golomb-Rice coding
+ *
+ */
 static int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
                                int cmax) {
 #if CONFIG_BYPASS_IMPROVEMENT
@@ -78,6 +114,24 @@ static int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
   return rem + (q << m);
 }
 
+/*!\brief Read and decode from the bitstream the high range (HR) value of
+ * the coefficient level using adaptive Truncated-Rice coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function reads and decodes from the bitstream the high range (HR)
+ * value of the coefficient level following adaptive Truncated-Rice coding.
+ * It first derives the Rice parameter m from the input context value ctx.
+ * It then invokes the read_truncated_rice function to decode the HR
+ * coefficient value using Rice parameter m, Exp-Golomb order k = m + 1,
+ * and maximum unary prefix lenght cmax = AOMMIN(m + 4, 6).
+ *
+ * \param[in]    xd        Pointer to structure holding the data for the
+ *                         current macroblockd
+ * \param[in]    r         Pointer to the reader of the bitstream
+ * \param[in]    ctx       Context value
+ *
+ */
 static int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
   int m = get_adaptive_param(ctx);
   return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
