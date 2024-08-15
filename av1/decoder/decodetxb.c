@@ -13,15 +13,15 @@
 #include "av1/decoder/decodetxb.h"
 
 #include "aom_ports/mem.h"
+#include "av1/common/hr_coding.h"
 #include "av1/common/idct.h"
 #include "av1/common/pred_common.h"
+#include "av1/common/reconintra.h"
 #include "av1/common/scan.h"
 #include "av1/common/txb_common.h"
-#include "av1/common/reconintra.h"
-#include "av1/common/hr_coding.h"
 #include "av1/decoder/decodemv.h"
 
-int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
+static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 #if CONFIG_BYPASS_IMPROVEMENT
   int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
   if (length > 20) {
@@ -55,8 +55,8 @@ int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
-int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
-                        int cmax) {
+static int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
+                               int cmax) {
 #if CONFIG_BYPASS_IMPROVEMENT
   int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
 #else
@@ -78,7 +78,7 @@ int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
   return rem + (q << m);
 }
 
-int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
+static int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
   int m = get_adaptive_param(ctx);
   return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
 }
@@ -1088,7 +1088,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   for (int c = *eob - 1; c >= 0; --c) {
 #else
   for (int c = 0; c < *eob; ++c) {
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX_RDPH || CONFIG_COEFF_HR_ADAPTIVE
     const int pos = scan[c];
     uint8_t sign;
     tran_low_t level = levels[get_padded_idx(pos, bwl)];

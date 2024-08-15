@@ -14,11 +14,11 @@
 
 #include "aom_ports/mem.h"
 #include "av1/common/blockd.h"
+#include "av1/common/hr_coding.h"
 #include "av1/common/idct.h"
 #include "av1/common/pred_common.h"
-#include "av1/common/scan.h"
 #include "av1/common/reconintra.h"
-#include "av1/common/hr_coding.h"
+#include "av1/common/scan.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/cost.h"
 #include "av1/encoder/encodeframe.h"
@@ -100,7 +100,7 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
 
 void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
 
-void write_exp_golomb(aom_writer *w, int level, int k) {
+static void write_exp_golomb(aom_writer *w, int level, int k) {
   int x = level + (1 << k);
   int length = 0;
 
@@ -117,7 +117,8 @@ void write_exp_golomb(aom_writer *w, int level, int k) {
 }
 
 #if CONFIG_COEFF_HR_ADAPTIVE
-void write_truncated_rice(aom_writer *w, int level, int m, int k, int cmax) {
+static void write_truncated_rice(aom_writer *w, int level, int m, int k,
+                                 int cmax) {
   int q = level >> m;
 
   if (q >= cmax) {
@@ -131,7 +132,7 @@ void write_truncated_rice(aom_writer *w, int level, int m, int k, int cmax) {
   }
 }
 
-void write_adaptive_hr(aom_writer *w, int level, int ctx) {
+static void write_adaptive_hr(aom_writer *w, int level, int ctx) {
   int m = get_adaptive_param(ctx);
   write_truncated_rice(w, level, m, m + 1, AOMMIN(m + 4, 6));
 }
