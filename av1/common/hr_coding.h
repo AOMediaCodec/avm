@@ -19,13 +19,13 @@
 #include "aom_dsp/bitwriter.h"
 #include "av1/common/blockd.h"
 
-/*!\brief Calculates the code length of an input symbol when it is coded
- * using Exp-Golomb distribution with order k
+/*!\brief Calculate the code length of an input symbol when it is coded
+ * using Exp-Golomb code with order k
  *
  * \ingroup coefficient_coding
  *
- * This function derives the code length of the input symbol when it is coded
- * using Exp-Golomb distribution with order k
+ * This function derives the code length of the input symbol (level) when
+ * it is coded using Exp-Golomb code with order k
  *
  * \param[in]    level          input symbol (i.e., a portion of the
  *                              coefficient level)
@@ -36,7 +36,7 @@ static INLINE int get_exp_golomb_length(int level, int k) {
   return 2 * get_msb(level + (1 << k)) + 1 - k;
 }
 
-/*!\brief Calculates the difference in code length when coding the input integer
+/*!\brief Calculate the difference in code length when coding the input integer
  * symbol as is vs. reduced by 1, using Exp-Golomb code with order k
  *
  * \ingroup coefficient_coding
@@ -80,7 +80,7 @@ static INLINE int get_exp_golomb_length_diff(int level, int k, int *diff) {
  */
 int get_adaptive_param(int ctx);
 
-/*!\brief Calculates the code length of an input symbol when it is coded
+/*!\brief Calculate the code length of an input symbol when it is coded
  * using Truncated Rice
  *
  * \ingroup coefficient_coding
@@ -96,7 +96,7 @@ int get_adaptive_param(int ctx);
  */
 int get_truncated_rice_length(int level, int m, int k, int cmax);
 
-/*!\brief Calculates the difference in code length when coding a input integer
+/*!\brief Calculate the difference in code length when coding an input integer
  * symbol as is vs. reduced by 1 using Truncated Rice
  *
  * \ingroup coefficient_coding
@@ -114,14 +114,14 @@ int get_truncated_rice_length(int level, int m, int k, int cmax);
 int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
                                    int *diff);
 
-/*!\brief Calculates the code length of an input symbol when it is coded
+/*!\brief Calculate the code length of an input symbol when it is coded
  * using the adaptive high-range (HR) coding scheme
  *
  * \ingroup coefficient_coding
  *
  * This function derives the code length of the input symbol when it is coded
  * using the adaptive high-range (HR) coding scheme, where its parameters are
- * derived based on input context
+ * derived based on input context ctx.
  *
  * \param[in]    level          input integer symbol (i.e., coefficient level)
  * \param[in]    ctx            context value
@@ -129,7 +129,7 @@ int get_truncated_rice_length_diff(int level, int m, int k, int cmax,
  */
 int get_adaptive_hr_length(int level, int ctx);
 
-/*!\brief Calculates the difference in code length when coding a input integer
+/*!\brief Calculate the difference in code length when coding an input integer
  * symbol as is vs. reduced by 1 using the adaptive high-range (HR) coding
  * scheme
  *
@@ -138,8 +138,8 @@ int get_adaptive_hr_length(int level, int ctx);
  * This function calculates the difference in code length when the input integer
  * symbol is coded as is vs. reduced by 1, using the adaptive high-range (HR)
  * coding scheme based on Truncated Rice. The Rice parameter m is derived based
- * on input context value by comparing it against a set of thresholds;
- * the Exp-Golomb parameters (order k and maximum unary prefix length cmax)
+ * on input context value by comparing it against a set of thresholds; the
+ * Exp-Golomb coding parameters (order k and maximum unary prefix length cmax)
  * are subsequently derived as k=m+1 and cmax = min(m+4, 6), respectively.
  *
  * \param[in]    level          input integer symbol (i.e., coefficient level)

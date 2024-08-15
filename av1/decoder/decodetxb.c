@@ -70,17 +70,16 @@ static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
 
 #if CONFIG_COEFF_HR_ADAPTIVE
 /*!\brief Read and decode from the bitstream a Truncated-Rice coded integer
- * value, which represents the high range (HR) value of the coefficient level.
+ * value.
  *
  * \ingroup coefficient_coding
  *
- * This function reads and decodes from the bitstream the high range (HR)
- * value of the coefficient level, which was coded using the Truncated-Rice
- * scheme with Rice parameter m. It first reads and decodes the unary prefix
- * q from the input bitstream r. Given a shorter prefix (q < cmax), it decodes
- * the remaining offset of the integer using Golomb-Rice coding; otherwise
- * (i.e., when q == cmax) it shifts to use Exp-Golomb to decode the remainder
- * value.
+ * This function reads and decodes from the bitstream a Truncated-Rice coded
+ * integer value, with Rice parameter m. It first reads and decodes the unary
+ * prefix q from the input bitstream r. Given a shorter prefix (q < cmax), it
+ * decodes the remaining offset of the integer using Golomb-Rice coding;
+ * otherwise (i.e., when q == cmax) it shifts to use Exp-Golomb to decode the
+ * remainder value.
  *
  * \param[in]    xd        Pointer to structure holding the data for the
  *                         current macroblockd
