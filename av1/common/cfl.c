@@ -238,7 +238,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   if (have_top) {
     // If this is the above super block boundary, use only the above line and
     // repeated it.
-    int top_offset = 0;
+    int top_offset = 0;  // In the case filter_type is 2, top_offset points to
+                         // the middle reference line
     int bottom_offset = 0;
 #if CONFIG_CFL_SIMPLIFICATION
     get_top_bottom_offsets(is_top_sb_boundary, &top_offset, &bottom_offset);
@@ -257,7 +258,14 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                               input[i + 1] + input[bot + AOMMAX(-1, -i)] +
                               2 * input[bot] + input[bot + 1];
         } else if (filter_type == 2) {
-          const int top = i - top_offset * input_stride;
+#if CONFIG_CFL_SIMPLIFICATION
+          const int top =
+              i - (is_top_sb_boundary ? 0 : 1) *
+                      input_stride;  // If this is the top sb boundary, the top
+                                     // index points to the current sample
+#else
+          const int top = i - input_stride;
+#endif  // CONFIG_CFL_SIMPLIFICATION
           output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
                               input[i + 1] + input[top] + input[bot];
         } else {
