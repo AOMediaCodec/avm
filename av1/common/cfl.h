@@ -133,18 +133,18 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
                                  int ref_height, int dir);
-#if MHCCP_DIVISION_REMOVAL
-void gaussBacksubstitution(int64_t *x,
+#if CONFIG_E125_MHCCP_SIMPLIFY
+void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
                            int numEq, int col);
-void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                      int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
-                      int64_t *y0, int64_t *x0, int numEq, int bd);
-void xGetDivScaleRoundShift(uint64_t denom, int *scale, uint64_t *round,
-                            int *shift);
-#endif
+void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                             int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                             int64_t *y0, int64_t *x0, int numEq, int bd);
+void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
+                              int *shift);
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
-#if !MHCCP_DIVISION_REMOVAL
+#if !CONFIG_E125_MHCCP_SIMPLIFY
 // ldl decomposition
 bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
@@ -168,7 +168,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t diag[MHCCP_NUM_PARAMS], int numEq);
-#endif  // MHCCP_DIVISION_REMOVAL
+#endif  // !CONFIG_E125_MHCCP_SIMPLIFY
 
 // Get chroma prediction with MHCCP
 void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,

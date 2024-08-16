@@ -18,9 +18,9 @@
 
 #include "config/av1_rtcd.h"
 
-#if MHCCP_DIVISION_REMOVAL
+#if CONFIG_E125_MHCCP_SIMPLIFY
 #include "av1/common/reconinter.h"
-#endif
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
 #if CONFIG_IMPROVED_CFL
 #include "av1/common/warped_motion.h"
@@ -1064,17 +1064,17 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 
   if (count > 0) {
     int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
-#if MHCCP_DIVISION_REMOVAL
+#if CONFIG_E125_MHCCP_SIMPLIFY
     int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2];
-#endif  // MHCCP_DIVISION_REMOVAL
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
     int64_t Ty[MHCCP_NUM_PARAMS];
     memset(ATA, 0x00,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
-#if MHCCP_DIVISION_REMOVAL
+#if CONFIG_E125_MHCCP_SIMPLIFY
     memset(C, 0x00,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS + 2));
-#endif  // MHCCP_DIVISION_REMOVAL
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
         int16_t *col0 = A[coli0];
@@ -1115,9 +1115,9 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
       for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
         Ty[coli] >>= matrixShift;
     }
-#if MHCCP_DIVISION_REMOVAL
-    gaussElimination(ATA, C, Ty, mbmi->mhccp_implicit_param[plane - 1],
-                     MHCCP_NUM_PARAMS, xd->bd);
+#if CONFIG_E125_MHCCP_SIMPLIFY
+    gauss_elimination_mhccp(ATA, C, Ty, mbmi->mhccp_implicit_param[plane - 1],
+                            MHCCP_NUM_PARAMS, xd->bd);
 #else
     int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     int64_t diag[MHCCP_NUM_PARAMS];
@@ -1126,7 +1126,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     bool decompOk = ldl_decompose(ATA, U, diag, MHCCP_NUM_PARAMS);
     ldl_solve(U, diag, Ty, mbmi->mhccp_implicit_param[plane - 1],
               MHCCP_NUM_PARAMS, decompOk);
-#endif
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
   } else {
     for (int i = 0; i < MHCCP_NUM_PARAMS - 1; ++i) {
       mbmi->mhccp_implicit_param[plane - 1][i] = 0;
@@ -1136,13 +1136,14 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
   }
 }
 
-#if MHCCP_DIVISION_REMOVAL
+#if CONFIG_E125_MHCCP_SIMPLIFY
 #define DIV_PREC_BITS 14
 #define DIV_PREC_BITS_POW2 8
 #define DIV_SLOT_BITS 3
 #define DIV_INTR_BITS (DIV_PREC_BITS - DIV_SLOT_BITS)
 #define DIV_INTR_ROUND (1 << DIV_INTR_BITS >> 1)
 
+// Return the number of shifted bits for the denominator
 static inline int floorLog2Uint64(uint64_t x) {
   if (x == 0) {
     return 0;
@@ -1174,8 +1175,9 @@ static inline int floorLog2Uint64(uint64_t x) {
   return result;
 }
 
-void xGetDivScaleRoundShift(uint64_t denom, int *scale, uint64_t *round,
-                            int *shift)  // Note: assumes positive denominator
+// Get the number of shifted bits for denominator and the scaling factors
+void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
+                              int *shift)  // Note: assumes positive denominator
 {
   static const int pow2W[8] = {
     214, 153, 113, 86, 67, 53, 43, 35
@@ -1206,7 +1208,9 @@ void xGetDivScaleRoundShift(uint64_t denom, int *scale, uint64_t *round,
            (normDiff2 >> 1) + pow2B[diffFull];
   *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
 }
-void gaussBacksubstitution(int64_t *x,
+
+// Apply the back substitution process to generate the MHCCP parameters
+void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
                            int numEq, int col) {
   x[numEq - 1] = C[numEq - 1][col];
@@ -1222,9 +1226,10 @@ void gaussBacksubstitution(int64_t *x,
   }
 }
 
-void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                      int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
-                      int64_t *y0, int64_t *x0, int numEq, int bd) {
+// Use gaussian elimination approach to derive the parameters for MHCCP mode
+void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                             int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                             int64_t *y0, int64_t *x0, int numEq, int bd) {
   int colChr0 = numEq;
 
   int reg = 2 << (bd - 8);
@@ -1246,7 +1251,7 @@ void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
     uint64_t round;
     int scale, shift;
-    xGetDivScaleRoundShift(diag, &scale, &round, &shift);
+    get_division_scale_shift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
       src[j] =
@@ -1269,11 +1274,11 @@ void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   }
 
   // Solve with backsubstitution
-  gaussBacksubstitution(x0, C, numEq, colChr0);
+  gauss_back_substitute(x0, C, numEq, colChr0);
 }
-#endif
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
-#if !MHCCP_DIVISION_REMOVAL
+#if !CONFIG_E125_MHCCP_SIMPLIFY
 bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
@@ -1360,7 +1365,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
     memset(x, 0, sizeof(int64_t) * numEq);
   }
 }
-#endif  // !MHCCP_DIVISION_REMOVAL
+#endif  // !CONFIG_E125_MHCCP_SIMPLIFY
 
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
