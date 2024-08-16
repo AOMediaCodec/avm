@@ -1159,22 +1159,9 @@ static int read_inter_segment_id(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   return segment_id;
 }
 
-static int read_skip_mode(AV1_COMMON *cm, const MACROBLOCKD *xd, int segment_id,
+static int read_skip_mode(AV1_COMMON *cm, const MACROBLOCKD *xd,
                           aom_reader *r) {
-  if (!cm->current_frame.skip_mode_info.skip_mode_flag) return 0;
-
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP)) {
-    return 0;
-  }
-  if (!is_comp_ref_allowed(xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART]))
-    return 0;
-
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    // These features imply single-reference mode, while skip mode implies
-    // compound reference. Hence, the two are mutually exclusive.
-    // In other words, skip_mode is implicitly 0 here.
-    return 0;
-  }
+  if (!is_skip_mode_allowed(cm, xd)) return 0;
 
   const int ctx = av1_get_skip_mode_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -2967,15 +2954,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
   ref_frame[0] = NONE_FRAME;
   ref_frame[1] = NONE_FRAME;
-#if !CONFIG_EXT_RECUR_PARTITIONS
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-  if (cm->features.tip_frame_mode &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-      is_tip_allowed_bsize(xd->mi[0])) {
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-      is_tip_allowed_bsize(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  if (is_tip_allowed(cm, xd)) {
     const int tip_ctx = get_tip_ctx(xd);
     if (aom_read_symbol(r, xd->tile_ctx->tip_cdf[tip_ctx], 2,
                         ACCT_INFO("tip_cdf"))) {
@@ -4519,7 +4498,8 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_REFINEMV
 
   mbmi->segment_id = read_inter_segment_id(cm, xd, 1, r);
-  mbmi->skip_mode = read_skip_mode(cm, xd, mbmi->segment_id, r);
+
+  mbmi->skip_mode = read_skip_mode(cm, xd, r);
 
   mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;

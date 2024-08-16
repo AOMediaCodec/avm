@@ -193,6 +193,46 @@ static INLINE int get_tip_ctx(const MACROBLOCKD *xd) {
   return ctx;
 }
 
+static INLINE int is_tip_allowed(const AV1_COMMON *const cm,
+                                 const MACROBLOCKD *const xd) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int is_allowed_bsize =
+#if CONFIG_EXT_RECUR_PARTITIONS
+      is_tip_allowed_bsize(mbmi);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      is_tip_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  if (cm->features.tip_frame_mode && is_allowed_bsize) {
+    return 1;
+  }
+
+  return 0;
+}
+
+static INLINE int is_skip_mode_allowed(const AV1_COMMON *const cm,
+                                       const MACROBLOCKD *const xd) {
+  MB_MODE_INFO *const mi = xd->mi[0];
+  if (!cm->current_frame.skip_mode_info.skip_mode_flag) return 0;
+
+  if (segfeature_active(&cm->seg, mi->segment_id, SEG_LVL_SKIP)) {
+    return 0;
+  }
+
+  if (!is_comp_ref_allowed(mi->sb_type[xd->tree_type == CHROMA_PART])) {
+    return 0;
+  }
+
+  if (segfeature_active(&cm->seg, mi->segment_id, SEG_LVL_GLOBALMV)) {
+    // These features imply single-reference mode, while skip mode implies
+    // compound reference. Hence, the two are mutually exclusive.
+    // In other words, skip_mode is implicitly 0 here.
+    return 0;
+  }
+
+  return 1;
+}
+
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
                                  const uint8_t *segment_ids, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {

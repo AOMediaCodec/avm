@@ -592,20 +592,21 @@ static AOM_INLINE void estimate_ref_frame_costs(
       memset(ref_costs_comp[ref_frame], 0,
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
   } else {
+    unsigned int base_cost = 0;
+
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
     const int skip_txfm = xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART];
     ref_costs_single[INTRA_FRAME_INDEX] =
-        mode_costs->intra_inter_cost[skip_txfm][intra_inter_ctx][0];
-    unsigned int base_cost =
-        mode_costs->intra_inter_cost[skip_txfm][intra_inter_ctx][1];
+        base_cost + mode_costs->intra_inter_cost[skip_txfm][intra_inter_ctx][0];
+    base_cost += mode_costs->intra_inter_cost[skip_txfm][intra_inter_ctx][1];
 #else
     ref_costs_single[INTRA_FRAME_INDEX] =
-        mode_costs->intra_inter_cost[intra_inter_ctx][0];
-    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
+        base_cost + mode_costs->intra_inter_cost[intra_inter_ctx][0];
+    base_cost += mode_costs->intra_inter_cost[intra_inter_ctx][1];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 
-    if (cm->features.tip_frame_mode) {
+    if (is_tip_allowed(cm, xd)) {
       const int tip_ctx = get_tip_ctx(xd);
       ref_costs_single[TIP_FRAME_INDEX] =
           base_cost + mode_costs->tip_cost[tip_ctx][1];
@@ -11286,8 +11287,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   }
 
   search_state.best_mbmode.skip_mode = 0;
-  if (cm->current_frame.skip_mode_info.skip_mode_flag &&
-      is_comp_ref_allowed(bsize)) {
+  if (is_skip_mode_allowed(cm, xd)) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     rd_pick_motion_copy_mode(&search_state, cpi, x, bsize, yv12_mb, ctx,
                              rd_cost);

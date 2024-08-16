@@ -1339,11 +1339,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const int inter_block = mbmi->ref_frame[0] != INTRA_FRAME;
   const int seg_ref_active = 0;
 
-  if (current_frame->skip_mode_info.skip_mode_flag && !seg_ref_active &&
+  if (
 #if CONFIG_EXTENDED_SDP
       mbmi->region_type != INTRA_REGION &&
 #endif  // CONFIG_EXTENDED_SDP
-      is_comp_ref_allowed(bsize)) {
+      is_skip_mode_allowed(cm, xd)) {
     const int skip_mode_ctx = av1_get_skip_mode_context(xd);
 #if CONFIG_ENTROPY_STATS
     td->counts->skip_mode[skip_mode_ctx][mbmi->skip_mode]++;
@@ -1633,12 +1633,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
       const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
 
-      if (cm->features.tip_frame_mode &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-          is_tip_allowed_bsize(mbmi)) {
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-          is_tip_allowed_bsize(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      if (is_tip_allowed(cm, xd)) {
         const int tip_ctx = get_tip_ctx(xd);
         update_cdf(fc->tip_cdf[tip_ctx], is_tip_ref_frame(ref0), 2);
 #if CONFIG_ENTROPY_STATS

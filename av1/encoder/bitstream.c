@@ -544,24 +544,10 @@ static int write_skip(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 }
 
 static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                           int segment_id, const MB_MODE_INFO *mi,
-                           aom_writer *w) {
-  if (!cm->current_frame.skip_mode_info.skip_mode_flag) return 0;
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP)) {
-    return 0;
-  }
+                           const MB_MODE_INFO *mi, aom_writer *w) {
+  if (!is_skip_mode_allowed(cm, xd)) return 0;
+
   const int skip_mode = mi->skip_mode;
-  if (!is_comp_ref_allowed(mi->sb_type[xd->tree_type == CHROMA_PART])) {
-    assert(!skip_mode);
-    return 0;
-  }
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    // These features imply single-reference mode, while skip mode implies
-    // compound reference. Hence, the two are mutually exclusive.
-    // In other words, skip_mode is implicitly 0 here.
-    assert(!skip_mode);
-    return 0;
-  }
   const int ctx = av1_get_skip_mode_context(xd);
   aom_write_symbol(w, skip_mode, xd->tile_ctx->skip_mode_cdfs[ctx], 2);
   return skip_mode;
@@ -2456,7 +2442,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   int ref;
 
   write_inter_segment_id(cpi, w, seg, segp, 0, 1);
-  write_skip_mode(cm, xd, segment_id, mbmi, w);
+
+  write_skip_mode(cm, xd, mbmi, w);
 
 #if CONFIG_SKIP_TXFM_OPT
   if (!mbmi->skip_mode) {
@@ -2602,12 +2589,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
     av1_collect_neighbors_ref_counts(xd);
 
-    if (cm->features.tip_frame_mode &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-        is_tip_allowed_bsize(mbmi)) {
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-        is_tip_allowed_bsize(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    if (is_tip_allowed(cm, xd)) {
       const int tip_ctx = get_tip_ctx(xd);
       aom_write_symbol(w, is_tip_ref_frame(mbmi->ref_frame[0]),
                        ec_ctx->tip_cdf[tip_ctx], 2);
