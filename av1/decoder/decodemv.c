@@ -2009,6 +2009,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
+#if CONFIG_MORPH_PRED
+    mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
     const int intrabc_ctx = get_intrabc_ctx(xd);
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
         aom_read_symbol(r, ec_ctx->intrabc_cdf[intrabc_ctx], 2,
@@ -3602,6 +3605,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
@@ -4517,6 +4523,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
+#if CONFIG_MORPH_PRED
+    mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
     const int intrabc_ctx = get_intrabc_ctx(xd);
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
         aom_read_symbol(r, xd->tile_ctx->intrabc_cdf[intrabc_ctx], 2,

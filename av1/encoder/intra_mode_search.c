@@ -67,6 +67,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->joint_y_mode_delta_angle = DC_PRED;
   mbmi->y_mode_idx = DC_PRED;
 #endif  // CONFIG_AIMC
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   mbmi->angle_delta[PLANE_TYPE_UV] = 0;
@@ -142,6 +145,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_MORPH_PRED
+    mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
     return 1;
   } else {
     return 0;
@@ -1039,6 +1045,9 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->motion_mode = SIMPLE_TRANSLATION;

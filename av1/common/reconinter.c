@@ -4840,6 +4840,9 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
 #if CONFIG_AFFINE_REFINEMENT
   mbmi.comp_refine_type = COMP_REFINE_SUBBLK2P;
 #endif
+#if CONFIG_MORPH_PRED
+  mbmi.morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
   InterPredParams params0, params1;
   av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,

@@ -366,7 +366,8 @@ static INLINE int get_morph_pred_ctx(const MACROBLOCKD *xd) {
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     const MB_MODE_INFO *const neighbor = xd->neighbors[i];
     if (neighbor != NULL) {
-      ctx += neighbor->morph_pred;
+      ctx +=
+          (is_intrabc_block(neighbor, xd->tree_type) && neighbor->morph_pred);
     }
   }
   return ctx;

@@ -1113,6 +1113,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
   mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = COMP_REFINE_SUBBLK2P;
@@ -1354,6 +1357,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     mbmi->interp_fltr = EIGHTTAP_REGULAR;
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
     mbmi->use_intrabc[0] = 0;
+#if CONFIG_MORPH_PRED
+    mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
