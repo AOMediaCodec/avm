@@ -654,7 +654,8 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
   config->erp_pruning_level = 5;
-  config->use_ml_erp_pruning = 0;
+  // ML-based partition pruning is on by default
+  config->use_ml_erp_pruning = 2;
   config->enable_ext_partitions = 1;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;

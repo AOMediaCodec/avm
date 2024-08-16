@@ -376,10 +376,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Set the level of aggressiveness for erp pruning."
               "(0: off, 1: reuse partition decision for co-located block, "
               "2 to 6 increasing level of aggressiveness. Default: 5."),
-  .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
-                                "Use ML model to perform ERP Pruning."
-                                "(0: off (default), 1: prune rect, "
-                                "2: prune split, 3: prune rect + split)."),
+  .use_ml_erp_pruning =
+      ARG_DEF(NULL, "use-ml-erp-pruning", 1,
+              "Use ML model to perform ERP Pruning."
+              "(0: off, 1: prune rect, "
+              "2: prune split (default), 3: prune rect + split)."),
   .enable_ext_partitions = ARG_DEF(NULL, "enable-ext-partitions", 1,
                                    "Enable extended partitions"
                                    "(0: off (default), 1: on)."),
