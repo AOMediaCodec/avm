@@ -1149,18 +1149,23 @@ static inline int floorLog2Uint64(uint64_t x) {
   }
   int result = 0;
   if (x & 0xffffffff00000000) {
+    x >>= 32;
     result += 32;
   }
   if (x & 0xffff0000) {
+    x >>= 16;
     result += 16;
   }
   if (x & 0xff00) {
+    x >>= 8;
     result += 8;
   }
   if (x & 0xf0) {
+    x >>= 4;
     result += 4;
   }
   if (x & 0xc) {
+    x >>= 2;
     result += 2;
   }
   if (x & 0x2) {
