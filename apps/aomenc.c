@@ -2027,9 +2027,9 @@ static void get_cx_data(struct stream_state *stream,
           if (stream->decoder.err) {
             warn_or_exit_on_error(&stream->decoder,
                                   global->test_decode == TEST_DECODE_FATAL,
-                                  "Failed to decode frame %d in stream %d",
-                                  stream->frames_out + 1, stream->index);
-            stream->mismatch_seen = stream->frames_out + 1;
+                                  "Failed to decode POC %d in stream %d",
+                                  stream->frames_out - 1, stream->index);
+            stream->mismatch_seen = stream->frames_out;
           }
         }
 #endif
