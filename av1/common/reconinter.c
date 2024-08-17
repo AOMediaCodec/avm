@@ -1380,9 +1380,7 @@ void swap_rows(int64_t *mat, int64_t *sol, const int i, const int j,
 // For better precision, set this number as minimal bits for intermediate
 // result of Gaussian elimination.
 #define GE_MULT_PREC_BITS 12
-// This function is a stable version of ROUND_POWER_OF_TWO_SIGNED(a*b, shift),
-// where shifts are partially applied before multiplcation operations to avoid
-// overflow issues, i.e., (a>>s1)*(b>>s2)>>s3, where s1+s2+s3=shift
+#if CONFIG_REFINEMENT_SIMPLIFY || CONFIG_E125_MHCCP_SIMPLIFY
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           const int msb_a, const int msb_b, const int max_bd,
                           int *rem_shift) {
@@ -1421,6 +1419,7 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
       ROUND_POWER_OF_TWO_SIGNED_64(a, s1) * ROUND_POWER_OF_TWO_SIGNED_64(b, s2),
       shift - s1 - s2);
 }
+#endif  // CONFIG_REFINEMENT_SIMPLIFY || CONFIG_E125_MHCCP_SIMPLIFY
 
 // Perform Gaussian elimination routine to solve a matrix inverse problem
 int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
