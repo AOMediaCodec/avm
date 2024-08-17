@@ -2001,10 +2001,6 @@ typedef struct {
   /*!
    * Whether frame-level filters are on or off.
    */
-  int frame_filters_on;
-  /*!
-   * Filter data - taps
-   */
   DECLARE_ALIGNED(16, int16_t,
                   allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
 #if CONFIG_LR_MERGE_COEFFS
@@ -2020,10 +2016,6 @@ typedef struct {
    * the first bank slot and in turn used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
-#if CONFIG_TEMP_LR
-  // whether frame filter is predicted from a reference picture
-  uint8_t temporal_pred_flag;
-#endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfo;
 
@@ -2041,13 +2033,6 @@ typedef struct {
    * Pointer to the most current filter for each class.
    */
   int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
-#if CONFIG_COMBINE_PC_NS_WIENER
-  /*!
-   * Whether the bank has been initialized with predictions used to better
-   * code the frame-level filters.
-   */
-  int frame_filter_predictors_are_set;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfoBank;
 
 int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id);

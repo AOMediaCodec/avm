@@ -2957,8 +2957,6 @@ void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
     int16_t *frame_filter_dictionary, int dict_stride) {
-  assert(!bank->frame_filter_predictors_are_set);
-
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
@@ -2992,7 +2990,6 @@ void fill_first_slot_of_bank_with_filter_match(
 #if CONFIG_TEMP_LR
 void av1_copy_rst_frame_filters(RestorationInfo *to,
                                 const RestorationInfo *from) {
-  assert(from->frame_filters_on);
   to->frame_filters_on = from->frame_filters_on;
   to->num_filter_classes = from->num_filter_classes;
   to->frame_filters = from->frame_filters;

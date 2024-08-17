@@ -1240,7 +1240,6 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->luma_stride = rsc->luma_stride;
   rui->plane = rsc->plane;
   rui->wienerns_info.num_classes = rsc->num_filter_classes;
-  rui->wienerns_info.frame_filters_on = rsc->frame_filters_on;
 #if CONFIG_COMBINE_PC_NS_WIENER
   rui->skip_pcwiener_filtering = 0;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3601,10 +3600,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
          rest_unit_idx_in_rutile);
   assert(unit_stats->plane == rsc->plane);
   assert(rusi->sse[RESTORE_NONE] == unit_stats->real_sse);
-  rusi->wienerns_info.frame_filters_on = 0;
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (rsc->frame_filters_on && rsc->plane == AOM_PLANE_Y) {
-    rui.wienerns_info.frame_filters_on = 1;
     // Pick the best filter for this RU.
     rusi->sse[RESTORE_WIENER_NONSEP] = evaluate_frame_filter(rsc, limits, &rui);
 
@@ -4433,17 +4430,11 @@ static void copy_unit_info_visitor(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   const RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
-#if CONFIG_COMBINE_PC_NS_WIENER
-  rsi->unit_info[rest_unit_idx].wienerns_info.frame_filters_on =
-      rsi->frame_filters_on;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   copy_unit_info(rsi->frame_restoration_type, rusi,
                  &rsi->unit_info[rest_unit_idx], rsc);
 #if CONFIG_TEMP_LR
   assert(rsi->temporal_pred_flag == rsc->temporal_pred_flag);
-  rsi->unit_info[rest_unit_idx].wienerns_info.temporal_pred_flag =
-      rsi->temporal_pred_flag;
 #endif  // CONFIG_TEMP_LR
 }
 

@@ -324,9 +324,6 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
     bank->bank_size_for_class[c_id] = 0;
     bank->bank_ptr_for_class[c_id] = 0;
   }
-#if CONFIG_COMBINE_PC_NS_WIENER
-  bank->frame_filter_predictors_are_set = 0;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 }
 
 // Add a new filter to bank
