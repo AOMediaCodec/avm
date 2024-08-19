@@ -983,7 +983,7 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   const AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_ML_PART_SPLIT
   const int is_2k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
-#endif
+#endif  // CONFIG_ML_PART_SPLIT
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const int is_720p_or_lesser = AOMMIN(cm->width, cm->height) <= 720;
@@ -1136,7 +1136,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
     sf->part_sf.prune_split_with_ml =
         !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 2);
   }
-#endif
+#endif  // CONFIG_ML_PART_SPLIT
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

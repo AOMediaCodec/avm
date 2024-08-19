@@ -51,7 +51,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_ML_PART_SPLIT
                            ,
                            int prune_rect_flags[3]
-#endif
+#endif  // CONFIG_ML_PART_SPLIT
 );
 #if CONFIG_EXT_RECUR_PARTITIONS
 void av1_build_partition_tree_fixed_partitioning(AV1_COMMON *const cm,
