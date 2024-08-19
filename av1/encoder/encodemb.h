@@ -118,13 +118,10 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                    CctxType cctx_type, const TXB_CTX *const txb_ctx,
                    int *rate_cost
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                    ,
-                   int blk_row,
-                   int blk_col,
-                   BLOCK_SIZE bsize,
-                   RUN_TYPE dry_run
+                   ,
+                   int blk_row, int blk_col, BLOCK_SIZE bsize, RUN_TYPE dry_run
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                   );
+);
 // This function tunes the coefficients when trellis quantization is off.
 void parity_hiding_trellis_off(const struct AV1_COMP *cpi, MACROBLOCK *mb,
                                const int plane_type, int block, TX_SIZE tx_size,

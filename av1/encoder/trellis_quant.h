@@ -63,10 +63,20 @@ typedef struct tcq_coeff_ctx_t {
   uint8_t pad[3];
 } tcq_coeff_ctx_t;
 
+// int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+//                   int block, TX_SIZE tx_size, TX_TYPE tx_type,
+//                   CctxType cctx_type, const TXB_CTX *const txb_ctx,
+//                   int *rate_cost, int sharpness);
+
 int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   int block, TX_SIZE tx_size, TX_TYPE tx_type,
                   CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                  int *rate_cost, int sharpness);
+                  int *rate_cost, int sharpness
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                  ,
+                  int blk_row, int blk_col, BLOCK_SIZE bsize, RUN_TYPE dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+);
 
 #ifdef __cplusplus
 }

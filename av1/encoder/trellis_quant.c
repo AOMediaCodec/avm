@@ -1685,7 +1685,12 @@ int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
 int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   int block, TX_SIZE tx_size, TX_TYPE tx_type,
                   CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                  int *rate_cost, int sharpness) {
+                  int *rate_cost, int sharpness
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                  ,
+                  int blk_row, int blk_col, BLOCK_SIZE bsize, RUN_TYPE dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
 
@@ -1743,6 +1748,112 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                            << (2 * (xd->bd - 8)))) +
                     2) >>
                    rshift;
+
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  bool log_perblk = dry_run == OUTPUT_ENABLED;
+  const int shift = av1_get_tx_scale(tx_size);
+  const int qstep_dc =
+      ROUND_POWER_OF_TWO(dequant[0], QUANT_TABLE_BITS) >> shift;
+  const int qstep_ac =
+      ROUND_POWER_OF_TWO(dequant[1], QUANT_TABLE_BITS) >> shift;
+  const int qstep_tcq_dc = qstep_dc >> 1;
+  const int qstep_tcq_ac = qstep_ac >> 1;
+  const int n_coeffs = width * height;
+  const int neob_sq = eob;
+
+  int rneob_list[MAX_TRELLIS];
+  int restm[MAX_TRELLIS];
+  uint8_t levels_buf_logs[TX_PAD_2D];
+  uint8_t *const levels_logs = set_levels(levels_buf_logs, width);
+  DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
+
+  const int rate_sq =
+      av1_cost_coeffs_txb(cm, x, plane, block, tx_size, tx_type, cctx_type,
+                          txb_ctx, cm->features.reduced_tx_set_used);
+  const int rate_skip =
+      av1_cost_skip_txb(coeff_costs, txb_ctx, plane, tx_size, x, block);
+
+  uint64_t dist_sq = 0;
+  uint64_t dist_skip = 0;
+  rneob_list[0] = 0;
+  int nz_counter = 0;
+  for (int i = 0; i < n_coeffs; i++) {
+    dist_sq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
+    dist_skip += get_coeff_dist(tcoeff[i], 0, shift);
+    rneob_list[i] = 0;  // place-holder for NEOB cost
+
+    //    if (i) rneob_list[i] = get_eob_cost(i, txb_eob_costs, txb_costs
+    // #if CONFIG_EOB_POS_LUMA
+    //                                        , is_inter
+    // #endif  // CONFIG_EOB_POS_LUMA
+    //           );
+  }
+
+  if (log_perblk) {
+#if CONFIG_COEFF_LOGS
+    // Calculate per coefficient rate (SQ qcoeffs)
+    av1_txb_init_levels(qcoeff, width, height, levels_logs);
+    av1_get_nz_map_contexts(levels_logs, scan, eob, tx_size, tx_class,
+                            coeff_contexts, plane);
+    for (int c = 0; c < neob_sq; ++c) {
+      int pos = scan[c];
+      int row = pos >> bwl;
+      int col = pos - (row << bwl);
+      int limits = get_lf_limits(row, col, tx_class, plane);
+      tran_low_t v = qcoeff[pos];
+      tran_low_t abs_qc = abs(v);
+      int sign = (v < 0) ? 1 : 0;
+      int coeff_ctx = coeff_contexts[pos];
+      int mid_ctx = coeff_ctx >> 4;
+      restm[c] =
+          get_coeff_cost_general(pos, abs_qc, sign, coeff_ctx, mid_ctx,
+                                 txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class,
+#if CONFIG_CONTEXT_DERIVATION
+                                 (int32_t *)xd->tmp_sign,
+#endif  // CONFIG_CONTEXT_DERIVATION
+                                 plane, limits, 0);
+    }
+    for (int c = neob_sq; c < n_coeffs; ++c) restm[c] = 0;
+#endif  // CONFIG_COEFF_LOGS
+
+      //    // Calculat every EOB cost
+      //    rneob_list[0] = 0;
+      //    for (int i = 1; i<=n_coeffs; i++ ){
+      //      rneob_list[i] = get_eob_cost(i, txb_eob_costs, txb_costs
+      // #if CONFIG_EOB_POS_LUMA
+      //                                   , is_inter
+      // #endif  // CONFIG_EOB_POS_LUMA
+      //      );
+      //     }
+
+#if CONFIG_COEFF_LOGS
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
+                         tcoeff, "INVAL", true);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
+                         qcoeff, "SQIDX", true);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
+                         dqcoeff, "SQVAL", true);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
+                         restm, "SQREM", false);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
+                         rneob_list + 1, "RNEOB", false);
+#endif  // CONFIG_COEFF_LOGS
+  }
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
   // getting context from previous level buf, updating levels on current level
   // buf. initialization all value by 0, since we update every position.
@@ -1870,7 +1981,108 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       av1_get_txb_entropy_context(qcoeff, scan_order, p->eobs[block]);
 
   accu_rate += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
-
   *rate_cost = accu_rate;
+
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  if (log_perblk) {
+    const int neob_vq = eob;
+
+#if CONFIG_COEFF_LOGS
+    // Calculate per coefficient rate (TCQ qcoeffs)
+    av1_txb_init_levels(qcoeff, width, height, levels_logs);
+    av1_get_nz_map_contexts(levels_logs, scan, eob, tx_size, tx_class,
+                            coeff_contexts, plane);
+    int state = 0;
+    for (int c = neob_vq - 1; c >= 0; --c) {
+      int pos = scan[c];
+      int row = pos >> bwl;
+      int col = pos - (row << bwl);
+      int limits = get_lf_limits(row, col, tx_class, plane);
+      tran_low_t v = qcoeff[pos];
+      tran_low_t abs_qc = abs(v);
+      int sign = (v < 0) ? 1 : 0;
+      int coeff_ctx = coeff_contexts[pos];
+      int mid_ctx = coeff_ctx >> 4;
+      int Qx = state >> 1;
+
+      restm[c] =
+          get_coeff_cost_general(pos, abs_qc, sign, coeff_ctx, mid_ctx,
+                                 txb_ctx->dc_sign_ctx, txb_costs, bwl, tx_class,
+#if CONFIG_CONTEXT_DERIVATION
+                                 (int32_t *)xd->tmp_sign,
+#endif  // CONFIG_CONTEXT_DERIVATION
+                                 plane, limits, Qx);
+
+      state = tcq_next_state(state, abs_qc, limits);
+    }
+    for (int c = neob_vq; c < n_coeffs; ++c) restm[c] = 0;
+
+    int tstate[MAX_TRELLIS];
+    int rcost[MAX_TRELLIS];
+    int prevrate = rneob_list[neob_vq];
+    state = 0;
+
+    for (int c = neob_vq - 1; c >= 0; --c) {
+      int pos = scan[c];
+      int row = pos >> bwl;
+      int col = pos - (row << bwl);
+      int limits = get_lf_limits(row, col, tx_class, plane);
+      int level = abs(qcoeff[pos]);
+
+      state = tcq_next_state(state, level, limits);
+      tstate[c] = state;
+      rcost[c] = trellis[c][state].rate - prevrate;
+      prevrate = trellis[c][state].rate;
+    }
+
+    for (int c = neob_vq; c < n_coeffs; ++c) rcost[c] = tstate[c] = 0;
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_vq,
+                         qcoeff, "VQIDX", true);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_vq,
+                         dqcoeff, "VQVAL", true);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_vq,
+                         restm, "VQREM", false);
+
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_vq,
+                         rcost, "RCOST", false);
+    av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                         tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                         qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_vq,
+                         tstate, "STATE", false);
+#endif  // CONFIG_COEFF_LOGS
+
+    uint64_t dist_vq = 0;
+    int rate_vq = accu_rate;
+
+    for (int i = 0; i < n_coeffs; i++) {
+      dist_vq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
+    }
+
+    // log per block RD costs for SQ/TCQ/skp
+    const uint64_t rd_sq = RDCOST(rdmult, rate_sq, dist_sq);
+    const uint64_t rd_vq = RDCOST(rdmult, rate_vq, dist_vq);
+    const uint64_t rd_skip = RDCOST(rdmult, rate_skip, dist_skip);
+
+    const int rneob_sq = rneob_list[neob_sq];
+    const int rneob_vq = rneob_list[neob_vq];
+    av2_tcq_log_blkrd(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
+                      tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
+                      qstep_tcq_ac, rdmult, n_coeffs, nz_counter, neob_sq,
+                      neob_vq, rneob_sq, rneob_vq, rate_sq, rate_vq, rate_skip,
+                      dist_sq, dist_vq, dist_skip, rd_sq, rd_vq, rd_skip,
+                      dry_run);
+  }
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
   return eob;
 }
