@@ -91,13 +91,13 @@ static INLINE void read_coeffs_reverse_2d(
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-        ,
+    ,
     qcoeff_bit_cost *qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
 ) {
 
 #if CONFIG_COEFF_LOGS
-    uint64_t prev_bits = aom_reader_tell_frac(r);
+  uint64_t prev_bits = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
   for (int c = end_si; c >= start_si; --c) {
@@ -127,7 +127,6 @@ static INLINE void read_coeffs_reverse_2d(
         prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
-
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_2d_chroma(levels, pos, bwl);
           aom_cdf_prob *cdf = br_lf_uv_cdf[br_ctx];
@@ -152,7 +151,8 @@ static INLINE void read_coeffs_reverse_2d(
 #if CONFIG_DQ
                                             [dq]
 #endif
-                                 , 4, ACCT_INFO("level", "base_uv_cdf"));
+                                 ,
+                                 4, ACCT_INFO("level", "base_uv_cdf"));
 #if CONFIG_COEFF_LOGS
         qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
         prev_bits += qcoeff_cost[c].br_cost;
@@ -166,9 +166,9 @@ static INLINE void read_coeffs_reverse_2d(
                                           ACCT_INFO("k", "br_uv_cdf"));
             level += k;
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-          qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_DQ_COEFF_LOGS
             if (k < BR_CDF_SIZE - 1) break;
           }
@@ -183,11 +183,11 @@ static INLINE void read_coeffs_reverse_2d(
 #if CONFIG_DQ
                                        [dq]
 #endif
-                                 , LF_BASE_SYMBOLS,
-                                 ACCT_INFO("level", "base_lf_cdf"));
+                            ,
+                            LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > LF_NUM_BASE_LEVELS) {
@@ -197,6 +197,11 @@ static INLINE void read_coeffs_reverse_2d(
             const int k = aom_read_symbol(r, cdf, BR_CDF_SIZE,
                                           ACCT_INFO("k", "br_lf_cdf"));
             level += k;
+#if CONFIG_COEFF_LOGS
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
+#endif  // CONFIG_DQ_COEFF_LOGS
             if (k < BR_CDF_SIZE - 1) break;
           }
         }
@@ -214,6 +219,10 @@ static INLINE void read_coeffs_reverse_2d(
 #endif
                                  ,
                                  4, ACCT_INFO("level", "base_cdf"));
+#if CONFIG_COEFF_LOGS
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
+#endif  // CONFIG_COEFF_LOGS
         if (level > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_2d(levels, pos, bwl);
           aom_cdf_prob *cdf = br_cdf[br_ctx];
@@ -222,9 +231,9 @@ static INLINE void read_coeffs_reverse_2d(
                 aom_read_symbol(r, cdf, BR_CDF_SIZE, ACCT_INFO("k", "br_cdf"));
             level += k;
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_DQ_COEFF_LOGS
             if (k < BR_CDF_SIZE - 1) break;
           }
@@ -319,13 +328,13 @@ static INLINE void read_coeffs_reverse(
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-        ,
+    ,
     qcoeff_bit_cost *qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
 ) {
 
 #if CONFIG_COEFF_LOGS
-    uint64_t prev_bits = aom_reader_tell_frac(r);
+  uint64_t prev_bits = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
   for (int c = end_si; c >= start_si; --c) {
@@ -350,10 +359,9 @@ static INLINE void read_coeffs_reverse(
                                  ,
                                  LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
-
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-      prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > LF_NUM_BASE_LEVELS) {
@@ -363,11 +371,10 @@ static INLINE void read_coeffs_reverse(
             const int k = aom_read_symbol(r, cdf, BR_CDF_SIZE,
                                           ACCT_INFO("k", "br_lf_uv_cdf"));
             level += k;
-
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-          qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
             if (k < BR_CDF_SIZE - 1) break;
           }
@@ -380,11 +387,12 @@ static INLINE void read_coeffs_reverse(
 #if CONFIG_DQ
                                             [dq]
 #endif
-                                 , 4, ACCT_INFO("level", "base_uv_cdf"));
+                                 ,
+                                 4, ACCT_INFO("level", "base_uv_cdf"));
 
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-    prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > NUM_BASE_LEVELS) {
@@ -395,9 +403,9 @@ static INLINE void read_coeffs_reverse(
                                           ACCT_INFO("k", "br_uv_cdf"));
             level += k;
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
 
             if (k < BR_CDF_SIZE - 1) break;
@@ -414,11 +422,11 @@ static INLINE void read_coeffs_reverse(
 #if CONFIG_DQ
                                        [dq]
 #endif
-                                 , LF_BASE_SYMBOLS,
-                                 ACCT_INFO("level", "base_lf_cdf"));
+                            ,
+                            LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > LF_NUM_BASE_LEVELS) {
@@ -430,9 +438,9 @@ static INLINE void read_coeffs_reverse(
             level += k;
 
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
 
             if (k < BR_CDF_SIZE - 1) break;
@@ -450,10 +458,11 @@ static INLINE void read_coeffs_reverse(
 #if CONFIG_DQ
                                          [dq]
 #endif
-                                 , 4, ACCT_INFO("level", "base_cdf"));
+                                 ,
+                                 4, ACCT_INFO("level", "base_cdf"));
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > NUM_BASE_LEVELS) {
@@ -465,9 +474,9 @@ static INLINE void read_coeffs_reverse(
             level += k;
 
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
 
             if (k < BR_CDF_SIZE - 1) break;
@@ -568,14 +577,11 @@ static INLINE void read_coeffs_forward_2d(aom_reader *r, int start_si,
 static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
                               const int plane, const TX_SIZE tx_size
 #if CONFIG_COEFF_LOGS
-                                ,
-                              uint64_t *eob_pt_cost,
-                              uint64_t *eob_extra_cost,
+                              ,
+                              uint64_t *eob_pt_cost, uint64_t *eob_extra_cost,
                               uint64_t *eob_offset_cost
 #endif  // CONFIG_COEFF_LOGS
-                              ) {
-
-
+) {
   MACROBLOCKD *const xd = &dcb->xd;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
@@ -593,11 +599,10 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   uint16_t *const bob = &(bob_data->eob);
 
 #if CONFIG_COEFF_LOGS
-    uint64_t prev_cost = aom_reader_tell_frac(r);
+  uint64_t prev_cost = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
-
-    int eob_extra = 0;
+  int eob_extra = 0;
   int eob_pt = 1;
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   switch (eob_multi_size) {
@@ -646,11 +651,11 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
       break;
   }
 #if CONFIG_COEFF_LOGS
-    *eob_pt_cost = aom_reader_tell_frac(r) - prev_cost;
-    prev_cost += *eob_pt_cost;
+  *eob_pt_cost = aom_reader_tell_frac(r) - prev_cost;
+  prev_cost += *eob_pt_cost;
 #endif  // CONFIG_COEFF_LOGS
 
-    const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
+  const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
     const int eob_ctx = eob_pt - 3;
     int bit =
@@ -660,10 +665,9 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
       eob_extra += (1 << (eob_offset_bits - 1));
     }
 #if CONFIG_COEFF_LOGS
-      *eob_extra_cost = aom_reader_tell_frac(r) - prev_cost;
+    *eob_extra_cost = aom_reader_tell_frac(r) - prev_cost;
     prev_cost += *eob_extra_cost;
 #endif  // CONFIG_COEFF_LOGS
-
 
 #if CONFIG_BYPASS_IMPROVEMENT
     eob_extra +=
@@ -694,15 +698,13 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
 uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                             aom_reader *const r, const int blk_row,
                             const int blk_col, const int plane,
-                            const TXB_CTX *const txb_ctx,
-                            const TX_SIZE tx_size
+                            const TXB_CTX *const txb_ctx, const TX_SIZE tx_size
 #if CONFIG_COEFF_LOGS
                             ,
-                            uint64_t *eob_pt_bits,
-                            uint64_t *eob_extra_bits,
+                            uint64_t *eob_pt_bits, uint64_t *eob_extra_bits,
                             uint64_t *eob_offset_bits
 #endif  // CONFIG_COEFF_LOGS
-                            ) {
+) {
   MACROBLOCKD *const xd = &dcb->xd;
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
@@ -794,28 +796,28 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
 
 #if CONFIG_TXFMBLK_LOGS
-      fprintf(cm->fDecTxfmLog, "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
-              cm->current_frame.absolute_poc, // 1: POC (picture number)
-              plane,                          // 2: plane ID (Y/U/V)
-              xd->mi_row,                     // 3: macroblock row index
-              xd->mi_col,                     // 4: macroblock coloumn index
-              blk_row,                        // 5: transform block row index
-              blk_col,                        // 6: transform block column index
-              tx_size,                        // 7: transform size
-              0,                              // 8: transform type (filler for skipped blocks)
-              0,                              // 9: eob (# of coded coefficients)
-              0);                             // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
+    fprintf(
+        cm->fDecTxfmLog,
+        "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
+        cm->current_frame.absolute_poc,  // 1: POC (picture number)
+        plane,                           // 2: plane ID (Y/U/V)
+        xd->mi_row,                      // 3: macroblock row index
+        xd->mi_col,                      // 4: macroblock coloumn index
+        blk_row,                         // 5: transform block row index
+        blk_col,                         // 6: transform block column index
+        tx_size,                         // 7: transform size
+        0,   // 8: transform type (filler for skipped blocks)
+        0,   // 9: eob (# of coded coefficients)
+        0);  // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
 
-#endif // CONFIG_TXFMBLK_LOGS
+#endif  // CONFIG_TXFMBLK_LOGS
 
     return 0;
   }
   decode_eob(dcb, r, plane, tx_size
 #if CONFIG_COEFF_LOGS
-          ,
-             eob_pt_bits,
-             eob_extra_bits,
-             eob_offset_bits
+             ,
+             eob_pt_bits, eob_extra_bits, eob_offset_bits
 #endif  // CONFIG_COEFF_LOGS
   );
   av1_read_tx_type(cm, xd, blk_row, blk_col, tx_size, r, plane, *eob,
@@ -1010,11 +1012,12 @@ static INLINE tran_low_t read_coeff_hidden(aom_reader *r, TX_CLASS tx_class,
                                            base_ph_cdf_arr base_cdf_ph,
                                            br_cdf_arr br_cdf_ph
 #if CONFIG_COEFF_LOGS
-        , qcoeff_bit_cost *qcoeff_cost
+                                           ,
+                                           qcoeff_bit_cost *qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                                           ) {
+) {
 #if CONFIG_COEFF_LOGS
-    uint64_t prev_bits = aom_reader_tell_frac(r);
+  uint64_t prev_bits = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
   int q_index;
@@ -1022,7 +1025,7 @@ static INLINE tran_low_t read_coeff_hidden(aom_reader *r, TX_CLASS tx_class,
   int ctx_idx = get_base_ctx_ph(levels, pos, bwl, tx_class);
   q_index = aom_read_symbol(r, base_cdf_ph[ctx_idx], 4, ACCT_INFO("q_index"));
 #if CONFIG_COEFF_LOGS
-    qcoeff_cost[0].br_cost = aom_reader_tell_frac(r) - prev_bits;
+  qcoeff_cost[0].br_cost = aom_reader_tell_frac(r) - prev_bits;
   prev_bits += qcoeff_cost[0].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
@@ -1034,7 +1037,7 @@ static INLINE tran_low_t read_coeff_hidden(aom_reader *r, TX_CLASS tx_class,
           aom_read_symbol(r, cdf_br, BR_CDF_SIZE, ACCT_INFO("k", "cdf_br"));
       q_index += k;
 #if CONFIG_COEFF_LOGS
-        int lr = idx / (BR_CDF_SIZE - 1);
+      int lr = idx / (BR_CDF_SIZE - 1);
       qcoeff_cost[0].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
       prev_bits += qcoeff_cost[0].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
@@ -1051,16 +1054,13 @@ static INLINE tran_low_t read_coeff_hidden(aom_reader *r, TX_CLASS tx_class,
 uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                             aom_reader *const r, const int blk_row,
                             const int blk_col, const int plane,
-                            const TXB_CTX *const txb_ctx,
-                            const TX_SIZE tx_size
+                            const TXB_CTX *const txb_ctx, const TX_SIZE tx_size
 #if CONFIG_COEFF_LOGS
-        ,
+                            ,
                             uint64_t *eob_pt_bits, uint64_t *eob_extra_bits,
                             uint64_t *eob_offset_bits
 #endif  // CONFIG_COEFF_LOGS
-                            ) {
-
-
+) {
   MACROBLOCKD *const xd = &dcb->xd;
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
   const int32_t max_value = (1 << (7 + xd->bd)) - 1;
@@ -1140,34 +1140,35 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-    const int neob = *eob;
+  const int neob = *eob;
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
 #if CONFIG_TXFMBLK_LOGS
-    fprintf(cm->fDecTxfmLog, "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
-            cm->current_frame.absolute_poc, // 1: POC (picture number)
-            plane,                          // 2: plane ID (Y/U/V)
-            xd->mi_row,                     // 3: macroblock row index
-            xd->mi_col,                     // 4: macroblock coloumn index
-            blk_row,                        // 5: transform block row index
-            blk_col,                        // 6: transform block column index
-            tx_size,                        // 7: transform size
-            tx_type,                        // 8: transform type
-            neob,                           // 9: eob (# of coded coefficients)
-            1);                             // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
-#endif // CONFIG_TXFMBLK_LOGS
-
+  fprintf(
+      cm->fDecTxfmLog,
+      "[AV2DEC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %04d %04d %6d %02d\n",
+      cm->current_frame.absolute_poc,  // 1: POC (picture number)
+      plane,                           // 2: plane ID (Y/U/V)
+      xd->mi_row,                      // 3: macroblock row index
+      xd->mi_col,                      // 4: macroblock coloumn index
+      blk_row,                         // 5: transform block row index
+      blk_col,                         // 6: transform block column index
+      tx_size,                         // 7: transform size
+      tx_type,                         // 8: transform type
+      neob,                            // 9: eob (# of coded coefficients)
+      1);  // 10: coded flag: 0 for skipped blocks, 1 for coded blocks
+#endif     // CONFIG_TXFMBLK_LOGS
 
 #if CONFIG_COEFF_LOGS
-    const int n_coeffs = width*height;
+  const int n_coeffs = width * height;
 
-    qcoeff_bit_cost* qcoeff_cost = malloc(sizeof(qcoeff_bit_cost) * (*eob));
-    memset(qcoeff_cost, 0, sizeof(qcoeff_bit_cost) * (*eob));
+  qcoeff_bit_cost *qcoeff_cost = malloc(sizeof(qcoeff_bit_cost) * (*eob));
+  memset(qcoeff_cost, 0, sizeof(qcoeff_bit_cost) * (*eob));
 
-    int *qcoeff = malloc(sizeof(int) * n_coeffs);
-    memset(qcoeff, 0, sizeof(int) * n_coeffs);
+  int *qcoeff = malloc(sizeof(int) * n_coeffs);
+  memset(qcoeff, 0, sizeof(int) * n_coeffs);
 
-    uint64_t prev_bits = aom_reader_tell_frac(r);
+  uint64_t prev_bits = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
 #if CONFIG_DQ
@@ -1191,10 +1192,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         aom_cdf_prob *cdf = ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx];
         level +=
             aom_read_symbol(r, cdf, LF_BASE_SYMBOLS - 1,
-                            ACCT_INFO("level", "coeff_base_lf_eob_uv_cdf")) + 1;
+                            ACCT_INFO("level", "coeff_base_lf_eob_uv_cdf")) +
+            1;
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > LF_NUM_BASE_LEVELS) {
@@ -1216,7 +1218,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       } else {
         aom_cdf_prob *cdf = ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx];
         level += aom_read_symbol(r, cdf, 3,
-                                 ACCT_INFO("level", "coeff_base_eob_uv_cdf")) + 1;
+                                 ACCT_INFO("level", "coeff_base_eob_uv_cdf")) +
+                 1;
 
 #if CONFIG_COEFF_LOGS
         qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
@@ -1245,10 +1248,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       if (limits) {
         aom_cdf_prob *cdf = ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][coeff_ctx];
         level += aom_read_symbol(r, cdf, LF_BASE_SYMBOLS - 1,
-                                 ACCT_INFO("level", "coeff_base_lf_eob_cdf")) + 1;
+                                 ACCT_INFO("level", "coeff_base_lf_eob_cdf")) +
+                 1;
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > LF_NUM_BASE_LEVELS) {
@@ -1259,9 +1263,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                           ACCT_INFO("k", "coeff_br_lf_cdf"));
             level += k;
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
 
             if (k < BR_CDF_SIZE - 1) break;
@@ -1270,10 +1274,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       } else {
         aom_cdf_prob *cdf = ec_ctx->coeff_base_eob_cdf[txs_ctx][coeff_ctx];
         level += aom_read_symbol(r, cdf, 3,
-                                 ACCT_INFO("level", "coeff_base_eob_cdf")) + 1;
+                                 ACCT_INFO("level", "coeff_base_eob_cdf")) +
+                 1;
 #if CONFIG_COEFF_LOGS
-          qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
-          prev_bits += qcoeff_cost[c].br_cost;
+        qcoeff_cost[c].br_cost = aom_reader_tell_frac(r) - prev_bits;
+        prev_bits += qcoeff_cost[c].br_cost;
 #endif  // CONFIG_COEFF_LOGS
 
         if (level > NUM_BASE_LEVELS) {
@@ -1284,9 +1289,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                           ACCT_INFO("k", "coeff_br_cdf"));
             level += k;
 #if CONFIG_COEFF_LOGS
-              int lr = idx / (BR_CDF_SIZE - 1);
-              qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
-              prev_bits += qcoeff_cost[c].lr_cost[lr];
+            int lr = idx / (BR_CDF_SIZE - 1);
+            qcoeff_cost[c].lr_cost[lr] = aom_reader_tell_frac(r) - prev_bits;
+            prev_bits += qcoeff_cost[c].lr_cost[lr];
 #endif  // CONFIG_COEFF_LOGS
             if (k < BR_CDF_SIZE - 1) break;
           }
@@ -1394,9 +1399,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-              , qcoeff_cost
+                             ,
+                             qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                             );
+      );
       if (enable_parity_hiding) {
         for (int si = *eob - 1; si > 0; --si) {
           int pos = scan[si];
@@ -1413,9 +1419,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         read_coeff_hidden(r, tx_class, scan, bwl, levels, (sum_abs1 & 1),
                           ec_ctx->coeff_base_ph_cdf, ec_ctx->coeff_br_ph_cdf
 #if CONFIG_COEFF_LOGS
-                , qcoeff_cost
+                          ,
+                          qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                          );
+        );
       } else {
         read_coeffs_reverse(r, tx_class, 0, 0, scan, bwl, levels, base_lf_cdf,
                             br_lf_cdf, plane, base_cdf, br_cdf
@@ -1436,9 +1443,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-                , qcoeff_cost
+                            ,
+                            qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                            );
+        );
       }
     } else {
       read_coeffs_reverse(r, tx_class, 1, *eob - 2, scan, bwl, levels,
@@ -1460,9 +1468,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-              , qcoeff_cost
+                          ,
+                          qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                          );
+      );
       if (enable_parity_hiding) {
         for (int si = *eob - 1; si > 0; --si) {
           int pos = scan[si];
@@ -1479,9 +1488,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         read_coeff_hidden(r, tx_class, scan, bwl, levels, (sum_abs1 & 1),
                           ec_ctx->coeff_base_ph_cdf, ec_ctx->coeff_br_ph_cdf
 #if CONFIG_COEFF_LOGS
-                , qcoeff_cost
+                          ,
+                          qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                          );
+        );
       } else {
         read_coeffs_reverse(r, tx_class, 0, 0, scan, bwl, levels, base_lf_cdf,
                             br_lf_cdf, plane, base_cdf, br_cdf
@@ -1502,16 +1512,17 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 #endif
 #if CONFIG_COEFF_LOGS
-                , qcoeff_cost
+                            ,
+                            qcoeff_cost
 #endif  // CONFIG_COEFF_LOGS
-                            );
+        );
       }
     }
   }
 
 #if CONFIG_COEFF_LOGS
   // reset bitstream position pointer
-    prev_bits = aom_reader_tell_frac(r);
+  prev_bits = aom_reader_tell_frac(r);
 #endif  // CONFIG_COEFF_LOGS
 
 #if CONFIG_IMPROVEIDTX_RDPH
@@ -1630,7 +1641,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       prev_bits += qcoeff_cost[c].hr_cost;
 #endif  // CONFIG_COEFF_LOGS
 
-
       // Bitmasking to clamp level to valid range:
       //   The valid range for 8/10/12 bit vdieo is at most 14/16/18 bit
       level &= 0xfffff;
@@ -1681,9 +1691,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
 #if CONFIG_COEFF_LOGS
       // record coefficient index at position [c]
-        qcoeff[pos] = sign ? -level : level;
+      qcoeff[pos] = sign ? -level : level;
 #endif  // CONFIG_COEFF_LOGS
-
     }
   }
 #if CONFIG_DQ
@@ -1705,31 +1714,32 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       int Qx = tcq_quant(state);
       int level = abs(tcoeffs[pos]);
 
-        if (abs(tcoeffs[pos])) {
-          tran_low_t dq_coeff;
-          tran_low_t qIdx = AOMMAX(0, (abs(tcoeffs[pos]) << 1) - Qx);
-          // Bitmasking to clamp dq_coeff to valid range:
-          //   The valid range for 8/10/12 bit video is at most 17/19/21 bit
-          int tempdqv = get_dqv(dequant, scan[c], iqmatrix);
-          const int64_t dq_coeff_hp =
-              (int64_t)qIdx * tempdqv & 0xffffff;
-          dq_coeff =
-              (tran_low_t)(ROUND_POWER_OF_TWO_64(dq_coeff_hp, QUANT_TABLE_BITS));
-          dq_coeff = dq_coeff >> (shift + 1);
-          // dq_coeff = dq_coeff >> (shift);
-          //dq_coeff = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx * get_dqv(dequant, scan[c], iqmatrix), QUANT_TABLE_BITS) >> (shift + 1);
-          if (tcoeffs[pos] < 0) {
-            dq_coeff = -dq_coeff;
-          }
+      if (abs(tcoeffs[pos])) {
+        tran_low_t dq_coeff;
+        tran_low_t qIdx = AOMMAX(0, (abs(tcoeffs[pos]) << 1) - Qx);
+        // Bitmasking to clamp dq_coeff to valid range:
+        //   The valid range for 8/10/12 bit video is at most 17/19/21 bit
+        int tempdqv = get_dqv(dequant, scan[c], iqmatrix);
+        const int64_t dq_coeff_hp = (int64_t)qIdx * tempdqv & 0xffffff;
+        dq_coeff =
+            (tran_low_t)(ROUND_POWER_OF_TWO_64(dq_coeff_hp, QUANT_TABLE_BITS));
+        dq_coeff = dq_coeff >> (shift + 1);
+        // dq_coeff = dq_coeff >> (shift);
+        // dq_coeff = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qIdx *
+        // get_dqv(dequant, scan[c], iqmatrix), QUANT_TABLE_BITS) >> (shift +
+        // 1);
+        if (tcoeffs[pos] < 0) {
+          dq_coeff = -dq_coeff;
+        }
 #if CONFIG_COEFF_LOGS
-            qcoeff[pos] = tcoeffs[pos];
+        qcoeff[pos] = tcoeffs[pos];
 #endif  // CONFIG_COEFF_LOGS
 
-          tcoeffs[pos] = clamp(dq_coeff, min_value, max_value);
-        }
-        //state transition
-        state = tcq_next_state(state, level, limits);
+        tcoeffs[pos] = clamp(dq_coeff, min_value, max_value);
       }
+      // state transition
+      state = tcq_next_state(state, level, limits);
+    }
   }
 #endif
 
@@ -1741,76 +1751,68 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 
 #if CONFIG_COEFF_LOGS
-    const int sq_qstep_dc = ROUND_POWER_OF_TWO(dequant[0], QUANT_TABLE_BITS) >> shift;
-        const int sq_qstep_ac = ROUND_POWER_OF_TWO(dequant[1], QUANT_TABLE_BITS) >> shift;
-        const int vq_qstep_dc = sq_qstep_dc >> 1;
-        const int vq_qstep_ac = sq_qstep_ac >> 1;
+  const int sq_qstep_dc =
+      ROUND_POWER_OF_TWO(dequant[0], QUANT_TABLE_BITS) >> shift;
+  const int sq_qstep_ac =
+      ROUND_POWER_OF_TWO(dequant[1], QUANT_TABLE_BITS) >> shift;
+  const int vq_qstep_dc = sq_qstep_dc >> 1;
+  const int vq_qstep_ac = sq_qstep_ac >> 1;
 
-        const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
 
-        // log per-coefficient stats
-        av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col,
-                                tx_size, tx_type, is_inter,
-                                sq_qstep_dc, sq_qstep_ac,
-                                vq_qstep_dc, vq_qstep_ac,
-                                neob, n_coeffs,
-                                qcoeff, "TXDEC");
+  // log per-coefficient stats
+  av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                          is_inter, sq_qstep_dc, sq_qstep_ac, vq_qstep_dc,
+                          vq_qstep_ac, neob, n_coeffs, qcoeff, "TXDEC");
 
-        av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col,
-                                tx_size, tx_type, is_inter,
-                                sq_qstep_dc, sq_qstep_ac,
-                                vq_qstep_dc, vq_qstep_ac,
-                                neob, n_coeffs,
-                                tcoeffs, "TXREC");
+  av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                          is_inter, sq_qstep_dc, sq_qstep_ac, vq_qstep_dc,
+                          vq_qstep_ac, neob, n_coeffs, tcoeffs, "TXREC");
 
-        av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col,
-                                tx_size, tx_type, is_inter,
-                                sq_qstep_dc, sq_qstep_ac,
-                                vq_qstep_dc, vq_qstep_ac,
-                                neob, n_coeffs,
-                                tcoeffs, "TCOEFF");
+  av2_tcq_declog_percoeff(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                          is_inter, sq_qstep_dc, sq_qstep_ac, vq_qstep_dc,
+                          vq_qstep_ac, neob, n_coeffs, tcoeffs, "TCOEFF");
 
-    av2_tcq_declog_eobrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               *eob_pt_bits, *eob_extra_bits, *eob_offset_bits);
+  av2_tcq_declog_eobrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, *eob_pt_bits, *eob_extra_bits,
+                         *eob_offset_bits);
 
-        // log per-coefficient rate cost
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_SGNRATE);
+  // log per-coefficient rate cost
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost,
+                         QCOEFF_RCOST_TYPE_SGNRATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_BRRATE);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost, QCOEFF_RCOST_TYPE_BRRATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_LR1RATE);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost,
+                         QCOEFF_RCOST_TYPE_LR1RATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_LR2RATE);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost,
+                         QCOEFF_RCOST_TYPE_LR2RATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_LR3RATE);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost,
+                         QCOEFF_RCOST_TYPE_LR3RATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_LR4RATE);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost,
+                         QCOEFF_RCOST_TYPE_LR4RATE);
 
-        av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col,
-                               tx_size, tx_type, is_inter, neob,
-                               qcoeff_cost, QCOEFF_RCOST_TYPE_HRRATE);
-        free(qcoeff);
-        free(qcoeff_cost);
+  av2_tcq_declog_decrate(cm, dcb, plane, blk_row, blk_col, tx_size, tx_type,
+                         is_inter, neob, qcoeff_cost, QCOEFF_RCOST_TYPE_HRRATE);
+
+  free(qcoeff);
+  free(qcoeff_cost);
 #endif  // CONFIG_COEFF_LOGS
 
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-    fflush(cm->fDecTxfmLog);
+  fflush(cm->fDecTxfmLog);
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
-        cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
+  cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
 
   // DC value
   set_dc_sign(&cul_level, dc_val);
@@ -1818,17 +1820,16 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   return cul_level;
 }
 
-void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
-                                DecoderCodingBlock *dcb, aom_reader *const r,
-                                const int plane, const int row, const int col,
-                                const TX_SIZE tx_size
-//#if CONFIG_COEFF_LOGS
-//        ,
-//                            uint64_t *eob_pt_bits,
-//                            uint64_t *eob_extra_bits,
-//                            uint64_t *eob_offset_bits
-//#endif  // CONFIG_COEFF_LOGS
-                                ) {
+void av1_read_coeffs_txb_facade(
+    const AV1_COMMON *const cm, DecoderCodingBlock *dcb, aom_reader *const r,
+    const int plane, const int row, const int col, const TX_SIZE tx_size
+    // #if CONFIG_COEFF_LOGS
+    //         ,
+    //                             uint64_t *eob_pt_bits,
+    //                             uint64_t *eob_extra_bits,
+    //                             uint64_t *eob_offset_bits
+    // #endif  // CONFIG_COEFF_LOGS
+) {
 #if TXCOEFF_TIMER
   struct aom_usec_timer timer;
   aom_usec_timer_start(&timer);
@@ -1850,14 +1851,14 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 
 #if CONFIG_COEFF_LOGS
-    uint64_t eob_pt_bits = 0, eob_extra_bits = 0, eob_offset_bits = 0;
-    const uint8_t decode_rest =
+  uint64_t eob_pt_bits = 0, eob_extra_bits = 0, eob_offset_bits = 0;
+  const uint8_t decode_rest =
       av1_read_sig_txtype(cm, dcb, r, row, col, plane, &txb_ctx, tx_size,
                           &eob_pt_bits, &eob_extra_bits, &eob_offset_bits);
 #else
   const uint8_t decode_rest =
       av1_read_sig_txtype(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
-#endif // CONFIG_COEFF_LOGS
+#endif  // CONFIG_COEFF_LOGS
 
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,
@@ -1874,11 +1875,9 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
       cul_level =
           av1_read_coeffs_txb(cm, dcb, r, row, col, plane, &txb_ctx, tx_size
 #if CONFIG_COEFF_LOGS
-                  ,
-                              &eob_pt_bits,
-                              &eob_extra_bits,
-                              &eob_offset_bits
-#endif // CONFIG_COEFF_LOGS
+                              ,
+                              &eob_pt_bits, &eob_extra_bits, &eob_offset_bits
+#endif  // CONFIG_COEFF_LOGS
           );
     }
   }
@@ -1932,50 +1931,43 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
 /// Decoder-side Logging for AV2 TCQ experiments
 ////////////////////////////////////////
 void av2_tcq_declog_eobrate(const struct AV1Common *const cm,
-                            struct DecoderCodingBlock *dcb,
-                            const int plane,
-                            const int blk_row,
-                            const int blk_col,
-                            TX_SIZE tx_size,
-                            TX_TYPE tx_type,
-                            const int is_inter,
-                            const int neob,
+                            struct DecoderCodingBlock *dcb, const int plane,
+                            const int blk_row, const int blk_col,
+                            TX_SIZE tx_size, TX_TYPE tx_type,
+                            const int is_inter, const int neob,
                             const uint64_t eob_pt_bits,
                             const uint64_t eob_extra_bits,
                             const uint64_t eob_offset_bits) {
-
-  FILE *fp = cm->fDecTxfmLog? cm->fDecTxfmLog:stdout;
+  FILE *fp = cm->fDecTxfmLog ? cm->fDecTxfmLog : stdout;
 
   MACROBLOCKD *const xd = &dcb->xd;
 
-  fprintf(fp, "[AV2DEC-TXFMBLK-EOBRATE] %03d %4d %03d %03d %3d %3d %04d %04d %4d %4d",
-          cm->current_frame.absolute_poc, // 1: POC (picture number)
-          plane,                          // 2: plain ID (Y/U/V)
-          xd->mi_row,                     // 3: macroblock row index
-          xd->mi_col,                     // 4: macroblock coloumn index
-          blk_row,                        // 5: transform block row index
-          blk_col,                        // 6: transform block column index
-          tx_size,                        // 7: transform size
-          tx_type,                        // 8: transform type
-          is_inter,                       // 9: inter/intra mode
-          neob);                          // 10: neob
+  fprintf(
+      fp,
+      "[AV2DEC-TXFMBLK-EOBRATE] %03d %4d %03d %03d %3d %3d %04d %04d %4d %4d",
+      cm->current_frame.absolute_poc,  // 1: POC (picture number)
+      plane,                           // 2: plain ID (Y/U/V)
+      xd->mi_row,                      // 3: macroblock row index
+      xd->mi_col,                      // 4: macroblock coloumn index
+      blk_row,                         // 5: transform block row index
+      blk_col,                         // 6: transform block column index
+      tx_size,                         // 7: transform size
+      tx_type,                         // 8: transform type
+      is_inter,                        // 9: inter/intra mode
+      neob);                           // 10: neob
 
-  fprintf(fp, " %2llu %2llu %2llu\n", eob_pt_bits, eob_extra_bits, eob_offset_bits);
+  fprintf(fp, " %2llu %2llu %2llu\n", eob_pt_bits, eob_extra_bits,
+          eob_offset_bits);
 }
 
 void av2_tcq_declog_decrate(const struct AV1Common *const cm,
-                            struct DecoderCodingBlock *dcb,
-                            const int plane,
-                            const int blk_row,
-                            const int blk_col,
-                            TX_SIZE tx_size,
-                            TX_TYPE tx_type,
-                            const int is_inter,
-                            const int neob,
-                            qcoeff_bit_cost * qcoeff_cost,
+                            struct DecoderCodingBlock *dcb, const int plane,
+                            const int blk_row, const int blk_col,
+                            TX_SIZE tx_size, TX_TYPE tx_type,
+                            const int is_inter, const int neob,
+                            qcoeff_bit_cost *qcoeff_cost,
                             const QCOEFF_RCOST_TYPE qcoeff_rcost_type) {
-
-  FILE *fp = cm->fDecTxfmLog? cm->fDecTxfmLog:stdout;
+  FILE *fp = cm->fDecTxfmLog ? cm->fDecTxfmLog : stdout;
   MACROBLOCKD *const xd = &dcb->xd;
   switch (qcoeff_rcost_type) {
     case QCOEFF_RCOST_TYPE_SGNRATE:
@@ -2000,23 +1992,24 @@ void av2_tcq_declog_decrate(const struct AV1Common *const cm,
       fprintf(fp, "[AV2DEC-TXFMBLK-HRRATE]  ");
       break;
     default:
-      fprintf(stderr, "WARNING: unsupported rate cost type: %d\n", qcoeff_rcost_type);
+      fprintf(stderr, "WARNING: unsupported rate cost type: %d\n",
+              qcoeff_rcost_type);
       assert(0);
   }
 
   fprintf(fp, "%03d %4d %03d %03d %3d %3d %04d %04d %4d %4d",
-          cm->current_frame.absolute_poc, // 1: POC (picture number)
-          plane,                          // 2: plain ID (Y/U/V)
-          xd->mi_row,                     // 3: macroblock row index
-          xd->mi_col,                     // 4: macroblock coloumn index
-          blk_row,                        // 5: transform block row index
-          blk_col,                        // 6: transform block column index
-          tx_size,                        // 7: transform size
-          tx_type,                        // 8: transform type
-          is_inter,                       // 9: inter/intra mode
-          neob);                          // 10: neob
+          cm->current_frame.absolute_poc,  // 1: POC (picture number)
+          plane,                           // 2: plain ID (Y/U/V)
+          xd->mi_row,                      // 3: macroblock row index
+          xd->mi_col,                      // 4: macroblock coloumn index
+          blk_row,                         // 5: transform block row index
+          blk_col,                         // 6: transform block column index
+          tx_size,                         // 7: transform size
+          tx_type,                         // 8: transform type
+          is_inter,                        // 9: inter/intra mode
+          neob);                           // 10: neob
 
-  switch(qcoeff_rcost_type) {
+  switch (qcoeff_rcost_type) {
     case QCOEFF_RCOST_TYPE_SGNRATE:
       for (int c = 0; c < neob; ++c) {
         fprintf(fp, " %2llu", qcoeff_cost[c].sign_cost);
@@ -2053,52 +2046,44 @@ void av2_tcq_declog_decrate(const struct AV1Common *const cm,
       }
       break;
     default:
-      fprintf(stderr, "WARNING: unsupported qcoeff_rcost_type: %d\n", qcoeff_rcost_type);
+      fprintf(stderr, "WARNING: unsupported qcoeff_rcost_type: %d\n",
+              qcoeff_rcost_type);
       assert(0);
   }
   fprintf(fp, "\n");
 }
 
-void av2_tcq_declog_percoeff(const struct AV1Common *const cm,
-                             struct DecoderCodingBlock *dcb,
-                             const int plane,
-                             const int blk_row,
-                             const int blk_col,
-                             TX_SIZE tx_size,
-                             TX_TYPE tx_type,
-                             const int is_inter,
-                             const int sq_step_dc,
-                             const int sq_step_ac,
-                             const int vq_step_dc,
-                             const int vq_step_ac,
-                             const int neob,
-                             const int n_coeffs,
-                             const int * vec,
-                             const char * tag) {
-
-  FILE *fp = cm->fDecTxfmLog? cm->fDecTxfmLog:stdout;
+void av2_tcq_declog_percoeff(
+    const struct AV1Common *const cm, struct DecoderCodingBlock *dcb,
+    const int plane, const int blk_row, const int blk_col, TX_SIZE tx_size,
+    TX_TYPE tx_type, const int is_inter, const int sq_step_dc,
+    const int sq_step_ac, const int vq_step_dc, const int vq_step_ac,
+    const int neob, const int n_coeffs, const int *vec, const char *tag) {
+  FILE *fp = cm->fDecTxfmLog ? cm->fDecTxfmLog : stdout;
 
   MACROBLOCKD *const xd = &dcb->xd;
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
   const int16_t *const scan = scan_order->scan;
   // record per-txfm-block reconstructed txform coefficients
-  fprintf(fp, "[AV2DEC-TXFMBLK-%s] %03d %4d %03d %03d %3d %3d %04d %04d %4d  %8d %8d %8d %8d %4d %4d",
+  fprintf(fp,
+          "[AV2DEC-TXFMBLK-%s] %03d %4d %03d %03d %3d %3d %04d %04d %4d  %8d "
+          "%8d %8d %8d %4d %4d",
           tag,
-          cm->current_frame.absolute_poc, // 1: POC (picture number)
-          plane,                          // 2: plain ID (Y/U/V)
-          xd->mi_row,                     // 3: macroblock row index
-          xd->mi_col,                     // 4: macroblock coloumn index
-          blk_row,                        // 5: transform block row index
-          blk_col,                        // 6: transform block column index
-          tx_size,                        // 7: transform size
-          tx_type,                        // 8: transform type
-          is_inter,                       // 9: inter/intra mode
-          sq_step_dc,                     // 10: SQ step size for DC coefficients
-          sq_step_ac,                     // 11: SQ step size for AC coefficients
-          vq_step_dc,                     // 12: TCQ step size for DC coefficients
-          vq_step_ac,                     // 13: TCQ step size for AC coefficients
-          n_coeffs,                       // 14: total number of coefficients in block
-          neob);                          // 15: neob
+          cm->current_frame.absolute_poc,  // 1: POC (picture number)
+          plane,                           // 2: plain ID (Y/U/V)
+          xd->mi_row,                      // 3: macroblock row index
+          xd->mi_col,                      // 4: macroblock coloumn index
+          blk_row,                         // 5: transform block row index
+          blk_col,                         // 6: transform block column index
+          tx_size,                         // 7: transform size
+          tx_type,                         // 8: transform type
+          is_inter,                        // 9: inter/intra mode
+          sq_step_dc,  // 10: SQ step size for DC coefficients
+          sq_step_ac,  // 11: SQ step size for AC coefficients
+          vq_step_dc,  // 12: TCQ step size for DC coefficients
+          vq_step_ac,  // 13: TCQ step size for AC coefficients
+          n_coeffs,    // 14: total number of coefficients in block
+          neob);       // 15: neob
 
   for (int c = 0; c < neob; ++c) {
     const int val = vec[scan[c]];
