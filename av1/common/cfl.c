@@ -1073,8 +1073,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
 #if CONFIG_E125_MHCCP_SIMPLIFY
-    memset(C, 0x00,
-           sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS + 1));
+    memset(C, 0x00, sizeof(C));
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
