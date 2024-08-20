@@ -1758,7 +1758,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       ROUND_POWER_OF_TWO(dequant[1], QUANT_TABLE_BITS) >> shift;
   const int qstep_tcq_dc = qstep_dc >> 1;
   const int qstep_tcq_ac = qstep_ac >> 1;
-  const int n_coeffs = width * height;
+  const int n_coeffs = av1_get_max_eob(tx_size);
   const int neob_sq = eob;
 
   int rneob_list[MAX_TRELLIS];
