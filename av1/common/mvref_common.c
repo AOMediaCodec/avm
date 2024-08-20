@@ -310,7 +310,8 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 
 #if CONFIG_WEDGE_TMVP
           if (is_wedge) {
-            const int this_decision = decisions[h * 8 * bw + w * 8];
+            const int this_decision =
+                decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
 
             if (this_decision == 0 && idx == 1) continue;
             if (this_decision == 1 && idx == 0) continue;
@@ -574,7 +575,8 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
               continue;
 #if CONFIG_WEDGE_TMVP
             if (is_wedge) {
-              const int this_decision = decisions[h * 8 * bw + w * 8];
+              const int this_decision =
+                  decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
 
               if (this_decision == 0 && idx == 1) continue;
               if (this_decision == 1 && idx == 0) continue;
