@@ -8776,10 +8776,6 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
-#if CONFIG_BITSTREAM_DEBUG
-  aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
-                                     cm->show_frame);
-#endif
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -8794,6 +8790,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   xd->global_motion = cm->global_motion;
 
   read_uncompressed_header(pbi, rb);
+
+#if CONFIG_BITSTREAM_DEBUG
+  aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
+                                     cm->show_frame);
+#endif
 
   if (trailing_bits_present) av1_check_trailing_bits(pbi, rb);
 

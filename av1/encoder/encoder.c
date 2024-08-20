@@ -4299,6 +4299,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
   } else {
+#if CONFIG_BITSTREAM_DEBUG
+    assert(cpi->oxcf.max_threads <= 1 &&
+           "bitstream debug tool does not support multithreading");
+    bitstream_queue_record_write();
+    aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
+                                        cm->show_frame);
+#endif  // CONFIG_BITSTREAM_DEBUG
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -4494,14 +4501,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-
-#if CONFIG_BITSTREAM_DEBUG
-  assert(cpi->oxcf.max_threads <= 1 &&
-         "bitstream debug tool does not support multithreading");
-  bitstream_queue_record_write();
-  aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
-                                      cm->show_frame);
-#endif
 
   cm->showable_frame = 0;
   *size = 0;

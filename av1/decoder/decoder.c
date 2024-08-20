@@ -500,6 +500,9 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     if (output_candidate != trigger_frame) {
       pbi->output_frames[pbi->num_output_frames++] = output_candidate;
       output_candidate->frame_output_done = 1;
+#if CONFIG_BITSTREAM_DEBUG
+      aom_bitstream_queue_set_frame_read(output_candidate->order_hint * 2 + 1);
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
       mismatch_move_frame_idx_r(0);
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -510,6 +513,11 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   // Add the output triggering frame into the output queue.
   pbi->output_frames[pbi->num_output_frames++] = trigger_frame;
   trigger_frame->frame_output_done = 1;
+#if CONFIG_BITSTREAM_DEBUG
+  if (trigger_frame->order_hint != cm->cur_frame->order_hint) {
+    aom_bitstream_queue_set_frame_read(trigger_frame->order_hint * 2 + 1);
+  }
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
   if (trigger_frame->display_order_hint != cm->cur_frame->display_order_hint)
     mismatch_move_frame_idx_r(0);
@@ -526,6 +534,9 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
         pbi->output_frames[pbi->num_output_frames++] = cm->ref_frame_map[i];
         cm->ref_frame_map[i]->frame_output_done = 1;
         successive_output++;
+#if CONFIG_BITSTREAM_DEBUG
+        aom_bitstream_queue_set_frame_read(next_disp_order * 2 + 1);
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
         mismatch_move_frame_idx_r(0);
 #endif  // CONFIG_MISMATCH_DEBUG
