@@ -2062,12 +2062,14 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          tstate, "STATE", false);
 #endif  // CONFIG_COEFF_LOGS
 
+#if CONFIG_TXFMBLK_LOGS
     uint64_t dist_vq = 0;
     int rate_vq = accu_rate;
 
     for (int i = 0; i < n_coeffs; i++) {
       dist_vq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
     }
+
 
     // log per block RD costs for SQ/TCQ/skp
     const uint64_t rd_sq = RDCOST(rdmult, rate_sq, dist_sq);
@@ -2082,6 +2084,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                       neob_vq, rneob_sq, rneob_vq, rate_sq, rate_vq, rate_skip,
                       dist_sq, dist_vq, dist_skip, rd_sq, rd_vq, rd_skip,
                       dry_run);
+#endif // CONFIG_TXFMBLK_LOGS
   }
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
   return eob;
