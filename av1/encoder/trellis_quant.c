@@ -1749,7 +1749,34 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                     2) >>
                    rshift;
 
+
+
+  // getting context from previous level buf, updating levels on current level
+  // buf. initialization all value by 0, since we update every position.
+  int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
+  int mem_tcq_sz = sizeof(uint8_t) * bufsize * 2 * TOTALSTATES;
+  uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
+  if (!mem_tcq) {
+    exit(1);
+  }
+  if (eob > 1) {
+    memset(mem_tcq, 0, mem_tcq_sz);
+  }
+  tcq_levels_t tcq_lev;
+  tcq_levels_init(&tcq_lev, mem_tcq, bufsize);
+
+  int si = eob - 1;
+  // populate trellis
+  assert(si < MAX_TRELLIS);
+  tcq_node_t trellis[MAX_TRELLIS][TOTALSTATES];
+  tcq_ctx_t tcq_ctx[TOTALSTATES];
+
+  // Precalc block eob rate.
+  uint16_t block_eob_rate[MAX_TRELLIS];
+  av1_calc_block_eob_rate(x, plane, tx_size, eob, block_eob_rate);
+
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  // Logging before invoking TCQ
   bool log_perblk = dry_run == OUTPUT_ENABLED;
   const int shift = av1_get_tx_scale(tx_size);
   const int qstep_dc =
@@ -1761,7 +1788,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int n_coeffs = av1_get_max_eob(tx_size);
   const int neob_sq = eob;
 
-  int rneob_list[MAX_TRELLIS];
+  int rneob_list[MAX_TRELLIS] = {0};
   int restm[MAX_TRELLIS];
   uint8_t levels_buf_logs[TX_PAD_2D];
   uint8_t *const levels_logs = set_levels(levels_buf_logs, width);
@@ -1775,18 +1802,12 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   uint64_t dist_sq = 0;
   uint64_t dist_skip = 0;
-  rneob_list[0] = 0;
   int nz_counter = 0;
   for (int i = 0; i < n_coeffs; i++) {
     dist_sq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
     dist_skip += get_coeff_dist(tcoeff[i], 0, shift);
-    rneob_list[i] = 0;  // place-holder for NEOB cost
-
-    //    if (i) rneob_list[i] = get_eob_cost(i, txb_eob_costs, txb_costs
-    // #if CONFIG_EOB_POS_LUMA
-    //                                        , is_inter
-    // #endif  // CONFIG_EOB_POS_LUMA
-    //           );
+    if (i < neob_sq)
+      rneob_list[i] = block_eob_rate[i];  // NEOB cost when last nz coefficient is at position i
   }
 
   if (log_perblk) {
@@ -1816,16 +1837,6 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     for (int c = neob_sq; c < n_coeffs; ++c) restm[c] = 0;
 #endif  // CONFIG_COEFF_LOGS
 
-      //    // Calculat every EOB cost
-      //    rneob_list[0] = 0;
-      //    for (int i = 1; i<=n_coeffs; i++ ){
-      //      rneob_list[i] = get_eob_cost(i, txb_eob_costs, txb_costs
-      // #if CONFIG_EOB_POS_LUMA
-      //                                   , is_inter
-      // #endif  // CONFIG_EOB_POS_LUMA
-      //      );
-      //     }
-
 #if CONFIG_COEFF_LOGS
     av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
                          tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
@@ -1850,24 +1861,11 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     av2_tcq_log_percoeff(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
                          tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
                          qstep_tcq_ac, rdmult, n_coeffs, dry_run, neob_sq,
-                         rneob_list + 1, "RNEOB", false);
+                         rneob_list, "RNEOB", false);
 #endif  // CONFIG_COEFF_LOGS
   }
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
-  // getting context from previous level buf, updating levels on current level
-  // buf. initialization all value by 0, since we update every position.
-  int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
-  int mem_tcq_sz = sizeof(uint8_t) * bufsize * 2 * TOTALSTATES;
-  uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
-  if (!mem_tcq) {
-    exit(1);
-  }
-  if (eob > 1) {
-    memset(mem_tcq, 0, mem_tcq_sz);
-  }
-  tcq_levels_t tcq_lev;
-  tcq_levels_init(&tcq_lev, mem_tcq, bufsize);
 
   int si = eob - 1;
   // populate trellis
@@ -1877,10 +1875,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // Ping-pong buffers for diagonal contexts.
   tcq_ctx_t tcq_ctx[2 * TOTALSTATES];
 
-  // Precalc block eob rate.
-  uint16_t block_eob_rate[MAX_TRELLIS];
-  av1_calc_block_eob_rate(x, plane, tx_size, eob, block_eob_rate);
-
+  // Start of TCQ
   int first_scan_pos = si;
   trellis_first_pos(first_scan_pos, plane, tx_size, tx_class, xd->tmp_sign,
                     sharpness, &tcq_lev, trellis, qcoeff, rdmult, scan, tcoeff,
@@ -2019,7 +2014,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     int tstate[MAX_TRELLIS];
     int rcost[MAX_TRELLIS];
-    int prevrate = rneob_list[neob_vq];
+    int prevrate = block_eob_rate[neob_vq-1];
     state = 0;
 
     for (int c = neob_vq - 1; c >= 0; --c) {
@@ -2076,8 +2071,8 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     const uint64_t rd_vq = RDCOST(rdmult, rate_vq, dist_vq);
     const uint64_t rd_skip = RDCOST(rdmult, rate_skip, dist_skip);
 
-    const int rneob_sq = rneob_list[neob_sq];
-    const int rneob_vq = rneob_list[neob_vq];
+    const int rneob_sq = block_eob_rate[neob_sq-1];
+    const int rneob_vq = block_eob_rate[neob_vq-1];
     av2_tcq_log_blkrd(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
                       tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
                       qstep_tcq_ac, rdmult, n_coeffs, nz_counter, neob_sq,
