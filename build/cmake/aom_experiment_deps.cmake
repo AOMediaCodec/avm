@@ -71,6 +71,11 @@ macro(fix_experiment_configs)
                            !CONFIG_EXTENDED_WARP_PREDICTION)
   endif()
 
+  # CONFIG_PARA_BD_REDUCE is dependent on CONFIG_ENTROPY_PARA.
+  if(NOT CONFIG_ENTROPY_PARA AND CONFIG_PARA_BD_REDUCE)
+    change_config_and_warn(CONFIG_PARA_BD_REDUCE 0 !CONFIG_ENTROPY_PARA)
+  endif()
+
   # CONFIG_BLOCK_256 is dependent on CONFIG_EXT_RECUR_PARTITIONS.
   if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_BLOCK_256)
     change_config_and_warn(CONFIG_BLOCK_256 0 !CONFIG_EXT_RECUR_PARTITIONS)
