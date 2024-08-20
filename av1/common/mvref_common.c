@@ -531,6 +531,21 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
   int w, h;
 
+#if CONFIG_WEDGE_TMVP
+  const uint8_t *decisions = NULL;
+  const BLOCK_SIZE bsize = mi->sb_type[xd->tree_type == CHROMA_PART];
+  const int bw = block_size_wide[bsize];
+  const bool is_wedge = is_inter_ref_frame(mi->ref_frame[0]) &&
+                        is_inter_ref_frame(mi->ref_frame[1]) &&
+                        !is_tip_ref_frame(mi->ref_frame[0]) &&
+                        !is_tip_ref_frame(mi->ref_frame[1]) &&
+                        mi->interinter_comp.type == COMPOUND_WEDGE;
+  if (is_wedge) {
+    decisions = av1_get_contiguous_soft_mask_decision(
+        mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign, bsize);
+  }
+#endif  // CONFIG_WEDGE_TMVP
+
   for (h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_inside_boundary; w++) {
@@ -557,6 +572,14 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
             if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
                 (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
               continue;
+#if CONFIG_WEDGE_TMVP
+            if (is_wedge) {
+              const int this_decision = decisions[h * 8 * bw + w * 8];
+
+              if (this_decision == 0 && idx == 1) continue;
+              if (this_decision == 1 && idx == 0) continue;
+            }
+#endif  // CONFIG_WEDGE_TMVP
             mv->ref_frame[0] = ref_frame;
             mv->mv[0].as_int = mi->mv[idx].as_int;
           }
