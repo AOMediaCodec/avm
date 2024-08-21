@@ -33,6 +33,7 @@ extern "C" {
 
 #include "aom/aom_codec.h"
 #include "aom/aom_frame_buffer.h"
+#include "config/aom_config.h"
 
 /*!\brief Current ABI version number
  *
@@ -93,12 +94,11 @@ typedef struct aom_codec_dec_cfg {
   unsigned int threads; /**< Maximum number of threads to use, default 1 */
   unsigned int w;       /**< Width */
   unsigned int h;       /**< Height */
-
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-    const char* txfm_declog; /**< Filename for transform logs */
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  const char *txfm_declog; /**< Filename for transform logs */
+#endif                     // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
-} aom_codec_dec_cfg_t;  /**< alias for struct aom_codec_dec_cfg */
+} aom_codec_dec_cfg_t; /**< alias for struct aom_codec_dec_cfg */
 
 /*!\brief Initialize a decoder instance
  *

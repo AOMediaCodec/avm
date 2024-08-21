@@ -1308,11 +1308,13 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->vmaf_model_path = arg.val;
 #endif
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-        } else if (arg_match(&arg, &g_av1_codec_arg_defs.txfmblk_enclogfile, argi)) {
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.txfmblk_enclogfile,
+                         argi)) {
       config->cfg.txfmblk_enclogfile = arg.val;
-        } else if (arg_match(&arg, &g_av1_codec_arg_defs.txfmblk_declogfile, argi)) {
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.txfmblk_declogfile,
+                         argi)) {
       config->cfg.txfmblk_declogfile = arg.val;
-#endif // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_fixed_qp_offsets,
                          argi)) {
       config->cfg.use_fixed_qp_offsets = arg_parse_uint(&arg);
@@ -1840,10 +1842,12 @@ static void initialize_encoder(struct stream_state *stream,
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(
         get_short_name_by_aom_encoder(global->codec));
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
 
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL };
     cfg.txfm_declog = stream->config.cfg.txfmblk_declogfile;
+#else
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
     aom_codec_dec_init(&stream->decoder, decoder, &cfg, 0);

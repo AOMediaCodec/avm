@@ -536,7 +536,13 @@ static int main_loop(int argc, const char **argv_) {
   int opt_yv12 = 0;
   int opt_i420 = 0;
   int opt_raw = 0;
-  aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
+
+  aom_codec_dec_cfg_t cfg = { 0, 0, 0
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                              ,
+                              NULL
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  };
   unsigned int fixed_output_bit_depth = 0;
   unsigned int is_annexb = 0;
   int frames_corrupted = 0;
