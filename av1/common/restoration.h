@@ -241,30 +241,30 @@ void fill_first_slot_of_bank_with_filter_match(
 
 #define ILLEGAL_MATCH -1
 
-static inline int get_first_match_index(int compound_match_index,
+static INLINE int get_first_match_index(int compound_match_index,
                                         int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
   return compound_match_index &
          ((1 << num_frame_first_predictor_bits[num_classes]) - 1);
 }
 
-static inline int first_match_bits(int num_classes) {
+static INLINE int first_match_bits(int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
   return num_frame_first_predictor_bits[num_classes];
 }
 
-static inline int encode_first_match(int compound_match_index, int *num_bits,
+static INLINE int encode_first_match(int compound_match_index, int *num_bits,
                                      int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
   *num_bits = first_match_bits(num_classes);
   return get_first_match_index(compound_match_index, num_classes);
 }
 
-static inline int decode_first_match(int encoded_match_index) {
+static INLINE int decode_first_match(int encoded_match_index) {
   return encoded_match_index;
 }
 
-static inline int count_match_indices_bits(int num_classes) {
+static INLINE int count_match_indices_bits(int num_classes) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
   int total_bits = 0;
 
@@ -780,10 +780,18 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);
 #endif  // CONFIG_LR_IMPROVEMENTS
 
-#if CONFIG_TEMP_LR
+#if CONFIG_COMBINE_PC_NS_WIENER
+static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,
+                                            int mi_row, int mi_col) {
+  return ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
+           rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
+          rsi->frame_filters_on && !rsi->frame_filters_initialized &&
+          mi_row == 0 && mi_col == 0);
+}
+
 void av1_copy_rst_frame_filters(RestorationInfo *to,
                                 const RestorationInfo *from);
-#endif  // CONFIG_TEMP_LR
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 /*!\endcond */
 
