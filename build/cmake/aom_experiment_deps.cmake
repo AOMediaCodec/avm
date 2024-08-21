@@ -116,6 +116,18 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TMVP_IMPROVE 0 !CONFIG_MVP_IMPROVEMENT)
   endif()
 
+  # CONFIG_ALIGN_DEBLOCK_ERP_SDP depends on CONFIG_EXT_RECUR_PARTITIONS
+  if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_ALIGN_DEBLOCK_ERP_SDP)
+    change_config_and_warn(CONFIG_ALIGN_DEBLOCK_ERP_SDP 0
+                           !CONFIG_EXT_RECUR_PARTITIONS)
+  endif()
+
+  # CONFIG_ALIGN_DEBLOCK_ERP_SDP depends on CONFIG_NEW_TX_PARTITION
+  if(NOT CONFIG_NEW_TX_PARTITION AND CONFIG_ALIGN_DEBLOCK_ERP_SDP)
+    change_config_and_warn(CONFIG_ALIGN_DEBLOCK_ERP_SDP 0
+                           !CONFIG_NEW_TX_PARTITION)
+  endif()
+
   if(CONFIG_ML_PART_SPLIT)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_ML_PART_SPLIT)
   endif()
