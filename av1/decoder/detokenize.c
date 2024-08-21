@@ -23,7 +23,7 @@
 
 #if CONFIG_PALETTE_LINE_COPY && CONFIG_PALETTE_IMPROVEMENTS
 // Read direction flag, then read line flags, and palette tokens one line at at
-// a time.
+// a time. Returns 1 for sucess.
 static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   uint8_t color_order[PALETTE_MAX_SIZE];
   const int num_colors = param->n_colors;
@@ -51,9 +51,9 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
     int identity_row_flag =
         aom_read_symbol(r, identity_row_cdf[ctx], 3, ACCT_INFO());
 
-    // Copying previous line cannot be done on the first line of a block
+    // Copying previous line cannot be done on the first line of a block.
     if (identity_row_flag == 2 && ax2 == 0) {
-      return 1;
+      return 0;
     }
 
     for (int ax1 = 0; ax1 < axis1_limit; ax1++) {
@@ -108,7 +108,7 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
     memcpy(color_map + i * plane_block_width,
            color_map + (rows - 1) * plane_block_width, plane_block_width);
   }
-  return 0;
+  return 1;
 }
 #else
 static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
@@ -180,7 +180,7 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
     memcpy(color_map + i * plane_block_width,
            color_map + (rows - 1) * plane_block_width, plane_block_width);
   }
-  return 0;
+  return 1;
 }
 #endif  // CONFIG_PALETTE_LINE_COPY
 
@@ -204,7 +204,7 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
   av1_get_block_dimensions(mbmi->sb_type[plane > 0], plane, xd,
                            &params.plane_width, &params.plane_height,
                            &params.rows, &params.cols);
-  if (decode_color_map_tokens(&params, r)) {
+  if (!decode_color_map_tokens(&params, r)) {
     aom_internal_error(xd->error_info, AOM_CODEC_ERROR,
                        "Error decoding palette tokens");
   }
