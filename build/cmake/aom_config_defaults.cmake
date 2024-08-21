@@ -423,6 +423,9 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
 
+set_aom_config_var(
+  CONFIG_ALIGN_DEBLOCK_ERP_SDP 1
+  "Align deblocking filter boundaries with AVM partitioning scheme.")
 #
 # Variables in this section control optional features of the build system.
 #

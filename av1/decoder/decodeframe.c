@@ -2048,6 +2048,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
           xd->mi[y * idx + x]->uv_mode = xd->mi[0]->uv_mode;
           xd->mi[y * idx + x]->angle_delta[PLANE_TYPE_UV] =
               xd->mi[0]->angle_delta[PLANE_TYPE_UV];
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           xd->mi[y * idx + x]->cfl_alpha_signs = xd->mi[0]->cfl_alpha_signs;
           xd->mi[y * idx + x]->cfl_alpha_idx = xd->mi[0]->cfl_alpha_idx;
           xd->mi[y * idx + x]->partition = xd->mi[0]->partition;
@@ -2057,6 +2058,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
           xd->mi[y * idx + x]->chroma_mi_col_start =
               xd->mi[0]->chroma_mi_col_start;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           if (av1_allow_palette(cm->features.allow_screen_content_tools,
                                 bsize)) {
             xd->mi[y * idx + x]->palette_mode_info.palette_size[PLANE_TYPE_UV] =
