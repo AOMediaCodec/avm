@@ -1213,13 +1213,10 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         av1_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, cctx_type,
                        txb_ctx, rate_cost
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                        ,
-                        blk_row,
-                        blk_col,
-                        plane_bsize,
-                        DRY_RUN_NORMAL
+                       ,
+                       blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
 #endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                       );
+        );
       } else {
         bool enable_parity_hiding =
             cm->features.allow_parity_hiding &&
@@ -2879,12 +2876,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          txb_ctx, &rate_cost
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
                          ,
-                         blk_row,
-                         blk_col,
-                         plane_bsize,
-                         DRY_RUN_NORMAL
+                         blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
 #endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                         );
+          );
         } else {
           bool enable_parity_hiding =
               cm->features.allow_parity_hiding &&
@@ -3062,7 +3056,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_INTER_IST
       if (skip_idx) break;
 #endif  // CONFIG_INTER_IST
-    }   // for (int stx_set = 0;
+    }  // for (int stx_set = 0;
 #endif  // CONFIG_IST_ANY_SET
     if (skip_idx) break;
   }
@@ -3257,12 +3251,9 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
                          &rate_cost[plane - AOM_PLANE_U]
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
                          ,
-                         blk_row,
-                         blk_col,
-                         plane_bsize,
-                         DRY_RUN_NORMAL
+                         blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
 #endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                         );
+          );
         skip_cctx_eval = skip_cctx_eval_based_on_eob(
             plane, is_inter, eobs_ptr_c1[block], cctx_type);
         if (skip_cctx_eval) break;

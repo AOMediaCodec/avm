@@ -1841,15 +1841,15 @@ typedef struct AV1Common {
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-    /*!
-     * Encoder-side log file for per transform block stats
-     * */
+  /*!
+   * Encoder-side log file for per transform block stats
+   * */
   FILE *fEncTxfmLog;
   /*!
-    * Decoder-side log file for per transform block stats
-    * */
+   * Decoder-side log file for per transform block stats
+   * */
   FILE *fDecTxfmLog;
-#endif // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 } AV1_COMMON;
 
 /*!\cond */

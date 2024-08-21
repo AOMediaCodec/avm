@@ -1749,8 +1749,6 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                     2) >>
                    rshift;
 
-
-
   // getting context from previous level buf, updating levels on current level
   // buf. initialization all value by 0, since we update every position.
   int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
@@ -1788,7 +1786,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int n_coeffs = av1_get_max_eob(tx_size);
   const int neob_sq = eob;
 
-  int rneob_list[MAX_TRELLIS] = {0};
+  int rneob_list[MAX_TRELLIS] = { 0 };
   int restm[MAX_TRELLIS];
   uint8_t levels_buf_logs[TX_PAD_2D];
   uint8_t *const levels_logs = set_levels(levels_buf_logs, width);
@@ -1807,7 +1805,8 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     dist_sq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
     dist_skip += get_coeff_dist(tcoeff[i], 0, shift);
     if (i < neob_sq)
-      rneob_list[i] = block_eob_rate[i];  // NEOB cost when last nz coefficient is at position i
+      rneob_list[i] = block_eob_rate[i];  // NEOB cost when last nz coefficient
+                                          // is at position i
   }
 
   if (log_perblk) {
@@ -2014,7 +2013,7 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     int tstate[MAX_TRELLIS];
     int rcost[MAX_TRELLIS];
-    int prevrate = block_eob_rate[neob_vq-1];
+    int prevrate = block_eob_rate[neob_vq - 1];
     state = 0;
 
     for (int c = neob_vq - 1; c >= 0; --c) {
@@ -2065,21 +2064,20 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       dist_vq += get_coeff_dist(tcoeff[i], dqcoeff[i], shift);
     }
 
-
     // log per block RD costs for SQ/TCQ/skp
     const uint64_t rd_sq = RDCOST(rdmult, rate_sq, dist_sq);
     const uint64_t rd_vq = RDCOST(rdmult, rate_vq, dist_vq);
     const uint64_t rd_skip = RDCOST(rdmult, rate_skip, dist_skip);
 
-    const int rneob_sq = block_eob_rate[neob_sq-1];
-    const int rneob_vq = block_eob_rate[neob_vq-1];
+    const int rneob_sq = block_eob_rate[neob_sq - 1];
+    const int rneob_vq = block_eob_rate[neob_vq - 1];
     av2_tcq_log_blkrd(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
                       tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
                       qstep_tcq_ac, rdmult, n_coeffs, nz_counter, neob_sq,
                       neob_vq, rneob_sq, rneob_vq, rate_sq, rate_vq, rate_skip,
                       dist_sq, dist_vq, dist_skip, rd_sq, rd_vq, rd_skip,
                       dry_run);
-#endif // CONFIG_TXFMBLK_LOGS
+#endif  // CONFIG_TXFMBLK_LOGS
   }
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
   return eob;

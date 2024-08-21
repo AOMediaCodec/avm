@@ -1184,12 +1184,12 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief log file for per-transform block information
    *
    */
-  const char* txfmblk_enclogfile;
+  const char *txfmblk_enclogfile;
 
   /*!\brief decoder log file for per-transform block information
    *
    */
-  const char* txfmblk_declogfile;
+  const char *txfmblk_declogfile;
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
 } aom_codec_enc_cfg_t; /**< alias for struct aom_codec_enc_cfg */

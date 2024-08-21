@@ -1,28 +1,31 @@
 #
-# Copyright (c) 2021, Alliance for Open Media. All rights reserved
+#Copyright(c) 2021, Alliance for Open Media.All rights reserved
 #
-# This source code is subject to the terms of the BSD 3-Clause Clear License and
-# the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
-# License was not distributed with this source code in the LICENSE file, you can
-# obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance
-# for Open Media Patent License 1.0 was not distributed with this source code in
-# the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
+#This source code is subject to the terms of the BSD 3 - \
+    Clause Clear License and
+#the Alliance for Open Media Patent License 1.0. If the BSD 3 - Clause Clear
+#License was not distributed with this source code in the LICENSE file, you can
+#obtain it at aomedia.org / license / software - license / bsd - 3 - c - \
+    c /.If the Alliance
+#for Open Media Patent License 1.0 was not distributed with this source code in
+#the PATENTS file, \
+    you can obtain it at aomedia.org / license / patent - license /.
 
 include("${AOM_ROOT}/build/cmake/util.cmake")
 
-# This file sets default values for libaom configuration variables. All libaom
-# config variables are added to the CMake variable cache via the macros provided
-# in util.cmake.
+#This file sets default values for libaom configuration variables.All libaom
+#config variables are added to the CMake variable cache via the macros provided
+#in util.cmake.
 
 #
-# The variables in this section of the file are detected at configuration time,
-# but can be overridden via the use of CONFIG_* and ENABLE_* values also defined
-# in this file.
+#The variables in this section of the file are detected at configuration time,
+#but can be overridden via the use of CONFIG_ *and ENABLE_ *values also defined
+#in this file.
 #
 
 set_aom_detect_var(INLINE "" "Sets INLINE value for current target.")
 
-# CPUs.
+#CPUs.
 set_aom_detect_var(AOM_ARCH_AARCH64 0 "Enables AArch64 architecture.")
 set_aom_detect_var(ARCH_ARM 0 "Enables ARM architecture.")
 set_aom_detect_var(ARCH_MIPS 0 "Enables MIPS architecture.")
@@ -30,19 +33,19 @@ set_aom_detect_var(ARCH_PPC 0 "Enables PPC architecture.")
 set_aom_detect_var(ARCH_X86 0 "Enables X86 architecture.")
 set_aom_detect_var(ARCH_X86_64 0 "Enables X86_64 architecture.")
 
-# ARM feature flags.
+#ARM feature flags.
 set_aom_detect_var(HAVE_NEON 0 "Enables NEON intrinsics optimizations.")
 
-# MIPS feature flags.
+#MIPS feature flags.
 set_aom_detect_var(HAVE_DSPR2 0 "Enables DSPR2 optimizations.")
 set_aom_detect_var(HAVE_MIPS32 0 "Enables MIPS32 optimizations.")
 set_aom_detect_var(HAVE_MIPS64 0 "Enables MIPS64 optimizations. ")
 set_aom_detect_var(HAVE_MSA 0 "Enables MSA optimizations.")
 
-# PPC feature flags.
+#PPC feature flags.
 set_aom_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
 
-# x86/x86_64 feature flags.
+#x86 / x86_64 feature flags.
 set_aom_detect_var(HAVE_AVX 0 "Enables AVX optimizations.")
 set_aom_detect_var(HAVE_AVX2 0 "Enables AVX2 optimizations.")
 set_aom_detect_var(HAVE_MMX 0 "Enables MMX optimizations. ")
@@ -53,7 +56,7 @@ set_aom_detect_var(HAVE_SSE4_1 0 "Enables SSE 4.1 optimizations.")
 set_aom_detect_var(HAVE_SSE4_2 0 "Enables SSE 4.2 optimizations.")
 set_aom_detect_var(HAVE_SSSE3 0 "Enables SSSE3 optimizations.")
 
-# Flags describing the build environment.
+#Flags describing the build environment.
 set_aom_detect_var(HAVE_FEXCEPT 0
                    "Internal flag, GNU fenv.h present for target.")
 set_aom_detect_var(HAVE_PTHREAD_H 0 "Internal flag, target pthread support.")
@@ -62,11 +65,11 @@ set_aom_detect_var(HAVE_UNISTD_H 0
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
 #
-# Variables in this section can be set from the CMake command line or from
-# within the CMake GUI. The variables control libaom features.
+#Variables in this section can be set from the CMake command line or from
+#within the CMake GUI.The variables control libaom features.
 #
 
-# Build configuration flags.
+#Build configuration flags.
 set_aom_config_var(AOM_RTCD_FLAGS ""
                    "Arguments to pass to rtcd.pl. Separate with ';'")
 set_aom_config_var(CONFIG_AV1_DECODER 1 "Enable AV1 decoder.")
@@ -84,13 +87,13 @@ set_aom_config_var(CONFIG_RUNTIME_CPU_DETECT 1 "Runtime CPU detection support.")
 set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
 
-# Debugging flags.
+#Debugging flags.
 set_aom_config_var(CONFIG_DEBUG 0 "Enable debug-only code.")
 set_aom_config_var(CONFIG_MISMATCH_DEBUG 0 "Mismatch debugging flag.")
 set_aom_config_var(CONFIG_EXCLUDE_SIMD_MISMATCH 1
                    "Exclude mismatch in SIMD functions for testing/debugging.")
 
-# AV1 feature flags.
+#AV1 feature flags.
 set_aom_config_var(CONFIG_ACCOUNTING 0 "Enables bit accounting.")
 set_aom_config_var(CONFIG_ANALYZER 0 "Enables bit stream analyzer.")
 set_aom_config_var(CONFIG_EXTRACT_PROTO 0
@@ -111,7 +114,7 @@ set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_aom_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_aom_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
 
-# AV1 experiment flags.
+#AV1 experiment flags.
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_COLLECT_RD_STATS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_DIST_8X8 0 "AV1 experiment flag.")
@@ -139,7 +142,7 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
-# AV2 experiment flags.
+#AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX_CTXS 1
                    "AV2 enable improved identity transform coding 1/2.")
 set_aom_config_var(CONFIG_IMPROVEIDTX_RDPH 1
@@ -205,7 +208,7 @@ set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
                    "AV2 experiment flag to add new local warp modes")
 set_aom_config_var(CONFIG_EXTENDED_SDP 1
                    "Enable SDP for intra blocks in inter frame")
-# Begin: CWG-C016
+#Begin : CWG - C016
 set_aom_config_var(
   CONFIG_LR_IMPROVEMENTS
   1
@@ -218,16 +221,16 @@ set_aom_config_var(
 )
 set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
                    "AV2 experiment flag to enable LR coefficient merging")
-# End: CWG-C016
+#End : CWG - C016
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
 
-# CWG-D178
+#CWG - D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
 
-# Source of throughput analysis : CWG-B065
+#Source of throughput analysis : CWG - B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
@@ -323,10 +326,10 @@ set_aom_config_var(CONFIG_MF_HOLE_FILL_SIMPLIFY 1
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
                    "Always enable motion field hole filling")
 
-# This is an encode-only change.
+#This is an encode - only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
-# This is an encode-only change.
+#This is an encode - only change.
 set_aom_config_var(CONFIG_LARGE_TF_BLOCK 1
                    "Enable large adaptively selected temporal filter blocks.")
 set_aom_config_var(CONFIG_FIX_CDEF_SYNTAX 1
@@ -359,7 +362,7 @@ set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
 set_aom_config_var(CONFIG_TMVP_IMPROVE 1
                    "Enable to improve TMVP candidate selection in DRL list")
 
-# This is an encode-only change.
+#This is an encode - only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
@@ -416,7 +419,7 @@ set_aom_config_var(
   "Parsing dependency removal for intra tx type and IST set signaling.")
 set_aom_config_var(CONFIG_INTER_IST 1 "Enable IST for inter blocks.")
 #
-# Variables in this section control optional features of the build system.
+#Variables in this section control optional features of the build system.
 #
 set_aom_option_var(ENABLE_CCACHE "Enable ccache support." OFF)
 set_aom_option_var(ENABLE_DECODE_PERF_TESTS "Enables decoder performance tests"
@@ -440,19 +443,19 @@ set_aom_option_var(ENABLE_TOOLS "Enable applications in tools sub directory."
 set_aom_option_var(ENABLE_WERROR "Converts warnings to errors at compile time."
                    OFF)
 
-# ARM assembly/intrinsics flags.
+#ARM assembly / intrinsics flags.
 set_aom_option_var(ENABLE_NEON "Enables NEON optimizations on ARM targets." ON)
 
-# MIPS assembly/intrinsics flags.
+#MIPS assembly / intrinsics flags.
 set_aom_option_var(ENABLE_DSPR2 "Enables DSPR2 optimizations on MIPS targets."
                    OFF)
 set_aom_option_var(ENABLE_MSA "Enables MSA optimizations on MIPS targets." OFF)
 
-# VSX intrinsics flags.
+#VSX intrinsics flags.
 set_aom_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."
                    ON)
 
-# x86/x86_64 assembly/intrinsics flags.
+#x86 / x86_64 assembly / intrinsics flags.
 set_aom_option_var(ENABLE_MMX
                    "Enables MMX optimizations on x86/x86_64 targets." ON)
 set_aom_option_var(ENABLE_SSE

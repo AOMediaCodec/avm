@@ -342,7 +342,7 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 #endif
 
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-    if (pbi->common.fDecTxfmLog != NULL) {
+  if (pbi->common.fDecTxfmLog != NULL) {
     fclose(pbi->common.fDecTxfmLog);
   }
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
@@ -550,9 +550,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (frame_decoded) {
 #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-      // increment POC for decoder log
-      ++cm->current_frame.absolute_poc;
-#endif // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    // increment POC for decoder log
+    ++cm->current_frame.absolute_poc;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
     lock_buffer_pool(pool);
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
