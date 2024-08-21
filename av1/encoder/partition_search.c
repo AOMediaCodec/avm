@@ -2867,7 +2867,15 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXTENDED_SDP
     ptree->region_type = pc_tree->region_type;
     const int is_sb_root = bsize == cm->sb_size;
-    ptree->extended_sdp_allowed_flag = pc_tree->extended_sdp_allowed_flag;
+    if (parent) {
+      if (parent->extended_sdp_allowed_flag)
+        ptree->extended_sdp_allowed_flag =
+            is_extended_sdp_allowed(parent->bsize, parent->partition);
+      else
+        ptree->extended_sdp_allowed_flag = 0;
+    } else {
+      ptree->extended_sdp_allowed_flag = 1;
+    }
     if (!frame_is_intra_only(cm) && !is_sb_root &&
         partition != PARTITION_NONE && parent &&
         parent->region_type != INTRA_REGION && xd->tree_type != CHROMA_PART &&
