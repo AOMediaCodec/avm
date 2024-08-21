@@ -2237,10 +2237,14 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
   if (xd->tree_type != CHROMA_PART) {
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     xd->mi[0]->mi_row_start = mi_row;
     xd->mi[0]->mi_col_start = mi_col;
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
   }
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
   xd->mi[0]->chroma_mi_row_start = mi_row;
   xd->mi[0]->chroma_mi_col_start = mi_col;

@@ -273,7 +273,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   }
 }
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
 static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
                                       TREE_TYPE tree_type,
                                       int *chroma_mi_row_start,
@@ -300,7 +300,7 @@ static bool is_tu_edge_helper(TX_SIZE tx_size, EDGE_DIR edge_dir,
                                : tx_size_high_unit[tx_size] - 1;
   return !(relative_coord & tu_mask);
 }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
 #if CONFIG_TX_PARTITION_TYPE_EXT
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
@@ -309,16 +309,16 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const int mi_col, const int plane,
                                   const TREE_TYPE tree_type,
                                   const struct macroblockd_plane *plane_ptr
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                   ,
                                   bool *tu_edge
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 ) {
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     *tu_edge = true;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     return TX_4X4;
   }
   const int plane_type = av1_get_sdp_idx(tree_type);
@@ -330,6 +330,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   TX_SIZE tx_size = TX_INVALID;
   if (plane != AOM_PLANE_Y) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     tx_size = av1_get_max_uv_txsize(bsize_base, plane_ptr->subsampling_x,
                                     plane_ptr->subsampling_y);
     int chroma_mi_row_start;
@@ -340,6 +341,10 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
         is_tu_edge_helper(tx_size, edge_dir, mi_row - chroma_mi_row_start,
                           mi_col - chroma_mi_col_start);
 #else
+    tx_size = av1_get_max_uv_txsize(bsize_base, plane_ptr->subsampling_x,
+                                    plane_ptr->subsampling_y);
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+#else
     tx_size = av1_get_max_uv_txsize(mbmi->sb_type[plane_type],
 
                                     plane_ptr->subsampling_x,
@@ -349,8 +354,16 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 
   if (plane == AOM_PLANE_Y && !mbmi->skip_txfm[SHARED_PART]) {
     const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
+
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const int blk_row = mi_row - mbmi->mi_row_start;
     const int blk_col = mi_col - mbmi->mi_col_start;
+#else
+    int row_mask = mi_size_high[sb_type] - 1;
+    int col_mask = mi_size_wide[sb_type] - 1;
+    const int blk_row = mi_row & row_mask;
+    const int blk_col = mi_col & col_mask;
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
     assert(blk_row >= 0);
     assert(blk_col >= 0);
@@ -370,9 +383,9 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
       int mi_blk_row = blk_row & 0xf;
       int mi_blk_col = blk_col & 0xf;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       *tu_edge = false;  // Default. May be updated below.
-#endif                   // CONFIG_EXT_RECUR_PARTITIONS
+#endif                   // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
       int txb_idx;
       for (txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
@@ -380,14 +393,14 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
         int txh = tx_size_high_unit[sub_tx];
         int txw = tx_size_wide_unit[sub_tx];
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
         if ((edge_dir == VERT_EDGE &&
              mi_blk_col == txb_pos.col_offset[txb_idx]) ||
             (edge_dir == HORZ_EDGE &&
              mi_blk_row == txb_pos.row_offset[txb_idx])) {
           *tu_edge = true;
         }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
         if (mi_blk_row >= txb_pos.row_offset[txb_idx] &&
             mi_blk_row < txb_pos.row_offset[txb_idx] + txh &&
             mi_blk_col >= txb_pos.col_offset[txb_idx] &&
@@ -402,19 +415,19 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
       tx_size = tmp_tx_size;
     } else {
       tx_size = get_tx_partition_one_size(partition, max_tx_size);
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       *tu_edge = is_tu_edge_helper(tx_size, edge_dir, blk_row, blk_col);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     }
   }
 
   if (plane == AOM_PLANE_Y && mbmi->skip_txfm[SHARED_PART]) {
     const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
     tx_size = max_txsize_rect_lookup[sb_type];
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     *tu_edge = is_tu_edge_helper(tx_size, edge_dir, mi_row - mbmi->mi_row_start,
                                  mi_col - mbmi->mi_col_start);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
   }
 
   assert(tx_size < TX_SIZES_ALL);
@@ -428,7 +441,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   return tx_size;
 }
 #else
-// TODO(now): Add support to return *tu_edge.
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const MB_MODE_INFO *const mbmi,
                                   const EDGE_DIR edge_dir, const int mi_row,
@@ -490,7 +502,7 @@ typedef struct AV1_DEBLOCKING_PARAMETERS {
   uint16_t side_threshold;
 } AV1_DEBLOCKING_PARAMETERS;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
 static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
                                        int plane, TREE_TYPE tree_type,
                                        int scale_horz, int scale_vert,
@@ -510,7 +522,7 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
   const int scale = vert_edge ? scale_horz : scale_vert;
   return pu_stating_coord_luma >> scale;
 }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
 #if CONFIG_LF_SUB_PU
 // Check whether current block is TIP mode
@@ -561,7 +573,10 @@ static AOM_INLINE void check_rfmv_edge(const MB_MODE_INFO *const mbmi,
 // Check whether current block is sub-prediction mode
 static AOM_INLINE void check_sub_pu_edge(
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
-    const MB_MODE_INFO *const mbmi, const int plane, TREE_TYPE tree_type,
+    const MB_MODE_INFO *const mbmi, const int plane,
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+    TREE_TYPE tree_type,
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const int scale_horz, const int scale_vert, const EDGE_DIR edge_dir,
     const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge) {
   if (!cm->features.allow_lf_sub_pu) return;
@@ -588,7 +603,7 @@ static AOM_INLINE void check_sub_pu_edge(
       const uint32_t sub_pu_masks = edge_dir == VERT_EDGE
                                         ? tx_size_wide[temp_ts] - 1
                                         : tx_size_high[temp_ts] - 1;
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       const uint32_t pu_starting_coord = get_pu_starting_cooord(
           mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
       assert(coord >= pu_starting_coord);
@@ -596,7 +611,7 @@ static AOM_INLINE void check_sub_pu_edge(
       *sub_pu_edge = (relative_coord & sub_pu_masks) ? (0) : (1);
 #else
       *sub_pu_edge = (coord & sub_pu_masks) ? (0) : (1);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
       if (*sub_pu_edge) *ts = temp_ts;
     }
   }
@@ -606,7 +621,7 @@ static AOM_INLINE void check_sub_pu_edge(
 MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
                                int scale_vert, uint32_t x, uint32_t y,
                                int plane, int *mi_row, int *mi_col) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
   const int this_mi_row = (y << scale_vert) >> MI_SIZE_LOG2;
   const int this_mi_col = (x << scale_horz) >> MI_SIZE_LOG2;
   MB_MODE_INFO **this_mi = cm->mi_params.mi_grid_base +
@@ -674,18 +689,18 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
   *mi_row = this_mi_row;
   *mi_col = this_mi_col;
   return cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 }
 
 // Return TX_SIZE from get_transform_size(), so it is plane and direction
 // aware
 static TX_SIZE set_lpf_parameters(
     AV1_DEBLOCKING_PARAMETERS *const params,
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     uint32_t prev_x, uint32_t prev_y,
 #else
     const ptrdiff_t mode_step,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
     const EDGE_DIR edge_dir, const uint32_t x, const uint32_t y,
     const int plane, const struct macroblockd_plane *const plane_ptr) {
@@ -735,39 +750,43 @@ static TX_SIZE set_lpf_parameters(
   const int plane_type = is_sdp_eligible && plane > 0;
 #endif  // CONFIG_EXTENDED_SDP
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
   bool tu_edge;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 #if CONFIG_LF_SUB_PU
   TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane,
                                   tree_type, plane_ptr
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                   ,
                                   &tu_edge
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
   );
   const TX_SIZE ts_ori = ts;
 #else
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
                                         plane, tree_type, plane_ptr
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                         ,
                                         &tu_edge
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
   );
 #endif  // CONFIG_LF_SUB_PU
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const uint32_t transform_masks =
         edge_dir == VERT_EDGE ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
     const bool tu_edge = (coord & transform_masks) ? (0) : (1);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
 #if CONFIG_LF_SUB_PU
     int32_t sub_pu_edge = 0;
-    check_sub_pu_edge(cm, xd, mbmi, plane, tree_type, scale_horz, scale_vert,
-                      edge_dir, coord, &ts, &sub_pu_edge);
+    check_sub_pu_edge(cm, xd, mbmi, plane,
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+                      tree_type,
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+                      scale_horz, scale_vert, edge_dir, coord, &ts,
+                      &sub_pu_edge);
     if (!tu_edge && !sub_pu_edge)
 #else
     if (!tu_edge)
@@ -785,7 +804,7 @@ static TX_SIZE set_lpf_parameters(
           mbmi->skip_txfm[plane_type] && is_inter_block(mbmi, tree_type);
       if (coord) {
         {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           assert(prev_x <= x && prev_y <= y);
           int pv_row;
           int pv_col;
@@ -800,7 +819,7 @@ static TX_SIZE set_lpf_parameters(
               (VERT_EDGE == edge_dir) ? (mi_row) : (mi_row - (1 << scale_vert));
           const int pv_col =
               (VERT_EDGE == edge_dir) ? (mi_col - (1 << scale_horz)) : (mi_col);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
 #if CONFIG_EXTENDED_SDP
           TREE_TYPE prev_tree_type = SHARED_PART;
@@ -814,24 +833,28 @@ static TX_SIZE set_lpf_parameters(
           if (is_prev_sdp_eligible) {
             prev_tree_type = (plane == AOM_PLANE_Y) ? LUMA_PART : CHROMA_PART;
           }
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           bool prev_tu_edge;
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           const TX_SIZE pv_ts =
               get_transform_size(xd, mi_prev, edge_dir, pv_row, pv_col, plane,
                                  prev_tree_type, plane_ptr
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                  ,
                                  &prev_tu_edge
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
               );
 #else
 
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           bool prev_tu_edge;
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           const TX_SIZE pv_ts = get_transform_size(
               xd, mi_prev, edge_dir, pv_row, pv_col, plane, tree_type, plane_ptr
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
               ,
               &prev_tu_edge
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           );
 #endif  // CONFIG_EXTENDED_SDP
 
@@ -842,7 +865,7 @@ static TX_SIZE set_lpf_parameters(
 
           const int pv_skip_txfm = mi_prev->skip_txfm[plane_type] &&
                                    is_inter_block(mi_prev, tree_type);
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
               mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
           const bool pu_edge = (coord == pu_starting_coord);
@@ -850,15 +873,17 @@ static TX_SIZE set_lpf_parameters(
           const BLOCK_SIZE bsize = get_mb_plane_block_size_from_tree_type(
               mbmi, tree_type, plane, plane_ptr->subsampling_x,
               plane_ptr->subsampling_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
           assert(bsize == get_plane_block_size(mbmi->sb_type[plane_type],
                                                plane_ptr->subsampling_x,
                                                plane_ptr->subsampling_y));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
           assert(bsize < BLOCK_SIZES_ALL);
           const int prediction_masks = edge_dir == VERT_EDGE
                                            ? block_size_wide[bsize] - 1
                                            : block_size_high[bsize] - 1;
           const int32_t pu_edge = !(coord & prediction_masks);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
         // if the current and the previous blocks are skipped,
         // deblock the edge if the edge belongs to a PU's edge only.
 #if DF_REDUCED_SB_EDGE
@@ -1051,10 +1076,10 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   const int x_range = (mib_size >> scale_horz);
   for (int y = 0; y < y_range; y++) {
     uint16_t *p = dst_ptr + y * MI_SIZE * dst_stride;
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     uint32_t prev_x =
         (mi_col == 0) ? 0 : ((mi_col - 1) * MI_SIZE) >> scale_horz;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     for (int x = 0; x < x_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
       // is 8x8, it will filter the vertical edge aligned with a 8x8 block.
@@ -1068,11 +1093,11 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
       memset(&params, 0, sizeof(params));
 
       tx_size = set_lpf_parameters(&params,
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                    prev_x, curr_y,
 #else
                                    ((ptrdiff_t)1 << scale_horz),
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                    cm, xd, VERT_EDGE, curr_x, curr_y, plane,
                                    plane_ptr);
       if (tx_size == TX_INVALID) {
@@ -1093,9 +1118,9 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
       }
 
       // advance the destination pointer
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       prev_x = curr_x;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
       advance_units = tx_size_wide_unit[tx_size];
       x += advance_units;
       p += advance_units * MI_SIZE;
@@ -1117,10 +1142,10 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   const int x_range = (mib_size >> scale_horz);
   for (int x = 0; x < x_range; x++) {
     uint16_t *p = dst_ptr + x * MI_SIZE;
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     uint32_t prev_y =
         (mi_row == 0) ? 0 : ((mi_row - 1) * MI_SIZE) >> scale_vert;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     for (int y = 0; y < y_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
       // is 8x8, it will first filter the vertical edge aligned with a 8x8
@@ -1134,11 +1159,11 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
       memset(&params, 0, sizeof(params));
 
       tx_size = set_lpf_parameters(&params,
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                    curr_x, prev_y,
 #else
                                    (cm->mi_params.mi_stride << scale_vert),
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 
                                    cm, xd, HORZ_EDGE, curr_x, curr_y, plane,
                                    plane_ptr);
@@ -1160,9 +1185,9 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
       }
 
       // advance the destination pointer
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       prev_y = curr_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
       advance_units = tx_size_high_unit[tx_size];
       y += advance_units;
       p += advance_units * dst_stride * MI_SIZE;
