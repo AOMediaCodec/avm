@@ -3056,7 +3056,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_INTER_IST
       if (skip_idx) break;
 #endif  // CONFIG_INTER_IST
-    }  // for (int stx_set = 0;
+    }
 #endif  // CONFIG_IST_ANY_SET
     if (skip_idx) break;
   }
