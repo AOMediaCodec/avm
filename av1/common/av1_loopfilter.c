@@ -683,6 +683,7 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
   }
   return this_mi;
 #else
+  (void)plane;
   // for sub8x8 block, chroma prediction mode is obtained from the bottom/right
   // mi structure of the co-located 8x8 luma block. so for chroma plane, mi_row
   // and mi_col should map to the bottom/right mi structure, i.e, both mi_row
@@ -691,7 +692,8 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
   const int this_mi_col = scale_horz | ((x << scale_horz) >> MI_SIZE_LOG2);
   *mi_row = this_mi_row;
   *mi_col = this_mi_col;
-  return cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
+  return cm->mi_params.mi_grid_base + this_mi_row * cm->mi_params.mi_stride +
+         this_mi_col;
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 }
 
