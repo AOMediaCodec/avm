@@ -10,7 +10,7 @@
 
 include("${AOM_ROOT}/build/cmake/util.cmake")
 
-# This file sets default values for libaom configuration variables.All libaom
+# This file sets default values for libaom configuration variables. All libaom
 # config variables are added to the CMake variable cache via the macros provided
 # in util.cmake.
 
@@ -63,7 +63,7 @@ set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
 #
 # Variables in this section can be set from the CMake command line or from
-# within the CMake GUI.The variables control libaom features.
+# within the CMake GUI. The variables control libaom features.
 #
 
 # Build configuration flags.
@@ -168,9 +168,9 @@ set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_DQ 1
                    "AV2 dependent quantization flag")
 set_aom_config_var(CONFIG_TXFMBLK_LOGS 1
-                    "AV2 enable per transform block logs")
+                   "AV2 enable per transform block logs")
 set_aom_config_var(CONFIG_COEFF_LOGS 1
-                    "AV2 enable per transform block coefficient logs")
+                   "AV2 enable per transform block coefficient logs")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
@@ -218,7 +218,7 @@ set_aom_config_var(
 )
 set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
                    "AV2 experiment flag to enable LR coefficient merging")
-#End: CWG-C016
+# End: CWG-C016
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
@@ -227,7 +227,7 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
 
-# Source of throughput analysis : CWG - B065
+# Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
