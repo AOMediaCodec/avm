@@ -1277,7 +1277,7 @@ typedef struct {
   unsigned int col_mv_index_cnts[NUM_CTX_COL_MV_INDEX]
                                 [CDF_SIZE(2)];  // placeholder
 #else
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
+  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];
 #endif                                                 // CONFIG_VQ_MVD_CODING
   unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
   nmv_component_count mvd_comp_cnts[2];
@@ -1301,7 +1301,7 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_INTER_IST
   unsigned int stx_cnts[2][TX_SIZES][CDF_SIZE(STX_TYPES)];  // placeholder
 #else
-  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];  // placeholder
+  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];
 #endif  // CONFIG_INTER_IST
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
