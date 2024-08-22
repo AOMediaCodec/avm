@@ -2083,7 +2083,7 @@ void av2_tcq_log_blkrd(
       blk_col,                         // 7: transform block column index
       dry_run);  // 8: coding pass on this block (0: final; 1 or above: dry_run)
 
-  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld ",
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12ld ",
           bsize,       // 9:  plane_bsize
           tx_size,     // 10: transform size
           tx_type,     // 11: transform type
@@ -2096,8 +2096,8 @@ void av2_tcq_log_blkrd(
 
   fprintf(
       fp,
-      "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld "
-      "%16lld %16lld \n",
+      "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12ld %12ld %12ld %16ld "
+      "%16ld %16ld \n",
       n_coeffs,    // 18: number of coefficients in the transform block
       nz_counter,  // 19: number of non-zero pre-quantized coefficients
       neob_sq,     // 20: number of coded coefficients (neob) via SQ
@@ -2144,7 +2144,7 @@ void av2_tcq_log_percoeff(const AV1_COMMON *const cm, MACROBLOCK *x,
       dry_run,  // 8: coding pass on this block (0: final; 1 or above: dry_run)
       cm->sb_size);  // 9: superblock size
 
-  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld %06d %6d",
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12ld %06d %6d",
           bsize,       // 10:  plane_bsize
           tx_size,     // 11: transform size
           tx_type,     // 12: transform type
