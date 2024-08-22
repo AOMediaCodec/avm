@@ -1820,16 +1820,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   return cul_level;
 }
 
-void av1_read_coeffs_txb_facade(
-    const AV1_COMMON *const cm, DecoderCodingBlock *dcb, aom_reader *const r,
-    const int plane, const int row, const int col, const TX_SIZE tx_size
-    // #if CONFIG_COEFF_LOGS
-    //         ,
-    //                             uint64_t *eob_pt_bits,
-    //                             uint64_t *eob_extra_bits,
-    //                             uint64_t *eob_offset_bits
-    // #endif  // CONFIG_COEFF_LOGS
-) {
+void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
+                                DecoderCodingBlock *dcb, aom_reader *const r,
+                                const int plane, const int row, const int col,
+                                const TX_SIZE tx_size) {
 #if TXCOEFF_TIMER
   struct aom_usec_timer timer;
   aom_usec_timer_start(&timer);
@@ -1956,7 +1950,7 @@ void av2_tcq_declog_eobrate(const struct AV1Common *const cm,
       is_inter,                        // 9: inter/intra mode
       neob);                           // 10: neob
 
-  fprintf(fp, " %2llu %2llu %2llu\n", eob_pt_bits, eob_extra_bits,
+  fprintf(fp, " %2lu %2lu %2lu\n", eob_pt_bits, eob_extra_bits,
           eob_offset_bits);
 }
 
@@ -2012,37 +2006,37 @@ void av2_tcq_declog_decrate(const struct AV1Common *const cm,
   switch (qcoeff_rcost_type) {
     case QCOEFF_RCOST_TYPE_SGNRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].sign_cost);
+        fprintf(fp, " %2lu", qcoeff_cost[c].sign_cost);
       }
       break;
     case QCOEFF_RCOST_TYPE_BRRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].br_cost);
+        fprintf(fp, " %2lu", qcoeff_cost[c].br_cost);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR1RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].lr_cost[0]);
+        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[0]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR2RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].lr_cost[1]);
+        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[1]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR3RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].lr_cost[2]);
+        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[2]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR4RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].lr_cost[3]);
+        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[3]);
       }
       break;
     case QCOEFF_RCOST_TYPE_HRRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2llu", qcoeff_cost[c].hr_cost);
+        fprintf(fp, " %2lu", qcoeff_cost[c].hr_cost);
       }
       break;
     default:
