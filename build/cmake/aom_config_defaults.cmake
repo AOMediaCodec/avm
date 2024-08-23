@@ -317,6 +317,9 @@ set_aom_config_var(CONFIG_CCSO_IMPROVE 1 "Enable CCSO improvements")
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
                    "Improvement of all inter mode related contexts")
 
+set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
+                   "Enable WRL only prune four non-translational parameters")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

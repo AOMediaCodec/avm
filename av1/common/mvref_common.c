@@ -1320,11 +1320,13 @@ static int is_this_param_already_in_list(
         (neigh_params.wmmat[4] == warp_candidates[i].wm_params.wmmat[4]);
     same_param &=
         (neigh_params.wmmat[5] == warp_candidates[i].wm_params.wmmat[5]);
+#if !CONFIG_WRL_PRUNE_FOUR_PARAMETERS
     // The translational part is used for WARPMV mode
     same_param &=
         (neigh_params.wmmat[0] == warp_candidates[i].wm_params.wmmat[0]);
     same_param &=
         (neigh_params.wmmat[1] == warp_candidates[i].wm_params.wmmat[1]);
+#endif  // !CONFIG_WRL_PRUNE_FOUR_PARAMETERS
     if (same_param) return 1;
   }
 
