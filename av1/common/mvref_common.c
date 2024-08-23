@@ -5932,9 +5932,8 @@ void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
                                   const MB_MODE_INFO *const mbmi) {
   if (!cm->seq_params.enable_refmvbank) return;
   if (xd->tree_type == CHROMA_PART) return;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  const int mi_sb_size = seq_params->mib_size;
-  const int mi_sb_size_log2 = seq_params->mib_size_log2;
+  const int mi_sb_size = cm->mib_size;
+  const int mi_sb_size_log2 = cm->mib_size_log2;
   const int mi_row_in_sb = xd->mi_row % mi_sb_size;
   const int mi_col_in_sb = xd->mi_col % mi_sb_size;
   const int rmb_unit_mi_size_log2 = mi_sb_size_log2 - SB_TO_RMB_UNITS_LOG2;
