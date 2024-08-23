@@ -2388,7 +2388,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
         MB_MODE_INFO *const chroma_above_base_mi = base_mi[-xd->mi_stride];
         const bool above_mi_uses_decoupled_tree =
 #if CONFIG_EXTENDED_SDP
-            chroma_above_base_mi->region_type != MIXED_INTER_INTRA_REGION
+            chroma_above_base_mi->tree_type != SHARED_PART
 #else
             xd->tree_type != SHARED_PART
 #endif  // CONFIG_EXTENDED_SDP
@@ -2415,7 +2415,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
             &chroma_left_base_mi->chroma_ref_info;
         const bool left_mi_uses_decoupled_tree =
 #if CONFIG_EXTENDED_SDP
-            chroma_left_base_mi->region_type != MIXED_INTER_INTRA_REGION
+            chroma_left_base_mi->tree_type != SHARED_PART
 #else
             xd->tree_type != SHARED_PART
 #endif  // CONFIG_EXTENDED_SDP

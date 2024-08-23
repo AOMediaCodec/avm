@@ -1284,6 +1284,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 #if CONFIG_EXTENDED_SDP
   // set region_type for each mbmi
   xd->mi[0]->region_type = parent->region_type;
+  // set tree_type for each mbmi
+  xd->mi[0]->tree_type = xd->tree_type;
 #endif  // CONFIG_EXTENDED_SDP
   av1_read_mode_info(pbi, dcb, r, x_mis, y_mis);
 

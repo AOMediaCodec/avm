@@ -942,6 +942,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
 #if CONFIG_EXTENDED_SDP
   xd->mi[0]->region_type = cur_region_type;
+  // set tree_type for each mbmi
+  xd->mi[0]->tree_type = xd->tree_type;
 #endif  // CONFIG_EXTENDED_SDP
 
   if (ctx->rd_mode_is_ready) {

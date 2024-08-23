@@ -446,6 +446,8 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_EXTENDED_SDP
   /*! \brief The region type used for the current block. */
   REGION_TYPE region_type;
+  /*! \brief The tree type for current block */
+  TREE_TYPE tree_type;
 #endif  // CONFIG_EXTENDED_SDP
   /*! \brief The prediction mode used */
   PREDICTION_MODE mode;
