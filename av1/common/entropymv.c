@@ -78,7 +78,7 @@ static const nmv_context default_nmv_context = {
       { AOM_CDF2(13771), 0 },
       { AOM_CDF2(13429), 1 },
       { AOM_CDF2(14771), 1 },
-  },  // col_mv_index_cdf
+  },                              // col_mv_index_cdf
 #endif  // !CONFIG_VQ_MVD_CODING
 
 #if CONFIG_ENTROPY_PARA
