@@ -4312,9 +4312,11 @@ static AOM_INLINE void encode_restoration_mode(
           //        rsi->temporal_pred_flag);
 #if CONFIG_TEMP_LR
           if (rsi->frame_filters_on) {
-            const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
-                                           ? 0
-                                           : cm->ref_frames_info.num_total_refs;
+            const int num_ref_frames =
+                (cm->current_frame.frame_type == KEY_FRAME ||
+                 cm->features.error_resilient_mode)
+                    ? 0
+                    : cm->ref_frames_info.num_total_refs;
             if (num_ref_frames > 0)
               aom_wb_write_bit(wb, rsi->temporal_pred_flag);
             if (rsi->temporal_pred_flag && num_ref_frames > 1)

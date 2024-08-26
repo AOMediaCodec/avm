@@ -5071,7 +5071,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
 #if CONFIG_TEMP_LR
   int8_t best_ref_idx = -1;
-  const int num_ref_frames = rsc->cm->current_frame.frame_type == KEY_FRAME
+  const int num_ref_frames = (rsc->cm->current_frame.frame_type == KEY_FRAME ||
+                              rsc->cm->features.error_resilient_mode)
                                  ? 0
                                  : rsc->cm->ref_frames_info.num_total_refs;
   for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {

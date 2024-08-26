@@ -3334,6 +3334,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #if CONFIG_COMBINE_PC_NS_WIENER
     rsi->frame_filters_on = 0;
     cm->cur_frame->rst_info[p].frame_filters_on = 0;
+#if CONFIG_TEMP_LR
+    rsi->temporal_pred_flag = 0;
+#endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_LR_IMPROVEMENTS
     uint8_t plane_lr_tools_disable_mask =
@@ -3396,12 +3399,13 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         if (read_num_classes) {
           rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
 #if CONFIG_TEMP_LR
-          rsi->temporal_pred_flag = 0;
           rsi->rst_ref_pic_idx = 0;
           if (rsi->frame_filters_on) {
-            const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
-                                           ? 0
-                                           : cm->ref_frames_info.num_total_refs;
+            const int num_ref_frames =
+                (cm->current_frame.frame_type == KEY_FRAME ||
+                 cm->features.error_resilient_mode)
+                    ? 0
+                    : cm->ref_frames_info.num_total_refs;
 
             if (num_ref_frames > 0)
               rsi->temporal_pred_flag = aom_rb_read_bit(rb);
@@ -3446,14 +3450,16 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         rsi->frame_filters_on = 0;
         rsi->num_filter_classes = NUM_WIENERNS_CLASS_INIT_CHROMA;
       }
-    }
 #else
       rsi->num_filter_classes = (p == AOM_PLANE_Y)
                                     ? NUM_WIENERNS_CLASS_INIT_LUMA
                                     : NUM_WIENERNS_CLASS_INIT_CHROMA;
       rsi->frame_filters_on = 0;
-    }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+    }
+#if CONFIG_COMBINE_PC_NS_WIENER && CONFIG_TEMP_LR
+    assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
+#endif  // CONFIG_COMBINE_PC_NS_WIENER && CONFIG_TEMP_LR
 #endif  // CONFIG_LR_IMPROVEMENTS
   }
 #if CONFIG_LR_IMPROVEMENTS
