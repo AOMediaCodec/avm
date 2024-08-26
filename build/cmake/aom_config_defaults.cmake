@@ -219,6 +219,10 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
 
+# CWG-E210
+set_aom_config_var(CONFIG_RECT_CTX 1
+                   "AV2 enable Context Reduction for Rectangle Partition Type")
+
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

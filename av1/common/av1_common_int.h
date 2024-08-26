@@ -2782,6 +2782,37 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
   int ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
+#if CONFIG_RECT_CTX
+  const int bsize_rect_map[BLOCK_SIZES] = {
+    0,   // BLOCK_4X4,
+    0,   // BLOCK_4X8,
+    0,   // BLOCK_8X4,
+    0,   // BLOCK_8X8,
+    3,   // BLOCK_8X16,
+    4,   // BLOCK_16X8,
+    0,   // BLOCK_16X16,
+    3,   // BLOCK_16X32,
+    4,   // BLOCK_32X16,
+    5,   // BLOCK_32X32,
+    6,   // BLOCK_32X64,
+    7,   // BLOCK_64X32,
+    8,   // BLOCK_64X64,
+    9,   // BLOCK_64X128,
+    10,  // BLOCK_128X64,
+    11,  // BLOCK_128X128,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    12,  // BLOCK_128X256,
+    13,  // BLOCK_256X128,
+    14,  // BLOCK_256X256,
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
+    15,  // BLOCK_4X16,
+    16,  // BLOCK_16X4,
+    15,  // BLOCK_8X32,
+    16,  // BLOCK_32X8,
+    15,  // BLOCK_16X64,
+    16,  // BLOCK_64X16,
+  };
+#endif
   const int bsize_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
     0,   // BLOCK_4X8,
@@ -2813,6 +2844,10 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   };
   if (ctx_mode == 1)  // all part ctx except rect mode
     ctx = (left * 2 + above) + bsize_map[bsize] * PARTITION_PLOFFSET;
+#if CONFIG_RECT_CTX
+  if (ctx_mode == 0)  // part ctx only for rect mode
+    ctx = (left * 2 + above) + bsize_rect_map[bsize] * PARTITION_PLOFFSET;
+#endif
 #endif
   assert(ctx >= 0);
   assert(ctx < PARTITION_CONTEXTS);
