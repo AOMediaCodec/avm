@@ -430,20 +430,21 @@ static INLINE void highbd_inter_predictor(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride,
     const SubpelParams *subpel_params, int w, int h,
     ConvolveParams *conv_params, const InterpFilterParams *interp_filters[2],
-    int bd) {
+    int bd, int is_intrabc) {
   assert(conv_params->do_average == 0 || conv_params->do_average == 1);
   const int is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
   if (is_scaled) {
-    av1_highbd_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h,
-                                  interp_filters, subpel_params->subpel_x,
-                                  subpel_params->xs, subpel_params->subpel_y,
-                                  subpel_params->ys, 1, conv_params, bd);
+    assert(is_intrabc == 0);
+    av1_highbd_convolve_2d_facade(
+        src, src_stride, dst, dst_stride, w, h, interp_filters,
+        subpel_params->subpel_x, subpel_params->xs, subpel_params->subpel_y,
+        subpel_params->ys, 1, conv_params, bd, is_intrabc);
   } else {
     SubpelParams sp = *subpel_params;
     revert_scale_extra_bits(&sp);
-    av1_highbd_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h,
-                                  interp_filters, sp.subpel_x, sp.xs,
-                                  sp.subpel_y, sp.ys, 0, conv_params, bd);
+    av1_highbd_convolve_2d_facade(
+        src, src_stride, dst, dst_stride, w, h, interp_filters, sp.subpel_x,
+        sp.xs, sp.subpel_y, sp.ys, 0, conv_params, bd, is_intrabc);
   }
 }
 

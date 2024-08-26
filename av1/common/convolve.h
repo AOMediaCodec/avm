@@ -163,7 +163,7 @@ void av1_highbd_convolve_2d_facade(const uint16_t *src8, int src_stride,
                                    const int subpel_x_qn, int x_step_q4,
                                    const int subpel_y_qn, int y_step_q4,
                                    int scaled, ConvolveParams *conv_params,
-                                   int bd);
+                                   int bd, int is_intrabc);
 
 // TODO(sarahparker) This will need to be integerized and optimized
 void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,

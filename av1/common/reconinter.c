@@ -180,7 +180,8 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
         src, src_stride, dst, dst_stride, subpel_params,
         inter_pred_params->block_width, inter_pred_params->block_height,
         &inter_pred_params->conv_params,
-        inter_pred_params->interp_filter_params, inter_pred_params->bit_depth);
+        inter_pred_params->interp_filter_params, inter_pred_params->bit_depth,
+        inter_pred_params->is_intrabc);
   }
 }
 

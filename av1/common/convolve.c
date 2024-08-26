@@ -512,7 +512,8 @@ static void highbd_convolve_2d_facade_single(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride,
     const int w, const int h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y, const int subpel_x_qn,
-    const int subpel_y_qn, ConvolveParams *conv_params, int bd) {
+    const int subpel_y_qn, ConvolveParams *conv_params, int bd,
+    int is_intrabc) {
   const bool need_x = subpel_x_qn != 0;
   const bool need_y = subpel_y_qn != 0;
   // Filters with taps > 8 are only for encoder side use.
@@ -525,7 +526,7 @@ static void highbd_convolve_2d_facade_single(
     aom_highbd_convolve_copy(src, src_stride, dst, dst_stride, w, h);
   } else if (need_x && !need_y) {
     // TODO(any): need SIMD for > 8 taps filters
-    if (filter_x_taps_gt8 || filter_y_taps_gt8) {
+    if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h,
                                  filter_params_x, subpel_x_qn, conv_params, bd);
 
@@ -534,7 +535,7 @@ static void highbd_convolve_2d_facade_single(
                                filter_params_x, subpel_x_qn, conv_params, bd);
     }
   } else if (!need_x && need_y) {
-    if (filter_x_taps_gt8 || filter_y_taps_gt8) {
+    if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
                                  filter_params_y, subpel_y_qn, bd);
     } else {
@@ -543,7 +544,7 @@ static void highbd_convolve_2d_facade_single(
     }
   } else {
     assert(need_x && need_y);
-    if (filter_x_taps_gt8 || filter_y_taps_gt8) {
+    if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
                                   filter_params_x, filter_params_y, subpel_x_qn,
                                   subpel_y_qn, conv_params, bd);
@@ -561,7 +562,7 @@ void av1_highbd_convolve_2d_facade(const uint16_t *src, int src_stride,
                                    const int subpel_x_qn, int x_step_q4,
                                    const int subpel_y_qn, int y_step_q4,
                                    int scaled, ConvolveParams *conv_params,
-                                   int bd) {
+                                   int bd, int is_intrabc) {
   (void)x_step_q4;
   (void)y_step_q4;
   (void)dst_stride;
@@ -586,9 +587,9 @@ void av1_highbd_convolve_2d_facade(const uint16_t *src, int src_stride,
         src, src_stride, dst, dst_stride, w, h, filter_params_x,
         filter_params_y, subpel_x_qn, subpel_y_qn, conv_params, bd);
   } else {
-    highbd_convolve_2d_facade_single(src, src_stride, dst, dst_stride, w, h,
-                                     filter_params_x, filter_params_y,
-                                     subpel_x_qn, subpel_y_qn, conv_params, bd);
+    highbd_convolve_2d_facade_single(
+        src, src_stride, dst, dst_stride, w, h, filter_params_x,
+        filter_params_y, subpel_x_qn, subpel_y_qn, conv_params, bd, is_intrabc);
   }
 }
 
