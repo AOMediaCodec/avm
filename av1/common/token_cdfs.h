@@ -24,19 +24,19 @@ static const aom_cdf_prob
                               [DC_SIGN_CONTEXTS][CDF_SIZE(2)] = {
                                 {
                                     {
-                                        { AOM_CDF2(15826), 90 },
-                                        { AOM_CDF2(13107), 90 },
-                                        { AOM_CDF2(17009), 75 },
+                                        { AOM_CDF2(15826), 76 },
+                                        { AOM_CDF2(13107), 75 },
+                                        { AOM_CDF2(17009), 0 },
                                     },
                                     {
-                                        { AOM_CDF2(13983), 1 },
+                                        { AOM_CDF2(13983), 76 },
                                         { AOM_CDF2(12535), 75 },
                                         { AOM_CDF2(15103), 75 },
                                     },
                                     {
-                                        { AOM_CDF2(19211), 6 },
-                                        { AOM_CDF2(16784), 75 },
-                                        { AOM_CDF2(20053), 76 },
+                                        { AOM_CDF2(19211), 81 },
+                                        { AOM_CDF2(16784), 105 },
+                                        { AOM_CDF2(20053), 6 },
                                     },
                                 },
                                 {
@@ -46,48 +46,48 @@ static const aom_cdf_prob
                                         { AOM_CDF2(19809), 75 },
                                     },
                                     {
-                                        { AOM_CDF2(12786), 31 },
-                                        { AOM_CDF2(12319), 6 },
-                                        { AOM_CDF2(17262), 0 },
+                                        { AOM_CDF2(12786), 1 },
+                                        { AOM_CDF2(12319), 1 },
+                                        { AOM_CDF2(17262), 75 },
                                     },
                                     {
-                                        { AOM_CDF2(21304), 31 },
-                                        { AOM_CDF2(15352), 6 },
-                                        { AOM_CDF2(21947), 5 },
+                                        { AOM_CDF2(21304), 6 },
+                                        { AOM_CDF2(15352), 0 },
+                                        { AOM_CDF2(21947), 0 },
                                     },
                                 },
                                 {
                                     {
                                         { AOM_CDF2(17599), 6 },
-                                        { AOM_CDF2(9423), 91 },
-                                        { AOM_CDF2(23792), 75 },
+                                        { AOM_CDF2(9423), 76 },
+                                        { AOM_CDF2(23792), 76 },
                                     },
                                     {
-                                        { AOM_CDF2(8460), 31 },
+                                        { AOM_CDF2(8460), 6 },
                                         { AOM_CDF2(5237), 1 },
                                         { AOM_CDF2(14155), 1 },
                                     },
                                     {
-                                        { AOM_CDF2(25149), 31 },
+                                        { AOM_CDF2(25149), 6 },
                                         { AOM_CDF2(18855), 1 },
-                                        { AOM_CDF2(28051), 0 },
+                                        { AOM_CDF2(28051), 1 },
                                     },
                                 },
                                 {
                                     {
-                                        { AOM_CDF2(17862), 76 },
-                                        { AOM_CDF2(10009), 100 },
-                                        { AOM_CDF2(23660), 90 },
+                                        { AOM_CDF2(17862), 7 },
+                                        { AOM_CDF2(10009), 1 },
+                                        { AOM_CDF2(23660), 76 },
                                     },
                                     {
-                                        { AOM_CDF2(7038), 7 },
-                                        { AOM_CDF2(3021), 90 },
-                                        { AOM_CDF2(11487), 30 },
+                                        { AOM_CDF2(7038), 32 },
+                                        { AOM_CDF2(3021), 1 },
+                                        { AOM_CDF2(11487), 7 },
                                     },
                                     {
-                                        { AOM_CDF2(27384), 4 },
-                                        { AOM_CDF2(24008), 25 },
-                                        { AOM_CDF2(28690), 22 },
+                                        { AOM_CDF2(27384), 32 },
+                                        { AOM_CDF2(24008), 1 },
+                                        { AOM_CDF2(28690), 7 },
                                     },
                                 },
                               };
@@ -97,23 +97,23 @@ static const aom_cdf_prob
                               [CDF_SIZE(2)] = {
                                 {
                                     { AOM_CDF2(16396), 124 },
-                                    { AOM_CDF2(12826), 1 },
-                                    { AOM_CDF2(19847), 76 },
+                                    { AOM_CDF2(12826), 7 },
+                                    { AOM_CDF2(19847), 37 },
                                 },
                                 {
                                     { AOM_CDF2(16264), 124 },
-                                    { AOM_CDF2(16264), 6 },
-                                    { AOM_CDF2(16743), 5 },
+                                    { AOM_CDF2(16264), 75 },
+                                    { AOM_CDF2(16743), 75 },
                                 },
                                 {
-                                    { AOM_CDF2(16106), 123 },
-                                    { AOM_CDF2(9850), 2 },
+                                    { AOM_CDF2(16106), 124 },
+                                    { AOM_CDF2(9850), 6 },
                                     { AOM_CDF2(22827), 1 },
                                 },
                                 {
-                                    { AOM_CDF2(16944), 118 },
-                                    { AOM_CDF2(3045), 35 },
-                                    { AOM_CDF2(28761), 60 },
+                                    { AOM_CDF2(16944), 123 },
+                                    { AOM_CDF2(3045), 32 },
+                                    { AOM_CDF2(28761), 37 },
                                 },
                               };
 #else
@@ -214,202 +214,234 @@ static const aom_cdf_prob av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS]
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS]
                               [CDF_SIZE(2)] = {
-                                { { { AOM_CDF2(15400), 0 },
-                                    { AOM_CDF2(25752), 0 },
-                                    { AOM_CDF2(6411), 0 },
-                                    { AOM_CDF2(29907), 0 },
-                                    { AOM_CDF2(1735), 0 },
-                                    { AOM_CDF2(29773), 0 },
-                                    { AOM_CDF2(3878), 0 },
-                                    { AOM_CDF2(32660), 0 },
-                                    { AOM_CDF2(180), 0 } },
-                                  { { AOM_CDF2(15290), 0 },
-                                    { AOM_CDF2(28210), 0 },
-                                    { AOM_CDF2(3662), 0 },
-                                    { AOM_CDF2(30884), 0 },
-                                    { AOM_CDF2(626), 0 },
-                                    { AOM_CDF2(30964), 0 },
-                                    { AOM_CDF2(1522), 0 },
-                                    { AOM_CDF2(32648), 0 },
-                                    { AOM_CDF2(56), 0 } },
-                                  { { AOM_CDF2(10694), 0 },
-                                    { AOM_CDF2(29934), 0 },
-                                    { AOM_CDF2(1212), 0 },
-                                    { AOM_CDF2(32053), 0 },
-                                    { AOM_CDF2(97), 0 },
-                                    { AOM_CDF2(32356), 0 },
-                                    { AOM_CDF2(136), 0 },
-                                    { AOM_CDF2(32751), 0 },
-                                    { AOM_CDF2(8), 0 } },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  } },
-                                { { { AOM_CDF2(18210), 0 },
-                                    { AOM_CDF2(25918), 0 },
-                                    { AOM_CDF2(9621), 0 },
-                                    { AOM_CDF2(29491), 0 },
-                                    { AOM_CDF2(9368), 0 },
-                                    { AOM_CDF2(31030), 0 },
-                                    { AOM_CDF2(3815), 0 },
-                                    { AOM_CDF2(32439), 0 },
-                                    { AOM_CDF2(2455), 0 } },
-                                  { { AOM_CDF2(18967), 0 },
-                                    { AOM_CDF2(27730), 0 },
-                                    { AOM_CDF2(7456), 0 },
-                                    { AOM_CDF2(30015), 0 },
-                                    { AOM_CDF2(2882), 0 },
-                                    { AOM_CDF2(31783), 0 },
-                                    { AOM_CDF2(2087), 0 },
-                                    { AOM_CDF2(32543), 0 },
-                                    { AOM_CDF2(669), 0 } },
-                                  { { AOM_CDF2(18273), 0 },
-                                    { AOM_CDF2(27763), 0 },
-                                    { AOM_CDF2(6274), 0 },
-                                    { AOM_CDF2(29647), 0 },
-                                    { AOM_CDF2(1854), 0 },
-                                    { AOM_CDF2(32079), 0 },
-                                    { AOM_CDF2(1083), 0 },
-                                    { AOM_CDF2(32487), 0 },
-                                    { AOM_CDF2(410), 0 } },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  } },
-                                { { { AOM_CDF2(18453), 0 },
-                                    { AOM_CDF2(25590), 0 },
-                                    { AOM_CDF2(10262), 0 },
-                                    { AOM_CDF2(25168), 0 },
-                                    { AOM_CDF2(13246), 0 },
-                                    { AOM_CDF2(31015), 0 },
-                                    { AOM_CDF2(4514), 0 },
-                                    { AOM_CDF2(31187), 0 },
-                                    { AOM_CDF2(5011), 0 } },
-                                  { { AOM_CDF2(19200), 0 },
-                                    { AOM_CDF2(27721), 0 },
-                                    { AOM_CDF2(7982), 0 },
-                                    { AOM_CDF2(26609), 0 },
-                                    { AOM_CDF2(8128), 0 },
-                                    { AOM_CDF2(31826), 0 },
-                                    { AOM_CDF2(2334), 0 },
-                                    { AOM_CDF2(31361), 0 },
-                                    { AOM_CDF2(2321), 0 } },
-                                  { { AOM_CDF2(19567), 0 },
-                                    { AOM_CDF2(28437), 0 },
-                                    { AOM_CDF2(6801), 0 },
-                                    { AOM_CDF2(25757), 0 },
-                                    { AOM_CDF2(10038), 0 },
-                                    { AOM_CDF2(31927), 0 },
-                                    { AOM_CDF2(2095), 0 },
-                                    { AOM_CDF2(31761), 0 },
-                                    { AOM_CDF2(2139), 0 } },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  } },
-                                { { { AOM_CDF2(18508), 0 },
-                                    { AOM_CDF2(28260), 0 },
-                                    { AOM_CDF2(6366), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(32440), 0 },
-                                    { AOM_CDF2(382), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } },
-                                  { { AOM_CDF2(19940), 0 },
-                                    { AOM_CDF2(30534), 0 },
-                                    { AOM_CDF2(4007), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(32654), 0 },
-                                    { AOM_CDF2(219), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } },
-                                  { { AOM_CDF2(24675), 0 },
-                                    { AOM_CDF2(32391), 0 },
-                                    { AOM_CDF2(1491), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(32758), 0 },
-                                    { AOM_CDF2(105), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  },
-                                  {
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 },  // unused
-                                      { AOM_CDF2(16384), 0 }   // unused
-                                  } }
+                                {
+                                    {
+                                        { AOM_CDF2(15400), 103 },
+                                        { AOM_CDF2(25752), 103 },
+                                        { AOM_CDF2(6411), 103 },
+                                        { AOM_CDF2(29907), 0 },
+                                        { AOM_CDF2(1735), 80 },
+                                        { AOM_CDF2(29773), 94 },
+                                        { AOM_CDF2(3878), 75 },
+                                        { AOM_CDF2(32660), 1 },
+                                        { AOM_CDF2(180), 91 },
+                                    },
+                                    {
+                                        { AOM_CDF2(15290), 0 },
+                                        { AOM_CDF2(28210), 90 },
+                                        { AOM_CDF2(3662), 90 },
+                                        { AOM_CDF2(30884), 0 },
+                                        { AOM_CDF2(626), 78 },
+                                        { AOM_CDF2(30964), 76 },
+                                        { AOM_CDF2(1522), 75 },
+                                        { AOM_CDF2(32648), 75 },
+                                        { AOM_CDF2(56), 120 },
+                                    },
+                                    {
+                                        { AOM_CDF2(10694), 31 },
+                                        { AOM_CDF2(29934), 81 },
+                                        { AOM_CDF2(1212), 76 },
+                                        { AOM_CDF2(32053), 15 },
+                                        { AOM_CDF2(97), 90 },
+                                        { AOM_CDF2(32356), 100 },
+                                        { AOM_CDF2(136), 78 },
+                                        { AOM_CDF2(32751), 106 },
+                                        { AOM_CDF2(8), 108 },
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                },
+                                {
+                                    {
+                                        { AOM_CDF2(18210), 78 },
+                                        { AOM_CDF2(25918), 93 },
+                                        { AOM_CDF2(9621), 93 },
+                                        { AOM_CDF2(29491), 0 },
+                                        { AOM_CDF2(9368), 31 },
+                                        { AOM_CDF2(31030), 90 },
+                                        { AOM_CDF2(3815), 103 },
+                                        { AOM_CDF2(32439), 100 },
+                                        { AOM_CDF2(2455), 0 },
+                                    },
+                                    {
+                                        { AOM_CDF2(18967), 0 },
+                                        { AOM_CDF2(27730), 75 },
+                                        { AOM_CDF2(7456), 75 },
+                                        { AOM_CDF2(30015), 1 },
+                                        { AOM_CDF2(2882), 6 },
+                                        { AOM_CDF2(31783), 90 },
+                                        { AOM_CDF2(2087), 75 },
+                                        { AOM_CDF2(32543), 91 },
+                                        { AOM_CDF2(669), 75 },
+                                    },
+                                    {
+                                        { AOM_CDF2(18273), 7 },
+                                        { AOM_CDF2(27763), 6 },
+                                        { AOM_CDF2(6274), 6 },
+                                        { AOM_CDF2(29647), 32 },
+                                        { AOM_CDF2(1854), 26 },
+                                        { AOM_CDF2(32079), 76 },
+                                        { AOM_CDF2(1083), 0 },
+                                        { AOM_CDF2(32487), 11 },
+                                        { AOM_CDF2(410), 83 },
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                },
+                                {
+                                    {
+                                        { AOM_CDF2(18453), 90 },
+                                        { AOM_CDF2(25590), 75 },
+                                        { AOM_CDF2(10262), 90 },
+                                        { AOM_CDF2(25168), 25 },
+                                        { AOM_CDF2(13246), 1 },
+                                        { AOM_CDF2(31015), 78 },
+                                        { AOM_CDF2(4514), 9 },
+                                        { AOM_CDF2(31187), 49 },
+                                        { AOM_CDF2(5011), 49 },
+                                    },
+                                    {
+                                        { AOM_CDF2(19200), 78 },
+                                        { AOM_CDF2(27721), 78 },
+                                        { AOM_CDF2(7982), 78 },
+                                        { AOM_CDF2(26609), 0 },
+                                        { AOM_CDF2(8128), 6 },
+                                        { AOM_CDF2(31826), 90 },
+                                        { AOM_CDF2(2334), 75 },
+                                        { AOM_CDF2(31361), 45 },
+                                        { AOM_CDF2(2321), 6 },
+                                    },
+                                    {
+                                        { AOM_CDF2(19567), 0 },
+                                        { AOM_CDF2(28437), 0 },
+                                        { AOM_CDF2(6801), 3 },
+                                        { AOM_CDF2(25757), 32 },
+                                        { AOM_CDF2(10038), 7 },
+                                        { AOM_CDF2(31927), 90 },
+                                        { AOM_CDF2(2095), 90 },
+                                        { AOM_CDF2(31761), 31 },
+                                        { AOM_CDF2(2139), 6 },
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                },
+                                {
+                                    {
+                                        { AOM_CDF2(18508), 7 },
+                                        { AOM_CDF2(28260), 3 },
+                                        { AOM_CDF2(6366), 90 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(32440), 50 },
+                                        { AOM_CDF2(382), 50 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(16384), 0 },
+                                    },
+                                    {
+                                        { AOM_CDF2(19940), 2 },
+                                        { AOM_CDF2(30534), 75 },
+                                        { AOM_CDF2(4007), 0 },
+                                        { AOM_CDF2(16384), 100 },
+                                        { AOM_CDF2(16384), 50 },
+                                        { AOM_CDF2(32654), 23 },
+                                        { AOM_CDF2(219), 24 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(16384), 0 },
+                                    },
+                                    {
+                                        { AOM_CDF2(24675), 7 },
+                                        { AOM_CDF2(32391), 75 },
+                                        { AOM_CDF2(1491), 76 },
+                                        { AOM_CDF2(16384), 50 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(32758), 34 },
+                                        { AOM_CDF2(105), 25 },
+                                        { AOM_CDF2(16384), 0 },
+                                        { AOM_CDF2(16384), 0 },
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                    {
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                        { AOM_CDF2(16384), 0 },  // unused
+                                    },
+                                },
                               };
 #else
 static const aom_cdf_prob
@@ -466,54 +498,110 @@ static const aom_cdf_prob
 static const aom_cdf_prob
     av1_default_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS]
                             [DC_SIGN_CONTEXTS][CDF_SIZE(2)] = {
-                              { { { { AOM_CDF2(15453), 0 },
-                                    { AOM_CDF2(10850), 0 },
-                                    { AOM_CDF2(19548), 0 } },
-                                  { { AOM_CDF2(16325), 0 },
-                                    { AOM_CDF2(14962), 0 },
-                                    { AOM_CDF2(18929), 0 } } },
-                                { { { AOM_CDF2(15906), 0 },
-                                    { AOM_CDF2(12486), 0 },
-                                    { AOM_CDF2(18937), 0 } },
-                                  { { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } } } },
-                              { { { { AOM_CDF2(16726), 0 },
-                                    { AOM_CDF2(11701), 0 },
-                                    { AOM_CDF2(19730), 0 } },
-                                  { { AOM_CDF2(17090), 0 },
-                                    { AOM_CDF2(15487), 0 },
-                                    { AOM_CDF2(19186), 0 } } },
-                                { { { AOM_CDF2(16536), 0 },
-                                    { AOM_CDF2(13618), 0 },
-                                    { AOM_CDF2(19285), 0 } },
-                                  { { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } } } },
-                              { { { { AOM_CDF2(17166), 0 },
-                                    { AOM_CDF2(11323), 0 },
-                                    { AOM_CDF2(20062), 0 } },
-                                  { { AOM_CDF2(17264), 0 },
-                                    { AOM_CDF2(15960), 0 },
-                                    { AOM_CDF2(19781), 0 } } },
-                                { { { AOM_CDF2(16417), 0 },
-                                    { AOM_CDF2(12508), 0 },
-                                    { AOM_CDF2(20374), 0 } },
-                                  { { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } } } },
-                              { { { { AOM_CDF2(18369), 0 },
-                                    { AOM_CDF2(12253), 0 },
-                                    { AOM_CDF2(19620), 0 } },
-                                  { { AOM_CDF2(19048), 0 },
-                                    { AOM_CDF2(17951), 0 },
-                                    { AOM_CDF2(19796), 0 } } },
-                                { { { AOM_CDF2(15662), 0 },
-                                    { AOM_CDF2(10440), 0 },
-                                    { AOM_CDF2(22078), 0 } },
-                                  { { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 } } } },
+                              {
+                                  {
+                                      {
+                                          { AOM_CDF2(15453), 1 },
+                                          { AOM_CDF2(10850), 0 },
+                                          { AOM_CDF2(19548), 1 },
+                                      },
+                                      {
+                                          { AOM_CDF2(16325), 75 },
+                                          { AOM_CDF2(14962), 75 },
+                                          { AOM_CDF2(18929), 75 },
+                                      },
+                                  },
+                                  {
+                                      {
+                                          { AOM_CDF2(15906), 1 },
+                                          { AOM_CDF2(12486), 75 },
+                                          { AOM_CDF2(18937), 75 },
+                                      },
+                                      {
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                      },
+                                  },
+                              },
+                              {
+                                  {
+                                      {
+                                          { AOM_CDF2(16726), 75 },
+                                          { AOM_CDF2(11701), 75 },
+                                          { AOM_CDF2(19730), 0 },
+                                      },
+                                      {
+                                          { AOM_CDF2(17090), 93 },
+                                          { AOM_CDF2(15487), 78 },
+                                          { AOM_CDF2(19186), 93 },
+                                      },
+                                  },
+                                  {
+                                      {
+                                          { AOM_CDF2(16536), 90 },
+                                          { AOM_CDF2(13618), 75 },
+                                          { AOM_CDF2(19285), 75 },
+                                      },
+                                      {
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                      },
+                                  },
+                              },
+                              {
+                                  {
+                                      {
+                                          { AOM_CDF2(17166), 75 },
+                                          { AOM_CDF2(11323), 75 },
+                                          { AOM_CDF2(20062), 0 },
+                                      },
+                                      {
+                                          { AOM_CDF2(17264), 93 },
+                                          { AOM_CDF2(15960), 90 },
+                                          { AOM_CDF2(19781), 93 },
+                                      },
+                                  },
+                                  {
+                                      {
+                                          { AOM_CDF2(16417), 75 },
+                                          { AOM_CDF2(12508), 75 },
+                                          { AOM_CDF2(20374), 75 },
+                                      },
+                                      {
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                      },
+                                  },
+                              },
+                              {
+                                  {
+                                      {
+                                          { AOM_CDF2(18369), 0 },
+                                          { AOM_CDF2(12253), 1 },
+                                          { AOM_CDF2(19620), 0 },
+                                      },
+                                      {
+                                          { AOM_CDF2(19048), 75 },
+                                          { AOM_CDF2(17951), 90 },
+                                          { AOM_CDF2(19796), 90 },
+                                      },
+                                  },
+                                  {
+                                      {
+                                          { AOM_CDF2(15662), 6 },
+                                          { AOM_CDF2(10440), 1 },
+                                          { AOM_CDF2(22078), 1 },
+                                      },
+                                      {
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                          { AOM_CDF2(16384), 0 },
+                                      },
+                                  },
+                              },
                             };
 #else
 static const aom_cdf_prob
@@ -661,21 +749,21 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
       {
           {
               {
-                  { AOM_CDF2(30676), 103 }, { AOM_CDF2(1817), 103 },
-                  { AOM_CDF2(5257), 0 },    { AOM_CDF2(11824), 1 },
-                  { AOM_CDF2(18862), 6 },   { AOM_CDF2(31436), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(9076), 0 },
-                  { AOM_CDF2(15764), 0 },   { AOM_CDF2(24131), 1 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(30676), 5 }, { AOM_CDF2(1817), 118 },
+                  { AOM_CDF2(5257), 5 },  { AOM_CDF2(11824), 31 },
+                  { AOM_CDF2(18862), 1 }, { AOM_CDF2(31436), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(9076), 1 },
+                  { AOM_CDF2(15764), 0 }, { AOM_CDF2(24131), 5 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(31680), 75 }, { AOM_CDF2(2826), 118 },
-                  { AOM_CDF2(7094), 0 },   { AOM_CDF2(15183), 31 },
-                  { AOM_CDF2(20827), 91 }, { AOM_CDF2(31633), 0 },
+                  { AOM_CDF2(31680), 26 }, { AOM_CDF2(2826), 23 },
+                  { AOM_CDF2(7094), 1 },   { AOM_CDF2(15183), 31 },
+                  { AOM_CDF2(20827), 1 },  { AOM_CDF2(31633), 30 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(7664), 75 },
                   { AOM_CDF2(15595), 1 },  { AOM_CDF2(24849), 1 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -685,11 +773,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(28327), 31 }, { AOM_CDF2(4727), 1 },
-                  { AOM_CDF2(9135), 77 },  { AOM_CDF2(17069), 7 },
-                  { AOM_CDF2(19658), 91 }, { AOM_CDF2(30914), 76 },
+                  { AOM_CDF2(28327), 57 }, { AOM_CDF2(4727), 1 },
+                  { AOM_CDF2(9135), 7 },   { AOM_CDF2(17069), 6 },
+                  { AOM_CDF2(19658), 79 }, { AOM_CDF2(30914), 80 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(3695), 0 },
-                  { AOM_CDF2(13683), 1 },  { AOM_CDF2(25695), 6 },
+                  { AOM_CDF2(13683), 26 }, { AOM_CDF2(25695), 31 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -697,11 +785,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(15188), 37 }, { AOM_CDF2(1638), 0 },
-                  { AOM_CDF2(6781), 34 },  { AOM_CDF2(10684), 33 },
-                  { AOM_CDF2(12336), 60 }, { AOM_CDF2(28734), 47 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(5301), 25 },
-                  { AOM_CDF2(21879), 32 }, { AOM_CDF2(28445), 4 },
+                  { AOM_CDF2(15188), 62 }, { AOM_CDF2(1638), 39 },
+                  { AOM_CDF2(6781), 20 },  { AOM_CDF2(10684), 30 },
+                  { AOM_CDF2(12336), 0 },  { AOM_CDF2(28734), 50 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(5301), 31 },
+                  { AOM_CDF2(21879), 62 }, { AOM_CDF2(28445), 44 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -710,7 +798,7 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
               },
               {
                   { AOM_CDF2(18113), 62 }, { AOM_CDF2(1731), 50 },
-                  { AOM_CDF2(20535), 50 }, { AOM_CDF2(29110), 50 },
+                  { AOM_CDF2(20535), 0 },  { AOM_CDF2(29110), 50 },
                   { AOM_CDF2(32670), 0 },  { AOM_CDF2(32577), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -723,35 +811,35 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
           },
           {
               {
-                  { AOM_CDF2(32734), 123 }, { AOM_CDF2(14456), 124 },
-                  { AOM_CDF2(12935), 124 }, { AOM_CDF2(24660), 4 },
-                  { AOM_CDF2(27344), 55 },  { AOM_CDF2(32086), 103 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(2715), 75 },
-                  { AOM_CDF2(13236), 1 },   { AOM_CDF2(25338), 76 },
+                  { AOM_CDF2(32734), 123 }, { AOM_CDF2(14456), 75 },
+                  { AOM_CDF2(12935), 4 },   { AOM_CDF2(24660), 98 },
+                  { AOM_CDF2(27344), 38 },  { AOM_CDF2(32086), 118 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(2715), 1 },
+                  { AOM_CDF2(13236), 1 },   { AOM_CDF2(25338), 1 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(29599), 5 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(32663), 123 }, { AOM_CDF2(14570), 120 },
-                  { AOM_CDF2(17992), 75 },  { AOM_CDF2(22899), 93 },
-                  { AOM_CDF2(27330), 75 },  { AOM_CDF2(31876), 118 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(3290), 75 },
-                  { AOM_CDF2(12288), 6 },   { AOM_CDF2(23325), 76 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(30901), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(29599), 80 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32333), 5 },   { AOM_CDF2(18623), 4 },
-                  { AOM_CDF2(19890), 115 }, { AOM_CDF2(23535), 1 },
-                  { AOM_CDF2(27371), 3 },   { AOM_CDF2(31683), 15 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(5302), 91 },
-                  { AOM_CDF2(19163), 27 },  { AOM_CDF2(28093), 77 },
+                  { AOM_CDF2(32663), 6 },   { AOM_CDF2(14570), 123 },
+                  { AOM_CDF2(17992), 118 }, { AOM_CDF2(22899), 93 },
+                  { AOM_CDF2(27330), 100 }, { AOM_CDF2(31876), 123 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(3290), 0 },
+                  { AOM_CDF2(12288), 1 },   { AOM_CDF2(23325), 1 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(30901), 75 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(32333), 31 },  { AOM_CDF2(18623), 78 },
+                  { AOM_CDF2(19890), 93 },  { AOM_CDF2(23535), 21 },
+                  { AOM_CDF2(27371), 121 }, { AOM_CDF2(31683), 98 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(5302), 0 },
+                  { AOM_CDF2(19163), 2 },   { AOM_CDF2(28093), 75 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(25920), 31 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
@@ -759,19 +847,19 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(28335), 37 },  { AOM_CDF2(19661), 12 },
-                  { AOM_CDF2(26985), 100 }, { AOM_CDF2(25486), 96 },
-                  { AOM_CDF2(30794), 75 },  { AOM_CDF2(29588), 24 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(12429), 37 },
-                  { AOM_CDF2(26455), 10 },  { AOM_CDF2(29789), 25 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(19150), 53 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(28335), 62 }, { AOM_CDF2(19661), 80 },
+                  { AOM_CDF2(26985), 50 }, { AOM_CDF2(25486), 87 },
+                  { AOM_CDF2(30794), 25 }, { AOM_CDF2(29588), 10 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(12429), 50 },
+                  { AOM_CDF2(26455), 50 }, { AOM_CDF2(29789), 50 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(19150), 55 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(20735), 55 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(20735), 60 }, { AOM_CDF2(16384), 50 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -787,11 +875,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
       {
           {
               {
-                  { AOM_CDF2(28488), 75 }, { AOM_CDF2(1447), 118 },
-                  { AOM_CDF2(3421), 100 }, { AOM_CDF2(8913), 1 },
-                  { AOM_CDF2(15539), 6 },  { AOM_CDF2(28811), 30 },
+                  { AOM_CDF2(28488), 0 },  { AOM_CDF2(1447), 78 },
+                  { AOM_CDF2(3421), 76 },  { AOM_CDF2(8913), 31 },
+                  { AOM_CDF2(15539), 31 }, { AOM_CDF2(28811), 8 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(3005), 0 },
-                  { AOM_CDF2(14073), 75 }, { AOM_CDF2(25450), 0 },
+                  { AOM_CDF2(14073), 0 },  { AOM_CDF2(25450), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -799,11 +887,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(30864), 75 }, { AOM_CDF2(1270), 118 },
-                  { AOM_CDF2(2930), 90 },  { AOM_CDF2(9276), 6 },
-                  { AOM_CDF2(15981), 6 },  { AOM_CDF2(29037), 6 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(3943), 75 },
-                  { AOM_CDF2(11814), 1 },  { AOM_CDF2(23331), 31 },
+                  { AOM_CDF2(30864), 0 },  { AOM_CDF2(1270), 93 },
+                  { AOM_CDF2(2930), 75 },  { AOM_CDF2(9276), 31 },
+                  { AOM_CDF2(15981), 31 }, { AOM_CDF2(29037), 5 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(3943), 0 },
+                  { AOM_CDF2(11814), 6 },  { AOM_CDF2(23331), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -811,23 +899,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(30925), 5 }, { AOM_CDF2(2053), 75 },
-                  { AOM_CDF2(5522), 6 },  { AOM_CDF2(14326), 6 },
-                  { AOM_CDF2(19221), 6 }, { AOM_CDF2(30087), 6 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(4514), 0 },
-                  { AOM_CDF2(12162), 1 }, { AOM_CDF2(21266), 6 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(27190), 32 }, { AOM_CDF2(1099), 93 },
-                  { AOM_CDF2(5241), 8 },   { AOM_CDF2(11687), 31 },
-                  { AOM_CDF2(16933), 9 },  { AOM_CDF2(27101), 32 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(5062), 6 },
-                  { AOM_CDF2(14756), 32 }, { AOM_CDF2(22099), 6 },
+                  { AOM_CDF2(30925), 0 },  { AOM_CDF2(2053), 75 },
+                  { AOM_CDF2(5522), 6 },   { AOM_CDF2(14326), 32 },
+                  { AOM_CDF2(19221), 6 },  { AOM_CDF2(30087), 1 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(4514), 1 },
+                  { AOM_CDF2(12162), 31 }, { AOM_CDF2(21266), 6 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -835,9 +911,21 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(26974), 32 },  { AOM_CDF2(2361), 96 },
-                  { AOM_CDF2(7694), 57 },   { AOM_CDF2(20908), 60 },
-                  { AOM_CDF2(21996), 100 }, { AOM_CDF2(27307), 35 },
+                  { AOM_CDF2(27190), 37 }, { AOM_CDF2(1099), 75 },
+                  { AOM_CDF2(5241), 4 },   { AOM_CDF2(11687), 32 },
+                  { AOM_CDF2(16933), 40 }, { AOM_CDF2(27101), 32 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(5062), 31 },
+                  { AOM_CDF2(14756), 32 }, { AOM_CDF2(22099), 31 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(26974), 62 },  { AOM_CDF2(2361), 29 },
+                  { AOM_CDF2(7694), 30 },   { AOM_CDF2(20908), 62 },
+                  { AOM_CDF2(21996), 120 }, { AOM_CDF2(27307), 62 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
@@ -849,57 +937,57 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
           },
           {
               {
-                  { AOM_CDF2(32743), 114 }, { AOM_CDF2(12017), 120 },
-                  { AOM_CDF2(14431), 95 },  { AOM_CDF2(18541), 5 },
-                  { AOM_CDF2(23529), 9 },   { AOM_CDF2(28333), 14 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(1586), 90 },
-                  { AOM_CDF2(11933), 1 },   { AOM_CDF2(22576), 118 },
+                  { AOM_CDF2(32743), 118 }, { AOM_CDF2(12017), 116 },
+                  { AOM_CDF2(14431), 6 },   { AOM_CDF2(18541), 5 },
+                  { AOM_CDF2(23529), 5 },   { AOM_CDF2(28333), 8 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(1586), 1 },
+                  { AOM_CDF2(11933), 1 },   { AOM_CDF2(22576), 90 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32072), 15 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32072), 3 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32690), 98 }, { AOM_CDF2(13594), 124 },
-                  { AOM_CDF2(14658), 90 }, { AOM_CDF2(18152), 100 },
-                  { AOM_CDF2(23557), 75 }, { AOM_CDF2(29321), 78 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1056), 90 },
-                  { AOM_CDF2(10778), 1 },  { AOM_CDF2(22345), 1 },
+                  { AOM_CDF2(32690), 118 }, { AOM_CDF2(13594), 124 },
+                  { AOM_CDF2(14658), 120 }, { AOM_CDF2(18152), 90 },
+                  { AOM_CDF2(23557), 75 },  { AOM_CDF2(29321), 118 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(1056), 0 },
+                  { AOM_CDF2(10778), 1 },   { AOM_CDF2(22345), 1 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32151), 75 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(32578), 75 },  { AOM_CDF2(13948), 124 },
+                  { AOM_CDF2(17649), 116 }, { AOM_CDF2(18661), 76 },
+                  { AOM_CDF2(26084), 75 },  { AOM_CDF2(30559), 90 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(1503), 1 },
+                  { AOM_CDF2(13773), 6 },   { AOM_CDF2(25790), 1 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(30145), 2 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(32018), 31 }, { AOM_CDF2(14713), 84 },
+                  { AOM_CDF2(16085), 7 },  { AOM_CDF2(20831), 7 },
+                  { AOM_CDF2(24132), 16 }, { AOM_CDF2(30161), 1 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(3201), 31 },
+                  { AOM_CDF2(19212), 6 },  { AOM_CDF2(27653), 6 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(32151), 100 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(21398), 62 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32578), 1 },  { AOM_CDF2(13948), 124 },
-                  { AOM_CDF2(17649), 82 }, { AOM_CDF2(18661), 91 },
-                  { AOM_CDF2(26084), 1 },  { AOM_CDF2(30559), 90 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1503), 75 },
-                  { AOM_CDF2(13773), 7 },  { AOM_CDF2(25790), 1 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(30145), 77 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(32018), 32 }, { AOM_CDF2(14713), 120 },
-                  { AOM_CDF2(16085), 0 },  { AOM_CDF2(20831), 2 },
-                  { AOM_CDF2(24132), 24 }, { AOM_CDF2(30161), 22 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(3201), 6 },
-                  { AOM_CDF2(19212), 7 },  { AOM_CDF2(27653), 35 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(21398), 64 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(29922), 31 }, { AOM_CDF2(6502), 39 },
-                  { AOM_CDF2(21194), 35 }, { AOM_CDF2(25437), 27 },
-                  { AOM_CDF2(30629), 20 }, { AOM_CDF2(31813), 22 },
+                  { AOM_CDF2(29922), 32 }, { AOM_CDF2(6502), 35 },
+                  { AOM_CDF2(21194), 20 }, { AOM_CDF2(25437), 46 },
+                  { AOM_CDF2(30629), 94 }, { AOM_CDF2(31813), 124 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -913,11 +1001,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
       {
           {
               {
-                  { AOM_CDF2(26149), 0 },  { AOM_CDF2(2177), 105 },
-                  { AOM_CDF2(3177), 80 },  { AOM_CDF2(7716), 5 },
-                  { AOM_CDF2(11613), 26 }, { AOM_CDF2(23660), 30 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1018), 5 },
-                  { AOM_CDF2(12076), 0 },  { AOM_CDF2(19285), 90 },
+                  { AOM_CDF2(26149), 78 }, { AOM_CDF2(2177), 75 },
+                  { AOM_CDF2(3177), 75 },  { AOM_CDF2(7716), 1 },
+                  { AOM_CDF2(11613), 1 },  { AOM_CDF2(23660), 5 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1018), 75 },
+                  { AOM_CDF2(12076), 75 }, { AOM_CDF2(19285), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -925,10 +1013,10 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(27839), 0 },  { AOM_CDF2(1454), 118 },
-                  { AOM_CDF2(1988), 75 },  { AOM_CDF2(6252), 0 },
-                  { AOM_CDF2(10044), 31 }, { AOM_CDF2(22153), 31 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(2172), 0 },
+                  { AOM_CDF2(27839), 75 }, { AOM_CDF2(1454), 118 },
+                  { AOM_CDF2(1988), 75 },  { AOM_CDF2(6252), 1 },
+                  { AOM_CDF2(10044), 6 },  { AOM_CDF2(22153), 6 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(2172), 75 },
                   { AOM_CDF2(11905), 0 },  { AOM_CDF2(20438), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -937,11 +1025,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(30478), 5 }, { AOM_CDF2(1746), 115 },
+                  { AOM_CDF2(30478), 0 }, { AOM_CDF2(1746), 90 },
                   { AOM_CDF2(2692), 76 }, { AOM_CDF2(9750), 6 },
-                  { AOM_CDF2(13018), 6 }, { AOM_CDF2(26848), 6 },
+                  { AOM_CDF2(13018), 6 }, { AOM_CDF2(26848), 5 },
                   { AOM_CDF2(16384), 0 }, { AOM_CDF2(2970), 75 },
-                  { AOM_CDF2(10430), 6 }, { AOM_CDF2(19344), 6 },
+                  { AOM_CDF2(10430), 1 }, { AOM_CDF2(19344), 1 },
                   { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
@@ -949,11 +1037,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(31989), 31 }, { AOM_CDF2(1131), 78 },
-                  { AOM_CDF2(2226), 6 },   { AOM_CDF2(8985), 32 },
-                  { AOM_CDF2(10332), 7 },  { AOM_CDF2(21625), 7 },
+                  { AOM_CDF2(31989), 31 }, { AOM_CDF2(1131), 75 },
+                  { AOM_CDF2(2226), 7 },   { AOM_CDF2(8985), 32 },
+                  { AOM_CDF2(10332), 6 },  { AOM_CDF2(21625), 35 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(3945), 1 },
-                  { AOM_CDF2(11479), 2 },  { AOM_CDF2(19011), 6 },
+                  { AOM_CDF2(11479), 7 },  { AOM_CDF2(19011), 6 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -962,8 +1050,8 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
               },
               {
                   { AOM_CDF2(32001), 31 }, { AOM_CDF2(5203), 31 },
-                  { AOM_CDF2(13488), 7 },  { AOM_CDF2(24035), 31 },
-                  { AOM_CDF2(25718), 96 }, { AOM_CDF2(30402), 0 },
+                  { AOM_CDF2(13488), 26 }, { AOM_CDF2(24035), 32 },
+                  { AOM_CDF2(25718), 17 }, { AOM_CDF2(30402), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -975,23 +1063,23 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
           },
           {
               {
-                  { AOM_CDF2(32758), 4 },   { AOM_CDF2(9039), 100 },
-                  { AOM_CDF2(11611), 100 }, { AOM_CDF2(13405), 120 },
-                  { AOM_CDF2(12399), 25 },  { AOM_CDF2(18204), 100 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(797), 18 },
-                  { AOM_CDF2(6774), 20 },   { AOM_CDF2(16118), 22 },
+                  { AOM_CDF2(32758), 103 }, { AOM_CDF2(9039), 112 },
+                  { AOM_CDF2(11611), 5 },   { AOM_CDF2(13405), 15 },
+                  { AOM_CDF2(12399), 30 },  { AOM_CDF2(18204), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(797), 75 },
+                  { AOM_CDF2(6774), 75 },   { AOM_CDF2(16118), 1 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32625), 15 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32625), 95 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32748), 118 }, { AOM_CDF2(13312), 124 },
-                  { AOM_CDF2(12971), 118 }, { AOM_CDF2(17162), 123 },
-                  { AOM_CDF2(22019), 75 },  { AOM_CDF2(28848), 78 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(597), 93 },
-                  { AOM_CDF2(8357), 96 },   { AOM_CDF2(18563), 90 },
+                  { AOM_CDF2(32748), 123 }, { AOM_CDF2(13312), 124 },
+                  { AOM_CDF2(12971), 124 }, { AOM_CDF2(17162), 118 },
+                  { AOM_CDF2(22019), 93 },  { AOM_CDF2(28848), 75 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(597), 90 },
+                  { AOM_CDF2(8357), 1 },    { AOM_CDF2(18563), 1 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(29773), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
@@ -999,23 +1087,23 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32746), 105 }, { AOM_CDF2(15541), 124 },
-                  { AOM_CDF2(19956), 76 },  { AOM_CDF2(18718), 91 },
-                  { AOM_CDF2(25385), 0 },   { AOM_CDF2(27478), 76 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(1129), 76 },
-                  { AOM_CDF2(13402), 6 },   { AOM_CDF2(22799), 21 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(27870), 6 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(32746), 75 }, { AOM_CDF2(15541), 124 },
+                  { AOM_CDF2(19956), 76 }, { AOM_CDF2(18718), 90 },
+                  { AOM_CDF2(25385), 76 }, { AOM_CDF2(27478), 90 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1129), 75 },
+                  { AOM_CDF2(13402), 6 },  { AOM_CDF2(22799), 1 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(27870), 7 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32720), 6 },  { AOM_CDF2(13119), 120 },
-                  { AOM_CDF2(24726), 10 }, { AOM_CDF2(20263), 95 },
-                  { AOM_CDF2(23308), 20 }, { AOM_CDF2(29238), 35 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1274), 8 },
-                  { AOM_CDF2(19978), 24 }, { AOM_CDF2(30042), 14 },
+                  { AOM_CDF2(32720), 6 },  { AOM_CDF2(13119), 121 },
+                  { AOM_CDF2(24726), 82 }, { AOM_CDF2(20263), 76 },
+                  { AOM_CDF2(23308), 1 },  { AOM_CDF2(29238), 5 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1274), 1 },
+                  { AOM_CDF2(19978), 7 },  { AOM_CDF2(30042), 6 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(20431), 57 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -1023,9 +1111,9 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32553), 36 }, { AOM_CDF2(14431), 75 },
-                  { AOM_CDF2(24895), 6 },  { AOM_CDF2(24202), 13 },
-                  { AOM_CDF2(28776), 12 }, { AOM_CDF2(29362), 20 },
+                  { AOM_CDF2(32553), 31 }, { AOM_CDF2(14431), 6 },
+                  { AOM_CDF2(24895), 7 },  { AOM_CDF2(24202), 6 },
+                  { AOM_CDF2(28776), 7 },  { AOM_CDF2(29362), 76 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -1039,11 +1127,11 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
       {
           {
               {
-                  { AOM_CDF2(22722), 95 }, { AOM_CDF2(2145), 80 },
-                  { AOM_CDF2(2324), 15 },  { AOM_CDF2(5498), 5 },
-                  { AOM_CDF2(4880), 29 },  { AOM_CDF2(9950), 1 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(346), 20 },
-                  { AOM_CDF2(4746), 120 }, { AOM_CDF2(10806), 50 },
+                  { AOM_CDF2(22722), 90 }, { AOM_CDF2(2145), 75 },
+                  { AOM_CDF2(2324), 90 },  { AOM_CDF2(5498), 0 },
+                  { AOM_CDF2(4880), 0 },   { AOM_CDF2(9950), 1 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(346), 75 },
+                  { AOM_CDF2(4746), 0 },   { AOM_CDF2(10806), 45 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -1051,35 +1139,35 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(27410), 5 }, { AOM_CDF2(2663), 90 },
-                  { AOM_CDF2(2718), 75 }, { AOM_CDF2(6587), 0 },
-                  { AOM_CDF2(8350), 1 },  { AOM_CDF2(15587), 31 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(1549), 0 },
-                  { AOM_CDF2(7068), 96 }, { AOM_CDF2(9967), 92 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(27410), 0 },  { AOM_CDF2(2663), 118 },
+                  { AOM_CDF2(2718), 115 }, { AOM_CDF2(6587), 75 },
+                  { AOM_CDF2(8350), 1 },   { AOM_CDF2(15587), 6 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1549), 75 },
+                  { AOM_CDF2(7068), 90 },  { AOM_CDF2(9967), 90 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(30222), 30 }, { AOM_CDF2(2592), 115 },
-                  { AOM_CDF2(2729), 75 },  { AOM_CDF2(7930), 6 },
-                  { AOM_CDF2(8953), 31 },  { AOM_CDF2(19530), 31 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1654), 75 },
-                  { AOM_CDF2(6118), 0 },   { AOM_CDF2(11631), 75 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(30222), 0 }, { AOM_CDF2(2592), 115 },
+                  { AOM_CDF2(2729), 90 }, { AOM_CDF2(7930), 1 },
+                  { AOM_CDF2(8953), 6 },  { AOM_CDF2(19530), 6 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(1654), 75 },
+                  { AOM_CDF2(6118), 76 }, { AOM_CDF2(11631), 76 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
               },
               {
                   { AOM_CDF2(31109), 31 }, { AOM_CDF2(935), 118 },
-                  { AOM_CDF2(1406), 6 },   { AOM_CDF2(6229), 7 },
-                  { AOM_CDF2(6543), 12 },  { AOM_CDF2(15500), 31 },
+                  { AOM_CDF2(1406), 76 },  { AOM_CDF2(6229), 7 },
+                  { AOM_CDF2(6543), 12 },  { AOM_CDF2(15500), 39 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(3194), 1 },
-                  { AOM_CDF2(10063), 1 },  { AOM_CDF2(16398), 1 },
+                  { AOM_CDF2(10063), 2 },  { AOM_CDF2(16398), 2 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
@@ -1087,9 +1175,9 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32586), 123 }, { AOM_CDF2(8079), 6 },
-                  { AOM_CDF2(15142), 1 },   { AOM_CDF2(24722), 1 },
-                  { AOM_CDF2(26585), 90 },  { AOM_CDF2(31608), 0 },
+                  { AOM_CDF2(32586), 123 }, { AOM_CDF2(8079), 7 },
+                  { AOM_CDF2(15142), 2 },   { AOM_CDF2(24722), 75 },
+                  { AOM_CDF2(26585), 90 },  { AOM_CDF2(31608), 1 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
@@ -1101,64 +1189,64 @@ static const aom_cdf_prob av1_default_txb_skip_cdfs
           },
           {
               {
-                  { AOM_CDF2(30037), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(80), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(32566), 25 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(32744), 50 },  { AOM_CDF2(13125), 124 },
-                  { AOM_CDF2(10535), 104 }, { AOM_CDF2(14316), 124 },
-                  { AOM_CDF2(12072), 122 }, { AOM_CDF2(21017), 99 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(270), 94 },
-                  { AOM_CDF2(4425), 115 },  { AOM_CDF2(10923), 25 },
+                  { AOM_CDF2(30037), 54 },  { AOM_CDF2(16384), 24 },
+                  { AOM_CDF2(16384), 103 }, { AOM_CDF2(16384), 49 },
+                  { AOM_CDF2(16384), 90 },  { AOM_CDF2(16384), 20 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(80), 3 },
+                  { AOM_CDF2(16384), 26 },  { AOM_CDF2(16384), 9 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32205), 110 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32566), 9 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32758), 0 },  { AOM_CDF2(12734), 124 },
-                  { AOM_CDF2(14371), 99 }, { AOM_CDF2(15925), 0 },
-                  { AOM_CDF2(24258), 22 }, { AOM_CDF2(26907), 20 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(540), 90 },
-                  { AOM_CDF2(5661), 35 },  { AOM_CDF2(13902), 25 },
+                  { AOM_CDF2(32744), 23 },  { AOM_CDF2(13125), 124 },
+                  { AOM_CDF2(10535), 119 }, { AOM_CDF2(14316), 118 },
+                  { AOM_CDF2(12072), 77 },  { AOM_CDF2(21017), 76 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(270), 75 },
+                  { AOM_CDF2(4425), 1 },    { AOM_CDF2(10923), 6 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(32205), 105 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(32758), 115 }, { AOM_CDF2(12734), 124 },
+                  { AOM_CDF2(14371), 76 },  { AOM_CDF2(15925), 90 },
+                  { AOM_CDF2(24258), 1 },   { AOM_CDF2(26907), 76 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(540), 76 },
+                  { AOM_CDF2(5661), 6 },    { AOM_CDF2(13902), 6 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(31522), 5 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+              },
+              {
+                  { AOM_CDF2(32759), 76 }, { AOM_CDF2(12730), 123 },
+                  { AOM_CDF2(12867), 7 },  { AOM_CDF2(15844), 77 },
+                  { AOM_CDF2(28087), 9 },  { AOM_CDF2(29647), 47 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1185), 6 },
+                  { AOM_CDF2(9765), 1 },   { AOM_CDF2(18440), 6 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(31522), 10 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(18801), 64 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
               {
-                  { AOM_CDF2(32759), 50 }, { AOM_CDF2(12730), 100 },
-                  { AOM_CDF2(12867), 25 }, { AOM_CDF2(15844), 75 },
-                  { AOM_CDF2(28087), 25 }, { AOM_CDF2(29647), 50 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(1185), 1 },
-                  { AOM_CDF2(9765), 19 },  { AOM_CDF2(18440), 100 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(18801), 30 },
+                  { AOM_CDF2(32748), 76 }, { AOM_CDF2(14252), 2 },
+                  { AOM_CDF2(19389), 1 },  { AOM_CDF2(22827), 7 },
+                  { AOM_CDF2(26187), 4 },  { AOM_CDF2(28282), 14 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
                   { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
-              },
-              {
-                  { AOM_CDF2(32748), 0 },   { AOM_CDF2(14252), 76 },
-                  { AOM_CDF2(19389), 95 },  { AOM_CDF2(22827), 93 },
-                  { AOM_CDF2(26187), 120 }, { AOM_CDF2(28282), 10 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
-                  { AOM_CDF2(16384), 0 },   { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
+                  { AOM_CDF2(16384), 0 },  { AOM_CDF2(16384), 0 },
               },
           },
       },
@@ -1316,59 +1404,59 @@ static const aom_cdf_prob
                                [CDF_SIZE(2)] = {
                                  {
                                      { AOM_CDF2(1925), 103 },
-                                     { AOM_CDF2(6814), 75 },
+                                     { AOM_CDF2(6814), 95 },
                                      { AOM_CDF2(15440), 1 },
-                                     { AOM_CDF2(559), 4 },
-                                     { AOM_CDF2(10552), 50 },
-                                     { AOM_CDF2(30583), 50 },
+                                     { AOM_CDF2(559), 50 },
+                                     { AOM_CDF2(10552), 0 },
+                                     { AOM_CDF2(30583), 0 },
                                      { AOM_CDF2(8138), 90 },
-                                     { AOM_CDF2(15535), 0 },
-                                     { AOM_CDF2(23596), 90 },
+                                     { AOM_CDF2(15535), 90 },
+                                     { AOM_CDF2(23596), 75 },
                                      { AOM_CDF2(17114), 50 },
                                      { AOM_CDF2(26785), 0 },
-                                     { AOM_CDF2(28672), 110 },
+                                     { AOM_CDF2(28672), 0 },
                                  },
                                  {
-                                     { AOM_CDF2(964), 90 },
-                                     { AOM_CDF2(6326), 76 },
-                                     { AOM_CDF2(16496), 6 },
-                                     { AOM_CDF2(3332), 16 },
-                                     { AOM_CDF2(11334), 16 },
-                                     { AOM_CDF2(17641), 31 },
+                                     { AOM_CDF2(964), 93 },
+                                     { AOM_CDF2(6326), 75 },
+                                     { AOM_CDF2(16496), 1 },
+                                     { AOM_CDF2(3332), 34 },
+                                     { AOM_CDF2(11334), 32 },
+                                     { AOM_CDF2(17641), 35 },
                                      { AOM_CDF2(7634), 75 },
-                                     { AOM_CDF2(14504), 75 },
+                                     { AOM_CDF2(14504), 0 },
                                      { AOM_CDF2(22398), 75 },
-                                     { AOM_CDF2(12534), 5 },
-                                     { AOM_CDF2(17711), 15 },
-                                     { AOM_CDF2(21845), 10 },
+                                     { AOM_CDF2(12534), 10 },
+                                     { AOM_CDF2(17711), 37 },
+                                     { AOM_CDF2(21845), 45 },
                                  },
                                  {
-                                     { AOM_CDF2(1192), 90 },
-                                     { AOM_CDF2(7341), 0 },
+                                     { AOM_CDF2(1192), 93 },
+                                     { AOM_CDF2(7341), 75 },
                                      { AOM_CDF2(15515), 0 },
-                                     { AOM_CDF2(1380), 75 },
-                                     { AOM_CDF2(4501), 6 },
-                                     { AOM_CDF2(11822), 25 },
+                                     { AOM_CDF2(1380), 1 },
+                                     { AOM_CDF2(4501), 37 },
+                                     { AOM_CDF2(11822), 32 },
                                      { AOM_CDF2(8035), 90 },
-                                     { AOM_CDF2(12970), 90 },
+                                     { AOM_CDF2(12970), 75 },
                                      { AOM_CDF2(18643), 75 },
-                                     { AOM_CDF2(13852), 12 },
-                                     { AOM_CDF2(16425), 22 },
-                                     { AOM_CDF2(17196), 20 },
+                                     { AOM_CDF2(13852), 32 },
+                                     { AOM_CDF2(16425), 7 },
+                                     { AOM_CDF2(17196), 32 },
                                  },
                                  {
-                                     { AOM_CDF2(1362), 75 },
+                                     { AOM_CDF2(1362), 90 },
                                      { AOM_CDF2(5405), 0 },
                                      { AOM_CDF2(10235), 75 },
-                                     { AOM_CDF2(987), 75 },
-                                     { AOM_CDF2(4061), 1 },
-                                     { AOM_CDF2(6884), 105 },
-                                     { AOM_CDF2(8915), 0 },
+                                     { AOM_CDF2(987), 76 },
+                                     { AOM_CDF2(4061), 7 },
+                                     { AOM_CDF2(6884), 37 },
+                                     { AOM_CDF2(8915), 76 },
                                      { AOM_CDF2(12716), 75 },
-                                     { AOM_CDF2(16989), 7 },
-                                     { AOM_CDF2(14550), 0 },
-                                     { AOM_CDF2(16220), 19 },
-                                     { AOM_CDF2(18128), 95 },
+                                     { AOM_CDF2(16989), 75 },
+                                     { AOM_CDF2(14550), 34 },
+                                     { AOM_CDF2(16220), 9 },
+                                     { AOM_CDF2(18128), 47 },
                                  },
                                };
 #else
@@ -1438,82 +1526,114 @@ static const aom_cdf_prob
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB]
     [CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
-      { { { AOM_CDF3(9327, 16633), 0 },
-          { AOM_CDF3(12473, 20430), 0 },
-          { AOM_CDF3(11006, 19355), 0 } },
-        { { AOM_CDF3(10104, 16597), 0 },
-          { AOM_CDF3(13122, 19983), 0 },
-          { AOM_CDF3(13695, 21298), 0 } },
-        { { AOM_CDF3(8776, 13455), 0 },
-          { AOM_CDF3(10846, 15705), 0 },
-          { AOM_CDF3(11467, 17659), 0 } },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        } },
-      { { { AOM_CDF3(17292, 23855), 0 },
-          { AOM_CDF3(19621, 25643), 0 },
-          { AOM_CDF3(17055, 25342), 0 } },
-        { { AOM_CDF3(19366, 26667), 0 },
-          { AOM_CDF3(21918, 28378), 0 },
-          { AOM_CDF3(21806, 28925), 0 } },
-        { { AOM_CDF3(23142, 29184), 0 },
-          { AOM_CDF3(25565, 30488), 0 },
-          { AOM_CDF3(26465, 30728), 0 } },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        } },
-      { { { AOM_CDF3(17235, 25080), 0 },
-          { AOM_CDF3(18542, 26200), 0 },
-          { AOM_CDF3(16850, 26452), 0 } },
-        { { AOM_CDF3(20758, 27807), 0 },
-          { AOM_CDF3(22683, 29011), 0 },
-          { AOM_CDF3(22813, 29702), 0 } },
-        { { AOM_CDF3(24899, 30056), 0 },
-          { AOM_CDF3(27287, 31179), 0 },
-          { AOM_CDF3(28586, 31683), 0 } },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        } },
-      { { { AOM_CDF3(18396, 31174), 0 },
-          { AOM_CDF3(19598, 31598), 0 },
-          { AOM_CDF3(18860, 31803), 0 } },
-        { { AOM_CDF3(26140, 31818), 0 },
-          { AOM_CDF3(26657, 32002), 0 },
-          { AOM_CDF3(26148, 31963), 0 } },
-        { { AOM_CDF3(29733, 32450), 0 },
-          { AOM_CDF3(30024, 32604), 0 },
-          { AOM_CDF3(30704, 32539), 0 } },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        },
-        {
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 },  // unused
-            { AOM_CDF3(10923, 21845), 0 }   // unused
-        } }
+      {
+          {
+              { AOM_CDF3(9327, 16633), 15 },
+              { AOM_CDF3(12473, 20430), 76 },
+              { AOM_CDF3(11006, 19355), 15 },
+          },
+          {
+              { AOM_CDF3(10104, 16597), 0 },
+              { AOM_CDF3(13122, 19983), 16 },
+              { AOM_CDF3(13695, 21298), 1 },
+          },
+          {
+              { AOM_CDF3(8776, 13455), 1 },
+              { AOM_CDF3(10846, 15705), 3 },
+              { AOM_CDF3(11467, 17659), 1 },
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF3(17292, 23855), 75 },
+              { AOM_CDF3(19621, 25643), 90 },
+              { AOM_CDF3(17055, 25342), 0 },
+          },
+          {
+              { AOM_CDF3(19366, 26667), 0 },
+              { AOM_CDF3(21918, 28378), 0 },
+              { AOM_CDF3(21806, 28925), 0 },
+          },
+          {
+              { AOM_CDF3(23142, 29184), 6 },
+              { AOM_CDF3(25565, 30488), 0 },
+              { AOM_CDF3(26465, 30728), 1 },
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF3(17235, 25080), 90 },
+              { AOM_CDF3(18542, 26200), 90 },
+              { AOM_CDF3(16850, 26452), 75 },
+          },
+          {
+              { AOM_CDF3(20758, 27807), 90 },
+              { AOM_CDF3(22683, 29011), 90 },
+              { AOM_CDF3(22813, 29702), 75 },
+          },
+          {
+              { AOM_CDF3(24899, 30056), 75 },
+              { AOM_CDF3(27287, 31179), 75 },
+              { AOM_CDF3(28586, 31683), 75 },
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF3(18396, 31174), 30 },
+              { AOM_CDF3(19598, 31598), 36 },
+              { AOM_CDF3(18860, 31803), 32 },
+          },
+          {
+              { AOM_CDF3(26140, 31818), 32 },
+              { AOM_CDF3(26657, 32002), 32 },
+              { AOM_CDF3(26148, 31963), 32 },
+          },
+          {
+              { AOM_CDF3(29733, 32450), 37 },
+              { AOM_CDF3(30024, 32604), 35 },
+              { AOM_CDF3(30704, 32539), 7 },
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+          {
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+              { AOM_CDF3(10923, 21845), 0 },  // unused
+          },
+      },
     };
 #else
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
@@ -1566,7 +1686,7 @@ static const aom_cdf_prob
                                     {
                                         {
                                             { AOM_CDF2(19635), 90 },
-                                            { AOM_CDF2(17463), 115 },
+                                            { AOM_CDF2(17463), 90 },
                                             { AOM_CDF2(6609), 30 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1576,8 +1696,8 @@ static const aom_cdf_prob
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(22601), 1 },
-                                            { AOM_CDF2(20457), 1 },
+                                            { AOM_CDF2(22601), 21 },
+                                            { AOM_CDF2(20457), 6 },
                                             { AOM_CDF2(15919), 6 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1589,22 +1709,22 @@ static const aom_cdf_prob
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(20858), 115 },
+                                            { AOM_CDF2(20858), 75 },
                                             { AOM_CDF2(18166), 118 },
-                                            { AOM_CDF2(15877), 123 },
+                                            { AOM_CDF2(15877), 118 },
                                             { AOM_CDF2(13222), 1 },
-                                            { AOM_CDF2(15139), 32 },
+                                            { AOM_CDF2(15139), 31 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(21857), 76 },
+                                            { AOM_CDF2(21857), 6 },
                                             { AOM_CDF2(20959), 6 },
-                                            { AOM_CDF2(19600), 115 },
-                                            { AOM_CDF2(19303), 6 },
-                                            { AOM_CDF2(21571), 26 },
+                                            { AOM_CDF2(19600), 90 },
+                                            { AOM_CDF2(19303), 31 },
+                                            { AOM_CDF2(21571), 31 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1615,61 +1735,61 @@ static const aom_cdf_prob
                                         {
                                             { AOM_CDF2(23483), 90 },
                                             { AOM_CDF2(19130), 90 },
-                                            { AOM_CDF2(17255), 123 },
-                                            { AOM_CDF2(17108), 115 },
+                                            { AOM_CDF2(17255), 115 },
+                                            { AOM_CDF2(17108), 118 },
                                             { AOM_CDF2(16286), 91 },
-                                            { AOM_CDF2(19276), 32 },
-                                            { AOM_CDF2(21175), 32 },
+                                            { AOM_CDF2(19276), 2 },
+                                            { AOM_CDF2(21175), 37 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(23499), 1 },
-                                            { AOM_CDF2(22872), 75 },
+                                            { AOM_CDF2(23499), 6 },
+                                            { AOM_CDF2(22872), 26 },
                                             { AOM_CDF2(19093), 123 },
-                                            { AOM_CDF2(19682), 115 },
-                                            { AOM_CDF2(22639), 78 },
+                                            { AOM_CDF2(19682), 24 },
+                                            { AOM_CDF2(22639), 119 },
                                             { AOM_CDF2(22806), 32 },
-                                            { AOM_CDF2(17621), 50 },
+                                            { AOM_CDF2(17621), 32 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(29087), 90 },
-                                            { AOM_CDF2(20670), 80 },
-                                            { AOM_CDF2(17282), 123 },
-                                            { AOM_CDF2(17456), 93 },
-                                            { AOM_CDF2(20491), 10 },
-                                            { AOM_CDF2(23686), 0 },
-                                            { AOM_CDF2(15765), 36 },
-                                            { AOM_CDF2(18610), 45 },
-                                            { AOM_CDF2(19885), 51 },
+                                            { AOM_CDF2(29087), 91 },
+                                            { AOM_CDF2(20670), 107 },
+                                            { AOM_CDF2(17282), 115 },
+                                            { AOM_CDF2(17456), 104 },
+                                            { AOM_CDF2(20491), 20 },
+                                            { AOM_CDF2(23686), 20 },
+                                            { AOM_CDF2(15765), 35 },
+                                            { AOM_CDF2(18610), 32 },
+                                            { AOM_CDF2(19885), 45 },
                                         },
                                         {
-                                            { AOM_CDF2(30775), 44 },
-                                            { AOM_CDF2(22057), 10 },
-                                            { AOM_CDF2(15641), 100 },
+                                            { AOM_CDF2(30775), 60 },
+                                            { AOM_CDF2(22057), 0 },
+                                            { AOM_CDF2(15641), 0 },
                                             { AOM_CDF2(18305), 0 },
-                                            { AOM_CDF2(20555), 100 },
-                                            { AOM_CDF2(17365), 100 },
-                                            { AOM_CDF2(19043), 0 },
-                                            { AOM_CDF2(28645), 100 },
+                                            { AOM_CDF2(20555), 0 },
+                                            { AOM_CDF2(17365), 0 },
+                                            { AOM_CDF2(19043), 25 },
+                                            { AOM_CDF2(28645), 50 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                     },
                                     {
                                         {
                                             { AOM_CDF2(30209), 50 },
-                                            { AOM_CDF2(17611), 100 },
-                                            { AOM_CDF2(26042), 75 },
-                                            { AOM_CDF2(18665), 25 },
-                                            { AOM_CDF2(14947), 50 },
+                                            { AOM_CDF2(17611), 0 },
+                                            { AOM_CDF2(26042), 100 },
+                                            { AOM_CDF2(18665), 0 },
+                                            { AOM_CDF2(14947), 0 },
                                             { AOM_CDF2(18491), 0 },
                                             { AOM_CDF2(26870), 0 },
                                             { AOM_CDF2(16384), 0 },
-                                            { AOM_CDF2(1890), 25 },
+                                            { AOM_CDF2(1890), 0 },
                                         },
                                         {
                                             { AOM_CDF2(16384), 0 },
@@ -1688,7 +1808,7 @@ static const aom_cdf_prob
                                     {
                                         {
                                             { AOM_CDF2(18561), 100 },
-                                            { AOM_CDF2(17618), 0 },
+                                            { AOM_CDF2(17618), 75 },
                                             { AOM_CDF2(9973), 30 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1699,8 +1819,8 @@ static const aom_cdf_prob
                                         },
                                         {
                                             { AOM_CDF2(22875), 1 },
-                                            { AOM_CDF2(22790), 1 },
-                                            { AOM_CDF2(20041), 76 },
+                                            { AOM_CDF2(22790), 0 },
+                                            { AOM_CDF2(20041), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1715,18 +1835,18 @@ static const aom_cdf_prob
                                             { AOM_CDF2(18017), 123 },
                                             { AOM_CDF2(16224), 123 },
                                             { AOM_CDF2(15824), 0 },
-                                            { AOM_CDF2(17246), 32 },
+                                            { AOM_CDF2(17246), 31 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(21566), 6 },
-                                            { AOM_CDF2(21983), 1 },
-                                            { AOM_CDF2(19785), 123 },
-                                            { AOM_CDF2(22569), 76 },
-                                            { AOM_CDF2(23622), 7 },
+                                            { AOM_CDF2(21566), 1 },
+                                            { AOM_CDF2(21983), 0 },
+                                            { AOM_CDF2(19785), 118 },
+                                            { AOM_CDF2(22569), 0 },
+                                            { AOM_CDF2(23622), 31 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1736,62 +1856,62 @@ static const aom_cdf_prob
                                     {
                                         {
                                             { AOM_CDF2(21404), 115 },
-                                            { AOM_CDF2(18950), 115 },
+                                            { AOM_CDF2(18950), 90 },
                                             { AOM_CDF2(17608), 123 },
                                             { AOM_CDF2(18389), 90 },
-                                            { AOM_CDF2(17153), 76 },
-                                            { AOM_CDF2(22285), 7 },
+                                            { AOM_CDF2(17153), 75 },
+                                            { AOM_CDF2(22285), 6 },
                                             { AOM_CDF2(18032), 32 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(23447), 6 },
-                                            { AOM_CDF2(23432), 6 },
+                                            { AOM_CDF2(23447), 1 },
+                                            { AOM_CDF2(23432), 1 },
                                             { AOM_CDF2(19691), 123 },
                                             { AOM_CDF2(20223), 115 },
-                                            { AOM_CDF2(23003), 115 },
-                                            { AOM_CDF2(23135), 12 },
-                                            { AOM_CDF2(13723), 50 },
+                                            { AOM_CDF2(23003), 76 },
+                                            { AOM_CDF2(23135), 31 },
+                                            { AOM_CDF2(13723), 62 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(22907), 90 },
+                                            { AOM_CDF2(22907), 93 },
                                             { AOM_CDF2(20026), 115 },
-                                            { AOM_CDF2(17705), 118 },
-                                            { AOM_CDF2(17899), 116 },
-                                            { AOM_CDF2(18629), 93 },
-                                            { AOM_CDF2(20978), 87 },
-                                            { AOM_CDF2(19825), 0 },
-                                            { AOM_CDF2(16891), 62 },
-                                            { AOM_CDF2(4688), 60 },
+                                            { AOM_CDF2(17705), 123 },
+                                            { AOM_CDF2(17899), 115 },
+                                            { AOM_CDF2(18629), 75 },
+                                            { AOM_CDF2(20978), 7 },
+                                            { AOM_CDF2(19825), 6 },
+                                            { AOM_CDF2(16891), 32 },
+                                            { AOM_CDF2(4688), 62 },
                                         },
                                         {
-                                            { AOM_CDF2(25642), 38 },
-                                            { AOM_CDF2(23459), 10 },
-                                            { AOM_CDF2(19077), 120 },
-                                            { AOM_CDF2(20186), 0 },
-                                            { AOM_CDF2(20726), 75 },
-                                            { AOM_CDF2(23648), 75 },
-                                            { AOM_CDF2(28399), 50 },
-                                            { AOM_CDF2(16384), 50 },
-                                            { AOM_CDF2(16384), 0 },
+                                            { AOM_CDF2(25642), 32 },
+                                            { AOM_CDF2(23459), 81 },
+                                            { AOM_CDF2(19077), 115 },
+                                            { AOM_CDF2(20186), 91 },
+                                            { AOM_CDF2(20726), 9 },
+                                            { AOM_CDF2(23648), 76 },
+                                            { AOM_CDF2(28399), 45 },
+                                            { AOM_CDF2(16384), 70 },
+                                            { AOM_CDF2(16384), 100 },
                                         },
                                     },
                                     {
                                         {
                                             { AOM_CDF2(28929), 8 },
-                                            { AOM_CDF2(20745), 78 },
-                                            { AOM_CDF2(19021), 20 },
-                                            { AOM_CDF2(18349), 82 },
-                                            { AOM_CDF2(18123), 5 },
-                                            { AOM_CDF2(20423), 89 },
-                                            { AOM_CDF2(22842), 85 },
-                                            { AOM_CDF2(18936), 70 },
-                                            { AOM_CDF2(28387), 25 },
+                                            { AOM_CDF2(20745), 2 },
+                                            { AOM_CDF2(19021), 79 },
+                                            { AOM_CDF2(18349), 81 },
+                                            { AOM_CDF2(18123), 6 },
+                                            { AOM_CDF2(20423), 9 },
+                                            { AOM_CDF2(22842), 7 },
+                                            { AOM_CDF2(18936), 69 },
+                                            { AOM_CDF2(28387), 61 },
                                         },
                                         {
                                             { AOM_CDF2(16384), 0 },
@@ -1810,8 +1930,8 @@ static const aom_cdf_prob
                                     {
                                         {
                                             { AOM_CDF2(20655), 75 },
-                                            { AOM_CDF2(23050), 0 },
-                                            { AOM_CDF2(17392), 30 },
+                                            { AOM_CDF2(23050), 93 },
+                                            { AOM_CDF2(17392), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1820,9 +1940,9 @@ static const aom_cdf_prob
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(23345), 7 },
-                                            { AOM_CDF2(25104), 1 },
-                                            { AOM_CDF2(26910), 6 },
+                                            { AOM_CDF2(23345), 0 },
+                                            { AOM_CDF2(25104), 0 },
+                                            { AOM_CDF2(26910), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1833,10 +1953,10 @@ static const aom_cdf_prob
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(19059), 115 },
+                                            { AOM_CDF2(19059), 118 },
                                             { AOM_CDF2(18964), 123 },
-                                            { AOM_CDF2(18324), 118 },
-                                            { AOM_CDF2(19080), 0 },
+                                            { AOM_CDF2(18324), 123 },
+                                            { AOM_CDF2(19080), 75 },
                                             { AOM_CDF2(20147), 1 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1844,11 +1964,11 @@ static const aom_cdf_prob
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(26477), 6 },
-                                            { AOM_CDF2(25162), 76 },
+                                            { AOM_CDF2(26477), 75 },
+                                            { AOM_CDF2(25162), 75 },
                                             { AOM_CDF2(21112), 123 },
                                             { AOM_CDF2(25289), 76 },
-                                            { AOM_CDF2(25803), 20 },
+                                            { AOM_CDF2(25803), 25 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1858,23 +1978,23 @@ static const aom_cdf_prob
                                     {
                                         {
                                             { AOM_CDF2(22569), 115 },
-                                            { AOM_CDF2(19695), 95 },
-                                            { AOM_CDF2(19418), 118 },
+                                            { AOM_CDF2(19695), 123 },
+                                            { AOM_CDF2(19418), 123 },
                                             { AOM_CDF2(20949), 90 },
-                                            { AOM_CDF2(19945), 91 },
+                                            { AOM_CDF2(19945), 75 },
                                             { AOM_CDF2(18259), 6 },
-                                            { AOM_CDF2(14928), 27 },
+                                            { AOM_CDF2(14928), 32 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(28765), 6 },
-                                            { AOM_CDF2(27496), 76 },
+                                            { AOM_CDF2(28765), 76 },
+                                            { AOM_CDF2(27496), 75 },
                                             { AOM_CDF2(20567), 123 },
-                                            { AOM_CDF2(20976), 94 },
-                                            { AOM_CDF2(21303), 105 },
-                                            { AOM_CDF2(23501), 0 },
-                                            { AOM_CDF2(16384), 100 },
+                                            { AOM_CDF2(20976), 90 },
+                                            { AOM_CDF2(21303), 6 },
+                                            { AOM_CDF2(23501), 37 },
+                                            { AOM_CDF2(16384), 45 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
@@ -1885,35 +2005,35 @@ static const aom_cdf_prob
                                             { AOM_CDF2(20072), 115 },
                                             { AOM_CDF2(19059), 123 },
                                             { AOM_CDF2(20414), 115 },
-                                            { AOM_CDF2(18738), 123 },
-                                            { AOM_CDF2(21600), 96 },
-                                            { AOM_CDF2(22466), 34 },
-                                            { AOM_CDF2(13653), 39 },
-                                            { AOM_CDF2(6910), 50 },
+                                            { AOM_CDF2(18738), 90 },
+                                            { AOM_CDF2(21600), 6 },
+                                            { AOM_CDF2(22466), 6 },
+                                            { AOM_CDF2(13653), 37 },
+                                            { AOM_CDF2(6910), 62 },
                                         },
                                         {
-                                            { AOM_CDF2(22499), 29 },
-                                            { AOM_CDF2(25296), 9 },
+                                            { AOM_CDF2(22499), 0 },
+                                            { AOM_CDF2(25296), 5 },
                                             { AOM_CDF2(21013), 120 },
-                                            { AOM_CDF2(22129), 25 },
-                                            { AOM_CDF2(24662), 0 },
-                                            { AOM_CDF2(11703), 50 },
-                                            { AOM_CDF2(17246), 0 },
-                                            { AOM_CDF2(13741), 50 },
+                                            { AOM_CDF2(22129), 3 },
+                                            { AOM_CDF2(24662), 77 },
+                                            { AOM_CDF2(11703), 35 },
+                                            { AOM_CDF2(17246), 45 },
+                                            { AOM_CDF2(13741), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                     },
                                     {
                                         {
                                             { AOM_CDF2(23973), 1 },
-                                            { AOM_CDF2(19266), 75 },
+                                            { AOM_CDF2(19266), 90 },
                                             { AOM_CDF2(18851), 90 },
                                             { AOM_CDF2(17830), 76 },
-                                            { AOM_CDF2(15657), 9 },
-                                            { AOM_CDF2(19990), 97 },
-                                            { AOM_CDF2(19041), 35 },
-                                            { AOM_CDF2(27295), 45 },
-                                            { AOM_CDF2(28005), 100 },
+                                            { AOM_CDF2(15657), 8 },
+                                            { AOM_CDF2(19990), 2 },
+                                            { AOM_CDF2(19041), 7 },
+                                            { AOM_CDF2(27295), 31 },
+                                            { AOM_CDF2(28005), 34 },
                                         },
                                         {
                                             { AOM_CDF2(16384), 0 },
@@ -1931,9 +2051,9 @@ static const aom_cdf_prob
                                 {
                                     {
                                         {
-                                            { AOM_CDF2(28727), 40 },
-                                            { AOM_CDF2(30951), 9 },
-                                            { AOM_CDF2(26426), 100 },
+                                            { AOM_CDF2(28727), 0 },
+                                            { AOM_CDF2(30951), 78 },
+                                            { AOM_CDF2(26426), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1942,9 +2062,9 @@ static const aom_cdf_prob
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(16384), 0 },
-                                            { AOM_CDF2(16384), 0 },
-                                            { AOM_CDF2(16384), 0 },
+                                            { AOM_CDF2(16384), 44 },
+                                            { AOM_CDF2(16384), 24 },
+                                            { AOM_CDF2(16384), 87 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1955,20 +2075,20 @@ static const aom_cdf_prob
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(21496), 0 },
-                                            { AOM_CDF2(22568), 0 },
-                                            { AOM_CDF2(19848), 98 },
-                                            { AOM_CDF2(25024), 123 },
-                                            { AOM_CDF2(30878), 80 },
+                                            { AOM_CDF2(21496), 90 },
+                                            { AOM_CDF2(22568), 118 },
+                                            { AOM_CDF2(19848), 123 },
+                                            { AOM_CDF2(25024), 90 },
+                                            { AOM_CDF2(30878), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(23442), 5 },
-                                            { AOM_CDF2(27045), 20 },
-                                            { AOM_CDF2(19707), 100 },
+                                            { AOM_CDF2(23442), 1 },
+                                            { AOM_CDF2(27045), 99 },
+                                            { AOM_CDF2(19707), 120 },
                                             { AOM_CDF2(20753), 100 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -1979,22 +2099,22 @@ static const aom_cdf_prob
                                     },
                                     {
                                         {
-                                            { AOM_CDF2(19322), 75 },
-                                            { AOM_CDF2(21703), 93 },
-                                            { AOM_CDF2(20373), 93 },
-                                            { AOM_CDF2(22381), 0 },
-                                            { AOM_CDF2(22770), 9 },
-                                            { AOM_CDF2(25925), 18 },
-                                            { AOM_CDF2(28641), 95 },
+                                            { AOM_CDF2(19322), 118 },
+                                            { AOM_CDF2(21703), 118 },
+                                            { AOM_CDF2(20373), 118 },
+                                            { AOM_CDF2(22381), 90 },
+                                            { AOM_CDF2(22770), 75 },
+                                            { AOM_CDF2(25925), 1 },
+                                            { AOM_CDF2(28641), 7 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                         },
                                         {
-                                            { AOM_CDF2(27802), 14 },
-                                            { AOM_CDF2(26055), 8 },
-                                            { AOM_CDF2(20375), 20 },
-                                            { AOM_CDF2(20660), 20 },
-                                            { AOM_CDF2(19325), 100 },
+                                            { AOM_CDF2(27802), 76 },
+                                            { AOM_CDF2(26055), 76 },
+                                            { AOM_CDF2(20375), 96 },
+                                            { AOM_CDF2(20660), 45 },
+                                            { AOM_CDF2(19325), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -2005,20 +2125,20 @@ static const aom_cdf_prob
                                         {
                                             { AOM_CDF2(23423), 90 },
                                             { AOM_CDF2(22267), 118 },
-                                            { AOM_CDF2(22472), 118 },
-                                            { AOM_CDF2(24562), 94 },
-                                            { AOM_CDF2(24091), 100 },
-                                            { AOM_CDF2(17837), 50 },
-                                            { AOM_CDF2(6189), 50 },
-                                            { AOM_CDF2(29101), 35 },
-                                            { AOM_CDF2(3046), 75 },
+                                            { AOM_CDF2(22472), 123 },
+                                            { AOM_CDF2(24562), 90 },
+                                            { AOM_CDF2(24091), 98 },
+                                            { AOM_CDF2(17837), 39 },
+                                            { AOM_CDF2(6189), 39 },
+                                            { AOM_CDF2(29101), 36 },
+                                            { AOM_CDF2(3046), 25 },
                                         },
                                         {
-                                            { AOM_CDF2(28052), 9 },
-                                            { AOM_CDF2(27552), 0 },
-                                            { AOM_CDF2(22626), 0 },
-                                            { AOM_CDF2(27406), 50 },
-                                            { AOM_CDF2(16384), 0 },
+                                            { AOM_CDF2(28052), 0 },
+                                            { AOM_CDF2(27552), 1 },
+                                            { AOM_CDF2(22626), 95 },
+                                            { AOM_CDF2(27406), 0 },
+                                            { AOM_CDF2(16384), 50 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
                                             { AOM_CDF2(16384), 0 },
@@ -2030,11 +2150,11 @@ static const aom_cdf_prob
                                             { AOM_CDF2(24289), 1 },
                                             { AOM_CDF2(21324), 75 },
                                             { AOM_CDF2(19793), 115 },
-                                            { AOM_CDF2(20280), 90 },
-                                            { AOM_CDF2(19584), 10 },
-                                            { AOM_CDF2(18382), 25 },
-                                            { AOM_CDF2(23221), 50 },
-                                            { AOM_CDF2(25423), 100 },
+                                            { AOM_CDF2(20280), 76 },
+                                            { AOM_CDF2(19584), 5 },
+                                            { AOM_CDF2(18382), 4 },
+                                            { AOM_CDF2(23221), 39 },
+                                            { AOM_CDF2(25423), 35 },
                                             { AOM_CDF2(32444), 50 },
                                         },
                                         {
@@ -2504,24 +2624,24 @@ static const aom_cdf_prob
     av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(
         5)] = {
       {
-          { AOM_CDF5(1413, 1933, 3768, 9455), 5 },
+          { AOM_CDF5(1413, 1933, 3768, 9455), 6 },
           { AOM_CDF5(1954, 2400, 4205, 7753), 5 },
           { AOM_CDF5(9359, 11741, 16061, 22179), 31 },
       },
       {
           { AOM_CDF5(2832, 4201, 8578, 17754), 30 },
           { AOM_CDF5(4563, 5208, 7444, 11962), 5 },
-          { AOM_CDF5(10524, 13197, 18032, 24922), 0 },
+          { AOM_CDF5(10524, 13197, 18032, 24922), 5 },
       },
       {
-          { AOM_CDF5(4390, 6907, 13987, 24674), 55 },
-          { AOM_CDF5(1870, 2463, 3813, 9299), 30 },
-          { AOM_CDF5(15137, 18012, 23056, 29705), 6 },
+          { AOM_CDF5(4390, 6907, 13987, 24674), 30 },
+          { AOM_CDF5(1870, 2463, 3813, 9299), 0 },
+          { AOM_CDF5(15137, 18012, 23056, 29705), 0 },
       },
       {
-          { AOM_CDF5(5508, 11837, 26327, 32095), 56 },
+          { AOM_CDF5(5508, 11837, 26327, 32095), 31 },
           { AOM_CDF5(6554, 8738, 10923, 24030), 0 },
-          { AOM_CDF5(28607, 29647, 32421, 32595), 50 },
+          { AOM_CDF5(28607, 29647, 32421, 32595), 31 },
       },
     };
 
@@ -2531,22 +2651,22 @@ static const aom_cdf_prob
       {
           { AOM_CDF6(1183, 1539, 2981, 7359, 12851), 31 },
           { AOM_CDF6(1847, 2098, 2631, 4422, 9368), 5 },
-          { AOM_CDF6(14803, 16649, 20616, 25021, 29117), 6 },
+          { AOM_CDF6(14803, 16649, 20616, 25021, 29117), 31 },
       },
       {
           { AOM_CDF6(2170, 3095, 6309, 12580, 18493), 31 },
           { AOM_CDF6(1194, 1592, 2551, 4712, 9835), 6 },
-          { AOM_CDF6(12842, 15056, 19310, 24033, 29143), 6 },
+          { AOM_CDF6(12842, 15056, 19310, 24033, 29143), 31 },
       },
       {
           { AOM_CDF6(3673, 5100, 10624, 18431, 23892), 31 },
-          { AOM_CDF6(1891, 2179, 3130, 6874, 14672), 0 },
+          { AOM_CDF6(1891, 2179, 3130, 6874, 14672), 1 },
           { AOM_CDF6(17990, 20534, 24659, 28946, 31883), 6 },
       },
       {
-          { AOM_CDF6(6158, 10781, 23027, 30726, 32275), 36 },
-          { AOM_CDF6(971, 6554, 17719, 26336, 29370), 32 },
-          { AOM_CDF6(15245, 19009, 26979, 32073, 32710), 5 },
+          { AOM_CDF6(6158, 10781, 23027, 30726, 32275), 6 },
+          { AOM_CDF6(971, 6554, 17719, 26336, 29370), 6 },
+          { AOM_CDF6(15245, 19009, 26979, 32073, 32710), 6 },
       },
     };
 
@@ -2561,7 +2681,7 @@ static const aom_cdf_prob
       {
           { AOM_CDF7(2545, 3542, 6922, 12367, 19691, 28790), 31 },
           { AOM_CDF7(1766, 2030, 2788, 4708, 8375, 15041), 6 },
-          { AOM_CDF7(14737, 17201, 21763, 26035, 29703, 31643), 6 },
+          { AOM_CDF7(14737, 17201, 21763, 26035, 29703, 31643), 31 },
       },
       {
           { AOM_CDF7(4643, 5964, 11690, 19867, 26822, 31090), 31 },
@@ -2569,9 +2689,9 @@ static const aom_cdf_prob
           { AOM_CDF7(19321, 21411, 25537, 29191, 31652, 32512), 1 },
       },
       {
-          { AOM_CDF7(4124, 5987, 14977, 24424, 30701, 32566), 61 },
-          { AOM_CDF7(5308, 10204, 17063, 18202, 26370, 31387), 31 },
-          { AOM_CDF7(20020, 22282, 26222, 30289, 32236, 32724), 7 },
+          { AOM_CDF7(4124, 5987, 14977, 24424, 30701, 32566), 31 },
+          { AOM_CDF7(5308, 10204, 17063, 18202, 26370, 31387), 6 },
+          { AOM_CDF7(20020, 22282, 26222, 30289, 32236, 32724), 1 },
       },
     };
 
@@ -2580,13 +2700,13 @@ static const aom_cdf_prob
         8)] = {
       {
           { AOM_CDF8(675, 1560, 4377, 8055, 14975, 24348, 28727), 32 },
-          { AOM_CDF8(2262, 2942, 4898, 7298, 10228, 15787, 24237), 32 },
-          { AOM_CDF8(6359, 10372, 16286, 21782, 27344, 30522, 32240), 1 },
+          { AOM_CDF8(2262, 2942, 4898, 7298, 10228, 15787, 24237), 7 },
+          { AOM_CDF8(6359, 10372, 16286, 21782, 27344, 30522, 32240), 31 },
       },
       {
           { AOM_CDF8(2779, 3611, 6534, 11831, 20308, 28993, 30985), 32 },
           { AOM_CDF8(2457, 2766, 3953, 5470, 9201, 15498, 22575), 32 },
-          { AOM_CDF8(20578, 22601, 25934, 28568, 30706, 31903, 32453), 6 },
+          { AOM_CDF8(20578, 22601, 25934, 28568, 30706, 31903, 32453), 31 },
       },
       {
           { AOM_CDF8(5283, 6577, 12169, 19858, 27333, 31436, 32166), 6 },
@@ -2594,9 +2714,9 @@ static const aom_cdf_prob
           { AOM_CDF8(21897, 23704, 28159, 30728, 32050, 32571, 32716), 6 },
       },
       {
-          { AOM_CDF8(5794, 8143, 15765, 23935, 29693, 32195, 32579), 31 },
+          { AOM_CDF8(5794, 8143, 15765, 23935, 29693, 32195, 32579), 6 },
           { AOM_CDF8(12643, 13738, 16846, 22874, 27070, 29923, 31549), 31 },
-          { AOM_CDF8(23530, 25291, 28975, 31125, 32354, 32719, 32723), 76 },
+          { AOM_CDF8(23530, 25291, 28975, 31125, 32354, 32719, 32723), 1 },
       },
     };
 
@@ -2614,22 +2734,21 @@ static const aom_cdf_prob
           { AOM_CDF9(3077, 4254, 7792, 13858, 22338, 29819, 30981, 32009), 32 },
           { AOM_CDF9(4769, 5305, 7159, 10505, 15051, 19628, 25304, 28503), 32 },
           { AOM_CDF9(20255, 22949, 26558, 29185, 31238, 32165, 32576, 32706),
-            6 },
+            31 },
       },
       {
           { AOM_CDF9(5175, 7312, 13185, 20927, 28256, 31787, 32350, 32576), 6 },
           { AOM_CDF9(15994, 17173, 23591, 26244, 28447, 29986, 31213, 31674),
-            6 },
+            7 },
           { AOM_CDF9(23527, 25618, 29588, 31566, 32407, 32626, 32712, 32716),
-            31 },
+            6 },
       },
       {
-          { AOM_CDF9(6750, 9012, 17064, 25137, 30587, 32292, 32459, 32600),
-            31 },
+          { AOM_CDF9(6750, 9012, 17064, 25137, 30587, 32292, 32459, 32600), 6 },
           { AOM_CDF9(24628, 25525, 28220, 29470, 30917, 31924, 32370, 32429),
-            26 },
+            7 },
           { AOM_CDF9(28744, 29723, 31544, 32323, 32566, 32716, 32720, 32724),
-            6 },
+            1 },
       },
     };
 
@@ -2645,7 +2764,7 @@ static const aom_cdf_prob
             32 },
           { AOM_CDF10(9160, 13639, 21053, 24332, 27999, 29843, 31619, 32317,
                       32700),
-            7 },
+            32 },
       },
       {
           { AOM_CDF10(4283, 6557, 10372, 16035, 23492, 31107, 31558, 32038,
@@ -2653,7 +2772,7 @@ static const aom_cdf_prob
             32 },
           { AOM_CDF10(11790, 12971, 16095, 20231, 23447, 27017, 29113, 30719,
                       31781),
-            7 },
+            32 },
           { AOM_CDF10(19614, 22359, 26048, 28387, 31182, 32040, 32392, 32699,
                       32703),
             32 },
@@ -2661,7 +2780,7 @@ static const aom_cdf_prob
       {
           { AOM_CDF10(5403, 7657, 12353, 19623, 27398, 32240, 32379, 32496,
                       32605),
-            31 },
+            32 },
           { AOM_CDF10(13456, 14859, 19117, 22904, 25730, 27624, 30025, 31037,
                       32065),
             7 },
@@ -2675,10 +2794,10 @@ static const aom_cdf_prob
             6 },
           { AOM_CDF10(22321, 24003, 28174, 30937, 31630, 32111, 32344, 32499,
                       32598),
-            1 },
+            2 },
           { AOM_CDF10(25107, 26576, 29436, 31339, 32108, 32710, 32714, 32718,
                       32722),
-            6 },
+            7 },
       },
     };
 
@@ -2688,10 +2807,10 @@ static const aom_cdf_prob
       {
           { AOM_CDF11(11880, 13094, 17868, 20898, 24225, 28433, 29482, 30615,
                       30976, 31295),
-            62 },
+            57 },
           { AOM_CDF11(9825, 10303, 12215, 14392, 17207, 19332, 21243, 23102,
                       24483, 27404),
-            56 },
+            57 },
           { AOM_CDF11(11131, 14952, 27154, 28348, 29266, 30215, 30713, 31378,
                       32095, 32692),
             57 },
@@ -2710,13 +2829,13 @@ static const aom_cdf_prob
       {
           { AOM_CDF11(5538, 7689, 12560, 19337, 26505, 31887, 32111, 32267,
                       32477, 32616),
-            31 },
+            32 },
           { AOM_CDF11(15280, 16484, 20477, 24536, 28156, 30431, 31766, 32181,
                       32435, 32572),
-            31 },
+            32 },
           { AOM_CDF11(26347, 28435, 30741, 31994, 32563, 32708, 32712, 32716,
                       32720, 32724),
-            7 },
+            32 },
       },
       {
           { AOM_CDF11(7658, 11411, 18649, 25489, 30200, 32512, 32585, 32615,
@@ -2724,10 +2843,10 @@ static const aom_cdf_prob
             6 },
           { AOM_CDF11(14042, 16903, 23512, 30033, 32254, 32631, 32704, 32708,
                       32712, 32716),
-            6 },
+            7 },
           { AOM_CDF11(27599, 29349, 31919, 32512, 32712, 32716, 32720, 32724,
                       32728, 32732),
-            6 },
+            7 },
       },
     };
 #else
@@ -3162,326 +3281,334 @@ static const aom_cdf_prob
 #if CONFIG_IMPROVEIDTX_CTXS
 static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
-      { {
-            { AOM_CDF4(8888, 14893, 19055), 0 },
-            { AOM_CDF4(9588, 16202, 20486), 0 },
-            { AOM_CDF4(8714, 14548, 18956), 0 },
-            { AOM_CDF4(9260, 14956, 18856), 0 },
-            { AOM_CDF4(6878, 13494, 17301), 0 },
-            { AOM_CDF4(6610, 11685, 16043), 0 },
-            { AOM_CDF4(3637, 6832, 9642), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8744, 14735, 18771), 0 },
-            { AOM_CDF4(10378, 16868, 20963), 0 },
-            { AOM_CDF4(9882, 16413, 20462), 0 },
-            { AOM_CDF4(10346, 16586, 20632), 0 },
-            { AOM_CDF4(7694, 15061, 19003), 0 },
-            { AOM_CDF4(6624, 12015, 17472), 0 },
-            { AOM_CDF4(2910, 5645, 8205), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(6248, 11083, 14969), 0 },
-            { AOM_CDF4(7833, 12765, 16941), 0 },
-            { AOM_CDF4(6338, 11625, 15656), 0 },
-            { AOM_CDF4(8402, 13148, 16773), 0 },
-            { AOM_CDF4(5513, 11910, 15703), 0 },
-            { AOM_CDF4(4650, 8859, 15312), 0 },
-            { AOM_CDF4(1890, 3872, 5855), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(10602, 17253, 21709), 0 },
-            { AOM_CDF4(10001, 16453, 20888), 0 },
-            { AOM_CDF4(10225, 16422, 20615), 0 },
-            { AOM_CDF4(12729, 18644, 22341), 0 },
-            { AOM_CDF4(8995, 17423, 21566), 0 },
-            { AOM_CDF4(7906, 14170, 20618), 0 },
-            { AOM_CDF4(4232, 8031, 11563), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(13565, 20175, 23969), 0 },
-            { AOM_CDF4(14915, 21720, 25323), 0 },
-            { AOM_CDF4(14811, 21829, 25442), 0 },
-            { AOM_CDF4(17080, 23526, 26837), 0 },
-            { AOM_CDF4(11230, 21285, 25544), 0 },
-            { AOM_CDF4(9595, 17206, 23852), 0 },
-            { AOM_CDF4(4734, 9118, 12740), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(14807, 21467, 25087), 0 },
-            { AOM_CDF4(17538, 24141, 27259), 0 },
-            { AOM_CDF4(17050, 24088, 27344), 0 },
-            { AOM_CDF4(20445, 26394, 29010), 0 },
-            { AOM_CDF4(13038, 23823, 27523), 0 },
-            { AOM_CDF4(11652, 19430, 26443), 0 },
-            { AOM_CDF4(5631, 10824, 15070), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(14248, 21901, 26308), 0 },
-            { AOM_CDF4(13022, 20465, 24956), 0 },
-            { AOM_CDF4(14653, 21880, 25831), 0 },
-            { AOM_CDF4(19516, 25671, 28510), 0 },
-            { AOM_CDF4(11593, 24047, 28176), 0 },
-            { AOM_CDF4(9850, 17630, 26824), 0 },
-            { AOM_CDF4(7397, 13735, 18945), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(16079, 23457, 27419), 0 },
-            { AOM_CDF4(16572, 23555, 27047), 0 },
-            { AOM_CDF4(17889, 24674, 27776), 0 },
-            { AOM_CDF4(21735, 27444, 29734), 0 },
-            { AOM_CDF4(12613, 25325, 29150), 0 },
-            { AOM_CDF4(10535, 18413, 27982), 0 },
-            { AOM_CDF4(7357, 13755, 18923), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(14504, 21671, 25841), 0 },
-            { AOM_CDF4(15647, 22503, 26178), 0 },
-            { AOM_CDF4(17911, 24618, 27885), 0 },
-            { AOM_CDF4(22537, 27989, 30157), 0 },
-            { AOM_CDF4(13647, 26519, 29861), 0 },
-            { AOM_CDF4(12596, 20701, 28930), 0 },
-            { AOM_CDF4(7622, 14270, 19564), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(22590, 28419, 31768), 0 },
-            { AOM_CDF4(21726, 28623, 32019), 0 },
-            { AOM_CDF4(26210, 31234, 32239), 0 },
-            { AOM_CDF4(30134, 31969, 32691), 0 },
-            { AOM_CDF4(16411, 30629, 32470), 0 },
-            { AOM_CDF4(17694, 22841, 32237), 0 },
-            { AOM_CDF4(18971, 25966, 30229), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(27538, 30088, 32024), 0 },
-            { AOM_CDF4(29185, 31266, 32369), 0 },
-            { AOM_CDF4(31081, 32206, 32656), 0 },
-            { AOM_CDF4(31912, 32577, 32721), 0 },
-            { AOM_CDF4(27172, 32035, 32635), 0 },
-            { AOM_CDF4(27637, 28991, 32525), 0 },
-            { AOM_CDF4(28323, 30227, 31455), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(30776, 32228, 32629), 0 },
-            { AOM_CDF4(31536, 32373, 32594), 0 },
-            { AOM_CDF4(31354, 32508, 32725), 0 },
-            { AOM_CDF4(32258, 32648, 32748), 0 },
-            { AOM_CDF4(28867, 32205, 32666), 0 },
-            { AOM_CDF4(30149, 31579, 32738), 0 },
-            { AOM_CDF4(29779, 31999, 32547), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } }
+      {
+          {
+              { AOM_CDF4(8888, 14893, 19055), 20 },
+              { AOM_CDF4(9588, 16202, 20486), 91 },
+              { AOM_CDF4(8714, 14548, 18956), 75 },
+              { AOM_CDF4(9260, 14956, 18856), 76 },
+              { AOM_CDF4(6878, 13494, 17301), 120 },
+              { AOM_CDF4(6610, 11685, 16043), 100 },
+              { AOM_CDF4(3637, 6832, 9642), 93 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8744, 14735, 18771), 1 },
+              { AOM_CDF4(10378, 16868, 20963), 1 },
+              { AOM_CDF4(9882, 16413, 20462), 6 },
+              { AOM_CDF4(10346, 16586, 20632), 76 },
+              { AOM_CDF4(7694, 15061, 19003), 76 },
+              { AOM_CDF4(6624, 12015, 17472), 1 },
+              { AOM_CDF4(2910, 5645, 8205), 118 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(6248, 11083, 14969), 1 },
+              { AOM_CDF4(7833, 12765, 16941), 7 },
+              { AOM_CDF4(6338, 11625, 15656), 7 },
+              { AOM_CDF4(8402, 13148, 16773), 12 },
+              { AOM_CDF4(5513, 11910, 15703), 7 },
+              { AOM_CDF4(4650, 8859, 15312), 32 },
+              { AOM_CDF4(1890, 3872, 5855), 91 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(10602, 17253, 21709), 0 },
+              { AOM_CDF4(10001, 16453, 20888), 75 },
+              { AOM_CDF4(10225, 16422, 20615), 90 },
+              { AOM_CDF4(12729, 18644, 22341), 90 },
+              { AOM_CDF4(8995, 17423, 21566), 75 },
+              { AOM_CDF4(7906, 14170, 20618), 75 },
+              { AOM_CDF4(4232, 8031, 11563), 118 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(13565, 20175, 23969), 6 },
+              { AOM_CDF4(14915, 21720, 25323), 1 },
+              { AOM_CDF4(14811, 21829, 25442), 1 },
+              { AOM_CDF4(17080, 23526, 26837), 6 },
+              { AOM_CDF4(11230, 21285, 25544), 6 },
+              { AOM_CDF4(9595, 17206, 23852), 6 },
+              { AOM_CDF4(4734, 9118, 12740), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(14807, 21467, 25087), 37 },
+              { AOM_CDF4(17538, 24141, 27259), 32 },
+              { AOM_CDF4(17050, 24088, 27344), 37 },
+              { AOM_CDF4(20445, 26394, 29010), 37 },
+              { AOM_CDF4(13038, 23823, 27523), 37 },
+              { AOM_CDF4(11652, 19430, 26443), 37 },
+              { AOM_CDF4(5631, 10824, 15070), 32 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(14248, 21901, 26308), 1 },
+              { AOM_CDF4(13022, 20465, 24956), 75 },
+              { AOM_CDF4(14653, 21880, 25831), 1 },
+              { AOM_CDF4(19516, 25671, 28510), 1 },
+              { AOM_CDF4(11593, 24047, 28176), 75 },
+              { AOM_CDF4(9850, 17630, 26824), 76 },
+              { AOM_CDF4(7397, 13735, 18945), 75 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(16079, 23457, 27419), 1 },
+              { AOM_CDF4(16572, 23555, 27047), 0 },
+              { AOM_CDF4(17889, 24674, 27776), 0 },
+              { AOM_CDF4(21735, 27444, 29734), 1 },
+              { AOM_CDF4(12613, 25325, 29150), 1 },
+              { AOM_CDF4(10535, 18413, 27982), 1 },
+              { AOM_CDF4(7357, 13755, 18923), 1 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(14504, 21671, 25841), 1 },
+              { AOM_CDF4(15647, 22503, 26178), 1 },
+              { AOM_CDF4(17911, 24618, 27885), 1 },
+              { AOM_CDF4(22537, 27989, 30157), 1 },
+              { AOM_CDF4(13647, 26519, 29861), 7 },
+              { AOM_CDF4(12596, 20701, 28930), 7 },
+              { AOM_CDF4(7622, 14270, 19564), 32 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(22590, 28419, 31768), 62 },
+              { AOM_CDF4(21726, 28623, 32019), 50 },
+              { AOM_CDF4(26210, 31234, 32239), 50 },
+              { AOM_CDF4(30134, 31969, 32691), 60 },
+              { AOM_CDF4(16411, 30629, 32470), 0 },
+              { AOM_CDF4(17694, 22841, 32237), 0 },
+              { AOM_CDF4(18971, 25966, 30229), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(27538, 30088, 32024), 61 },
+              { AOM_CDF4(29185, 31266, 32369), 60 },
+              { AOM_CDF4(31081, 32206, 32656), 60 },
+              { AOM_CDF4(31912, 32577, 32721), 64 },
+              { AOM_CDF4(27172, 32035, 32635), 62 },
+              { AOM_CDF4(27637, 28991, 32525), 62 },
+              { AOM_CDF4(28323, 30227, 31455), 60 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(30776, 32228, 32629), 62 },
+              { AOM_CDF4(31536, 32373, 32594), 50 },
+              { AOM_CDF4(31354, 32508, 32725), 50 },
+              { AOM_CDF4(32258, 32648, 32748), 62 },
+              { AOM_CDF4(28867, 32205, 32666), 60 },
+              { AOM_CDF4(30149, 31579, 32738), 60 },
+              { AOM_CDF4(29779, 31999, 32547), 60 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
     };
 #else
 static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
@@ -3622,39 +3749,39 @@ static const aom_cdf_prob
         BR_CDF_SIZE)] = {
       {
           { AOM_CDF4(19824, 26074, 28091), 0 },
-          { AOM_CDF4(21127, 28052, 30667), 118 },
-          { AOM_CDF4(16981, 24862, 28664), 118 },
-          { AOM_CDF4(13206, 21160, 25891), 118 },
+          { AOM_CDF4(21127, 28052, 30667), 78 },
+          { AOM_CDF4(16981, 24862, 28664), 103 },
+          { AOM_CDF4(13206, 21160, 25891), 78 },
           { AOM_CDF4(10471, 17883, 22964), 118 },
-          { AOM_CDF4(8720, 15437, 20471), 118 },
-          { AOM_CDF4(6269, 11597, 16021), 118 },
+          { AOM_CDF4(8720, 15437, 20471), 103 },
+          { AOM_CDF4(6269, 11597, 16021), 103 },
       },
       {
           { AOM_CDF4(22683, 28011, 29483), 5 },
-          { AOM_CDF4(23879, 29807, 31582), 75 },
-          { AOM_CDF4(19643, 27253, 30267), 93 },
+          { AOM_CDF4(23879, 29807, 31582), 118 },
+          { AOM_CDF4(19643, 27253, 30267), 118 },
           { AOM_CDF4(15573, 23809, 28011), 93 },
-          { AOM_CDF4(12402, 20350, 25225), 90 },
-          { AOM_CDF4(10221, 17535, 22608), 90 },
-          { AOM_CDF4(6889, 12520, 16992), 93 },
+          { AOM_CDF4(12402, 20350, 25225), 93 },
+          { AOM_CDF4(10221, 17535, 22608), 93 },
+          { AOM_CDF4(6889, 12520, 16992), 118 },
       },
       {
-          { AOM_CDF4(27317, 30994, 31856), 0 },
-          { AOM_CDF4(24876, 30349, 31842), 0 },
-          { AOM_CDF4(20326, 27783, 30602), 75 },
-          { AOM_CDF4(15919, 24194, 28329), 76 },
-          { AOM_CDF4(12565, 20621, 25541), 76 },
-          { AOM_CDF4(10363, 17811, 22934), 93 },
-          { AOM_CDF4(7102, 13053, 17710), 124 },
+          { AOM_CDF4(27317, 30994, 31856), 75 },
+          { AOM_CDF4(24876, 30349, 31842), 93 },
+          { AOM_CDF4(20326, 27783, 30602), 118 },
+          { AOM_CDF4(15919, 24194, 28329), 118 },
+          { AOM_CDF4(12565, 20621, 25541), 115 },
+          { AOM_CDF4(10363, 17811, 22934), 118 },
+          { AOM_CDF4(7102, 13053, 17710), 118 },
       },
       {
-          { AOM_CDF4(28911, 31970, 32520), 100 },
-          { AOM_CDF4(26846, 31354, 32348), 105 },
-          { AOM_CDF4(22703, 29291, 31426), 100 },
-          { AOM_CDF4(18357, 26472, 29846), 75 },
-          { AOM_CDF4(14543, 22885, 27528), 100 },
-          { AOM_CDF4(11678, 20005, 25030), 0 },
-          { AOM_CDF4(8756, 16031, 20623), 0 },
+          { AOM_CDF4(28911, 31970, 32520), 32 },
+          { AOM_CDF4(26846, 31354, 32348), 75 },
+          { AOM_CDF4(22703, 29291, 31426), 77 },
+          { AOM_CDF4(18357, 26472, 29846), 102 },
+          { AOM_CDF4(14543, 22885, 27528), 120 },
+          { AOM_CDF4(11678, 20005, 25030), 25 },
+          { AOM_CDF4(8756, 16031, 20623), 110 },
       },
     };
 #else
@@ -3810,326 +3937,334 @@ static const aom_cdf_prob
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
     [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
-      { {
-            { AOM_CDF4(28332, 29935, 31012), 0 },
-            { AOM_CDF4(20362, 25886, 28550), 0 },
-            { AOM_CDF4(19615, 23974, 27367), 0 },
-            { AOM_CDF4(16307, 19685, 22220), 0 },
-            { AOM_CDF4(10574, 16536, 20288), 0 },
-            { AOM_CDF4(10645, 14901, 18709), 0 },
-            { AOM_CDF4(6210, 8625, 10664), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(30832, 31659, 32075), 0 },
-            { AOM_CDF4(21119, 27845, 30142), 0 },
-            { AOM_CDF4(19103, 23961, 27788), 0 },
-            { AOM_CDF4(15884, 18535, 20988), 0 },
-            { AOM_CDF4(10366, 16173, 20111), 0 },
-            { AOM_CDF4(10704, 13963, 18007), 0 },
-            { AOM_CDF4(6057, 7686, 9376), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(32359, 32469, 32538), 0 },
-            { AOM_CDF4(21142, 28530, 29943), 0 },
-            { AOM_CDF4(18311, 22998, 26613), 0 },
-            { AOM_CDF4(14213, 15902, 17427), 0 },
-            { AOM_CDF4(6217, 11382, 15267), 0 },
-            { AOM_CDF4(5172, 7635, 12107), 0 },
-            { AOM_CDF4(2335, 3116, 3955), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(27637, 30565, 31401), 0 },
-            { AOM_CDF4(19194, 28082, 30022), 0 },
-            { AOM_CDF4(17288, 24686, 28862), 0 },
-            { AOM_CDF4(15333, 20633, 23360), 0 },
-            { AOM_CDF4(8479, 15708, 20299), 0 },
-            { AOM_CDF4(5820, 10462, 15810), 0 },
-            { AOM_CDF4(4052, 6298, 7937), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(30710, 32208, 32467), 0 },
-            { AOM_CDF4(21666, 30225, 31742), 0 },
-            { AOM_CDF4(18446, 26511, 30537), 0 },
-            { AOM_CDF4(15422, 21150, 24424), 0 },
-            { AOM_CDF4(8152, 15927, 22052), 0 },
-            { AOM_CDF4(5785, 10694, 16310), 0 },
-            { AOM_CDF4(3933, 6287, 8406), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(31974, 32584, 32681), 0 },
-            { AOM_CDF4(22164, 31135, 32259), 0 },
-            { AOM_CDF4(16849, 27031, 31175), 0 },
-            { AOM_CDF4(14421, 20392, 24213), 0 },
-            { AOM_CDF4(6114, 13920, 22699), 0 },
-            { AOM_CDF4(4166, 8660, 15473), 0 },
-            { AOM_CDF4(2584, 4471, 6751), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(28081, 30651, 31642), 0 },
-            { AOM_CDF4(21015, 29162, 30874), 0 },
-            { AOM_CDF4(20711, 26403, 30562), 0 },
-            { AOM_CDF4(19682, 24470, 26661), 0 },
-            { AOM_CDF4(12342, 20001, 25303), 0 },
-            { AOM_CDF4(10294, 15740, 21371), 0 },
-            { AOM_CDF4(9787, 13332, 15360), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(30670, 32199, 32481), 0 },
-            { AOM_CDF4(21913, 30787, 32043), 0 },
-            { AOM_CDF4(18889, 27255, 31240), 0 },
-            { AOM_CDF4(17707, 23115, 26169), 0 },
-            { AOM_CDF4(9693, 17800, 24044), 0 },
-            { AOM_CDF4(7150, 12327, 18583), 0 },
-            { AOM_CDF4(6971, 9884, 12326), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(32025, 32589, 32684), 0 },
-            { AOM_CDF4(22479, 31362, 32313), 0 },
-            { AOM_CDF4(17286, 27306, 31443), 0 },
-            { AOM_CDF4(16027, 22152, 25878), 0 },
-            { AOM_CDF4(7631, 15855, 23931), 0 },
-            { AOM_CDF4(5389, 10664, 17856), 0 },
-            { AOM_CDF4(4921, 7819, 10468), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } },
-      { {
-            { AOM_CDF4(29321, 31402, 32585), 0 },
-            { AOM_CDF4(24982, 31542, 32538), 0 },
-            { AOM_CDF4(25292, 27217, 32553), 0 },
-            { AOM_CDF4(22458, 26136, 29103), 0 },
-            { AOM_CDF4(14760, 17180, 31874), 0 },
-            { AOM_CDF4(13023, 17414, 23724), 0 },
-            { AOM_CDF4(16460, 19241, 20844), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(30705, 32502, 32717), 0 },
-            { AOM_CDF4(23047, 32095, 32667), 0 },
-            { AOM_CDF4(19619, 27421, 32382), 0 },
-            { AOM_CDF4(16188, 21666, 27068), 0 },
-            { AOM_CDF4(7419, 12132, 28951), 0 },
-            { AOM_CDF4(5170, 8890, 16032), 0 },
-            { AOM_CDF4(6099, 10136, 13330), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(32087, 32712, 32748), 0 },
-            { AOM_CDF4(20760, 32439, 32743), 0 },
-            { AOM_CDF4(11650, 30566, 32663), 0 },
-            { AOM_CDF4(11495, 20251, 28581), 0 },
-            { AOM_CDF4(5254, 9632, 29930), 0 },
-            { AOM_CDF4(4291, 7115, 16582), 0 },
-            { AOM_CDF4(7174, 8941, 11140), 0 },
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        },
-        {
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
-            { AOM_CDF4(8192, 16384, 24576), 0 }   // unused
-        } }
+      {
+          {
+              { AOM_CDF4(28332, 29935, 31012), 93 },
+              { AOM_CDF4(20362, 25886, 28550), 75 },
+              { AOM_CDF4(19615, 23974, 27367), 0 },
+              { AOM_CDF4(16307, 19685, 22220), 75 },
+              { AOM_CDF4(10574, 16536, 20288), 6 },
+              { AOM_CDF4(10645, 14901, 18709), 1 },
+              { AOM_CDF4(6210, 8625, 10664), 1 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(30832, 31659, 32075), 93 },
+              { AOM_CDF4(21119, 27845, 30142), 0 },
+              { AOM_CDF4(19103, 23961, 27788), 0 },
+              { AOM_CDF4(15884, 18535, 20988), 3 },
+              { AOM_CDF4(10366, 16173, 20111), 1 },
+              { AOM_CDF4(10704, 13963, 18007), 1 },
+              { AOM_CDF4(6057, 7686, 9376), 1 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(32359, 32469, 32538), 100 },
+              { AOM_CDF4(21142, 28530, 29943), 1 },
+              { AOM_CDF4(18311, 22998, 26613), 1 },
+              { AOM_CDF4(14213, 15902, 17427), 75 },
+              { AOM_CDF4(6217, 11382, 15267), 2 },
+              { AOM_CDF4(5172, 7635, 12107), 6 },
+              { AOM_CDF4(2335, 3116, 3955), 75 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(27637, 30565, 31401), 75 },
+              { AOM_CDF4(19194, 28082, 30022), 75 },
+              { AOM_CDF4(17288, 24686, 28862), 0 },
+              { AOM_CDF4(15333, 20633, 23360), 0 },
+              { AOM_CDF4(8479, 15708, 20299), 0 },
+              { AOM_CDF4(5820, 10462, 15810), 0 },
+              { AOM_CDF4(4052, 6298, 7937), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(30710, 32208, 32467), 75 },
+              { AOM_CDF4(21666, 30225, 31742), 75 },
+              { AOM_CDF4(18446, 26511, 30537), 0 },
+              { AOM_CDF4(15422, 21150, 24424), 0 },
+              { AOM_CDF4(8152, 15927, 22052), 1 },
+              { AOM_CDF4(5785, 10694, 16310), 1 },
+              { AOM_CDF4(3933, 6287, 8406), 5 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(31974, 32584, 32681), 80 },
+              { AOM_CDF4(22164, 31135, 32259), 0 },
+              { AOM_CDF4(16849, 27031, 31175), 6 },
+              { AOM_CDF4(14421, 20392, 24213), 6 },
+              { AOM_CDF4(6114, 13920, 22699), 37 },
+              { AOM_CDF4(4166, 8660, 15473), 32 },
+              { AOM_CDF4(2584, 4471, 6751), 1 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(28081, 30651, 31642), 93 },
+              { AOM_CDF4(21015, 29162, 30874), 75 },
+              { AOM_CDF4(20711, 26403, 30562), 0 },
+              { AOM_CDF4(19682, 24470, 26661), 0 },
+              { AOM_CDF4(12342, 20001, 25303), 1 },
+              { AOM_CDF4(10294, 15740, 21371), 7 },
+              { AOM_CDF4(9787, 13332, 15360), 30 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(30670, 32199, 32481), 75 },
+              { AOM_CDF4(21913, 30787, 32043), 93 },
+              { AOM_CDF4(18889, 27255, 31240), 75 },
+              { AOM_CDF4(17707, 23115, 26169), 0 },
+              { AOM_CDF4(9693, 17800, 24044), 1 },
+              { AOM_CDF4(7150, 12327, 18583), 1 },
+              { AOM_CDF4(6971, 9884, 12326), 6 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(32025, 32589, 32684), 85 },
+              { AOM_CDF4(22479, 31362, 32313), 75 },
+              { AOM_CDF4(17286, 27306, 31443), 1 },
+              { AOM_CDF4(16027, 22152, 25878), 1 },
+              { AOM_CDF4(7631, 15855, 23931), 6 },
+              { AOM_CDF4(5389, 10664, 17856), 1 },
+              { AOM_CDF4(4921, 7819, 10468), 6 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
+      {
+          {
+              { AOM_CDF4(29321, 31402, 32585), 0 },
+              { AOM_CDF4(24982, 31542, 32538), 5 },
+              { AOM_CDF4(25292, 27217, 32553), 5 },
+              { AOM_CDF4(22458, 26136, 29103), 15 },
+              { AOM_CDF4(14760, 17180, 31874), 11 },
+              { AOM_CDF4(13023, 17414, 23724), 25 },
+              { AOM_CDF4(16460, 19241, 20844), 100 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(30705, 32502, 32717), 30 },
+              { AOM_CDF4(23047, 32095, 32667), 0 },
+              { AOM_CDF4(19619, 27421, 32382), 31 },
+              { AOM_CDF4(16188, 21666, 27068), 31 },
+              { AOM_CDF4(7419, 12132, 28951), 32 },
+              { AOM_CDF4(5170, 8890, 16032), 26 },
+              { AOM_CDF4(6099, 10136, 13330), 57 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(32087, 32712, 32748), 85 },
+              { AOM_CDF4(20760, 32439, 32743), 0 },
+              { AOM_CDF4(11650, 30566, 32663), 32 },
+              { AOM_CDF4(11495, 20251, 28581), 32 },
+              { AOM_CDF4(5254, 9632, 29930), 32 },
+              { AOM_CDF4(4291, 7115, 16582), 35 },
+              { AOM_CDF4(7174, 8941, 11140), 32 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+              { AOM_CDF4(8192, 16384, 24576), 0 },  // unused
+          },
+      },
     };
 #else
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
@@ -4266,59 +4401,59 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
-          { AOM_CDF6(14366, 26260, 30107, 31462, 31984), 5 },
+          { AOM_CDF6(14366, 26260, 30107, 31462, 31984), 6 },
           { AOM_CDF6(8435, 20211, 26486, 29544, 30971), 75 },
-          { AOM_CDF6(4468, 12279, 18551, 23241, 26398), 115 },
+          { AOM_CDF6(4468, 12279, 18551, 23241, 26398), 118 },
           { AOM_CDF6(2017, 5852, 9588, 13227, 16466), 90 },
-          { AOM_CDF6(13234, 26965, 30663, 31921, 32326), 75 },
+          { AOM_CDF6(13234, 26965, 30663, 31921, 32326), 6 },
           { AOM_CDF6(9638, 23022, 28785, 31064, 31943), 118 },
           { AOM_CDF6(5677, 15107, 21848, 26210, 28932), 90 },
-          { AOM_CDF6(2482, 7244, 11769, 15966, 19494), 90 },
-          { AOM_CDF6(26308, 32422, 32700, 32734, 32738), 90 },
-          { AOM_CDF6(18410, 31272, 32441, 32627, 32684), 100 },
-          { AOM_CDF6(9279, 21122, 27290, 29891, 30980), 123 },
-          { AOM_CDF6(5425, 11645, 15311, 18838, 21700), 104 },
+          { AOM_CDF6(2482, 7244, 11769, 15966, 19494), 0 },
+          { AOM_CDF6(26308, 32422, 32700, 32734, 32738), 0 },
+          { AOM_CDF6(18410, 31272, 32441, 32627, 32684), 80 },
+          { AOM_CDF6(9279, 21122, 27290, 29891, 30980), 2 },
+          { AOM_CDF6(5425, 11645, 15311, 18838, 21700), 24 },
       },
       {
           { AOM_CDF6(15811, 26488, 30226, 31615, 32132), 6 },
           { AOM_CDF6(8921, 21492, 27700, 30444, 31559), 75 },
           { AOM_CDF6(4841, 13432, 20064, 24648, 27631), 93 },
-          { AOM_CDF6(2088, 6035, 9950, 13721, 17072), 93 },
+          { AOM_CDF6(2088, 6035, 9950, 13721, 17072), 118 },
           { AOM_CDF6(15540, 27901, 31326, 32200, 32479), 0 },
           { AOM_CDF6(10351, 24377, 29698, 31536, 32155), 75 },
-          { AOM_CDF6(5509, 15008, 21741, 26006, 28626), 75 },
-          { AOM_CDF6(2146, 6241, 10294, 14072, 17392), 76 },
-          { AOM_CDF6(27338, 32320, 32643, 32709, 32732), 78 },
-          { AOM_CDF6(17248, 30295, 31985, 32426, 32580), 75 },
-          { AOM_CDF6(7979, 18661, 24838, 28420, 30133), 124 },
-          { AOM_CDF6(4565, 11089, 15855, 19468, 22228), 3 },
+          { AOM_CDF6(5509, 15008, 21741, 26006, 28626), 90 },
+          { AOM_CDF6(2146, 6241, 10294, 14072, 17392), 115 },
+          { AOM_CDF6(27338, 32320, 32643, 32709, 32732), 93 },
+          { AOM_CDF6(17248, 30295, 31985, 32426, 32580), 90 },
+          { AOM_CDF6(7979, 18661, 24838, 28420, 30133), 90 },
+          { AOM_CDF6(4565, 11089, 15855, 19468, 22228), 16 },
       },
       {
-          { AOM_CDF6(14796, 27248, 30689, 31786, 32176), 0 },
+          { AOM_CDF6(14796, 27248, 30689, 31786, 32176), 1 },
           { AOM_CDF6(8580, 21471, 27905, 30611, 31681), 75 },
-          { AOM_CDF6(4644, 13296, 20094, 24691, 27651), 93 },
-          { AOM_CDF6(1845, 5492, 9273, 13250, 16963), 124 },
-          { AOM_CDF6(15149, 27491, 30644, 31724, 32177), 3 },
-          { AOM_CDF6(8469, 21408, 27928, 30603, 31665), 75 },
-          { AOM_CDF6(4538, 12465, 18903, 23659, 26874), 15 },
-          { AOM_CDF6(1812, 5425, 9106, 12838, 16349), 94 },
-          { AOM_CDF6(27658, 32396, 32681, 32736, 32740), 15 },
-          { AOM_CDF6(17508, 30543, 32263, 32604, 32687), 23 },
-          { AOM_CDF6(8627, 20222, 26962, 30179, 31545), 100 },
-          { AOM_CDF6(4502, 11287, 17510, 22262, 25858), 50 },
+          { AOM_CDF6(4644, 13296, 20094, 24691, 27651), 118 },
+          { AOM_CDF6(1845, 5492, 9273, 13250, 16963), 123 },
+          { AOM_CDF6(15149, 27491, 30644, 31724, 32177), 0 },
+          { AOM_CDF6(8469, 21408, 27928, 30603, 31665), 118 },
+          { AOM_CDF6(4538, 12465, 18903, 23659, 26874), 93 },
+          { AOM_CDF6(1812, 5425, 9106, 12838, 16349), 115 },
+          { AOM_CDF6(27658, 32396, 32681, 32736, 32740), 75 },
+          { AOM_CDF6(17508, 30543, 32263, 32604, 32687), 115 },
+          { AOM_CDF6(8627, 20222, 26962, 30179, 31545), 77 },
+          { AOM_CDF6(4502, 11287, 17510, 22262, 25858), 79 },
       },
       {
-          { AOM_CDF6(12028, 25805, 30242, 31686, 32104), 10 },
+          { AOM_CDF6(12028, 25805, 30242, 31686, 32104), 14 },
           { AOM_CDF6(6873, 20683, 28552, 31327, 32198), 75 },
-          { AOM_CDF6(4417, 13376, 21020, 26076, 29345), 0 },
-          { AOM_CDF6(1872, 5776, 10779, 15967, 20663), 0 },
-          { AOM_CDF6(12010, 25672, 30138, 31773, 32134), 25 },
-          { AOM_CDF6(7029, 21007, 28934, 31567, 32294), 1 },
-          { AOM_CDF6(4309, 12652, 20158, 25517, 29022), 75 },
-          { AOM_CDF6(2072, 6184, 10807, 15838, 20961), 100 },
-          { AOM_CDF6(29343, 32431, 32638, 32716, 32732), 0 },
-          { AOM_CDF6(18659, 30546, 32380, 32697, 32732), 0 },
-          { AOM_CDF6(5958, 8937, 23831, 26810, 28300), 0 },
+          { AOM_CDF6(4417, 13376, 21020, 26076, 29345), 99 },
+          { AOM_CDF6(1872, 5776, 10779, 15967, 20663), 120 },
+          { AOM_CDF6(12010, 25672, 30138, 31773, 32134), 35 },
+          { AOM_CDF6(7029, 21007, 28934, 31567, 32294), 90 },
+          { AOM_CDF6(4309, 12652, 20158, 25517, 29022), 76 },
+          { AOM_CDF6(2072, 6184, 10807, 15838, 20961), 75 },
+          { AOM_CDF6(29343, 32431, 32638, 32716, 32732), 45 },
+          { AOM_CDF6(18659, 30546, 32380, 32697, 32732), 100 },
+          { AOM_CDF6(5958, 8937, 23831, 26810, 28300), 100 },
           { AOM_CDF6(4681, 9362, 14043, 18725, 28087), 0 },
       },
     };
@@ -4326,40 +4461,40 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
 static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
       {
-          { AOM_CDF4(10681, 16666, 20459), 1 },
-          { AOM_CDF4(12934, 19949, 23983), 75 },
-          { AOM_CDF4(10674, 17654, 22203), 115 },
-          { AOM_CDF4(5672, 10350, 14164), 90 },
-          { AOM_CDF4(10159, 15058, 19868), 0 },
-          { AOM_CDF4(12945, 19062, 23123), 124 },
-          { AOM_CDF4(10948, 17325, 21167), 45 },
-          { AOM_CDF4(6193, 11020, 14440), 15 },
+          { AOM_CDF4(10681, 16666, 20459), 27 },
+          { AOM_CDF4(12934, 19949, 23983), 0 },
+          { AOM_CDF4(10674, 17654, 22203), 80 },
+          { AOM_CDF4(5672, 10350, 14164), 15 },
+          { AOM_CDF4(10159, 15058, 19868), 110 },
+          { AOM_CDF4(12945, 19062, 23123), 50 },
+          { AOM_CDF4(10948, 17325, 21167), 10 },
+          { AOM_CDF4(6193, 11020, 14440), 37 },
       },
       {
-          { AOM_CDF4(10534, 16544, 20143), 7 },
-          { AOM_CDF4(13446, 20483, 24400), 91 },
-          { AOM_CDF4(10975, 17881, 22362), 101 },
-          { AOM_CDF4(5486, 9994, 13627), 90 },
-          { AOM_CDF4(14031, 19994, 23841), 100 },
-          { AOM_CDF4(13915, 21251, 25225), 110 },
-          { AOM_CDF4(11758, 18566, 22936), 100 },
-          { AOM_CDF4(6777, 12174, 16431), 80 },
+          { AOM_CDF4(10534, 16544, 20143), 6 },
+          { AOM_CDF4(13446, 20483, 24400), 90 },
+          { AOM_CDF4(10975, 17881, 22362), 115 },
+          { AOM_CDF4(5486, 9994, 13627), 118 },
+          { AOM_CDF4(14031, 19994, 23841), 5 },
+          { AOM_CDF4(13915, 21251, 25225), 10 },
+          { AOM_CDF4(11758, 18566, 22936), 35 },
+          { AOM_CDF4(6777, 12174, 16431), 37 },
       },
       {
-          { AOM_CDF4(8194, 12742, 15742), 5 },
-          { AOM_CDF4(12852, 19642, 23312), 9 },
-          { AOM_CDF4(10713, 17509, 22027), 1 },
-          { AOM_CDF4(6174, 11173, 15173), 76 },
-          { AOM_CDF4(19410, 25254, 28802), 0 },
+          { AOM_CDF4(8194, 12742, 15742), 6 },
+          { AOM_CDF4(12852, 19642, 23312), 75 },
+          { AOM_CDF4(10713, 17509, 22027), 75 },
+          { AOM_CDF4(6174, 11173, 15173), 90 },
+          { AOM_CDF4(19410, 25254, 28802), 50 },
           { AOM_CDF4(16632, 23992, 27460), 0 },
-          { AOM_CDF4(15777, 22452, 26457), 0 },
-          { AOM_CDF4(10127, 16718, 20635), 0 },
+          { AOM_CDF4(15777, 22452, 26457), 100 },
+          { AOM_CDF4(10127, 16718, 20635), 110 },
       },
       {
           { AOM_CDF4(9562, 14462, 17818), 50 },
-          { AOM_CDF4(15932, 23039, 26083), 50 },
-          { AOM_CDF4(14358, 22335, 26570), 50 },
-          { AOM_CDF4(10210, 17627, 22031), 100 },
+          { AOM_CDF4(15932, 23039, 26083), 9 },
+          { AOM_CDF4(14358, 22335, 26570), 20 },
+          { AOM_CDF4(10210, 17627, 22031), 20 },
           { AOM_CDF4(8192, 16384, 24576), 0 },
           { AOM_CDF4(8192, 16384, 24576), 0 },
           { AOM_CDF4(10923, 16384, 27307), 0 },
@@ -4371,56 +4506,56 @@ static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
       {
           { AOM_CDF4(26007, 32241, 32639), 0 },
-          { AOM_CDF4(17365, 29572, 31911), 93 },
-          { AOM_CDF4(8543, 21075, 27313), 90 },
-          { AOM_CDF4(4393, 12441, 18915), 90 },
+          { AOM_CDF4(17365, 29572, 31911), 90 },
+          { AOM_CDF4(8543, 21075, 27313), 75 },
+          { AOM_CDF4(4393, 12441, 18915), 76 },
           { AOM_CDF4(26852, 32428, 32678), 75 },
-          { AOM_CDF4(18225, 30513, 32242), 90 },
+          { AOM_CDF4(18225, 30513, 32242), 120 },
           { AOM_CDF4(9602, 22923, 28632), 75 },
-          { AOM_CDF4(4728, 13291, 19961), 115 },
-          { AOM_CDF4(28239, 32612, 32732), 0 },
-          { AOM_CDF4(21777, 31920, 32593), 118 },
-          { AOM_CDF4(10167, 22287, 27755), 94 },
-          { AOM_CDF4(3763, 10274, 17843), 24 },
+          { AOM_CDF4(4728, 13291, 19961), 15 },
+          { AOM_CDF4(28239, 32612, 32732), 105 },
+          { AOM_CDF4(21777, 31920, 32593), 75 },
+          { AOM_CDF4(10167, 22287, 27755), 20 },
+          { AOM_CDF4(3763, 10274, 17843), 84 },
       },
       {
           { AOM_CDF4(26071, 32361, 32667), 75 },
-          { AOM_CDF4(16124, 29499, 31947), 90 },
+          { AOM_CDF4(16124, 29499, 31947), 75 },
           { AOM_CDF4(8857, 21690, 27718), 75 },
-          { AOM_CDF4(4563, 12848, 19240), 90 },
+          { AOM_CDF4(4563, 12848, 19240), 75 },
           { AOM_CDF4(27210, 32509, 32703), 0 },
           { AOM_CDF4(17974, 30478, 32206), 75 },
-          { AOM_CDF4(9325, 22310, 28033), 76 },
-          { AOM_CDF4(4214, 11861, 18089), 1 },
-          { AOM_CDF4(28512, 32439, 32684), 90 },
+          { AOM_CDF4(9325, 22310, 28033), 75 },
+          { AOM_CDF4(4214, 11861, 18089), 75 },
+          { AOM_CDF4(28512, 32439, 32684), 75 },
           { AOM_CDF4(19918, 30794, 32233), 90 },
-          { AOM_CDF4(8545, 20451, 26400), 19 },
-          { AOM_CDF4(3297, 10809, 17416), 100 },
+          { AOM_CDF4(8545, 20451, 26400), 5 },
+          { AOM_CDF4(3297, 10809, 17416), 96 },
       },
       {
-          { AOM_CDF4(26847, 32431, 32693), 90 },
-          { AOM_CDF4(16626, 29898, 32086), 78 },
+          { AOM_CDF4(26847, 32431, 32693), 75 },
+          { AOM_CDF4(16626, 29898, 32086), 75 },
           { AOM_CDF4(9575, 22628, 28255), 75 },
-          { AOM_CDF4(4790, 13131, 19545), 75 },
-          { AOM_CDF4(26405, 32274, 32665), 0 },
+          { AOM_CDF4(4790, 13131, 19545), 76 },
+          { AOM_CDF4(26405, 32274, 32665), 75 },
           { AOM_CDF4(15958, 29449, 31888), 75 },
           { AOM_CDF4(9027, 21837, 27644), 1 },
-          { AOM_CDF4(4555, 12639, 18997), 3 },
-          { AOM_CDF4(29803, 32664, 32748), 83 },
-          { AOM_CDF4(21668, 31797, 32594), 80 },
-          { AOM_CDF4(10619, 23941, 29332), 0 },
-          { AOM_CDF4(3730, 9857, 15718), 0 },
+          { AOM_CDF4(4555, 12639, 18997), 1 },
+          { AOM_CDF4(29803, 32664, 32748), 75 },
+          { AOM_CDF4(21668, 31797, 32594), 115 },
+          { AOM_CDF4(10619, 23941, 29332), 76 },
+          { AOM_CDF4(3730, 9857, 15718), 100 },
       },
       {
-          { AOM_CDF4(26525, 32419, 32724), 0 },
-          { AOM_CDF4(13626, 29583, 32261), 76 },
-          { AOM_CDF4(9014, 23415, 29326), 14 },
+          { AOM_CDF4(26525, 32419, 32724), 75 },
+          { AOM_CDF4(13626, 29583, 32261), 75 },
+          { AOM_CDF4(9014, 23415, 29326), 7 },
           { AOM_CDF4(5308, 16384, 23590), 75 },
-          { AOM_CDF4(25016, 32329, 32719), 1 },
-          { AOM_CDF4(14001, 29360, 32145), 5 },
-          { AOM_CDF4(8594, 22169, 28754), 14 },
-          { AOM_CDF4(5179, 14375, 22253), 50 },
-          { AOM_CDF4(30742, 32620, 32719), 0 },
+          { AOM_CDF4(25016, 32329, 32719), 75 },
+          { AOM_CDF4(14001, 29360, 32145), 75 },
+          { AOM_CDF4(8594, 22169, 28754), 9 },
+          { AOM_CDF4(5179, 14375, 22253), 95 },
+          { AOM_CDF4(30742, 32620, 32719), 110 },
           { AOM_CDF4(24363, 31917, 32449), 0 },
           { AOM_CDF4(12288, 24576, 28672), 0 },
           { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -4430,28 +4565,28 @@ static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs
 static const aom_cdf_prob av1_default_coeff_lps_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
       {
-          { AOM_CDF4(24100, 29563, 31289), 91 },
-          { AOM_CDF4(22448, 28885, 31071), 123 },
-          { AOM_CDF4(17701, 25572, 29153), 118 },
-          { AOM_CDF4(10401, 17438, 22074), 75 },
+          { AOM_CDF4(24100, 29563, 31289), 6 },
+          { AOM_CDF4(22448, 28885, 31071), 93 },
+          { AOM_CDF4(17701, 25572, 29153), 93 },
+          { AOM_CDF4(10401, 17438, 22074), 91 },
       },
       {
-          { AOM_CDF4(24628, 29706, 31324), 1 },
-          { AOM_CDF4(22478, 28819, 31013), 90 },
-          { AOM_CDF4(17451, 25258, 28880), 90 },
-          { AOM_CDF4(9999, 16711, 21246), 90 },
+          { AOM_CDF4(24628, 29706, 31324), 90 },
+          { AOM_CDF4(22478, 28819, 31013), 123 },
+          { AOM_CDF4(17451, 25258, 28880), 118 },
+          { AOM_CDF4(9999, 16711, 21246), 75 },
       },
       {
-          { AOM_CDF4(25969, 30708, 31931), 77 },
-          { AOM_CDF4(22739, 29115, 31272), 90 },
-          { AOM_CDF4(17098, 24923, 28772), 91 },
-          { AOM_CDF4(10475, 17482, 22279), 7 },
+          { AOM_CDF4(25969, 30708, 31931), 90 },
+          { AOM_CDF4(22739, 29115, 31272), 118 },
+          { AOM_CDF4(17098, 24923, 28772), 115 },
+          { AOM_CDF4(10475, 17482, 22279), 75 },
       },
       {
-          { AOM_CDF4(28465, 31762, 32366), 100 },
-          { AOM_CDF4(25610, 30882, 32100), 100 },
-          { AOM_CDF4(19724, 27881, 31089), 75 },
-          { AOM_CDF4(15206, 23453, 28302), 100 },
+          { AOM_CDF4(28465, 31762, 32366), 0 },
+          { AOM_CDF4(25610, 30882, 32100), 23 },
+          { AOM_CDF4(19724, 27881, 31089), 10 },
+          { AOM_CDF4(15206, 23453, 28302), 120 },
       },
     };
 
@@ -4459,25 +4594,25 @@ static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_EOB][CDF_SIZE(LF_BASE_SYMBOLS - 1)] = {
       {
           { AOM_CDF5(27581, 31285, 32137, 32389), 75 },
-          { AOM_CDF5(32091, 32608, 32696, 32731), 19 },
-          { AOM_CDF5(31701, 32617, 32710, 32728), 98 },
+          { AOM_CDF5(32091, 32608, 32696, 32731), 109 },
+          { AOM_CDF5(31701, 32617, 32710, 32728), 0 },
           { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
       },
       {
-          { AOM_CDF5(29919, 32176, 32482, 32582), 90 },
-          { AOM_CDF5(31710, 32521, 32675, 32720), 24 },
-          { AOM_CDF5(31097, 32475, 32679, 32721), 99 },
+          { AOM_CDF5(29919, 32176, 32482, 32582), 75 },
+          { AOM_CDF5(31710, 32521, 32675, 32720), 95 },
+          { AOM_CDF5(31097, 32475, 32679, 32721), 20 },
           { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
       },
       {
-          { AOM_CDF5(29814, 32132, 32501, 32588), 105 },
-          { AOM_CDF5(31625, 32617, 32733, 32740), 29 },
-          { AOM_CDF5(30527, 32340, 32673, 32740), 75 },
+          { AOM_CDF5(29814, 32132, 32501, 32588), 75 },
+          { AOM_CDF5(31625, 32617, 32733, 32740), 78 },
+          { AOM_CDF5(30527, 32340, 32673, 32740), 24 },
           { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
       },
       {
           { AOM_CDF5(31131, 32506, 32661, 32703), 100 },
-          { AOM_CDF5(31161, 32411, 32589, 32679), 0 },
+          { AOM_CDF5(31161, 32411, 32589, 32679), 100 },
           { AOM_CDF5(28744, 31043, 31618, 32193), 0 },
           { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
       },
@@ -4488,26 +4623,26 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_uv_cdfs
       {
           { AOM_CDF3(10923, 21845), 0 },
           { AOM_CDF3(31158, 32513), 118 },
-          { AOM_CDF3(32171, 32661), 93 },
+          { AOM_CDF3(32171, 32661), 118 },
           { AOM_CDF3(32155, 32640), 93 },
       },
       {
           { AOM_CDF3(10923, 21845), 0 },
           { AOM_CDF3(32236, 32675), 118 },
-          { AOM_CDF3(32459, 32721), 98 },
-          { AOM_CDF3(31994, 32604), 78 },
+          { AOM_CDF3(32459, 32721), 123 },
+          { AOM_CDF3(31994, 32604), 93 },
       },
       {
           { AOM_CDF3(10923, 21845), 0 },
-          { AOM_CDF3(31906, 32644), 78 },
-          { AOM_CDF3(32421, 32725), 104 },
-          { AOM_CDF3(32277, 32670), 75 },
+          { AOM_CDF3(31906, 32644), 118 },
+          { AOM_CDF3(32421, 32725), 123 },
+          { AOM_CDF3(32277, 32670), 118 },
       },
       {
           { AOM_CDF3(10923, 21845), 0 },
-          { AOM_CDF3(32163, 32714), 90 },
-          { AOM_CDF3(32565, 32747), 50 },
-          { AOM_CDF3(32568, 32742), 0 },
+          { AOM_CDF3(32163, 32714), 118 },
+          { AOM_CDF3(32565, 32747), 75 },
+          { AOM_CDF3(32568, 32742), 24 },
       },
     };
 #endif  // CONFIG_LCCHROMA
@@ -4519,80 +4654,80 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
           {
-              { AOM_CDF6(6515, 23962, 29660, 31818, 32175), 0 },
+              { AOM_CDF6(6515, 23962, 29660, 31818, 32175), 35 },
               { AOM_CDF6(5052, 18977, 25870, 29620, 31077), 75 },
-              { AOM_CDF6(5981, 14778, 21374, 25628, 28349), 75 },
-              { AOM_CDF6(2856, 7906, 12864, 17573, 21401), 90 },
-              { AOM_CDF6(1872, 5574, 8932, 12413, 15519), 77 },
-              { AOM_CDF6(1374, 3580, 6358, 8793, 11301), 75 },
+              { AOM_CDF6(5981, 14778, 21374, 25628, 28349), 100 },
+              { AOM_CDF6(2856, 7906, 12864, 17573, 21401), 98 },
+              { AOM_CDF6(1872, 5574, 8932, 12413, 15519), 95 },
+              { AOM_CDF6(1374, 3580, 6358, 8793, 11301), 0 },
               { AOM_CDF6(1144, 3660, 5604, 8063, 10351), 0 },
               { AOM_CDF6(1956, 5380, 6847, 9292, 11249), 0 },
               { AOM_CDF6(728, 1456, 2185, 3641, 5097), 0 },
-              { AOM_CDF6(14110, 29608, 32088, 32552, 32667), 75 },
-              { AOM_CDF6(11643, 25313, 30206, 31826, 32340), 93 },
-              { AOM_CDF6(7742, 18940, 25668, 29221, 30942), 78 },
-              { AOM_CDF6(5268, 13761, 20451, 25095, 28058), 78 },
-              { AOM_CDF6(3869, 10359, 16078, 20750, 24257), 78 },
-              { AOM_CDF6(3038, 8096, 12856, 17034, 20482), 78 },
-              { AOM_CDF6(1977, 5234, 8421, 11445, 14224), 93 },
+              { AOM_CDF6(14110, 29608, 32088, 32552, 32667), 0 },
+              { AOM_CDF6(11643, 25313, 30206, 31826, 32340), 123 },
+              { AOM_CDF6(7742, 18940, 25668, 29221, 30942), 118 },
+              { AOM_CDF6(5268, 13761, 20451, 25095, 28058), 103 },
+              { AOM_CDF6(3869, 10359, 16078, 20750, 24257), 118 },
+              { AOM_CDF6(3038, 8096, 12856, 17034, 20482), 118 },
+              { AOM_CDF6(1977, 5234, 8421, 11445, 14224), 94 },
               { AOM_CDF6(19170, 30685, 32326, 32605, 32672), 75 },
-              { AOM_CDF6(13449, 26523, 30698, 31974, 32377), 93 },
-              { AOM_CDF6(7720, 19041, 25818, 29297, 30967), 78 },
-              { AOM_CDF6(5098, 13540, 20242, 24960, 27975), 78 },
-              { AOM_CDF6(3178, 8612, 13629, 17961, 21429), 78 },
-              { AOM_CDF6(18832, 29501, 31412, 32019, 32234), 90 },
-              { AOM_CDF6(12192, 25324, 29644, 31121, 31692), 118 },
-              { AOM_CDF6(7297, 18053, 24620, 28179, 29856), 93 },
-              { AOM_CDF6(6351, 14261, 20044, 23900, 26371), 93 },
-              { AOM_CDF6(3044, 8507, 13554, 17700, 20847), 93 },
-              { AOM_CDF6(2125, 5665, 9347, 12830, 15909), 93 },
-              { AOM_CDF6(1310, 3647, 6103, 8479, 10724), 93 },
-              { AOM_CDF6(24974, 32003, 32552, 32665, 32700), 90 },
-              { AOM_CDF6(14816, 26797, 30763, 31884, 32258), 118 },
-              { AOM_CDF6(7599, 17322, 23806, 27634, 29698), 93 },
-              { AOM_CDF6(7103, 14637, 20025, 23706, 26319), 93 },
+              { AOM_CDF6(13449, 26523, 30698, 31974, 32377), 118 },
+              { AOM_CDF6(7720, 19041, 25818, 29297, 30967), 118 },
+              { AOM_CDF6(5098, 13540, 20242, 24960, 27975), 118 },
+              { AOM_CDF6(3178, 8612, 13629, 17961, 21429), 93 },
+              { AOM_CDF6(18832, 29501, 31412, 32019, 32234), 5 },
+              { AOM_CDF6(12192, 25324, 29644, 31121, 31692), 90 },
+              { AOM_CDF6(7297, 18053, 24620, 28179, 29856), 75 },
+              { AOM_CDF6(6351, 14261, 20044, 23900, 26371), 75 },
+              { AOM_CDF6(3044, 8507, 13554, 17700, 20847), 75 },
+              { AOM_CDF6(2125, 5665, 9347, 12830, 15909), 100 },
+              { AOM_CDF6(1310, 3647, 6103, 8479, 10724), 124 },
+              { AOM_CDF6(24974, 32003, 32552, 32665, 32700), 0 },
+              { AOM_CDF6(14816, 26797, 30763, 31884, 32258), 90 },
+              { AOM_CDF6(7599, 17322, 23806, 27634, 29698), 75 },
+              { AOM_CDF6(7103, 14637, 20025, 23706, 26319), 90 },
               { AOM_CDF6(2520, 6946, 11110, 14689, 17772), 93 },
           },
           {
-              { AOM_CDF6(7380, 30181, 31815, 32509, 32615), 0 },
+              { AOM_CDF6(7380, 30181, 31815, 32509, 32615), 25 },
               { AOM_CDF6(5696, 20369, 26868, 30290, 31444), 75 },
-              { AOM_CDF6(6072, 15577, 22202, 26221, 28725), 90 },
-              { AOM_CDF6(3122, 8864, 13963, 18532, 22001), 90 },
-              { AOM_CDF6(2031, 5967, 9594, 13246, 16482), 94 },
+              { AOM_CDF6(6072, 15577, 22202, 26221, 28725), 75 },
+              { AOM_CDF6(3122, 8864, 13963, 18532, 22001), 92 },
+              { AOM_CDF6(2031, 5967, 9594, 13246, 16482), 100 },
               { AOM_CDF6(1773, 4642, 7655, 11129, 13537), 0 },
-              { AOM_CDF6(2679, 4821, 6875, 8839, 12321), 100 },
+              { AOM_CDF6(2679, 4821, 6875, 8839, 12321), 0 },
               { AOM_CDF6(762, 5334, 7620, 9907, 13717), 0 },
               { AOM_CDF6(6554, 8738, 10923, 15292, 17476), 0 },
               { AOM_CDF6(18813, 30851, 32374, 32652, 32716), 75 },
-              { AOM_CDF6(14819, 27885, 31270, 32241, 32521), 93 },
+              { AOM_CDF6(14819, 27885, 31270, 32241, 32521), 90 },
               { AOM_CDF6(9851, 22183, 27892, 30455, 31584), 93 },
-              { AOM_CDF6(6267, 16205, 22884, 26983, 29337), 93 },
-              { AOM_CDF6(4451, 12086, 18302, 22919, 26110), 78 },
-              { AOM_CDF6(3413, 9418, 14776, 19228, 22658), 78 },
-              { AOM_CDF6(2027, 5608, 9062, 12279, 15152), 93 },
-              { AOM_CDF6(23316, 31988, 32632, 32723, 32732), 75 },
-              { AOM_CDF6(17090, 29637, 32019, 32535, 32653), 78 },
-              { AOM_CDF6(10797, 23809, 29229, 31325, 32107), 78 },
-              { AOM_CDF6(6771, 17401, 24323, 28255, 30331), 93 },
-              { AOM_CDF6(3461, 9401, 14620, 18855, 22116), 93 },
+              { AOM_CDF6(6267, 16205, 22884, 26983, 29337), 123 },
+              { AOM_CDF6(4451, 12086, 18302, 22919, 26110), 118 },
+              { AOM_CDF6(3413, 9418, 14776, 19228, 22658), 123 },
+              { AOM_CDF6(2027, 5608, 9062, 12279, 15152), 118 },
+              { AOM_CDF6(23316, 31988, 32632, 32723, 32732), 0 },
+              { AOM_CDF6(17090, 29637, 32019, 32535, 32653), 75 },
+              { AOM_CDF6(10797, 23809, 29229, 31325, 32107), 93 },
+              { AOM_CDF6(6771, 17401, 24323, 28255, 30331), 118 },
+              { AOM_CDF6(3461, 9401, 14620, 18855, 22116), 118 },
               { AOM_CDF6(26290, 32021, 32468, 32597, 32646), 0 },
-              { AOM_CDF6(16555, 29135, 31552, 32191, 32400), 93 },
+              { AOM_CDF6(16555, 29135, 31552, 32191, 32400), 90 },
               { AOM_CDF6(10084, 22847, 28258, 30456, 31389), 75 },
-              { AOM_CDF6(6977, 16792, 22984, 26486, 28437), 90 },
+              { AOM_CDF6(6977, 16792, 22984, 26486, 28437), 1 },
               { AOM_CDF6(4056, 11507, 17511, 21910, 24827), 75 },
               { AOM_CDF6(2994, 8463, 13359, 17473, 20660), 90 },
-              { AOM_CDF6(1685, 4842, 8021, 10948, 13523), 90 },
-              { AOM_CDF6(28016, 32504, 32702, 32736, 32740), 90 },
-              { AOM_CDF6(18602, 30203, 32140, 32521, 32633), 78 },
+              { AOM_CDF6(1685, 4842, 8021, 10948, 13523), 93 },
+              { AOM_CDF6(28016, 32504, 32702, 32736, 32740), 0 },
+              { AOM_CDF6(18602, 30203, 32140, 32521, 32633), 103 },
               { AOM_CDF6(11272, 24591, 29571, 31334, 31982), 75 },
-              { AOM_CDF6(8093, 19452, 25731, 28891, 30469), 90 },
-              { AOM_CDF6(4041, 11262, 17038, 21210, 24054), 90 },
+              { AOM_CDF6(8093, 19452, 25731, 28891, 30469), 75 },
+              { AOM_CDF6(4041, 11262, 17038, 21210, 24054), 75 },
           },
           {
-              { AOM_CDF6(9432, 30492, 31855, 32486, 32557), 1 },
-              { AOM_CDF6(5327, 20795, 26683, 29946, 31228), 75 },
+              { AOM_CDF6(9432, 30492, 31855, 32486, 32557), 31 },
+              { AOM_CDF6(5327, 20795, 26683, 29946, 31228), 90 },
               { AOM_CDF6(5016, 13565, 20169, 24565, 27226), 93 },
-              { AOM_CDF6(2241, 7224, 11829, 16127, 19617), 79 },
+              { AOM_CDF6(2241, 7224, 11829, 16127, 19617), 20 },
               { AOM_CDF6(1494, 4642, 7656, 10225, 12947), 0 },
               { AOM_CDF6(1330, 3324, 5319, 7266, 9640), 100 },
               { AOM_CDF6(1404, 3745, 7958, 9830, 11703), 0 },
@@ -4600,51 +4735,51 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(4096, 8192, 12288, 16384, 20480), 0 },
               { AOM_CDF6(22067, 31231, 32417, 32663, 32724), 0 },
               { AOM_CDF6(15041, 27442, 30874, 32023, 32422), 75 },
-              { AOM_CDF6(8786, 20342, 26281, 29342, 30918), 93 },
-              { AOM_CDF6(5262, 14156, 20694, 25122, 27930), 93 },
-              { AOM_CDF6(3817, 10721, 16577, 21187, 24600), 93 },
-              { AOM_CDF6(3008, 8572, 13675, 17988, 21514), 118 },
-              { AOM_CDF6(2025, 5816, 9476, 12862, 15827), 118 },
-              { AOM_CDF6(24348, 32190, 32695, 32736, 32740), 75 },
-              { AOM_CDF6(17882, 29897, 32096, 32587, 32691), 75 },
+              { AOM_CDF6(8786, 20342, 26281, 29342, 30918), 90 },
+              { AOM_CDF6(5262, 14156, 20694, 25122, 27930), 118 },
+              { AOM_CDF6(3817, 10721, 16577, 21187, 24600), 118 },
+              { AOM_CDF6(3008, 8572, 13675, 17988, 21514), 123 },
+              { AOM_CDF6(2025, 5816, 9476, 12862, 15827), 123 },
+              { AOM_CDF6(24348, 32190, 32695, 32736, 32740), 0 },
+              { AOM_CDF6(17882, 29897, 32096, 32587, 32691), 0 },
               { AOM_CDF6(10677, 23743, 29210, 31371, 32183), 93 },
-              { AOM_CDF6(6519, 17339, 24396, 28410, 30543), 118 },
-              { AOM_CDF6(3747, 10588, 16369, 20852, 24182), 78 },
+              { AOM_CDF6(6519, 17339, 24396, 28410, 30543), 123 },
+              { AOM_CDF6(3747, 10588, 16369, 20852, 24182), 118 },
               { AOM_CDF6(29917, 32597, 32714, 32736, 32740), 75 },
               { AOM_CDF6(19705, 30884, 32225, 32522, 32634), 75 },
-              { AOM_CDF6(11771, 25242, 29797, 31373, 32032), 0 },
-              { AOM_CDF6(7884, 18463, 24730, 28017, 29624), 1 },
-              { AOM_CDF6(4570, 13155, 19787, 24244, 27010), 4 },
-              { AOM_CDF6(3458, 10299, 16096, 20513, 23626), 20 },
-              { AOM_CDF6(2441, 6850, 11016, 14883, 17913), 79 },
-              { AOM_CDF6(30912, 32721, 32740, 32744, 32748), 75 },
+              { AOM_CDF6(11771, 25242, 29797, 31373, 32032), 6 },
+              { AOM_CDF6(7884, 18463, 24730, 28017, 29624), 31 },
+              { AOM_CDF6(4570, 13155, 19787, 24244, 27010), 46 },
+              { AOM_CDF6(3458, 10299, 16096, 20513, 23626), 9 },
+              { AOM_CDF6(2441, 6850, 11016, 14883, 17913), 22 },
+              { AOM_CDF6(30912, 32721, 32740, 32744, 32748), 85 },
               { AOM_CDF6(22569, 31800, 32564, 32703, 32732), 75 },
-              { AOM_CDF6(13855, 27736, 31221, 32193, 32506), 1 },
-              { AOM_CDF6(8984, 21588, 28059, 30514, 31533), 75 },
-              { AOM_CDF6(4850, 13293, 20179, 24556, 27375), 99 },
+              { AOM_CDF6(13855, 27736, 31221, 32193, 32506), 5 },
+              { AOM_CDF6(8984, 21588, 28059, 30514, 31533), 84 },
+              { AOM_CDF6(4850, 13293, 20179, 24556, 27375), 116 },
           },
           {
-              { AOM_CDF6(2828, 27721, 29469, 30975, 31860), 0 },
-              { AOM_CDF6(2793, 19596, 25837, 29464, 31018), 1 },
-              { AOM_CDF6(3741, 11641, 18407, 22809, 26074), 81 },
+              { AOM_CDF6(2828, 27721, 29469, 30975, 31860), 60 },
+              { AOM_CDF6(2793, 19596, 25837, 29464, 31018), 31 },
+              { AOM_CDF6(3741, 11641, 18407, 22809, 26074), 20 },
               { AOM_CDF6(2016, 5602, 9044, 12697, 16373), 0 },
-              { AOM_CDF6(1460, 3515, 6326, 8922, 10923), 50 },
+              { AOM_CDF6(1460, 3515, 6326, 8922, 10923), 0 },
               { AOM_CDF6(1046, 3137, 5926, 7321, 8366), 0 },
               { AOM_CDF6(1928, 3855, 5783, 9638, 13493), 0 },
               { AOM_CDF6(4681, 9362, 14043, 18725, 23406), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(22958, 30712, 32245, 32594, 32699), 0 },
+              { AOM_CDF6(22958, 30712, 32245, 32594, 32699), 1 },
               { AOM_CDF6(14531, 26725, 30408, 31691, 32186), 75 },
-              { AOM_CDF6(7593, 18680, 24854, 28164, 29950), 90 },
-              { AOM_CDF6(4683, 12824, 18894, 23251, 26113), 90 },
-              { AOM_CDF6(3285, 9570, 14795, 19103, 22256), 120 },
-              { AOM_CDF6(2785, 7773, 12126, 15844, 19033), 123 },
-              { AOM_CDF6(1722, 5061, 8182, 11108, 13699), 103 },
-              { AOM_CDF6(25279, 32082, 32661, 32736, 32740), 1 },
-              { AOM_CDF6(16440, 29032, 31767, 32462, 32642), 75 },
-              { AOM_CDF6(9492, 22131, 28132, 30715, 31777), 93 },
-              { AOM_CDF6(5918, 16301, 23303, 27454, 29782), 118 },
-              { AOM_CDF6(3252, 9393, 14587, 18873, 22160), 75 },
+              { AOM_CDF6(7593, 18680, 24854, 28164, 29950), 77 },
+              { AOM_CDF6(4683, 12824, 18894, 23251, 26113), 75 },
+              { AOM_CDF6(3285, 9570, 14795, 19103, 22256), 124 },
+              { AOM_CDF6(2785, 7773, 12126, 15844, 19033), 120 },
+              { AOM_CDF6(1722, 5061, 8182, 11108, 13699), 24 },
+              { AOM_CDF6(25279, 32082, 32661, 32736, 32740), 80 },
+              { AOM_CDF6(16440, 29032, 31767, 32462, 32642), 90 },
+              { AOM_CDF6(9492, 22131, 28132, 30715, 31777), 95 },
+              { AOM_CDF6(5918, 16301, 23303, 27454, 29782), 122 },
+              { AOM_CDF6(3252, 9393, 14587, 18873, 22160), 76 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -4660,26 +4795,26 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
           },
           {
               { AOM_CDF6(1628, 13834, 26692, 29025, 29350), 0 },
-              { AOM_CDF6(1047, 12180, 21635, 25601, 27248), 50 },
-              { AOM_CDF6(2155, 6842, 12346, 16865, 19774), 50 },
-              { AOM_CDF6(760, 2765, 4563, 8088, 9955), 100 },
+              { AOM_CDF6(1047, 12180, 21635, 25601, 27248), 0 },
+              { AOM_CDF6(2155, 6842, 12346, 16865, 19774), 0 },
+              { AOM_CDF6(760, 2765, 4563, 8088, 9955), 0 },
               { AOM_CDF6(403, 671, 1343, 2149, 2820), 0 },
-              { AOM_CDF6(318, 954, 1591, 2545, 3181), 50 },
+              { AOM_CDF6(318, 954, 1591, 2545, 3181), 0 },
               { AOM_CDF6(683, 1365, 2048, 2731, 4096), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(21186, 28783, 30411, 31692, 32191), 50 },
-              { AOM_CDF6(13103, 25425, 28563, 29971, 30659), 35 },
-              { AOM_CDF6(7794, 18239, 24142, 27124, 28799), 50 },
-              { AOM_CDF6(5322, 13832, 19348, 23264, 25713), 50 },
-              { AOM_CDF6(3391, 9968, 14688, 18905, 21311), 100 },
-              { AOM_CDF6(2596, 6804, 10505, 13788, 16414), 50 },
-              { AOM_CDF6(783, 2219, 3635, 4918, 6130), 10 },
-              { AOM_CDF6(26400, 32381, 32721, 32736, 32740), 78 },
-              { AOM_CDF6(17572, 29905, 32005, 32505, 32657), 79 },
-              { AOM_CDF6(9894, 22865, 28343, 30556, 31513), 95 },
-              { AOM_CDF6(5425, 15056, 21300, 25302, 27729), 100 },
-              { AOM_CDF6(1579, 4586, 7368, 10050, 12314), 116 },
+              { AOM_CDF6(21186, 28783, 30411, 31692, 32191), 65 },
+              { AOM_CDF6(13103, 25425, 28563, 29971, 30659), 70 },
+              { AOM_CDF6(7794, 18239, 24142, 27124, 28799), 0 },
+              { AOM_CDF6(5322, 13832, 19348, 23264, 25713), 0 },
+              { AOM_CDF6(3391, 9968, 14688, 18905, 21311), 0 },
+              { AOM_CDF6(2596, 6804, 10505, 13788, 16414), 0 },
+              { AOM_CDF6(783, 2219, 3635, 4918, 6130), 50 },
+              { AOM_CDF6(26400, 32381, 32721, 32736, 32740), 109 },
+              { AOM_CDF6(17572, 29905, 32005, 32505, 32657), 102 },
+              { AOM_CDF6(9894, 22865, 28343, 30556, 31513), 0 },
+              { AOM_CDF6(5425, 15056, 21300, 25302, 27729), 0 },
+              { AOM_CDF6(1579, 4586, 7368, 10050, 12314), 122 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -4699,66 +4834,66 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(4431, 22752, 29427, 31944, 32323), 0 },
               { AOM_CDF6(4611, 18977, 26287, 29793, 31142), 0 },
               { AOM_CDF6(5607, 14375, 21071, 25460, 28214), 0 },
-              { AOM_CDF6(2667, 7782, 12707, 17332, 21168), 93 },
-              { AOM_CDF6(1708, 5115, 8459, 11950, 15266), 79 },
-              { AOM_CDF6(1407, 4042, 6586, 9320, 11906), 0 },
+              { AOM_CDF6(2667, 7782, 12707, 17332, 21168), 118 },
+              { AOM_CDF6(1708, 5115, 8459, 11950, 15266), 119 },
+              { AOM_CDF6(1407, 4042, 6586, 9320, 11906), 35 },
               { AOM_CDF6(1194, 3591, 5676, 8235, 10338), 0 },
               { AOM_CDF6(681, 1982, 3345, 6008, 8300), 0 },
               { AOM_CDF6(1321, 3171, 3700, 5021, 6342), 0 },
               { AOM_CDF6(14153, 29470, 32016, 32499, 32650), 75 },
               { AOM_CDF6(11817, 25431, 30265, 31861, 32369), 75 },
-              { AOM_CDF6(7551, 18707, 25539, 29155, 30926), 0 },
-              { AOM_CDF6(5151, 13708, 20514, 25268, 28278), 0 },
-              { AOM_CDF6(4025, 10797, 16878, 21699, 25227), 0 },
-              { AOM_CDF6(3381, 9116, 14415, 18952, 22545), 3 },
-              { AOM_CDF6(2544, 6728, 10824, 14514, 17654), 3 },
-              { AOM_CDF6(20137, 31205, 32494, 32676, 32718), 0 },
-              { AOM_CDF6(14237, 27630, 31414, 32354, 32572), 0 },
-              { AOM_CDF6(8348, 20364, 27215, 30400, 31729), 3 },
-              { AOM_CDF6(5757, 15183, 22474, 27116, 29739), 3 },
-              { AOM_CDF6(4139, 11082, 17163, 21887, 25296), 3 },
+              { AOM_CDF6(7551, 18707, 25539, 29155, 30926), 75 },
+              { AOM_CDF6(5151, 13708, 20514, 25268, 28278), 75 },
+              { AOM_CDF6(4025, 10797, 16878, 21699, 25227), 75 },
+              { AOM_CDF6(3381, 9116, 14415, 18952, 22545), 78 },
+              { AOM_CDF6(2544, 6728, 10824, 14514, 17654), 93 },
+              { AOM_CDF6(20137, 31205, 32494, 32676, 32718), 90 },
+              { AOM_CDF6(14237, 27630, 31414, 32354, 32572), 90 },
+              { AOM_CDF6(8348, 20364, 27215, 30400, 31729), 78 },
+              { AOM_CDF6(5757, 15183, 22474, 27116, 29739), 93 },
+              { AOM_CDF6(4139, 11082, 17163, 21887, 25296), 78 },
               { AOM_CDF6(19957, 30881, 32093, 32401, 32499), 75 },
-              { AOM_CDF6(13862, 27524, 30931, 31847, 32161), 93 },
+              { AOM_CDF6(13862, 27524, 30931, 31847, 32161), 118 },
               { AOM_CDF6(7951, 19522, 26221, 29500, 30783), 75 },
               { AOM_CDF6(6740, 15489, 21710, 25768, 27994), 75 },
               { AOM_CDF6(3517, 9766, 15604, 20263, 23629), 78 },
               { AOM_CDF6(2514, 6923, 11453, 15483, 18838), 90 },
-              { AOM_CDF6(1575, 4396, 7421, 10439, 13122), 75 },
-              { AOM_CDF6(26753, 32413, 32653, 32715, 32732), 0 },
+              { AOM_CDF6(1575, 4396, 7421, 10439, 13122), 115 },
+              { AOM_CDF6(26753, 32413, 32653, 32715, 32732), 75 },
               { AOM_CDF6(16486, 27781, 31508, 32297, 32527), 90 },
               { AOM_CDF6(8468, 18731, 25262, 29033, 30854), 75 },
-              { AOM_CDF6(7679, 16687, 22428, 25871, 28305), 90 },
-              { AOM_CDF6(3330, 9195, 14353, 18336, 21471), 0 },
+              { AOM_CDF6(7679, 16687, 22428, 25871, 28305), 93 },
+              { AOM_CDF6(3330, 9195, 14353, 18336, 21471), 78 },
           },
           {
               { AOM_CDF6(7252, 30296, 31920, 32579, 32640), 0 },
               { AOM_CDF6(5668, 21398, 27624, 30677, 31611), 75 },
               { AOM_CDF6(5975, 15592, 22431, 26474, 28934), 75 },
-              { AOM_CDF6(2868, 8294, 13339, 17938, 21613), 78 },
-              { AOM_CDF6(1750, 5139, 8530, 11781, 15091), 76 },
-              { AOM_CDF6(1342, 4006, 6741, 9271, 11787), 0 },
+              { AOM_CDF6(2868, 8294, 13339, 17938, 21613), 93 },
+              { AOM_CDF6(1750, 5139, 8530, 11781, 15091), 95 },
+              { AOM_CDF6(1342, 4006, 6741, 9271, 11787), 100 },
               { AOM_CDF6(1991, 4153, 5632, 7623, 10126), 0 },
               { AOM_CDF6(2308, 6000, 10153, 12923, 14769), 0 },
               { AOM_CDF6(1311, 5243, 6554, 9175, 14418), 0 },
               { AOM_CDF6(19255, 31262, 32498, 32684, 32731), 90 },
               { AOM_CDF6(15191, 28382, 31502, 32336, 32569), 75 },
               { AOM_CDF6(10018, 22467, 28082, 30587, 31678), 75 },
-              { AOM_CDF6(6144, 16072, 22859, 27012, 29405), 90 },
+              { AOM_CDF6(6144, 16072, 22859, 27012, 29405), 93 },
               { AOM_CDF6(4440, 12187, 18529, 23214, 26414), 93 },
               { AOM_CDF6(3526, 9851, 15432, 20017, 23493), 93 },
-              { AOM_CDF6(2441, 6805, 10935, 14640, 17800), 93 },
+              { AOM_CDF6(2441, 6805, 10935, 14640, 17800), 118 },
               { AOM_CDF6(23800, 32269, 32698, 32736, 32740), 75 },
-              { AOM_CDF6(17755, 30156, 32220, 32616, 32696), 0 },
+              { AOM_CDF6(17755, 30156, 32220, 32616, 32696), 75 },
               { AOM_CDF6(10995, 24248, 29602, 31582, 32264), 78 },
               { AOM_CDF6(6761, 17764, 24897, 28836, 30814), 93 },
-              { AOM_CDF6(4143, 11487, 17681, 22346, 25634), 78 },
+              { AOM_CDF6(4143, 11487, 17681, 22346, 25634), 93 },
               { AOM_CDF6(27962, 32440, 32644, 32700, 32719), 75 },
               { AOM_CDF6(17649, 30227, 32072, 32459, 32572), 90 },
               { AOM_CDF6(10838, 24277, 29419, 31247, 31906), 75 },
-              { AOM_CDF6(7189, 17877, 24471, 27927, 29660), 0 },
-              { AOM_CDF6(4369, 12444, 19031, 23624, 26498), 0 },
-              { AOM_CDF6(3187, 9258, 14817, 19352, 22697), 0 },
-              { AOM_CDF6(2083, 5866, 9714, 13201, 16204), 93 },
+              { AOM_CDF6(7189, 17877, 24471, 27927, 29660), 75 },
+              { AOM_CDF6(4369, 12444, 19031, 23624, 26498), 15 },
+              { AOM_CDF6(3187, 9258, 14817, 19352, 22697), 75 },
+              { AOM_CDF6(2083, 5866, 9714, 13201, 16204), 90 },
               { AOM_CDF6(29243, 32638, 32734, 32738, 32742), 0 },
               { AOM_CDF6(19686, 30972, 32412, 32638, 32703), 75 },
               { AOM_CDF6(11953, 25789, 30425, 31863, 32324), 75 },
@@ -4766,11 +4901,11 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(4774, 13186, 19753, 24154, 26962), 75 },
           },
           {
-              { AOM_CDF6(7851, 30384, 31706, 32532, 32589), 1 },
+              { AOM_CDF6(7851, 30384, 31706, 32532, 32589), 31 },
               { AOM_CDF6(6207, 21649, 27340, 30442, 31445), 75 },
               { AOM_CDF6(5625, 15112, 21972, 26158, 28701), 75 },
-              { AOM_CDF6(2775, 8353, 13517, 18038, 21501), 75 },
-              { AOM_CDF6(1821, 5239, 8871, 12135, 15185), 99 },
+              { AOM_CDF6(2775, 8353, 13517, 18038, 21501), 93 },
+              { AOM_CDF6(1821, 5239, 8871, 12135, 15185), 97 },
               { AOM_CDF6(1454, 4088, 6296, 9003, 11601), 50 },
               { AOM_CDF6(1167, 4130, 7002, 9067, 11312), 0 },
               { AOM_CDF6(799, 2398, 3197, 6394, 8791), 0 },
@@ -4778,50 +4913,50 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(22006, 31454, 32495, 32687, 32731), 75 },
               { AOM_CDF6(15203, 27809, 31144, 32177, 32497), 75 },
               { AOM_CDF6(8920, 20737, 26783, 29778, 31211), 75 },
-              { AOM_CDF6(5447, 14591, 21273, 25679, 28418), 75 },
+              { AOM_CDF6(5447, 14591, 21273, 25679, 28418), 115 },
               { AOM_CDF6(3941, 11056, 17059, 21706, 25063), 118 },
-              { AOM_CDF6(3108, 8885, 14074, 18456, 21925), 118 },
-              { AOM_CDF6(2057, 5948, 9652, 13045, 16021), 93 },
-              { AOM_CDF6(24600, 32262, 32710, 32736, 32740), 75 },
+              { AOM_CDF6(3108, 8885, 14074, 18456, 21925), 123 },
+              { AOM_CDF6(2057, 5948, 9652, 13045, 16021), 118 },
+              { AOM_CDF6(24600, 32262, 32710, 32736, 32740), 0 },
               { AOM_CDF6(18378, 30153, 32205, 32621, 32702), 0 },
-              { AOM_CDF6(10719, 23854, 29354, 31460, 32223), 75 },
-              { AOM_CDF6(6541, 17422, 24525, 28539, 30626), 93 },
-              { AOM_CDF6(3829, 10881, 16805, 21350, 24647), 93 },
+              { AOM_CDF6(10719, 23854, 29354, 31460, 32223), 93 },
+              { AOM_CDF6(6541, 17422, 24525, 28539, 30626), 118 },
+              { AOM_CDF6(3829, 10881, 16805, 21350, 24647), 118 },
               { AOM_CDF6(30513, 32660, 32735, 32739, 32743), 75 },
               { AOM_CDF6(19741, 31317, 32435, 32635, 32696), 75 },
-              { AOM_CDF6(12474, 26518, 30757, 31972, 32360), 0 },
-              { AOM_CDF6(8024, 19833, 26418, 29417, 30720), 0 },
-              { AOM_CDF6(5339, 14743, 21943, 26369, 28810), 19 },
-              { AOM_CDF6(4118, 11547, 18150, 22872, 26018), 9 },
-              { AOM_CDF6(2921, 8227, 13156, 17466, 20816), 2 },
-              { AOM_CDF6(31197, 32729, 32740, 32744, 32748), 0 },
+              { AOM_CDF6(12474, 26518, 30757, 31972, 32360), 1 },
+              { AOM_CDF6(8024, 19833, 26418, 29417, 30720), 31 },
+              { AOM_CDF6(5339, 14743, 21943, 26369, 28810), 1 },
+              { AOM_CDF6(4118, 11547, 18150, 22872, 26018), 2 },
+              { AOM_CDF6(2921, 8227, 13156, 17466, 20816), 31 },
+              { AOM_CDF6(31197, 32729, 32740, 32744, 32748), 75 },
               { AOM_CDF6(22157, 32007, 32636, 32730, 32734), 75 },
-              { AOM_CDF6(14153, 28311, 31723, 32428, 32619), 75 },
-              { AOM_CDF6(8964, 22454, 28710, 31129, 32018), 98 },
-              { AOM_CDF6(5502, 15192, 22260, 26601, 29088), 16 },
+              { AOM_CDF6(14153, 28311, 31723, 32428, 32619), 90 },
+              { AOM_CDF6(8964, 22454, 28710, 31129, 32018), 95 },
+              { AOM_CDF6(5502, 15192, 22260, 26601, 29088), 1 },
           },
           {
-              { AOM_CDF6(5415, 26920, 29198, 31275, 32056), 9 },
-              { AOM_CDF6(5007, 20875, 26704, 29976, 31282), 0 },
+              { AOM_CDF6(5415, 26920, 29198, 31275, 32056), 32 },
+              { AOM_CDF6(5007, 20875, 26704, 29976, 31282), 1 },
               { AOM_CDF6(4863, 13806, 20561, 24932, 27802), 0 },
-              { AOM_CDF6(2236, 6736, 11084, 15445, 19191), 99 },
-              { AOM_CDF6(1520, 4308, 6969, 10051, 12737), 80 },
-              { AOM_CDF6(632, 4308, 6680, 9249, 11937), 0 },
+              { AOM_CDF6(2236, 6736, 11084, 15445, 19191), 102 },
+              { AOM_CDF6(1520, 4308, 6969, 10051, 12737), 75 },
+              { AOM_CDF6(632, 4308, 6680, 9249, 11937), 100 },
               { AOM_CDF6(1385, 3923, 6231, 8307, 10615), 0 },
               { AOM_CDF6(2341, 4681, 7022, 9362, 11703), 0 },
               { AOM_CDF6(4096, 8192, 12288, 16384, 20480), 0 },
               { AOM_CDF6(21617, 30657, 32276, 32611, 32703), 0 },
               { AOM_CDF6(13058, 26231, 30460, 31848, 32329), 75 },
-              { AOM_CDF6(8029, 19596, 25982, 29187, 30801), 75 },
+              { AOM_CDF6(8029, 19596, 25982, 29187, 30801), 90 },
               { AOM_CDF6(5309, 14345, 21083, 25450, 28174), 75 },
               { AOM_CDF6(3990, 11158, 17126, 21735, 24990), 90 },
               { AOM_CDF6(3183, 8893, 14042, 18370, 21772), 90 },
-              { AOM_CDF6(1909, 5572, 9043, 12259, 15057), 90 },
+              { AOM_CDF6(1909, 5572, 9043, 12259, 15057), 123 },
               { AOM_CDF6(24065, 32020, 32676, 32736, 32740), 75 },
               { AOM_CDF6(16195, 29242, 31968, 32552, 32684), 75 },
-              { AOM_CDF6(9979, 23330, 29178, 31391, 32194), 75 },
-              { AOM_CDF6(6669, 17695, 24800, 28714, 30707), 75 },
-              { AOM_CDF6(3499, 9974, 15500, 19831, 23036), 75 },
+              { AOM_CDF6(9979, 23330, 29178, 31391, 32194), 118 },
+              { AOM_CDF6(6669, 17695, 24800, 28714, 30707), 115 },
+              { AOM_CDF6(3499, 9974, 15500, 19831, 23036), 115 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -4836,26 +4971,26 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
           },
           {
-              { AOM_CDF6(2714, 19676, 26923, 29768, 30696), 50 },
+              { AOM_CDF6(2714, 19676, 26923, 29768, 30696), 61 },
               { AOM_CDF6(3102, 17369, 24925, 28556, 30250), 7 },
-              { AOM_CDF6(3672, 10823, 16998, 21810, 24914), 30 },
-              { AOM_CDF6(1682, 4455, 7175, 10428, 12714), 50 },
-              { AOM_CDF6(990, 2485, 4486, 6136, 8093), 50 },
-              { AOM_CDF6(1917, 3050, 3922, 4880, 7495), 25 },
+              { AOM_CDF6(3672, 10823, 16998, 21810, 24914), 37 },
+              { AOM_CDF6(1682, 4455, 7175, 10428, 12714), 100 },
+              { AOM_CDF6(990, 2485, 4486, 6136, 8093), 0 },
+              { AOM_CDF6(1917, 3050, 3922, 4880, 7495), 0 },
               { AOM_CDF6(1524, 3810, 6858, 9907, 10669), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(20608, 29778, 31635, 32357, 32604), 31 },
-              { AOM_CDF6(13214, 26109, 30051, 31433, 32033), 0 },
-              { AOM_CDF6(7740, 18942, 25062, 28352, 30088), 75 },
-              { AOM_CDF6(4884, 13167, 19429, 23687, 26603), 78 },
-              { AOM_CDF6(3368, 9747, 15196, 19641, 22857), 104 },
-              { AOM_CDF6(2666, 7612, 12161, 16142, 19152), 120 },
-              { AOM_CDF6(1288, 3740, 6052, 8250, 10219), 118 },
+              { AOM_CDF6(20608, 29778, 31635, 32357, 32604), 6 },
+              { AOM_CDF6(13214, 26109, 30051, 31433, 32033), 1 },
+              { AOM_CDF6(7740, 18942, 25062, 28352, 30088), 91 },
+              { AOM_CDF6(4884, 13167, 19429, 23687, 26603), 118 },
+              { AOM_CDF6(3368, 9747, 15196, 19641, 22857), 100 },
+              { AOM_CDF6(2666, 7612, 12161, 16142, 19152), 119 },
+              { AOM_CDF6(1288, 3740, 6052, 8250, 10219), 120 },
               { AOM_CDF6(24326, 31994, 32664, 32736, 32740), 0 },
               { AOM_CDF6(15785, 28857, 31718, 32420, 32621), 75 },
               { AOM_CDF6(9383, 22072, 27974, 30539, 31655), 90 },
-              { AOM_CDF6(5923, 15828, 22634, 26742, 29157), 100 },
+              { AOM_CDF6(5923, 15828, 22634, 26742, 29157), 90 },
               { AOM_CDF6(2464, 7116, 11201, 14730, 17588), 75 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -4873,132 +5008,132 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
       },
       {
           {
-              { AOM_CDF6(6534, 22119, 28546, 31369, 31828), 24 },
-              { AOM_CDF6(3353, 16169, 24567, 28914, 30732), 0 },
-              { AOM_CDF6(4573, 12628, 19146, 24068, 27280), 0 },
-              { AOM_CDF6(2358, 6906, 11324, 15883, 20043), 0 },
-              { AOM_CDF6(1536, 4416, 7393, 10557, 13656), 80 },
+              { AOM_CDF6(6534, 22119, 28546, 31369, 31828), 9 },
+              { AOM_CDF6(3353, 16169, 24567, 28914, 30732), 75 },
+              { AOM_CDF6(4573, 12628, 19146, 24068, 27280), 90 },
+              { AOM_CDF6(2358, 6906, 11324, 15883, 20043), 75 },
+              { AOM_CDF6(1536, 4416, 7393, 10557, 13656), 84 },
               { AOM_CDF6(1098, 2624, 4800, 7165, 9702), 0 },
               { AOM_CDF6(795, 2172, 3610, 5278, 6823), 0 },
               { AOM_CDF6(554, 1754, 3138, 5446, 7107), 0 },
               { AOM_CDF6(529, 2114, 3171, 3700, 5814), 0 },
-              { AOM_CDF6(14440, 28602, 31664, 32391, 32609), 0 },
-              { AOM_CDF6(9276, 23217, 29289, 31483, 32229), 0 },
-              { AOM_CDF6(6449, 16751, 23824, 28066, 30356), 30 },
-              { AOM_CDF6(4653, 12557, 19176, 24115, 27428), 0 },
-              { AOM_CDF6(3816, 10049, 15740, 20547, 24152), 0 },
-              { AOM_CDF6(3161, 8109, 13116, 17316, 20815), 0 },
-              { AOM_CDF6(2364, 6081, 9777, 13283, 16608), 2 },
-              { AOM_CDF6(20691, 31079, 32441, 32672, 32726), 30 },
-              { AOM_CDF6(12890, 27003, 31312, 32383, 32595), 30 },
-              { AOM_CDF6(8685, 20658, 27436, 30606, 31844), 30 },
-              { AOM_CDF6(5809, 15098, 22114, 26870, 29612), 0 },
-              { AOM_CDF6(3907, 10393, 16148, 20874, 24470), 15 },
-              { AOM_CDF6(23001, 31002, 32088, 32414, 32533), 0 },
-              { AOM_CDF6(13016, 26663, 30462, 31649, 32090), 0 },
-              { AOM_CDF6(8120, 18424, 25072, 28576, 30186), 0 },
-              { AOM_CDF6(6827, 14574, 20370, 24129, 26517), 75 },
-              { AOM_CDF6(2718, 7699, 12922, 17322, 20773), 0 },
-              { AOM_CDF6(1747, 5672, 9462, 12967, 16209), 100 },
-              { AOM_CDF6(1058, 3245, 5643, 8186, 10793), 100 },
-              { AOM_CDF6(28877, 32461, 32685, 32733, 32737), 0 },
-              { AOM_CDF6(16158, 27458, 31241, 32250, 32529), 0 },
-              { AOM_CDF6(9349, 18871, 25289, 29138, 30802), 8 },
-              { AOM_CDF6(7699, 16203, 21865, 25564, 28151), 20 },
-              { AOM_CDF6(3777, 9327, 13955, 18482, 22279), 75 },
+              { AOM_CDF6(14440, 28602, 31664, 32391, 32609), 75 },
+              { AOM_CDF6(9276, 23217, 29289, 31483, 32229), 93 },
+              { AOM_CDF6(6449, 16751, 23824, 28066, 30356), 75 },
+              { AOM_CDF6(4653, 12557, 19176, 24115, 27428), 78 },
+              { AOM_CDF6(3816, 10049, 15740, 20547, 24152), 75 },
+              { AOM_CDF6(3161, 8109, 13116, 17316, 20815), 93 },
+              { AOM_CDF6(2364, 6081, 9777, 13283, 16608), 75 },
+              { AOM_CDF6(20691, 31079, 32441, 32672, 32726), 75 },
+              { AOM_CDF6(12890, 27003, 31312, 32383, 32595), 3 },
+              { AOM_CDF6(8685, 20658, 27436, 30606, 31844), 78 },
+              { AOM_CDF6(5809, 15098, 22114, 26870, 29612), 93 },
+              { AOM_CDF6(3907, 10393, 16148, 20874, 24470), 93 },
+              { AOM_CDF6(23001, 31002, 32088, 32414, 32533), 75 },
+              { AOM_CDF6(13016, 26663, 30462, 31649, 32090), 93 },
+              { AOM_CDF6(8120, 18424, 25072, 28576, 30186), 75 },
+              { AOM_CDF6(6827, 14574, 20370, 24129, 26517), 115 },
+              { AOM_CDF6(2718, 7699, 12922, 17322, 20773), 75 },
+              { AOM_CDF6(1747, 5672, 9462, 12967, 16209), 3 },
+              { AOM_CDF6(1058, 3245, 5643, 8186, 10793), 124 },
+              { AOM_CDF6(28877, 32461, 32685, 32733, 32737), 75 },
+              { AOM_CDF6(16158, 27458, 31241, 32250, 32529), 90 },
+              { AOM_CDF6(9349, 18871, 25289, 29138, 30802), 75 },
+              { AOM_CDF6(7699, 16203, 21865, 25564, 28151), 98 },
+              { AOM_CDF6(3777, 9327, 13955, 18482, 22279), 93 },
           },
           {
               { AOM_CDF6(8235, 30279, 31901, 32551, 32610), 1 },
               { AOM_CDF6(4821, 20224, 27434, 30627, 31580), 75 },
-              { AOM_CDF6(5641, 15530, 22762, 26890, 29267), 0 },
-              { AOM_CDF6(2545, 7728, 12543, 17510, 21457), 0 },
-              { AOM_CDF6(1683, 4959, 8223, 11474, 14656), 4 },
-              { AOM_CDF6(1467, 3906, 6601, 9095, 11736), 0 },
+              { AOM_CDF6(5641, 15530, 22762, 26890, 29267), 75 },
+              { AOM_CDF6(2545, 7728, 12543, 17510, 21457), 75 },
+              { AOM_CDF6(1683, 4959, 8223, 11474, 14656), 10 },
+              { AOM_CDF6(1467, 3906, 6601, 9095, 11736), 100 },
               { AOM_CDF6(919, 3292, 5512, 7809, 10259), 0 },
               { AOM_CDF6(2006, 3344, 5350, 8025, 10031), 0 },
               { AOM_CDF6(2979, 5958, 8937, 14895, 17873), 0 },
-              { AOM_CDF6(18481, 30865, 32466, 32677, 32730), 0 },
-              { AOM_CDF6(12427, 26908, 31164, 32288, 32561), 0 },
-              { AOM_CDF6(8893, 21304, 27601, 30456, 31687), 0 },
-              { AOM_CDF6(5917, 15743, 22690, 27030, 29527), 78 },
-              { AOM_CDF6(4325, 11914, 18276, 23082, 26450), 78 },
-              { AOM_CDF6(3417, 9602, 15092, 19750, 23371), 93 },
-              { AOM_CDF6(2473, 6989, 11277, 15154, 18464), 93 },
-              { AOM_CDF6(23481, 32176, 32697, 32736, 32740), 0 },
-              { AOM_CDF6(15514, 29490, 32204, 32632, 32704), 0 },
-              { AOM_CDF6(10243, 23895, 29674, 31724, 32357), 3 },
-              { AOM_CDF6(6691, 17844, 25132, 29122, 31061), 3 },
-              { AOM_CDF6(4255, 11937, 18419, 23257, 26590), 3 },
-              { AOM_CDF6(29681, 32477, 32658, 32712, 32731), 0 },
-              { AOM_CDF6(16011, 29320, 31832, 32399, 32555), 75 },
-              { AOM_CDF6(9294, 21806, 27768, 30409, 31521), 0 },
-              { AOM_CDF6(6107, 14952, 21511, 25626, 28146), 0 },
-              { AOM_CDF6(2990, 9058, 15121, 20098, 23744), 93 },
-              { AOM_CDF6(2157, 6562, 11095, 15323, 19234), 124 },
-              { AOM_CDF6(1346, 3906, 6845, 9832, 12783), 75 },
+              { AOM_CDF6(18481, 30865, 32466, 32677, 32730), 90 },
+              { AOM_CDF6(12427, 26908, 31164, 32288, 32561), 90 },
+              { AOM_CDF6(8893, 21304, 27601, 30456, 31687), 93 },
+              { AOM_CDF6(5917, 15743, 22690, 27030, 29527), 118 },
+              { AOM_CDF6(4325, 11914, 18276, 23082, 26450), 118 },
+              { AOM_CDF6(3417, 9602, 15092, 19750, 23371), 118 },
+              { AOM_CDF6(2473, 6989, 11277, 15154, 18464), 118 },
+              { AOM_CDF6(23481, 32176, 32697, 32736, 32740), 75 },
+              { AOM_CDF6(15514, 29490, 32204, 32632, 32704), 78 },
+              { AOM_CDF6(10243, 23895, 29674, 31724, 32357), 93 },
+              { AOM_CDF6(6691, 17844, 25132, 29122, 31061), 93 },
+              { AOM_CDF6(4255, 11937, 18419, 23257, 26590), 93 },
+              { AOM_CDF6(29681, 32477, 32658, 32712, 32731), 75 },
+              { AOM_CDF6(16011, 29320, 31832, 32399, 32555), 115 },
+              { AOM_CDF6(9294, 21806, 27768, 30409, 31521), 90 },
+              { AOM_CDF6(6107, 14952, 21511, 25626, 28146), 75 },
+              { AOM_CDF6(2990, 9058, 15121, 20098, 23744), 90 },
+              { AOM_CDF6(2157, 6562, 11095, 15323, 19234), 75 },
+              { AOM_CDF6(1346, 3906, 6845, 9832, 12783), 90 },
               { AOM_CDF6(30626, 32666, 32740, 32744, 32748), 0 },
-              { AOM_CDF6(19326, 30715, 32384, 32644, 32713), 78 },
-              { AOM_CDF6(11868, 25066, 29958, 31653, 32254), 78 },
-              { AOM_CDF6(8124, 19467, 26069, 29307, 30909), 93 },
+              { AOM_CDF6(19326, 30715, 32384, 32644, 32713), 93 },
+              { AOM_CDF6(11868, 25066, 29958, 31653, 32254), 115 },
+              { AOM_CDF6(8124, 19467, 26069, 29307, 30909), 115 },
               { AOM_CDF6(4754, 12825, 19113, 23576, 26611), 90 },
           },
           {
-              { AOM_CDF6(8561, 30791, 31821, 32554, 32619), 15 },
+              { AOM_CDF6(8561, 30791, 31821, 32554, 32619), 6 },
               { AOM_CDF6(5950, 21462, 27548, 30565, 31581), 75 },
-              { AOM_CDF6(5832, 15806, 22876, 26860, 29211), 0 },
-              { AOM_CDF6(2778, 8336, 13398, 18172, 21743), 0 },
-              { AOM_CDF6(1765, 5252, 8580, 11833, 14840), 0 },
-              { AOM_CDF6(1591, 4221, 6737, 9309, 12177), 100 },
-              { AOM_CDF6(1402, 3855, 6922, 9375, 11302), 0 },
+              { AOM_CDF6(5832, 15806, 22876, 26860, 29211), 75 },
+              { AOM_CDF6(2778, 8336, 13398, 18172, 21743), 75 },
+              { AOM_CDF6(1765, 5252, 8580, 11833, 14840), 95 },
+              { AOM_CDF6(1591, 4221, 6737, 9309, 12177), 25 },
+              { AOM_CDF6(1402, 3855, 6922, 9375, 11302), 100 },
               { AOM_CDF6(1394, 2789, 4183, 7669, 12549), 0 },
               { AOM_CDF6(2731, 5461, 8192, 10923, 16384), 0 },
               { AOM_CDF6(20279, 31243, 32508, 32698, 32732), 75 },
               { AOM_CDF6(14230, 27870, 31429, 32350, 32584), 75 },
               { AOM_CDF6(9369, 21861, 27903, 30583, 31715), 75 },
-              { AOM_CDF6(6007, 15944, 22867, 27112, 29531), 90 },
-              { AOM_CDF6(4307, 12064, 18426, 23178, 26421), 93 },
-              { AOM_CDF6(3369, 9642, 15188, 19793, 23303), 93 },
-              { AOM_CDF6(2316, 6724, 10910, 14651, 17853), 93 },
+              { AOM_CDF6(6007, 15944, 22867, 27112, 29531), 118 },
+              { AOM_CDF6(4307, 12064, 18426, 23178, 26421), 123 },
+              { AOM_CDF6(3369, 9642, 15188, 19793, 23303), 118 },
+              { AOM_CDF6(2316, 6724, 10910, 14651, 17853), 118 },
               { AOM_CDF6(23988, 32271, 32713, 32736, 32740), 0 },
               { AOM_CDF6(17488, 30225, 32325, 32660, 32720), 0 },
-              { AOM_CDF6(10923, 24625, 30001, 31835, 32396), 0 },
-              { AOM_CDF6(6915, 18402, 25613, 29386, 31180), 75 },
-              { AOM_CDF6(4107, 11713, 18037, 22749, 26030), 78 },
-              { AOM_CDF6(31190, 32623, 32728, 32736, 32740), 0 },
-              { AOM_CDF6(17296, 30538, 32283, 32595, 32679), 93 },
+              { AOM_CDF6(10923, 24625, 30001, 31835, 32396), 93 },
+              { AOM_CDF6(6915, 18402, 25613, 29386, 31180), 118 },
+              { AOM_CDF6(4107, 11713, 18037, 22749, 26030), 118 },
+              { AOM_CDF6(31190, 32623, 32728, 32736, 32740), 75 },
+              { AOM_CDF6(17296, 30538, 32283, 32595, 32679), 115 },
               { AOM_CDF6(9855, 23676, 29421, 31444, 32139), 90 },
-              { AOM_CDF6(5610, 15572, 23067, 27145, 29141), 24 },
-              { AOM_CDF6(3359, 10455, 17462, 22799, 26242), 80 },
+              { AOM_CDF6(5610, 15572, 23067, 27145, 29141), 75 },
+              { AOM_CDF6(3359, 10455, 17462, 22799, 26242), 75 },
               { AOM_CDF6(2562, 7733, 13030, 18172, 22037), 95 },
-              { AOM_CDF6(1533, 4582, 7815, 11120, 14554), 100 },
+              { AOM_CDF6(1533, 4582, 7815, 11120, 14554), 8 },
               { AOM_CDF6(31894, 32738, 32742, 32746, 32750), 0 },
-              { AOM_CDF6(20885, 31806, 32640, 32734, 32738), 93 },
-              { AOM_CDF6(12973, 27352, 31367, 32350, 32605), 93 },
-              { AOM_CDF6(8298, 21287, 28025, 30769, 31890), 109 },
-              { AOM_CDF6(4886, 13785, 20958, 25454, 28197), 75 },
+              { AOM_CDF6(20885, 31806, 32640, 32734, 32738), 118 },
+              { AOM_CDF6(12973, 27352, 31367, 32350, 32605), 100 },
+              { AOM_CDF6(8298, 21287, 28025, 30769, 31890), 91 },
+              { AOM_CDF6(4886, 13785, 20958, 25454, 28197), 76 },
           },
           {
-              { AOM_CDF6(5782, 27107, 29189, 31177, 31919), 7 },
+              { AOM_CDF6(5782, 27107, 29189, 31177, 31919), 30 },
               { AOM_CDF6(6335, 21246, 26920, 30057, 31234), 75 },
-              { AOM_CDF6(5346, 14716, 21428, 25633, 28210), 0 },
-              { AOM_CDF6(2413, 7414, 11968, 16375, 20025), 76 },
-              { AOM_CDF6(1472, 4688, 7586, 10739, 13532), 80 },
-              { AOM_CDF6(1345, 4344, 7199, 9413, 12143), 25 },
-              { AOM_CDF6(876, 3329, 6308, 8586, 10689), 0 },
+              { AOM_CDF6(5346, 14716, 21428, 25633, 28210), 90 },
+              { AOM_CDF6(2413, 7414, 11968, 16375, 20025), 80 },
+              { AOM_CDF6(1472, 4688, 7586, 10739, 13532), 100 },
+              { AOM_CDF6(1345, 4344, 7199, 9413, 12143), 100 },
+              { AOM_CDF6(876, 3329, 6308, 8586, 10689), 100 },
               { AOM_CDF6(1170, 3511, 4681, 7022, 8192), 0 },
               { AOM_CDF6(3641, 10923, 14564, 18204, 25486), 0 },
               { AOM_CDF6(19978, 30580, 32321, 32641, 32716), 75 },
               { AOM_CDF6(13566, 27084, 30991, 32136, 32490), 75 },
               { AOM_CDF6(8878, 20969, 27129, 30021, 31357), 75 },
-              { AOM_CDF6(5670, 15169, 21955, 26275, 28846), 75 },
-              { AOM_CDF6(4070, 11459, 17602, 22188, 25500), 90 },
+              { AOM_CDF6(5670, 15169, 21955, 26275, 28846), 115 },
+              { AOM_CDF6(4070, 11459, 17602, 22188, 25500), 115 },
               { AOM_CDF6(3193, 9077, 14361, 18730, 22212), 90 },
-              { AOM_CDF6(2133, 6194, 10003, 13506, 16550), 90 },
+              { AOM_CDF6(2133, 6194, 10003, 13506, 16550), 115 },
               { AOM_CDF6(23424, 32084, 32690, 32736, 32740), 75 },
               { AOM_CDF6(17056, 30024, 32247, 32635, 32715), 75 },
-              { AOM_CDF6(11045, 24702, 29950, 31774, 32370), 75 },
-              { AOM_CDF6(7105, 18584, 25646, 29312, 31099), 93 },
-              { AOM_CDF6(4080, 11537, 17605, 22092, 25238), 75 },
+              { AOM_CDF6(11045, 24702, 29950, 31774, 32370), 118 },
+              { AOM_CDF6(7105, 18584, 25646, 29312, 31099), 118 },
+              { AOM_CDF6(4080, 11537, 17605, 22092, 25238), 115 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -5013,27 +5148,27 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
           },
           {
-              { AOM_CDF6(5292, 23493, 28633, 30674, 31334), 7 },
-              { AOM_CDF6(5054, 19646, 26377, 29535, 30844), 1 },
-              { AOM_CDF6(4679, 13475, 19953, 24484, 27134), 9 },
-              { AOM_CDF6(2059, 6153, 9957, 14032, 17053), 0 },
-              { AOM_CDF6(1384, 3911, 6069, 8373, 11338), 75 },
-              { AOM_CDF6(1752, 3680, 5082, 6250, 8411), 0 },
+              { AOM_CDF6(5292, 23493, 28633, 30674, 31334), 60 },
+              { AOM_CDF6(5054, 19646, 26377, 29535, 30844), 7 },
+              { AOM_CDF6(4679, 13475, 19953, 24484, 27134), 5 },
+              { AOM_CDF6(2059, 6153, 9957, 14032, 17053), 10 },
+              { AOM_CDF6(1384, 3911, 6069, 8373, 11338), 100 },
+              { AOM_CDF6(1752, 3680, 5082, 6250, 8411), 100 },
               { AOM_CDF6(1456, 3277, 5097, 6918, 9102), 0 },
               { AOM_CDF6(2521, 5041, 10082, 12603, 17644), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(20277, 30619, 32220, 32605, 32707), 76 },
-              { AOM_CDF6(13660, 27165, 30926, 32059, 32436), 0 },
-              { AOM_CDF6(8709, 20698, 26791, 29678, 31021), 1 },
+              { AOM_CDF6(20277, 30619, 32220, 32605, 32707), 6 },
+              { AOM_CDF6(13660, 27165, 30926, 32059, 32436), 76 },
+              { AOM_CDF6(8709, 20698, 26791, 29678, 31021), 76 },
               { AOM_CDF6(5435, 14629, 21190, 25416, 27968), 90 },
-              { AOM_CDF6(3832, 10587, 16312, 20703, 23904), 93 },
-              { AOM_CDF6(2867, 8116, 12947, 16971, 20176), 99 },
-              { AOM_CDF6(1611, 4620, 7517, 10250, 12645), 119 },
-              { AOM_CDF6(24037, 32078, 32678, 32736, 32740), 0 },
+              { AOM_CDF6(3832, 10587, 16312, 20703, 23904), 115 },
+              { AOM_CDF6(2867, 8116, 12947, 16971, 20176), 90 },
+              { AOM_CDF6(1611, 4620, 7517, 10250, 12645), 123 },
+              { AOM_CDF6(24037, 32078, 32678, 32736, 32740), 75 },
               { AOM_CDF6(16900, 29733, 32055, 32549, 32682), 75 },
-              { AOM_CDF6(10704, 24019, 29340, 31328, 32097), 75 },
-              { AOM_CDF6(6664, 17499, 24319, 28200, 30193), 93 },
-              { AOM_CDF6(3308, 9392, 14572, 18699, 21805), 93 },
+              { AOM_CDF6(10704, 24019, 29340, 31328, 32097), 90 },
+              { AOM_CDF6(6664, 17499, 24319, 28200, 30193), 115 },
+              { AOM_CDF6(3308, 9392, 14572, 18699, 21805), 90 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -5050,132 +5185,132 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
       },
       {
           {
-              { AOM_CDF6(3421, 20525, 27727, 31148, 31508), 0 },
-              { AOM_CDF6(2278, 14691, 24425, 29021, 31129), 30 },
-              { AOM_CDF6(4161, 12518, 19960, 25078, 28476), 35 },
-              { AOM_CDF6(2521, 6838, 12733, 18180, 22309), 0 },
+              { AOM_CDF6(3421, 20525, 27727, 31148, 31508), 25 },
+              { AOM_CDF6(2278, 14691, 24425, 29021, 31129), 5 },
+              { AOM_CDF6(4161, 12518, 19960, 25078, 28476), 5 },
+              { AOM_CDF6(2521, 6838, 12733, 18180, 22309), 110 },
               { AOM_CDF6(1092, 4915, 12425, 16930, 20617), 0 },
               { AOM_CDF6(1425, 2849, 5699, 11398, 15672), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(17575, 30516, 32414, 32700, 32732), 40 },
-              { AOM_CDF6(10672, 24678, 30615, 32302, 32646), 31 },
-              { AOM_CDF6(7940, 20836, 27726, 31027, 32222), 50 },
-              { AOM_CDF6(7720, 18763, 26362, 29833, 31508), 50 },
-              { AOM_CDF6(5787, 14601, 20320, 25636, 28394), 0 },
+              { AOM_CDF6(17575, 30516, 32414, 32700, 32732), 0 },
+              { AOM_CDF6(10672, 24678, 30615, 32302, 32646), 5 },
+              { AOM_CDF6(7940, 20836, 27726, 31027, 32222), 31 },
+              { AOM_CDF6(7720, 18763, 26362, 29833, 31508), 32 },
+              { AOM_CDF6(5787, 14601, 20320, 25636, 28394), 25 },
               { AOM_CDF6(3037, 10230, 20460, 24456, 27813), 0 },
               { AOM_CDF6(1560, 6866, 14668, 19037, 24342), 0 },
-              { AOM_CDF6(23032, 31965, 32682, 32736, 32740), 34 },
-              { AOM_CDF6(13781, 28896, 32235, 32700, 32729), 23 },
-              { AOM_CDF6(11030, 23971, 30574, 32277, 32626), 25 },
-              { AOM_CDF6(9204, 19792, 26574, 29654, 31315), 0 },
+              { AOM_CDF6(23032, 31965, 32682, 32736, 32740), 3 },
+              { AOM_CDF6(13781, 28896, 32235, 32700, 32729), 90 },
+              { AOM_CDF6(11030, 23971, 30574, 32277, 32626), 8 },
+              { AOM_CDF6(9204, 19792, 26574, 29654, 31315), 10 },
               { AOM_CDF6(5328, 14253, 20780, 24643, 28106), 0 },
-              { AOM_CDF6(27523, 31549, 32239, 32557, 32644), 24 },
-              { AOM_CDF6(13891, 26332, 30540, 31905, 32545), 45 },
-              { AOM_CDF6(9368, 19790, 26821, 30278, 31710), 50 },
-              { AOM_CDF6(7770, 17585, 24454, 27851, 29822), 0 },
+              { AOM_CDF6(27523, 31549, 32239, 32557, 32644), 99 },
+              { AOM_CDF6(13891, 26332, 30540, 31905, 32545), 15 },
+              { AOM_CDF6(9368, 19790, 26821, 30278, 31710), 42 },
+              { AOM_CDF6(7770, 17585, 24454, 27851, 29822), 50 },
               { AOM_CDF6(2731, 8548, 14128, 22439, 25882), 0 },
               { AOM_CDF6(520, 7282, 12483, 20285, 23406), 0 },
               { AOM_CDF6(1638, 11469, 14746, 16384, 19661), 0 },
-              { AOM_CDF6(30430, 32574, 32740, 32744, 32748), 50 },
-              { AOM_CDF6(19285, 29197, 32409, 32731, 32735), 45 },
-              { AOM_CDF6(13323, 25054, 30001, 31837, 32425), 0 },
+              { AOM_CDF6(30430, 32574, 32740, 32744, 32748), 41 },
+              { AOM_CDF6(19285, 29197, 32409, 32731, 32735), 19 },
+              { AOM_CDF6(13323, 25054, 30001, 31837, 32425), 25 },
               { AOM_CDF6(10464, 17623, 22855, 28913, 31667), 0 },
               { AOM_CDF6(5461, 16384, 21845, 25122, 29491), 0 },
           },
           {
-              { AOM_CDF6(6142, 27912, 31394, 32417, 32562), 10 },
-              { AOM_CDF6(3738, 19756, 27704, 30711, 31688), 0 },
+              { AOM_CDF6(6142, 27912, 31394, 32417, 32562), 11 },
+              { AOM_CDF6(3738, 19756, 27704, 30711, 31688), 75 },
               { AOM_CDF6(4940, 14882, 22544, 27035, 29644), 0 },
-              { AOM_CDF6(2456, 7559, 12830, 18698, 23220), 105 },
-              { AOM_CDF6(1895, 5685, 9718, 13751, 17849), 50 },
+              { AOM_CDF6(2456, 7559, 12830, 18698, 23220), 84 },
+              { AOM_CDF6(1895, 5685, 9718, 13751, 17849), 25 },
               { AOM_CDF6(1080, 2881, 6842, 9362, 14764), 0 },
               { AOM_CDF6(5958, 11916, 14895, 17873, 23831), 0 },
               { AOM_CDF6(4681, 9362, 14043, 18725, 28087), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(20218, 31289, 32606, 32726, 32732), 0 },
-              { AOM_CDF6(11885, 27385, 31746, 32562, 32691), 0 },
+              { AOM_CDF6(20218, 31289, 32606, 32726, 32732), 75 },
+              { AOM_CDF6(11885, 27385, 31746, 32562, 32691), 75 },
               { AOM_CDF6(9434, 22617, 29071, 31531, 32339), 75 },
-              { AOM_CDF6(6909, 17880, 25200, 29400, 31305), 0 },
-              { AOM_CDF6(5263, 14600, 21659, 26506, 29343), 25 },
-              { AOM_CDF6(3830, 11676, 18125, 22947, 26448), 0 },
-              { AOM_CDF6(3027, 9063, 14354, 18644, 22523), 0 },
-              { AOM_CDF6(24464, 32369, 32731, 32736, 32740), 30 },
-              { AOM_CDF6(15905, 30395, 32520, 32718, 32732), 3 },
-              { AOM_CDF6(11538, 25944, 31065, 32394, 32654), 5 },
-              { AOM_CDF6(7978, 20727, 27810, 30987, 32122), 10 },
-              { AOM_CDF6(5652, 15967, 23439, 27873, 30410), 0 },
-              { AOM_CDF6(30812, 32458, 32672, 32720, 32732), 15 },
-              { AOM_CDF6(14805, 28597, 31834, 32457, 32643), 5 },
-              { AOM_CDF6(7885, 19026, 25996, 30110, 31734), 20 },
-              { AOM_CDF6(5016, 13942, 20823, 26044, 29114), 100 },
-              { AOM_CDF6(1976, 6346, 13934, 19218, 24119), 0 },
+              { AOM_CDF6(6909, 17880, 25200, 29400, 31305), 90 },
+              { AOM_CDF6(5263, 14600, 21659, 26506, 29343), 0 },
+              { AOM_CDF6(3830, 11676, 18125, 22947, 26448), 92 },
+              { AOM_CDF6(3027, 9063, 14354, 18644, 22523), 100 },
+              { AOM_CDF6(24464, 32369, 32731, 32736, 32740), 0 },
+              { AOM_CDF6(15905, 30395, 32520, 32718, 32732), 75 },
+              { AOM_CDF6(11538, 25944, 31065, 32394, 32654), 75 },
+              { AOM_CDF6(7978, 20727, 27810, 30987, 32122), 75 },
+              { AOM_CDF6(5652, 15967, 23439, 27873, 30410), 5 },
+              { AOM_CDF6(30812, 32458, 32672, 32720, 32732), 0 },
+              { AOM_CDF6(14805, 28597, 31834, 32457, 32643), 75 },
+              { AOM_CDF6(7885, 19026, 25996, 30110, 31734), 15 },
+              { AOM_CDF6(5016, 13942, 20823, 26044, 29114), 8 },
+              { AOM_CDF6(1976, 6346, 13934, 19218, 24119), 85 },
               { AOM_CDF6(1964, 4548, 10578, 14265, 18951), 0 },
               { AOM_CDF6(1365, 4642, 7646, 12379, 15110), 0 },
-              { AOM_CDF6(31956, 32712, 32740, 32744, 32748), 33 },
-              { AOM_CDF6(21806, 31381, 32627, 32722, 32732), 79 },
-              { AOM_CDF6(15258, 27788, 31399, 32476, 32692), 25 },
-              { AOM_CDF6(10991, 24246, 29922, 31791, 32374), 75 },
+              { AOM_CDF6(31956, 32712, 32740, 32744, 32748), 3 },
+              { AOM_CDF6(21806, 31381, 32627, 32722, 32732), 75 },
+              { AOM_CDF6(15258, 27788, 31399, 32476, 32692), 80 },
+              { AOM_CDF6(10991, 24246, 29922, 31791, 32374), 14 },
               { AOM_CDF6(7128, 19357, 26823, 30289, 31838), 0 },
           },
           {
-              { AOM_CDF6(7578, 29228, 31582, 32486, 32600), 8 },
-              { AOM_CDF6(5847, 21766, 28505, 31111, 31883), 0 },
-              { AOM_CDF6(5554, 16428, 23794, 27965, 30112), 0 },
-              { AOM_CDF6(2769, 8570, 13998, 19212, 23295), 5 },
-              { AOM_CDF6(2107, 5905, 9490, 13302, 16750), 100 },
-              { AOM_CDF6(1592, 4609, 7878, 11314, 14247), 0 },
+              { AOM_CDF6(7578, 29228, 31582, 32486, 32600), 7 },
+              { AOM_CDF6(5847, 21766, 28505, 31111, 31883), 75 },
+              { AOM_CDF6(5554, 16428, 23794, 27965, 30112), 75 },
+              { AOM_CDF6(2769, 8570, 13998, 19212, 23295), 4 },
+              { AOM_CDF6(2107, 5905, 9490, 13302, 16750), 0 },
+              { AOM_CDF6(1592, 4609, 7878, 11314, 14247), 100 },
               { AOM_CDF6(1820, 6372, 10012, 11833, 13653), 0 },
               { AOM_CDF6(2979, 5958, 8937, 11916, 17873), 0 },
               { AOM_CDF6(4681, 9362, 14043, 18725, 23406), 0 },
-              { AOM_CDF6(21041, 31419, 32578, 32724, 32732), 0 },
-              { AOM_CDF6(13222, 28094, 31794, 32539, 32674), 0 },
-              { AOM_CDF6(9792, 22904, 28967, 31354, 32213), 93 },
-              { AOM_CDF6(6671, 17613, 24924, 28941, 30943), 94 },
-              { AOM_CDF6(5050, 14023, 21056, 25885, 28847), 124 },
-              { AOM_CDF6(4194, 11698, 18243, 23318, 26713), 0 },
-              { AOM_CDF6(3198, 9319, 14866, 19434, 22876), 100 },
-              { AOM_CDF6(24480, 32398, 32733, 32737, 32741), 25 },
-              { AOM_CDF6(17072, 30712, 32541, 32719, 32732), 78 },
-              { AOM_CDF6(11915, 26300, 31108, 32377, 32632), 78 },
-              { AOM_CDF6(7920, 20566, 27792, 30970, 32137), 90 },
-              { AOM_CDF6(5519, 15545, 22881, 27503, 30042), 95 },
+              { AOM_CDF6(21041, 31419, 32578, 32724, 32732), 75 },
+              { AOM_CDF6(13222, 28094, 31794, 32539, 32674), 75 },
+              { AOM_CDF6(9792, 22904, 28967, 31354, 32213), 115 },
+              { AOM_CDF6(6671, 17613, 24924, 28941, 30943), 118 },
+              { AOM_CDF6(5050, 14023, 21056, 25885, 28847), 115 },
+              { AOM_CDF6(4194, 11698, 18243, 23318, 26713), 95 },
+              { AOM_CDF6(3198, 9319, 14866, 19434, 22876), 115 },
+              { AOM_CDF6(24480, 32398, 32733, 32737, 32741), 0 },
+              { AOM_CDF6(17072, 30712, 32541, 32719, 32732), 75 },
+              { AOM_CDF6(11915, 26300, 31108, 32377, 32632), 75 },
+              { AOM_CDF6(7920, 20566, 27792, 30970, 32137), 115 },
+              { AOM_CDF6(5519, 15545, 22881, 27503, 30042), 75 },
               { AOM_CDF6(31727, 32641, 32740, 32744, 32748), 75 },
-              { AOM_CDF6(15406, 30201, 32359, 32684, 32732), 5 },
-              { AOM_CDF6(7790, 20673, 28093, 31356, 32248), 70 },
-              { AOM_CDF6(4934, 13061, 20093, 24456, 26939), 50 },
+              { AOM_CDF6(15406, 30201, 32359, 32684, 32732), 90 },
+              { AOM_CDF6(7790, 20673, 28093, 31356, 32248), 6 },
+              { AOM_CDF6(4934, 13061, 20093, 24456, 26939), 0 },
               { AOM_CDF6(1586, 7752, 14710, 20348, 24664), 0 },
               { AOM_CDF6(2556, 5578, 8366, 16268, 20219), 0 },
               { AOM_CDF6(2521, 5041, 8822, 13233, 14494), 0 },
-              { AOM_CDF6(32430, 32744, 32748, 32752, 32756), 3 },
-              { AOM_CDF6(21293, 32055, 32715, 32736, 32740), 99 },
-              { AOM_CDF6(13103, 28431, 31813, 32514, 32666), 100 },
-              { AOM_CDF6(11926, 24738, 30229, 31941, 32473), 0 },
+              { AOM_CDF6(32430, 32744, 32748, 32752, 32756), 0 },
+              { AOM_CDF6(21293, 32055, 32715, 32736, 32740), 115 },
+              { AOM_CDF6(13103, 28431, 31813, 32514, 32666), 77 },
+              { AOM_CDF6(11926, 24738, 30229, 31941, 32473), 100 },
               { AOM_CDF6(8797, 18693, 24411, 29249, 31229), 0 },
           },
           {
-              { AOM_CDF6(9086, 25640, 29206, 31359, 32003), 0 },
+              { AOM_CDF6(9086, 25640, 29206, 31359, 32003), 29 },
               { AOM_CDF6(8140, 20743, 27483, 30473, 31582), 75 },
               { AOM_CDF6(5882, 16080, 23202, 27286, 29541), 0 },
-              { AOM_CDF6(2871, 9043, 14223, 19057, 22859), 18 },
+              { AOM_CDF6(2871, 9043, 14223, 19057, 22859), 85 },
               { AOM_CDF6(1764, 5181, 8448, 11774, 14830), 100 },
-              { AOM_CDF6(1621, 4949, 7083, 9557, 11861), 100 },
+              { AOM_CDF6(1621, 4949, 7083, 9557, 11861), 0 },
               { AOM_CDF6(1928, 5783, 7710, 10601, 13493), 0 },
               { AOM_CDF6(3641, 7282, 14564, 21845, 25486), 0 },
               { AOM_CDF6(4681, 9362, 14043, 18725, 23406), 0 },
               { AOM_CDF6(18320, 30406, 32411, 32691, 32732), 75 },
-              { AOM_CDF6(12927, 27456, 31536, 32440, 32643), 75 },
-              { AOM_CDF6(9513, 22594, 28733, 31184, 32117), 75 },
-              { AOM_CDF6(6483, 17240, 24354, 28462, 30550), 93 },
-              { AOM_CDF6(4810, 13340, 20178, 24863, 27848), 17 },
-              { AOM_CDF6(3687, 10754, 16570, 21345, 24999), 110 },
-              { AOM_CDF6(2691, 7615, 12376, 16430, 19957), 75 },
-              { AOM_CDF6(23188, 32249, 32724, 32736, 32740), 0 },
+              { AOM_CDF6(12927, 27456, 31536, 32440, 32643), 90 },
+              { AOM_CDF6(9513, 22594, 28733, 31184, 32117), 115 },
+              { AOM_CDF6(6483, 17240, 24354, 28462, 30550), 118 },
+              { AOM_CDF6(4810, 13340, 20178, 24863, 27848), 90 },
+              { AOM_CDF6(3687, 10754, 16570, 21345, 24999), 103 },
+              { AOM_CDF6(2691, 7615, 12376, 16430, 19957), 99 },
+              { AOM_CDF6(23188, 32249, 32724, 32736, 32740), 75 },
               { AOM_CDF6(17143, 30669, 32497, 32714, 32732), 75 },
-              { AOM_CDF6(12162, 26429, 31049, 32302, 32618), 75 },
-              { AOM_CDF6(8098, 20681, 27640, 30685, 31925), 96 },
-              { AOM_CDF6(4788, 13741, 20575, 25319, 28198), 75 },
+              { AOM_CDF6(12162, 26429, 31049, 32302, 32618), 118 },
+              { AOM_CDF6(8098, 20681, 27640, 30685, 31925), 118 },
+              { AOM_CDF6(4788, 13741, 20575, 25319, 28198), 115 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -5190,27 +5325,27 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
           },
           {
-              { AOM_CDF6(8405, 24797, 28930, 31174, 31863), 0 },
-              { AOM_CDF6(7748, 21500, 28061, 30852, 31836), 75 },
+              { AOM_CDF6(8405, 24797, 28930, 31174, 31863), 32 },
+              { AOM_CDF6(7748, 21500, 28061, 30852, 31836), 76 },
               { AOM_CDF6(5751, 16371, 23350, 27379, 29613), 0 },
-              { AOM_CDF6(2644, 8006, 12973, 17580, 21212), 75 },
-              { AOM_CDF6(1283, 4596, 7663, 10698, 13231), 100 },
-              { AOM_CDF6(1892, 6192, 8601, 10837, 12901), 0 },
+              { AOM_CDF6(2644, 8006, 12973, 17580, 21212), 105 },
+              { AOM_CDF6(1283, 4596, 7663, 10698, 13231), 0 },
+              { AOM_CDF6(1892, 6192, 8601, 10837, 12901), 50 },
               { AOM_CDF6(2979, 6703, 8937, 12660, 13405), 0 },
               { AOM_CDF6(4096, 8192, 12288, 16384, 20480), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-              { AOM_CDF6(19594, 30954, 32480, 32699, 32732), 0 },
+              { AOM_CDF6(19594, 30954, 32480, 32699, 32732), 76 },
               { AOM_CDF6(13256, 27714, 31481, 32384, 32606), 75 },
               { AOM_CDF6(9330, 22168, 28217, 30804, 31813), 75 },
               { AOM_CDF6(6050, 16128, 23105, 27308, 29669), 90 },
               { AOM_CDF6(4255, 11763, 18106, 22840, 26107), 94 },
-              { AOM_CDF6(3299, 9246, 14684, 19215, 22728), 119 },
-              { AOM_CDF6(1994, 5903, 9500, 12958, 16039), 124 },
+              { AOM_CDF6(3299, 9246, 14684, 19215, 22728), 94 },
+              { AOM_CDF6(1994, 5903, 9500, 12958, 16039), 99 },
               { AOM_CDF6(23702, 32247, 32719, 32736, 32740), 75 },
-              { AOM_CDF6(17044, 30475, 32399, 32686, 32732), 75 },
-              { AOM_CDF6(11742, 25690, 30563, 32066, 32506), 0 },
-              { AOM_CDF6(7491, 19275, 26277, 29761, 31343), 118 },
-              { AOM_CDF6(4315, 12094, 18183, 22621, 25752), 95 },
+              { AOM_CDF6(17044, 30475, 32399, 32686, 32732), 100 },
+              { AOM_CDF6(11742, 25690, 30563, 32066, 32506), 90 },
+              { AOM_CDF6(7491, 19275, 26277, 29761, 31343), 115 },
+              { AOM_CDF6(4315, 12094, 18183, 22621, 25752), 76 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
               { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
@@ -5232,95 +5367,95 @@ static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs
     [CDF_SIZE(LF_BASE_SYMBOLS - 1)] = {
       {
           {
-              { AOM_CDF5(25706, 30492, 31324, 31818), 0 },
-              { AOM_CDF5(30435, 32242, 32513, 32588), 0 },
-              { AOM_CDF5(30457, 32136, 32402, 32484), 75 },
-              { AOM_CDF5(31003, 32505, 32676, 32714), 15 },
+              { AOM_CDF5(25706, 30492, 31324, 31818), 31 },
+              { AOM_CDF5(30435, 32242, 32513, 32588), 6 },
+              { AOM_CDF5(30457, 32136, 32402, 32484), 6 },
+              { AOM_CDF5(31003, 32505, 32676, 32714), 93 },
           },
           {
-              { AOM_CDF5(26971, 31768, 32295, 32463), 30 },
-              { AOM_CDF5(31374, 32459, 32638, 32681), 75 },
+              { AOM_CDF5(26971, 31768, 32295, 32463), 32 },
+              { AOM_CDF5(31374, 32459, 32638, 32681), 0 },
               { AOM_CDF5(31787, 32529, 32654, 32694), 75 },
-              { AOM_CDF5(31845, 32521, 32709, 32740), 90 },
+              { AOM_CDF5(31845, 32521, 32709, 32740), 115 },
           },
           {
               { AOM_CDF5(23861, 30832, 31714, 32106), 62 },
               { AOM_CDF5(31998, 32582, 32684, 32714), 0 },
-              { AOM_CDF5(32595, 32690, 32743, 32747), 120 },
+              { AOM_CDF5(32595, 32690, 32743, 32747), 70 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
               { AOM_CDF5(2526, 25431, 28941, 29883), 62 },
-              { AOM_CDF5(32001, 32609, 32739, 32743), 93 },
+              { AOM_CDF5(32001, 32609, 32739, 32743), 78 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
-              { AOM_CDF5(380, 9474, 22790, 27895), 62 },
-              { AOM_CDF5(31118, 31976, 32602, 32703), 45 },
+              { AOM_CDF5(380, 9474, 22790, 27895), 50 },
+              { AOM_CDF5(31118, 31976, 32602, 32703), 110 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
       },
       {
           {
-              { AOM_CDF5(27737, 31996, 32445, 32576), 76 },
+              { AOM_CDF5(27737, 31996, 32445, 32576), 91 },
               { AOM_CDF5(30369, 32297, 32588, 32661), 0 },
               { AOM_CDF5(30243, 32316, 32564, 32629), 0 },
               { AOM_CDF5(30663, 32404, 32673, 32728), 75 },
           },
           {
-              { AOM_CDF5(27556, 32109, 32520, 32621), 0 },
+              { AOM_CDF5(27556, 32109, 32520, 32621), 1 },
               { AOM_CDF5(32081, 32624, 32700, 32728), 75 },
               { AOM_CDF5(32088, 32612, 32712, 32735), 75 },
               { AOM_CDF5(32040, 32619, 32735, 32740), 78 },
           },
           {
-              { AOM_CDF5(26819, 31724, 32283, 32522), 6 },
-              { AOM_CDF5(32282, 32649, 32726, 32740), 75 },
-              { AOM_CDF5(32658, 32742, 32746, 32750), 49 },
+              { AOM_CDF5(26819, 31724, 32283, 32522), 7 },
+              { AOM_CDF5(32282, 32649, 32726, 32740), 0 },
+              { AOM_CDF5(32658, 32742, 32746, 32750), 45 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
-              { AOM_CDF5(21304, 30635, 31780, 32198), 32 },
-              { AOM_CDF5(32186, 32676, 32744, 32748), 90 },
+              { AOM_CDF5(21304, 30635, 31780, 32198), 37 },
+              { AOM_CDF5(32186, 32676, 32744, 32748), 115 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
               { AOM_CDF5(12126, 24303, 28452, 30526), 62 },
-              { AOM_CDF5(31647, 32479, 32695, 32740), 6 },
+              { AOM_CDF5(31647, 32479, 32695, 32740), 1 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
       },
       {
           {
-              { AOM_CDF5(28639, 32047, 32463, 32605), 6 },
-              { AOM_CDF5(29406, 32125, 32576, 32668), 0 },
-              { AOM_CDF5(29707, 32214, 32602, 32664), 0 },
-              { AOM_CDF5(28971, 32253, 32613, 32713), 5 },
+              { AOM_CDF5(28639, 32047, 32463, 32605), 76 },
+              { AOM_CDF5(29406, 32125, 32576, 32668), 75 },
+              { AOM_CDF5(29707, 32214, 32602, 32664), 75 },
+              { AOM_CDF5(28971, 32253, 32613, 32713), 75 },
           },
           {
               { AOM_CDF5(28326, 32215, 32550, 32645), 0 },
-              { AOM_CDF5(32183, 32660, 32727, 32740), 0 },
-              { AOM_CDF5(32136, 32641, 32726, 32740), 75 },
-              { AOM_CDF5(31896, 32611, 32736, 32740), 79 },
+              { AOM_CDF5(32183, 32660, 32727, 32740), 75 },
+              { AOM_CDF5(32136, 32641, 32726, 32740), 100 },
+              { AOM_CDF5(31896, 32611, 32736, 32740), 104 },
           },
           {
-              { AOM_CDF5(28120, 31988, 32441, 32602), 1 },
+              { AOM_CDF5(28120, 31988, 32441, 32602), 6 },
               { AOM_CDF5(32388, 32686, 32743, 32747), 75 },
-              { AOM_CDF5(32648, 32741, 32745, 32749), 110 },
+              { AOM_CDF5(32648, 32741, 32745, 32749), 123 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
               { AOM_CDF5(24374, 30819, 31833, 32231), 32 },
-              { AOM_CDF5(32269, 32694, 32744, 32748), 75 },
+              { AOM_CDF5(32269, 32694, 32744, 32748), 90 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
-              { AOM_CDF5(22957, 29321, 31125, 31846), 37 },
+              { AOM_CDF5(22957, 29321, 31125, 31846), 62 },
               { AOM_CDF5(31994, 32641, 32740, 32744), 76 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
@@ -5328,32 +5463,32 @@ static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs
       },
       {
           {
-              { AOM_CDF5(29534, 32281, 32481, 32541), 6 },
-              { AOM_CDF5(30069, 32534, 32711, 32740), 41 },
-              { AOM_CDF5(29896, 32098, 32507, 32629), 35 },
-              { AOM_CDF5(30824, 32659, 32744, 32748), 50 },
+              { AOM_CDF5(29534, 32281, 32481, 32541), 5 },
+              { AOM_CDF5(30069, 32534, 32711, 32740), 1 },
+              { AOM_CDF5(29896, 32098, 32507, 32629), 1 },
+              { AOM_CDF5(30824, 32659, 32744, 32748), 36 },
           },
           {
-              { AOM_CDF5(29970, 32442, 32654, 32712), 0 },
-              { AOM_CDF5(32327, 32690, 32744, 32748), 80 },
-              { AOM_CDF5(31949, 32625, 32744, 32748), 1 },
-              { AOM_CDF5(32125, 32716, 32744, 32748), 50 },
+              { AOM_CDF5(29970, 32442, 32654, 32712), 1 },
+              { AOM_CDF5(32327, 32690, 32744, 32748), 75 },
+              { AOM_CDF5(31949, 32625, 32744, 32748), 75 },
+              { AOM_CDF5(32125, 32716, 32744, 32748), 33 },
           },
           {
-              { AOM_CDF5(30437, 32423, 32627, 32709), 75 },
-              { AOM_CDF5(32458, 32699, 32744, 32748), 15 },
-              { AOM_CDF5(32629, 32748, 32752, 32756), 100 },
+              { AOM_CDF5(30437, 32423, 32627, 32709), 6 },
+              { AOM_CDF5(32458, 32699, 32744, 32748), 90 },
+              { AOM_CDF5(32629, 32748, 32752, 32756), 110 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
-              { AOM_CDF5(29506, 32156, 32559, 32656), 75 },
-              { AOM_CDF5(32305, 32712, 32744, 32748), 75 },
+              { AOM_CDF5(29506, 32156, 32559, 32656), 7 },
+              { AOM_CDF5(32305, 32712, 32744, 32748), 90 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
           {
-              { AOM_CDF5(28059, 31831, 32419, 32581), 6 },
-              { AOM_CDF5(32204, 32695, 32744, 32748), 90 },
+              { AOM_CDF5(28059, 31831, 32419, 32581), 37 },
+              { AOM_CDF5(32204, 32695, 32744, 32748), 115 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
               { AOM_CDF5(6554, 13107, 19661, 26214), 0 },
           },
@@ -5363,68 +5498,68 @@ static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs
 static const aom_cdf_prob av1_default_coeff_lps_lf_multi_cdfs
     [TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
       {
-          { AOM_CDF4(11134, 16178, 19899), 1 },
+          { AOM_CDF4(11134, 16178, 19899), 37 },
           { AOM_CDF4(14209, 21292, 25390), 0 },
-          { AOM_CDF4(10509, 17908, 22545), 75 },
-          { AOM_CDF4(7969, 14230, 18833), 91 },
-          { AOM_CDF4(5595, 10344, 14337), 91 },
-          { AOM_CDF4(3765, 7274, 10572), 5 },
-          { AOM_CDF4(1943, 3992, 5749), 77 },
-          { AOM_CDF4(13985, 20205, 23552), 75 },
-          { AOM_CDF4(15212, 22618, 26486), 118 },
-          { AOM_CDF4(12922, 20394, 24820), 118 },
-          { AOM_CDF4(10592, 17631, 22350), 118 },
-          { AOM_CDF4(8638, 15045, 19817), 118 },
-          { AOM_CDF4(7247, 13014, 17636), 118 },
+          { AOM_CDF4(10509, 17908, 22545), 120 },
+          { AOM_CDF4(7969, 14230, 18833), 122 },
+          { AOM_CDF4(5595, 10344, 14337), 0 },
+          { AOM_CDF4(3765, 7274, 10572), 0 },
+          { AOM_CDF4(1943, 3992, 5749), 0 },
+          { AOM_CDF4(13985, 20205, 23552), 6 },
+          { AOM_CDF4(15212, 22618, 26486), 75 },
+          { AOM_CDF4(12922, 20394, 24820), 78 },
+          { AOM_CDF4(10592, 17631, 22350), 78 },
+          { AOM_CDF4(8638, 15045, 19817), 78 },
+          { AOM_CDF4(7247, 13014, 17636), 103 },
           { AOM_CDF4(4779, 8939, 12611), 78 },
       },
       {
           { AOM_CDF4(13088, 19263, 22982), 7 },
-          { AOM_CDF4(14262, 21344, 25512), 75 },
-          { AOM_CDF4(10739, 18195, 22743), 0 },
-          { AOM_CDF4(8306, 14823, 19422), 0 },
-          { AOM_CDF4(5893, 11028, 15278), 78 },
-          { AOM_CDF4(4005, 7924, 11328), 0 },
-          { AOM_CDF4(2510, 5206, 7576), 85 },
-          { AOM_CDF4(16346, 22896, 25975), 1 },
-          { AOM_CDF4(16946, 24317, 27877), 90 },
-          { AOM_CDF4(14288, 21952, 26180), 93 },
+          { AOM_CDF4(14262, 21344, 25512), 90 },
+          { AOM_CDF4(10739, 18195, 22743), 90 },
+          { AOM_CDF4(8306, 14823, 19422), 93 },
+          { AOM_CDF4(5893, 11028, 15278), 119 },
+          { AOM_CDF4(4005, 7924, 11328), 124 },
+          { AOM_CDF4(2510, 5206, 7576), 123 },
+          { AOM_CDF4(16346, 22896, 25975), 0 },
+          { AOM_CDF4(16946, 24317, 27877), 118 },
+          { AOM_CDF4(14288, 21952, 26180), 118 },
           { AOM_CDF4(11744, 19136, 23771), 93 },
           { AOM_CDF4(9581, 16358, 21132), 93 },
           { AOM_CDF4(7955, 14043, 18682), 93 },
-          { AOM_CDF4(5025, 9313, 12987), 93 },
+          { AOM_CDF4(5025, 9313, 12987), 94 },
       },
       {
-          { AOM_CDF4(13254, 19857, 23719), 2 },
-          { AOM_CDF4(14262, 21454, 25537), 0 },
+          { AOM_CDF4(13254, 19857, 23719), 7 },
+          { AOM_CDF4(14262, 21454, 25537), 75 },
           { AOM_CDF4(11067, 18481, 23057), 90 },
           { AOM_CDF4(8612, 15226, 19923), 75 },
-          { AOM_CDF4(6093, 11413, 15998), 4 },
-          { AOM_CDF4(4336, 8520, 12622), 100 },
-          { AOM_CDF4(2578, 5542, 8244), 100 },
-          { AOM_CDF4(18493, 25023, 27859), 5 },
-          { AOM_CDF4(18020, 25395, 28759), 75 },
-          { AOM_CDF4(14882, 22648, 26802), 75 },
-          { AOM_CDF4(12104, 19622, 24289), 78 },
-          { AOM_CDF4(9886, 16845, 21651), 93 },
-          { AOM_CDF4(8242, 14551, 19269), 90 },
-          { AOM_CDF4(5483, 10136, 14059), 75 },
+          { AOM_CDF4(6093, 11413, 15998), 79 },
+          { AOM_CDF4(4336, 8520, 12622), 24 },
+          { AOM_CDF4(2578, 5542, 8244), 10 },
+          { AOM_CDF4(18493, 25023, 27859), 76 },
+          { AOM_CDF4(18020, 25395, 28759), 118 },
+          { AOM_CDF4(14882, 22648, 26802), 118 },
+          { AOM_CDF4(12104, 19622, 24289), 118 },
+          { AOM_CDF4(9886, 16845, 21651), 118 },
+          { AOM_CDF4(8242, 14551, 19269), 118 },
+          { AOM_CDF4(5483, 10136, 14059), 118 },
       },
       {
-          { AOM_CDF4(13824, 20203, 23865), 31 },
-          { AOM_CDF4(15398, 22782, 26792), 93 },
-          { AOM_CDF4(12116, 19859, 24426), 75 },
-          { AOM_CDF4(9317, 16205, 21113), 105 },
+          { AOM_CDF4(13824, 20203, 23865), 37 },
+          { AOM_CDF4(15398, 22782, 26792), 75 },
+          { AOM_CDF4(12116, 19859, 24426), 79 },
+          { AOM_CDF4(9317, 16205, 21113), 85 },
           { AOM_CDF4(6217, 11714, 16106), 100 },
-          { AOM_CDF4(4063, 7613, 11221), 25 },
-          { AOM_CDF4(1678, 3522, 5640), 50 },
-          { AOM_CDF4(21546, 27863, 30260), 25 },
-          { AOM_CDF4(20447, 27486, 30198), 94 },
-          { AOM_CDF4(17133, 24839, 28573), 90 },
-          { AOM_CDF4(13936, 21768, 26146), 94 },
-          { AOM_CDF4(11373, 18713, 23385), 124 },
-          { AOM_CDF4(8981, 15618, 20382), 24 },
-          { AOM_CDF4(6257, 11343, 15350), 120 },
+          { AOM_CDF4(4063, 7613, 11221), 75 },
+          { AOM_CDF4(1678, 3522, 5640), 0 },
+          { AOM_CDF4(21546, 27863, 30260), 20 },
+          { AOM_CDF4(20447, 27486, 30198), 115 },
+          { AOM_CDF4(17133, 24839, 28573), 75 },
+          { AOM_CDF4(13936, 21768, 26146), 115 },
+          { AOM_CDF4(11373, 18713, 23385), 115 },
+          { AOM_CDF4(8981, 15618, 20382), 95 },
+          { AOM_CDF4(6257, 11343, 15350), 95 },
       },
     };
 
@@ -5436,8 +5571,8 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(16691, 29090, 31507), 0 },
               { AOM_CDF4(12988, 25965, 30381), 75 },
               { AOM_CDF4(6325, 16435, 23342), 78 },
-              { AOM_CDF4(4359, 12021, 18377), 93 },
-              { AOM_CDF4(3301, 9030, 14361), 93 },
+              { AOM_CDF4(4359, 12021, 18377), 98 },
+              { AOM_CDF4(3301, 9030, 14361), 118 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5449,71 +5584,71 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(26968, 31795, 32251), 75 },
-              { AOM_CDF4(16757, 26921, 30450), 78 },
-              { AOM_CDF4(9014, 17259, 22450), 90 },
-              { AOM_CDF4(2888, 7930, 13204), 93 },
+              { AOM_CDF4(16757, 26921, 30450), 75 },
+              { AOM_CDF4(9014, 17259, 22450), 100 },
+              { AOM_CDF4(2888, 7930, 13204), 115 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
               { AOM_CDF4(24660, 32148, 32617), 0 },
-              { AOM_CDF4(18505, 30368, 32166), 78 },
-              { AOM_CDF4(11614, 24752, 29684), 78 },
-              { AOM_CDF4(7090, 17774, 24577), 78 },
-              { AOM_CDF4(4041, 10842, 16653), 78 },
+              { AOM_CDF4(18505, 30368, 32166), 15 },
+              { AOM_CDF4(11614, 24752, 29684), 75 },
+              { AOM_CDF4(7090, 17774, 24577), 93 },
+              { AOM_CDF4(4041, 10842, 16653), 118 },
               { AOM_CDF4(25535, 32172, 32625), 5 },
               { AOM_CDF4(19324, 30711, 32264), 75 },
               { AOM_CDF4(12155, 25419, 30093), 78 },
-              { AOM_CDF4(7566, 18889, 25796), 93 },
+              { AOM_CDF4(7566, 18889, 25796), 123 },
               { AOM_CDF4(4734, 12820, 19374), 93 },
               { AOM_CDF4(25548, 32388, 32685), 5 },
-              { AOM_CDF4(20528, 31442, 32494), 0 },
-              { AOM_CDF4(13734, 27395, 31203), 0 },
-              { AOM_CDF4(8494, 21047, 27719), 90 },
-              { AOM_CDF4(5208, 14233, 21150), 90 },
+              { AOM_CDF4(20528, 31442, 32494), 75 },
+              { AOM_CDF4(13734, 27395, 31203), 75 },
+              { AOM_CDF4(8494, 21047, 27719), 118 },
+              { AOM_CDF4(5208, 14233, 21150), 78 },
               { AOM_CDF4(28932, 32597, 32700), 15 },
-              { AOM_CDF4(19964, 31022, 32332), 118 },
+              { AOM_CDF4(19964, 31022, 32332), 75 },
               { AOM_CDF4(12015, 25611, 30181), 75 },
-              { AOM_CDF4(7510, 19289, 26048), 75 },
+              { AOM_CDF4(7510, 19289, 26048), 0 },
               { AOM_CDF4(4579, 12679, 18848), 75 },
           },
           {
-              { AOM_CDF4(26649, 32594, 32737), 75 },
-              { AOM_CDF4(20577, 31436, 32527), 90 },
+              { AOM_CDF4(26649, 32594, 32737), 5 },
+              { AOM_CDF4(20577, 31436, 32527), 75 },
               { AOM_CDF4(12868, 26727, 30935), 75 },
-              { AOM_CDF4(7708, 19926, 26753), 75 },
-              { AOM_CDF4(4435, 12557, 18985), 93 },
-              { AOM_CDF4(28579, 32698, 32748), 75 },
-              { AOM_CDF4(22142, 31929, 32621), 75 },
+              { AOM_CDF4(7708, 19926, 26753), 115 },
+              { AOM_CDF4(4435, 12557, 18985), 118 },
+              { AOM_CDF4(28579, 32698, 32748), 0 },
+              { AOM_CDF4(22142, 31929, 32621), 0 },
               { AOM_CDF4(13945, 27897, 31459), 75 },
-              { AOM_CDF4(8286, 21100, 27827), 93 },
-              { AOM_CDF4(4831, 13675, 20451), 93 },
-              { AOM_CDF4(29358, 32724, 32748), 75 },
+              { AOM_CDF4(8286, 21100, 27827), 123 },
+              { AOM_CDF4(4831, 13675, 20451), 118 },
+              { AOM_CDF4(29358, 32724, 32748), 5 },
               { AOM_CDF4(23174, 32212, 32676), 75 },
               { AOM_CDF4(15110, 28942, 31862), 78 },
-              { AOM_CDF4(8965, 22455, 28890), 93 },
+              { AOM_CDF4(8965, 22455, 28890), 98 },
               { AOM_CDF4(5633, 15580, 22756), 93 },
-              { AOM_CDF4(31066, 32722, 32748), 0 },
-              { AOM_CDF4(22872, 32079, 32628), 90 },
-              { AOM_CDF4(14102, 28210, 31552), 75 },
-              { AOM_CDF4(8675, 21821, 28361), 90 },
-              { AOM_CDF4(5491, 15148, 22140), 1 },
+              { AOM_CDF4(31066, 32722, 32748), 25 },
+              { AOM_CDF4(22872, 32079, 32628), 75 },
+              { AOM_CDF4(14102, 28210, 31552), 15 },
+              { AOM_CDF4(8675, 21821, 28361), 76 },
+              { AOM_CDF4(5491, 15148, 22140), 7 },
           },
           {
-              { AOM_CDF4(27062, 32527, 32743), 1 },
-              { AOM_CDF4(19027, 30852, 32436), 75 },
-              { AOM_CDF4(11233, 25182, 30304), 90 },
-              { AOM_CDF4(7293, 18899, 25825), 75 },
-              { AOM_CDF4(3840, 11183, 17184), 76 },
-              { AOM_CDF4(28942, 32669, 32748), 1 },
-              { AOM_CDF4(20364, 31341, 32526), 75 },
-              { AOM_CDF4(11798, 26161, 30789), 76 },
-              { AOM_CDF4(7721, 20103, 26914), 75 },
-              { AOM_CDF4(4292, 12290, 18569), 75 },
-              { AOM_CDF4(31269, 32732, 32748), 75 },
-              { AOM_CDF4(22738, 31804, 32540), 75 },
+              { AOM_CDF4(27062, 32527, 32743), 0 },
+              { AOM_CDF4(19027, 30852, 32436), 90 },
+              { AOM_CDF4(11233, 25182, 30304), 115 },
+              { AOM_CDF4(7293, 18899, 25825), 81 },
+              { AOM_CDF4(3840, 11183, 17184), 81 },
+              { AOM_CDF4(28942, 32669, 32748), 0 },
+              { AOM_CDF4(20364, 31341, 32526), 123 },
+              { AOM_CDF4(11798, 26161, 30789), 101 },
+              { AOM_CDF4(7721, 20103, 26914), 103 },
+              { AOM_CDF4(4292, 12290, 18569), 5 },
+              { AOM_CDF4(31269, 32732, 32748), 5 },
+              { AOM_CDF4(22738, 31804, 32540), 93 },
               { AOM_CDF4(13506, 27336, 31048), 123 },
-              { AOM_CDF4(8426, 20913, 27313), 123 },
-              { AOM_CDF4(5165, 14358, 21243), 115 },
+              { AOM_CDF4(8426, 20913, 27313), 98 },
+              { AOM_CDF4(5165, 14358, 21243), 90 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5521,21 +5656,21 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
-              { AOM_CDF4(27797, 32551, 32734), 7 },
-              { AOM_CDF4(18536, 30192, 32054), 77 },
-              { AOM_CDF4(9250, 21752, 27733), 35 },
-              { AOM_CDF4(5509, 14544, 21321), 10 },
-              { AOM_CDF4(2780, 8115, 12851), 116 },
-              { AOM_CDF4(28248, 32548, 32731), 2 },
+              { AOM_CDF4(27797, 32551, 32734), 37 },
+              { AOM_CDF4(18536, 30192, 32054), 45 },
+              { AOM_CDF4(9250, 21752, 27733), 100 },
+              { AOM_CDF4(5509, 14544, 21321), 0 },
+              { AOM_CDF4(2780, 8115, 12851), 97 },
+              { AOM_CDF4(28248, 32548, 32731), 19 },
               { AOM_CDF4(18110, 29550, 31936), 14 },
-              { AOM_CDF4(9332, 22347, 28750), 24 },
-              { AOM_CDF4(6263, 16981, 24350), 115 },
-              { AOM_CDF4(4028, 11285, 17366), 79 },
-              { AOM_CDF4(31163, 32738, 32748), 90 },
-              { AOM_CDF4(22363, 31863, 32644), 90 },
-              { AOM_CDF4(13992, 28334, 31753), 93 },
-              { AOM_CDF4(9362, 23261, 29214), 116 },
-              { AOM_CDF4(5470, 15154, 21842), 121 },
+              { AOM_CDF4(9332, 22347, 28750), 50 },
+              { AOM_CDF4(6263, 16981, 24350), 25 },
+              { AOM_CDF4(4028, 11285, 17366), 30 },
+              { AOM_CDF4(31163, 32738, 32748), 80 },
+              { AOM_CDF4(22363, 31863, 32644), 6 },
+              { AOM_CDF4(13992, 28334, 31753), 121 },
+              { AOM_CDF4(9362, 23261, 29214), 2 },
+              { AOM_CDF4(5470, 15154, 21842), 122 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5547,8 +5682,8 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
           {
               { AOM_CDF4(19320, 30724, 32176), 0 },
               { AOM_CDF4(14807, 28058, 31482), 0 },
-              { AOM_CDF4(6949, 18022, 25151), 5 },
-              { AOM_CDF4(4765, 13338, 20284), 0 },
+              { AOM_CDF4(6949, 18022, 25151), 3 },
+              { AOM_CDF4(4765, 13338, 20284), 93 },
               { AOM_CDF4(4056, 11155, 17331), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5560,7 +5695,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
-              { AOM_CDF4(27951, 31995, 32325), 0 },
+              { AOM_CDF4(27951, 31995, 32325), 75 },
               { AOM_CDF4(17710, 27697, 31033), 0 },
               { AOM_CDF4(10628, 19511, 24755), 75 },
               { AOM_CDF4(3615, 10007, 15829), 0 },
@@ -5569,61 +5704,61 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
           {
               { AOM_CDF4(25483, 32512, 32710), 0 },
               { AOM_CDF4(19472, 31052, 32414), 75 },
-              { AOM_CDF4(12058, 25877, 30559), 0 },
+              { AOM_CDF4(12058, 25877, 30559), 75 },
               { AOM_CDF4(7510, 19469, 26500), 78 },
-              { AOM_CDF4(4973, 13705, 20541), 78 },
+              { AOM_CDF4(4973, 13705, 20541), 93 },
               { AOM_CDF4(26859, 32603, 32731), 0 },
               { AOM_CDF4(20197, 31453, 32529), 75 },
               { AOM_CDF4(12748, 26904, 31173), 75 },
               { AOM_CDF4(8206, 21027, 27934), 78 },
               { AOM_CDF4(5648, 15570, 22864), 93 },
-              { AOM_CDF4(26988, 32600, 32729), 0 },
-              { AOM_CDF4(20825, 31675, 32562), 0 },
-              { AOM_CDF4(13369, 27549, 31442), 75 },
-              { AOM_CDF4(8771, 22128, 28820), 93 },
+              { AOM_CDF4(26988, 32600, 32729), 5 },
+              { AOM_CDF4(20825, 31675, 32562), 5 },
+              { AOM_CDF4(13369, 27549, 31442), 0 },
+              { AOM_CDF4(8771, 22128, 28820), 78 },
               { AOM_CDF4(6314, 17023, 24341), 93 },
               { AOM_CDF4(29895, 32664, 32721), 0 },
               { AOM_CDF4(20440, 31442, 32466), 90 },
               { AOM_CDF4(12411, 26413, 30779), 75 },
-              { AOM_CDF4(7890, 20312, 27117), 75 },
+              { AOM_CDF4(7890, 20312, 27117), 90 },
               { AOM_CDF4(5078, 14044, 20727), 75 },
           },
           {
-              { AOM_CDF4(27030, 32619, 32738), 75 },
+              { AOM_CDF4(27030, 32619, 32738), 0 },
               { AOM_CDF4(21313, 31552, 32544), 75 },
               { AOM_CDF4(12749, 26602, 30928), 75 },
               { AOM_CDF4(7678, 19989, 26921), 93 },
               { AOM_CDF4(4728, 13333, 19976), 118 },
-              { AOM_CDF4(28855, 32711, 32748), 0 },
-              { AOM_CDF4(22643, 32000, 32640), 0 },
+              { AOM_CDF4(28855, 32711, 32748), 5 },
+              { AOM_CDF4(22643, 32000, 32640), 75 },
               { AOM_CDF4(13721, 27809, 31523), 75 },
-              { AOM_CDF4(8406, 21577, 28298), 93 },
+              { AOM_CDF4(8406, 21577, 28298), 118 },
               { AOM_CDF4(5302, 14901, 21979), 118 },
-              { AOM_CDF4(29804, 32736, 32748), 0 },
+              { AOM_CDF4(29804, 32736, 32748), 30 },
               { AOM_CDF4(23593, 32282, 32693), 0 },
               { AOM_CDF4(15007, 29093, 32023), 78 },
               { AOM_CDF4(9430, 23416, 29627), 93 },
-              { AOM_CDF4(6133, 16901, 24207), 93 },
-              { AOM_CDF4(31245, 32731, 32748), 5 },
+              { AOM_CDF4(6133, 16901, 24207), 118 },
+              { AOM_CDF4(31245, 32731, 32748), 0 },
               { AOM_CDF4(22681, 32219, 32654), 75 },
               { AOM_CDF4(14293, 28599, 31761), 75 },
               { AOM_CDF4(8937, 22435, 28878), 75 },
-              { AOM_CDF4(6159, 16606, 24035), 90 },
+              { AOM_CDF4(6159, 16606, 24035), 1 },
           },
           {
               { AOM_CDF4(26381, 32534, 32740), 75 },
               { AOM_CDF4(19265, 31130, 32505), 75 },
               { AOM_CDF4(11841, 26019, 30747), 75 },
-              { AOM_CDF4(7288, 19230, 26201), 90 },
+              { AOM_CDF4(7288, 19230, 26201), 100 },
               { AOM_CDF4(3965, 11340, 17339), 90 },
-              { AOM_CDF4(28758, 32681, 32748), 75 },
+              { AOM_CDF4(28758, 32681, 32748), 0 },
               { AOM_CDF4(20834, 31535, 32561), 75 },
-              { AOM_CDF4(12028, 26358, 30896), 75 },
-              { AOM_CDF4(7583, 19944, 26908), 90 },
-              { AOM_CDF4(4393, 12612, 19073), 90 },
-              { AOM_CDF4(31684, 32740, 32748), 0 },
-              { AOM_CDF4(23456, 31945, 32602), 75 },
-              { AOM_CDF4(13582, 27603, 31309), 90 },
+              { AOM_CDF4(12028, 26358, 30896), 90 },
+              { AOM_CDF4(7583, 19944, 26908), 118 },
+              { AOM_CDF4(4393, 12612, 19073), 115 },
+              { AOM_CDF4(31684, 32740, 32748), 30 },
+              { AOM_CDF4(23456, 31945, 32602), 0 },
+              { AOM_CDF4(13582, 27603, 31309), 93 },
               { AOM_CDF4(8597, 21628, 28132), 118 },
               { AOM_CDF4(5407, 14899, 21825), 90 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5633,21 +5768,21 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
-              { AOM_CDF4(26249, 32452, 32728), 75 },
+              { AOM_CDF4(26249, 32452, 32728), 0 },
               { AOM_CDF4(18386, 30544, 32290), 75 },
-              { AOM_CDF4(10643, 24303, 29587), 90 },
-              { AOM_CDF4(6548, 17540, 24275), 115 },
-              { AOM_CDF4(3070, 8905, 13862), 100 },
-              { AOM_CDF4(28292, 32621, 32748), 1 },
-              { AOM_CDF4(18716, 30648, 32342), 75 },
-              { AOM_CDF4(10781, 24858, 30046), 115 },
-              { AOM_CDF4(6994, 18386, 25382), 123 },
-              { AOM_CDF4(3547, 10318, 15951), 75 },
-              { AOM_CDF4(31478, 32739, 32748), 75 },
-              { AOM_CDF4(21841, 31707, 32587), 90 },
-              { AOM_CDF4(13193, 27536, 31360), 123 },
+              { AOM_CDF4(10643, 24303, 29587), 75 },
+              { AOM_CDF4(6548, 17540, 24275), 95 },
+              { AOM_CDF4(3070, 8905, 13862), 75 },
+              { AOM_CDF4(28292, 32621, 32748), 81 },
+              { AOM_CDF4(18716, 30648, 32342), 0 },
+              { AOM_CDF4(10781, 24858, 30046), 75 },
+              { AOM_CDF4(6994, 18386, 25382), 100 },
+              { AOM_CDF4(3547, 10318, 15951), 76 },
+              { AOM_CDF4(31478, 32739, 32748), 30 },
+              { AOM_CDF4(21841, 31707, 32587), 80 },
+              { AOM_CDF4(13193, 27536, 31360), 93 },
               { AOM_CDF4(8603, 21795, 28240), 123 },
-              { AOM_CDF4(5006, 14007, 20684), 118 },
+              { AOM_CDF4(5006, 14007, 20684), 115 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5657,11 +5792,11 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
       },
       {
           {
-              { AOM_CDF4(22117, 31835, 32540), 0 },
-              { AOM_CDF4(15288, 29121, 31929), 25 },
-              { AOM_CDF4(8189, 20350, 26841), 29 },
-              { AOM_CDF4(5507, 14100, 20444), 100 },
-              { AOM_CDF4(3231, 8473, 14625), 0 },
+              { AOM_CDF4(22117, 31835, 32540), 75 },
+              { AOM_CDF4(15288, 29121, 31929), 3 },
+              { AOM_CDF4(8189, 20350, 26841), 3 },
+              { AOM_CDF4(5507, 14100, 20444), 4 },
+              { AOM_CDF4(3231, 8473, 14625), 120 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5672,72 +5807,72 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
-              { AOM_CDF4(30006, 32321, 32549), 15 },
-              { AOM_CDF4(18547, 28301, 31377), 0 },
-              { AOM_CDF4(10230, 18941, 24612), 95 },
-              { AOM_CDF4(3929, 9270, 15050), 100 },
+              { AOM_CDF4(30006, 32321, 32549), 78 },
+              { AOM_CDF4(18547, 28301, 31377), 75 },
+              { AOM_CDF4(10230, 18941, 24612), 100 },
+              { AOM_CDF4(3929, 9270, 15050), 95 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
               { AOM_CDF4(25462, 32558, 32721), 0 },
-              { AOM_CDF4(17927, 31022, 32486), 3 },
-              { AOM_CDF4(11581, 26047, 30916), 3 },
-              { AOM_CDF4(7458, 19731, 26964), 93 },
-              { AOM_CDF4(4937, 13823, 20795), 93 },
+              { AOM_CDF4(17927, 31022, 32486), 78 },
+              { AOM_CDF4(11581, 26047, 30916), 78 },
+              { AOM_CDF4(7458, 19731, 26964), 118 },
+              { AOM_CDF4(4937, 13823, 20795), 118 },
               { AOM_CDF4(27549, 32673, 32745), 0 },
-              { AOM_CDF4(19334, 31656, 32596), 0 },
-              { AOM_CDF4(12535, 27203, 31456), 3 },
-              { AOM_CDF4(8028, 21037, 28085), 93 },
-              { AOM_CDF4(5303, 14880, 22134), 90 },
+              { AOM_CDF4(19334, 31656, 32596), 78 },
+              { AOM_CDF4(12535, 27203, 31456), 93 },
+              { AOM_CDF4(8028, 21037, 28085), 118 },
+              { AOM_CDF4(5303, 14880, 22134), 98 },
               { AOM_CDF4(27969, 32682, 32748), 0 },
-              { AOM_CDF4(20487, 31978, 32642), 0 },
-              { AOM_CDF4(13709, 28189, 31773), 0 },
-              { AOM_CDF4(8821, 22041, 28670), 115 },
-              { AOM_CDF4(5410, 15025, 21809), 76 },
+              { AOM_CDF4(20487, 31978, 32642), 78 },
+              { AOM_CDF4(13709, 28189, 31773), 78 },
+              { AOM_CDF4(8821, 22041, 28670), 123 },
+              { AOM_CDF4(5410, 15025, 21809), 123 },
               { AOM_CDF4(31024, 32677, 32733), 0 },
-              { AOM_CDF4(20580, 31252, 32421), 75 },
-              { AOM_CDF4(12603, 25829, 30230), 75 },
+              { AOM_CDF4(20580, 31252, 32421), 118 },
+              { AOM_CDF4(12603, 25829, 30230), 103 },
               { AOM_CDF4(7659, 19412, 26097), 75 },
               { AOM_CDF4(4872, 13491, 19945), 75 },
           },
           {
               { AOM_CDF4(26850, 32631, 32741), 0 },
-              { AOM_CDF4(20293, 31546, 32570), 0 },
-              { AOM_CDF4(12433, 26847, 31189), 0 },
-              { AOM_CDF4(7675, 20308, 27337), 93 },
-              { AOM_CDF4(4756, 13551, 20394), 119 },
+              { AOM_CDF4(20293, 31546, 32570), 75 },
+              { AOM_CDF4(12433, 26847, 31189), 90 },
+              { AOM_CDF4(7675, 20308, 27337), 118 },
+              { AOM_CDF4(4756, 13551, 20394), 118 },
               { AOM_CDF4(28999, 32712, 32748), 0 },
               { AOM_CDF4(21510, 31953, 32643), 75 },
               { AOM_CDF4(13136, 27763, 31595), 75 },
-              { AOM_CDF4(8141, 21342, 28236), 95 },
-              { AOM_CDF4(5216, 14838, 22107), 100 },
+              { AOM_CDF4(8141, 21342, 28236), 118 },
+              { AOM_CDF4(5216, 14838, 22107), 118 },
               { AOM_CDF4(30060, 32735, 32748), 0 },
               { AOM_CDF4(22486, 32229, 32689), 75 },
-              { AOM_CDF4(14361, 28867, 32005), 90 },
-              { AOM_CDF4(9050, 23018, 29490), 90 },
-              { AOM_CDF4(6033, 16867, 24451), 124 },
+              { AOM_CDF4(14361, 28867, 32005), 93 },
+              { AOM_CDF4(9050, 23018, 29490), 118 },
+              { AOM_CDF4(6033, 16867, 24451), 93 },
               { AOM_CDF4(31987, 32736, 32748), 5 },
-              { AOM_CDF4(22132, 32113, 32655), 78 },
-              { AOM_CDF4(14533, 28439, 31698), 93 },
-              { AOM_CDF4(9232, 22791, 28910), 95 },
-              { AOM_CDF4(5988, 15773, 22683), 81 },
+              { AOM_CDF4(22132, 32113, 32655), 115 },
+              { AOM_CDF4(14533, 28439, 31698), 115 },
+              { AOM_CDF4(9232, 22791, 28910), 75 },
+              { AOM_CDF4(5988, 15773, 22683), 80 },
           },
           {
               { AOM_CDF4(26458, 32591, 32746), 0 },
               { AOM_CDF4(20518, 31704, 32611), 75 },
-              { AOM_CDF4(13394, 27646, 31468), 0 },
-              { AOM_CDF4(8146, 20882, 27565), 79 },
-              { AOM_CDF4(4480, 12667, 19055), 19 },
+              { AOM_CDF4(13394, 27646, 31468), 90 },
+              { AOM_CDF4(8146, 20882, 27565), 75 },
+              { AOM_CDF4(4480, 12667, 19055), 75 },
               { AOM_CDF4(29131, 32709, 32748), 0 },
               { AOM_CDF4(22531, 32111, 32668), 75 },
-              { AOM_CDF4(13734, 28036, 31608), 1 },
-              { AOM_CDF4(8380, 21393, 28032), 82 },
-              { AOM_CDF4(4777, 13556, 20242), 97 },
-              { AOM_CDF4(31525, 32744, 32748), 75 },
-              { AOM_CDF4(24112, 32269, 32689), 118 },
-              { AOM_CDF4(14940, 28985, 31938), 78 },
-              { AOM_CDF4(9500, 23306, 29378), 93 },
-              { AOM_CDF4(5693, 15800, 22902), 93 },
+              { AOM_CDF4(13734, 28036, 31608), 75 },
+              { AOM_CDF4(8380, 21393, 28032), 75 },
+              { AOM_CDF4(4777, 13556, 20242), 75 },
+              { AOM_CDF4(31525, 32744, 32748), 5 },
+              { AOM_CDF4(24112, 32269, 32689), 75 },
+              { AOM_CDF4(14940, 28985, 31938), 93 },
+              { AOM_CDF4(9500, 23306, 29378), 118 },
+              { AOM_CDF4(5693, 15800, 22902), 90 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5745,21 +5880,21 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
-              { AOM_CDF4(26501, 32540, 32741), 0 },
-              { AOM_CDF4(19871, 31336, 32514), 75 },
-              { AOM_CDF4(12670, 26707, 30861), 75 },
-              { AOM_CDF4(7640, 19513, 26195), 95 },
-              { AOM_CDF4(3903, 11237, 17059), 78 },
-              { AOM_CDF4(28591, 32678, 32748), 6 },
+              { AOM_CDF4(26501, 32540, 32741), 75 },
+              { AOM_CDF4(19871, 31336, 32514), 90 },
+              { AOM_CDF4(12670, 26707, 30861), 90 },
+              { AOM_CDF4(7640, 19513, 26195), 100 },
+              { AOM_CDF4(3903, 11237, 17059), 76 },
+              { AOM_CDF4(28591, 32678, 32748), 1 },
               { AOM_CDF4(21370, 31753, 32600), 75 },
-              { AOM_CDF4(13004, 27117, 31157), 75 },
-              { AOM_CDF4(7866, 20447, 27150), 97 },
-              { AOM_CDF4(4529, 12975, 19393), 101 },
-              { AOM_CDF4(31516, 32745, 32749), 100 },
+              { AOM_CDF4(13004, 27117, 31157), 90 },
+              { AOM_CDF4(7866, 20447, 27150), 91 },
+              { AOM_CDF4(4529, 12975, 19393), 76 },
+              { AOM_CDF4(31516, 32745, 32749), 5 },
               { AOM_CDF4(23920, 32199, 32684), 75 },
-              { AOM_CDF4(15016, 28984, 31930), 75 },
-              { AOM_CDF4(9625, 23447, 29405), 93 },
-              { AOM_CDF4(5766, 15954, 22894), 124 },
+              { AOM_CDF4(15016, 28984, 31930), 90 },
+              { AOM_CDF4(9625, 23447, 29405), 115 },
+              { AOM_CDF4(5766, 15954, 22894), 75 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5769,9 +5904,9 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
       },
       {
           {
-              { AOM_CDF4(25953, 32414, 32729), 50 },
-              { AOM_CDF4(18289, 30427, 32460), 50 },
-              { AOM_CDF4(10923, 21845, 28035), 0 },
+              { AOM_CDF4(25953, 32414, 32729), 0 },
+              { AOM_CDF4(18289, 30427, 32460), 25 },
+              { AOM_CDF4(10923, 21845, 28035), 49 },
               { AOM_CDF4(4681, 14043, 23406), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5784,72 +5919,72 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
-              { AOM_CDF4(30867, 32583, 32692), 50 },
-              { AOM_CDF4(20762, 30543, 32387), 100 },
+              { AOM_CDF4(30867, 32583, 32692), 30 },
+              { AOM_CDF4(20762, 30543, 32387), 0 },
               { AOM_CDF4(12899, 21221, 24654), 0 },
               { AOM_CDF4(5461, 13653, 19115), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
               { AOM_CDF4(27278, 32657, 32748), 0 },
-              { AOM_CDF4(18894, 31669, 32636), 5 },
-              { AOM_CDF4(12639, 27620, 31748), 30 },
-              { AOM_CDF4(8420, 22252, 29131), 50 },
-              { AOM_CDF4(7223, 17735, 25234), 0 },
+              { AOM_CDF4(18894, 31669, 32636), 0 },
+              { AOM_CDF4(12639, 27620, 31748), 0 },
+              { AOM_CDF4(8420, 22252, 29131), 31 },
+              { AOM_CDF4(7223, 17735, 25234), 120 },
               { AOM_CDF4(29510, 32710, 32748), 5 },
-              { AOM_CDF4(20138, 31998, 32647), 3 },
-              { AOM_CDF4(13415, 28240, 31923), 50 },
-              { AOM_CDF4(9333, 23456, 29764), 0 },
-              { AOM_CDF4(6698, 17289, 23852), 0 },
-              { AOM_CDF4(30218, 32715, 32748), 10 },
-              { AOM_CDF4(20485, 31616, 32530), 122 },
-              { AOM_CDF4(13321, 27404, 31257), 50 },
-              { AOM_CDF4(7862, 21135, 28231), 0 },
+              { AOM_CDF4(20138, 31998, 32647), 8 },
+              { AOM_CDF4(13415, 28240, 31923), 0 },
+              { AOM_CDF4(9333, 23456, 29764), 24 },
+              { AOM_CDF4(6698, 17289, 23852), 50 },
+              { AOM_CDF4(30218, 32715, 32748), 8 },
+              { AOM_CDF4(20485, 31616, 32530), 5 },
+              { AOM_CDF4(13321, 27404, 31257), 30 },
+              { AOM_CDF4(7862, 21135, 28231), 87 },
               { AOM_CDF4(6059, 16578, 23849), 0 },
-              { AOM_CDF4(32030, 32666, 32737), 16 },
-              { AOM_CDF4(21227, 30994, 32511), 16 },
-              { AOM_CDF4(14435, 28237, 31765), 75 },
-              { AOM_CDF4(10594, 24494, 30042), 0 },
-              { AOM_CDF4(7603, 19629, 26429), 0 },
+              { AOM_CDF4(32030, 32666, 32737), 15 },
+              { AOM_CDF4(21227, 30994, 32511), 75 },
+              { AOM_CDF4(14435, 28237, 31765), 3 },
+              { AOM_CDF4(10594, 24494, 30042), 39 },
+              { AOM_CDF4(7603, 19629, 26429), 50 },
           },
           {
               { AOM_CDF4(27238, 32674, 32748), 0 },
-              { AOM_CDF4(20273, 31961, 32663), 78 },
-              { AOM_CDF4(13540, 28257, 31924), 1 },
+              { AOM_CDF4(20273, 31961, 32663), 75 },
+              { AOM_CDF4(13540, 28257, 31924), 75 },
               { AOM_CDF4(8822, 22840, 29392), 75 },
-              { AOM_CDF4(6010, 17101, 24555), 100 },
-              { AOM_CDF4(29180, 32719, 32748), 25 },
-              { AOM_CDF4(21131, 32183, 32704), 20 },
-              { AOM_CDF4(14257, 29295, 32209), 22 },
-              { AOM_CDF4(9482, 23920, 30030), 75 },
-              { AOM_CDF4(6625, 18361, 25987), 0 },
+              { AOM_CDF4(6010, 17101, 24555), 16 },
+              { AOM_CDF4(29180, 32719, 32748), 0 },
+              { AOM_CDF4(21131, 32183, 32704), 75 },
+              { AOM_CDF4(14257, 29295, 32209), 75 },
+              { AOM_CDF4(9482, 23920, 30030), 0 },
+              { AOM_CDF4(6625, 18361, 25987), 2 },
               { AOM_CDF4(30869, 32739, 32748), 5 },
-              { AOM_CDF4(22386, 32387, 32719), 100 },
-              { AOM_CDF4(15545, 30153, 32398), 105 },
-              { AOM_CDF4(10079, 24919, 30736), 100 },
-              { AOM_CDF4(7269, 20442, 27859), 100 },
-              { AOM_CDF4(32430, 32745, 32749), 49 },
-              { AOM_CDF4(22906, 32276, 32694), 121 },
-              { AOM_CDF4(15569, 29422, 31980), 0 },
-              { AOM_CDF4(10218, 25064, 30093), 0 },
+              { AOM_CDF4(22386, 32387, 32719), 75 },
+              { AOM_CDF4(15545, 30153, 32398), 75 },
+              { AOM_CDF4(10079, 24919, 30736), 80 },
+              { AOM_CDF4(7269, 20442, 27859), 114 },
+              { AOM_CDF4(32430, 32745, 32749), 5 },
+              { AOM_CDF4(22906, 32276, 32694), 120 },
+              { AOM_CDF4(15569, 29422, 31980), 10 },
+              { AOM_CDF4(10218, 25064, 30093), 13 },
               { AOM_CDF4(6389, 18411, 25830), 0 },
           },
           {
-              { AOM_CDF4(26696, 32644, 32748), 5 },
+              { AOM_CDF4(26696, 32644, 32748), 75 },
               { AOM_CDF4(21106, 32112, 32693), 90 },
-              { AOM_CDF4(14953, 29159, 32022), 4 },
-              { AOM_CDF4(9073, 22304, 28690), 100 },
-              { AOM_CDF4(4964, 14186, 21417), 0 },
-              { AOM_CDF4(29614, 32731, 32748), 31 },
-              { AOM_CDF4(22600, 32317, 32714), 4 },
-              { AOM_CDF4(15054, 29106, 31987), 25 },
-              { AOM_CDF4(8928, 22509, 28880), 0 },
-              { AOM_CDF4(5479, 15328, 22606), 0 },
-              { AOM_CDF4(32041, 32746, 32750), 25 },
-              { AOM_CDF4(23668, 32239, 32687), 118 },
-              { AOM_CDF4(16071, 29579, 32096), 118 },
-              { AOM_CDF4(10129, 24580, 30026), 122 },
-              { AOM_CDF4(6575, 17897, 25413), 100 },
+              { AOM_CDF4(14953, 29159, 32022), 90 },
+              { AOM_CDF4(9073, 22304, 28690), 75 },
+              { AOM_CDF4(4964, 14186, 21417), 4 },
+              { AOM_CDF4(29614, 32731, 32748), 0 },
+              { AOM_CDF4(22600, 32317, 32714), 75 },
+              { AOM_CDF4(15054, 29106, 31987), 1 },
+              { AOM_CDF4(8928, 22509, 28880), 106 },
+              { AOM_CDF4(5479, 15328, 22606), 97 },
+              { AOM_CDF4(32041, 32746, 32750), 75 },
+              { AOM_CDF4(23668, 32239, 32687), 90 },
+              { AOM_CDF4(16071, 29579, 32096), 0 },
+              { AOM_CDF4(10129, 24580, 30026), 98 },
+              { AOM_CDF4(6575, 17897, 25413), 99 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5857,21 +5992,21 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
               { AOM_CDF4(8192, 16384, 24576), 0 },
           },
           {
-              { AOM_CDF4(26519, 32606, 32748), 0 },
-              { AOM_CDF4(20576, 31862, 32657), 75 },
-              { AOM_CDF4(14267, 28308, 31715), 0 },
-              { AOM_CDF4(8368, 21308, 27937), 90 },
-              { AOM_CDF4(4795, 13281, 19774), 25 },
-              { AOM_CDF4(29041, 32708, 32748), 31 },
-              { AOM_CDF4(22309, 32134, 32671), 0 },
-              { AOM_CDF4(14645, 28583, 31769), 20 },
-              { AOM_CDF4(8586, 22103, 28484), 0 },
-              { AOM_CDF4(5027, 14644, 21684), 0 },
-              { AOM_CDF4(31878, 32752, 32756), 5 },
-              { AOM_CDF4(24307, 32366, 32722), 116 },
-              { AOM_CDF4(16586, 30058, 32264), 110 },
+              { AOM_CDF4(26519, 32606, 32748), 75 },
+              { AOM_CDF4(20576, 31862, 32657), 115 },
+              { AOM_CDF4(14267, 28308, 31715), 90 },
+              { AOM_CDF4(8368, 21308, 27937), 76 },
+              { AOM_CDF4(4795, 13281, 19774), 2 },
+              { AOM_CDF4(29041, 32708, 32748), 1 },
+              { AOM_CDF4(22309, 32134, 32671), 75 },
+              { AOM_CDF4(14645, 28583, 31769), 76 },
+              { AOM_CDF4(8586, 22103, 28484), 1 },
+              { AOM_CDF4(5027, 14644, 21684), 79 },
+              { AOM_CDF4(31878, 32752, 32756), 80 },
+              { AOM_CDF4(24307, 32366, 32722), 75 },
+              { AOM_CDF4(16586, 30058, 32264), 76 },
               { AOM_CDF4(10316, 24669, 30334), 100 },
-              { AOM_CDF4(6619, 17784, 25122), 100 },
+              { AOM_CDF4(6619, 17784, 25122), 80 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
               { AOM_CDF4(8192, 16384, 24576), 0 },
@@ -5893,27 +6028,27 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(31729, 32675), 5 },
+              { AOM_CDF3(31729, 32675), 25 },
               { AOM_CDF3(31286, 32498), 75 },
-              { AOM_CDF3(31494, 32509), 118 },
+              { AOM_CDF3(31494, 32509), 93 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32677, 32756), 123 },
-              { AOM_CDF3(32737, 32756), 123 },
-              { AOM_CDF3(32697, 32748), 118 },
+              { AOM_CDF3(32677, 32756), 99 },
+              { AOM_CDF3(32737, 32756), 79 },
+              { AOM_CDF3(32697, 32748), 123 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32708, 32746), 120 },
-              { AOM_CDF3(32257, 32474), 0 },
-              { AOM_CDF3(32010, 32492), 80 },
+              { AOM_CDF3(32708, 32746), 124 },
+              { AOM_CDF3(32257, 32474), 75 },
+              { AOM_CDF3(32010, 32492), 110 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(32750, 32756), 0 },
               { AOM_CDF3(32725, 32746), 0 },
-              { AOM_CDF3(32389, 32710), 50 },
+              { AOM_CDF3(32389, 32710), 0 },
           },
       },
       {
@@ -5925,8 +6060,8 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(31856, 32561), 120 },
-              { AOM_CDF3(32584, 32749), 123 },
+              { AOM_CDF3(31856, 32561), 97 },
+              { AOM_CDF3(32584, 32749), 118 },
               { AOM_CDF3(32393, 32666), 103 },
           },
           {
@@ -5938,14 +6073,14 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
           {
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(32731, 32756), 119 },
-              { AOM_CDF3(32176, 32659), 82 },
-              { AOM_CDF3(31644, 32588), 84 },
+              { AOM_CDF3(32176, 32659), 7 },
+              { AOM_CDF3(31644, 32588), 1 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32746, 32756), 104 },
-              { AOM_CDF3(32723, 32756), 110 },
-              { AOM_CDF3(23115, 31638), 70 },
+              { AOM_CDF3(32746, 32756), 123 },
+              { AOM_CDF3(32723, 32756), 0 },
+              { AOM_CDF3(23115, 31638), 62 },
           },
       },
       {
@@ -5953,31 +6088,31 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(30287, 32090), 15 },
+              { AOM_CDF3(30287, 32090), 93 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32023, 32695), 0 },
+              { AOM_CDF3(32023, 32695), 100 },
               { AOM_CDF3(32636, 32754), 123 },
-              { AOM_CDF3(32587, 32718), 98 },
+              { AOM_CDF3(32587, 32718), 118 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(32696, 32756), 123 },
-              { AOM_CDF3(32747, 32756), 119 },
-              { AOM_CDF3(32720, 32756), 115 },
+              { AOM_CDF3(32747, 32756), 123 },
+              { AOM_CDF3(32720, 32756), 123 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32742, 32756), 118 },
-              { AOM_CDF3(32550, 32740), 24 },
-              { AOM_CDF3(32305, 32733), 80 },
+              { AOM_CDF3(32742, 32756), 123 },
+              { AOM_CDF3(32550, 32740), 1 },
+              { AOM_CDF3(32305, 32733), 79 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32744, 32756), 104 },
-              { AOM_CDF3(32738, 32756), 100 },
-              { AOM_CDF3(30344, 32714), 35 },
+              { AOM_CDF3(32744, 32756), 119 },
+              { AOM_CDF3(32738, 32756), 75 },
+              { AOM_CDF3(30344, 32714), 51 },
           },
       },
       {
@@ -5985,31 +6120,31 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(31110, 32415), 50 },
+              { AOM_CDF3(31110, 32415), 28 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32192, 32743), 100 },
+              { AOM_CDF3(32192, 32743), 50 },
               { AOM_CDF3(32709, 32756), 124 },
-              { AOM_CDF3(32430, 32717), 94 },
+              { AOM_CDF3(32430, 32717), 24 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32721, 32756), 119 },
-              { AOM_CDF3(32754, 32758), 100 },
-              { AOM_CDF3(32712, 32756), 96 },
+              { AOM_CDF3(32721, 32756), 124 },
+              { AOM_CDF3(32754, 32758), 99 },
+              { AOM_CDF3(32712, 32756), 118 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
-              { AOM_CDF3(32747, 32756), 101 },
-              { AOM_CDF3(32136, 32673), 25 },
-              { AOM_CDF3(32008, 32746), 117 },
+              { AOM_CDF3(32747, 32756), 118 },
+              { AOM_CDF3(32136, 32673), 9 },
+              { AOM_CDF3(32008, 32746), 22 },
           },
           {
               { AOM_CDF3(10923, 21845), 0 },
               { AOM_CDF3(32753, 32757), 124 },
-              { AOM_CDF3(32493, 32756), 50 },
-              { AOM_CDF3(31755, 32756), 0 },
+              { AOM_CDF3(32493, 32756), 0 },
+              { AOM_CDF3(31755, 32756), 25 },
           },
       },
     };
@@ -12482,32 +12617,32 @@ static const aom_cdf_prob
     av1_default_coeff_base_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
                                     {
-                                        { AOM_CDF4(24042, 31545, 32441), 6 },
-                                        { AOM_CDF4(19171, 29453, 31810), 80 },
-                                        { AOM_CDF4(14480, 25963, 30210), 75 },
-                                        { AOM_CDF4(10198, 20797, 26612), 90 },
-                                        { AOM_CDF4(5187, 11571, 16603), 93 },
+                                        { AOM_CDF4(24042, 31545, 32441), 36 },
+                                        { AOM_CDF4(19171, 29453, 31810), 6 },
+                                        { AOM_CDF4(14480, 25963, 30210), 1 },
+                                        { AOM_CDF4(10198, 20797, 26612), 75 },
+                                        { AOM_CDF4(5187, 11571, 16603), 78 },
                                     },
                                     {
                                         { AOM_CDF4(25610, 31596, 32279), 31 },
                                         { AOM_CDF4(21997, 30852, 32225), 1 },
                                         { AOM_CDF4(16674, 27594, 30924), 75 },
                                         { AOM_CDF4(11115, 22160, 27593), 75 },
-                                        { AOM_CDF4(6144, 13550, 19120), 75 },
+                                        { AOM_CDF4(6144, 13550, 19120), 78 },
                                     },
                                     {
-                                        { AOM_CDF4(25832, 31464, 32273), 37 },
-                                        { AOM_CDF4(20809, 30221, 32040), 75 },
+                                        { AOM_CDF4(25832, 31464, 32273), 31 },
+                                        { AOM_CDF4(20809, 30221, 32040), 1 },
                                         { AOM_CDF4(16254, 27425, 30735), 75 },
                                         { AOM_CDF4(11807, 22693, 27863), 75 },
-                                        { AOM_CDF4(6760, 14792, 20624), 0 },
+                                        { AOM_CDF4(6760, 14792, 20624), 75 },
                                     },
                                     {
-                                        { AOM_CDF4(21968, 30672, 32512), 75 },
-                                        { AOM_CDF4(18328, 29437, 31826), 75 },
+                                        { AOM_CDF4(21968, 30672, 32512), 32 },
+                                        { AOM_CDF4(18328, 29437, 31826), 76 },
                                         { AOM_CDF4(15459, 27103, 30730), 75 },
                                         { AOM_CDF4(11714, 22917, 28194), 75 },
-                                        { AOM_CDF4(7108, 15722, 21972), 75 },
+                                        { AOM_CDF4(7108, 15722, 21972), 90 },
                                     },
                                   };
 
@@ -12515,40 +12650,40 @@ static const aom_cdf_prob
     av1_default_coeff_br_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BR_PH_CONTEXTS]
                                 [CDF_SIZE(BR_CDF_SIZE)] = {
                                   {
-                                      { AOM_CDF4(17255, 24548, 28308), 5 },
+                                      { AOM_CDF4(17255, 24548, 28308), 87 },
                                       { AOM_CDF4(17725, 25048, 28405), 76 },
                                       { AOM_CDF4(15579, 23101, 27032), 90 },
                                       { AOM_CDF4(13061, 20578, 24977), 115 },
-                                      { AOM_CDF4(10615, 17769, 22522), 118 },
-                                      { AOM_CDF4(8878, 15539, 20436), 118 },
-                                      { AOM_CDF4(5228, 9672, 13468), 78 },
+                                      { AOM_CDF4(10615, 17769, 22522), 103 },
+                                      { AOM_CDF4(8878, 15539, 20436), 78 },
+                                      { AOM_CDF4(5228, 9672, 13468), 93 },
                                   },
                                   {
-                                      { AOM_CDF4(17242, 24819, 27877), 7 },
+                                      { AOM_CDF4(17242, 24819, 27877), 12 },
                                       { AOM_CDF4(17393, 24701, 28031), 76 },
                                       { AOM_CDF4(15559, 23020, 26840), 75 },
                                       { AOM_CDF4(13581, 21120, 25422), 90 },
                                       { AOM_CDF4(10900, 18191, 22938), 75 },
-                                      { AOM_CDF4(9335, 16198, 21047), 118 },
-                                      { AOM_CDF4(5999, 10992, 15117), 93 },
+                                      { AOM_CDF4(9335, 16198, 21047), 78 },
+                                      { AOM_CDF4(5999, 10992, 15117), 78 },
                                   },
                                   {
-                                      { AOM_CDF4(17626, 25043, 28029), 6 },
-                                      { AOM_CDF4(17779, 25027, 28635), 90 },
-                                      { AOM_CDF4(16070, 23674, 27639), 75 },
-                                      { AOM_CDF4(14018, 21778, 26190), 78 },
+                                      { AOM_CDF4(17626, 25043, 28029), 37 },
+                                      { AOM_CDF4(17779, 25027, 28635), 76 },
+                                      { AOM_CDF4(16070, 23674, 27639), 115 },
+                                      { AOM_CDF4(14018, 21778, 26190), 118 },
                                       { AOM_CDF4(11608, 19234, 23940), 118 },
-                                      { AOM_CDF4(9705, 16640, 21738), 124 },
+                                      { AOM_CDF4(9705, 16640, 21738), 118 },
                                       { AOM_CDF4(6580, 12262, 16818), 118 },
                                   },
                                   {
-                                      { AOM_CDF4(17124, 24523, 28963), 100 },
-                                      { AOM_CDF4(19988, 27209, 30188), 79 },
-                                      { AOM_CDF4(18151, 25973, 29342), 75 },
-                                      { AOM_CDF4(15684, 23809, 27929), 90 },
-                                      { AOM_CDF4(11775, 20124, 25435), 90 },
-                                      { AOM_CDF4(9990, 17532, 22844), 100 },
-                                      { AOM_CDF4(6535, 12315, 17263), 120 },
+                                      { AOM_CDF4(17124, 24523, 28963), 47 },
+                                      { AOM_CDF4(19988, 27209, 30188), 91 },
+                                      { AOM_CDF4(18151, 25973, 29342), 90 },
+                                      { AOM_CDF4(15684, 23809, 27929), 93 },
+                                      { AOM_CDF4(11775, 20124, 25435), 124 },
+                                      { AOM_CDF4(9990, 17532, 22844), 99 },
+                                      { AOM_CDF4(6535, 12315, 17263), 101 },
                                   },
                                 };
 #else
