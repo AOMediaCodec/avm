@@ -1076,21 +1076,17 @@ class AV1ConvolveNonSep2DHighbdTest
 
     ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
         << "Not enough padding for 7x7 filters";
-    const uint16_t *centered_input =
-        input + kMaxTapOffset * width + kMaxTapOffset;
     const int input_stride = width;
-    BitMatchTest(centered_input, input_stride, width, height, filter, reference,
-                 test, kOutputStride, bit_depth, 0, height, 0, width, rtype);
+    BitMatchTest(input, input_stride, width, height, filter, reference, test,
+                 kOutputStride, bit_depth, 0, height, 0, width, rtype);
     // Extreme value test
     const uint16_t *extreme_input = FirstRandomInput16Extreme(GetParam());
-    const uint16_t *centered_extreme_input =
-        extreme_input + kMaxTapOffset * width + kMaxTapOffset;
     int16_t Extream_Tap_[kNumSymmetricTaps + 1];
     RandomizeExtreamFilterTap(Extream_Tap_, kNumSymmetricTaps + 1,
                               kMaxPrecisionBeforeOverflow);
-    BitMatchTest(centered_extreme_input, input_stride, width, height,
-                 Extream_Tap_, reference, test, kOutputStride, bit_depth, 0,
-                 height, 0, width, rtype);
+    BitMatchTest(extreme_input, input_stride, width, height, Extream_Tap_,
+                 reference, test, kOutputStride, bit_depth, 0, height, 0, width,
+                 rtype);
   }
 
   void SpeedTestConvolve(const int16_t *filter, RestorationType rtype) {
@@ -1105,8 +1101,6 @@ class AV1ConvolveNonSep2DHighbdTest
 
     ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
         << "Not enough padding for 7x7 filters";
-    const uint16_t *centered_input =
-        input + kMaxTapOffset * width + kMaxTapOffset;
 
     // Calculate time taken for C function
     const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
@@ -1132,7 +1126,7 @@ class AV1ConvolveNonSep2DHighbdTest
       aom_usec_timer timer;
       aom_usec_timer_start(&timer);
       for (int i = 0; i < kSpeedIterations; ++i) {
-        ref_func(centered_input, width, filter_config[plane], filter, reference,
+        ref_func(input, width, filter_config[plane], filter, reference,
                  kOutputStride, bit_depth, 0, height, 0, width);
       }
       aom_usec_timer_mark(&timer);
@@ -1141,9 +1135,9 @@ class AV1ConvolveNonSep2DHighbdTest
       // Calculate time taken by optimized/intrinsic function
       aom_usec_timer_start(&timer);
       for (int i = 0; i < kSpeedIterations; ++i) {
-        GetParam().TestFunction()(centered_input, width, filter_config[plane],
-                                  filter, test, kOutputStride, bit_depth, 0,
-                                  height, 0, width);
+        GetParam().TestFunction()(input, width, filter_config[plane], filter,
+                                  test, kOutputStride, bit_depth, 0, height, 0,
+                                  width);
       }
       aom_usec_timer_mark(&timer);
       auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
@@ -1449,27 +1443,19 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
 
     ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
         << "Not enough padding for 5x5 filters";
-    const uint16_t *centered_input1 =
-        dgd + kMaxTapOffset * width + kMaxTapOffset;
-    const uint16_t *centered_input2 =
-        dgd_dual + kMaxTapOffset * width + kMaxTapOffset;
     const int input_stride = width;
-    BitMatchTest(centered_input1, centered_input2, input_stride, width, height,
-                 filter, reference, test, kOutputStride, bit_depth, 0, height,
-                 0, width, is_subtract_center);
+    BitMatchTest(dgd, dgd_dual, input_stride, width, height, filter, reference,
+                 test, kOutputStride, bit_depth, 0, height, 0, width,
+                 is_subtract_center);
     // Extreme value test
     const uint16_t *extreme_input1 = FirstRandomInput16Extreme(GetParam());
     const uint16_t *extreme_input2 = FirstRandomInput16Extreme(GetParam());
-    const uint16_t *centered_extreme_input1 =
-        extreme_input1 + kMaxTapOffset * width + kMaxTapOffset;
-    const uint16_t *centered_extreme_input2 =
-        extreme_input2 + kMaxTapOffset * width + kMaxTapOffset;
     int16_t Extream_Tap_[kNumSubtractCenterOffTaps];
     RandomizeExtreamFilterTap(Extream_Tap_, kNumSubtractCenterOffTaps,
                               kMaxPrecisionBeforeOverflow);
-    BitMatchTest(centered_extreme_input1, centered_extreme_input2, input_stride,
-                 width, height, Extream_Tap_, reference, test, kOutputStride,
-                 bit_depth, 0, height, 0, width, is_subtract_center);
+    BitMatchTest(extreme_input1, extreme_input2, input_stride, width, height,
+                 Extream_Tap_, reference, test, kOutputStride, bit_depth, 0,
+                 height, 0, width, is_subtract_center);
   }
 
   void SpeedTestConvolve(const int16_t *filter, int is_subtract_center) {
@@ -1484,10 +1470,6 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
 
     ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
         << "Not enough padding for 5x5 filters";
-    const uint16_t *centered_input1 =
-        dgd + kMaxTapOffset * width + kMaxTapOffset;
-    const uint16_t *centered_input2 =
-        dgd_dual + kMaxTapOffset * width + kMaxTapOffset;
 
     // Set filter_config and reference function appropriately.
     highbd_convolve_nonsep_dual_2d_func ref_func;
@@ -1505,9 +1487,8 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     aom_usec_timer timer;
     aom_usec_timer_start(&timer);
     for (int i = 0; i < kSpeedIterations; ++i) {
-      ref_func(centered_input1, width, centered_input2, width, filter_cfg,
-               filter, reference, kOutputStride, bit_depth, 0, height, 0,
-               width);
+      ref_func(dgd, width, dgd_dual, width, filter_cfg, filter, reference,
+               kOutputStride, bit_depth, 0, height, 0, width);
     }
     aom_usec_timer_mark(&timer);
     auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
@@ -1515,9 +1496,9 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     // Calculate time taken by optimized/intrinsic function
     aom_usec_timer_start(&timer);
     for (int i = 0; i < kSpeedIterations; ++i) {
-      GetParam().TestFunction()(centered_input1, width, centered_input2, width,
-                                filter_cfg, filter, test, kOutputStride,
-                                bit_depth, 0, height, 0, width);
+      GetParam().TestFunction()(dgd, width, dgd_dual, width, filter_cfg, filter,
+                                test, kOutputStride, bit_depth, 0, height, 0,
+                                width);
     }
     aom_usec_timer_mark(&timer);
     auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
