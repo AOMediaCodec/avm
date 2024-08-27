@@ -4022,21 +4022,23 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
                                  int rf) {
   visited[rf] = 1;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
-  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (buf->ref_display_order_hint[i] < 0) continue;
-    int found_rf = -1;
-    for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
-      if ((int)get_ref_frame_buf(cm, j)->display_order_hint ==
-          buf->ref_display_order_hint[i]) {
-        if (is_overlay[j]) continue;
-        found_rf = j;
-        break;
+  if (buf->frame_type == INTER_FRAME) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+      if (buf->ref_display_order_hint[i] < 0) continue;
+      int found_rf = -1;
+      for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
+        if ((int)get_ref_frame_buf(cm, j)->display_order_hint ==
+            buf->ref_display_order_hint[i]) {
+          if (is_overlay[j]) continue;
+          found_rf = j;
+          break;
+        }
       }
-    }
-    if (found_rf == -1) continue;
-    if (visited[found_rf] == 0) {
-      recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, stack_count,
-                           found_rf);
+      if (found_rf == -1) continue;
+      if (visited[found_rf] == 0) {
+        recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, stack_count,
+                             found_rf);
+      }
     }
   }
   rf_stack[*stack_count] = rf;
