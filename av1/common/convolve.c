@@ -526,6 +526,7 @@ static void highbd_convolve_2d_facade_single(
     aom_highbd_convolve_copy(src, src_stride, dst, dst_stride, w, h);
   } else if (need_x && !need_y) {
     // TODO(any): need SIMD for > 8 taps filters
+    assert(IMPLIES(is_intrabc, filter_params_x != NULL));
     if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h,
                                  filter_params_x, subpel_x_qn, conv_params, bd);
@@ -535,6 +536,7 @@ static void highbd_convolve_2d_facade_single(
                                filter_params_x, subpel_x_qn, conv_params, bd);
     }
   } else if (!need_x && need_y) {
+    assert(IMPLIES(is_intrabc, filter_params_y != NULL));
     if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
                                  filter_params_y, subpel_y_qn, bd);
@@ -544,6 +546,8 @@ static void highbd_convolve_2d_facade_single(
     }
   } else {
     assert(need_x && need_y);
+    assert(IMPLIES(is_intrabc,
+                   filter_params_x != NULL && filter_params_y != NULL));
     if (filter_x_taps_gt8 || filter_y_taps_gt8 || is_intrabc) {
       av1_highbd_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
                                   filter_params_x, filter_params_y, subpel_x_qn,
