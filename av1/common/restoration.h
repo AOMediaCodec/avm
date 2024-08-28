@@ -505,6 +505,10 @@ typedef struct {
    * Frame-level filter taps.
    */
   WienerNonsepInfo frame_filters;
+  /*!
+   * Whether frame-level filters are initialized.
+   */
+  int frame_filters_initialized;
 #endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_TEMP_LR
   /*!

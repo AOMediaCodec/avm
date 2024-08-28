@@ -91,6 +91,7 @@ void copy_frame_filters_to_runits_if_needed(AV1_COMMON *cm) {
   if ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
        rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
       rsi->frame_filters_on) {
+    assert(rsi->frame_filters_initialized);
     for (int runit_idx = 0; runit_idx < rsi->units_per_tile; ++runit_idx) {
       RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
       if (rui->restoration_type == RESTORE_WIENER_NONSEP) {
@@ -3391,6 +3392,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
 #if CONFIG_COMBINE_PC_NS_WIENER
+      rsi->frame_filters_initialized = 0;
       if (p == AOM_PLANE_Y) {
         int read_num_classes = 1;
         read_num_classes = read_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
@@ -3417,6 +3419,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           if (rsi->temporal_pred_flag) {
             av1_copy_rst_frame_filters(
                 rsi, &get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p]);
+            rsi->frame_filters_initialized = 1;
 
             av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
           } else {
@@ -3725,7 +3728,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int is_uv = plane != AOM_PLANE_Y;
   RestorationInfo *rsi = &cm->rst_info[plane];
   assert(!is_uv);
-  assert(rsi->frame_filters_on);
+  assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
   int skip_filter_read_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   const int num_classes = rsi->num_filter_classes;
   rsi->frame_filters.num_classes = num_classes;
@@ -3813,6 +3816,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
       }
     }
   }
+  rsi->frame_filters_initialized = 1;
 #if CONFIG_TEMP_LR
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif  // CONFIG_TEMP_LR
