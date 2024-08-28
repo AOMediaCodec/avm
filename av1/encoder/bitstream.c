@@ -4228,7 +4228,6 @@ static AOM_INLINE void encode_restoration_mode(
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_COMBINE_PC_NS_WIENER
     cm->cur_frame->rst_info[p].frame_filters_on = 0;
-    rsi->frame_filters_initialized = 0;
 #if CONFIG_TEMP_LR
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
 #endif  // CONFIG_TEMP_LR
@@ -4300,7 +4299,6 @@ static AOM_INLINE void encode_restoration_mode(
 #if CONFIG_LR_IMPROVEMENTS
     if (is_wiener_nonsep_possible) {
 #if CONFIG_COMBINE_PC_NS_WIENER
-      rsi->frame_filters_initialized = 0;
       if (p == AOM_PLANE_Y) {
         int write_num_classes = 1;
         write_num_classes =
@@ -4335,7 +4333,6 @@ static AOM_INLINE void encode_restoration_mode(
           if (rsi->frame_filters_on)
             av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
           if (rsi->temporal_pred_flag) {
-            rsi->frame_filters_initialized = 1;
             assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                        ->rst_info[p]
                        .frame_filters_on);
@@ -4636,7 +4633,7 @@ static AOM_INLINE void write_wienerns_framefilters(
   RestorationInfo *rsi = &cm->rst_info[plane];
   const int is_uv = plane > 0;
   const int num_classes = rsi->num_filter_classes;
-  assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
+  assert(rsi->frame_filters_on);
   assert(!is_uv);
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, plane != AOM_PLANE_Y);
@@ -4727,7 +4724,6 @@ static AOM_INLINE void write_wienerns_framefilters(
       }
     }
   }
-  rsi->frame_filters_initialized = 1;
 #if CONFIG_TEMP_LR
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif  // CONFIG_TEMP_LR

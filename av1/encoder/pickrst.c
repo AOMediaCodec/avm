@@ -4444,7 +4444,6 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_restoration_type = frame_rtype;
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsi->frame_filters_on = rsc->frame_filters_on;
-  rsi->frame_filters_initialized = 0;
   rsi->num_filter_classes = rsc->num_filter_classes;
   rsi->frame_filters = rsc->frame_filter_dictionary.filter[0];
   if (rsc->plane == AOM_PLANE_Y) {
