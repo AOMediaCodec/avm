@@ -446,7 +446,7 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
                    "Enable subblock padding for subblock mv refinement.")
 
 set_aom_config_var(
-  CONFIG_ML_PART_SPLIT 0 "Partition SPLIT pruning/forcing for intra frames as
+  CONFIG_ML_PART_SPLIT 1 "Partition SPLIT pruning/forcing for intra frames as
                    predicted by ML.")
 set_aom_config_var(
   CONFIG_INTRA_TX_IST_PARSE 1
