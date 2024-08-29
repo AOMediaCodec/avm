@@ -1950,8 +1950,8 @@ void av2_tcq_declog_eobrate(const struct AV1Common *const cm,
       is_inter,                        // 9: inter/intra mode
       neob);                           // 10: neob
 
-  fprintf(fp, " %2lu %2lu %2lu\n", eob_pt_bits, eob_extra_bits,
-          eob_offset_bits);
+  fprintf(fp, " %2d %2d %2d\n", (int)eob_pt_bits, (int)eob_extra_bits,
+          (int)eob_offset_bits);
 }
 
 void av2_tcq_declog_decrate(const struct AV1Common *const cm,
@@ -2006,37 +2006,37 @@ void av2_tcq_declog_decrate(const struct AV1Common *const cm,
   switch (qcoeff_rcost_type) {
     case QCOEFF_RCOST_TYPE_SGNRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].sign_cost);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].sign_cost);
       }
       break;
     case QCOEFF_RCOST_TYPE_BRRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].br_cost);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].br_cost);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR1RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[0]);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].lr_cost[0]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR2RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[1]);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].lr_cost[1]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR3RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[2]);
+        fprintf(fp, " %2lu", (int)qcoeff_cost[c].lr_cost[2]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR4RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].lr_cost[3]);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].lr_cost[3]);
       }
       break;
     case QCOEFF_RCOST_TYPE_HRRATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", qcoeff_cost[c].hr_cost);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].hr_cost);
       }
       break;
     default:
