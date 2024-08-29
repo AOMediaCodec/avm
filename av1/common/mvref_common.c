@@ -4254,6 +4254,7 @@ static int motion_field_projection_start_target(
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
+  assert(cm->tmvp_sample_step > 0);
   for (int blk_row = 0; blk_row < mvs_rows; blk_row += cm->tmvp_sample_step) {
     for (int blk_col = 0; blk_col < mvs_cols; blk_col += cm->tmvp_sample_step) {
       const MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_stride + blk_col];
@@ -4415,6 +4416,7 @@ static int motion_field_projection_side(AV1_COMMON *cm,
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
+  assert(cm->tmvp_sample_step > 0);
   for (int blk_row = 0; blk_row < mvs_rows; blk_row += cm->tmvp_sample_step) {
     for (int blk_col = 0; blk_col < mvs_cols; blk_col += cm->tmvp_sample_step) {
       MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_cols + blk_col];
@@ -4509,6 +4511,7 @@ static int motion_field_projection_side(AV1_COMMON *cm,
 #define DO_AVG_FILL 1
 // Interpolate the sampled tpl_mvs.
 void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
+  assert(cm->tmvp_sample_step > 0);
   if (cm->tmvp_sample_step != 2) {
     return;
   }
@@ -4624,6 +4627,7 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
 #if CONFIG_MV_TRAJECTORY
 // Interpolate the sampled id_offset_map.
 static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
+  assert(cm->tmvp_sample_step > 0);
   if (cm->tmvp_sample_step != 2) {
     return;
   }
@@ -4726,6 +4730,7 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
 
 // Interpolate the sampled blk_id_map.
 static void fill_block_id_sample_gap(AV1_COMMON *cm) {
+  assert(cm->tmvp_sample_step > 0);
   if (cm->tmvp_sample_step != 2) {
     return;
   }
@@ -5107,8 +5112,8 @@ static int motion_field_projection(AV1_COMMON *cm,
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
 #if CONFIG_TMVP_MEM_OPT
-  cm->tmvp_sample_step = 0;
-#endif  // CONFIG_TMVP_MEM_OPT
+  cm->tmvp_sample_step = 1;  // default, in case of early return
+#endif                       // CONFIG_TMVP_MEM_OPT
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));

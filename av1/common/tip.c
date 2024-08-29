@@ -269,6 +269,7 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
   int mvs_stride = 0;
   int sb_tmvp_size = 0;
 #if CONFIG_TMVP_MEM_OPT
+  assert(cm->tmvp_sample_step > 0);
   int sample = cm->tmvp_sample_step;
 #endif  // CONFIG_TMVP_MEM_OPT
 
@@ -396,6 +397,7 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
   int mvs_stride = 0;
   int sb_tmvp_size = 0;
 #if CONFIG_TMVP_MEM_OPT
+  assert(cm->tmvp_sample_step > 0);
   int sample = cm->tmvp_sample_step;
 #endif  // CONFIG_TMVP_MEM_OPT
 
@@ -693,6 +695,7 @@ static void tip_check_enable_tip_mode(AV1_COMMON *cm) {
   const int mvs_stride = mvs_cols;
 
 #if CONFIG_TMVP_MEM_OPT
+  assert(cm->tmvp_sample_step > 0);
   const int sample = cm->tmvp_sample_step;
 #endif  // CONFIG_TMVP_MEM_OPT
 
