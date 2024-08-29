@@ -2780,23 +2780,23 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int plane_end =
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
     for (int plane = plane_start; plane < plane_end; ++plane) {
-#if CONFIG_COMBINE_PC_NS_WIENER
-      int16_t *frame_filter_dictionary = NULL;
-      int dict_stride = 0;
-      if (plane == AOM_PLANE_Y &&
-          to_readwrite_framefilters(&cm->rst_info[plane], mi_row, mi_col)) {
-        frame_filter_dictionary = cm->frame_filter_dictionary;
-        dict_stride = cm->frame_filter_dictionary_stride;
-        assert(frame_filter_dictionary != NULL);
-        assert(dict_stride > 0);
-        read_wienerns_framefilters(cm, xd, plane, reader,
-                                   frame_filter_dictionary, dict_stride);
-      }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
       int rcol0, rcol1, rrow0, rrow1;
       if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE) &&
           av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
+#if CONFIG_COMBINE_PC_NS_WIENER
+        int16_t *frame_filter_dictionary = NULL;
+        int dict_stride = 0;
+        if (plane == AOM_PLANE_Y &&
+            to_readwrite_framefilters(&cm->rst_info[plane], mi_row, mi_col)) {
+          frame_filter_dictionary = cm->frame_filter_dictionary;
+          dict_stride = cm->frame_filter_dictionary_stride;
+          assert(frame_filter_dictionary != NULL);
+          assert(dict_stride > 0);
+          read_wienerns_framefilters(cm, xd, plane, reader,
+                                     frame_filter_dictionary, dict_stride);
+        }
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
         const int rstride = cm->rst_info[plane].horz_units_per_tile;
         for (int rrow = rrow0; rrow < rrow1; ++rrow) {
           for (int rcol = rcol0; rcol < rcol1; ++rcol) {

@@ -785,8 +785,8 @@ static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,
                                             int mi_row, int mi_col) {
   return ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
            rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
-          rsi->frame_filters_on && !rsi->frame_filters_initialized &&
-          mi_row == 0 && mi_col == 0);
+          rsi->frame_filters_on && !rsi->temporal_pred_flag && mi_row == 0 &&
+          mi_col == 0);
 }
 
 void av1_copy_rst_frame_filters(RestorationInfo *to,
