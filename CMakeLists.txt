@@ -621,7 +621,6 @@ if(CONFIG_AV1_ENCODER)
 
     # Disable some noisy warnings in tflite
     target_compile_options(tensorflow-lite PRIVATE -w)
-    target_compile_options(tensorflow-lite PRIVATE -Wno-error)
 
     # tensorflowlite_c is implicitly declared by this FetchContent
     include_directories(${tflite_SOURCE_DIR})
@@ -1059,6 +1058,15 @@ foreach(aom_source_var ${aom_source_vars})
     file(APPEND "${libaom_srcs_gni_file}" "]\n")
   endif()
 endforeach()
+
+if(ENABLE_WERROR)
+  foreach(aom_app ${AOM_APP_TARGETS})
+    target_compile_options(${aom_app} PRIVATE "-Werror")
+  endforeach()
+  foreach(aom_lib ${AOM_LIB_TARGETS})
+    target_compile_options(${aom_lib} PRIVATE "-Werror")
+  endforeach()
+endif()
 
 # Generate aom.pc and setup install rule.
 setup_aom_install_targets()

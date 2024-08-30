@@ -338,10 +338,6 @@ else()
     add_cxx_flag_if_supported("-Wno-psabi")
   endif()
 
-  if(ENABLE_WERROR)
-    add_compiler_flag_if_supported("-Werror")
-  endif()
-
   if(ENABLE_ASSERTS)
     add_compiler_flag_if_supported("-UNDEBUG")
   endif()
