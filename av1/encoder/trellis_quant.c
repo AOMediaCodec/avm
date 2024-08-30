@@ -1976,9 +1976,12 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
 #if CONFIG_COEFF_LOGS
     // Calculate per coefficient rate (TCQ qcoeffs)
-    av1_txb_init_levels(qcoeff, width, height, levels_logs);
-    av1_get_nz_map_contexts(levels_logs, scan, eob, tx_size, tx_class,
-                            coeff_contexts, plane);
+    if (eob > 0) {
+      av1_txb_init_levels(qcoeff, width, height, levels_logs);
+      av1_get_nz_map_contexts(levels_logs, scan, eob, tx_size, tx_class,
+                              coeff_contexts, plane);
+    }
+
     int state = 0;
     for (int c = neob_vq - 1; c >= 0; --c) {
       int pos = scan[c];
