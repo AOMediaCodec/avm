@@ -1536,14 +1536,15 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   TX_TYPE stx_set_flag = DC_PRED;
   if (!inter_block) {
-    uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
 #if CONFIG_INTRA_TX_IST_PARSE
+    uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
     const TX_TYPE reordered_stx_set_flag =
         aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE,
                         ACCT_INFO("stx_set_flag"));
     stx_set_flag =
         inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
 #else
+    uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
     uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
     assert(stx_set_ctx < IST_DIR_SIZE);
     stx_set_flag = aom_read_symbol(r, ec_ctx->stx_set_cdf[stx_set_ctx],
@@ -1551,7 +1552,9 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_INTRA_TX_IST_PARSE
     assert(stx_set_flag < IST_DIR_SIZE);
   }
+#if !CONFIG_IST_REDUCE_METHOD1
   if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
+#endif  // !CONFIG_IST_REDUCE_METHOD1
   set_secondary_tx_set(tx_type, stx_set_flag);
 }
 
@@ -1583,6 +1586,16 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #if CONFIG_IST_SET_FLAG
       if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
 #endif  // CONFIG_IST_SET_FLAG
+#if STX_SYNTAX_DEBUG
+      const int sb_size =
+          (tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) ? 8 : 4;
+      fprintf(stderr,
+              "(read stx) mode %d sbsize %d txs %dx%d eob %d ptx %d stx_type "
+              "%d stx_set %d\n",
+              inter_block ? 12 : mbmi->mode, sb_size, tx_size_wide[tx_size],
+              tx_size_high[tx_size], *eob, get_primary_tx_type(*tx_type),
+              stx_flag, get_secondary_tx_set(*tx_type));
+#endif
     }
   } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1595,6 +1608,16 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #if CONFIG_IST_SET_FLAG
       if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
 #endif  // CONFIG_IST_SET_FLAG
+#if STX_SYNTAX_DEBUG
+      const int sb_size =
+          (tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) ? 8 : 4;
+      fprintf(stderr,
+              "(read stx) mode %d sbsize %d txs %dx%d eob %d ptx %d stx_type "
+              "%d stx_set %d\n",
+              inter_block ? 12 : mbmi->mode, sb_size, tx_size_wide[tx_size],
+              tx_size_high[tx_size], *eob, get_primary_tx_type(*tx_type),
+              stx_flag, get_secondary_tx_set(*tx_type));
+#endif
     }
   }
 }

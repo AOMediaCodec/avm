@@ -740,15 +740,31 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
 
 void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size) {
+  assert(stx_idx < 4);
+#if CONFIG_IST_REDUCE_METHOD4
+  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+#else
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
+#endif  // CONFIG_IST_REDUCE_METHOD4
   int coef;
   int *out = dst;
-  assert(stx_idx < 4);
   int shift = 7;
+#if !CONFIG_FLEX_SECTX
   int offset = 1 << (shift - 1);
+#endif  // !CONFIG_FLEX_SECTX
 
   int reduced_width, reduced_height;
+#if CONFIG_IST_REDUCE_METHOD4
+  if (size == 0) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+#else
   if (size == 4) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
@@ -756,6 +772,7 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     reduced_height = IST_8x8_HEIGHT;
     reduced_width = IST_8x8_WIDTH;
   }
+#endif  // CONFIG_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
     int *srcPtr = src;
     const int16_t *kernel_tmp = kernel;
@@ -763,7 +780,15 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     for (int i = 0; i < reduced_width; i++) {
       coef += *srcPtr++ * *kernel_tmp++;
     }
+#if CONFIG_FLEX_SECTX
+    *out++ = ROUND_POWER_OF_TWO_SIGNED(coef, shift);
+#else
     *out++ = (coef + offset) >> shift;
+#endif  // CONFIG_FLEX_SECTX
+#if CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
+    kernel += reduced_width;
+#else
     kernel += (size * size);
+#endif  // CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
   }
 }

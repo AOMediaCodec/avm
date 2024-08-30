@@ -2811,6 +2811,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
+
     // Iterate through all possible secondary tx sets for given primary tx type
     for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
 #endif  // CONFIG_IST_ANY_SET
@@ -2821,12 +2822,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         // Skip repeated evaluation of no secondary transform.
         if (set_id && !stx) continue;
 
-#if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = primary_tx_type;
+#if CONFIG_IST_ANY_SET
         if (eob_found) skip_stx = true;
         uint16_t stx_set = 0;
 #else   // CONFIG_IST_ANY_SET
-      TX_TYPE tx_type = primary_tx_type;
       skip_stx |= eob_found;
 #endif  // CONFIG_IST_ANY_SET
 
@@ -2835,14 +2835,19 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         set_secondary_tx_type(&tx_type, stx);
         txfm_param.tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
+
         TX_TYPE tx_type1 = tx_type;  // does not keep set info
 #if !CONFIG_IST_ANY_SET && CONFIG_IST_SET_FLAG
         const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
         uint16_t stx_set = 0;
         if (!skip_stx) {
+#if CONFIG_IST_REDUCE_METHOD1
+          stx_set = stx_transpose_mapping[mode];
+#else
           stx_set = (txfm_param.tx_type == ADST_ADST)
                         ? stx_transpose_mapping[mode] + IST_DIR_SIZE
                         : stx_transpose_mapping[mode];
+#endif  // CONFIG_IST_REDUCE_METHOD1
         }
         assert(stx_set < IST_SET_SIZE);
         set_secondary_tx_set(&tx_type, stx_set);
@@ -2851,8 +2856,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.sec_tx_set = stx_set;
 #endif  // !CONFIG_IST_ANY_SET && CONFIG_IST_SET_FLAG
 #if CONFIG_IST_ANY_SET
+#if CONFIG_IST_REDUCE_METHOD1
+        stx_set = set_id;
+#else
         stx_set = (primary_tx_type == ADST_ADST && stx) ? set_id + IST_DIR_SIZE
                                                         : set_id;
+#endif  // CONFIG_IST_REDUCE_METHOD1
         set_secondary_tx_set(&tx_type, stx_set);
         txfm_param.sec_tx_set = stx_set;
         assert(stx_set < IST_SET_SIZE);

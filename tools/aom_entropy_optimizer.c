@@ -743,8 +743,8 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_stx_set_cdf"
                      "[TX_SIZES][CDF_SIZE(STX_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Transforms");
-#endif
-#endif
+#endif  // CONFIG_INTRA_TX_IST_PARSE
+#endif  // CONFIG_IST_ANY_SET
 
   cts_each_dim[0] = NUM_MV_PREC_MPP_CONTEXT;
   cts_each_dim[1] = 2;

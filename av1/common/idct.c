@@ -452,10 +452,19 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
   if (txfm_param->sec_tx_type) {
+#if CONFIG_IST_REDUCE_METHOD4
+    const int st_size_class = (width == 8 && height == 8)   ? 1
+                              : (width >= 8 && height >= 8) ? 2
+                                                            : 0;
+    txfm_param->eob = (st_size_class == 0)   ? IST_4x4_HEIGHT
+                      : (st_size_class == 1) ? IST_8x8_HEIGHT_RED
+                                             : IST_8x8_HEIGHT;
+#else
     // txfm_param->eob = av1_get_max_eob(tx_size);
     const int sb_size =
         (tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) ? 8 : 4;
     txfm_param->eob = (sb_size == 4) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
+#endif  // CONFIG_IST_REDUCE_METHOD4
   } else {
     txfm_param->eob = eob;
   }
@@ -663,14 +672,30 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 // Inverse secondary transform
 void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size) {
+  assert(stx_idx < 4);
+#if CONFIG_IST_REDUCE_METHOD4
+  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+#else
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
+#endif  // CONFIG_IST_REDUCE_METHOD4
   int *out = dst;
-  assert(stx_idx < 4);
   const int shift = 7;
+#if !CONFIG_FLEX_SECTX
   const int offset = 1 << (shift - 1);
+#endif  // !CONFIG_FLEX_SECTX
 
   int reduced_width, reduced_height;
+#if CONFIG_IST_REDUCE_METHOD4
+  if (size == 0) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+#else
   if (size == 4) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
@@ -678,15 +703,24 @@ void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     reduced_height = IST_8x8_HEIGHT;
     reduced_width = IST_8x8_WIDTH;
   }
+#endif  // CONFIG_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_width; j++) {
     int32_t resi = 0;
     const int16_t *kernel_tmp = kernel;
     int *srcPtr = src;
     for (int i = 0; i < reduced_height; i++) {
       resi += *srcPtr++ * *kernel_tmp;
+#if CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
+      kernel_tmp += reduced_width;
+#else
       kernel_tmp += (size * size);
+#endif  // CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
     }
+#if CONFIG_FLEX_SECTX
+    *out++ = ROUND_POWER_OF_TWO_SIGNED(resi, shift);
+#else
     *out++ = (resi + offset) >> shift;
+#endif  // CONFIG_FLEX_SECTX
     kernel++;
   }
 }
@@ -717,7 +751,12 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     tran_low_t *tmp = buf0;
     tran_low_t *src = coeff;
 
+#if CONFIG_FLEX_SECTX
+    int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
+    for (int r = 0; r < reduced_width; r++) {
+#else
     for (int r = 0; r < sb_size * sb_size; r++) {
+#endif  // CONFIG_FLEX_SECTX
       // Align scan order of IST with primary transform scan order
       *tmp = src[scan[r]];
       tmp++;
@@ -727,6 +766,19 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
         (mode == SMOOTH_H_PRED))
       transpose = 1;
+#if STX_COEFF_DEBUG
+    fprintf(stderr,
+            "[inv stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"
+            "(stx coeff)\n",
+            txfm_param->is_inter, get_primary_tx_type(txfm_param->tx_type),
+            width, height, transpose, txfm_param->sec_tx_set, stx_type);
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        fprintf(stderr, "%d,", coeff[i * width + j]);
+      }
+      fprintf(stderr, "\n");
+    }
+#endif
 #if CONFIG_IST_SET_FLAG
     mode_t = txfm_param->sec_tx_set;
     assert(mode_t < IST_SET_SIZE);
@@ -753,12 +805,41 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       scan_order_out = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
                                       : stx_scan_orders_8x8[log2width - 2];
     }
-    inv_stxfm(buf0, buf1, mode_t, stx_type - 1, sb_size);
+#if CONFIG_IST_REDUCE_METHOD4
+    const int st_size_class = (width == 8 && height == 8)   ? 1
+                              : (width >= 8 && height >= 8) ? 2
+                                                            : 0;
+#else
+    const int st_size_class = sb_size;
+#endif  // CONFIG_IST_REDUCE_METHOD4
+    inv_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
     tmp = buf1;
     src = coeff;
+#if CONFIG_FLEX_SECTX
+    memset(src, 0, width * height * sizeof(tran_low_t));
+    const int16_t *sup_reg_mapping =
+        &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0];
+    for (int r = 0; r < reduced_width; r++) {
+      if (sb_size == 8)
+        src[scan_order_out[sup_reg_mapping[r]]] = *tmp;
+      else
+        src[scan_order_out[r]] = *tmp;
+      tmp++;
+    }
+#else
     for (int r = 0; r < sb_size * sb_size; r++) {
       src[scan_order_out[r]] = *tmp;
       tmp++;
     }
+#endif  // CONFIG_FLEX_SECTX
+#if STX_COEFF_DEBUG
+    fprintf(stderr, "(ptx coeff)\n");
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        fprintf(stderr, "%d,", coeff[i * width + j]);
+      }
+      fprintf(stderr, "\n");
+    }
+#endif
   }
 }

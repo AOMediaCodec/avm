@@ -233,8 +233,22 @@ enum {
 #define STX_TYPES 4  // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
+#if CONFIG_IST_REDUCE_METHOD4
+#define IST_8x8_HEIGHT_RED 20
+#endif  // CONFIG_IST_REDUCE_METHOD4
+#if CONFIG_FLEX_SECTX
+// Note: IST_8x8_WIDTH needs to be a multiple of 4 for sse4 to work
+#define IST_8x8_WIDTH_MAX 64
+#define IST_8x8_WIDTH 48
+#define IST_8x8_HEIGHT_MAX 32
+#define IST_8x8_HEIGHT 32
+#else
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
+#endif  // CONFIG_FLEX_SECTX
+
+#define STX_SYNTAX_DEBUG 0
+#define STX_COEFF_DEBUG 0
 
 #define FSC_MODES 2
 #define FSC_MAXWIDTH 32

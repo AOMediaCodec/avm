@@ -542,6 +542,19 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
                  ? stx_transpose_mapping[mode] + 7
                  : stx_transpose_mapping[mode];
 #endif  // CONFIG_IST_SET_FLAG
+#if STX_COEFF_DEBUG
+    fprintf(stderr,
+            "[fwd stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"
+            "(ptx coeff)\n",
+            txfm_param->is_inter, get_primary_tx_type(txfm_param->tx_type),
+            width, height, transpose, txfm_param->sec_tx_set, stx_type);
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        fprintf(stderr, "%d,", coeff[i * width + j]);
+      }
+      fprintf(stderr, "\n");
+    }
+#endif
     if (transpose) {
       scan_order_in = (sb_size == 4)
                           ? stx_scan_orders_transpose_4x4[log2width - 2]
@@ -550,16 +563,47 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       scan_order_in = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
                                      : stx_scan_orders_8x8[log2width - 2];
     }
+#if CONFIG_FLEX_SECTX
+    int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
+    const int16_t *sup_reg_mapping =
+        &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0];
+    for (int r = 0; r < reduced_width; r++) {
+      *tmp = sb_size == 8 ? src[scan_order_in[sup_reg_mapping[r]]]
+                          : src[scan_order_in[r]];
+      tmp++;
+    }
+#else
     for (int r = 0; r < sb_size * sb_size; r++) {
       *tmp = src[scan_order_in[r]];
       tmp++;
     }
-    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, sb_size);
+#endif  // CONFIG_FLEX_SECTX
+#if CONFIG_IST_REDUCE_METHOD4
+    const int st_size_class = (width == 8 && height == 8)   ? 1
+                              : (width >= 8 && height >= 8) ? 2
+                                                            : 0;
+#else
+    const int st_size_class = sb_size;
+#endif  // CONFIG_IST_REDUCE_METHOD4
+    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
     memset(coeff, 0, width * height * sizeof(tran_low_t));
     tmp = buf1;
+#if CONFIG_FLEX_SECTX
+    for (int i = 0; i < reduced_width; i++) {
+#else
     for (int i = 0; i < sb_size * sb_size; i++) {
+#endif  // CONFIG_FLEX_SECTX
       // Align scan order of IST with primary transform scan order
       coeff[scan[i]] = *tmp++;
     }
+#if STX_COEFF_DEBUG
+    fprintf(stderr, "(stx coeff)\n");
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        fprintf(stderr, "%d,", coeff[i * width + j]);
+      }
+      fprintf(stderr, "\n");
+    }
+#endif
   }
 }

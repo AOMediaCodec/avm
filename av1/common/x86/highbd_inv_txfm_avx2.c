@@ -4483,17 +4483,45 @@ void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
   }
 }
 
+#if CONFIG_FLEX_SECTX
+// 256bit intrinsic implementation of ROUND_POWER_OF_TWO_SIGNED.
+static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
+                                                     int bits) {
+  const __m256i v_bias_d = _mm256_set1_epi32((1 << bits) >> 1);
+  const __m256i v_sign_d = _mm256_srai_epi32(v_val_d, 31);
+  const __m256i v_tmp_d =
+      _mm256_add_epi32(_mm256_add_epi32(v_val_d, v_bias_d), v_sign_d);
+  return _mm256_srai_epi32(v_tmp_d, bits);
+}
+#endif  // CONFIG_FLEX_SECTX
+
 // Inverse secondary transform
 void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size) {
+  assert(stx_idx < 4);
+#if CONFIG_IST_REDUCE_METHOD4
+  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+#else
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
-  assert(stx_idx < 4);
+#endif  // CONFIG_IST_REDUCE_METHOD4
+#if !CONFIG_FLEX_SECTX
   const int rnd_factor = 1 << (7 - 1);
   const __m256i round = _mm256_set1_epi32(rnd_factor);
+#endif  // !CONFIG_FLEX_SECTX
 
   int reduced_width, reduced_height;
+#if CONFIG_IST_REDUCE_METHOD4
+  if (size == 0) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+#else
   if (size == 4) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
@@ -4501,6 +4529,7 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
     reduced_height = IST_8x8_HEIGHT;
     reduced_width = IST_8x8_WIDTH;
   }
+#endif  // CONFIG_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
     const int16_t *kernel_tmp = kernel;
     int *srcPtr = src;
@@ -4515,13 +4544,21 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
       tmp = _mm256_add_epi32(tmp, sum);
       _mm256_storeu_si256(tmpBlock, tmp);
     }
+#if CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
+    kernel += reduced_width;
+#else
     kernel += (size * size);
+#endif  // CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
   }
   int *out = dst;
   __m256i *tmpBlock = (__m256i *)out;
   for (int j = 0; j < reduced_width; j += 8, tmpBlock++) {
     __m256i tmp = _mm256_loadu_si256(tmpBlock);
+#if CONFIG_FLEX_SECTX
+    tmp = round_power_of_two_signed_avx2(tmp, 7);
+#else
     tmp = _mm256_srai_epi32(_mm256_add_epi32(tmp, round), 7);
+#endif  // CONFIG_FLEX_SECTX
     _mm256_storeu_si256(tmpBlock, tmp);
   }
 }

@@ -1036,8 +1036,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           blk_row, blk_col, plane, tx_size);
 #endif
 
-  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
   if ((plane == AOM_PLANE_Y) &&
@@ -1047,8 +1045,12 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
 
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+
 #if DEBUG_EXTQUANT
-  fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
+  fprintf(cm->fEncCoeffLog, "ptx_type=%d, stx_set=%d, stx_type=%d, eob=%d\n",
+          get_primary_tx_type(tx_type), get_secondary_tx_set(tx_type),
+          get_secondary_tx_type(tx_type), eob);
 #endif
 
 #if !CONFIG_CONTEXT_DERIVATION
@@ -1078,6 +1080,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
 
+  // Loop to code AC coefficient magnitudes
   for (int c = eob - 1; c > 0; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
@@ -1241,6 +1244,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // CONFIG_CHROMA_CODING
   }
 
+  // Code DC coefficient magnitude
   int num_nz = 0;
   bool is_hidden = false;
   if (enable_parity_hiding) {
@@ -1798,13 +1802,16 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
                                TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
+#if !CONFIG_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
+#endif  // !CONFIG_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
 #if CONFIG_INTRA_TX_IST_PARSE
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   return x->mode_costs.most_probable_stx_set_flag_cost
       [most_probable_stx_mapping[intra_mode][stx_set_flag]];
 #else
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
@@ -2853,7 +2860,6 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
         get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
     return skip_cost;
   }
-
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
   bool enable_parity_hiding =
       cm->features.allow_parity_hiding &&
@@ -3866,11 +3872,11 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const tran_low_t abs_dqc = abs(dqcoeff[ci]);
     int rate_low = 0;
     const int rate = get_two_coeff_cost_simple(
-        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl,
+        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl, tx_class,
 #if CONFIG_COEFF_HR_ADAPTIVE
-        tx_class, levels, &rate_low, limits, *hr_level_avg, &hr_level);
+        levels, &rate_low, limits, *hr_level_avg, &hr_level);
 #else
-        tx_class, levels, &rate_low, limits);
+        levels, &rate_low, limits);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
 
     if (abs_dqc < abs_tqc) {
@@ -5076,84 +5082,31 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     --si;
   }
 
-  switch (tx_class) {
-    case TX_CLASS_2D:
-      update_coeff_eob_facade(
-          &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size, is_inter,
-          TX_CLASS_2D, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
-          txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
-          iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
+  assert(tx_class < TX_CLASSES);
+  update_coeff_eob_facade(
+      &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size, is_inter,
+      tx_class, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
+      txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
+      iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
 #if CONFIG_COEFF_HR_ADAPTIVE
-          max_nz_num, &hr_level_avg);
+      max_nz_num, &hr_level_avg);
 #else
-          max_nz_num);
+      max_nz_num);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    case TX_CLASS_HORIZ:
-      update_coeff_eob_facade(
-          &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size, is_inter,
-          TX_CLASS_HORIZ, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
-          txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
-          iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
-#if CONFIG_COEFF_HR_ADAPTIVE
-          max_nz_num, &hr_level_avg);
-#else
-          max_nz_num);
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    case TX_CLASS_VERT:
-      update_coeff_eob_facade(
-          &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size, is_inter,
-          TX_CLASS_VERT, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
-          txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
-          iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
-#if CONFIG_COEFF_HR_ADAPTIVE
-          max_nz_num, &hr_level_avg);
-#else
-          max_nz_num);
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    default: assert(false);
-  }
 
   if (si == -1 && nz_num <= max_nz_num) {
     update_skip(&accu_rate, accu_dist, &eob, nz_num, nz_ci, rdmult, skip_cost,
                 non_skip_cost, qcoeff, dqcoeff, sharpness);
   }
 
-  switch (tx_class) {
-    case TX_CLASS_2D:
-      update_coeff_simple_facade(&accu_rate, &si, eob, TX_CLASS_2D, bwl, rdmult,
-                                 shift, dequant, scan, txb_costs, tcoeff,
-                                 qcoeff, dqcoeff, levels, iqmatrix, coef_info,
+  update_coeff_simple_facade(&accu_rate, &si, eob, tx_class, bwl, rdmult, shift,
+                             dequant, scan, txb_costs, tcoeff, qcoeff, dqcoeff,
+                             levels, iqmatrix, coef_info,
 #if CONFIG_COEFF_HR_ADAPTIVE
-                                 enable_parity_hiding, plane, &hr_level_avg);
+                             enable_parity_hiding, plane, &hr_level_avg);
 #else
-                                 enable_parity_hiding, plane);
+                             enable_parity_hiding, plane);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    case TX_CLASS_HORIZ:
-      update_coeff_simple_facade(
-          &accu_rate, &si, eob, TX_CLASS_HORIZ, bwl, rdmult, shift, dequant,
-          scan, txb_costs, tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
-#if CONFIG_COEFF_HR_ADAPTIVE
-          coef_info, enable_parity_hiding, plane, &hr_level_avg);
-#else
-          coef_info, enable_parity_hiding, plane);
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    case TX_CLASS_VERT:
-      update_coeff_simple_facade(
-          &accu_rate, &si, eob, TX_CLASS_VERT, bwl, rdmult, shift, dequant,
-          scan, txb_costs, tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
-#if CONFIG_COEFF_HR_ADAPTIVE
-          coef_info, enable_parity_hiding, plane, &hr_level_avg);
-#else
-          coef_info, enable_parity_hiding, plane);
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
-      break;
-    default: assert(false);
-  }
 
   // DC position
   if (si == 0) {
@@ -5263,13 +5216,16 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
                                   TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
+#if !CONFIG_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
+#endif  // !CONFIG_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
 #if CONFIG_INTRA_TX_IST_PARSE
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   update_cdf(fc->most_probable_stx_set_cdf,
              most_probable_stx_mapping[intra_mode][stx_set_flag], IST_DIR_SIZE);
 #else
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
@@ -5898,7 +5854,6 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
                          td->counts, allow_update_cdf, eob, bob_code,
                          0 /* is_fsc */);
-
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
     const int16_t *const scan = scan_order->scan;
 
