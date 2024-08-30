@@ -21,8 +21,15 @@
 // Since TF Lite is external code, instruct the compiler to
 // ignore this warning when including it.
 // Note that Clang supports this GCC pragma.
+#if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wcomment"
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wunused-parameter"
+#pragma clang diagnostic warning "-Wcomment"
+#endif
 
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/kernels/builtin_op_kernels.h"
@@ -30,6 +37,10 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/op_resolver.h"
 
+#if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic pop
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #endif  // AOM_COMMON_TF_LITE_INCLUDES_H_

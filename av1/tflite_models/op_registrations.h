@@ -20,15 +20,26 @@
 // Since TF Lite is external code, instruct the compiler to
 // ignore this warning when including it.
 // Note that Clang supports this GCC pragma.
+#if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wcomment"
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wunused-parameter"
+#pragma clang diagnostic warning "-Wcomment"
+#endif
 
 #include "tensorflow/lite/kernels/builtin_op_kernels.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/op_resolver.h"
 
+#if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic pop
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 // Returns super-set of TF-lite ops required by CNN models for all QPs.
 void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver);
