@@ -2026,7 +2026,7 @@ void av2_tcq_declog_decrate(const struct AV1Common *const cm,
       break;
     case QCOEFF_RCOST_TYPE_LR3RATE:
       for (int c = 0; c < neob; ++c) {
-        fprintf(fp, " %2lu", (int)qcoeff_cost[c].lr_cost[2]);
+        fprintf(fp, " %2d", (int)qcoeff_cost[c].lr_cost[2]);
       }
       break;
     case QCOEFF_RCOST_TYPE_LR4RATE:
