@@ -1767,7 +1767,9 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // populate trellis
   assert(si < MAX_TRELLIS);
   tcq_node_t trellis[MAX_TRELLIS][TOTALSTATES];
-  tcq_ctx_t tcq_ctx[TOTALSTATES];
+
+  // Ping-pong buffers for diagonal contexts.
+  tcq_ctx_t tcq_ctx[2 * TOTALSTATES];
 
   // Precalc block eob rate.
   uint16_t block_eob_rate[MAX_TRELLIS];
@@ -1864,15 +1866,6 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #endif  // CONFIG_COEFF_LOGS
   }
 #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-
-
-  int si = eob - 1;
-  // populate trellis
-  assert(si < MAX_TRELLIS);
-  tcq_node_t trellis[MAX_TRELLIS][TOTALSTATES];
-
-  // Ping-pong buffers for diagonal contexts.
-  tcq_ctx_t tcq_ctx[2 * TOTALSTATES];
 
   // Start of TCQ
   int first_scan_pos = si;
