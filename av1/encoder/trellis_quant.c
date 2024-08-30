@@ -2009,9 +2009,9 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     int tstate[MAX_TRELLIS];
     int rcost[MAX_TRELLIS];
-    int prevrate = block_eob_rate[neob_vq - 1];
-    state = 0;
 
+    state = 0;
+    int prevrate = neob_vq > 0 ? block_eob_rate[neob_vq - 1] : 0;
     for (int c = neob_vq - 1; c >= 0; --c) {
       int pos = scan[c];
       int row = pos >> bwl;
