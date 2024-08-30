@@ -459,7 +459,6 @@ Example Build (x86_64-gcc):
   script:
     - git fetch --unshallow
     - cmake -B aom_example_build
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DENABLE_ASSERTS=1
         -DENABLE_EXAMPLES=1
         -DBUILD_SHARED_LIBS=0
