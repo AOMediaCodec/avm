@@ -2062,8 +2062,8 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     const uint64_t rd_vq = RDCOST(rdmult, rate_vq, dist_vq);
     const uint64_t rd_skip = RDCOST(rdmult, rate_skip, dist_skip);
 
-    const int rneob_sq = block_eob_rate[neob_sq - 1];
-    const int rneob_vq = block_eob_rate[neob_vq - 1];
+    const int rneob_sq = neob_sq > 0 ? block_eob_rate[neob_sq - 1] : 0;
+    const int rneob_vq = neob_vq > 0 ? block_eob_rate[neob_vq - 1] : 0;
     av2_tcq_log_blkrd(cm, x, plane, block, blk_row, blk_col, bsize, tx_size,
                       tx_type, is_inter, qstep_dc, qstep_ac, qstep_tcq_dc,
                       qstep_tcq_ac, rdmult, n_coeffs, nz_counter, neob_sq,
