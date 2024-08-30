@@ -621,6 +621,7 @@ if(CONFIG_AV1_ENCODER)
 
     # Disable some noisy warnings in tflite
     target_compile_options(tensorflow-lite PRIVATE -w)
+    target_compile_options(tensorflow-lite PRIVATE -Wno-error)
 
     # tensorflowlite_c is implicitly declared by this FetchContent
     include_directories(${tflite_SOURCE_DIR})
