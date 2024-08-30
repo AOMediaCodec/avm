@@ -10,10 +10,10 @@
  */
 const struct ModelParams
     a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite_params[] = {
-      { 0.03, 0.7, 60, 116 },
-      { 0.1, 0.7, 60, 116 },
-      { 0.2, 0.66, 60, 116 },
-      { 0.25, 0.7, 60, 116 }
+      { 0.03f, 0.7f, 60, 116 },
+      { 0.1f, 0.7f, 60, 116 },
+      { 0.2f, 0.66f, 60, 116 },
+      { 0.25f, 0.7f, 60, 116 }
     };
 
 unsigned char a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite[] = {

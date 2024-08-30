@@ -1034,9 +1034,6 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   if (cpi->speed >= 2) {
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
-#if CONFIG_ML_PART_SPLIT
-  bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
-#endif  // CONFIG_ML_PART_SPLIT
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
