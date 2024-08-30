@@ -2083,36 +2083,36 @@ void av2_tcq_log_blkrd(
       blk_col,                         // 7: transform block column index
       dry_run);  // 8: coding pass on this block (0: final; 1 or above: dry_run)
 
-  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12ld ",
-          bsize,       // 9:  plane_bsize
-          tx_size,     // 10: transform size
-          tx_type,     // 11: transform type
-          is_inter,    // 12: inter/intra mode
-          sq_step_dc,  // 13: SQ step size for DC coefficients
-          sq_step_ac,  // 14: SQ step size for AC coefficients
-          vq_step_dc,  // 15: TCQ step size for DC coefficients
-          vq_step_ac,  // 16: TCQ step size for AC coefficients
-          rdmult);     // 17: RD multiplier
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld ",
+          bsize,               // 9:  plane_bsize
+          tx_size,             // 10: transform size
+          tx_type,             // 11: transform type
+          is_inter,            // 12: inter/intra mode
+          sq_step_dc,          // 13: SQ step size for DC coefficients
+          sq_step_ac,          // 14: SQ step size for AC coefficients
+          vq_step_dc,          // 15: TCQ step size for DC coefficients
+          vq_step_ac,          // 16: TCQ step size for AC coefficients
+          (long long)rdmult);  // 17: RD multiplier
 
   fprintf(
       fp,
-      "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12ld %12ld %12ld %16ld "
-      "%16ld %16ld \n",
-      n_coeffs,    // 18: number of coefficients in the transform block
-      nz_counter,  // 19: number of non-zero pre-quantized coefficients
-      neob_sq,     // 20: number of coded coefficients (neob) via SQ
-      neob_vq,     // 21: number of coded coefficients (neob) via TCQ
-      rneob_sq,    // 22: estimated rate of NEOB for SQ
-      rneob_vq,    // 23: estimated rate of NEOB for TCQ
-      rate_sq,     // 24: estimated rate for coding the block with SQ
-      rate_vq,     // 25: estimated rate for coding the block with TCQ
-      rate_skip,   // 26: estimated rate for coding the block with skip_txfm
-      dist_sq,     // 27: distortion from coding the block with SQ
-      dist_vq,     // 28: distortion from coding the block with TCQ
-      dist_skip,   // 29: distortion from coding the block with skip_txfm
-      rd_sq,       // 30: combined RD cost from coding the block with SQ
-      rd_vq,       // 31: combined RD cost from coding the block with TCQ
-      rd_skip);    // 32: combined RD cost from coding the block with skip_txfm
+      "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld "
+      "%16lld %16lld\n",
+      n_coeffs,            // 18: number of coefficients in the transform block
+      nz_counter,          // 19: number of non-zero pre-quantized coefficients
+      neob_sq,             // 20: number of coded coefficients (neob) via SQ
+      neob_vq,             // 21: number of coded coefficients (neob) via TCQ
+      rneob_sq,            // 22: estimated rate of NEOB for SQ
+      rneob_vq,            // 23: estimated rate of NEOB for TCQ
+      rate_sq,             // 24: estimated rate for coding the block with SQ
+      rate_vq,             // 25: estimated rate for coding the block with TCQ
+      rate_skip,           // 26: estimated rate for coding the block as skip
+      (long long)dist_sq,  // 27: distortion from coding the block with SQ
+      (long long)dist_vq,  // 28: distortion from coding the block with TCQ
+      (long long)dist_skip,  // 29: distortion from coding the block as skip
+      (long long)rd_sq,      // 30: joint RD cost from coding the block with SQ
+      (long long)rd_vq,      // 31: joint RD cost from coding the block with TCQ
+      (long long)rd_skip);   // 32: joint RD cost from coding the block as skip
 
   fflush(fp);
 }
@@ -2144,18 +2144,18 @@ void av2_tcq_log_percoeff(const AV1_COMMON *const cm, MACROBLOCK *x,
       dry_run,  // 8: coding pass on this block (0: final; 1 or above: dry_run)
       cm->sb_size);  // 9: superblock size
 
-  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12ld %06d %6d",
-          bsize,       // 10:  plane_bsize
-          tx_size,     // 11: transform size
-          tx_type,     // 12: transform type
-          is_inter,    // 13: inter/intra mode
-          sq_step_dc,  // 14: SQ step size for DC coefficients
-          sq_step_ac,  // 15: SQ step size for AC coefficients
-          vq_step_dc,  // 16: TCQ step size for DC coefficients
-          vq_step_ac,  // 17: TCQ step size for AC coefficients
-          rdmult,      // 18: RD multiplier
-          n_coeffs,    // 19: number of coefficients in the transform block
-          neob);       // 20: number of coded coefficients (neob) via SQ
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld %06d %6d",
+          bsize,              // 10:  plane_bsize
+          tx_size,            // 11: transform size
+          tx_type,            // 12: transform type
+          is_inter,           // 13: inter/intra mode
+          sq_step_dc,         // 14: SQ step size for DC coefficients
+          sq_step_ac,         // 15: SQ step size for AC coefficients
+          vq_step_dc,         // 16: TCQ step size for DC coefficients
+          vq_step_ac,         // 17: TCQ step size for AC coefficients
+          (long long)rdmult,  // 18: RD multiplier
+          n_coeffs,  // 19: number of coefficients in the transform block
+          neob);     // 20: number of coded coefficients (neob) via SQ
 
   for (int i = 0; i < n_coeffs; i++) {
     const int val = in_scan_order ? vec[scan[i]] : vec[i];
