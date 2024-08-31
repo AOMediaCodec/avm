@@ -166,8 +166,8 @@ set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
                    "AV2 intra SDP latency issue addressing flag")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_DQ 1 "AV2 dependent quantization flag")
-set_aom_config_var(CONFIG_TXFMBLK_LOGS 1 "AV2 enable per transform block logs")
-set_aom_config_var(CONFIG_COEFF_LOGS 1
+set_aom_config_var(CONFIG_TXFMBLK_LOGS 0 "AV2 enable per transform block logs")
+set_aom_config_var(CONFIG_COEFF_LOGS 0
                    "AV2 enable per transform block coefficient logs")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
