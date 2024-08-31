@@ -683,7 +683,6 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
 
 #if CONFIG_COEFF_LOGS
     *eob_offset_cost = aom_reader_tell_frac(r) - prev_cost;
-    prev_cost += *eob_offset_cost;
 #endif  // CONFIG_COEFF_LOGS
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
@@ -1160,10 +1159,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif     // CONFIG_TXFMBLK_LOGS
 
 #if CONFIG_COEFF_LOGS
-  const int n_coeffs = width * height;
+  const int n_coeffs = av1_get_max_eob(tx_size);
 
-  qcoeff_bit_cost *qcoeff_cost = malloc(sizeof(qcoeff_bit_cost) * (*eob));
-  memset(qcoeff_cost, 0, sizeof(qcoeff_bit_cost) * (*eob));
+  qcoeff_bit_cost *qcoeff_cost = malloc(sizeof(qcoeff_bit_cost) * n_coeffs);
+  memset(qcoeff_cost, 0, sizeof(qcoeff_bit_cost) * n_coeffs);
 
   int *qcoeff = malloc(sizeof(int) * n_coeffs);
   memset(qcoeff, 0, sizeof(int) * n_coeffs);
