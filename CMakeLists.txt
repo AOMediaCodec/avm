@@ -848,7 +848,9 @@ if(CONFIG_TENSORFLOW_LITE)
     add_executable(cnn_restore_y4m
                    "${AOM_ROOT}/examples/cnn_restore/cnn_restore_y4m.cc")
     list(APPEND AOM_APP_TARGETS cnn_restore_y4m)
+  endif()
 
+  if(ENABLE_EXAMPLES OR ENABLE_TOOLS)
     foreach(aom_app ${AOM_APP_TARGETS})
       add_dependencies(${aom_app} tensorflow-lite)
       target_link_libraries(${aom_app} PRIVATE tensorflow-lite)
