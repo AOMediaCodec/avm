@@ -1063,10 +1063,10 @@ endforeach()
 
 if(ENABLE_WERROR)
   foreach(aom_app ${AOM_APP_TARGETS})
-    target_compile_options(${aom_app} PRIVATE "-Werror")
+    target_compile_options(${aom_app} PRIVATE "-Werror" "-Wno-error=comment")
   endforeach()
   foreach(aom_lib ${AOM_LIB_TARGETS})
-    target_compile_options(${aom_lib} PRIVATE "-Werror")
+    target_compile_options(${aom_lib} PRIVATE "-Werror" "-Wno-error=comment")
   endforeach()
 endif()
 
