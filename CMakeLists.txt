@@ -840,7 +840,7 @@ if(XCODE)
   endif()
 endif()
 
-if(CONFIG_TENSORFLOW_LITE)
+if(CONFIG_TENSORFLOW_LITE AND CONFIG_AV1_ENCODER)
   if(ENABLE_EXAMPLES)
     add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
     list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
