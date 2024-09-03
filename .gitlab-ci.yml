@@ -934,7 +934,7 @@ Static Analyzer:
     - mkdir output-${ANALYZER_MODE}
     - |
       scan_build() {
-        scan-build --exclude third_party --exclude _deps --exclude xnnpack --exclude flatbuffers --exclude cpuinfo --exclude abseil-cpp --exclude eigen -o output-${ANALYZER_MODE} -analyzer-config mode=${ANALYZER_MODE} $*
+        scan-build --exclude third_party --exclude _deps --exclude xnnpack --exclude flatbuffers --exclude cpuinfo --exclude abseil-cpp --exclude eigen --exclude ruy --exclude pthreadpool-source -o output-${ANALYZER_MODE} -analyzer-config mode=${ANALYZER_MODE} $*
       }
     - scan_build cmake -B aom_build -GNinja -DCMAKE_BUILD_TYPE=Debug
     - scan_build --status-bugs cmake --build aom_build
