@@ -359,6 +359,7 @@ Build (aarch64-linux-gcc):
     CMAKE_FLAGS: >-
       -DENABLE_CCACHE=1
       -DENABLE_DOCS=0
+      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/arm64-linux-gcc.cmake
 
 Build (armv7-linux-gcc):
@@ -380,12 +381,14 @@ Build (armv7-linux-gcc):
     CMAKE_FLAGS: >-
       -DENABLE_CCACHE=1
       -DENABLE_DOCS=0
+      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/armv7-linux-gcc.cmake
 
 Build (ppc-linux-gcc):
   extends: .build-common
   variables:
     EXTRA_CMAKE_FLAGS: >-
+      -DCONFIG_ML_PART_SPLIT=0
       -DCROSS=powerpc64le-linux-gnu-
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/ppc-linux-gcc.cmake
 
@@ -405,6 +408,7 @@ Build (x86-mingw-gcc):
           - no-examples
   variables:
     EXTRA_CMAKE_FLAGS: >-
+      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-mingw-gcc.cmake
 
 Build (x86_64-mingw-gcc):
@@ -423,6 +427,7 @@ Build (x86_64-mingw-gcc):
           - no-examples
   variables:
     EXTRA_CMAKE_FLAGS: >-
+      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86_64-mingw-gcc.cmake
 
 Build Documentation:
