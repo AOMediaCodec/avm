@@ -675,12 +675,12 @@ Linux Sanitizer (thread) Test:
     AOMENC_LIMIT: 30
     AOMENC_QP: 210
     AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
-    AOMENC: installroot/usr/local/bin/aomenc
+    AOMENC: aom_example_build/aomenc
   before_script:
     - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AOMENC_INPUT}.xz
     - unxz ${AOMENC_INPUT}.xz
   needs:
-    - 'Build (x86_64-linux-gcc): [encode-only]'
+    - 'Example Build (x86_64-gcc)'
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -815,7 +815,7 @@ Previous Enc Run (Low-delay):
   interruptible: true
   variables:
     AOMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
-    AOMDEC: installroot/usr/local/bin/aomdec
+    AOMDEC: aom_example_build/aomdec
   script:
     - ${AOMDEC} ${AOMENC_OUTPUT}.obu -o ${AOMDEC_OUTPUT}.decoded.y4m --summary
        2>&1 | tee "${AOMDEC_OUTPUT}.summary.log"
@@ -847,7 +847,7 @@ Dec Run (All-intra):
     AOMDEC_OUTPUT: dec-all-intra
   needs:
     - 'Enc Run (All-intra)'
-    - 'Build (x86_64-linux-gcc): [decode-only]'
+    - 'Example Build (x86_64-gcc)'
 
 
 Dec Run (Random Access):
@@ -857,7 +857,7 @@ Dec Run (Random Access):
     AOMDEC_OUTPUT: dec-random-access
   needs:
     - 'Enc Run (Random Access)'
-    - 'Build (x86_64-linux-gcc): [decode-only]'
+    - 'Example Build (x86_64-gcc)'
 
 
 Dec Run (Low-delay):
@@ -867,7 +867,7 @@ Dec Run (Low-delay):
     AOMDEC_OUTPUT: dec-low-delay
   needs:
     - 'Enc Run (Low-delay)'
-    - 'Build (x86_64-linux-gcc): [decode-only]'
+    - 'Example Build (x86_64-gcc)'
 
 
 Enc compare:
