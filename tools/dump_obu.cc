@@ -24,12 +24,6 @@
 #include "common/webmdec.h"
 #include "tools/obu_parser.h"
 
-#if defined(__GNUC__) || defined(__GNUG__)
-#pragma GCC diagnostic ignored "-Wignored-attributes"
-#elif defined(__clang__)
-#pragma clang diagnostic warning "-Wignored-attributes"
-#endif
-
 namespace {
 
 const size_t kInitialBufferSize = 100 * 1024;
