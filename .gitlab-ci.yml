@@ -269,11 +269,6 @@ Test Data Check:
     - cmake --build aom_build --target dist
     - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build aom_build --target install/strip
   needs: []
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - ${CI_PROJECT_DIR}/aom_build/dist/*
-      - ${CI_PROJECT_DIR}/installroot/*
 
 Build (generic-gnu):
   extends: .build-common
