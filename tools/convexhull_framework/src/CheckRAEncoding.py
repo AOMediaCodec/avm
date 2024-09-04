@@ -56,7 +56,7 @@ def run_decode(cmd_log_file):
             #print("=== decoding %s \n" %video)
             #print(dec_cmd)
             #os.system(dec_cmd)
-            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0" + " '" + dec_cmd + "'"
+            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0" + " '" + dec_cmd + "'"           
             #print(cmd)
             subprocess.call(cmd, shell=True)
     cmd_log.close()
@@ -73,7 +73,7 @@ def check_decoding():
             video = bitstream.split("/")[-1]
             dec_log = os.path.join(dec_log_path, video + "_DecLog.txt")
             dec_output = os.path.join(dec_path, video + ".y4m")
-
+            
             if check_decode_log(dec_log) == False:
                 print("%s decoding error" % video)
                 error_log.write(output_file + "\n")
@@ -104,7 +104,7 @@ def filter_cmd_log(cmd_log_file, updated_cmd_log_file, error_list):
             if video in error_list:
                 start_copy = True
                 updated_cmd_log.write(line)
-
+        
         m = re.search(r"============== (.*) Job End =================", line)
         if m:
             video = m.group(1)
@@ -123,3 +123,6 @@ if __name__ == "__main__":
     error_list = check_decoding()
     #print(error_list)
     filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)
+
+    
+    
