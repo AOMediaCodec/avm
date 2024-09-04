@@ -21,9 +21,9 @@ loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
 def CalculateQualityMetric(src_file, framenum, reconYUV, fmt, width, height,
-                           bit_depth, logfilePath, LogCmdOnly=False):
+                           bit_depth, QualityLogPath, VmafLogPath, LogCmdOnly=False):
     Utils.CmdLogger.write("::Quality Metrics\n")
-    VMAF_CalQualityMetrics(src_file, reconYUV, logfilePath, LogCmdOnly)
+    VMAF_CalQualityMetrics(src_file, reconYUV, QualityLogPath, VmafLogPath, LogCmdOnly)
 
 def GatherQualityMetrics(reconYUV, logfilePath):
     qresult, per_frame_log = VMAF_GatherQualityMetrics(reconYUV, logfilePath)

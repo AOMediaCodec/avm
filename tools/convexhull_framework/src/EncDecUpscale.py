@@ -14,9 +14,9 @@ import os
 from VideoEncoder import VideoEncode
 from VideoDecoder import VideoDecode
 from VideoScaler import UpScaling, GetDownScaledOutFile, GetUpScaledOutFile
-from Config import SUFFIX, LoggerName, EnableParallelGopEncoding
+from Config import SUFFIX, LoggerName, EnableParallelGopEncoding, GOP_SIZE
 from Utils import GetShortContentName, Clip, GetEncLogFile, GetDecPerfFile, \
-     GetEncPerfFile, DeleteFile
+     GetEncPerfFile, DeleteFile, GetDecLogFile
 import logging
 
 subloggername = "EncDecUpscale"
@@ -56,24 +56,28 @@ def Encode(method, codec, preset, clip, test_cfg, qp, num, bs_path, perf_path,
                 enc_log, start_frame, LogCmdOnly)
     return bsfile
 
-def Decode(clip, method, test_cfg, codec, bsfile, path, perf_path, decode_to_yuv, LogCmdOnly=False):
+def Decode(clip, method, test_cfg, codec, bsfile, path, perf_path, decode_to_yuv,
+           log_path, LogCmdOnly=False):
     decodedfile = GetDecodedFile(bsfile, path, decode_to_yuv)
     dec_perf = GetDecPerfFile(bsfile, perf_path)
+    dec_log = GetDecLogFile(bsfile, log_path)
+
     #call VideoDecoder to do the decoding
-    VideoDecode(clip, method, test_cfg, codec, bsfile, decodedfile, dec_perf, decode_to_yuv, LogCmdOnly)
+    VideoDecode(clip, method, test_cfg, codec, bsfile, decodedfile, dec_perf, 
+                decode_to_yuv, dec_log, LogCmdOnly)
     return decodedfile
 
 def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                        outh, path_bs, path_decoded, path_upscaled, path_cfg,
-                       path_perf, path_enc_log, upscale_algo, scale_method, save_memory,
-                       LogCmdOnly = False):
+                       path_perf, path_enc_log, path_dec_log,
+                       upscale_algo, scale_method, save_memory, LogCmdOnly = False):
     logger.info("%s %s start encode file %s with QP = %d" %
                 (method, codec, clip.file_name, QP))
     bsFile = Encode(method, codec, preset, clip, test_cfg, QP, num, path_bs,
                     path_perf, path_enc_log, 0, LogCmdOnly)
     logger.info("start decode file %s" % os.path.basename(bsFile))
     decodedYUV = Decode(clip, method, test_cfg, codec, bsFile, path_decoded, path_perf, False,
-                        LogCmdOnly)
+                        path_dec_log, LogCmdOnly)
     logger.info("start upscale file %s" % os.path.basename(decodedYUV))
     #hard code frame rate to 0 before upscaling.
     #TODO: change to real frame rate after decoder fix the issue

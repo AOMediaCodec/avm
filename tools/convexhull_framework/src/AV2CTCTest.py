@@ -46,7 +46,15 @@ def GetBsReconFileName(EncodeMethod, CodecName, EncodePreset, test_cfg, clip, QP
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_QualityLog, Path_TestLog,\
-           Path_CfgFiles, Path_TimingLog, Path_EncLog, Path_CmdLog
+           Path_CfgFiles, Path_TimingLog, Path_EncLog, Path_DecLog, Path_CmdLog,\
+           Path_VmafLog
+    abs_path = os.path.abspath(WorkPath)
+    print(abs_path)
+    if(os.path.exists(abs_path) == False):
+        cmd = "mkscratchdir " + abs_path
+        print(cmd)
+        subprocess.call(cmd, shell=True)
+
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bitstreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_QualityLog = CreateNewSubfolder(WorkPath, "qualityLogs")
@@ -55,12 +63,16 @@ def setupWorkFolderStructure():
     Path_TimingLog = CreateNewSubfolder(WorkPath, "perfLogs")
     Path_EncLog = CreateNewSubfolder(WorkPath, "encLogs")
     Path_CmdLog = CreateNewSubfolder(WorkPath, "cmdLogs")
+    Path_DecLog = CreateNewSubfolder(WorkPath, "decLogs")
+    Path_VmafLog = CreateNewSubfolder(WorkPath, "vmafLogs")
+
 
 ###############################################################################
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles, Path_TimingLog, Path_EncLog]
+               Path_TestLog, Path_CfgFiles, Path_TimingLog, Path_EncLog,
+               Path_DecLog, Path_VmafLog]
     for folder in folders:
         Cleanfolder(folder)
 
@@ -83,12 +95,12 @@ def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
         decodedYUV = Decode(clip, method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
-                            False, LogCmdOnly)
+                            False, Path_DecLog, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
         CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
-                                clip.fmt, clip.width, clip.height, clip.bit_depth,
-                                Path_QualityLog, LogCmdOnly)
+                               clip.fmt, clip.width, clip.height, clip.bit_depth,
+                               Path_QualityLog, Path_VmafLog, LogCmdOnly)
         if SaveMemory:
             DeleteFile(decodedYUV, LogCmdOnly)
         Utils.Logger.info("finish running encode with QP %d" % (QP))
@@ -150,12 +162,12 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
                     method, codec, test_cfg, preset, QP)
 
             decodedYUV = Decode(clip, method, test_cfg, codec, bsfile, Path_DecodedYuv, Path_TimingLog,
-                                False, LogCmdOnly)
+                                False, Path_DecLog, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
             CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
                                    clip.fmt, clip.width, clip.height, clip.bit_depth,
-                                   Path_QualityLog, LogCmdOnly)
+                                   Path_QualityLog, Path_VmafLog, LogCmdOnly)
             if SaveMemory:
                 DeleteFile(decodedYUV, LogCmdOnly)
             Utils.Logger.info("finish running encode with QP %d" % (QP))

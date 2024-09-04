@@ -35,7 +35,7 @@ from Config import LogLevels, FrameNum, QPs, QualityList, WorkPath, \
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_UpScaleYuv, Path_DnScaleYuv, \
     Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog, \
-    Path_EncLog, Path_CmdLog
+    Path_EncLog, Path_DecLog, Path_VmafLog, Path_CmdLog
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bitstreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_UpScaleYuv = CreateNewSubfolder(WorkPath, "upscaledYUVs")
@@ -46,13 +46,16 @@ def setupWorkFolderStructure():
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
     Path_PerfLog = CreateNewSubfolder(WorkPath, "perfLogs")
     Path_EncLog = CreateNewSubfolder(WorkPath, "encLogs")
+    Path_DecLog = CreateNewSubfolder(WorkPath, "decLogs")
     Path_CmdLog = CreateNewSubfolder(WorkPath, "cmdLogs")
+    Path_VmafLog = CreateNewSubfolder(WorkPath, "vmafLogs")
 
 ###############################################################################
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_DnScaleYuv, Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles, Path_PerfLog, Path_EncLog]
+               Path_TestLog, Path_CfgFiles, Path_PerfLog, Path_EncLog, Path_DecLog,
+               Path_VmafLog]
     if not KeepUpscaledOutput:
         folders += [Path_UpScaleYuv, Path_DecUpScaleYuv]
 
@@ -89,13 +92,13 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
                                           ds_clip, 'AS', QP, FrameNum['AS'],
                                           clip.width, clip.height, Path_Bitstreams,
                                           Path_DecodedYuv, Path_DecUpScaleYuv,
-                                          Path_CfgFiles, Path_PerfLog, Path_EncLog, upScalAlgo,
-                                          ScaleMethod, SaveMemory, LogCmdOnly)
+                                          Path_CfgFiles, Path_PerfLog, Path_EncLog, Path_DecLog,
+                                          upScalAlgo, ScaleMethod, SaveMemory, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
             CalculateQualityMetric(clip.file_path, FrameNum['AS'], reconyuv,
                                    clip.fmt, clip.width, clip.height,
-                                   clip.bit_depth, Path_QualityLog, LogCmdOnly)
+                                   clip.bit_depth, Path_QualityLog, Path_VmafLog, LogCmdOnly)
             if SaveMemory:
                 DeleteFile(reconyuv, LogCmdOnly)
             if LogCmdOnly:

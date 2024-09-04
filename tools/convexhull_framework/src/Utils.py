@@ -194,6 +194,15 @@ def GetEncLogFile(bsfile, logpath):
     filename = GetShortContentName(bsfile, False) + '_EncLog.txt'
     return os.path.join(logpath, filename)
 
+def GetDecLogFile(bsfile, logpath):
+    filename = GetShortContentName(bsfile, False) + '_DecLog.txt'
+    return os.path.join(logpath, filename)
+
+def GetVmafLogFile(bsfile, logpath):
+    filename = GetShortContentName(bsfile, False) + '_VmafLog.txt'
+    return os.path.join(logpath, filename)
+
+
 def parseY4MHeader(y4m):
     """
     Parse y4m information from its header.

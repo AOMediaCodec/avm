@@ -120,10 +120,17 @@ def GetVMAFLogFile(recfile, path):
     file = os.path.join(path, filename)
     return file
 
+def GetVMAFExecLogFile(recfile, path):
+    filename = GetShortContentName(recfile, False) + '_vmafexec.log'
+    file = os.path.join(path, filename)
+    return file
+
 ################################################################################
 ##################### Exposed Functions ########################################
-def VMAF_CalQualityMetrics(origfile, recfile, logfilePath, LogCmdOnly=False):
-    vmaf_log = GetVMAFLogFile(recfile, logfilePath)
+def VMAF_CalQualityMetrics(origfile, recfile, QualityLogPath, VmafLogPath, LogCmdOnly=False):
+    vmaf_log = GetVMAFLogFile(recfile, QualityLogPath)
+    vmafexec_log = GetVMAFLogFile(recfile, VmafLogPath)
+
     args = " -r %s -d %s -q --threads 4 -o %s" \
            % (origfile, recfile, vmaf_log)
 
@@ -134,7 +141,7 @@ def VMAF_CalQualityMetrics(origfile, recfile, logfilePath, LogCmdOnly=False):
     else:
         args += " --aom_ctc v1.0"
 
-    cmd = VMAF + args
+    cmd = VMAF + args + "> %s 2>&1"%vmafexec_log
     ExecuteCmd(cmd, LogCmdOnly)
 
 def VMAF_GatherQualityMetrics(recfile, logfilePath):
