@@ -53,7 +53,7 @@ if __name__ == "__main__":
             #cmd = "nc run -C nolic_batch -r+ RAM/" + extra_memory + " " + job_file_name
             #cmd = "nc run -C modeling -r+ RAM/" + extra_memory + " " + job_file_name
             #cmd = "nc run -autokill 0 -C modeling -r+ \"osversion>=8\" -r+ RAM/" + extra_memory + " " + job_file_name
-            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/" + extra_memory + " " + job_file_name           
+            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/" + extra_memory + " " + job_file_name
             print(cmd)
             subprocess.call(cmd, shell=True)
         else:
@@ -61,6 +61,3 @@ if __name__ == "__main__":
             job_file.write("wait\n")
 
     cmd_log.close()
-
-
-
