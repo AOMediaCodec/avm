@@ -63,7 +63,7 @@ def Decode(clip, method, test_cfg, codec, bsfile, path, perf_path, decode_to_yuv
     dec_log = GetDecLogFile(bsfile, log_path)
 
     #call VideoDecoder to do the decoding
-    VideoDecode(clip, method, test_cfg, codec, bsfile, decodedfile, dec_perf,
+    VideoDecode(clip, method, test_cfg, codec, bsfile, decodedfile, dec_perf, 
                 decode_to_yuv, dec_log, LogCmdOnly)
     return decodedfile
 
