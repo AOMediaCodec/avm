@@ -56,7 +56,7 @@ def run_decode(cmd_log_file):
             #print("=== decoding %s \n" %video)
             #print(dec_cmd)
             #os.system(dec_cmd)
-            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0" + " '" + dec_cmd + "'"   
+            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0" + " '" + dec_cmd + "'"
             #print(cmd)
             subprocess.call(cmd, shell=True)
     cmd_log.close()
