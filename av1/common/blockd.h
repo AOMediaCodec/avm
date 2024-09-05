@@ -1972,7 +1972,7 @@ static inline int is_match_allowed(int filter_index, int class_id,
                                    int num_classes) {
   if (filter_index >= prev_filters_begin(num_classes) &&
       filter_index < prev_filters_end(num_classes))
-    return filter_index < class_id;
+    return filter_index - prev_filters_begin(num_classes) < class_id;
   return 1;
 }
 
