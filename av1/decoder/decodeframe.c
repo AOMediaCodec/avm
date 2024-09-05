@@ -3400,8 +3400,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           rsi->rst_ref_pic_idx = 0;
           if (rsi->frame_filters_on) {
             const int num_ref_frames =
-                (cm->current_frame.frame_type == KEY_FRAME ||
-                 cm->features.error_resilient_mode)
+                (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
                     ? 0
                     : cm->ref_frames_info.num_total_refs;
 
