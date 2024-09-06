@@ -212,7 +212,8 @@ include_directories(
   ${AOM_ROOT}/common
   ${AOM_ROOT}/examples
   ${AOM_ROOT}/stats
-  ${AOM_ROOT}/third_party/abseil-cpp)
+  ${AOM_ROOT}/third_party/abseil-cpp
+  ${AOM_ROOT}/third_party/tensorflow)
 
 # Targets
 add_library(aom_version ${AOM_VERSION_SOURCES})
@@ -585,47 +586,97 @@ if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_APP_TARGETS ${AOM_ENCODER_EXAMPLE_TARGETS}
        ${AOM_ENCODER_TOOL_TARGETS})
 
+  if(CONFIG_TENSORFLOW)
+    set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
+    set(PTHREADPOOL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
+    set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
+    set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
+    execute_process (
+      COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow; git checkout v2.17.0"
+    )
+    execute_process (
+      COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool; git checkout 4fe0e1e1"
+    )
+    execute_process (
+      COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16; git checkout 0a92994d"
+    )
+    execute_process (
+      COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd; git checkout 072586a7"
+    )
+    execute_process (
+      COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv; git checkout 63058eff"
+    )
+    add_subdirectory(third_party/tensorflow/tensorflow/lite/c)
+  endif()
+
   if(CONFIG_TENSORFLOW_LITE)
-    include(FetchContent)
+    if (CONFIG_TFLITE_LOCAL)
+      message(STATUS "Building TFLite from local submodules...")
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}; git submodule init; git submodule update"
+      )
+      set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
+      set(PTHREADPOOL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
+      set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
+      set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow; git checkout v2.17.0"
+      )
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool; git checkout 4fe0e1e1"
+      )
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16; git checkout 0a92994d"
+      )
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd; git checkout 072586a7"
+      )
+      execute_process (
+        COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv; git checkout 63058eff"
+      )
+      add_subdirectory(third_party/tensorflow/tensorflow/lite/c)
+    else()
+      include(FetchContent)
 
-    set(TFLITE_TAG "v2.17.0")
+      set(TFLITE_TAG "v2.17.0")
 
-    message(STATUS "Fetching TFLite ${TFLITE_TAG}...")
+      message(STATUS "Fetching TFLite ${TFLITE_TAG}...")
 
-    # static linking makes life with TFLite much easier
-    set(TFLITE_C_BUILD_SHARED_LIBS OFF)
+      # static linking makes life with TFLite much easier
+      set(TFLITE_C_BUILD_SHARED_LIBS OFF)
 
-    # Keep RUY on. Ruy is a general GEMM library.
-    set(TFLITE_ENABLE_RUY ON)
-    # Turn XNNPack on.
-    set(TFLITE_ENABLE_XNNPACK ON)
+      # Keep RUY on. Ruy is a general GEMM library.
+      set(TFLITE_ENABLE_RUY ON)
+      # Turn XNNPack on.
+      set(TFLITE_ENABLE_XNNPACK ON)
 
-    fetchcontent_declare(
-      tflite
-      GIT_REPOSITORY https://github.com/tensorflow/tensorflow
-      GIT_TAG ${TFLITE_TAG}
-      GIT_SHALLOW TRUE)
+      fetchcontent_declare(
+        tflite
+        GIT_REPOSITORY https://github.com/tensorflow/tensorflow
+        GIT_TAG ${TFLITE_TAG}
+        GIT_SHALLOW TRUE)
 
-    fetchcontent_getproperties(tflite)
-    if(NOT tflite_POPULATED)
-      fetchcontent_populate(tflite)
-      # Some of the subprojects (e.g. Eigen) are very noisy and emit status
-      # messages all the time. Temporary ignore status messages while adding
-      # this to silence it. Ugly but effective.
-      set(OLD_CMAKE_MESSAGE_LOG_LEVEL ${CMAKE_MESSAGE_LOG_LEVEL})
-      set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
-      add_subdirectory(${tflite_SOURCE_DIR}/tensorflow/lite/c
-                       ${tflite_BINARY_DIR})
-      set(CMAKE_MESSAGE_LOG_LEVEL ${OLD_CMAKE_MESSAGE_LOG_LEVEL})
+      fetchcontent_getproperties(tflite)
+      if(NOT tflite_POPULATED)
+        fetchcontent_populate(tflite)
+        # Some of the subprojects (e.g. Eigen) are very noisy and emit status
+        # messages all the time. Temporary ignore status messages while adding
+        # this to silence it. Ugly but effective.
+        set(OLD_CMAKE_MESSAGE_LOG_LEVEL ${CMAKE_MESSAGE_LOG_LEVEL})
+        set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
+        add_subdirectory(${tflite_SOURCE_DIR}/tensorflow/lite/c
+                         ${tflite_BINARY_DIR})
+        set(CMAKE_MESSAGE_LOG_LEVEL ${OLD_CMAKE_MESSAGE_LOG_LEVEL})
+      endif()
+
+      # Disable some noisy warnings in tflite
+      target_compile_options(tensorflow-lite PRIVATE -w)
+
+      # tensorflowlite_c is implicitly declared by this FetchContent
+      include_directories(${tflite_SOURCE_DIR})
+      add_dependencies(aom_av1_common tensorflow-lite)
     endif()
-
-    # Disable some noisy warnings in tflite
-    target_compile_options(tensorflow-lite PRIVATE -w)
-
-    # tensorflowlite_c is implicitly declared by this FetchContent
-    include_directories(${tflite_SOURCE_DIR})
     include_directories("${CMAKE_CURRENT_BINARY_DIR}/flatbuffers/include/")
-    add_dependencies(aom_av1_common tensorflow-lite)
   endif()
 
   if(CONFIG_USE_VMAF_RC AND NOT CONFIG_TUNE_VMAF)
