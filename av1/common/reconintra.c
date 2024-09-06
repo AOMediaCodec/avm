@@ -709,19 +709,10 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
 // re-order the intra prediction mode of uv component based on the
 // intra prediction mode of co-located y block
 void get_uv_intra_mode_set(MB_MODE_INFO *mi) {
-#if CONFIG_UV_CFL
   int is_mode_selected_list[UV_INTRA_MODES - 1];
-#else
-  int is_mode_selected_list[UV_INTRA_MODES];
-#endif  // CONFIG_UV_CFL
   int i;
   int mode_idx = 0;
-#if CONFIG_UV_CFL
-  for (i = 0; i < UV_INTRA_MODES - 1; i++)
-#else
-  for (i = 0; i < UV_INTRA_MODES; i++)
-#endif  // CONFIG_UV_CFL
-  {
+  for (i = 0; i < UV_INTRA_MODES - 1; i++) {
     is_mode_selected_list[i] = -1;
     mi->uv_intra_mode_list[i] = -1;
   }
@@ -751,15 +742,8 @@ void get_uv_intra_mode_set(MB_MODE_INFO *mi) {
       is_mode_selected_list[default_mode_list_uv[i]] = 1;
     }
   }
-
-#if !CONFIG_UV_CFL
-  // put cfl mode into the mode list
-  mi->uv_intra_mode_list[mode_idx++] = UV_CFL_PRED;
-  is_mode_selected_list[UV_CFL_PRED] = 1;
-#endif  // !CONFIG_UV_CFL
 }
 
-#if CONFIG_UV_CFL
 int get_cfl_ctx(MACROBLOCKD *xd) {
   const int above_ctx =
       xd->chroma_above_mbmi ? xd->chroma_above_mbmi->uv_mode == UV_CFL_PRED : 0;
@@ -767,7 +751,6 @@ int get_cfl_ctx(MACROBLOCKD *xd) {
       xd->chroma_left_mbmi ? xd->chroma_left_mbmi->uv_mode == UV_CFL_PRED : 0;
   return above_ctx + left_ctx;
 }
-#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
 
 // Directional prediction, zone 1: 0 < angle < 90

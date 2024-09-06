@@ -226,15 +226,9 @@ enum {
 #define Y_MODE_CONTEXTS 3
 #define INTRA_MODE_SETS 4
 #define NON_DIRECTIONAL_MODES_COUNT 5
-#endif  // CONFIG_AIMC
-
-#if CONFIG_AIMC || CONFIG_UV_CFL
 #define UV_MODE_CONTEXTS 2
-#endif  // CONFIG_AIMC || CONFIG_UV_CFL
-
-#if CONFIG_UV_CFL
 #define CFL_CONTEXTS 3
-#endif  // CONFIG_UV_CFL
+#endif  // CONFIG_AIMC
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size

@@ -145,10 +145,8 @@ typedef struct {
 /*!\brief Get mode cost for chroma channels.
  */
 int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
-#if CONFIG_UV_CFL
-                     MACROBLOCKD *xd,
-#endif  // CONFIG_UV_CFL
-                     CFL_ALLOWED_TYPE cfl_allowed, int mode_index);
+                     MACROBLOCKD *xd, CFL_ALLOWED_TYPE cfl_allowed,
+                     int mode_index);
 #endif  // CONFIG_AIMC
 
 /*!\brief Evaluate a given intra-mode for inter frames.

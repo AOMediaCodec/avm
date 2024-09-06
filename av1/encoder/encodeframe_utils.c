@@ -794,7 +794,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_AIMC
 #if CONFIG_ENTROPY_STATS
 #if CONFIG_AIMC
-#if CONFIG_UV_CFL
     if (cfl_allowed) {
       const int cfl_ctx = get_cfl_ctx(xd);
       ++counts->cfl_mode[cfl_ctx][uv_mode == UV_CFL_PRED];
@@ -805,14 +804,10 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->uv_mode[uv_context][uv_mode];
     }
 #else
-    ++counts->uv_mode[cfl_allowed][uv_context][uv_mode];
-#endif  // CONFIG_UV_CFL
-#else
     ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
 #endif  // CONFIG_AIMC
 #endif  // CONFIG_ENTROPY_STATS
 #if CONFIG_AIMC
-#if CONFIG_UV_CFL
     if (cfl_allowed) {
       const int cfl_ctx = get_cfl_ctx(xd);
       update_cdf(fc->cfl_cdf[cfl_ctx], mbmi->uv_mode == UV_CFL_PRED, 2);
@@ -854,25 +849,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                  UV_INTRA_MODES - 1);
 #endif  // CONFIG_LOSSLESS_DPCM
     }
-#else
-#if CONFIG_LOSSLESS_DPCM
-    if (xd->lossless[mbmi->segment_id]) {
-      update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
-      if (mbmi->use_dpcm_uv == 0) {
-        update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
-                   UV_INTRA_MODES - !cfl_allowed);
-      } else {
-        update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
-      }
-    } else {
-      update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
-                 UV_INTRA_MODES - !cfl_allowed);
-    }
-#else
-    update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
-               UV_INTRA_MODES - !cfl_allowed);
-#endif  // CONFIG_LOSSLESS_DPCM
-#endif  // CONFIG_UV_CFL
 #if CONFIG_IMPROVED_CFL
     if (mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_ENTROPY_STATS
@@ -1728,13 +1704,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #else
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC
-#if CONFIG_UV_CFL
+#if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES);
 #else
   AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
                  UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
   AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
-#endif  // CONFIG_UV_CFL
+#endif  // CONFIG_AIMC
 
 #if CONFIG_EXTENDED_SDP
   for (int i = 0; i < INTER_SDP_BSIZE_GROUP; i++) {

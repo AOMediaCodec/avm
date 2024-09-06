@@ -900,10 +900,6 @@ typedef struct {
 #if !CONFIG_AIMC
   //! Chroma mode cost
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
-#if CONFIG_UV_CFL
-  //! CFL mode cost
-  int cfl_mode_cost[CFL_CONTEXTS][2];
-#endif  // CONFIG_UV_CFL
 #endif  // !CONFIG_AIMC
   //! filter_intra_cost
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -946,13 +942,9 @@ typedef struct {
   //! y second mode cost
   int y_second_mode_costs[Y_MODE_CONTEXTS][SECOND_MODE_COUNT];
   //! uv mode cost
-#if CONFIG_UV_CFL
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
   //! CFL mode cost
   int cfl_mode_cost[CFL_CONTEXTS][2];
-#else
-  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][UV_MODE_CONTEXTS][UV_INTRA_MODES];
-#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
 
   //! Cost of signaling secondary transform index
