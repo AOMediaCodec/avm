@@ -433,6 +433,9 @@ set_aom_config_var(
   CONFIG_MHCCP_SB_BOUNDARY 1
   "Using only 1 lines when MHCCP block at the superblock top boundary")
 
+set_aom_config_var(MHCCP_BUFFER_4LINES 1
+                   "Using 2 lines for the chroma reference region in MHCCP")
+
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 

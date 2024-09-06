@@ -2475,42 +2475,79 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           if ((h >= *above_lines && w >= *left_lines + width) ||
               (h >= *above_lines + height && w >= *left_lines))
             continue;
+          // For blocks at the superblock top boundary, we only have one line
+          // above available, therefore we need to offset values for above
+          // region Proposal E229 (for 4:2:0 case) propose to use only 4 lines
+          // and 2 padding lines for the luma reference region, and 2 lines and
+          // 1 padding line for the chroma reference region. Therefore, for
+          // these 2 padding lines above and to the left, we need to offset the
+          // reference region for the top and left boundaries ref_h_t_off is the
+          // position offset value of the top pixel in cfl_ds_filter_index == 2
+          // for both padding and superblock top boundary
           int ref_h_t_off = 0;
+          // ref_h_c_off is the position offset value of the pixel in the same
+          // horizontal line of the center pixel for both padding and superblock
+          // top boundary
           int ref_h_c_off = 0;
+          // ref_h_b_off is the position offset value of the bottom pixel in
+          // downsample filtering for both padding and superblock top boundary
           int ref_h_b_off = 0;
+          // ref_w_off is the position offset value for padding only in the left
+          // and right directions
+          int ref_w_off = 0;
 #if CONFIG_MHCCP_SB_BOUNDARY
-          if (is_top_sb_boundary &&
-              (*above_lines == ((LINE_NUM + 1) << sub_y))) {
-            if (h < *above_lines) {
+          // Preparing the vertical position offset values for superblock top
+          // boundary and padding
+          if (*above_lines == ((LINE_NUM + 1) << sub_y)) {
+            if (is_top_sb_boundary && (h < *above_lines)) {
+              // For the top boundary of the superblock, we need to offset the
+              // reference region
               ref_h_t_off = h != 0 ? ((LINE_NUM + 1) << sub_y) - h
                                    : ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
+            } else {
+              // For the 2 padding lines above, we need to offset the reference
+              // region
+              if (h == 0) {
+                ref_h_t_off = 2;
+                ref_h_c_off = 2;
+                ref_h_b_off = 2;
+              }
             }
+          }
+          // For the 2 padding lines left, we need to offset the reference
+          // region
+          if (*left_lines == ((LINE_NUM + 1) << sub_x) && (w == 0)) {
+            ref_w_off = 2;
           }
 #endif
           if (cm->seq_params.cfl_ds_filter_index == 1) {
             output_q3[w >> 1] =
-                input[AOMMAX(0, w - 1) + ref_h_c_off * input_stride] +
-                2 * input[w + ref_h_c_off * input_stride] +
-                input[w + 1 + ref_h_c_off * input_stride] +
-                input[bot + AOMMAX(-1, -w) + ref_h_b_off * input_stride] +
-                2 * input[bot + ref_h_b_off * input_stride] +
-                input[bot + 1 + ref_h_b_off * input_stride];
+                input[AOMMAX(0, w - 1) + ref_w_off +
+                      ref_h_c_off * input_stride] +
+                2 * input[w + ref_w_off + ref_h_c_off * input_stride] +
+                input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+                input[bot + AOMMAX(-1, -w) + ref_w_off +
+                      ref_h_b_off * input_stride] +
+                2 * input[bot + ref_w_off + ref_h_b_off * input_stride] +
+                input[bot + 1 + ref_w_off + ref_h_b_off * input_stride];
           } else if (cm->seq_params.cfl_ds_filter_index == 2) {
             const int top = h != 0 ? w - input_stride : w;
             output_q3[w >> 1] =
-                input[AOMMAX(0, w - 1) + ref_h_c_off * input_stride] +
-                4 * input[w + ref_h_c_off * input_stride] +
-                input[w + 1 + ref_h_c_off * input_stride] +
-                input[top + ref_h_t_off * input_stride] +
-                input[bot + ref_h_b_off * input_stride];
+                input[AOMMAX(0, w - 1) + ref_w_off +
+                      ref_h_c_off * input_stride] +
+                4 * input[w + ref_w_off + ref_h_c_off * input_stride] +
+                input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+                input[top + ref_w_off + ref_h_t_off * input_stride] +
+                input[bot + ref_w_off + ref_h_b_off * input_stride];
           } else {
-            output_q3[w >> 1] = (input[w + ref_h_c_off * input_stride] +
-                                 input[w + 1 + ref_h_c_off * input_stride] +
-                                 input[bot + ref_h_b_off * input_stride] +
-                                 input[bot + 1 + ref_h_b_off * input_stride])
-                                << 1;
+            output_q3[w >> 1] =
+                (input[w + ref_w_off + ref_h_c_off * input_stride] +
+                 input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+                 input[bot + ref_w_off + ref_h_b_off * input_stride] +
+                 input[bot + 1 + ref_w_off + ref_h_b_off * input_stride])
+                << 1;
           }
         }
         output_q3 += output_stride;
@@ -2522,25 +2559,42 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         for (int i = 0; i < (*ref_width); i += 2) {
           const int filter_type = cm->seq_params.cfl_ds_filter_index;
           int ref_h_c_off = 0;
+          int ref_w_off = 0;
 #if CONFIG_MHCCP_SB_BOUNDARY
-          if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
-            if (h < *above_lines) {
+          if (*above_lines == (LINE_NUM + 1)) {
+            if (is_top_sb_boundary && (h < *above_lines)) {
+              // For the top boundary of the superblock, we need to offset the
+              // reference region
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
+            } else {
+              if (h == 0) {
+                // For the 1 padding lines above, we need to offset the
+                // reference region
+                ref_h_c_off = 1;
+              }
             }
+          }
+          // For the 2 padding lines left, we need to offset the reference
+          // region
+          if (*left_lines == ((LINE_NUM + 1) << sub_x) && (i == 0)) {
+            ref_w_off = 2;
           }
 #endif
           if (filter_type == 1) {
             output_q3[i >> 1] =
-                (input[AOMMAX(0, i - 1) + ref_h_c_off * input_stride] +
-                 2 * input[i + ref_h_c_off * input_stride] +
-                 input[i + 1 + ref_h_c_off * input_stride])
+                (input[AOMMAX(0, i - 1) + ref_w_off +
+                       ref_h_c_off * input_stride] +
+                 2 * input[i + ref_w_off + ref_h_c_off * input_stride] +
+                 input[i + 1 + ref_w_off + ref_h_c_off * input_stride])
                 << 1;
           } else if (filter_type == 2) {
-            output_q3[i >> 1] = input[i + ref_h_c_off * input_stride] << 3;
+            output_q3[i >> 1] =
+                input[i + ref_w_off + ref_h_c_off * input_stride] << 3;
           } else {
-            output_q3[i >> 1] = (input[i + ref_h_c_off * input_stride] +
-                                 input[i + 1 + ref_h_c_off * input_stride])
-                                << 2;
+            output_q3[i >> 1] =
+                (input[i + ref_w_off + ref_h_c_off * input_stride] +
+                 input[i + 1 + ref_w_off + ref_h_c_off * input_stride])
+                << 2;
           }
         }
         output_q3 += output_stride;
@@ -2551,16 +2605,32 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         for (int i = 0; i < (*ref_width); ++i) {
           const int bot = i + input_stride;
           int ref_h_c_off = 0;
+          int ref_h_b_off = 0;
+          int ref_w_off = 0;
 #if CONFIG_MHCCP_SB_BOUNDARY
-          if (is_top_sb_boundary &&
-              (*above_lines == ((LINE_NUM + 1) << sub_y))) {
-            if (h < *above_lines) {
+          if (*above_lines == ((LINE_NUM + 1) << sub_y)) {
+            if (is_top_sb_boundary && (h < *above_lines)) {
+              // For the top boundary of the superblock, we need to offset the
+              // reference region
               ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
+              ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
+            } else {
+              // For the 2 padding lines above, we need to offset the reference
+              // region
+              if (h == 0) {
+                ref_h_c_off = 2;
+                ref_h_b_off = 2;
+              }
             }
           }
+          // For the 1 padding lines left, we need to offset the reference
+          // region
+          if (*left_lines == (LINE_NUM + 1) && (i == 0)) {
+            ref_w_off = 1;
+          }
 #endif
-          output_q3[i] = (input[i + ref_h_c_off * input_stride] +
-                          input[bot + ref_h_c_off * input_stride])
+          output_q3[i] = (input[i + ref_w_off + ref_h_c_off * input_stride] +
+                          input[bot + ref_w_off + ref_h_b_off * input_stride])
                          << 2;
         }
         output_q3 += output_stride;
@@ -2570,14 +2640,28 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); ++i) {
           int ref_h_c_off = 0;
+          int ref_w_off = 0;
 #if CONFIG_MHCCP_SB_BOUNDARY
+          // For the top boundary of the superblock, we need to offset the
+          // reference region
           if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
             if (h < *above_lines) {
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
             }
+          } else {
+            if (h == 0) {
+              // For the 1 padding lines above, we need to offset the reference
+              // region
+              ref_h_c_off = 1;
+            }
+          }
+          // For the 1 padding lines left, we need to offset the reference
+          // region
+          if (*left_lines == (LINE_NUM + 1) && (i == 0)) {
+            ref_w_off = 1;
           }
 #endif
-          output_q3[i] = input[i + ref_h_c_off * input_stride] << 3;
+          output_q3[i] = input[i + ref_w_off + ref_h_c_off * input_stride] << 3;
         }
         output_q3 += output_stride;
         input += input_stride;
@@ -2613,20 +2697,23 @@ void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
             (h >= above_lines + height && w >= left_lines))
           continue;
 #if CONFIG_MHCCP_SB_BOUNDARY
-        int ref_h_offset = 0;
-        if (is_top_sb_boundary && above_lines == (LINE_NUM + 1)) {
-          if (h < above_lines) {
+        int ref_h_offset = 0, ref_w_offset = 0;
+        if (above_lines == (LINE_NUM + 1)) {
+          if (is_top_sb_boundary && (h < above_lines)) {
             ref_h_offset = (LINE_NUM + 1) - (h + 1);
+          } else {
+            if (h == 0) {
+              ref_h_offset = 1;
+            }
           }
         }
-        if (is_top_sb_boundary && h < above_lines) {
-          output_q3[w] = input[w + ref_h_offset * input_stride];
-        } else {
-#endif  // CONFIG_MHCCP_SB_BOUNDARY
-          output_q3[w] = input[w];
-#if CONFIG_MHCCP_SB_BOUNDARY
+        if (left_lines == (LINE_NUM + 1) && (w == 0)) {
+          ref_w_offset = 1;
         }
-#endif
+        output_q3[w] = input[w + ref_w_offset + ref_h_offset * input_stride];
+#else   // CONFIG_MHCCP_SB_BOUNDARY
+        output_q3[w] = input[w];
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
       }
       output_q3 += output_stride;
       input += input_stride;
