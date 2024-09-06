@@ -615,6 +615,12 @@ if(CONFIG_AV1_ENCODER)
         bash -c
         "cd ${CMAKE_CURRENT_SOURCE_DIR}; git submodule init; git submodule update"
     )
+    # These refer to the submodules that TFLite depends on, use the the
+    # fetchcontent snippet above, then look for messages like: "Performing
+    # download step (download, verify and extract) for 'xyz'" go to "xyz-source"
+    # and take a note of the latest commit and the origin URL of that folder.
+    # Then use "git sumbodule add -- <url> third_party/xyz" and add the variable
+    # "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below.
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
