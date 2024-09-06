@@ -586,8 +586,8 @@ if(CONFIG_AV1_ENCODER)
        ${AOM_ENCODER_TOOL_TARGETS})
 
   if(CONFIG_TENSORFLOW_LITE)
-    # Pulling tflite through git submodules. This used to be fetching TFLite
-    # from from github as part of the build:
+    # Pulling TFLite through git submodules. This used to be fetching TFLite
+    # from github as part of the build:
     # cmake-format: off
     # include(FetchContent)
     # set(TFLITE_TAG "v2.17.0")
@@ -623,6 +623,7 @@ if(CONFIG_AV1_ENCODER)
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
+
     # Keep RUY on. Ruy is a general GEMM library.
     set(TFLITE_ENABLE_RUY ON)
     # Turn XNNPack on.
@@ -639,8 +640,8 @@ if(CONFIG_AV1_ENCODER)
     # Disable some noisy warnings in tflite
     target_compile_options(tensorflow-lite PRIVATE -w)
     include_directories(${AOM_ROOT}/third_party/tensorflow)
-    add_dependencies(aom_av1_common tensorflow-lite)
     include_directories("${CMAKE_CURRENT_BINARY_DIR}/flatbuffers/include/")
+    add_dependencies(aom_av1_common tensorflow-lite)
   endif()
 
   if(CONFIG_USE_VMAF_RC AND NOT CONFIG_TUNE_VMAF)
