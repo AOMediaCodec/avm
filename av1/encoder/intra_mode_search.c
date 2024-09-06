@@ -683,7 +683,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #else
   int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL;
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_uv = 0;
   mbmi->dpcm_mode_uv = 0;
@@ -748,20 +747,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #endif  // CONFIG_ENABLE_MHCCP
       }
 #else
-  if (mode_idx >= UV_INTRA_MODES) {
-    real_mode_idx = UV_INTRA_MODES - 1;
-    mbmi->cfl_idx = mode_idx - real_mode_idx;
-#if CONFIG_ENABLE_MHCCP
-    if (mbmi->cfl_idx >= CFL_MULTI_PARAM_V) {
-      mbmi->mh_dir = mbmi->cfl_idx - CFL_MULTI_PARAM_V;
-      mbmi->cfl_idx = CFL_MULTI_PARAM_V;
-    }
-#endif  // CONFIG_ENABLE_MHCCP
-  }
-  mbmi->uv_mode_idx = real_mode_idx;
-  mbmi->uv_mode = mbmi->uv_intra_mode_list[real_mode_idx];
-#endif  // CONFIG_AIMC
-#else
 #if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_uv = 0;
   mbmi->dpcm_mode_uv = 0;
@@ -792,10 +777,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mode_cost += dpcm_uv_cost;
       }
       if (mbmi->use_dpcm_uv == 0) {
-        mode_cost += get_uv_mode_cost(mbmi, x->mode_costs,
-#if CONFIG_AIMC
-                                      xd,
-#endif  // CONFIG_AIMC
+        mode_cost += get_uv_mode_cost(mbmi, x->mode_costs, xd,
                                       is_cfl_allowed(xd), mbmi->uv_mode_idx);
       } else {
         mbmi->dpcm_mode_uv = mode - 1;
@@ -858,7 +840,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_ENABLE_MHCCP
       mode_cost += cfl_alpha_rate + cfl_idx_rate + filter_dir_rate;
 #else
-  mode_cost += cfl_alpha_rate + cfl_idx_rate;
+    mode_cost += cfl_alpha_rate + cfl_idx_rate;
 #endif  // CONFIG_ENABLE_MHCCP
 #else
       mode_cost += cfl_alpha_rate;
