@@ -621,6 +621,11 @@ if(CONFIG_AV1_ENCODER)
     # and take a note of the latest commit and the origin URL of that folder.
     # Then use "git sumbodule add -- <url> third_party/xyz" and add the variable
     # "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below.
+    execute_process(
+      COMMAND
+        bash -c
+        "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; tar -xzf tensorflow.tar.gz; tar -xzf fp16.tar.gz; tar -xzf pthreadpool.tar.gz; tar -xzf psimd.tar.gz; tar -xzf FXdiv.tar.gz"
+    )
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
