@@ -2,18 +2,3 @@
 	path = third_party/abseil-cpp
 	url = https://github.com/abseil/abseil-cpp.git
 	branch = lts_2023_08_02
-[submodule "tensorflow"]
-	path = third_party/tensorflow
-	url = https://github.com/tensorflow/tensorflow
-[submodule "third_party/fp16"]
-	path = third_party/fp16
-	url = https://github.com/Maratyszcza/FP16
-[submodule "third_party/pthreadpool"]
-	path = third_party/pthreadpool
-	url = https://github.com/Maratyszcza/pthreadpool
-[submodule "third_party/psimd"]
-	path = third_party/psimd
-	url = https://github.com/Maratyszcza/psimd
-[submodule "third_party/FXdiv"]
-	path = third_party/FXdiv
-	url = https://github.com/Maratyszcza/FXdiv
