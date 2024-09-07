@@ -586,8 +586,8 @@ if(CONFIG_AV1_ENCODER)
        ${AOM_ENCODER_TOOL_TARGETS})
 
   if(CONFIG_TENSORFLOW_LITE)
-    # Pulling TFLite through git submodules. This used to be fetching TFLite
-    # from github as part of the build:
+    # Building TFLite from third_party sources. Previously TFLite was fetched
+    # from github as part of the build, using the following syntax:
     # cmake-format: off
     # include(FetchContent)
     # set(TFLITE_TAG "v2.17.0")
@@ -605,27 +605,27 @@ if(CONFIG_AV1_ENCODER)
     # cmake-format: on
     #
     # However some enviroments don't allow internet access during cmake build,
-    # so the new approach is to download all the necessary TFLite dependencies
-    # during the initial checkout. The fetchcontent based snippet above can be
-    # used in the future to find out the correct versions of dependencies,
-    # should TFLite be updated to the the later version.
+    # so the new approach is to store all the necessary TFLite dependencies as
+    # archives inside of the third_party directory. These archives are extracted
+    # below and built as sub-projects. The fetchcontent based snippet above can
+    # be used in the future to update the stored archives for the dependencies
+    # should TFlite version be updated,
     message(STATUS "Building TFLite from local submodules...")
-    execute_process(
-      COMMAND
-        bash -c
-        "cd ${CMAKE_CURRENT_SOURCE_DIR}; git submodule init; git submodule update"
-    )
-    # These refer to the submodules that TFLite depends on, use the the
+    # These are the paths of the stored TFLite dependencies, use the the
     # fetchcontent snippet above, then look for messages like: "Performing
-    # download step (download, verify and extract) for 'xyz'" go to "xyz-source"
-    # and take a note of the latest commit and the origin URL of that folder.
-    # Then use "git sumbodule add -- <url> third_party/xyz" and add the variable
-    # "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below.
-    execute_process(
-      COMMAND
-        bash -c
-        "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; tar -xzf tensorflow.tar.gz; tar -xzf fp16.tar.gz; tar -xzf pthreadpool.tar.gz; tar -xzf psimd.tar.gz; tar -xzf FXdiv.tar.gz"
-    )
+    # download step (download, verify and extract) for 'xyz'" go to
+    # "xyz-source", Then archive the source into "xyz.tar.gz" and and add the
+    # variable "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below, also
+    # update the command line to extrac the archive below.
+    string(
+      CONCAT EXTRACT_DEPS
+             "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
+             "tar -xzf tensorflow.tar.gz; "
+             "tar -xzf fp16.tar.gz; "
+             "tar -xzf pthreadpool.tar.gz; "
+             "tar -xzf psimd.tar.gz; "
+             "tar -xzf FXdiv.tar.gz")
+    execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
