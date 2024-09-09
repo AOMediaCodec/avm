@@ -695,7 +695,7 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
 // - Shift 'sum_w_h' right until we reach an odd number. Let the number of
 // shifts for that block size be called 'shift1' (see the parameter in
 // dc_predictor_rect() function), and let the odd number be 'd'.
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 // d has only 4 possible values:
 // * d = 3 for a 1:2 rect block,
 // * d = 5 for a 1:4 rect block,
@@ -741,7 +741,7 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
 // Note: This constant is odd, but a smaller even constant (0x199a) with the
 // appropriate shift should work for neon in 8/10-bit.
 #define HIGHBD_DC_MULTIPLIER_1X4 0x6667
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
                                             int bw, int bh,
@@ -868,7 +868,7 @@ void aom_highbd_dc_predictor_64x32_c(uint16_t *dst, ptrdiff_t stride,
                            HIGHBD_DC_MULTIPLIER_1X2);
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void aom_highbd_dc_predictor_4x32_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
@@ -910,14 +910,14 @@ void aom_highbd_dc_predictor_64x4_c(uint16_t *dst, ptrdiff_t stride,
   highbd_dc_predictor_rect(dst, stride, 64, 4, above, left, bd, 2,
                            HIGHBD_DC_MULTIPLIER_1X16);
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #undef HIGHBD_DC_MULTIPLIER_1X2
 #undef HIGHBD_DC_MULTIPLIER_1X4
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #undef HIGHBD_DC_MULTIPLIER_1X8
 #undef HIGHBD_DC_MULTIPLIER_1X16
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // This serves as a wrapper function, so that all the prediction functions
 // can be unified and accessed as a pointer array. Note that the boundary
@@ -937,7 +937,7 @@ void aom_highbd_dc_predictor_64x4_c(uint16_t *dst, ptrdiff_t stride,
   }
 
 /* clang-format off */
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define intra_pred_rectangular(type) \
   intra_pred_sized(type, 4, 8) \
   intra_pred_sized(type, 8, 4) \
@@ -1009,7 +1009,7 @@ void aom_highbd_dc_predictor_64x4_c(uint16_t *dst, ptrdiff_t stride,
   intra_pred_highbd_sized(type, 32, 8) \
   intra_pred_highbd_sized(type, 16, 64) \
   intra_pred_highbd_sized(type, 64, 16)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #define intra_pred_above_4x4(type) \
   intra_pred_sized(type, 8, 8) \

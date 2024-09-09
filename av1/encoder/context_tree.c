@@ -169,12 +169,12 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
     ctx->qcoeff[i] = shared_bufs->qcoeff_buf[i];
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     const int num_blk_plane =
         (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
 #else
     const int num_blk_plane = ctx->num_4x4_blk;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     AOM_CHECK_MEM_ERROR(&error, ctx->blk_skip[i],
                         aom_calloc(num_blk_plane, sizeof(*ctx->blk_skip[i])));
     AOM_CHECK_MEM_ERROR(

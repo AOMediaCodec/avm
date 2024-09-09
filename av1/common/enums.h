@@ -171,7 +171,7 @@ enum {
 // Mask to extract MI offset within max MIB
 #define MAX_MIB_MASK (MAX_MIB_SIZE - 1)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 // The largest block size where we need to construct chroma blocks separately
 // from luma blocks is 64x32. With the four way partition, we can get 64x4
 // block sizes. So we only need to track results for 16 mi units.
@@ -187,7 +187,7 @@ enum {
 #define SUB_8_BITMASK_T uint8_t
 #define SUB_8_BITMASK_SIZE (8)
 #define SUB_8_BITMASK_ON (UINT8_MAX)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Maximum number of tile rows and tile columns
 #define MAX_TILE_ROWS 64
@@ -299,14 +299,14 @@ typedef enum ATTRIBUTE_PACKED {
   BLOCK_32X8,
   BLOCK_16X64,
   BLOCK_64X16,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   BLOCK_4X32,
   BLOCK_32X4,
   BLOCK_8X64,
   BLOCK_64X8,
   BLOCK_4X64,
   BLOCK_64X4,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   BLOCK_SIZES_ALL,
 #if CONFIG_EXT_RECUR_PARTITIONS
   BLOCK_MAX = BLOCK_256X256,
@@ -529,14 +529,14 @@ enum {
   TX_32X8,   // 32x8 transform
   TX_16X64,  // 16x64 transform
   TX_64X16,  // 64x16 transform
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   TX_4X32,            // 4x32 transform
   TX_32X4,            // 32x4 transform
   TX_8X64,            // 8x64 transform
   TX_64X8,            // 64x8 transform
   TX_4X64,            // 4x64 transform
   TX_64X4,            // 64x4 transform
-#endif                // CONFIG_FLEX_PARTITION
+#endif                // CONFIG_EXT_RECUR_PARTITIONS
   TX_SIZES_ALL,       // Includes rectangular transforms
   TX_SIZES = TX_4X8,  // Does NOT include rectangular transforms
   TX_SIZES_LARGEST = TX_64X64,
@@ -1170,12 +1170,12 @@ enum {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 // Group size from mapping block size to tx partition context
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define TXFM_SPLIT_GROUP 9
 #define TXFM_PARTITION_GROUP 17
 #else
 #define TXFM_PARTITION_GROUP 8
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #else
 #define TXFM_PARTITION_INTER_CONTEXTS ((TX_SIZES - TX_8X8) * 6 - 3)
 #endif  // CONFIG_TX_PARTITION_CTX

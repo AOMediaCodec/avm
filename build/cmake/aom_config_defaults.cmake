@@ -160,8 +160,6 @@ set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
 set_aom_config_var(
   CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
   "AV2 Fully recursive partitions including H partitions experiment flag")
-set_aom_config_var(CONFIG_FLEX_PARTITION 1 NUMBER
-                   "AV2 Flexible partition experiment flag")
 set_aom_config_var(CONFIG_CB1TO4_SPLIT 1 NUMBER
                    "AV2 amended flexible partition experiment flag")
 set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER

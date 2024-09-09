@@ -348,7 +348,7 @@ const int8_t av1_nz_map_ctx_offset_32x8[256] = {
   21, 21, 21, 21, 21, 21, 21, 21, 21,
 };
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 const int8_t av1_nz_map_ctx_offset_4x32[128] = {
   0,  11, 11, 11, 11, 11, 11, 11, 6,  6,  21, 21, 6,  21, 21, 21, 21, 21, 21,
   21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
@@ -368,7 +368,7 @@ const int8_t av1_nz_map_ctx_offset_32x4[128] = {
   21, 16, 16, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
   21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
 };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL] = {
   av1_nz_map_ctx_offset_4x4,    // TX_4x4
@@ -390,14 +390,14 @@ const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL] = {
   av1_nz_map_ctx_offset_32x8,   // TX_32x8
   av1_nz_map_ctx_offset_16x32,  // TX_16x64
   av1_nz_map_ctx_offset_64x32,  // TX_64x16
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   av1_nz_map_ctx_offset_4x32,  // TX_4x32
   av1_nz_map_ctx_offset_32x4,  // TX_32x4
   av1_nz_map_ctx_offset_8x32,  // TX_8x64
   av1_nz_map_ctx_offset_32x8,  // TX_64x8
   av1_nz_map_ctx_offset_4x32,  // TX_4x64
   av1_nz_map_ctx_offset_32x4,  // TX_64x4
-#endif                         // CONFIG_FLEX_PARTITION
+#endif                         // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 const int16_t av1_eob_group_start[12] = { 0,  1,  2,  3,   5,   9,

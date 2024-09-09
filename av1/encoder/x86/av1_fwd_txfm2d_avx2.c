@@ -3254,14 +3254,14 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_32x8_sse2,  // 32x8 transform
   lowbd_fwd_txfm2d_16x64_avx2,     // 16x64 transform
   lowbd_fwd_txfm2d_64x16_avx2,     // 64x16 transform
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   av1_lowbd_fwd_txfm2d_4x32_sse2,  // 4x32 transform
   av1_lowbd_fwd_txfm2d_32x4_sse2,  // 32x4 transform
   av1_lowbd_fwd_txfm2d_8x64_sse2,  // 8x64 transform
   av1_lowbd_fwd_txfm2d_64x8_sse2,  // 64x8 transform
   av1_lowbd_fwd_txfm2d_4x64_sse2,  // 4x64 transform
   av1_lowbd_fwd_txfm2d_64x4_sse2,  // 64x4 transform
-#endif                             // CONFIG_FLEX_PARTITION
+#endif                             // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 void av1_lowbd_fwd_txfm_avx2(const int16_t *src_diff, tran_low_t *coeff,

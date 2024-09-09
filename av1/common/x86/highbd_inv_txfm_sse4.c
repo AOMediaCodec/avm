@@ -5635,11 +5635,11 @@ static const transform_1d_sse4_1
           { idct32x32_low1_sse4_1, idct32x32_low8_sse4_1,
             idct32x32_low16_sse4_1, idct32x32_sse4_1 },
           { NULL, NULL, NULL, NULL },
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
           { iidentity32_sse4_1, NULL, NULL, iidentity32_sse4_1 },
 #else
           { iidentity32_sse4_1, NULL, NULL, NULL },
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       {
           { idct64x64_low1_sse4_1, idct64x64_low8_sse4_1,
@@ -5672,11 +5672,11 @@ static const transform_1d_sse4_1
           { idct32x32_low1_sse4_1, idct32x32_low8_sse4_1,
             idct32x32_low16_sse4_1, idct32x32_sse4_1 },
           { NULL, NULL, NULL, NULL },
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
           { iidentity32_sse4_1, NULL, NULL, iidentity32_sse4_1 },
 #else
           { iidentity32_sse4_1, NULL, NULL, NULL },
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       {
           { idct64x64_low1_sse4_1, idct64x64_low8_sse4_1,
@@ -6316,7 +6316,7 @@ static void highbd_inv_txfm2d_add_16x4_sse4_1(const int32_t *input,
   }
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 static void highbd_inv_txfm2d_add_4x32_sse4_1(const int32_t *input,
                                               uint16_t *output, int stride,
                                               TX_TYPE tx_type, TX_SIZE tx_size,
@@ -6549,7 +6549,7 @@ static void highbd_inv_txfm2d_add_64x4_sse4_1(const int32_t *input,
                                    txfm_size_row, bd);
   }
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 void av1_highbd_inv_txfm2d_add_universe_sse4_1(const int32_t *input,
                                                uint16_t *output, int stride,
@@ -6659,7 +6659,7 @@ void av1_highbd_inv_txfm_add_16x4_sse4_1(const tran_low_t *input,
                                     eob, bd);
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_highbd_inv_txfm_add_4x32_sse4_1(const tran_low_t *input,
                                          uint16_t *dest, int stride,
                                          const TxfmParam *txfm_param) {
@@ -6703,7 +6703,7 @@ void av1_highbd_inv_txfm_add_64x4_sse4_1(const tran_low_t *input,
   highbd_inv_txfm2d_add_64x4_sse4_1(input, dest, stride, tx_type, tx_size, eob,
                                     bd);
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
                                     int stride, const TxfmParam *txfm_param) {
@@ -6728,7 +6728,7 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
     case TX_4X16:
       av1_highbd_inv_txfm_add_4x16_sse4_1(input, dest, stride, txfm_param);
       break;
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     case TX_4X32:
       av1_highbd_inv_txfm_add_4x32_sse4_1(input, dest, stride, txfm_param);
       break;
@@ -6741,7 +6741,7 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
     case TX_64X4:
       av1_highbd_inv_txfm_add_64x4_sse4_1(input, dest, stride, txfm_param);
       break;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default:
       av1_highbd_inv_txfm2d_add_universe_sse4_1(
           input, dest, stride, txfm_param->tx_type, tx_size,

@@ -170,7 +170,7 @@ const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES] = {
 };
 
 /* clang-format off */
-// TODO(urvang): update for CONFIG_FLEX_PARTITION. Used for speed >= 1.
+// TODO(urvang): update for CONFIG_EXT_RECUR_PARTITIONS. Used for speed >= 1.
 const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     // BLOCK_4X4
     0,

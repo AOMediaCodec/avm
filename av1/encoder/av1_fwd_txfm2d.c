@@ -485,7 +485,7 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
   }
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_fwd_txfm2d_4x32_c(const int16_t *input, int32_t *output, int stride,
                            TX_TYPE tx_type,
 #if CONFIG_INTER_DDT
@@ -603,7 +603,7 @@ void av1_fwd_txfm2d_64x4_c(const int16_t *input, int32_t *output, int stride,
     memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
   }
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static const int8_t fwd_shift_4x4[3] = { 2, 0, 0 };
 static const int8_t fwd_shift_8x8[3] = { 2, -1, 0 };
@@ -624,14 +624,14 @@ static const int8_t fwd_shift_8x32[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_32x8[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_16x64[3] = { 0, -2, 0 };
 static const int8_t fwd_shift_64x16[3] = { 2, -4, 0 };
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 static const int8_t fwd_shift_4x32[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_32x4[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_8x64[3] = { 0, -2, 0 };
 static const int8_t fwd_shift_64x8[3] = { 2, -4, 0 };
 static const int8_t fwd_shift_4x64[3] = { 0, 0, 0 };
 static const int8_t fwd_shift_64x4[3] = { 2, -2, 0 };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 const int8_t *av1_fwd_txfm_shift_ls[TX_SIZES_ALL] = {
   fwd_shift_4x4,   fwd_shift_8x8,   fwd_shift_16x16, fwd_shift_32x32,
@@ -639,10 +639,10 @@ const int8_t *av1_fwd_txfm_shift_ls[TX_SIZES_ALL] = {
   fwd_shift_16x8,  fwd_shift_16x32, fwd_shift_32x16, fwd_shift_32x64,
   fwd_shift_64x32, fwd_shift_4x16,  fwd_shift_16x4,  fwd_shift_8x32,
   fwd_shift_32x8,  fwd_shift_16x64, fwd_shift_64x16,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   fwd_shift_4x32,  fwd_shift_32x4,  fwd_shift_8x64,  fwd_shift_64x8,
   fwd_shift_4x64,  fwd_shift_64x4,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 const int8_t av1_fwd_cos_bit_col[MAX_TXWH_IDX /*txw_idx*/]

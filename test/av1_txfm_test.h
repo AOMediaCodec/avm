@@ -137,10 +137,10 @@ static const FwdTxfm2dFunc fwd_txfm_func_ls[TX_SIZES_ALL] = {
   av1_fwd_txfm2d_64x32_c, av1_fwd_txfm2d_4x16_c,  av1_fwd_txfm2d_16x4_c,
   av1_fwd_txfm2d_8x32_c,  av1_fwd_txfm2d_32x8_c,  av1_fwd_txfm2d_16x64_c,
   av1_fwd_txfm2d_64x16_c,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   av1_fwd_txfm2d_4x32_c,  av1_fwd_txfm2d_32x4_c,  av1_fwd_txfm2d_8x64_c,
   av1_fwd_txfm2d_64x8_c,  av1_fwd_txfm2d_4x64_c,  av1_fwd_txfm2d_64x4_c,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 #endif
 
@@ -155,11 +155,11 @@ static const InvTxfm2dFunc inv_txfm_func_ls[TX_SIZES_ALL] = {
   av1_inv_txfm2d_add_16x4_c,  av1_inv_txfm2d_add_8x32_c,
   av1_inv_txfm2d_add_32x8_c,  av1_inv_txfm2d_add_16x64_c,
   av1_inv_txfm2d_add_64x16_c,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   av1_inv_txfm2d_add_4x32_c,  av1_inv_txfm2d_add_32x4_c,
   av1_inv_txfm2d_add_8x64_c,  av1_inv_txfm2d_add_64x8_c,
   av1_inv_txfm2d_add_4x64_c,  av1_inv_txfm2d_add_64x4_c,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 #define BD_NUM 3

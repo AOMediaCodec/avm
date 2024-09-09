@@ -493,7 +493,7 @@ static INLINE void transpose8x16_16x8_sse2(
   *d14d15 = _mm_unpackhi_epi64(w7, w15);
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void transpose16x4_4x16_sse2(
     __m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3, __m128i *x4,
     __m128i *x5, __m128i *x6, __m128i *x7, __m128i *x8, __m128i *x9,
@@ -528,5 +528,5 @@ static INLINE void transpose16x4_4x16_sse2(
   *d2 = _mm_unpacklo_epi64(w7, w15);
   *d3 = _mm_unpackhi_epi64(w7, w15);
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // AOM_AOM_DSP_X86_LPF_COMMON_SSE2_H_

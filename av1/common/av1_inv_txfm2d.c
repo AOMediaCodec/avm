@@ -399,14 +399,14 @@ static const int8_t inv_shift_8x32[2] = { -2, -4 };
 static const int8_t inv_shift_32x8[2] = { -2, -4 };
 static const int8_t inv_shift_16x64[2] = { -2, -4 };
 static const int8_t inv_shift_64x16[2] = { -2, -4 };
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 static const int8_t inv_shift_4x32[2] = { -1, -4 };
 static const int8_t inv_shift_32x4[2] = { -1, -4 };
 static const int8_t inv_shift_8x64[2] = { -1, -4 };
 static const int8_t inv_shift_64x8[2] = { -1, -4 };
 static const int8_t inv_shift_4x64[2] = { -2, -4 };
 static const int8_t inv_shift_64x4[2] = { -2, -4 };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
   inv_shift_4x4,   inv_shift_8x8,   inv_shift_16x16, inv_shift_32x32,
@@ -414,10 +414,10 @@ const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
   inv_shift_16x8,  inv_shift_16x32, inv_shift_32x16, inv_shift_32x64,
   inv_shift_64x32, inv_shift_4x16,  inv_shift_16x4,  inv_shift_8x32,
   inv_shift_32x8,  inv_shift_16x64, inv_shift_64x16,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   inv_shift_4x32,  inv_shift_32x4,  inv_shift_8x64,  inv_shift_64x8,
   inv_shift_4x64,  inv_shift_64x4,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 /* clang-format off */
@@ -1136,7 +1136,7 @@ void av1_inv_txfm2d_add_32x8_c(const int32_t *input, uint16_t *output,
                         bd);
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_inv_txfm2d_add_4x32_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
 #if CONFIG_INTER_DDT
@@ -1248,4 +1248,4 @@ void av1_inv_txfm2d_add_64x4_c(const int32_t *input, uint16_t *output,
 #endif  // CONFIG_INTER_DDT
                         bd);
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS

@@ -631,7 +631,6 @@ typedef struct SimpleMotionDataBufs {
   MAKE_SM_DATA_BUF(32, 8);
   MAKE_SM_DATA_BUF(16, 4);
 
-#if CONFIG_FLEX_PARTITION
   // 1:8 blocks
   MAKE_SM_DATA_BUF(8, 64);
   MAKE_SM_DATA_BUF(4, 32);
@@ -645,7 +644,6 @@ typedef struct SimpleMotionDataBufs {
 
   // 16:1 blocks
   MAKE_SM_DATA_BUF(64, 4);
-#endif  // CONFIG_FLEX_PARTITION
   /*!\endcond */
 } SimpleMotionDataBufs;
 
@@ -1916,14 +1914,14 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
 #endif  // CONFIG_NEW_TX_PARTITION
-#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     1,  // BLOCK_4X32
     1,  // BLOCK_32X4
     1,  // BLOCK_8X64
     1,  // BLOCK_64X8
     1,  // BLOCK_4X64
     1,  // BLOCK_64X4
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
 
   return LUT[bsize];

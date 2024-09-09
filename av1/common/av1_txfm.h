@@ -239,18 +239,18 @@ static INLINE int get_rect_tx_log_ratio(int col, int row) {
   if (col > row) {
     if (col == row * 2) return 1;
     if (col == row * 4) return 2;
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     if (col == row * 8) return 3;
     if (col == row * 16) return 4;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     assert(0 && "Unsupported transform size");
   } else {
     if (row == col * 2) return -1;
     if (row == col * 4) return -2;
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     if (row == col * 8) return -3;
     if (row == col * 16) return -4;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     assert(0 && "Unsupported transform size");
   }
   return 0;  // Invalid

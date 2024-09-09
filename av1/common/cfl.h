@@ -102,7 +102,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
   if (cm->seq_params.monochrome) return CFL_DISALLOWED;
 
   if (!xd->is_chroma_ref) {
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     // CfL is available to luma partitions lesser than or equal to 32x32.
     const BLOCK_SIZE bsize = mbmi->sb_type[0];
     assert(bsize < BLOCK_SIZES_ALL);
@@ -119,7 +119,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
                    block_size_wide[mbmi->sb_type[0]] <= 32 &&
                        block_size_high[mbmi->sb_type[0]] <= 32));
     return CFL_ALLOWED;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 
   // If this block has chroma information, we know whether we're
@@ -281,7 +281,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   }
 
 // Declare size-specific wrappers for all valid CfL sizes.
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_CFL_64x64
 #define CFL_SUBSAMPLE_FUNCTIONS(arch, sub, bd)                            \
   CFL_SUBSAMPLE(arch, sub, bd, 4, 4)                                      \
@@ -359,11 +359,11 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                           \
     return subfn_##sub[tx_size];                                          \
   }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Declare an architecture-specific array of function pointers for size-specific
 // wrappers.
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_CFL_64x64
 #define CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                  \
   static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = { \
@@ -446,7 +446,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     NULL,                                      /* 16x64 (invalid CFL size) */ \
     NULL,                                      /* 64x16 (invalid CFL size) */ \
   };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // The RTCD script does not support passing in an array, so we wrap it in this
 // function.
@@ -467,7 +467,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   }
 
 // Declare size-specific wrappers for all valid CfL sizes.
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_CFL_64x64
 #define CFL_SUB_AVG_FN(arch)                                              \
   CFL_SUB_AVG_X(arch, 4, 4, 8, 4)                                         \
@@ -623,7 +623,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     /* index the function pointer array out of bounds. */                 \
     return sub_avg[tx_size % TX_SIZES_ALL];                               \
   }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // For VSX SIMD optimization, the C versions of width == 4 subtract are
 // faster than the VSX. As such, the VSX code calls the C versions.
@@ -644,7 +644,7 @@ void cfl_subtract_average_4x16_c(const uint16_t *src, int16_t *dst);
 #define CFL_PREDICT_X(arch, width, height, bd) \
   CFL_PREDICT_##bd(arch, width, height)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_CFL_64x64
 #define CFL_PREDICT_FN(arch, bd)                                            \
   CFL_PREDICT_X(arch, 4, 4, bd)                                             \
@@ -797,6 +797,6 @@ void cfl_subtract_average_4x16_c(const uint16_t *src, int16_t *dst);
     /* index the function pointer array out of bounds. */                   \
     return pred[tx_size % TX_SIZES_ALL];                                    \
   }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #endif  // AOM_AV1_COMMON_CFL_H_

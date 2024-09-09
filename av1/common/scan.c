@@ -99,7 +99,7 @@ DECLARE_ALIGNED(16, static const int16_t, mcol_scan_16x4[64]) = {
   12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63,
 };
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 DECLARE_ALIGNED(16, static const int16_t, default_scan_4x32[128]) = {
   0,   4,   1,   8,   5,   2,   12,  9,   6,   3,   16,  13,  10,  7,   20,
   17,  14,  11,  24,  21,  18,  15,  28,  25,  22,  19,  32,  29,  26,  23,
@@ -168,7 +168,7 @@ DECLARE_ALIGNED(16, static const int16_t, mcol_scan_32x4[128]) = {
   24, 56, 88, 120, 25, 57, 89, 121, 26, 58, 90, 122, 27, 59, 91, 123,
   28, 60, 92, 124, 29, 61, 93, 125, 30, 62, 94, 126, 31, 63, 95, 127,
 };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 DECLARE_ALIGNED(16, static const int16_t, default_scan_8x32[256]) = {
   0,   8,   1,   16,  9,   2,   24,  17,  10,  3,   32,  25,  18,  11,  4,
@@ -989,7 +989,7 @@ DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_16x4[64]) = {
   3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63,
 };
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_4x32[128]) = {
   0,   2,   5,   9,   1,   4,   8,   13,  3,   7,   12,  17,  6,   11,  16,
   21,  10,  15,  20,  25,  14,  19,  24,  29,  18,  23,  28,  33,  22,  27,
@@ -1058,7 +1058,7 @@ DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_32x4[128]) = {
   3,  7,  11, 15, 19, 23, 27, 31, 35, 39,  43,  47,  51,  55,  59,  63,
   67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123, 127,
 };
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_8x32[256]) = {
   0,   2,   5,   9,   14,  20,  27,  35,  1,   4,   8,   13,  19,  26,  34,
@@ -2182,7 +2182,7 @@ const SCAN_ORDER av1_scan_orders[TX_SIZES_ALL][TX_TYPES] = {
       { mrow_scan_32x16, av1_mrow_iscan_32x16 },
       { mcol_scan_32x16, av1_mcol_iscan_32x16 },
   },
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   {
       // TX_4X32
       { default_scan_4x32, av1_default_iscan_4x32 },
@@ -2305,5 +2305,5 @@ const SCAN_ORDER av1_scan_orders[TX_SIZES_ALL][TX_TYPES] = {
       { mrow_scan_32x4, av1_mrow_iscan_32x4 },
       { mcol_scan_32x4, av1_mcol_iscan_32x4 },
   },
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };

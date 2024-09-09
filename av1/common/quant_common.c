@@ -274,7 +274,7 @@ const qm_val_t *av1_get_qmatrix(const CommonQuantParams *quant_params,
              : quant_params->gqmatrix[NUM_QM_LEVELS - 1][0][qm_tx_size];
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define QM_TOTAL_SIZE                  \
   (4 * 4 + 8 * 8 + 16 * 16 + 32 * 32 + \
    2 * (4 * 8 + 8 * 16 + 16 * 32 + 4 * 16 + 8 * 32 + 4 * 32))
@@ -282,7 +282,7 @@ const qm_val_t *av1_get_qmatrix(const CommonQuantParams *quant_params,
 #define QM_TOTAL_SIZE                  \
   (4 * 4 + 8 * 8 + 16 * 16 + 32 * 32 + \
    2 * (4 * 8 + 8 * 16 + 16 * 32 + 4 * 16 + 8 * 32))
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 // We only use wt_matrix_ref[q] and iwt_matrix_ref[q]
 // for q = 0, ..., NUM_QM_LEVELS - 2.
 static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
@@ -561,7 +561,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          152, 152, 152, 178, 178, 178, 178, 190, 190, 190, 190, 91, 91, 91, 91,
          86, 86, 86, 86, 91, 91, 91, 91, 110, 110, 110, 110, 128, 128, 128, 128,
          152, 152, 152, 152, 178, 178, 178, 178, 190, 190, 190, 190,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 42, 75, 91, 32, 42, 75, 91, 32, 42, 75, 91, 32, 42, 75, 91, 33, 42,
          69, 86, 33, 42, 69, 86, 33, 42, 69, 86, 33, 42, 69, 86, 37, 58, 84, 91,
@@ -580,7 +580,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          142, 142, 142, 142, 145, 145, 145, 145, 146, 146, 146, 146, 91, 91, 91,
          91, 86, 86, 86, 86, 91, 91, 91, 91, 110, 110, 110, 110, 128, 128, 128,
          128, 152, 152, 152, 152, 178, 178, 178, 178, 190, 190, 190, 190
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -796,7 +796,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          102, 102, 102, 102, 105, 105, 105, 105, 66, 66, 66, 66, 61, 61, 61, 61,
          64, 64, 64, 64, 73, 73, 73, 73, 82, 82, 82, 82, 92, 92, 92, 92, 102,
          102, 102, 102, 105, 105, 105, 105,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 42, 69, 88, 32, 42, 69, 88, 32, 42, 69, 88, 32, 42, 69, 88, 33, 42,
          64, 83, 33, 42, 64, 83, 33, 42, 64, 83, 33, 42, 64, 83, 36, 56, 77, 88,
@@ -815,7 +815,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          90, 90, 87, 87, 87, 87, 66, 66, 66, 66, 61, 61, 61, 61, 64, 64, 64, 64,
          73, 73, 73, 73, 82, 82, 82, 82, 92, 92, 92, 92, 102, 102, 102, 102,
          105, 105, 105, 105
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -1040,7 +1040,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          167, 167, 177, 177, 177, 177, 88, 88, 88, 88, 83, 83, 83, 83, 88, 88,
          88, 88, 105, 105, 105, 105, 122, 122, 122, 122, 144, 144, 144, 144,
          167, 167, 167, 167, 177, 177, 177, 177,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          31, 47, 60, 66, 31, 47, 60, 66, 31, 47, 60, 66, 31, 47, 60, 66, 40, 45,
          54, 61, 40, 45, 54, 61, 40, 45, 54, 61, 40, 45, 54, 61, 46, 56, 64, 64,
@@ -1059,7 +1059,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          130, 136, 136, 136, 136, 136, 136, 136, 136, 88, 88, 88, 88, 83, 83,
          83, 83, 88, 88, 88, 88, 105, 105, 105, 105, 122, 122, 122, 122, 144,
          144, 144, 144, 167, 167, 167, 167, 177, 177, 177, 177
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -1271,7 +1271,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          99, 99, 99, 99, 102, 102, 102, 102, 65, 65, 65, 65, 61, 61, 61, 61, 63,
          63, 63, 63, 72, 72, 72, 72, 81, 81, 81, 81, 90, 90, 90, 90, 99, 99, 99,
          99, 102, 102, 102, 102,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          31, 47, 57, 65, 31, 47, 57, 65, 31, 47, 57, 65, 31, 47, 57, 65, 40, 45,
          52, 61, 40, 45, 52, 61, 40, 45, 52, 61, 40, 45, 52, 61, 46, 55, 61, 63,
@@ -1290,7 +1290,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          88, 88, 85, 85, 85, 85, 65, 65, 65, 65, 61, 61, 61, 61, 63, 63, 63, 63,
          72, 72, 72, 72, 81, 81, 81, 81, 90, 90, 90, 90, 99, 99, 99, 99, 102,
          102, 102, 102
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -1515,7 +1515,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          165, 165, 165, 86, 86, 86, 86, 80, 80, 80, 80, 85, 85, 85, 85, 101,
          101, 101, 101, 117, 117, 117, 117, 136, 136, 136, 136, 157, 157, 157,
          157, 165, 165, 165, 165,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 42, 69, 88, 32, 42, 69, 88, 32, 42, 69, 88, 32, 42, 69, 88, 33, 42,
          64, 83, 33, 42, 64, 83, 33, 42, 64, 83, 33, 42, 64, 83, 36, 56, 77, 88,
@@ -1534,7 +1534,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          129, 129, 129, 129, 127, 127, 127, 127, 86, 86, 86, 86, 80, 80, 80, 80,
          85, 85, 85, 85, 101, 101, 101, 101, 117, 117, 117, 117, 136, 136, 136,
          136, 157, 157, 157, 157, 165, 165, 165, 165
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -1748,7 +1748,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          97, 97, 97, 97, 99, 99, 99, 99, 64, 64, 64, 64, 60, 60, 60, 60, 62, 62,
          62, 62, 71, 71, 71, 71, 79, 79, 79, 79, 88, 88, 88, 88, 97, 97, 97, 97,
          99, 99, 99, 99,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 38, 62, 86, 32, 38, 62, 86, 32, 38, 62, 86, 32, 38, 62, 86, 32, 40,
          58, 80, 32, 40, 58, 80, 32, 40, 58, 80, 32, 40, 58, 80, 34, 51, 68, 85,
@@ -1767,7 +1767,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          85, 85, 82, 82, 82, 82, 64, 64, 64, 64, 60, 60, 60, 60, 62, 62, 62, 62,
          71, 71, 71, 71, 79, 79, 79, 79, 88, 88, 88, 88, 97, 97, 97, 97, 99, 99,
          99, 99
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -1983,7 +1983,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          85, 85, 85, 105, 105, 105, 105, 142, 142, 142, 142, 69, 69, 69, 69, 75,
          75, 75, 75, 95, 95, 95, 95, 125, 125, 125, 125, 84, 84, 84, 84, 85, 85,
          85, 85, 105, 105, 105, 105, 142, 142, 142, 142,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          31, 47, 57, 65, 31, 47, 57, 65, 31, 47, 57, 65, 31, 47, 57, 65, 40, 45,
          52, 61, 40, 45, 52, 61, 40, 45, 52, 61, 40, 45, 52, 61, 46, 55, 61, 63,
@@ -2002,7 +2002,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          83, 83, 109, 109, 109, 109, 69, 69, 69, 69, 75, 75, 75, 75, 95, 95, 95,
          95, 125, 125, 125, 125, 84, 84, 84, 84, 85, 85, 85, 85, 105, 105, 105,
          105, 142, 142, 142, 142
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -2212,7 +2212,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          72, 72, 72, 72, 89, 89, 89, 89, 56, 56, 56, 56, 58, 58, 58, 58, 67, 67,
          67, 67, 80, 80, 80, 80, 60, 60, 60, 60, 60, 60, 60, 60, 72, 72, 72, 72,
          89, 89, 89, 89,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          31, 47, 54, 64, 31, 47, 54, 64, 31, 47, 54, 64, 31, 47, 54, 64, 38, 46,
          50, 60, 38, 46, 50, 60, 38, 46, 50, 60, 38, 46, 50, 60, 46, 53, 57, 62,
@@ -2231,7 +2231,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          63, 63, 73, 73, 73, 73, 56, 56, 56, 56, 58, 58, 58, 58, 67, 67, 67, 67,
          80, 80, 80, 80, 60, 60, 60, 60, 60, 60, 60, 60, 72, 72, 72, 72, 89, 89,
          89, 89
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -2449,7 +2449,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          78, 95, 95, 95, 95, 129, 129, 129, 129, 64, 64, 64, 64, 67, 67, 67, 67,
          85, 85, 85, 85, 112, 112, 112, 112, 78, 78, 78, 78, 78, 78, 78, 78, 95,
          95, 95, 95, 129, 129, 129, 129,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 38, 62, 86, 32, 38, 62, 86, 32, 38, 62, 86, 32, 38, 62, 86, 32, 40,
          58, 80, 32, 40, 58, 80, 32, 40, 58, 80, 32, 40, 58, 80, 34, 51, 68, 85,
@@ -2468,7 +2468,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          73, 73, 96, 96, 96, 96, 64, 64, 64, 64, 67, 67, 67, 67, 85, 85, 85, 85,
          112, 112, 112, 112, 78, 78, 78, 78, 78, 78, 78, 78, 95, 95, 95, 95,
          129, 129, 129, 129
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -2679,7 +2679,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          66, 66, 66, 66, 84, 84, 84, 84, 54, 54, 54, 54, 55, 55, 55, 55, 62, 62,
          62, 62, 76, 76, 76, 76, 57, 57, 57, 57, 58, 58, 58, 58, 66, 66, 66, 66,
          84, 84, 84, 84,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 29, 32, 37, 32, 29, 32, 37, 32, 29, 32, 37, 32, 29, 32, 37, 45, 55,
          69, 84, 45, 55, 69, 84, 45, 55, 69, 84, 45, 55, 69, 84, 31, 34, 40, 47,
@@ -2698,7 +2698,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          57, 57, 68, 68, 68, 68, 54, 54, 54, 54, 55, 55, 55, 55, 62, 62, 62, 62,
          76, 76, 76, 76, 57, 57, 57, 57, 58, 58, 58, 58, 66, 66, 66, 66, 84, 84,
          84, 84
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -2912,7 +2912,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          71, 87, 87, 87, 87, 119, 119, 119, 119, 59, 59, 59, 59, 61, 61, 61, 61,
          75, 75, 75, 75, 102, 102, 102, 102, 72, 72, 72, 72, 71, 71, 71, 71, 87,
          87, 87, 87, 119, 119, 119, 119,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          31, 47, 54, 64, 31, 47, 54, 64, 31, 47, 54, 64, 31, 47, 54, 64, 38, 46,
          50, 60, 38, 46, 50, 60, 38, 46, 50, 60, 38, 46, 50, 60, 46, 53, 57, 62,
@@ -2931,7 +2931,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          66, 66, 89, 89, 89, 89, 59, 59, 59, 59, 61, 61, 61, 61, 75, 75, 75, 75,
          102, 102, 102, 102, 72, 72, 72, 72, 71, 71, 71, 71, 87, 87, 87, 87,
          119, 119, 119, 119
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -3141,7 +3141,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          63, 63, 63, 63, 80, 80, 80, 80, 54, 54, 54, 54, 53, 53, 53, 53, 60, 60,
          60, 60, 73, 73, 73, 73, 56, 56, 56, 56, 54, 54, 54, 54, 63, 63, 63, 63,
          80, 80, 80, 80,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 38, 43, 32, 33, 38, 43, 32, 33, 38, 43, 32, 33, 38, 43, 48, 52,
          56, 60, 48, 52, 56, 60, 48, 52, 56, 60, 48, 52, 56, 60, 38, 39, 44, 49,
@@ -3160,7 +3160,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          56, 56, 65, 65, 65, 65, 54, 54, 54, 54, 53, 53, 53, 53, 60, 60, 60, 60,
          73, 73, 73, 73, 56, 56, 56, 56, 54, 54, 54, 54, 63, 63, 63, 63, 80, 80,
          80, 80
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -3374,7 +3374,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          77, 77, 77, 77, 103, 103, 103, 103, 54, 54, 54, 54, 54, 54, 54, 54, 67,
          67, 67, 67, 89, 89, 89, 89, 65, 65, 65, 65, 62, 62, 62, 62, 77, 77, 77,
          77, 103, 103, 103, 103,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 29, 32, 37, 32, 29, 32, 37, 32, 29, 32, 37, 32, 29, 32, 37, 45, 55,
          69, 84, 45, 55, 69, 84, 45, 55, 69, 84, 45, 55, 69, 84, 31, 34, 40, 47,
@@ -3393,7 +3393,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          58, 58, 77, 77, 77, 77, 54, 54, 54, 54, 54, 54, 54, 54, 67, 67, 67, 67,
          89, 89, 89, 89, 65, 65, 65, 65, 62, 62, 62, 62, 77, 77, 77, 77, 103,
          103, 103, 103
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -3603,7 +3603,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          61, 61, 61, 61, 76, 76, 76, 76, 52, 52, 52, 52, 51, 51, 51, 51, 57, 57,
          57, 57, 70, 70, 70, 70, 54, 54, 54, 54, 52, 52, 52, 52, 61, 61, 61, 61,
          76, 76, 76, 76,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 29, 31, 35, 32, 29, 31, 35, 32, 29, 31, 35, 32, 29, 31, 35, 42, 51,
          64, 78, 42, 51, 64, 78, 42, 51, 64, 78, 42, 51, 64, 78, 30, 30, 36, 43,
@@ -3622,7 +3622,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          53, 53, 62, 62, 62, 62, 52, 52, 52, 52, 51, 51, 51, 51, 57, 57, 57, 57,
          70, 70, 70, 70, 54, 54, 54, 54, 52, 52, 52, 52, 61, 61, 61, 61, 76, 76,
          76, 76
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -3835,7 +3835,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          65, 65, 65, 65, 87, 87, 87, 87, 48, 48, 48, 48, 48, 48, 48, 48, 59, 59,
          59, 59, 77, 77, 77, 77, 57, 57, 57, 57, 53, 53, 53, 53, 65, 65, 65, 65,
          87, 87, 87, 87,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 38, 43, 32, 33, 38, 43, 32, 33, 38, 43, 32, 33, 38, 43, 48, 52,
          56, 60, 48, 52, 56, 60, 48, 52, 56, 60, 48, 52, 56, 60, 38, 39, 44, 49,
@@ -3854,7 +3854,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          52, 52, 67, 67, 67, 67, 48, 48, 48, 48, 48, 48, 48, 48, 59, 59, 59, 59,
          77, 77, 77, 77, 57, 57, 57, 57, 53, 53, 53, 53, 65, 65, 65, 65, 87, 87,
          87, 87
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -4064,7 +4064,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          56, 56, 56, 56, 68, 68, 68, 68, 49, 49, 49, 49, 48, 48, 48, 48, 53, 53,
          53, 53, 62, 62, 62, 62, 52, 52, 52, 52, 50, 50, 50, 50, 56, 56, 56, 56,
          68, 68, 68, 68,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 37, 41, 32, 32, 37, 41, 32, 32, 37, 41, 32, 32, 37, 41, 46, 49,
          54, 57, 46, 49, 54, 57, 46, 49, 54, 57, 46, 49, 54, 57, 38, 39, 42, 45,
@@ -4083,7 +4083,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          49, 49, 56, 56, 56, 56, 49, 49, 49, 49, 48, 48, 48, 48, 53, 53, 53, 53,
          62, 62, 62, 62, 52, 52, 52, 52, 50, 50, 50, 50, 56, 56, 56, 56, 68, 68,
          68, 68
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -4295,7 +4295,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          56, 56, 56, 56, 72, 72, 72, 72, 44, 44, 44, 44, 43, 43, 43, 43, 51, 51,
          51, 51, 63, 63, 63, 63, 51, 51, 51, 51, 47, 47, 47, 47, 56, 56, 56, 56,
          72, 72, 72, 72,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 29, 31, 35, 32, 29, 31, 35, 32, 29, 31, 35, 32, 29, 31, 35, 42, 51,
          64, 78, 42, 51, 64, 78, 42, 51, 64, 78, 42, 51, 64, 78, 30, 30, 36, 43,
@@ -4314,7 +4314,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          45, 45, 55, 55, 55, 55, 44, 44, 44, 44, 43, 43, 43, 43, 51, 51, 51, 51,
          63, 63, 63, 63, 51, 51, 51, 51, 47, 47, 47, 47, 56, 56, 56, 56, 72, 72,
          72, 72
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -4524,7 +4524,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          48, 48, 48, 48, 59, 59, 59, 59, 47, 47, 47, 47, 44, 44, 44, 44, 47, 47,
          47, 47, 53, 53, 53, 53, 50, 50, 50, 50, 45, 45, 45, 45, 48, 48, 48, 48,
          59, 59, 59, 59,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 30, 31, 34, 32, 30, 31, 34, 32, 30, 31, 34, 32, 30, 31, 34, 40, 48,
          59, 72, 40, 48, 59, 72, 40, 48, 59, 72, 40, 48, 59, 72, 30, 30, 34, 38,
@@ -4543,7 +4543,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          46, 46, 49, 49, 49, 49, 47, 47, 47, 47, 44, 44, 44, 44, 47, 47, 47, 47,
          53, 53, 53, 53, 50, 50, 50, 50, 45, 45, 45, 45, 48, 48, 48, 48, 59, 59,
          59, 59
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -4755,7 +4755,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          45, 45, 45, 45, 58, 58, 58, 58, 40, 40, 40, 40, 37, 37, 37, 37, 42, 42,
          42, 42, 53, 53, 53, 53, 44, 44, 44, 44, 39, 39, 39, 39, 45, 45, 45, 45,
          58, 58, 58, 58,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 37, 41, 32, 32, 37, 41, 32, 32, 37, 41, 32, 32, 37, 41, 46, 49,
          54, 57, 46, 49, 54, 57, 46, 49, 54, 57, 46, 49, 54, 57, 38, 39, 42, 45,
@@ -4774,7 +4774,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          38, 38, 48, 48, 48, 48, 40, 40, 40, 40, 37, 37, 37, 37, 42, 42, 42, 42,
          53, 53, 53, 53, 44, 44, 44, 44, 39, 39, 39, 39, 45, 45, 45, 45, 58, 58,
          58, 58
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -4984,7 +4984,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          46, 46, 46, 46, 55, 55, 55, 55, 45, 45, 45, 45, 43, 43, 43, 43, 46, 46,
          46, 46, 52, 52, 52, 52, 47, 47, 47, 47, 42, 42, 42, 42, 46, 46, 46, 46,
          55, 55, 55, 55,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 38, 42, 32, 32, 38, 42, 32, 32, 38, 42, 32, 32, 38, 42, 47, 50,
          54, 56, 47, 50, 54, 56, 47, 50, 54, 56, 47, 50, 54, 56, 38, 39, 42, 44,
@@ -5003,7 +5003,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          45, 45, 48, 48, 48, 48, 45, 45, 45, 45, 43, 43, 43, 43, 46, 46, 46, 46,
          52, 52, 52, 52, 47, 47, 47, 47, 42, 42, 42, 42, 46, 46, 46, 46, 55, 55,
          55, 55
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -5215,7 +5215,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          38, 38, 38, 38, 49, 49, 49, 49, 35, 35, 35, 35, 31, 31, 31, 31, 36, 36,
          36, 36, 44, 44, 44, 44, 38, 38, 38, 38, 33, 33, 33, 33, 38, 38, 38, 38,
          49, 49, 49, 49,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 30, 31, 34, 32, 30, 31, 34, 32, 30, 31, 34, 32, 30, 31, 34, 40, 48,
          59, 72, 40, 48, 59, 72, 40, 48, 59, 72, 40, 48, 59, 72, 30, 30, 34, 38,
@@ -5234,7 +5234,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          34, 34, 40, 40, 40, 40, 35, 35, 35, 35, 31, 31, 31, 31, 36, 36, 36, 36,
          44, 44, 44, 44, 38, 38, 38, 38, 33, 33, 33, 33, 38, 38, 38, 38, 49, 49,
          49, 49
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -5444,7 +5444,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          43, 43, 43, 43, 48, 48, 48, 48, 43, 43, 43, 43, 42, 42, 42, 42, 43, 43,
          43, 43, 46, 46, 46, 46, 47, 47, 47, 47, 42, 42, 42, 42, 43, 43, 43, 43,
          48, 48, 48, 48,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 31, 33, 32, 31, 31, 33, 32, 31, 31, 33, 32, 31, 31, 33, 38, 44,
          54, 65, 38, 44, 54, 65, 38, 44, 54, 65, 38, 44, 54, 65, 30, 30, 32, 35,
@@ -5463,7 +5463,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          42, 42, 42, 42, 42, 42, 43, 43, 43, 43, 42, 42, 42, 42, 43, 43, 43, 43,
          46, 46, 46, 46, 47, 47, 47, 47, 42, 42, 42, 42, 43, 43, 43, 43, 48, 48,
          48, 48
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -5675,7 +5675,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          33, 33, 33, 33, 39, 39, 39, 39, 32, 32, 32, 32, 29, 29, 29, 29, 32, 32,
          32, 32, 36, 36, 36, 36, 33, 33, 33, 33, 29, 29, 29, 29, 33, 33, 33, 33,
          39, 39, 39, 39,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 38, 42, 32, 32, 38, 42, 32, 32, 38, 42, 32, 32, 38, 42, 47, 50,
          54, 56, 47, 50, 54, 56, 47, 50, 54, 56, 47, 50, 54, 56, 38, 39, 42, 44,
@@ -5694,7 +5694,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          30, 30, 33, 33, 33, 33, 32, 32, 32, 32, 29, 29, 29, 29, 32, 32, 32, 32,
          36, 36, 36, 36, 33, 33, 33, 33, 29, 29, 29, 29, 33, 33, 33, 33, 39, 39,
          39, 39
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -5904,7 +5904,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          44, 44, 44, 44, 47, 47, 47, 47, 41, 41, 41, 41, 39, 39, 39, 39, 43, 43,
          43, 43, 44, 44, 44, 44, 46, 46, 46, 46, 42, 42, 42, 42, 44, 44, 44, 44,
          47, 47, 47, 47,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 37, 41, 32, 31, 37, 41, 32, 31, 37, 41, 32, 31, 37, 41, 45, 48,
          52, 54, 45, 48, 52, 54, 45, 48, 52, 54, 45, 48, 52, 54, 37, 38, 42, 43,
@@ -5923,7 +5923,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          42, 42, 44, 44, 44, 44, 41, 41, 41, 41, 39, 39, 39, 39, 43, 43, 43, 43,
          44, 44, 44, 44, 46, 46, 46, 46, 42, 42, 42, 42, 44, 44, 44, 44, 47, 47,
          47, 47
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -6135,7 +6135,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          31, 31, 31, 31, 35, 35, 35, 35, 32, 32, 32, 32, 29, 29, 29, 29, 30, 30,
          30, 30, 33, 33, 33, 33, 33, 33, 33, 33, 30, 30, 30, 30, 31, 31, 31, 31,
          35, 35, 35, 35,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 31, 33, 32, 31, 31, 33, 32, 31, 31, 33, 32, 31, 31, 33, 38, 44,
          54, 65, 38, 44, 54, 65, 38, 44, 54, 65, 38, 44, 54, 65, 30, 30, 32, 35,
@@ -6154,7 +6154,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          29, 29, 31, 31, 31, 31, 32, 32, 32, 32, 29, 29, 29, 29, 30, 30, 30, 30,
          33, 33, 33, 33, 33, 33, 33, 33, 30, 30, 30, 30, 31, 31, 31, 31, 35, 35,
          35, 35
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -6364,7 +6364,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          38, 38, 38, 38, 40, 40, 40, 40, 35, 35, 35, 35, 34, 34, 34, 34, 37, 37,
          37, 37, 38, 38, 38, 38, 38, 38, 38, 38, 36, 36, 36, 36, 38, 38, 38, 38,
          40, 40, 40, 40,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 30, 30, 32, 32, 30, 30, 32, 32, 30, 30, 32, 32, 30, 30, 32, 35, 41,
          48, 57, 35, 41, 48, 57, 35, 41, 48, 57, 35, 41, 48, 57, 30, 28, 30, 33,
@@ -6383,7 +6383,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          35, 35, 37, 37, 37, 37, 35, 35, 35, 35, 34, 34, 34, 34, 37, 37, 37, 37,
          38, 38, 38, 38, 38, 38, 38, 38, 36, 36, 36, 36, 38, 38, 38, 38, 40, 40,
          40, 40
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -6595,7 +6595,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33,
          33, 33, 33, 33,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 37, 41, 32, 31, 37, 41, 32, 31, 37, 41, 32, 31, 37, 41, 45, 48,
          52, 54, 45, 48, 52, 54, 45, 48, 52, 54, 45, 48, 52, 54, 37, 38, 42, 43,
@@ -6614,7 +6614,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
          33, 33
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -6824,7 +6824,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          40, 40, 40, 40, 40, 40, 40, 40, 34, 34, 34, 34, 35, 35, 35, 35, 35, 35,
          35, 35, 36, 36, 36, 36, 36, 36, 36, 36, 37, 37, 37, 37, 40, 40, 40, 40,
          40, 40, 40, 40,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 29, 34, 39, 32, 29, 34, 39, 32, 29, 34, 39, 32, 29, 34, 39, 43, 46,
          49, 52, 43, 46, 49, 52, 43, 46, 49, 52, 43, 46, 49, 52, 36, 37, 40, 42,
@@ -6843,7 +6843,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          36, 36, 36, 36, 36, 36, 34, 34, 34, 34, 35, 35, 35, 35, 35, 35, 35, 35,
          36, 36, 36, 36, 36, 36, 36, 36, 37, 37, 37, 37, 40, 40, 40, 40, 40, 40,
          40, 40
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -7055,7 +7055,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 30, 30, 32, 32, 30, 30, 32, 32, 30, 30, 32, 32, 30, 30, 32, 35, 41,
          48, 57, 35, 41, 48, 57, 35, 41, 48, 57, 35, 41, 48, 57, 30, 28, 30, 33,
@@ -7074,7 +7074,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -7284,7 +7284,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
          31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32,
          32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 31, 32, 32, 31, 31, 32, 32, 31, 31, 32, 32, 31, 31, 32, 34, 38,
          44, 51, 34, 38, 44, 51, 34, 38, 44, 51, 34, 38, 44, 51, 30, 28, 29, 32,
@@ -7303,7 +7303,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
          31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32,
          32, 32
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
 };
@@ -7500,7 +7500,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 9, 9, 9, 9, 8, 8, 8, 8, 6,
          6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 11, 11, 11, 11, 11, 11,
          11, 11, 11, 9, 9, 9, 9, 8, 8, 8, 8, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 24, 13, 11, 32, 24, 13, 11, 32, 24, 13, 11, 32, 24, 13, 11, 31, 24,
          14, 11, 31, 24, 14, 11, 31, 24, 14, 11, 31, 24, 14, 11, 27, 17, 12, 11,
@@ -7517,7 +7517,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          12, 12, 9, 9, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 11,
          11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 9, 9, 9, 9, 8, 8, 8, 8, 6,
          6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -7721,7 +7721,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          10, 10, 10, 10, 9, 9, 9, 9, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16,
          16, 14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10, 9,
          9, 9, 9,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 24, 14, 11, 32, 24, 14, 11, 32, 24, 14, 11, 32, 24, 14, 11, 31, 24,
          16, 12, 31, 24, 16, 12, 31, 24, 16, 12, 31, 24, 16, 12, 28, 18, 13, 11,
@@ -7739,7 +7739,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          11, 11, 11, 11, 11, 11, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16,
          14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10, 9, 9,
          9, 9
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -7942,7 +7942,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 11, 11, 11, 11, 12, 12,
          12, 12, 11, 11, 11, 11, 9, 9, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6,
          5, 5, 5, 5,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 25, 22,
          18, 16, 25, 22, 18, 16, 25, 22, 18, 16, 25, 22, 18, 16, 22, 18, 16, 16,
@@ -7960,7 +7960,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          13, 13, 13, 11, 11, 11, 11, 9, 9, 9, 9, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
          7, 7, 11, 11, 11, 11, 12, 12, 12, 12, 11, 11, 11, 11, 9, 9, 9, 9, 8, 8,
          8, 8, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -8170,7 +8170,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          10, 10, 10, 10, 10, 10, 10, 10, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16,
          16, 16, 14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10,
          10, 10, 10, 10,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 25, 22,
          19, 16, 25, 22, 19, 16, 25, 22, 19, 16, 25, 22, 19, 16, 22, 18, 16, 16,
@@ -8189,7 +8189,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          11, 11, 12, 12, 12, 12, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16,
          14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10, 10, 10,
          10, 10
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -8390,7 +8390,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          10, 10, 10, 10, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 11, 11,
          11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 10, 10, 10, 10, 8, 8, 8, 8, 7,
          7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 24, 14, 11, 32, 24, 14, 11, 32, 24, 14, 11, 32, 24, 14, 11, 31, 24,
          16, 12, 31, 24, 16, 12, 31, 24, 16, 12, 31, 24, 16, 12, 28, 18, 13, 11,
@@ -8407,7 +8407,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 15, 15, 12, 12, 12, 12, 10, 10, 10, 10, 8, 8, 8, 8, 7, 7, 7, 7,
          8, 8, 8, 8, 11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 10, 10, 10,
          10, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -8614,7 +8614,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          10, 10, 10, 10, 10, 10, 10, 10, 16, 16, 16, 16, 17, 17, 17, 17, 16, 16,
          16, 16, 14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10,
          10, 10, 10, 10,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 26, 16, 11, 32, 26, 16, 11, 32, 26, 16, 11, 32, 26, 16, 11, 32, 25,
          17, 12, 32, 25, 17, 12, 32, 25, 17, 12, 32, 25, 17, 12, 30, 20, 15, 12,
@@ -8632,7 +8632,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          12, 12, 12, 12, 12, 12, 16, 16, 16, 16, 17, 17, 17, 17, 16, 16, 16, 16,
          14, 14, 14, 14, 12, 12, 12, 12, 11, 11, 11, 11, 10, 10, 10, 10, 10, 10,
          10, 10
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -8838,7 +8838,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          10, 10, 10, 10, 8, 8, 8, 8, 12, 12, 12, 12, 12, 12, 12, 12, 9, 9, 9, 9,
          7, 7, 7, 7, 14, 14, 14, 14, 13, 13, 13, 13, 10, 10, 10, 10, 8, 8, 8, 8,
          12, 12, 12, 12, 12, 12, 12, 12, 9, 9, 9, 9, 7, 7, 7, 7,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 33, 21, 17, 15, 25, 22,
          19, 16, 25, 22, 19, 16, 25, 22, 19, 16, 25, 22, 19, 16, 22, 18, 16, 16,
@@ -8856,7 +8856,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          13, 13, 13, 13, 10, 10, 10, 10, 18, 18, 18, 18, 15, 15, 15, 15, 12, 12,
          12, 12, 9, 9, 9, 9, 14, 14, 14, 14, 13, 13, 13, 13, 10, 10, 10, 10, 8,
          8, 8, 8, 12, 12, 12, 12, 12, 12, 12, 12, 9, 9, 9, 9, 7, 7, 7, 7
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -9066,7 +9066,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          14, 14, 14, 14, 11, 11, 11, 11, 18, 18, 18, 18, 17, 17, 17, 17, 15, 15,
          15, 15, 12, 12, 12, 12, 17, 17, 17, 17, 17, 17, 17, 17, 14, 14, 14, 14,
          11, 11, 11, 11,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          33, 21, 18, 16, 33, 21, 18, 16, 33, 21, 18, 16, 33, 21, 18, 16, 26, 22,
          20, 17, 26, 22, 20, 17, 26, 22, 20, 17, 26, 22, 20, 17, 22, 19, 17, 16,
@@ -9085,7 +9085,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          16, 16, 14, 14, 14, 14, 18, 18, 18, 18, 17, 17, 17, 17, 15, 15, 15, 15,
          12, 12, 12, 12, 17, 17, 17, 17, 17, 17, 17, 17, 14, 14, 14, 14, 11, 11,
          11, 11
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -9290,7 +9290,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 12, 12, 12, 12, 9, 9, 9, 9, 13, 13, 13, 13, 13, 13, 13, 13, 10,
          10, 10, 10, 7, 7, 7, 7, 16, 16, 16, 16, 15, 15, 15, 15, 12, 12, 12, 12,
          9, 9, 9, 9, 13, 13, 13, 13, 13, 13, 13, 13, 10, 10, 10, 10, 7, 7, 7, 7,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 26, 16, 11, 32, 26, 16, 11, 32, 26, 16, 11, 32, 26, 16, 11, 32, 25,
          17, 12, 32, 25, 17, 12, 32, 25, 17, 12, 32, 25, 17, 12, 30, 20, 15, 12,
@@ -9307,7 +9307,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 15, 15, 11, 11, 11, 11, 20, 20, 20, 20, 18, 18, 18, 18, 14, 14,
          14, 14, 10, 10, 10, 10, 16, 16, 16, 16, 15, 15, 15, 15, 12, 12, 12, 12,
          9, 9, 9, 9, 13, 13, 13, 13, 13, 13, 13, 13, 10, 10, 10, 10, 7, 7, 7, 7
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -9514,7 +9514,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 15, 15, 12, 12, 12, 12, 18, 18, 18, 18, 18, 18, 18, 18, 16, 16,
          16, 16, 13, 13, 13, 13, 17, 17, 17, 17, 17, 17, 17, 17, 15, 15, 15, 15,
          12, 12, 12, 12,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 35, 32, 27, 32, 35, 32, 27, 32, 35, 32, 27, 32, 35, 32, 27, 22, 18,
          14, 12, 22, 18, 14, 12, 22, 18, 14, 12, 22, 18, 14, 12, 33, 30, 25, 21,
@@ -9532,7 +9532,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          17, 17, 15, 15, 15, 15, 18, 18, 18, 18, 18, 18, 18, 18, 16, 16, 16, 16,
          13, 13, 13, 13, 17, 17, 17, 17, 17, 17, 17, 17, 15, 15, 15, 15, 12, 12,
          12, 12
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -9744,7 +9744,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          11, 11, 11, 11, 8, 8, 8, 8, 17, 17, 17, 17, 16, 16, 16, 16, 13, 13, 13,
          13, 10, 10, 10, 10, 14, 14, 14, 14, 14, 14, 14, 14, 11, 11, 11, 11, 8,
          8, 8, 8,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          33, 21, 18, 16, 33, 21, 18, 16, 33, 21, 18, 16, 33, 21, 18, 16, 26, 22,
          20, 17, 26, 22, 20, 17, 26, 22, 20, 17, 26, 22, 20, 17, 22, 19, 17, 16,
@@ -9763,7 +9763,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 11, 11, 11, 11, 17, 17, 17, 17, 16, 16, 16, 16, 13, 13, 13, 13,
          10, 10, 10, 10, 14, 14, 14, 14, 14, 14, 14, 14, 11, 11, 11, 11, 8, 8,
          8, 8
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -9973,7 +9973,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          16, 16, 16, 16, 12, 12, 12, 12, 18, 18, 18, 18, 19, 19, 19, 19, 17, 17,
          17, 17, 14, 14, 14, 14, 18, 18, 18, 18, 18, 18, 18, 18, 16, 16, 16, 16,
          12, 12, 12, 12,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 26, 23, 32, 31, 26, 23, 32, 31, 26, 23, 32, 31, 26, 23, 21, 19,
          18, 17, 21, 19, 18, 17, 21, 19, 18, 17, 21, 19, 18, 17, 26, 26, 23, 20,
@@ -9992,7 +9992,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          18, 18, 15, 15, 15, 15, 18, 18, 18, 18, 19, 19, 19, 19, 17, 17, 17, 17,
          14, 14, 14, 14, 18, 18, 18, 18, 18, 18, 18, 18, 16, 16, 16, 16, 12, 12,
          12, 12
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -10201,7 +10201,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          13, 13, 13, 13, 9, 9, 9, 9, 18, 18, 18, 18, 18, 18, 18, 18, 15, 15, 15,
          15, 11, 11, 11, 11, 15, 15, 15, 15, 16, 16, 16, 16, 13, 13, 13, 13, 9,
          9, 9, 9,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 35, 32, 27, 32, 35, 32, 27, 32, 35, 32, 27, 32, 35, 32, 27, 22, 18,
          14, 12, 22, 18, 14, 12, 22, 18, 14, 12, 22, 18, 14, 12, 33, 30, 25, 21,
@@ -10219,7 +10219,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          17, 17, 13, 13, 13, 13, 18, 18, 18, 18, 18, 18, 18, 18, 15, 15, 15, 15,
          11, 11, 11, 11, 15, 15, 15, 15, 16, 16, 16, 16, 13, 13, 13, 13, 9, 9,
          9, 9
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -10427,7 +10427,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          16, 16, 16, 16, 13, 13, 13, 13, 19, 19, 19, 19, 20, 20, 20, 20, 17, 17,
          17, 17, 14, 14, 14, 14, 18, 18, 18, 18, 19, 19, 19, 19, 16, 16, 16, 16,
          13, 13, 13, 13,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 35, 33, 29, 32, 35, 33, 29, 32, 35, 33, 29, 32, 35, 33, 29, 24, 20,
          16, 13, 24, 20, 16, 13, 24, 20, 16, 13, 24, 20, 16, 13, 34, 34, 28, 23,
@@ -10445,7 +10445,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          19, 19, 16, 16, 16, 16, 19, 19, 19, 19, 20, 20, 20, 20, 17, 17, 17, 17,
          14, 14, 14, 14, 18, 18, 18, 18, 19, 19, 19, 19, 16, 16, 16, 16, 13, 13,
          13, 13
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -10657,7 +10657,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          15, 15, 15, 15, 11, 11, 11, 11, 21, 21, 21, 21, 21, 21, 21, 21, 17, 17,
          17, 17, 13, 13, 13, 13, 17, 17, 17, 17, 19, 19, 19, 19, 15, 15, 15, 15,
          11, 11, 11, 11,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 31, 26, 23, 32, 31, 26, 23, 32, 31, 26, 23, 32, 31, 26, 23, 21, 19,
          18, 17, 21, 19, 18, 17, 21, 19, 18, 17, 21, 19, 18, 17, 26, 26, 23, 20,
@@ -10676,7 +10676,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          19, 19, 15, 15, 15, 15, 21, 21, 21, 21, 21, 21, 21, 21, 17, 17, 17, 17,
          13, 13, 13, 13, 17, 17, 17, 17, 19, 19, 19, 19, 15, 15, 15, 15, 11, 11,
          11, 11
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -10886,7 +10886,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          18, 18, 18, 18, 15, 15, 15, 15, 20, 20, 20, 20, 21, 21, 21, 21, 19, 19,
          19, 19, 16, 16, 16, 16, 19, 19, 19, 19, 20, 20, 20, 20, 18, 18, 18, 18,
          15, 15, 15, 15,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 27, 24, 32, 32, 27, 24, 32, 32, 27, 24, 32, 32, 27, 24, 22, 20,
          18, 17, 22, 20, 18, 17, 22, 20, 18, 17, 22, 20, 18, 17, 26, 26, 24, 22,
@@ -10905,7 +10905,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          20, 20, 18, 18, 18, 18, 20, 20, 20, 20, 21, 21, 21, 21, 19, 19, 19, 19,
          16, 16, 16, 16, 19, 19, 19, 19, 20, 20, 20, 20, 18, 18, 18, 18, 15, 15,
          15, 15
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -11115,7 +11115,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          18, 18, 18, 18, 14, 14, 14, 14, 23, 23, 23, 23, 23, 23, 23, 23, 20, 20,
          20, 20, 16, 16, 16, 16, 20, 20, 20, 20, 21, 21, 21, 21, 18, 18, 18, 18,
          14, 14, 14, 14,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 35, 33, 29, 32, 35, 33, 29, 32, 35, 33, 29, 32, 35, 33, 29, 24, 20,
          16, 13, 24, 20, 16, 13, 24, 20, 16, 13, 24, 20, 16, 13, 34, 34, 28, 23,
@@ -11133,7 +11133,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          22, 22, 18, 18, 18, 18, 23, 23, 23, 23, 23, 23, 23, 23, 20, 20, 20, 20,
          16, 16, 16, 16, 20, 20, 20, 20, 21, 21, 21, 21, 18, 18, 18, 18, 14, 14,
          14, 14
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -11343,7 +11343,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          21, 21, 21, 21, 17, 17, 17, 17, 21, 21, 21, 21, 23, 23, 23, 23, 21, 21,
          21, 21, 19, 19, 19, 19, 20, 20, 20, 20, 22, 22, 22, 22, 21, 21, 21, 21,
          17, 17, 17, 17,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 34, 33, 30, 32, 34, 33, 30, 32, 34, 33, 30, 32, 34, 33, 30, 25, 21,
          17, 14, 25, 21, 17, 14, 25, 21, 17, 14, 25, 21, 17, 14, 34, 34, 30, 26,
@@ -11362,7 +11362,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          22, 22, 20, 20, 20, 20, 21, 21, 21, 21, 23, 23, 23, 23, 21, 21, 21, 21,
          19, 19, 19, 19, 20, 20, 20, 20, 22, 22, 22, 22, 21, 21, 21, 21, 17, 17,
          17, 17
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -11574,7 +11574,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          22, 22, 22, 22, 17, 17, 17, 17, 25, 25, 25, 25, 27, 27, 27, 27, 24, 24,
          24, 24, 19, 19, 19, 19, 23, 23, 23, 23, 26, 26, 26, 26, 22, 22, 22, 22,
          17, 17, 17, 17,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 27, 24, 32, 32, 27, 24, 32, 32, 27, 24, 32, 32, 27, 24, 22, 20,
          18, 17, 22, 20, 18, 17, 22, 20, 18, 17, 22, 20, 18, 17, 26, 26, 24, 22,
@@ -11593,7 +11593,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          26, 26, 21, 21, 21, 21, 25, 25, 25, 25, 27, 27, 27, 27, 24, 24, 24, 24,
          19, 19, 19, 19, 23, 23, 23, 23, 26, 26, 26, 26, 22, 22, 22, 22, 17, 17,
          17, 17
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -11803,7 +11803,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          22, 22, 22, 22, 18, 18, 18, 18, 22, 22, 22, 22, 23, 23, 23, 23, 22, 22,
          22, 22, 19, 19, 19, 19, 21, 21, 21, 21, 24, 24, 24, 24, 22, 22, 22, 22,
          18, 18, 18, 18,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 26, 24, 32, 32, 26, 24, 32, 32, 26, 24, 32, 32, 26, 24, 21, 20,
          18, 18, 21, 20, 18, 18, 21, 20, 18, 18, 21, 20, 18, 18, 26, 26, 24, 23,
@@ -11822,7 +11822,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          22, 22, 21, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23, 22, 22, 22, 22,
          19, 19, 19, 19, 21, 21, 21, 21, 24, 24, 24, 24, 22, 22, 22, 22, 18, 18,
          18, 18
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -12034,7 +12034,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          26, 26, 26, 26, 20, 20, 20, 20, 29, 29, 29, 29, 33, 33, 33, 33, 28, 28,
          28, 28, 23, 23, 23, 23, 26, 26, 26, 26, 31, 31, 31, 31, 26, 26, 26, 26,
          20, 20, 20, 20,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 34, 33, 30, 32, 34, 33, 30, 32, 34, 33, 30, 32, 34, 33, 30, 25, 21,
          17, 14, 25, 21, 17, 14, 25, 21, 17, 14, 25, 21, 17, 14, 34, 34, 30, 26,
@@ -12053,7 +12053,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          30, 30, 25, 25, 25, 25, 29, 29, 29, 29, 33, 33, 33, 33, 28, 28, 28, 28,
          23, 23, 23, 23, 26, 26, 26, 26, 31, 31, 31, 31, 26, 26, 26, 26, 20, 20,
          20, 20
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -12263,7 +12263,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          23, 23, 23, 23, 21, 21, 21, 21, 23, 23, 23, 23, 24, 24, 24, 24, 23, 23,
          23, 23, 22, 22, 22, 22, 21, 21, 21, 21, 24, 24, 24, 24, 23, 23, 23, 23,
          21, 21, 21, 21,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 33, 31, 32, 33, 33, 31, 32, 33, 33, 31, 32, 33, 33, 31, 26, 23,
          18, 15, 26, 23, 18, 15, 26, 23, 18, 15, 26, 23, 18, 15, 34, 34, 32, 29,
@@ -12282,7 +12282,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          24, 24, 24, 24, 24, 24, 23, 23, 23, 23, 24, 24, 24, 24, 23, 23, 23, 23,
          22, 22, 22, 22, 21, 21, 21, 21, 24, 24, 24, 24, 23, 23, 23, 23, 21, 21,
          21, 21
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -12494,7 +12494,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          31, 31, 31, 31, 26, 26, 26, 26, 32, 32, 32, 32, 35, 35, 35, 35, 32, 32,
          32, 32, 28, 28, 28, 28, 31, 31, 31, 31, 35, 35, 35, 35, 31, 31, 31, 31,
          26, 26, 26, 26,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 32, 26, 24, 32, 32, 26, 24, 32, 32, 26, 24, 32, 32, 26, 24, 21, 20,
          18, 18, 21, 20, 18, 18, 21, 20, 18, 18, 21, 20, 18, 18, 26, 26, 24, 23,
@@ -12513,7 +12513,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          34, 34, 31, 31, 31, 31, 32, 32, 32, 32, 35, 35, 35, 35, 32, 32, 32, 32,
          28, 28, 28, 28, 31, 31, 31, 31, 35, 35, 35, 35, 31, 31, 31, 31, 26, 26,
          26, 26
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -12723,7 +12723,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          23, 23, 23, 23, 21, 21, 21, 21, 24, 24, 24, 24, 26, 26, 26, 26, 23, 23,
          23, 23, 23, 23, 23, 23, 22, 22, 22, 22, 24, 24, 24, 24, 23, 23, 23, 23,
          21, 21, 21, 21,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 27, 24, 32, 33, 27, 24, 32, 33, 27, 24, 32, 33, 27, 24, 22, 21,
          19, 18, 22, 21, 19, 18, 22, 21, 19, 18, 22, 21, 19, 18, 27, 26, 24, 23,
@@ -12742,7 +12742,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          24, 24, 23, 23, 23, 23, 24, 24, 24, 24, 26, 26, 26, 26, 23, 23, 23, 23,
          23, 23, 23, 23, 22, 22, 22, 22, 24, 24, 24, 24, 23, 23, 23, 23, 21, 21,
          21, 21
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -12954,7 +12954,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          33, 33, 33, 33, 29, 29, 29, 29, 32, 32, 32, 32, 35, 35, 35, 35, 34, 34,
          34, 34, 31, 31, 31, 31, 31, 31, 31, 31, 34, 34, 34, 34, 33, 33, 33, 33,
          29, 29, 29, 29,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 33, 31, 32, 33, 33, 31, 32, 33, 33, 31, 32, 33, 33, 31, 26, 23,
          18, 15, 26, 23, 18, 15, 26, 23, 18, 15, 26, 23, 18, 15, 34, 34, 32, 29,
@@ -12973,7 +12973,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          35, 35, 33, 33, 33, 33, 32, 32, 32, 32, 35, 35, 35, 35, 34, 34, 34, 34,
          31, 31, 31, 31, 31, 31, 31, 31, 34, 34, 34, 34, 33, 33, 33, 33, 29, 29,
          29, 29
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -13183,7 +13183,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          26, 26, 26, 26, 25, 25, 25, 25, 29, 29, 29, 29, 30, 30, 30, 30, 27, 27,
          27, 27, 26, 26, 26, 26, 26, 26, 26, 26, 28, 28, 28, 28, 26, 26, 26, 26,
          25, 25, 25, 25,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 34, 34, 32, 32, 34, 34, 32, 32, 34, 34, 32, 32, 34, 34, 32, 29, 24,
          21, 17, 29, 24, 21, 17, 29, 24, 21, 17, 29, 24, 21, 17, 34, 36, 34, 31,
@@ -13202,7 +13202,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          29, 29, 27, 27, 27, 27, 29, 29, 29, 29, 30, 30, 30, 30, 27, 27, 27, 27,
          26, 26, 26, 26, 26, 26, 26, 26, 28, 28, 28, 28, 26, 26, 26, 26, 25, 25,
          25, 25
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -13414,7 +13414,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31,
          31, 31, 31, 31,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 27, 24, 32, 33, 27, 24, 32, 33, 27, 24, 32, 33, 27, 24, 22, 21,
          19, 18, 22, 21, 19, 18, 22, 21, 19, 18, 22, 21, 19, 18, 27, 26, 24, 23,
@@ -13433,7 +13433,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
          31, 31
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -13643,7 +13643,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          25, 25, 25, 25, 25, 25, 25, 25, 30, 30, 30, 30, 29, 29, 29, 29, 29, 29,
          29, 29, 28, 28, 28, 28, 28, 28, 28, 28, 27, 27, 27, 27, 25, 25, 25, 25,
          25, 25, 25, 25,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 35, 30, 26, 32, 35, 30, 26, 32, 35, 30, 26, 32, 35, 30, 26, 23, 22,
          20, 19, 23, 22, 20, 19, 23, 22, 20, 19, 23, 22, 20, 19, 28, 27, 25, 24,
@@ -13662,7 +13662,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          28, 28, 28, 28, 28, 28, 30, 30, 30, 30, 29, 29, 29, 29, 29, 29, 29, 29,
          28, 28, 28, 28, 28, 28, 28, 28, 27, 27, 27, 27, 25, 25, 25, 25, 25, 25,
          25, 25
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
     {
@@ -13874,7 +13874,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 34, 34, 32, 32, 34, 34, 32, 32, 34, 34, 32, 32, 34, 34, 32, 29, 24,
          21, 17, 29, 24, 21, 17, 29, 24, 21, 17, 29, 24, 21, 17, 34, 36, 34, 31,
@@ -13893,7 +13893,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32,
          32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
          32, 32
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
         {/* Chroma */
          /* Size 4x4 */
@@ -14103,7 +14103,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
          33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32,
          32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
          /* Size 4x32 */
          32, 33, 33, 32, 32, 33, 33, 32, 32, 33, 33, 32, 32, 33, 33, 32, 30, 26,
          23, 20, 30, 26, 23, 20, 30, 26, 23, 20, 30, 26, 23, 20, 34, 36, 35, 32,
@@ -14122,7 +14122,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
          33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32, 32, 32,
          32, 32
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         },
     },
 };
@@ -14372,7 +14372,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         162, 165, 167, 173, 174, 177, 183, 185, 182, 179, 99, 94, 93, 90, 89,
         89, 88, 87, 90, 93, 97, 99, 105, 107, 115, 116, 124, 127, 135, 139, 146,
         152, 159, 166, 171, 182, 186, 191, 193, 201, 203, 204,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32, 45, 76, 96, 32, 43, 72, 91, 32, 42, 69, 90, 32, 42, 69, 87, 33, 43,
         68, 86, 34, 44, 67, 86, 36, 48, 71, 84, 36, 51, 74, 86, 37, 54, 76, 88,
@@ -14391,7 +14391,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         138, 139, 142, 143, 140, 141, 146, 150, 148, 147, 146, 96, 91, 90, 87,
         86, 86, 84, 86, 88, 92, 96, 99, 105, 107, 114, 118, 123, 129, 135, 140,
         148, 153, 161, 166, 169, 178, 180, 184, 188, 193, 193, 192,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -14603,7 +14603,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         99, 102, 101, 102, 103, 103, 101, 99, 71, 67, 66, 64, 63, 62, 62, 61,
         62, 64, 66, 67, 70, 71, 75, 76, 79, 81, 84, 86, 89, 91, 94, 97, 98, 102,
         104, 106, 106, 109, 109, 108,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         35, 50, 62, 70, 35, 49, 59, 66, 35, 47, 56, 65, 37, 47, 55, 63, 38, 47,
         55, 62, 42, 47, 54, 61, 45, 50, 57, 61, 46, 52, 58, 61, 49, 54, 60, 62,
@@ -14622,7 +14622,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         88, 89, 89, 88, 87, 86, 70, 66, 65, 63, 62, 61, 61, 61, 62, 65, 66, 68,
         71, 72, 76, 78, 80, 83, 86, 88, 91, 93, 96, 98, 99, 102, 103, 104, 105,
         106, 105, 104,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -14850,7 +14850,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         163, 166, 171, 173, 169, 166, 96, 91, 90, 87, 87, 86, 85, 84, 87, 90,
         94, 96, 101, 102, 110, 111, 118, 121, 129, 132, 138, 144, 150, 156, 161,
         171, 174, 179, 181, 188, 188, 190,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
          32,  42,  72,  93,  32,  40,  69,  89,  32,  40,  66,  87,  32,  40,
          65,  85,  33,  41,  65,  84,  34,  42,  64,  83,  34,  44,  66,  82,
@@ -14873,7 +14873,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          81, 105,  44,  68,  92, 105,  66,  98, 132, 137,  82, 109, 152, 179,
          35,  56,  84, 109,  46,  71,  93, 106,  68, 104, 135, 136,  83, 113,
         156, 178,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -15084,7 +15084,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         97, 99, 98, 99, 100, 100, 98, 96, 70, 66, 65, 63, 63, 62, 61, 60, 61,
         63, 65, 66, 69, 70, 74, 74, 78, 79, 82, 84, 87, 89, 91, 94, 96, 100,
         101, 103, 103, 105, 105, 105,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
          34,  49,  60,  69,  34,  48,  57,  65,  34,  46,  55,  64,  35,  46,
          55,  62,  37,  47,  54,  62,  41,  47,  52,  61,  43,  48,  53,  60,
@@ -15107,7 +15107,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          62,  71,  48,  59,  67,  68,  53,  73,  88,  84,  60,  75,  93, 102,
          44,  52,  63,  72,  50,  60,  67,  68,  55,  76,  88,  83,  60,  76,
          95, 101,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -15331,7 +15331,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         155, 160, 161, 158, 155, 93, 88, 88, 84, 84, 83, 82, 81, 84, 86, 90, 92,
         97, 98, 105, 106, 113, 115, 122, 125, 131, 136, 141, 147, 151, 160, 163,
         168, 169, 175, 175, 176,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
          32,  40,  69,  91,  32,  39,  65,  86,  32,  38,  64,  85,  32,  38,
          63,  82,  33,  39,  62,  81,  33,  40,  62,  80,  33,  40,  61,  79,
@@ -15354,7 +15354,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          77,  99,  40,  62,  86,  98,  61,  89, 123, 128,  79, 105, 143, 167,
          35,  52,  78, 102,  45,  66,  87,  99,  65,  95, 124, 127,  80, 108,
         147, 166,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -15565,7 +15565,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         94, 96, 96, 96, 97, 97, 95, 93, 69, 65, 65, 62, 62, 61, 60, 59, 61, 62,
         64, 65, 68, 68, 72, 73, 76, 77, 81, 82, 85, 87, 89, 92, 93, 97, 98, 100,
         100, 102, 102, 101,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
          33,  49,  59,  68,  33,  47,  56,  64,  34,  46,  54,  64,  33,  46,
          53,  61,  37,  47,  53,  61,  39,  46,  52,  60,  41,  46,  51,  59,
@@ -15588,7 +15588,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
          61,  69,  46,  57,  65,  66,  51,  68,  84,  82,  59,  73,  91,  99,
          44,  50,  61,  70,  50,  58,  65,  66,  54,  72,  84,  80,  59,  75,
          93,  97,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -15811,7 +15811,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         144, 90, 86, 85, 82, 81, 80, 79, 78, 81, 83, 87, 88, 93, 94, 101, 101,
         108, 110, 116, 119, 124, 129, 134, 139, 142, 150, 153, 157, 157, 163,
         163, 163,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  40,  59,  86,  32,  39,  57,  82,  32,  38,  56,  81,  32,  38,
         54,  78,  32,  39,  54,  77,  33,  39,  55,  77,  33,  40,  54,  75,
@@ -15834,7 +15834,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         71,  93,  40,  60,  80,  92,  54,  80, 107, 120,  75,  99, 133, 155,
         33,  47,  75,  95,  42,  61,  84,  92,  56,  81, 111, 118,  76, 100,
        138, 154,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -16045,7 +16045,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         91, 91, 93, 93, 94, 94, 92, 90, 68, 64, 64, 61, 61, 60, 59, 58, 60, 61,
         63, 64, 67, 67, 71, 71, 74, 75, 79, 80, 83, 85, 87, 89, 91, 94, 95, 97,
         97, 99, 98, 98,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  47,  55,  66,  33,  46,  52,  63,  33,  46,  51,  62,  33,  45,
         50,  60,  35,  46,  49,  59,  36,  46,  49,  59,  40,  46,  49,  57,
@@ -16068,7 +16068,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         58,  67,  46,  56,  62,  64,  49,  65,  77,  79,  57,  71,  87,  95,
         41,  48,  60,  67,  48,  56,  63,  64,  50,  66,  79,  78,  57,  71,
         90,  94,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -16287,7 +16287,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         87, 83, 82, 79, 79, 78, 77, 75, 78, 80, 84, 85, 89, 90, 96, 97, 103,
         105, 111, 113, 118, 122, 126, 131, 134, 141, 143, 147, 147, 152, 151,
         152,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  37,  58,  83,  32,  36,  56,  79,  32,  36,  55,  78,  32,  36,
         53,  76,  32,  36,  53,  75,  33,  37,  54,  75,  33,  38,  53,  73,
@@ -16310,7 +16310,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         63,  87,  38,  53,  69,  85,  53,  74,  98, 111,  73,  93, 123, 144,
         33,  45,  68,  89,  39,  54,  73,  86,  53,  77, 103, 110,  72,  95,
        128, 143,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -16520,7 +16520,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         86, 89, 89, 90, 91, 91, 89, 87, 67, 63, 63, 60, 60, 59, 58, 57, 59, 60,
         62, 63, 65, 66, 69, 70, 73, 74, 77, 78, 81, 83, 85, 87, 88, 92, 92, 94,
         94, 96, 95, 95,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  45,  54,  65,  32,  44,  52,  62,  32,  44,  52,  61,  32,  44,
         50,  59,  33,  45,  49,  59,  35,  45,  49,  58,  37,  46,  49,  57,
@@ -16543,7 +16543,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         55,  65,  46,  52,  57,  62,  49,  63,  73,  77,  57,  68,  84,  92,
         39,  48,  57,  65,  47,  53,  59,  62,  48,  64,  75,  75,  56,  70,
         86,  91,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -16759,7 +16759,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         105, 105, 111, 111, 118, 118, 121, 121, 124, 79, 75, 75, 72, 72, 71, 71,
         69, 69, 73, 73, 78, 78, 84, 84, 90, 90, 96, 96, 103, 103, 110, 110, 118,
         118, 125, 125, 133, 133, 136, 136, 141,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  34,  49,  72,  32,  34,  47,  69,  32,  34,  47,  69,  32,  34,
         45,  66,  32,  34,  45,  66,  32,  35,  46,  65,  32,  35,  46,  65,
@@ -16782,7 +16782,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         56,  79,  35,  45,  59,  77,  46,  62,  81,  99,  65,  79, 104, 129,
         33,  43,  63,  83,  37,  48,  63,  80,  46,  67,  86, 103,  64,  85,
        112, 133,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -16992,7 +16992,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         76, 79, 79, 82, 82, 83, 83, 84, 63, 60, 60, 57, 57, 56, 56, 54, 54, 57,
         57, 60, 60, 64, 64, 67, 67, 71, 71, 75, 75, 78, 78, 82, 82, 85, 85, 89,
         89, 90, 90, 92,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  43,  51,  60,  31,  43,  49,  57,  31,  43,  49,  57,  31,  43,
         47,  55,  31,  43,  47,  55,  35,  45,  47,  54,  35,  45,  47,  54,
@@ -17015,7 +17015,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         52,  62,  45,  50,  52,  59,  47,  57,  65,  72,  54,  62,  76,  87,
         39,  47,  55,  63,  47,  50,  53,  60,  46,  60,  67,  73,  52,  66,
         79,  88,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -17230,7 +17230,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         94, 95, 98, 102, 103, 108, 108, 115, 115, 73, 70, 69, 67, 66, 66, 65,
         65, 64, 64, 69, 69, 73, 74, 77, 79, 81, 85, 86, 91, 91, 98, 99, 103,
         105, 108, 112, 114, 119, 119, 127, 127,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  34,  49,  68,  32,  34,  47,  65,  32,  34,  47,  64,  32,  34,
         46,  63,  32,  34,  45,  62,  32,  34,  45,  62,  32,  35,  46,  61,
@@ -17253,7 +17253,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         51,  76,  35,  45,  55,  75,  46,  60,  77,  97,  61,  73,  95, 121,
         32,  38,  55,  76,  36,  45,  57,  75,  46,  62,  80,  97,  61,  75,
         99, 121,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -17463,7 +17463,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         72, 74, 75, 76, 77, 78, 80, 80, 61, 58, 57, 56, 55, 54, 54, 53, 52, 53,
         56, 56, 58, 59, 61, 62, 63, 66, 66, 69, 69, 72, 73, 75, 76, 78, 79, 80,
         82, 83, 86, 86,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  43,  51,  59,  31,  43,  49,  56,  31,  43,  49,  55,  31,  43,
         47,  54,  31,  43,  47,  53,  33,  44,  47,  53,  35,  45,  47,  52,
@@ -17486,7 +17486,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         50,  60,  45,  50,  51,  58,  47,  56,  64,  71,  52,  60,  72,  83,
         36,  47,  51,  60,  46,  50,  52,  58,  46,  57,  65,  71,  52,  61,
         73,  83,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -17699,7 +17699,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         82, 82, 86, 87, 89, 92, 92, 96, 65, 63, 62, 61, 59, 59, 59, 59, 58, 58,
         58, 62, 63, 65, 68, 68, 72, 73, 76, 79, 79, 84, 85, 88, 92, 92, 97, 98,
         100, 105, 105, 109,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  34,  42,  59,  32,  34,  40,  58,  32,  34,  40,  57,  32,  33,
         39,  56,  32,  34,  39,  54,  32,  34,  39,  54,  32,  35,  40,  54,
@@ -17722,7 +17722,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         47,  63,  35,  42,  50,  62,  40,  52,  64,  76,  54,  64,  81,  99,
         32,  35,  48,  67,  35,  42,  51,  66,  40,  52,  65,  80,  55,  64,
         83, 103,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -17932,7 +17932,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         66, 66, 68, 68, 69, 70, 70, 72, 57, 55, 54, 53, 52, 52, 51, 51, 51, 50,
         50, 52, 53, 54, 57, 57, 59, 60, 61, 64, 64, 66, 67, 68, 71, 71, 73, 73,
         74, 76, 76, 78,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  41,  49,  55,  31,  42,  47,  53,  31,  42,  47,  52,  32,  42,
         46,  51,  31,  42,  45,  50,  31,  42,  45,  50,  34,  44,  46,  49,
@@ -17955,7 +17955,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         48,  55,  44,  50,  49,  53,  46,  53,  58,  62,  49,  56,  66,  73,
         35,  48,  49,  57,  45,  50,  50,  55,  46,  53,  58,  63,  49,  56,
         67,  75,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -18167,7 +18167,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         69, 70, 71, 74, 75, 76, 79, 79, 53, 52, 51, 51, 49, 49, 49, 49, 50, 49,
         49, 49, 51, 54, 54, 57, 60, 60, 63, 65, 65, 69, 71, 72, 75, 76, 77, 81,
         82, 83, 87, 87,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  32,  40,  50,  32,  33,  39,  49,  32,  33,  39,  48,  32,  33,
         39,  48,  32,  33,  38,  47,  32,  33,  38,  47,  32,  33,  38,  47,
@@ -18190,7 +18190,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         43,  56,  33,  37,  44,  55,  38,  45,  58,  69,  47,  52,  69,  83,
         32,  35,  43,  56,  34,  38,  44,  55,  39,  48,  59,  69,  47,  55,
         69,  83,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -18400,7 +18400,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         61, 61, 61, 63, 63, 63, 65, 65, 52, 50, 50, 50, 48, 48, 48, 47, 47, 47,
         47, 47, 48, 50, 50, 52, 54, 54, 56, 57, 57, 60, 61, 61, 63, 64, 64, 66,
         66, 67, 68, 68,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  37,  49,  51,  31,  38,  48,  50,  31,  39,  47,  49,  31,  39,
         47,  49,  31,  39,  46,  47,  31,  40,  46,  47,  32,  40,  46,  47,
@@ -18423,7 +18423,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         47,  52,  40,  47,  46,  50,  46,  50,  56,  59,  47,  50,  60,  67,
         34,  45,  47,  52,  42,  48,  47,  50,  46,  51,  56,  59,  47,  52,
         61,  67,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -18635,7 +18635,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         60, 63, 63, 64, 66, 67, 67, 69, 47, 46, 45, 45, 45, 44, 44, 44, 44, 45,
         45, 45, 45, 45, 47, 50, 50, 51, 55, 56, 56, 58, 60, 60, 62, 66, 66, 67,
         69, 70, 70, 73,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  32,  36,  46,  32,  32,  35,  45,  32,  32,  35,  44,  32,  32,
         35,  44,  32,  32,  35,  43,  32,  33,  34,  43,  32,  33,  34,  43,
@@ -18658,7 +18658,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         38,  47,  33,  35,  40,  46,  34,  40,  49,  55,  43,  46,  59,  69,
         32,  34,  38,  49,  33,  36,  40,  48,  35,  42,  49,  57,  43,  49,
         59,  71,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -18868,7 +18868,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         57, 58, 58, 58, 59, 59, 59, 60, 50, 49, 48, 48, 47, 46, 46, 46, 46, 46,
         46, 46, 46, 46, 47, 50, 50, 50, 53, 54, 54, 55, 56, 56, 57, 59, 59, 60,
         61, 61, 61, 62,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  35,  47,  50,  31,  36,  46,  49,  31,  36,  46,  48,  31,  36,
         46,  48,  32,  37,  46,  47,  31,  38,  45,  46,  31,  38,  45,  46,
@@ -18891,7 +18891,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         47,  48,  38,  45,  47,  46,  45,  48,  52,  53,  46,  47,  56,  60,
         32,  43,  47,  49,  38,  46,  47,  47,  46,  50,  52,  53,  46,  50,
         56,  61,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -19103,7 +19103,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         48, 49, 50, 50, 50, 52, 53, 53, 44, 43, 42, 42, 42, 41, 41, 41, 41, 41,
         42, 42, 42, 42, 42, 42, 42, 45, 48, 48, 48, 50, 54, 54, 54, 56, 58, 58,
         58, 60, 63, 63,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  32,  34,  40,  31,  32,  34,  39,  32,  32,  34,  39,  32,  32,
         34,  39,  32,  32,  34,  39,  32,  32,  34,  38,  32,  33,  34,  38,
@@ -19126,7 +19126,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         35,  43,  33,  34,  36,  42,  34,  37,  43,  48,  38,  40,  51,  58,
         32,  33,  35,  43,  33,  34,  36,  42,  34,  37,  43,  48,  38,  40,
         51,  58,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -19336,7 +19336,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         53, 53, 53, 53, 53, 53, 53, 53, 49, 48, 47, 47, 47, 46, 45, 45, 45, 45,
         46, 46, 46, 45, 45, 45, 45, 47, 49, 49, 49, 51, 53, 53, 53, 54, 56, 56,
         56, 57, 58, 58,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  34,  43,  49,  31,  34,  42,  48,  31,  35,  43,  47,  31,  35,
         43,  47,  31,  35,  43,  47,  32,  36,  43,  46,  31,  36,  43,  46,
@@ -19359,7 +19359,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         48,  47,  36,  44,  47,  46,  43,  47,  51,  50,  46,  46,  53,  56,
         31,  39,  48,  47,  36,  44,  47,  46,  43,  47,  51,  50,  46,  46,
         53,  56,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -19571,7 +19571,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         41, 41, 43, 45, 46, 46, 46, 46, 36, 35, 35, 35, 35, 35, 35, 35, 34, 34,
         34, 35, 36, 36, 36, 36, 37, 38, 38, 38, 38, 40, 41, 42, 42, 42, 44, 47,
         48, 48, 48, 49,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  32,  36,  31,  32,  32,  35,  32,  32,  32,  35,  32,  32,
         32,  35,  32,  32,  32,  35,  32,  32,  32,  35,  32,  32,  32,  35,
@@ -19594,7 +19594,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33,  36,  32,  33,  34,  35,  32,  34,  36,  38,  35,  36,  41,  47,
         32,  32,  34,  37,  32,  33,  35,  37,  32,  34,  37,  39,  35,  36,
         42,  48,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -19804,7 +19804,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         49, 49, 50, 51, 52, 52, 52, 52, 48, 48, 47, 47, 47, 47, 46, 46, 46, 46,
         46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 49, 50, 50, 50, 51, 52,
         53, 53, 53, 53,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  32,  37,  47,  31,  32,  37,  47,  31,  33,  38,  46,  31,  33,
         38,  46,  31,  33,  38,  46,  31,  33,  38,  46,  31,  33,  39,  46,
@@ -19827,7 +19827,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         42,  48,  33,  37,  43,  47,  39,  43,  47,  48,  46,  47,  49,  53,
         31,  34,  42,  48,  33,  37,  44,  47,  39,  43,  47,  47,  45,  47,
         50,  53,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -20039,7 +20039,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         35, 35, 35, 35, 36, 36, 37, 37, 32, 33, 33, 33, 33, 33, 33, 33, 33, 33,
         33, 33, 33, 33, 33, 34, 34, 34, 34, 34, 34, 35, 35, 36, 36, 36, 36, 36,
         36, 37, 38, 38,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  32,  32,  31,  31,  32,  33,  31,  32,  32,  33,  32,  32,
         32,  33,  32,  32,  32,  33,  32,  32,  32,  33,  32,  32,  32,  33,
@@ -20062,7 +20062,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32,  34,  32,  32,  32,  34,  32,  33,  34,  36,  33,  33,  35,  38,
         32,  32,  32,  34,  32,  32,  33,  34,  32,  33,  34,  36,  33,  34,
         36,  38,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -20272,7 +20272,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         47, 47, 47, 47, 47, 47, 47, 47, 38, 39, 39, 40, 40, 40, 40, 40, 40, 40,
         41, 41, 41, 41, 41, 42, 43, 44, 44, 44, 44, 45, 46, 47, 47, 47, 47, 47,
         47, 47, 48, 48,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  35,  38,  31,  31,  35,  38,  31,  31,  36,  39,  31,  31,
         36,  39,  31,  31,  36,  39,  31,  31,  36,  39,  31,  31,  36,  39,
@@ -20295,7 +20295,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         36,  42,  31,  33,  38,  43,  36,  38,  43,  46,  39,  41,  46,  48,
         31,  33,  37,  42,  31,  34,  39,  43,  36,  39,  45,  46,  39,  42,
         47,  48,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -20507,7 +20507,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 34, 34, 34,
         34, 34, 34, 34,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  31,  32,  31,  31,  31,  32,  31,  31,  31,  32,  31,  32,
         32,  32,  31,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
@@ -20530,7 +20530,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  33,  34,
         32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         33,  34,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -20740,7 +20740,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         37, 38, 38, 38, 38, 38, 38, 39, 35, 35, 36, 36, 36, 37, 37, 37, 37, 37,
         37, 37, 37, 37, 38, 38, 38, 38, 38, 38, 38, 38, 39, 40, 40, 41, 41, 41,
         41, 41, 41, 42,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  31,  34,  31,  31,  31,  34,  31,  31,  31,  35,  31,  31,
         31,  35,  31,  31,  31,  35,  31,  31,  31,  36,  31,  31,  31,  36,
@@ -20763,7 +20763,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32,  34,  31,  32,  33,  36,  31,  32,  33,  36,  36,  36,  38,  40,
         31,  31,  33,  35,  31,  32,  34,  36,  31,  32,  34,  36,  36,  37,
         39,  41,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -20975,7 +20975,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32,
         32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,
         31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  32,  32,
@@ -20998,7 +20998,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         31,  31,  31,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         31,  31,  31,  31,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         32,  32,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -21208,7 +21208,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
         31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32,
         32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,
         31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,
@@ -21231,7 +21231,7 @@ static const qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         31,  31,  31,  31,  31,  31,  31,  31,  31,  32,  31,  31,  31,  32,
         31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  32,  32,  31,  31,
         32,  32,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
 };
@@ -21430,7 +21430,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 10, 11, 11, 11, 12, 12, 12, 12,
         11, 11, 11, 10, 10, 10, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 6, 5, 5, 5,
         5, 5,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  24,  14,  11,  33,  25,  15,  12,  32,  26,  15,  12,  32,  25,
         15,  12,  31,  24,  15,  12,  31,  24,  16,  12,  29,  22,  15,  13,
@@ -21453,7 +21453,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         12,  10,  22,  14,  11,  10,  15,  10,   8,   8,  13,   9,   6,   6,
         29,  18,  12,   9,  21,  14,  11,  10,  14,  10,   8,   8,  12,   9,
          6,   3,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -21663,7 +21663,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         10, 10, 10, 10, 10, 10, 10, 10, 14, 15, 16, 16, 16, 17, 17, 17, 17, 16,
         16, 15, 15, 14, 14, 13, 13, 13, 12, 12, 12, 11, 11, 11, 10, 10, 10, 10,
         10, 9, 9, 9,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         30,  21,  17,  15,  30,  21,  18,  16,  30,  22,  19,  16,  29,  22,
         19,  17,  28,  22,  19,  17,  25,  22,  19,  17,  23,  20,  18,  17,
@@ -21686,7 +21686,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         16,  14,  20,  17,  15,  15,  18,  14,  12,  12,  17,  14,  11,  10,
         23,  20,  16,  14,  20,  17,  15,  15,  18,  13,  12,  12,  17,  13,
         11,  10,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -21885,7 +21885,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 11, 11, 11, 12,
         12, 12, 12, 12, 12, 11, 11, 11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6,
         6, 6, 6, 6, 5, 5, 5,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  25,  15,  11,  33,  26,  16,  12,  33,  26,  16,  12,  32,  26,
         16,  12,  31,  26,  16,  13,  31,  25,  17,  13,  31,  24,  16,  13,
@@ -21908,7 +21908,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         13,  10,  24,  16,  11,  10,  16,  11,   8,   8,  13,   9,   7,   6,
         29,  19,  13,  10,  22,  15,  11,  10,  15,  10,   8,   8,  12,   9,
          7,   6,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -22118,7 +22118,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         11, 10, 10, 10, 10, 10, 10, 11, 15, 16, 16, 16, 16, 17, 17, 17, 17, 16,
         16, 16, 15, 15, 14, 14, 13, 13, 12, 12, 12, 12, 11, 11, 11, 10, 10, 10,
         10, 10, 10, 10,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         31,  21,  17,  15,  31,  22,  18,  16,  31,  22,  19,  16,  30,  22,
         19,  17,  28,  22,  19,  17,  26,  22,  20,  17,  24,  22,  20,  18,
@@ -22141,7 +22141,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17,  15,  22,  18,  16,  15,  20,  14,  12,  13,  18,  14,  11,  10,
         23,  20,  16,  15,  20,  18,  15,  15,  19,  14,  12,  13,  17,  14,
         11,  11,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -22341,7 +22341,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 7, 11, 12, 12,
         12, 12, 12, 12, 13, 12, 12, 11, 11, 11, 10, 10, 10, 9, 9, 8, 8, 8, 8, 7,
         7, 7, 6, 6, 6, 6, 6, 6, 6,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  26,  16,  12,  33,  27,  17,  12,  33,  27,  17,  13,  33,  28,
         17,  13,  32,  26,  17,  13,  31,  26,  17,  13,  31,  26,  18,  13,
@@ -22364,7 +22364,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         14,  11,  26,  17,  12,  11,  18,  12,   9,   8,  13,  10,   7,   6,
         30,  20,  13,  11,  23,  16,  12,  11,  16,  11,   9,   9,  13,  10,
          7,   7,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -22574,7 +22574,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         11, 11, 11, 11, 11, 11, 11, 11, 15, 16, 16, 17, 17, 17, 17, 17, 17, 17,
         16, 16, 15, 15, 14, 14, 13, 13, 13, 12, 12, 12, 12, 11, 11, 11, 10, 10,
         10, 10, 10, 10,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         31,  21,  18,  15,  31,  22,  19,  16,  31,  22,  19,  17,  31,  23,
         20,  17,  29,  22,  20,  17,  27,  23,  20,  18,  26,  23,  20,  18,
@@ -22597,7 +22597,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17,  15,  23,  18,  16,  16,  20,  15,  13,  13,  18,  14,  12,  11,
         24,  21,  17,  15,  21,  18,  16,  16,  19,  15,  12,  13,  17,  14,
         11,  11,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -22797,7 +22797,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         13, 12, 12, 11, 11, 10, 10, 9, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7,
         11, 12, 12, 12, 13, 13, 13, 13, 13, 12, 12, 12, 11, 11, 10, 10, 9, 9, 9,
         9, 8, 8, 8, 7, 7, 7, 7, 7, 7, 6, 6, 6,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  26,  18,  12,  33,  27,  19,  13,  33,  28,  19,  13,  33,  28,
         19,  13,  32,  27,  19,  14,  32,  26,  19,  14,  31,  26,  20,  14,
@@ -22820,7 +22820,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         15,  12,  26,  18,  13,  12,  20,  13,  10,   9,  14,  11,   8,   7,
         31,  22,  14,  11,  25,  17,  12,  12,  19,  13,  10,   9,  14,  10,
          8,   7,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -23030,7 +23030,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         11, 11, 11, 11, 11, 11, 11, 11, 15, 16, 16, 17, 17, 17, 17, 18, 17, 17,
         16, 16, 15, 15, 14, 14, 14, 14, 13, 13, 12, 12, 12, 12, 11, 11, 11, 11,
         11, 10, 10, 10,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  22,  19,  16,  32,  23,  20,  17,  32,  23,  20,  17,  32,  23,
         21,  18,  30,  23,  21,  18,  29,  22,  21,  18,  26,  23,  21,  18,
@@ -23053,7 +23053,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         18,  16,  23,  19,  17,  16,  21,  16,  14,  13,  18,  14,  12,  11,
         25,  21,  17,  16,  22,  19,  16,  16,  21,  16,  13,  13,  18,  14,
         12,  11,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -23256,7 +23256,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         14, 14, 13, 13, 12, 12, 11, 11, 11, 10, 10, 9, 9, 9, 9, 8, 8, 8, 8, 8,
         7, 7, 7, 8, 12, 12, 12, 13, 13, 13, 13, 14, 13, 13, 12, 12, 12, 11, 11,
         11, 10, 10, 9, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  29,  18,  13,  33,  29,  19,  13,  33,  29,  19,  13,  33,  29,
         20,  14,  33,  29,  20,  14,  32,  28,  19,  14,  32,  27,  20,  14,
@@ -23279,7 +23279,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17,  12,  27,  20,  15,  12,  20,  14,  11,  10,  14,  11,   9,   7,
         32,  23,  15,  12,  27,  19,  14,  12,  20,  13,  10,  10,  15,  11,
          8,   8,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -23489,7 +23489,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         12, 12, 12, 11, 11, 11, 12, 12, 15, 16, 16, 17, 17, 17, 18, 18, 17, 17,
         17, 16, 16, 16, 15, 15, 14, 14, 13, 13, 13, 12, 12, 12, 12, 11, 11, 11,
         11, 11, 11, 11,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         32,  24,  19,  16,  32,  24,  20,  17,  32,  24,  20,  17,  33,  24,
         21,  18,  31,  23,  21,  18,  30,  23,  21,  18,  28,  22,  21,  19,
@@ -23512,7 +23512,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         19,  16,  22,  20,  18,  17,  21,  17,  14,  14,  19,  15,  12,  12,
         27,  22,  18,  16,  22,  20,  18,  17,  21,  17,  14,  14,  19,  15,
         12,  12,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -23717,7 +23717,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17, 18, 18, 16, 16, 15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 10,
         10, 9, 9, 9, 9, 8, 8, 8, 13, 14, 14, 14, 14, 14, 14, 15, 15, 14, 14, 13,
         13, 12, 12, 11, 11, 11, 11, 10, 10, 9, 9, 9, 9, 8, 8, 8, 8, 8, 8, 7,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  30,  21,  15,  33,  31,  22,  16,  33,  31,  22,  16,  33,  31,
         23,  16,  33,  31,  23,  16,  32,  29,  22,  16,  32,  29,  22,  16,
@@ -23740,7 +23740,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         19,  13,  29,  23,  18,  14,  22,  17,  13,  11,  16,  13,  10,   8,
         32,  24,  17,  13,  28,  22,  17,  13,  23,  15,  12,  10,  17,  12,
         10,   8,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -23950,7 +23950,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         13, 13, 13, 12, 12, 12, 12, 12, 16, 17, 17, 18, 18, 18, 18, 19, 19, 18,
         18, 17, 17, 16, 16, 15, 15, 14, 14, 14, 14, 13, 13, 12, 12, 12, 12, 12,
         12, 11, 11, 11,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  25,  21,  17,  33,  25,  21,  18,  33,  25,  21,  18,  33,  24,
         22,  19,  33,  24,  22,  19,  30,  23,  22,  19,  30,  23,  22,  19,
@@ -23973,7 +23973,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         20,  17,  23,  21,  20,  18,  22,  18,  16,  15,  19,  17,  14,  12,
         27,  22,  19,  17,  22,  21,  19,  17,  23,  18,  16,  14,  20,  16,
         13,  12,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -24185,7 +24185,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         11, 10, 10, 10, 9, 9, 9, 9, 14, 15, 15, 15, 16, 16, 16, 16, 16, 16, 15,
         15, 14, 14, 13, 13, 13, 12, 12, 11, 11, 10, 10, 10, 10, 9, 9, 9, 9, 9,
         8, 8,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  30,  21,  16,  33,  31,  22,  16,  33,  31,  22,  16,  33,  31,
         23,  17,  33,  31,  23,  17,  33,  30,  23,  17,  32,  29,  22,  17,
@@ -24208,7 +24208,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         20,  14,  29,  24,  19,  14,  22,  17,  13,  11,  17,  14,  11,   9,
         32,  27,  19,  14,  29,  23,  19,  14,  23,  17,  13,  11,  17,  14,
         11,   9,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -24418,7 +24418,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         14, 14, 14, 13, 13, 13, 13, 13, 17, 18, 18, 18, 19, 19, 19, 19, 20, 19,
         18, 18, 18, 17, 17, 17, 16, 16, 16, 15, 15, 14, 14, 14, 13, 13, 13, 13,
         12, 12, 12, 12,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  25,  21,  18,  33,  25,  21,  19,  33,  25,  21,  19,  33,  24,
         22,  19,  33,  24,  22,  20,  31,  24,  22,  20,  30,  23,  22,  20,
@@ -24441,7 +24441,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         21,  17,  23,  21,  21,  18,  22,  19,  17,  15,  20,  18,  15,  13,
         29,  22,  20,  17,  23,  21,  20,  18,  23,  18,  16,  15,  20,  17,
         14,  13,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -24653,7 +24653,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         12, 12, 12, 12, 12, 11, 11, 11, 16, 16, 17, 17, 17, 17, 17, 17, 18, 18,
         18, 17, 16, 16, 15, 15, 14, 14, 13, 13, 13, 12, 12, 12, 11, 11, 11, 10,
         10, 10, 10, 9,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  31,  25,  18,  33,  31,  26,  18,  33,  31,  26,  19,  33,  31,
         27,  19,  33,  31,  27,  19,  33,  31,  27,  19,  33,  30,  26,  19,
@@ -24676,7 +24676,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         22,  17,  30,  25,  21,  17,  26,  20,  16,  14,  19,  16,  13,  11,
         32,  29,  21,  16,  29,  25,  21,  16,  26,  20,  16,  13,  19,  16,
         13,  10,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -24886,7 +24886,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         16, 16, 15, 15, 15, 15, 15, 14, 18, 19, 19, 19, 20, 20, 20, 20, 20, 20,
         20, 20, 19, 19, 18, 18, 17, 17, 17, 16, 16, 16, 15, 15, 14, 14, 14, 14,
         14, 13, 13, 13,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  26,  21,  19,  33,  25,  22,  20,  33,  25,  22,  20,  33,  25,
         22,  20,  33,  25,  23,  21,  33,  25,  23,  21,  30,  23,  23,  21,
@@ -24909,7 +24909,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         21,  19,  23,  21,  21,  20,  23,  19,  18,  17,  21,  19,  16,  14,
         30,  22,  21,  18,  23,  21,  21,  19,  22,  19,  18,  17,  21,  19,
         16,  14,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -25121,7 +25121,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         15, 15, 14, 14, 14, 13, 13, 13, 19, 20, 20, 20, 21, 21, 21, 21, 20, 21,
         21, 21, 20, 19, 19, 18, 17, 17, 16, 16, 16, 15, 14, 14, 14, 13, 13, 13,
         12, 12, 12, 12,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  32,  26,  21,  33,  32,  27,  21,  33,  32,  27,  22,  33,  32,
         27,  22,  33,  32,  27,  22,  33,  32,  28,  22,  33,  31,  27,  22,
@@ -25144,7 +25144,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         24,  19,  31,  28,  24,  19,  27,  23,  18,  15,  22,  20,  15,  13,
         32,  30,  24,  19,  31,  27,  24,  19,  26,  22,  18,  15,  22,  19,
         15,  13,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -25354,7 +25354,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17, 17, 17, 16, 16, 16, 16, 16, 20, 20, 20, 20, 21, 21, 21, 22, 22, 22,
         22, 22, 21, 20, 20, 20, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16, 16,
         16, 15, 15, 15,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  28,  21,  20,  33,  27,  22,  21,  33,  27,  22,  21,  33,  27,
         22,  21,  33,  27,  23,  22,  33,  26,  23,  22,  32,  26,  23,  22,
@@ -25377,7 +25377,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         22,  20,  26,  22,  23,  21,  23,  21,  19,  18,  22,  20,  17,  16,
         30,  23,  22,  20,  25,  22,  22,  21,  23,  20,  19,  18,  22,  20,
         17,  16,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -25589,7 +25589,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         17, 16, 16, 16, 16, 15, 15, 15, 22, 22, 23, 23, 23, 23, 23, 23, 23, 23,
         23, 23, 23, 23, 22, 20, 20, 20, 19, 18, 18, 18, 17, 17, 17, 16, 16, 15,
         15, 15, 15, 14,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  29,  23,  33,  32,  29,  23,  33,  32,  29,  24,  33,  32,
         29,  24,  33,  32,  30,  24,  33,  32,  30,  24,  33,  32,  30,  24,
@@ -25612,7 +25612,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         27,  22,  32,  29,  26,  23,  30,  26,  21,  19,  24,  23,  18,  15,
         33,  30,  27,  21,  32,  29,  26,  21,  30,  25,  21,  18,  24,  21,
         18,  15,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -25822,7 +25822,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         18, 18, 18, 18, 17, 17, 17, 17, 20, 21, 21, 21, 22, 22, 22, 22, 22, 22,
         22, 22, 22, 22, 22, 20, 20, 20, 19, 19, 19, 19, 18, 18, 18, 17, 17, 17,
         17, 17, 17, 17,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  30,  22,  21,  33,  29,  23,  21,  33,  29,  23,  22,  33,  29,
         23,  22,  33,  28,  23,  22,  33,  28,  23,  23,  33,  28,  23,  23,
@@ -25845,7 +25845,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         22,  21,  28,  23,  22,  22,  23,  21,  20,  20,  23,  22,  18,  17,
         32,  24,  22,  21,  28,  23,  22,  22,  23,  21,  20,  20,  23,  21,
         18,  17,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -26057,7 +26057,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         21, 21, 20, 20, 20, 20, 19, 19, 23, 24, 24, 24, 24, 25, 25, 25, 25, 25,
         24, 24, 24, 24, 24, 24, 24, 23, 21, 21, 21, 20, 19, 19, 19, 18, 18, 18,
         18, 17, 16, 16,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  30,  26,  33,  33,  31,  27,  33,  32,  31,  27,  33,  32,
         31,  27,  33,  32,  31,  27,  33,  32,  31,  27,  33,  32,  31,  28,
@@ -26080,7 +26080,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         29,  24,  32,  30,  29,  25,  31,  28,  24,  22,  28,  26,  20,  18,
         33,  32,  29,  24,  32,  30,  29,  25,  31,  28,  24,  22,  28,  26,
         20,  18,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -26290,7 +26290,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         19, 19, 19, 19, 19, 19, 19, 19, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23,
         22, 22, 22, 23, 23, 23, 23, 22, 21, 21, 21, 20, 19, 19, 19, 19, 18, 18,
         18, 18, 18, 18,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  31,  25,  21,  33,  31,  25,  22,  33,  30,  25,  22,  33,  30,
         25,  22,  33,  30,  25,  22,  33,  29,  24,  22,  33,  29,  24,  23,
@@ -26313,7 +26313,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         22,  22,  29,  24,  22,  23,  24,  22,  20,  21,  23,  23,  19,  19,
         33,  27,  22,  22,  29,  24,  22,  23,  24,  22,  20,  21,  23,  23,
         19,  19,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -26525,7 +26525,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         25, 25, 24, 23, 22, 22, 22, 22, 28, 29, 29, 29, 29, 29, 29, 29, 30, 30,
         30, 29, 28, 28, 28, 28, 28, 27, 27, 27, 27, 26, 25, 24, 24, 24, 23, 22,
         21, 21, 21, 21,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  32,  29,  33,  33,  32,  29,  33,  32,  32,  29,  33,  32,
         32,  29,  33,  32,  32,  29,  33,  32,  32,  29,  33,  32,  32,  30,
@@ -26548,7 +26548,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         31,  29,  32,  32,  30,  29,  32,  30,  28,  27,  30,  28,  26,  22,
         33,  32,  30,  28,  32,  32,  30,  28,  32,  30,  28,  26,  30,  28,
         25,  22,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -26758,7 +26758,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         21, 21, 20, 20, 20, 20, 20, 20, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22,
         22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 21, 21, 20, 20, 20, 20, 20,
         19, 19, 19, 19,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  32,  28,  22,  33,  32,  28,  22,  33,  32,  27,  23,  33,  32,
         27,  23,  33,  32,  27,  23,  33,  32,  27,  23,  33,  31,  26,  23,
@@ -26781,7 +26781,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         25,  22,  31,  28,  24,  22,  26,  24,  22,  21,  23,  22,  21,  20,
         34,  30,  24,  22,  31,  28,  24,  22,  26,  24,  22,  22,  23,  22,
         21,  20,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -26993,7 +26993,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         29, 29, 29, 29, 28, 28, 28, 28, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31,
         31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30, 29, 29, 28, 28, 28, 28, 28,
         28, 28, 27, 27,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  33,  32,  33,  33,  32,  32,  33,  32,  32,  32,  33,  32,
         32,  32,  33,  32,  32,  32,  33,  32,  32,  32,  33,  32,  32,  32,
@@ -27016,7 +27016,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32,  30,  32,  32,  32,  30,  32,  32,  30,  29,  32,  31,  29,  28,
         33,  33,  32,  30,  32,  32,  31,  30,  32,  31,  30,  29,  32,  31,
         29,  28,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -27226,7 +27226,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         22, 22, 22, 22, 22, 22, 22, 22, 27, 26, 26, 26, 26, 26, 26, 26, 26, 26,
         25, 25, 25, 25, 25, 24, 24, 23, 23, 23, 23, 23, 22, 22, 22, 22, 22, 22,
         22, 22, 21, 21,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  30,  28,  33,  33,  30,  27,  33,  33,  29,  27,  33,  33,
         29,  27,  33,  33,  29,  27,  33,  33,  29,  27,  33,  33,  29,  27,
@@ -27249,7 +27249,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         29,  24,  33,  31,  27,  24,  29,  28,  24,  23,  27,  26,  23,  22,
         33,  32,  28,  24,  33,  30,  26,  24,  29,  27,  23,  23,  27,  25,
         22,  22,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -27461,7 +27461,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 31, 31, 31, 31, 30, 30, 30,
         30, 30, 30, 30,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  33,  33,  33,  33,  33,  32,  33,  33,  33,  32,  33,  32,
         32,  32,  33,  32,  32,  32,  33,  32,  32,  32,  33,  32,  32,  32,
@@ -27484,7 +27484,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  31,  31,
         33,  33,  33,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         31,  31,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -27694,7 +27694,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         28, 27, 27, 27, 27, 27, 27, 26, 29, 29, 28, 28, 28, 28, 28, 28, 28, 28,
         28, 28, 28, 28, 27, 27, 27, 27, 27, 27, 27, 27, 26, 26, 26, 25, 25, 25,
         25, 25, 25, 24,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  33,  30,  33,  33,  33,  30,  33,  33,  33,  30,  33,  33,
         33,  30,  33,  33,  33,  29,  33,  33,  33,  29,  33,  33,  33,  29,
@@ -27717,7 +27717,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33,  31,  33,  33,  31,  29,  33,  32,  31,  28,  29,  29,  27,  26,
         33,  34,  32,  30,  33,  32,  30,  28,  33,  32,  30,  28,  29,  28,
         27,  25,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
   {
@@ -27929,7 +27929,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32,
         32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,
         33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  32,  32,
@@ -27952,7 +27952,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33,  33,  33,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         33,  33,  33,  33,  33,  32,  32,  32,  32,  32,  32,  32,  32,  32,
         32,  32,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
       { /* Chroma */
         /* Size 4x4 */
@@ -28162,7 +28162,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         32, 32, 32, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
         33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 32, 32, 32, 32, 32,
         32, 32, 32, 32,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
         /* Size 4x32 */
         33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,
         33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,  33,
@@ -28185,7 +28185,7 @@ static const qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
         33,  34,  33,  33,  33,  33,  33,  33,  33,  32,  33,  33,  33,  32,
         33,  33,  33,  34,  33,  33,  33,  33,  33,  33,  33,  32,  33,  33,
         32,  32,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       },
   },
 };

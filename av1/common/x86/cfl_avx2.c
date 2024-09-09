@@ -17,7 +17,7 @@
 
 #include "av1/common/x86/cfl_simd.h"
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                               \
   CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                         \
   CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                         \
@@ -84,7 +84,7 @@
     };                                                                         \
     return subfn_##sub[tx_size];                                               \
   }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 /**
  * Adds 4 pixels (in a 2x2 grid) and multiplies them by 2. Resulting in a more
@@ -234,9 +234,9 @@ CFL_PREDICT_X(avx2, 16, 32, hbd)
 CFL_PREDICT_X(avx2, 32, 8, hbd)
 CFL_PREDICT_X(avx2, 32, 16, hbd)
 CFL_PREDICT_X(avx2, 32, 32, hbd)
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 CFL_PREDICT_X(avx2, 32, 4, hbd)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 cfl_predict_hbd_fn cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
   static const cfl_predict_hbd_fn pred[TX_SIZES_ALL] = {
@@ -259,14 +259,14 @@ cfl_predict_hbd_fn cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
     cfl_predict_hbd_32x8_avx2,  /* 32x8  */
     NULL,                       /* 16x64 (invalid CFL size) */
     NULL,                       /* 64x16 (invalid CFL size) */
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     cfl_predict_hbd_4x32_ssse3, /* 4x32  */
     cfl_predict_hbd_32x4_avx2,  /* 32x4  */
     NULL,                       /* 8x64 (invalid CFL size) */
     NULL,                       /* 64x8 (invalid CFL size) */
     NULL,                       /* 4x64 (invalid CFL size) */
     NULL,                       /* 64x4 (invalid CFL size) */
-#endif                          // CONFIG_FLEX_PARTITION
+#endif                          // CONFIG_EXT_RECUR_PARTITIONS
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to index the
   // function pointer array out of bounds.
@@ -360,9 +360,9 @@ CFL_SUB_AVG_X(avx2, 16, 32, 256, 9)
 CFL_SUB_AVG_X(avx2, 32, 8, 128, 8)
 CFL_SUB_AVG_X(avx2, 32, 16, 256, 9)
 CFL_SUB_AVG_X(avx2, 32, 32, 512, 10)
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 CFL_SUB_AVG_X(avx2, 32, 4, 64, 7)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Based on the observation that for small blocks AVX2 does not outperform
 // SSE2, we call the SSE2 code for block widths 4 and 8.
@@ -387,14 +387,14 @@ cfl_subtract_average_fn cfl_get_subtract_average_fn_avx2(TX_SIZE tx_size) {
     cfl_subtract_average_32x8_avx2,  /* 32x8 */
     NULL,                            /* 16x64 (invalid CFL size) */
     NULL,                            /* 64x16 (invalid CFL size) */
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     cfl_subtract_average_4x32_sse2, /* 4x32  */
     cfl_subtract_average_32x4_avx2, /* 32x4  */
     NULL,                           /* 8x64 (invalid CFL size) */
     NULL,                           /* 64x8 (invalid CFL size) */
     NULL,                           /* 4x64 (invalid CFL size) */
     NULL,                           /* 64x4 (invalid CFL size) */
-#endif                              // CONFIG_FLEX_PARTITION
+#endif                              // CONFIG_EXT_RECUR_PARTITIONS
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to
   // index the function pointer array out of bounds.

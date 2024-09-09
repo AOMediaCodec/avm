@@ -1719,7 +1719,7 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
     MAKE_SMS_ARR_SWITCH_CASE(32, 8);
     MAKE_SMS_ARR_SWITCH_CASE(16, 4);
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     // 1:8 blocks
     MAKE_SMS_ARR_SWITCH_CASE(8, 64);
     MAKE_SMS_ARR_SWITCH_CASE(4, 32);
@@ -1733,7 +1733,7 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
 
     // 1:16 blocks
     MAKE_SMS_ARR_SWITCH_CASE(4, 64);
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     default: assert(0 && "Invalid bsize"); return NULL;
   }

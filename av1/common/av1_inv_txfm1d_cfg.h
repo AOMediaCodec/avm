@@ -34,14 +34,14 @@ static const int8_t inv_start_range[TX_SIZES_ALL] = {
   7,  // 32x8 transform
   7,  // 16x64 transform
   7,  // 64x16 transform
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   6,    // 4x32 transform
   6,    // 32x4 transform
   6,    // 8x64 transform
   6,    // 64x8 transform
   7,    // 4x64 transform
   7,    // 64x4 transform
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 extern const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL];

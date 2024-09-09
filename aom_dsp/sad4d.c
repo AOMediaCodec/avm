@@ -186,7 +186,7 @@ highbd_sadMxNx4D(16, 64);
 highbd_avg_skip_sadMxN(64, 16);
 highbd_sadMxNx4D(64, 16);
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 highbd_avg_skip_sadMxN(4, 32);
 highbd_sadMxNx4D(4, 32);
 highbd_avg_skip_sadMxN(32, 4);
@@ -199,4 +199,4 @@ highbd_avg_skip_sadMxN(4, 64);
 highbd_sadMxNx4D(4, 64);
 highbd_avg_skip_sadMxN(64, 4);
 highbd_sadMxNx4D(64, 4);
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS

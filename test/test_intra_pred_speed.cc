@@ -87,9 +87,9 @@ static const char *const kTxSizeStrings[TX_SIZES_ALL] = {
   "4X4",  "8X8",  "16X16", "32X32", "64X64", "4X8",   "8X4",
   "8X16", "16X8", "16X32", "32X16", "32X64", "64X32", "4X16",
   "16X4", "8X32", "32X8",  "16X64", "64X16",
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   "4X32", "32X4", "8X64",  "64X8",  "4X64",  "64X4",
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 void CheckMd5Signature(TX_SIZE tx_size, const char *const signatures[],
@@ -403,7 +403,7 @@ static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
       "42b8e4a97b7f8416c72a5148c031c0b1",
       "a38a2c5f79993dfae8530e9e25800893",
   },
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   {
       // 4X32
       "c1f205381dd47ee115861c8df74a8d2a",
@@ -482,7 +482,7 @@ static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
       "50d2243d7094a8a8091f7bb0e45a6dd3",
       "a25621808c86377cdddb630381f04f3d",
   },
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 }  // namespace
@@ -523,7 +523,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_4x16_c, aom_highbd_smooth_v_predictor_4x16_c,
     aom_highbd_smooth_h_predictor_4x16_c)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(
     C_4, TX_4X32, aom_highbd_dc_predictor_4x32_c,
     aom_highbd_dc_left_predictor_4x32_c, aom_highbd_dc_top_predictor_4x32_c,
@@ -539,7 +539,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_4x64_c, aom_highbd_paeth_predictor_4x64_c,
     aom_highbd_smooth_predictor_4x64_c, aom_highbd_smooth_v_predictor_4x64_c,
     aom_highbd_smooth_h_predictor_4x64_c)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_4X4, aom_highbd_dc_predictor_4x4_sse2,
@@ -592,7 +592,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_8x32_c, aom_highbd_smooth_v_predictor_8x32_c,
     aom_highbd_smooth_h_predictor_8x32_c)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(
     C_5, TX_8X64, aom_highbd_dc_predictor_8x64_c,
     aom_highbd_dc_left_predictor_8x64_c, aom_highbd_dc_top_predictor_8x64_c,
@@ -600,7 +600,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_8x64_c, aom_highbd_paeth_predictor_8x64_c,
     aom_highbd_smooth_predictor_8x64_c, aom_highbd_smooth_v_predictor_8x64_c,
     aom_highbd_smooth_h_predictor_8x64_c)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
@@ -745,7 +745,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_32x8_c, aom_highbd_smooth_v_predictor_32x8_c,
     aom_highbd_smooth_h_predictor_32x8_c)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(
     C_5, TX_32X4, aom_highbd_dc_predictor_32x4_c,
     aom_highbd_dc_left_predictor_32x4_c, aom_highbd_dc_top_predictor_32x4_c,
@@ -753,7 +753,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_32x4_c, aom_highbd_paeth_predictor_32x4_c,
     aom_highbd_smooth_predictor_32x4_c, aom_highbd_smooth_v_predictor_32x4_c,
     aom_highbd_smooth_h_predictor_32x4_c)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_32X32, aom_highbd_dc_predictor_32x32_sse2,
@@ -812,7 +812,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_64x16_c, aom_highbd_smooth_v_predictor_64x16_c,
     aom_highbd_smooth_h_predictor_64x16_c)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(
     C_4, TX_64X4, aom_highbd_dc_predictor_64x4_c,
     aom_highbd_dc_left_predictor_64x4_c, aom_highbd_dc_top_predictor_64x4_c,
@@ -828,7 +828,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_64x8_c, aom_highbd_paeth_predictor_64x8_c,
     aom_highbd_smooth_predictor_64x8_c, aom_highbd_smooth_v_predictor_64x8_c,
     aom_highbd_smooth_h_predictor_64x8_c)
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 // -----------------------------------------------------------------------------
 
 #include "test/test_libaom.cc"

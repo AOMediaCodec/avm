@@ -433,11 +433,11 @@ static void highbd_dr_prediction_z1_4xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx, int bd,
                                              int mrl_index) {
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   __m128i dstvec[64];
 #else
   __m128i dstvec[16];
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (bd < 12) {
     highbd_dr_prediction_z1_4xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx, mrl_index);
@@ -622,11 +622,11 @@ static void highbd_dr_prediction_z1_8xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx, int bd,
                                              int mrl_index) {
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   __m128i dstvec[64];
 #else
   __m128i dstvec[32];
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (bd < 12) {
     highbd_dr_prediction_z1_8xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx, mrl_index);
@@ -2620,7 +2620,7 @@ static void highbd_dr_prediction_z3_64x16_avx2(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 static void highbd_dr_prediction_z3_32x4_avx2(uint16_t *dst, ptrdiff_t stride,
                                               const uint16_t *left,
                                               int upsample_left, int dy, int bd,
@@ -2811,7 +2811,7 @@ static void highbd_dr_prediction_z3_8x64_avx2(uint16_t *dst, ptrdiff_t stride,
     }
   }
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
                                       int bh, const uint16_t *above,
@@ -2870,7 +2870,7 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
       } else {
         switch (bw) {
           case 4:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bh == 32)
               highbd_dr_prediction_z3_4x32_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
@@ -2878,17 +2878,17 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
               highbd_dr_prediction_z3_4x64_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_4x16_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 8:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bh == 64)
               highbd_dr_prediction_z3_8x64_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_8x32_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
@@ -2921,7 +2921,7 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
       } else {
         switch (bh) {
           case 4:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bw == 64)
               highbd_dr_prediction_z3_64x4_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
@@ -2929,17 +2929,17 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
               highbd_dr_prediction_z3_32x4_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_16x4_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 8:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bw == 64)
               highbd_dr_prediction_z3_64x8_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_32x8_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
@@ -3121,13 +3121,13 @@ static void highbd_dr_prediction_z1_4xN_idif_avx2(
   assert(bw == 4);
   int N = bh;
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   assert(bh <= 64);
   __m128i dstvec[64];
 #else
   assert(bh <= 16);
   __m128i dstvec[16];
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (bd < 10) {
     highbd_dr_prediction_z1_4xN_internal_idif_avx2(N, dstvec, above, dx,
@@ -3289,13 +3289,13 @@ void highbd_dr_prediction_z1_8xN_idif_avx2(uint16_t *dst, ptrdiff_t stride,
   assert(bw == 8);
   int N = bh;
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   assert(bh <= 64);
   __m128i dstvec[64];
 #else
   assert(bh <= 32);
   __m128i dstvec[32];
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (bd < 10) {
     highbd_dr_prediction_z1_8xN_internal_idif_avx2(N, dstvec, above, dx,
@@ -4714,7 +4714,7 @@ static void highbd_dr_prediction_z3_4x16_idif_avx2(uint16_t *dst,
   }
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 
 static void highbd_dr_prediction_z3_64x8_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
@@ -4899,7 +4899,7 @@ static void highbd_dr_prediction_z3_32x4_idif_avx2(uint16_t *dst,
   }
 }
 
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static void highbd_dr_prediction_z3_16x4_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
@@ -5171,7 +5171,7 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
       } else {
         switch (bw) {
           case 4:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bh == 32)
               highbd_dr_prediction_z3_4x32_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
@@ -5179,18 +5179,18 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
               highbd_dr_prediction_z3_4x64_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_4x16_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
             break;
           case 8:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bh == 64)
               highbd_dr_prediction_z3_8x64_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
 
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_8x32_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
             break;
@@ -5223,7 +5223,7 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
       } else {
         switch (bh) {
           case 4:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bw == 32)
 
               highbd_dr_prediction_z3_32x4_idif_avx2(dst, stride, left, dy, bd,
@@ -5233,18 +5233,18 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
                                                      mrl_index);
 
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_16x4_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
 
             break;
           case 8:
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
             if (bw == 64)
               highbd_dr_prediction_z3_64x8_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
             else
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
               highbd_dr_prediction_z3_32x8_idif_avx2(dst, stride, left, dy, bd,
                                                      mrl_index);
             break;

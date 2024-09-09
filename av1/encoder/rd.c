@@ -62,9 +62,9 @@ static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
   96, 96, 128,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   4,  4,  8,   8,  16, 16,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   6,  6,  12,  12, 8,  8,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
@@ -1698,14 +1698,14 @@ static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   3,
   3,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   1,
   1,
   2,
   2,
   2,
   2,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static int sse_norm_curvfit_model_cat_lookup(double sse_norm) {
@@ -1757,14 +1757,14 @@ static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   4,
   4,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   1,
   1,
   3,
   3,
   2,
   2,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 // TODO(any): Add models for BLOCK_256

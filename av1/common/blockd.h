@@ -944,7 +944,6 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
   if (!is_ext_partition_allowed_at_bsize(bsize, tree_type)) {
     return false;
   }
-#if CONFIG_FLEX_PARTITION
   // If 16x8 block performs HORZ_3 split, we'll get a block size 16x2, which is
   // invalid. So, extended partitions are disabled. Same goes for tall blocks.
   if ((bsize == BLOCK_16X8 && rect_type == HORZ) ||
@@ -975,15 +974,6 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
     return false;
   }
 #endif  // CONFIG_CB1TO4_SPLIT
-#else
-  // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
-  // we'll get a block ratio of 2:0.25 == 8:1, which is illegal. So extended
-  // partition is disabled. The same goes for tall block.
-  if ((is_wide_block(bsize) && rect_type == HORZ) ||
-      (is_tall_block(bsize) && rect_type == VERT)) {
-    return false;
-  }
-#endif  // CONFIG_FLEX_PARTITION
   assert(IMPLIES(rect_type == HORZ,
                  subsize_lookup[PARTITION_HORZ_3][bsize] != BLOCK_INVALID));
   assert(IMPLIES(rect_type == VERT,
@@ -996,7 +986,6 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
 static AOM_INLINE bool is_uneven_4way_partition_allowed_at_bsize(
     BLOCK_SIZE bsize, TREE_TYPE tree_type) {
   if (!is_ext_partition_allowed_at_bsize(bsize, tree_type)) return false;
-#if CONFIG_FLEX_PARTITION
 #if CONFIG_CB1TO4_SPLIT
   if (bsize > BLOCK_LARGEST) {
     if (bsize >= BLOCK_16X64) {  // 16x64, 64x16
@@ -1020,9 +1009,6 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed_at_bsize(
     return true;
   }
   return false;
-#else
-  return true;
-#endif  // CONFIG_FLEX_PARTITION
 }
 
 /*!\brief Checks whether uneven 4-way partition is allowed for current bsize and
@@ -1033,7 +1019,6 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
   if (!is_uneven_4way_partition_allowed_at_bsize(bsize, tree_type)) {
     return false;
   }
-#if CONFIG_FLEX_PARTITION
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   assert(bw <= 64 && bh <= 64);
@@ -1045,16 +1030,6 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
     if (bw == 64) return true;
     if (bw >= 32 && tree_type != CHROMA_PART) return true;
   }
-#else
-  if (rect_type == HORZ) {
-    if (bsize == BLOCK_32X64) return true;
-    if (bsize == BLOCK_16X32 && tree_type != CHROMA_PART) return true;
-  } else {
-    assert(rect_type == VERT);
-    if (bsize == BLOCK_64X32) return true;
-    if (bsize == BLOCK_32X16 && tree_type != CHROMA_PART) return true;
-  }
-#endif  // CONFIG_FLEX_PARTITION
   return false;
 }
 
@@ -3289,14 +3264,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     2,
     2,
     3,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     0,
     2,
     1,
     3,
     0,
     3,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
     0,
@@ -3326,14 +3301,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     1,
     3,
     2,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     0,
     3,
     1,
     3,
     0,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
     0,
@@ -3363,14 +3338,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     1,
     0,
     1,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     0,
     1,
     0,
     1,
     0,
     1,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
   const int index =
       ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
@@ -4064,14 +4039,14 @@ static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
     2,
     2,
     2,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     2,
     2,
     2,
     2,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
   return bsize_to_max_depth_table[bsize];
 }
@@ -4118,14 +4093,14 @@ static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
     3,
     4,
     4,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     3,
     3,
     4,
     4,
     4,
     4,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   };
   const int depth = bsize_to_tx_size_depth_table[bsize];
   assert(depth <= MAX_TX_CATS);
@@ -4146,12 +4121,12 @@ static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
     case TX_32X64: return TX_32X32;
     case TX_64X16: return TX_32X16;
     case TX_16X64: return TX_16X32;
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
     case TX_64X8: return TX_32X8;
     case TX_8X64: return TX_8X32;
     case TX_64X4: return TX_32X4;
     case TX_4X64: return TX_4X32;
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: return tx_size;
   }
 }
@@ -4534,14 +4509,14 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   if (tx_size == TX_16X64 || tx_size == TX_64X16) {
     return 512;
   }
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (tx_size == TX_8X64 || tx_size == TX_64X8) {
     return 256;
   }
   if (tx_size == TX_4X64 || tx_size == TX_64X4) {
     return 128;
   }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   return tx_size_2d[tx_size];
 }
 

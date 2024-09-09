@@ -384,7 +384,7 @@ void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
 #endif  // CONFIG_INTER_DDT
                                      int bd);
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
 #if CONFIG_INTER_DDT
@@ -426,7 +426,7 @@ void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
                                     int use_ddt,
 #endif  // CONFIG_INTER_DDT
                                     int bd);
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 typedef void (*transform_1d_sse2)(const __m128i *input, __m128i *output,
                                   int8_t cos_bit);

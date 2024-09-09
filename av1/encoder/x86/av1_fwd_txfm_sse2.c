@@ -3553,7 +3553,7 @@ void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
   memset(output + 16 * 32, 0, 16 * 32 * sizeof(*output));
 }
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
 #if CONFIG_INTER_DDT
@@ -3897,7 +3897,7 @@ void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
     store_buffer_16bit_to_32bit_w8(buf8, output8 + 8 * j, 32, 8);
   }
 }
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_4x4_sse2,    // 4x4 transform
@@ -3919,14 +3919,14 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
   NULL,                             // 16x64 transform
   NULL,                             // 64x16 transform
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   av1_lowbd_fwd_txfm2d_4x32_sse2,  // 4x16 transform
   av1_lowbd_fwd_txfm2d_32x4_sse2,  // 16x4 transform
   av1_lowbd_fwd_txfm2d_8x64_sse2,  // 8x32 transform
   av1_lowbd_fwd_txfm2d_64x8_sse2,  // 32x8 transform
   av1_lowbd_fwd_txfm2d_4x64_sse2,  // 16x64 transform
   av1_lowbd_fwd_txfm2d_64x4_sse2,  // 64x16 transform
-#endif                             // CONFIG_FLEX_PARTITION
+#endif                             // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,

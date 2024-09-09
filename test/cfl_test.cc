@@ -27,7 +27,7 @@ using libaom_test::ACMRandom;
 #define NUM_ITERATIONS (100)
 #define NUM_ITERATIONS_SPEED (INT16_MAX)
 
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 
 #define ALL_CFL_TX_SIZES(function)                           \
   make_tuple(static_cast<TX_SIZE>(TX_4X4), &function),       \
@@ -99,7 +99,7 @@ using libaom_test::ACMRandom;
       make_tuple(static_cast<TX_SIZE>(TX_32X16), &fun420, &fun422, &fun444), \
       make_tuple(static_cast<TX_SIZE>(TX_32X32), &fun420, &fun422, &fun444)
 
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 namespace {
 

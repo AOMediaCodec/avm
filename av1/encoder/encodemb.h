@@ -212,9 +212,9 @@ static INLINE int is_trellis_used(TRELLIS_OPT_TYPE optimize_b,
 static const uint16_t dc_coeff_scale[TX_SIZES_ALL] = {
   1024, 2048, 4096, 4096, 0,    1448, 1448, 2896, 2896, 2896,
   2896, 0,    0,    2048, 2048, 4096, 4096, 0,    0,
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   2896, 2896, 0,    0,    0,    0,
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 #ifdef __cplusplus

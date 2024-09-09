@@ -965,7 +965,7 @@ void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
 #endif  // CONFIG_IMPROVED_CFL
 }
 
-#if !CONFIG_FLEX_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
 static INLINE int max_intra_block_width(const MACROBLOCKD *xd,
                                         BLOCK_SIZE plane_bsize, int plane,
                                         TX_SIZE tx_size) {
@@ -981,7 +981,7 @@ static INLINE int max_intra_block_height(const MACROBLOCKD *xd,
                               << MI_SIZE_LOG2;
   return ALIGN_POWER_OF_TWO(max_blocks_high, tx_size_high_log2[tx_size]);
 }
-#endif  // !CONFIG_FLEX_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 #if CONFIG_IMPROVED_CFL
@@ -991,7 +991,7 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 ) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
-#if CONFIG_FLEX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
   // Always store full block, even if partially outside frame boundary.
   const int width = block_size_wide[bsize];
   const int height = block_size_high[bsize];
@@ -1001,7 +1001,7 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
   // get_tx_size(width, height) below.
   const int width = max_intra_block_width(xd, bsize, AOM_PLANE_Y, tx_size);
   const int height = max_intra_block_height(xd, bsize, AOM_PLANE_Y, tx_size);
-#endif  // CONFIG_FLEX_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
   const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
