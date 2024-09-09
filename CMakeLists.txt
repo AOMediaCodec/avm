@@ -610,7 +610,7 @@ if(CONFIG_AV1_ENCODER)
     # below and built as sub-projects. The fetchcontent based snippet above can
     # be used in the future to update the stored archives for the dependencies
     # should TFlite version be updated,
-    message(STATUS "Building TFLite from local submodules...")
+    message(STATUS "Building TFLite from local sources...")
     # These are the paths of the stored TFLite dependencies, use the the
     # fetchcontent snippet above, then look for messages like: "Performing
     # download step (download, verify and extract) for 'xyz'" go to
@@ -625,7 +625,9 @@ if(CONFIG_AV1_ENCODER)
              "tar -xzf pthreadpool.tar.gz; "
              "tar -xzf psimd.tar.gz; "
              "tar -xzf FXdiv.tar.gz; "
-             "tar -xzf xnnpack.tar.gz ")
+             "tar -xzf xnnpack.tar.gz; "
+             "tar -xzf benchmark.tar.gz; "
+             "tar -xzf ruy.tar.gz")
     execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
@@ -633,6 +635,8 @@ if(CONFIG_AV1_ENCODER)
     set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
     set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
     set(XNNPACK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/XNNPACK)
+    set(google_benchmark_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
+    set(RUY_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ruy)
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
