@@ -20,7 +20,6 @@
 #include "aom_dsp/x86/synonyms.h"
 
 #if CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_REFINEMENT_SIMPLIFY
 static INLINE __m128i round_power_of_two_signed_epi64(__m128i in, int n) {
   __m128i sign_mask = _mm_srai_epi32(in, 31);
   sign_mask = _mm_or_si128(sign_mask, _mm_srli_epi64(sign_mask, 4));
@@ -36,7 +35,6 @@ static INLINE __m128i round_power_of_two_signed_epi64(__m128i in, int n) {
   rounded_vec = _mm_sub_epi64(rounded_vec, sign_mask);
   return rounded_vec;
 }
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 static INLINE __m128i pack_and_round_epi32(__m128i temp1, __m128i temp2,
                                            const __m128i v_bias_d,
@@ -389,19 +387,8 @@ void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
   (void)rls_alpha;
 #endif
 
-#if !CONFIG_REFINEMENT_SIMPLIFY
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in det, det_x, and
-  // det_y
-  su2 = clamp64(su2, -OPFL_AUTOCORR_CLAMP_VAL, OPFL_AUTOCORR_CLAMP_VAL);
-  sv2 = clamp64(sv2, -OPFL_AUTOCORR_CLAMP_VAL, OPFL_AUTOCORR_CLAMP_VAL);
-  suv = clamp64(suv, -OPFL_AUTOCORR_CLAMP_VAL, OPFL_AUTOCORR_CLAMP_VAL);
-  suw = clamp64(suw, -OPFL_AUTOCORR_CLAMP_VAL, OPFL_AUTOCORR_CLAMP_VAL);
-  svw = clamp64(svw, -OPFL_AUTOCORR_CLAMP_VAL, OPFL_AUTOCORR_CLAMP_VAL);
-#endif  // !CONFIG_REFINEMENT_SIMPLIFY
-
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
-#if CONFIG_REFINEMENT_SIMPLIFY
   int shifts[2] = { bits, bits };
   int msb_su2 = 1 + get_msb_signed_64(su2);
   int msb_sv2 = 1 + get_msb_signed_64(sv2);
@@ -434,37 +421,16 @@ void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
   divide_and_round_array(sol, det, 2, shifts);
   *vx0 = (int)-sol[0];
   *vy0 = (int)-sol[1];
-#else
-  const int64_t det = su2 * sv2 - suv * suv;
-  if (det <= 0) {
-    *vx0 = 0;
-    *vy0 = 0;
-    *vx1 = 0;
-    *vy1 = 0;
-    return;
-  }
-  const int64_t det_x = (suv * svw - sv2 * suw) * (1 << bits);
-  const int64_t det_y = (suv * suw - su2 * svw) * (1 << bits);
-
-  *vx0 = (int)divide_and_round_signed(det_x, det);
-  *vy0 = (int)divide_and_round_signed(det_y, det);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
   *vx1 = (*vx0) * d1;
   *vy1 = (*vy0) * d1;
   *vx0 = (*vx0) * d0;
   *vy0 = (*vy0) * d0;
 }
 
-static AOM_FORCE_INLINE void multiply_and_accum(__m128i a_lo_0, __m128i b_lo_0,
-                                                __m128i a_hi_0, __m128i b_hi_0,
-                                                __m128i a_lo1, __m128i b_lo1,
-                                                __m128i a_hi1, __m128i b_hi1,
-#if CONFIG_REFINEMENT_SIMPLIFY
-                                                const int grad_bits_lo,
-                                                const int grad_bits_hi,
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
-                                                __m128i *t1, __m128i *t2) {
-#if CONFIG_REFINEMENT_SIMPLIFY
+static AOM_FORCE_INLINE void multiply_and_accum(
+    __m128i a_lo_0, __m128i b_lo_0, __m128i a_hi_0, __m128i b_hi_0,
+    __m128i a_lo1, __m128i b_lo1, __m128i a_hi1, __m128i b_hi1,
+    const int grad_bits_lo, const int grad_bits_hi, __m128i *t1, __m128i *t2) {
   const __m128i reg_lo_0 = round_power_of_two_signed_epi64(
       _mm_mul_epi32(a_lo_0, b_lo_0), grad_bits_lo);
   const __m128i reg_hi_0 = round_power_of_two_signed_epi64(
@@ -473,12 +439,6 @@ static AOM_FORCE_INLINE void multiply_and_accum(__m128i a_lo_0, __m128i b_lo_0,
       _mm_mul_epi32(a_lo1, b_lo1), grad_bits_lo);
   const __m128i reg_hi1 = round_power_of_two_signed_epi64(
       _mm_mul_epi32(a_hi1, b_hi1), grad_bits_hi);
-#else
-  const __m128i reg_lo_0 = _mm_mul_epi32(a_lo_0, b_lo_0);
-  const __m128i reg_hi_0 = _mm_mul_epi32(a_hi_0, b_hi_0);
-  const __m128i reg_lo1 = _mm_mul_epi32(a_lo1, b_lo1);
-  const __m128i reg_hi1 = _mm_mul_epi32(a_hi1, b_hi1);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
   *t1 = _mm_add_epi64(reg_lo_0, reg_lo1);
   *t2 = _mm_add_epi64(reg_hi_0, reg_hi1);
 }
@@ -492,7 +452,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   int bHeight = 4;
   const int bits = mv_prec_bits + grad_prec_bits;
   const int rls_alpha = OPFL_RLS_PARAM;
-#if CONFIG_REFINEMENT_SIMPLIFY
   __m128i u2_lo, v2_lo, uv_lo, uw_lo, vw_lo;
   __m128i u2_hi, v2_hi, uv_hi, uw_hi, vw_hi;
   int64_t su2_hi = 0;
@@ -509,18 +468,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   int grad_bits_hi = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
-#else
-  __m128i u2_lo = _mm_setzero_si128();
-  __m128i uv_lo = _mm_setzero_si128();
-  __m128i v2_lo = _mm_setzero_si128();
-  __m128i uw_lo = _mm_setzero_si128();
-  __m128i vw_lo = _mm_setzero_si128();
-  __m128i u2_hi = _mm_setzero_si128();
-  __m128i uv_hi = _mm_setzero_si128();
-  __m128i v2_hi = _mm_setzero_si128();
-  __m128i uw_hi = _mm_setzero_si128();
-  __m128i vw_hi = _mm_setzero_si128();
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
@@ -546,11 +493,9 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64-bit precision
     // to avoid overflow issues.
-#if CONFIG_REFINEMENT_SIMPLIFY
     gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
     gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
     pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);
@@ -565,7 +510,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     const __m128i pred_lo1 = _mm_srli_si128(pred_lo_0, 4);
     const __m128i pred_hi1 = _mm_srli_si128(pred_hi_0, 4);
 
-#if CONFIG_REFINEMENT_SIMPLIFY
     multiply_and_accum(gradX_lo_0, gradX_lo_0, gradX_hi_0, gradX_hi_0,
                        gradX_lo1, gradX_lo1, gradX_hi1, gradX_hi1, grad_bits_lo,
                        grad_bits_hi, &u2_lo, &u2_hi);
@@ -581,33 +525,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     multiply_and_accum(gradY_lo_0, pred_lo_0, gradY_hi_0, pred_hi_0, gradY_lo1,
                        pred_lo1, gradY_hi1, pred_hi1, grad_bits_lo,
                        grad_bits_hi, &vw_lo, &vw_hi);
-#else
-    __m128i t1, t2;
-    multiply_and_accum(gradX_lo_0, gradX_lo_0, gradX_hi_0, gradX_hi_0,
-                       gradX_lo1, gradX_lo1, gradX_hi1, gradX_hi1, &t1, &t2);
-    u2_lo = _mm_add_epi64(u2_lo, t1);
-    u2_hi = _mm_add_epi64(u2_hi, t2);
-
-    multiply_and_accum(gradY_lo_0, gradY_lo_0, gradY_hi_0, gradY_hi_0,
-                       gradY_lo1, gradY_lo1, gradY_hi1, gradY_hi1, &t1, &t2);
-    v2_lo = _mm_add_epi64(v2_lo, t1);
-    v2_hi = _mm_add_epi64(v2_hi, t2);
-
-    multiply_and_accum(gradX_lo_0, gradY_lo_0, gradX_hi_0, gradY_hi_0,
-                       gradX_lo1, gradY_lo1, gradX_hi1, gradY_hi1, &t1, &t2);
-    uv_lo = _mm_add_epi64(uv_lo, t1);
-    uv_hi = _mm_add_epi64(uv_hi, t2);
-
-    multiply_and_accum(gradX_lo_0, pred_lo_0, gradX_hi_0, pred_hi_0, gradX_lo1,
-                       pred_lo1, gradX_hi1, pred_hi1, &t1, &t2);
-    uw_lo = _mm_add_epi64(uw_lo, t1);
-    uw_hi = _mm_add_epi64(uw_hi, t2);
-
-    multiply_and_accum(gradY_lo_0, pred_lo_0, gradY_hi_0, pred_hi_0, gradY_lo1,
-                       pred_lo1, gradY_hi1, pred_hi1, &t1, &t2);
-    vw_lo = _mm_add_epi64(vw_lo, t1);
-    vw_hi = _mm_add_epi64(vw_hi, t2);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 #if OPFL_DOWNSAMP_QUINCUNX
     gx += gstride << 1;
@@ -620,7 +537,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     pdiff += pstride;
     bHeight -= 1;
 #endif
-#if CONFIG_REFINEMENT_SIMPLIFY
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_lo, _mm_srli_si128(u2_lo, 8)));
     su2_lo += temp;
@@ -666,45 +582,12 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
         grad_bits_hi++;
       }
     }
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
   } while (bHeight != 0);
 
-#if CONFIG_REFINEMENT_SIMPLIFY
   calc_mv_process(su2_lo, sv2_lo, suv_lo, suw_lo, svw_lo, d0, d1, bits,
                   rls_alpha, vx0, vy0, vx1, vy1);
   calc_mv_process(su2_hi, sv2_hi, suv_hi, suw_hi, svw_hi, d0, d1, bits,
                   rls_alpha, vx0 + 1, vy0 + 1, vx1 + 1, vy1 + 1);
-#else
-  u2_lo = _mm_add_epi64(u2_lo, _mm_srli_si128(u2_lo, 8));
-  u2_hi = _mm_add_epi64(u2_hi, _mm_srli_si128(u2_hi, 8));
-  v2_lo = _mm_add_epi64(v2_lo, _mm_srli_si128(v2_lo, 8));
-  v2_hi = _mm_add_epi64(v2_hi, _mm_srli_si128(v2_hi, 8));
-  uv_lo = _mm_add_epi64(uv_lo, _mm_srli_si128(uv_lo, 8));
-  uv_hi = _mm_add_epi64(uv_hi, _mm_srli_si128(uv_hi, 8));
-  uw_lo = _mm_add_epi64(uw_lo, _mm_srli_si128(uw_lo, 8));
-  uw_hi = _mm_add_epi64(uw_hi, _mm_srli_si128(uw_hi, 8));
-  vw_lo = _mm_add_epi64(vw_lo, _mm_srli_si128(vw_lo, 8));
-  vw_hi = _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8));
-
-  int64_t su2, sv2, suv, suw, svw;
-  xx_storel_64(&su2, u2_lo);
-  xx_storel_64(&sv2, v2_lo);
-  xx_storel_64(&suv, uv_lo);
-  xx_storel_64(&suw, uw_lo);
-  xx_storel_64(&svw, vw_lo);
-
-  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
-                  vx1, vy1);
-
-  xx_storel_64(&su2, u2_hi);
-  xx_storel_64(&sv2, v2_hi);
-  xx_storel_64(&suv, uv_hi);
-  xx_storel_64(&suw, uw_hi);
-  xx_storel_64(&svw, vw_hi);
-
-  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0 + 1,
-                  vy0 + 1, vx1 + 1, vy1 + 1);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 }
 
 static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
@@ -716,7 +599,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int bHeight = 8;
   const int rls_alpha = 4 * OPFL_RLS_PARAM;
   const int bits = mv_prec_bits + grad_prec_bits;
-#if CONFIG_REFINEMENT_SIMPLIFY
   __m128i u2, v2, uv, uw, vw;
   int64_t su2 = 0;
   int64_t sv2 = 0;
@@ -726,13 +608,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int grad_bits = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
-#else
-  __m128i u2 = _mm_setzero_si128();
-  __m128i uv = _mm_setzero_si128();
-  __m128i v2 = _mm_setzero_si128();
-  __m128i uw = _mm_setzero_si128();
-  __m128i vw = _mm_setzero_si128();
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
@@ -758,11 +633,9 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64bit to avoid
     // overflow issues.
-#if CONFIG_REFINEMENT_SIMPLIFY
     gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
     gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
     pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);
@@ -778,7 +651,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     const __m128i pred_hi1 = _mm_srli_si128(pred_hi_0, 4);
     __m128i t1, t2;
 
-#if CONFIG_REFINEMENT_SIMPLIFY
     multiply_and_accum(gradX_lo_0, gradX_lo_0, gradX_hi_0, gradX_hi_0,
                        gradX_lo1, gradX_lo1, gradX_hi1, gradX_hi1, grad_bits,
                        grad_bits, &t1, &t2);
@@ -803,32 +675,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
                        pred_lo1, gradY_hi1, pred_hi1, grad_bits, grad_bits, &t1,
                        &t2);
     vw = _mm_add_epi64(t1, t2);
-#else
-    multiply_and_accum(gradX_lo_0, gradX_lo_0, gradX_hi_0, gradX_hi_0,
-                       gradX_lo1, gradX_lo1, gradX_hi1, gradX_hi1, &t1, &t2);
-    t2 = _mm_add_epi64(t1, t2);
-    u2 = _mm_add_epi64(u2, t2);
-
-    multiply_and_accum(gradY_lo_0, gradY_lo_0, gradY_hi_0, gradY_hi_0,
-                       gradY_lo1, gradY_lo1, gradY_hi1, gradY_hi1, &t1, &t2);
-    t2 = _mm_add_epi64(t1, t2);
-    v2 = _mm_add_epi64(v2, t2);
-
-    multiply_and_accum(gradX_lo_0, gradY_lo_0, gradX_hi_0, gradY_hi_0,
-                       gradX_lo1, gradY_lo1, gradX_hi1, gradY_hi1, &t1, &t2);
-    t2 = _mm_add_epi64(t1, t2);
-    uv = _mm_add_epi64(uv, t2);
-
-    multiply_and_accum(gradX_lo_0, pred_lo_0, gradX_hi_0, pred_hi_0, gradX_lo1,
-                       pred_lo1, gradX_hi1, pred_hi1, &t1, &t2);
-    t2 = _mm_add_epi64(t1, t2);
-    uw = _mm_add_epi64(uw, t2);
-
-    multiply_and_accum(gradY_lo_0, pred_lo_0, gradY_hi_0, pred_hi_0, gradY_lo1,
-                       pred_lo1, gradY_hi1, pred_hi1, &t1, &t2);
-    t2 = _mm_add_epi64(t1, t2);
-    vw = _mm_add_epi64(vw, t2);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 #if OPFL_DOWNSAMP_QUINCUNX
     gx += gstride << 1;
     gy += gstride << 1;
@@ -840,7 +686,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     pdiff += pstride;
     bHeight -= 1;
 #endif
-#if CONFIG_REFINEMENT_SIMPLIFY
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2, _mm_srli_si128(u2, 8)));
     su2 += temp;
@@ -864,22 +709,7 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
       svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, 1);
       grad_bits++;
     }
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
   } while (bHeight != 0);
-
-#if !CONFIG_REFINEMENT_SIMPLIFY
-  int64_t su2, sv2, suv, suw, svw;
-  u2 = _mm_add_epi64(u2, _mm_srli_si128(u2, 8));
-  v2 = _mm_add_epi64(v2, _mm_srli_si128(v2, 8));
-  uv = _mm_add_epi64(uv, _mm_srli_si128(uv, 8));
-  uw = _mm_add_epi64(uw, _mm_srli_si128(uw, 8));
-  vw = _mm_add_epi64(vw, _mm_srli_si128(vw, 8));
-  xx_storel_64(&su2, u2);
-  xx_storel_64(&sv2, v2);
-  xx_storel_64(&suv, uv);
-  xx_storel_64(&suw, uw);
-  xx_storel_64(&svw, vw);
-#endif  // !CONFIG_REFINEMENT_SIMPLIFY
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
                   vx1, vy1);

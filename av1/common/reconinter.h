@@ -535,7 +535,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #define OPFL_REGULARIZED_LS 1
 #define OPFL_RLS_PARAM 16
 
-#if CONFIG_REFINEMENT_SIMPLIFY
 // Number of bits allowed for all intermediate results of covariance matrix
 // filling
 #define MAX_OPFL_AUTOCORR_BITS 28
@@ -543,13 +542,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 // unsigned bits. Every sum of 8 u2/v2 use at most 2h+3 unsigned bits, and
 // must not exceed max bd of su2/sv2 minus 2. Thus, 2h+3 <= H-2
 #define OPFL_SAMP_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
-#else
-// Number of bits allowed for covariance matrix elements (su2, sv2, suv, suw
-// and svw) so that det, det_x, and det_y does not cause overflow issue in
-// int64_t. Its value must be <= (64 - mv_prec_bits - grad_prec_bits) / 2.
-#define MAX_OPFL_AUTOCORR_BITS 28
-#define OPFL_AUTOCORR_CLAMP_VAL (1 << MAX_OPFL_AUTOCORR_BITS)
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
@@ -598,7 +590,6 @@ void av1_opfl_rebuild_inter_predictor(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 );
 
-#if CONFIG_REFINEMENT_SIMPLIFY
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.
 #define MAX_LS_BITS 32
@@ -640,63 +631,18 @@ static INLINE void divide_and_round_array(int64_t *sol, int64_t den,
     sol[i] = sign ? sol[i] : -sol[i];
   }
 }
-#else
-// Integer division based on lookup table.
-// num: numerator
-// den: denominator
-// out: output result (num / den)
-static INLINE int32_t divide_and_round_signed(int64_t num, int64_t den) {
-  if (llabs(den) == 1) return (int32_t)(den < 0 ? -num : num);
-  const int optflow_prec_bits = 16;
-  int16_t shift;
-  const int sign_den = (den < 0 ? -1 : 1);
-  uint16_t inverse_den = resolve_divisor_64(llabs(den), &shift);
-  shift -= optflow_prec_bits;
-  if (shift < 0) {
-    inverse_den <<= (-shift);
-    shift = 0;
-  }
-  int32_t out;
-  // Make sure 1) the bits for right shift is < 63 and 2) the bit depth
-  // of num is < 48 to avoid overflow in num * inverse_den
-  if (optflow_prec_bits + shift >= 63 ||
-      ROUND_POWER_OF_TWO_SIGNED_64(num, 63 - optflow_prec_bits) != 0) {
-    int64_t out_tmp = ROUND_POWER_OF_TWO_SIGNED_64(num, optflow_prec_bits);
-    out = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(
-        out_tmp * (int64_t)inverse_den * sign_den, shift);
-  } else {
-    out = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(
-        num * (int64_t)inverse_den * sign_den, optflow_prec_bits + shift);
-  }
-#ifndef NDEBUG
-  // Verify that the result is consistent with built-in division.
-  // Quick overflow check
-  int32_t out_div = (llabs(num) + llabs(den) < 0)
-                        ? (int32_t)DIVIDE_AND_ROUND_SIGNED(
-                              ROUND_POWER_OF_TWO_SIGNED_64(num, 2),
-                              ROUND_POWER_OF_TWO_SIGNED_64(den, 2))
-                        : (int32_t)DIVIDE_AND_ROUND_SIGNED(num, den);
-  // check if error is at most 1 at usable values of out_div
-  if (abs(out_div - out) > 1 && abs(out_div) <= 64) {
-    printf("Warning: num = %" PRId64 ", den = %" PRId64
-           ", inverse_den = %d, shift = %d, v0 = %d, v = %d\n",
-           num, den, inverse_den, shift, out_div, out);
-  }
-#endif  // NDEBUG
-  return out;
-}
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
-#if CONFIG_AFFINE_REFINEMENT
-#if CONFIG_REFINEMENT_SIMPLIFY || CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_AFFINE_REFINEMENT || CONFIG_E125_MHCCP_SIMPLIFY
 // This function is a stable version of ROUND_POWER_OF_TWO_SIGNED(a*b, shift),
 // where shifts are partially applied before multiplcation operations to avoid
 // overflow issues, i.e., (a>>s1)*(b>>s2)>>s3, where s1+s2+s3=shift
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           const int msb_a, const int msb_b, const int max_bd,
                           int *rem_shift);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY || CONFIG_E125_MHCCP_SIMPLIFY
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_E125_MHCCP_SIMPLIFY
+
+#if CONFIG_AFFINE_REFINEMENT
 int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol);
 void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
                                        int16_t *gx, int16_t *gy,
@@ -733,7 +679,6 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #define AFFINE_AVG_MAX_SIZE_LOG2 4
 #define AFFINE_AVG_MAX_SIZE (1 << AFFINE_AVG_MAX_SIZE_LOG2)
 
-#if CONFIG_REFINEMENT_SIMPLIFY
 // We consider this tunable number H=MAX_AFFINE_AUTOCORR_BITS-1 (sign bit
 // excluded) as the maximum bit depth for autocorrelation matrix filling.
 // This value should not be set lower than 25, since gx*x+gy*y can reach 25
@@ -745,16 +690,6 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #define AFFINE_SAMP_CLAMP_VAL \
   ((1L << ((MAX_AFFINE_AUTOCORR_BITS - 7) >> 1)) - 1)
 #define AFFINE_COORDS_OFFSET_BITS 2
-#else
-// Number of bits allowed for covariance matrix elements so that determinants
-// do not overflow int64_t. For dim=3, input bit depth must be
-// <= (64 - mv_prec_bits - grad_prec_bits) / 3. For dim=4, input bit depth must
-// be <= (64-1)/2 for the first stage (getsub_4d), and <= 64-3-precbits for
-// the second stage (determinant and divide_and_round_signed).
-#define AFFINE_SAMP_CLAMP_VAL ((1 << 15) - 1)
-#define AFFINE_AUTOCORR_CLAMP_VAL ((1 << 30) - 1)
-#define AFFINE_COORDS_OFFSET_BITS 3
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 // Internal bit depths for affine parameter derivation
 #define AFFINE_GRAD_BITS_THR 32
