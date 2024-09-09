@@ -91,6 +91,12 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_ML_PART_SPLIT 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
+  # CONFIG_PARTITION_CONTEXT_REDUCE is dependent on CONFIG_CB1TO4_SPLIT.
+  if(NOT CONFIG_CB1TO4_SPLIT AND CONFIG_PARTITION_CONTEXT_REDUCE)
+    change_config_and_warn(CONFIG_PARTITION_CONTEXT_REDUCE 0
+                           !CONFIG_CB1TO4_SPLIT)
+  endif()
+
   # CONFIG_BAWP_CHROMA depends on CONFIG_BAWP
   if(NOT CONFIG_BAWP AND CONFIG_BAWP_CHROMA)
     change_config_and_warn(CONFIG_BAWP_CHROMA 0 !CONFIG_BAWP)
