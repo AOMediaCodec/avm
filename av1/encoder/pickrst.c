@@ -155,6 +155,8 @@ typedef struct {
   int tile_y0, tile_stripe0;
   // Helps convert tile-localized RU indices to frame RU indices.
   int ru_idx_base;
+  // Number of RUs in tile
+  int num_rus_in_tile;
 
   // sgrproj and wiener are initialised by rsc_on_tile when starting the first
   // tile in the frame.
@@ -249,11 +251,72 @@ static AOM_INLINE void reset_all_banks(RestSearchCtxt *rsc) {
                           rsc->num_filter_classes, rsc->plane != AOM_PLANE_Y);
 }
 
-static AOM_INLINE void rsc_on_tile(void *priv, int idx_base) {
+static void get_ru_limits_in_tile(const AV1_COMMON *cm, int plane, int tile_row,
+                                  int tile_col, int *ru_row_start,
+                                  int *ru_row_end, int *ru_col_start,
+                                  int *ru_col_end) {
+  TileInfo tile_info;
+  av1_tile_set_row(&tile_info, cm, tile_row);
+  av1_tile_set_col(&tile_info, cm, tile_col);
+  assert(tile_info.mi_row_start < tile_info.mi_row_end);
+  assert(tile_info.mi_col_start < tile_info.mi_col_end);
+
+  *ru_row_start = 0;
+  *ru_col_start = 0;
+  *ru_row_end = 0;
+  *ru_col_end = 0;
+  int rrow0, rrow1, rcol0, rcol1;
+  // Scan SBs row by row, left to right to find first SB that has RU info in it.
+  int found = 0;
+  for (int mi_row = tile_info.mi_row_start;
+       mi_row < tile_info.mi_row_end && !found; mi_row += cm->mib_size) {
+    for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
+         mi_col += cm->mib_size) {
+      if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col,
+                                             cm->sb_size, &rcol0, &rcol1,
+                                             &rrow0, &rrow1)) {
+        *ru_row_start = rrow0;  // this is the RU row start limit in RU terms.
+        *ru_col_start = rcol0;  // this is the RU col start limit in RU terms.
+        found = 1;
+        break;
+      }
+    }
+  }
+  // Scan SBs in reverse row by row, right to left to find first SB that has RU
+  // info in it.
+  found = 0;
+  const int sb_mi_row_end =
+      tile_info.mi_row_end - 1 - (tile_info.mi_row_end - 1) % cm->mib_size;
+  const int sb_mi_col_end =
+      tile_info.mi_col_end - 1 - (tile_info.mi_col_end - 1) % cm->mib_size;
+  for (int mi_row = sb_mi_row_end; mi_row >= tile_info.mi_row_start && !found;
+       mi_row -= cm->mib_size) {
+    for (int mi_col = sb_mi_col_end; mi_col >= tile_info.mi_col_start;
+         mi_col -= cm->mib_size) {
+      if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col,
+                                             cm->sb_size, &rcol0, &rcol1,
+                                             &rrow0, &rrow1)) {
+        *ru_row_end = rrow1;  // this is the RU row end limit in RU terms.
+        *ru_col_end = rcol1;  // this is the RU col end limit in RU terms.
+        found = 1;
+        break;
+      }
+    }
+  }
+}
+
+static AOM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
+                                   int tile_col) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   reset_all_banks(rsc);
   rsc->tile_stripe0 = 0;
   rsc->ru_idx_base = idx_base;
+  int ru_row_start, ru_row_end;
+  int ru_col_start, ru_col_end;
+  get_ru_limits_in_tile(rsc->cm, rsc->plane, tile_row, tile_col, &ru_row_start,
+                        &ru_row_end, &ru_col_start, &ru_col_end);
+  rsc->num_rus_in_tile =
+      (ru_row_end - ru_row_start) * (ru_col_end - ru_col_start);
 }
 
 static AOM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
@@ -4072,7 +4135,7 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   assert(tile_info.mi_col_start < tile_info.mi_col_end);
 
   reset_rsc(rsc);
-  rsc_on_tile(rsc, *processed);
+  rsc_on_tile(rsc, *processed, tile_row, tile_col);
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += rsc->cm->mib_size) {
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
