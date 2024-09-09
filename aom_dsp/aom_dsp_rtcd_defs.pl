@@ -696,21 +696,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
       if ($w != 128 && $h != 128 && $w != 4 && $w != 256 && $h != 256) {
         if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes") {
-          if (!($w == 16 && $h == 4) && !($w == 16 && $h == 8) &&
-              !($w == 16 && $h == 16) && !($w == 16 && $h == 32) &&
-              !($w == 16 && $h == 64)) {
-              specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
-              specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
-            }
+          if (!($w == 16 && $h == 4) && !($w == 16 && $h == 8) && !($w == 16 && $h == 16) && !($w == 16 && $h == 32) && !($w == 16 && $h == 64)) {
+            specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
+            specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
           }
         } else {
             specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
             specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
         }  # CONFIG_EXT_RECUR_PARTITIONS
       }
-
-
-
 
       add_proto qw/uint32_t/, "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance${w}x${h}", "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS* jcp_param";
     }

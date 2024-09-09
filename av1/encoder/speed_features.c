@@ -741,10 +741,8 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth_level = 0;
-#if CONFIG_EXT_RECUR_PARTITIONS
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->search_256_after_128 = 0;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_sf->prune_part_h_with_partition_boundary = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_ML_PART_SPLIT
