@@ -1981,9 +1981,9 @@ int max_dictionary_size();
 #define NUM_WIENERNS_CLASS_INIT_CHROMA 1
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-// Need two of the WIENERNS_YUV_MAX to store potential center taps. Adjust
+// Need two of the WIENERNS_TAPS_MAX to store potential center taps. Adjust
 // accordingly.
-#define WIENERNS_YUV_MAX 32
+#define WIENERNS_TAPS_MAX 32
 // Special symbol to indicate the set of all classes.
 #define ALL_WIENERNS_CLASSES -17
 /*!
@@ -1995,14 +1995,13 @@ typedef struct {
    */
   int num_classes;
   /*!
-   * Whether frame-level filters are on or off.
+   * Filter data - taps
    */
   DECLARE_ALIGNED(16, int16_t,
-                  allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
+                  allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_TAPS_MAX]);
   /*!
    * Best Reference from dynamic bank for each class.
    */
-
   int bank_ref_for_class[WIENERNS_MAX_CLASSES];
 #if CONFIG_COMBINE_PC_NS_WIENER
   /*!

@@ -63,8 +63,9 @@ static const int sgproj_ep_grp2_3[SGRPROJ_EP_GRP2_3_SEARCH_COUNT][14] = {
 
 // Number of elements needed in the temporary buffer for
 // compute_wienerns_filter
-#define WIENERNS_R_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_MAX * WIENERNS_MAX)
-#define WIENERNS_b_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_MAX)
+#define WIENERNS_R_SIZE \
+  (WIENERNS_MAX_CLASSES * WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX)
+#define WIENERNS_b_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_TAPS_MAX)
 #define WIENERNS_TMPBUF_SIZE (WIENERNS_R_SIZE + WIENERNS_b_SIZE)
 
 typedef int64_t (*sse_extractor_type)(const YV12_BUFFER_CONFIG *a,
@@ -205,8 +206,8 @@ typedef struct {
 
 // RU statistics for solving Wiener filters.
 typedef struct RstUnitStats {
-  double A[WIENERNS_MAX_CLASSES * WIENERNS_MAX * WIENERNS_MAX];
-  double b[WIENERNS_MAX_CLASSES * WIENERNS_MAX];
+  double A[WIENERNS_R_SIZE];
+  double b[WIENERNS_b_SIZE];
   double weight;  // Importance of this stat in the frame.
   int64_t real_sse;
   int num_stats_classes;
@@ -2850,10 +2851,10 @@ static int compute_wienerns_filter(
   double *tmp = tmpbuf + WIENERNS_R_SIZE;
 
   // Set up quantization data
-  double prec[WIENERNS_MAX] = { 0 };
-  int32_t min[WIENERNS_MAX] = { 0 };
-  int32_t max[WIENERNS_MAX] = { 0 };
-  int32_t scale[WIENERNS_MAX] = { 0 };
+  double prec[WIENERNS_TAPS_MAX] = { 0 };
+  int32_t min[WIENERNS_TAPS_MAX] = { 0 };
+  int32_t max[WIENERNS_TAPS_MAX] = { 0 };
+  int32_t scale[WIENERNS_TAPS_MAX] = { 0 };
 
   assert(n <= nsfilter_params->ncoeffs);
   for (int i = 0; i < n; i++) {
@@ -2867,7 +2868,7 @@ static int compute_wienerns_filter(
   }
 
   // Solve problem
-  int32_t x[WIENERNS_MAX];
+  int32_t x[WIENERNS_TAPS_MAX];
   int ret =
       linsolve_spd_quantize(n, A, R, stride, b, tmp, x, prec, min, max, scale);
   if (!ret) goto finished;
@@ -2890,10 +2891,10 @@ static int64_t compute_stats_for_wienerns_filter(
   (void)rui;
   const uint16_t *luma_hbd = rui->luma;
 
-  const int total_dim_A = num_classes * WIENERNS_MAX * WIENERNS_MAX;
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int total_dim_b = num_classes * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
+  const int total_dim_A = num_classes * WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int total_dim_b = num_classes * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int set_index =
       get_filter_set_index(rui->base_qindex + rui->qindex_offset);
@@ -2901,7 +2902,7 @@ static int64_t compute_stats_for_wienerns_filter(
       get_pc_wiener_sub_classifier(num_classes, set_index);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-  int16_t buf[WIENERNS_MAX];
+  int16_t buf[WIENERNS_TAPS_MAX];
   memset(A, 0, sizeof(*A) * total_dim_A);
   memset(b, 0, sizeof(*b) * total_dim_b);
   memset(num_pixels_in_class, 0, sizeof(*num_pixels_in_class) * num_classes);
@@ -2992,11 +2993,11 @@ static int compute_quantized_wienerns_filter(
     const WienernsFilterParameters *nsfilter_params) {
   const int num_classes = rsc->num_filter_classes;
   assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int total_dim_b = num_classes * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int total_dim_b = num_classes * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
 
-  double solver_x[WIENERNS_MAX_CLASSES * WIENERNS_MAX];
+  double solver_x[WIENERNS_MAX_CLASSES * WIENERNS_TAPS_MAX];
   const int num_feat = nsfilter_params->ncoeffs;
 
   int ret = 0;
@@ -3453,10 +3454,10 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
     rui.wiener_class_id_restrict = -1;
     calc_finer_tile_search_error(rsc, limits, &rsc->tile_rect, &rui);
   }
-  double solver_A_AVG[WIENERNS_MAX * WIENERNS_MAX];
-  const int class_dim_A = WIENERNS_MAX * WIENERNS_MAX;
-  double solver_b_AVG[WIENERNS_MAX];
-  const int class_dim_b = WIENERNS_MAX;
+  double solver_A_AVG[WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX];
+  const int class_dim_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  double solver_b_AVG[WIENERNS_TAPS_MAX];
+  const int class_dim_b = WIENERNS_TAPS_MAX;
   const int coeffs_dim_A = nsfilter_params->ncoeffs * nsfilter_params->ncoeffs;
   const int coeffs_dim_b = nsfilter_params->ncoeffs;
 
@@ -4234,8 +4235,8 @@ static void collapse_stats_to_target_classes(int target_classes,
   collapsed_unit_stats.weight = unit_stats->weight;
   collapsed_unit_stats.num_stats_classes = target_classes;
 
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
   for (int c_id = 0; c_id < unit_stats->num_stats_classes; ++c_id) {
     const int tc_id = class_converter[c_id];
     for (int i = 0; i < stride_A; ++i) {
@@ -4301,8 +4302,8 @@ static void weighted_sum_all_stats(const RestSearchCtxt *rsc,
   sum_stats->plane = sample_stat->plane;
   sum_stats->num_stats_classes = sample_stat->num_stats_classes;
 
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
   VECTOR_FOR_EACH(rsc->wienerns_stats, unit_stats) {
     const RstUnitStats *unit_stat = (const RstUnitStats *)unit_stats.pointer;
     const double weight = unit_stat->weight;
@@ -4386,8 +4387,8 @@ static double get_scaled_filter_distortion(const RstUnitStats *stats,
                                            WienerNonsepInfo *filter,
                                            int num_feat, int tap_qstep) {
   assert(filter->num_classes == stats->num_stats_classes);
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
 
   double distortion = stats->real_sse * tap_qstep * tap_qstep;
   for (int c_id = 0; c_id < stats->num_stats_classes; ++c_id) {
@@ -4413,9 +4414,9 @@ static void solve_filters_from_stats_wienerns(const RestSearchCtxt *rsc,
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
   const int num_feat = nsfilter_params->ncoeffs;
-  const int stride_A = WIENERNS_MAX * WIENERNS_MAX;
-  const int stride_b = WIENERNS_MAX;
-  // double solver_x[WIENERNS_MAX];
+  const int stride_A = WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX;
+  const int stride_b = WIENERNS_TAPS_MAX;
+  // double solver_x[WIENERNS_TAPS_MAX];
   const int num_target_classes = filter->num_classes;
   int linsolve_successful = 0;
   for (int c_id = 0; c_id < num_target_classes; ++c_id) {
@@ -4636,7 +4637,7 @@ static double optimize_frame_filters_for_target_classes(
   if (*best_utilization == 0) {
     for (int c_id = 0; c_id < num_target_classes; ++c_id) {
       memset(nsfilter_taps(filter, c_id), 0,
-             WIENERNS_YUV_MAX * sizeof(*filter->allfiltertaps));
+             WIENERNS_TAPS_MAX * sizeof(*filter->allfiltertaps));
     }
   }
   return best_cost;

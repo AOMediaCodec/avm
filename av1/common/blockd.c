@@ -386,13 +386,13 @@ void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
 
 int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id) {
   assert(wiener_class_id >= 0 && wiener_class_id < nsinfo->num_classes);
-  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_YUV_MAX;
+  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_TAPS_MAX;
 }
 
 const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
                                    int wiener_class_id) {
   assert(wiener_class_id >= 0 && wiener_class_id < nsinfo->num_classes);
-  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_YUV_MAX;
+  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_TAPS_MAX;
 }
 
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
@@ -400,9 +400,9 @@ void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   int wiener_class_id) {
   assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
   assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
-  const int offset = wiener_class_id * WIENERNS_YUV_MAX;
+  const int offset = wiener_class_id * WIENERNS_TAPS_MAX;
   memcpy(to_info->allfiltertaps + offset, from_info->allfiltertaps + offset,
-         WIENERNS_YUV_MAX * sizeof(*to_info->allfiltertaps));
+         WIENERNS_TAPS_MAX * sizeof(*to_info->allfiltertaps));
   to_info->bank_ref_for_class[wiener_class_id] =
       from_info->bank_ref_for_class[wiener_class_id];
 }
@@ -471,9 +471,9 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
 
-  int tap_translator[WIENERNS_YUV_MAX];
+  int tap_translator[WIENERNS_TAPS_MAX];
   const int num_taps = wienerns_to_pcwiener_tap_config_translator(
-      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_YUV_MAX);
+      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_TAPS_MAX);
   (void)num_taps;
   assert(num_taps == num_feat);
   const int set_index =

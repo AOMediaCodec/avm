@@ -174,8 +174,6 @@ extern "C" {
 
 #define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
 
-#define WIENERNS_MAX 20
-
 #define WIENERNS_ROW_ID 0
 #define WIENERNS_COL_ID 1
 #define WIENERNS_BUF_POS 2
