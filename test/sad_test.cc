@@ -1712,8 +1712,6 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(32, 16, &aom_highbd_sad_skip_32x16_sse2, 8),
 #if !CONFIG_EXT_RECUR_PARTITIONS
   make_tuple(16, 32, &aom_highbd_sad_skip_16x32_sse2, 8),
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
   make_tuple(16, 16, &aom_highbd_sad_skip_16x16_sse2, 8),
   make_tuple(16, 8, &aom_highbd_sad_skip_16x8_sse2, 8),
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS

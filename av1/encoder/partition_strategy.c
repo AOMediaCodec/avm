@@ -1419,6 +1419,8 @@ void av1_prune_partitions_by_max_min_bsize(
   const int is_le_min_sq_part = is_bsize_geq(sb_enc->min_partition_size, bsize);
   const int is_gt_max_sq_part = (block_height > max_partition_size_1d) ||
                                 (block_width > max_partition_size_1d);
+  (void)do_square_split;
+  (void)is_not_edge_block;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
   const int min_partition_size_1d = block_size_wide[sb_enc->min_partition_size];
   const int bsize_1d = block_size_wide[bsize];
@@ -1427,10 +1429,6 @@ void av1_prune_partitions_by_max_min_bsize(
   assert(min_partition_size_1d <= max_partition_size_1d);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#if CONFIG_EXT_RECUR_PARTITIONS
-  (void)do_square_split;
-  (void)is_not_edge_block;
-#endif
   if (is_gt_max_sq_part) {
     // If current block size is larger than max, only allow split.
     *partition_none_allowed = 0;

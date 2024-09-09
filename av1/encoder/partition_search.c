@@ -5558,13 +5558,6 @@ static void prune_partitions_after_split(
   const BLOCK_SIZE bsize = blk_params.bsize;
   assert(bsize < BLOCK_SIZES_ALL);
 
-#if CONFIG_EXT_RECUR_PARTITIONS
-  (void)sms_tree;
-  (void)part_none_rd;
-  (void)part_split_rd;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-
-#if !CONFIG_EXT_RECUR_PARTITIONS
   // Early termination: using the rd costs of PARTITION_NONE and subblocks
   // from PARTITION_SPLIT to determine an early breakout.
   if (cpi->sf.part_sf.ml_early_term_after_part_split_level &&
@@ -5578,7 +5571,6 @@ static void prune_partitions_after_split(
         part_search_state->split_rd, mi_row, mi_col,
         &part_search_state->terminate_partition_search);
   }
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   // Use the rd costs of PARTITION_NONE and subblocks from PARTITION_SPLIT
   // to prune out rectangular partitions in some directions.
