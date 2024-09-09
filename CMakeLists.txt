@@ -624,13 +624,15 @@ if(CONFIG_AV1_ENCODER)
              "tar -xzf fp16.tar.gz; "
              "tar -xzf pthreadpool.tar.gz; "
              "tar -xzf psimd.tar.gz; "
-             "tar -xzf FXdiv.tar.gz")
+             "tar -xzf FXdiv.tar.gz; "
+             "tar -xzf xnnpack.tar.gz ")
     execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
     set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
     set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
+    set(XNNPACK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/XNNPACK)
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
