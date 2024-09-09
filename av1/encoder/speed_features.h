@@ -920,10 +920,10 @@ typedef struct TX_SPEED_FEATURES {
   bool use_largest_tx_size_for_small_bsize;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   // tx_type search pruning at low qp and resolution >= 1080p
   bool restrict_tx_partition_type_search;
-#endif
+#endif  // CONFIG_NEW_TX_PARTITION
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

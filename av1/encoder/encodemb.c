@@ -998,7 +998,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
 #if CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
@@ -1020,7 +1020,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
                                     pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
   if (!plane) {
     assert(tx_size_wide[tx_size] >= tx_size_wide[plane_tx_size] &&
            tx_size_high[tx_size] >= tx_size_high[plane_tx_size]);
@@ -1031,7 +1031,6 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
                  dry_run);
   } else {
 #if CONFIG_NEW_TX_PARTITION
-#if CONFIG_TX_PARTITION_TYPE_EXT
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size,
                            &mbmi->txb_pos, mbmi->sub_txs);
     for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
@@ -1046,28 +1045,6 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
                    dry_run);
       block += sub_step;
     }
-#else
-    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, sub_txs);
-    int cur_partition = 0;
-    int bsw = 0, bsh = 0;
-    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
-      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
-        const TX_SIZE sub_tx = sub_txs[cur_partition];
-        bsw = tx_size_wide_unit[sub_tx];
-        bsh = tx_size_high_unit[sub_tx];
-        const int sub_step = bsw * bsh;
-        const int offsetr = blk_row + r;
-        const int offsetc = blk_col + c;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
-        encode_block(plane, block, offsetr, offsetc, plane_bsize, sub_tx, arg,
-                     dry_run);
-        block += sub_step;
-        cur_partition++;
-      }
-    }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     assert(tx_size < TX_SIZES_ALL);
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
@@ -1575,7 +1552,7 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   if (enable_optimize_b) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);
   }
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   if (plane == AOM_PLANE_Y && !xd->lossless[xd->mi[0]->segment_id]) {
     MB_MODE_INFO *mbmi = xd->mi[0];
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
@@ -1629,7 +1606,7 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
 #else
   av1_foreach_transformed_block_in_plane(
       xd, plane_bsize, plane, encode_block_intra_and_set_context, &arg);
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 }
 
 // Jointly encode two chroma components for an intra block.

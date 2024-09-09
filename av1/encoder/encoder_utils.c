@@ -876,11 +876,11 @@ void av1_setup_frame(AV1_COMP *cpi) {
   cpi->vaq_refresh = 0;
 }
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 #define STRICT_PSNR_DIFF_THRESH 0.88
 #else
 #define STRICT_PSNR_DIFF_THRESH 0.9
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 // Encode key frame with/without screen content tools to determine whether
 // screen content tools should be enabled for this key frame group or not.

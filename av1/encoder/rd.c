@@ -401,7 +401,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
-#if CONFIG_TX_PARTITION_TYPE_EXT
   for (int k = 0; k < 2; ++k) {
     // 0: intra, 1: inter
     for (i = 0; i < 2; ++i) {
@@ -419,25 +418,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
   }
 #else
-  for (int k = 0; k < 2; ++k) {
-    // 0: intra, 1: inter
-    for (i = 0; i < 2; ++i) {
-      // Group index from block size to tx partition context mapping
-      for (j = 0; j < TXFM_PARTITION_GROUP - 1; ++j) {
-        av1_cost_tokens_from_cdf(mode_costs->txfm_do_partition_cost[k][i][j],
-                                 fc->txfm_do_partition_cdf[k][i][j], NULL);
-        av1_cost_tokens_from_cdf(
-            mode_costs->txfm_4way_partition_type_cost[k][i][j],
-            fc->txfm_4way_partition_type_cdf[k][i][j], NULL);
-      }
-      av1_cost_tokens_from_cdf(
-          mode_costs->txfm_do_partition_cost[k][i][TXFM_PARTITION_GROUP - 1],
-          fc->txfm_do_partition_cdf[k][i][TXFM_PARTITION_GROUP - 1], NULL);
-    }
-  }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
-#else
-#if CONFIG_TX_PARTITION_TYPE_EXT
   // 0: intra, 1: inter
   for (i = 0; i < 2; ++i) {
     // Group index from block size to tx partition context mapping
@@ -451,20 +431,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->txfm_4way_partition_type_cdf[i][j], NULL);
     }
   }
-#else
-  for (i = 0; i < 2; ++i) {
-    // Group index from block size to tx partition context mapping
-    for (j = 0; j < TXFM_PARTITION_GROUP - 1; ++j) {
-      av1_cost_tokens_from_cdf(mode_costs->txfm_do_partition_cost[i][j],
-                               fc->txfm_do_partition_cdf[i][j], NULL);
-      av1_cost_tokens_from_cdf(mode_costs->txfm_4way_partition_type_cost[i][j],
-                               fc->txfm_4way_partition_type_cdf[i][j], NULL);
-    }
-    av1_cost_tokens_from_cdf(
-        mode_costs->txfm_do_partition_cost[i][TXFM_PARTITION_GROUP - 1],
-        fc->txfm_do_partition_cdf[i][TXFM_PARTITION_GROUP - 1], NULL);
-  }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   av1_cost_tokens_from_cdf(mode_costs->inter_2way_txfm_partition_cost,

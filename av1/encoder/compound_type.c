@@ -546,11 +546,11 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
   x->rd_model = LOW_TXFM_RD;
   const int skip_trellis = (cpi->optimize_seg_arr[xd->mi[0]->segment_id] ==
                             NO_ESTIMATE_YRD_TRELLIS_OPT);
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   MB_MODE_INFO *mbmi = xd->mi[0];
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
          sizeof(mbmi->tx_partition_type));
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
   const int64_t rd =
       av1_uniform_txfm_yrd(cpi, x, rd_stats, ref_best_rd, bs,
                            max_txsize_rect_lookup[bs], FTXS_NONE, skip_trellis);

@@ -1568,7 +1568,7 @@ typedef struct encode_txb_args {
   aom_writer *w;
 } ENCODE_TXB_ARGS;
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                                aom_writer *w, BLOCK_SIZE bsize) {
   MACROBLOCKD *xd = &x->e_mbd;
@@ -1615,9 +1615,9 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
             const int step = stepr * stepc;
             int blk_row = row + txb_pos.row_offset[txb_idx];
             int blk_col = col + txb_pos.col_offset[txb_idx];
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
             xd->mi[0]->txb_idx = txb_idx;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
             if (blk_row >= plane_unit_height || blk_col >= plane_unit_width)
               continue;
 
@@ -1776,7 +1776,7 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
     }
   }
 }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
@@ -5431,13 +5431,13 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
         else if (mbmi->is_wide_angle[0][mbmi->txb_idx])
           intra_dir = mbmi->mapped_intra_mode[0][mbmi->txb_idx];
 #else
         else if (mbmi->is_wide_angle[0])
           intra_dir = mbmi->mapped_intra_mode[0];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
         else
           intra_dir = mbmi->mode;
@@ -6707,7 +6707,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                            blk_col, blk_row);
 }
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 // Update context for each intra txfm block. We put Luma plane handling
 // separately because the txfm block derivation is different from Chroma plane.
 void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
@@ -6761,9 +6761,9 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
           for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions;
                ++txb_idx) {
             TX_SIZE sub_tx_size = mbmi->sub_txs[txb_idx];
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
             mbmi->txb_idx = txb_idx;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
             const uint8_t txw_unit = tx_size_wide_unit[sub_tx_size];
             const uint8_t txh_unit = tx_size_high_unit[sub_tx_size];
             const int step = txw_unit * txh_unit;
@@ -6822,7 +6822,7 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
           xd, plane_bsize, plane, av1_update_and_record_txb_context, &arg);
     }
   }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col) {

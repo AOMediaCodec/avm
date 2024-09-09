@@ -355,7 +355,6 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
     const int allow_horz = allow_tx_horz_split(max_tx_size);
     const int allow_vert = allow_tx_vert_split(max_tx_size);
 #if CONFIG_TX_PARTITION_CTX
-#if CONFIG_TX_PARTITION_TYPE_EXT
     const int bsize_group = size_to_tx_part_group_lookup[bsize];
     const int txsize_group = size_to_tx_type_group_lookup[bsize];
     int do_partition = 0;
@@ -401,34 +400,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
         }
       }
     }
-#else
-    const int bsize_group = size_to_tx_part_group_lookup[bsize];
-    int do_partition = 0;
-    if (allow_horz || allow_vert) {
-      do_partition = (partition != TX_PARTITION_NONE);
-      aom_cdf_prob *do_partition_cdf =
-#if CONFIG_IMPROVEIDTX_CTXS
-          ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
-#else
-          ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
-      aom_write_symbol(w, do_partition, do_partition_cdf, 2);
-    }
 
-    if (do_partition) {
-      if (allow_horz && allow_vert) {
-        assert(bsize_group > 0);
-        aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX_CTXS
-            ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
-                                                [bsize_group - 1];
-#else
-            ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
-        aom_write_symbol(w, partition - 1, partition_type_cdf, 3);
-      }
-    }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     if (allow_horz && allow_vert) {
       const int split4_ctx =
@@ -1025,7 +997,7 @@ static AOM_INLINE void pack_txb_tokens(
 
   const struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
   const TX_SIZE plane_tx_size =
@@ -1039,7 +1011,7 @@ static AOM_INLINE void pack_txb_tokens(
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type[plane > 0], pd->subsampling_x,
@@ -1064,7 +1036,6 @@ static AOM_INLINE void pack_txb_tokens(
     (void)token_stats;
     (void)bit_depth;
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-#if CONFIG_TX_PARTITION_TYPE_EXT
     TXB_POS_INFO txb_pos;
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, &txb_pos,
                            sub_txs);
@@ -1086,34 +1057,7 @@ static AOM_INLINE void pack_txb_tokens(
 #endif
       block += sub_step;
     }
-#else
-    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, sub_txs);
-    int cur_partition = 0;
-    int bsw = 0, bsh = 0;
-    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
-      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
-        const TX_SIZE sub_tx = sub_txs[cur_partition];
-        bsw = tx_size_wide_unit[sub_tx];
-        bsh = tx_size_high_unit[sub_tx];
-        const int sub_step = bsw * bsh;
-        const int offsetr = blk_row + r;
-        const int offsetc = blk_col + c;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
-        av1_write_coeffs_txb_facade(w, cm, x, xd, mbmi, plane, block, offsetr,
-                                    offsetc, sub_tx);
-#if CONFIG_RD_DEBUG
-        TOKEN_STATS tmp_token_stats;
-        init_token_stats(&tmp_token_stats);
-        token_stats->txb_coeff_cost_map[offsetr][offsetc] =
-            tmp_token_stats.cost;
-        token_stats->cost += tmp_token_stats.cost;
-#endif
-        block += sub_step;
-        cur_partition++;
-      }
-    }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+
 #else
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     const int bsw = tx_size_wide_unit[sub_txs];

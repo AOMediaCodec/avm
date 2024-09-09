@@ -112,7 +112,7 @@ static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 // Maps a block size to a transform partition context.
 // 1) 0: for block sizes do not allow 4way partition
@@ -174,7 +174,7 @@ static const uint8_t size_to_tx_part_group_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 #endif  // CONFIG_TX_PARTITION_CTX
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
   0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6,

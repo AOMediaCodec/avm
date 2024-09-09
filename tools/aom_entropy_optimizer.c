@@ -1621,7 +1621,6 @@ int main(int argc, const char **argv) {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
-#if CONFIG_TX_PARTITION_TYPE_EXT
   cts_each_dim[0] = FSC_MODES;
   cts_each_dim[1] = 2;
   cts_each_dim[2] = TXFM_SPLIT_GROUP;
@@ -1642,29 +1641,8 @@ int main(int argc, const char **argv) {
       "[FSC_MODES][2][TXFM_PARTITION_GROUP - "
       "1][CDF_SIZE(TX_PARTITION_TYPE_NUM)]",
       0, &total_count, 0, mem_wanted, "Partitions");
-#else
-  cts_each_dim[0] = FSC_MODES;
-  cts_each_dim[1] = 2;
-  cts_each_dim[2] = TXFM_PARTITION_GROUP;
-  cts_each_dim[3] = 2;
-  optimize_cdf_table(&fc.txfm_do_partition[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static const aom_cdf_prob default_txfm_do_partition_cdf"
-                     "[FSC_MODES][2][TXFM_PARTITION_GROUP][CDF_SIZE(2)]",
-                     0, &total_count, 9, mem_wanted, "Partitions");
 
-  cts_each_dim[0] = FSC_MODES;
-  cts_each_dim[1] = 2;
-  cts_each_dim[2] = TXFM_PARTITION_GROUP - 1;
-  cts_each_dim[3] = 3;
-  optimize_cdf_table(
-      &fc.txfm_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
-      "static const aom_cdf_prob default_txfm_4way_partition_type_cdf"
-      "[FSC_MODES][2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(3)]",
-      0, &total_count, 9, mem_wanted, "Partitions");
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
-#if CONFIG_TX_PARTITION_TYPE_EXT
   cts_each_dim[0] = 2;
   cts_each_dim[1] = TXFM_SPLIT_GROUP;
   cts_each_dim[2] = 2;
@@ -1681,24 +1659,6 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_txfm_4way_partition_type_cdf"
       "[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(TX_PARTITION_TYPE_NUM)]",
       0, &total_count, 0, mem_wanted, "Partitions");
-#else
-  cts_each_dim[0] = 2;
-  cts_each_dim[1] = TXFM_PARTITION_GROUP;
-  cts_each_dim[2] = 2;
-  optimize_cdf_table(&fc.txfm_do_partition[0][0][0], probsfile, 3, cts_each_dim,
-                     "static const aom_cdf_prob default_txfm_do_partition_cdf"
-                     "[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Partitions");
-
-  cts_each_dim[0] = 2;
-  cts_each_dim[1] = TXFM_PARTITION_GROUP - 1;
-  cts_each_dim[2] = 3;
-  optimize_cdf_table(
-      &fc.txfm_4way_partition_type[0][0][0], probsfile, 3, cts_each_dim,
-      "static const aom_cdf_prob default_txfm_4way_partition_type_cdf"
-      "[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(3)]",
-      0, &total_count, 0, mem_wanted, "Partitions");
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   cts_each_dim[0] = 2;

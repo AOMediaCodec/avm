@@ -3368,10 +3368,8 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
 typedef struct {
   int rows[MAX_TX_PARTITIONS];
   int cols[MAX_TX_PARTITIONS];
-#if CONFIG_TX_PARTITION_TYPE_EXT
   int row_offsets[MAX_TX_PARTITIONS];
   int col_offsets[MAX_TX_PARTITIONS];
-#endif
   int n_partitions;
 } TX_PARTITION_BIT_SHIFT;
 
@@ -3379,7 +3377,6 @@ typedef struct {
 // to create the tx sizes in each partition.
 // Keep square and rectangular separate for now, but we can potentially
 // merge them in the future.
-#if CONFIG_TX_PARTITION_TYPE_EXT
 static const TX_PARTITION_BIT_SHIFT partition_shift_bits[TX_PARTITION_TYPES] = {
   { { 0 }, { 0 }, { 0 }, { 0 }, 1 },  // TX_PARTITION_NONE
   { { 1, 1, 1, 1 },
@@ -3474,59 +3471,6 @@ static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
   assert(0);
   return 0;
 }
-#else
-static const TX_PARTITION_BIT_SHIFT
-    partition_shift_bits[2][TX_PARTITION_TYPES] = {
-      // Square
-      {
-          { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
-          { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
-          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
-          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
-      },
-      // Rectangular
-      {
-          { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
-          { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
-          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
-          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
-      },
-    };
-
-static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
-                                         TX_SIZE max_tx_size,
-                                         TX_SIZE sub_txs[MAX_TX_PARTITIONS]) {
-  const int txw = tx_size_wide[max_tx_size];
-  const int txh = tx_size_high[max_tx_size];
-  int sub_txw = 0, sub_txh = 0;
-  const TX_PARTITION_BIT_SHIFT subtx_shift =
-      partition_shift_bits[is_rect_tx(max_tx_size)][partition];
-  const int n_partitions = subtx_shift.n_partitions;
-  for (int i = 0; i < n_partitions; i++) {
-    sub_txw = txw >> subtx_shift.cols[i];
-    sub_txh = txh >> subtx_shift.rows[i];
-    sub_txs[i] = get_tx_size(sub_txw, sub_txh);
-    assert(sub_txs[i] != TX_INVALID);
-  }
-  return n_partitions;
-}
-
-/*
-Gets the type to signal for the 4 way split tree in the tx partition
-type signaling.
-*/
-static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
-  switch (partition) {
-    case TX_PARTITION_NONE:
-    case TX_PARTITION_SPLIT:
-    case TX_PARTITION_VERT:
-    case TX_PARTITION_HORZ: return partition;
-    default: assert(0);
-  }
-  assert(0);
-  return 0;
-}
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
 static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
   const int sub_txw = tx_size_wide[max_tx_size];
@@ -3556,7 +3500,6 @@ static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
   return sub_tx_size != TX_INVALID;
 }
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
 static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
                                    TX_SIZE max_tx_size) {
   const int allow_horz = allow_tx_horz_split(max_tx_size);
@@ -3576,23 +3519,6 @@ static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
   assert(0);
   return 0;
 }
-#else
-static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
-                                   TX_SIZE max_tx_size) {
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
-  switch (partition) {
-    case TX_PARTITION_NONE: return 1;
-    case TX_PARTITION_SPLIT: return (allow_horz && allow_vert);
-    case TX_PARTITION_HORZ: return allow_horz;
-    case TX_PARTITION_VERT: return allow_vert;
-    default: assert(0);
-  }
-  assert(0);
-  return 0;
-}
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
-
 #if !CONFIG_TX_PARTITION_CTX
 static INLINE int txfm_partition_split4_inter_context(
     const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,

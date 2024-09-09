@@ -637,12 +637,12 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   init_sbuv_mode(mbmi);
 
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   mbmi->is_wide_angle[1][0] = 0;
   mbmi->mapped_intra_mode[1][0] = DC_PRED;
 #else
   mbmi->is_wide_angle[1] = 0;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 
   // Return if the current block does not correspond to a chroma block.
@@ -1917,12 +1917,12 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   get_y_intra_mode_set(mbmi, xd);
 #endif  // CONFIG_AIMC
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   mbmi->is_wide_angle[0][mbmi->txb_idx] = 0;
   mbmi->mapped_intra_mode[0][mbmi->txb_idx] = DC_PRED;
 #else
   mbmi->is_wide_angle[0] = 0;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 
   MB_MODE_INFO best_mbmi = *mbmi;

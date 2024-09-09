@@ -397,14 +397,14 @@ typedef struct CHROMA_REF_INFO {
 
 #define MAX_TX_PARTITIONS 4
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 // txfm block position information inside a coding block.
 typedef struct TXB_POS_INFO {
   int row_offset[MAX_TX_PARTITIONS];  // row starting offset
   int col_offset[MAX_TX_PARTITIONS];  // column starting offset
   int n_partitions;                   // number of txfm partitions
 } TXB_POS_INFO;
-#endif
+#endif  // CONFIG_NEW_TX_PARTITION
 
 #if CONFIG_BLOCK_256
 #define INTER_TX_SIZE_BUF_LEN 64
@@ -570,7 +570,7 @@ typedef struct MB_MODE_INFO {
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   /*! \brief Whether this luma/chroma mode is wide angle mode. */
   uint8_t is_wide_angle[2][MAX_TX_PARTITIONS];
   /*! \brief The mapped luma/chroma prediction mode */
@@ -580,7 +580,7 @@ typedef struct MB_MODE_INFO {
   uint8_t is_wide_angle[2];
   /*! \brief The mapped luma/chroma prediction mode */
   PREDICTION_MODE mapped_intra_mode[2];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 
 #if CONFIG_LOSSLESS_DPCM
@@ -618,14 +618,14 @@ typedef struct MB_MODE_INFO {
   TX_SIZE tx_size;
   /*! \brief Transform size when recursive txfm tree is on. */
   uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   /*! \brief Transform block relative position information. */
   struct TXB_POS_INFO txb_pos;
   /*! \brief Transform size stored for each txfm partition sub-block. */
   TX_SIZE sub_txs[MAX_TX_PARTITIONS];
   /*! \brief Transform partition sub-block indexes. */
   int txb_idx;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
   /**@}*/
   /*****************************************************************************
    * \name Loop Filter Info
@@ -849,26 +849,26 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
 static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
   if (plane == AOM_PLANE_Y)
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
     return mbmi->is_wide_angle[0][mbmi->txb_idx]
                ? mbmi->mapped_intra_mode[0][mbmi->txb_idx]
                : mbmi->mode;
 #else
     return mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #else
     return mbmi->mode;
 #endif  // CONFIG_WAIP
   else
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
     return mbmi->is_wide_angle[1][0]
                ? get_uv_mode(mbmi->mapped_intra_mode[1][0])
                : get_uv_mode(mbmi->uv_mode);
 #else
     return mbmi->is_wide_angle[1] ? get_uv_mode(mbmi->mapped_intra_mode[1])
                                   : get_uv_mode(mbmi->uv_mode);
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #else
     return get_uv_mode(mbmi->uv_mode);
 #endif  // CONFIG_WAIP
@@ -3275,7 +3275,7 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
  * const int bw_uint_log2 = mi_size_wide_log2[bsize];
  * const int stride_log2 = bw_uint_log2 - tx_w_log2;
  */
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   (void)bsize;
@@ -3417,7 +3417,7 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
   assert(index < INTER_TX_SIZE_BUF_LEN);
   return index;
 }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 #if CONFIG_INSPECTION
 /*

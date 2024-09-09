@@ -468,7 +468,7 @@ static AOM_INLINE void decode_reconstruct_tx(AV1_COMMON *cm,
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) return;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
   const TX_SIZE plane_tx_size =
@@ -482,7 +482,7 @@ static AOM_INLINE void decode_reconstruct_tx(AV1_COMMON *cm,
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #else
   if (xd->tree_type == SHARED_PART)
     assert(mbmi->sb_type[PLANE_TYPE_Y] == mbmi->sb_type[PLANE_TYPE_UV]);
@@ -529,7 +529,6 @@ static AOM_INLINE void decode_reconstruct_tx(AV1_COMMON *cm,
     }
   } else {
 #if CONFIG_NEW_TX_PARTITION
-#if CONFIG_TX_PARTITION_TYPE_EXT
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size,
                            &mbmi->txb_pos, mbmi->sub_txs);
 
@@ -548,32 +547,6 @@ static AOM_INLINE void decode_reconstruct_tx(AV1_COMMON *cm,
       *eob_total += eob_data->eob;
       set_cb_buffer_offsets(dcb, sub_tx, plane);
     }
-#else
-    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, sub_txs);
-    int cur_partition = 0;
-    int bsw = 0, bsh = 0;
-    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
-      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
-        const TX_SIZE sub_tx = sub_txs[cur_partition];
-        bsw = tx_size_wide_unit[sub_tx];
-        bsh = tx_size_high_unit[sub_tx];
-        const int offsetr = blk_row + row;
-        const int offsetc = blk_col + col;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
-
-        td->read_coeffs_tx_inter_block_visit(cm, dcb, r, plane, offsetr,
-                                             offsetc, sub_tx);
-        td->inverse_tx_inter_block_visit(cm, dcb, r, plane, offsetr, offsetc,
-                                         sub_tx);
-        eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
-        *eob_total += eob_data->eob;
-        set_cb_buffer_offsets(dcb, sub_tx, plane);
-        cur_partition++;
-      }
-    }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
@@ -1710,7 +1683,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
       for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
         for (int plane = plane_start; plane < plane_end; ++plane) {
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
           if (plane == AOM_PLANE_Y && !xd->lossless[mbmi->segment_id]) {
             const struct macroblockd_plane *const pd = &xd->plane[plane];
             const int ss_x = pd->subsampling_x;
@@ -1829,7 +1802,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
               }
             }
           }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
         }
       }
     }
@@ -1948,7 +1921,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);
 }
 
-#if !CONFIG_TX_PARTITION_TYPE_EXT
+#if !CONFIG_NEW_TX_PARTITION
 static AOM_INLINE void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
                                          int tx_w_log2, int tx_h_log2,
                                          int min_txs, int split_size, int txs,
@@ -1988,7 +1961,6 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                       plane_type == PLANE_TYPE_Y);
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #if CONFIG_TX_PARTITION_CTX
-#if CONFIG_TX_PARTITION_TYPE_EXT
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   const int txsize_group = size_to_tx_type_group_lookup[bsize];
   int do_partition = 0;
@@ -2049,46 +2021,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   } else {
     partition = TX_PARTITION_NONE;
   }
-#else
-  const int bsize_group = size_to_tx_part_group_lookup[bsize];
-  int do_partition = 0;
-  if (allow_horz || allow_vert) {
-    aom_cdf_prob *do_partition_cdf =
-#if CONFIG_IMPROVEIDTX_CTXS
-        ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
-#else
-        ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
-    do_partition =
-        aom_read_symbol(r, do_partition_cdf, 2, ACCT_INFO("do_partition"));
-  }
 
-  if (do_partition) {
-    if (allow_horz && allow_vert) {
-      // Read 4way tree type
-      assert(bsize_group > 0);
-      aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX_CTXS
-          ec_ctx
-              ->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
-#else
-          ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
-      const TX_PARTITION_TYPE partition_type = aom_read_symbol(
-          r, partition_type_cdf, 3, ACCT_INFO("partition_type"));
-      partition = partition_type + 1;
-    } else {
-      /*
-       If only one split type (horizontal or vertical) is allowed for this
-       block, then derive parition type based on the allowed split type
-       (horizontal or vertical).
-       */
-      partition = allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT;
-    }
-  } else {
-    partition = TX_PARTITION_NONE;
-  }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
   /*
   If both horizontal and vertical splits are allowed for this block,
@@ -2131,7 +2064,6 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     partition = TX_PARTITION_NONE;
   }
 #endif  // CONFIG_TX_PARTITION_CTX
-#if CONFIG_TX_PARTITION_TYPE_EXT
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   int num_txfm_blocks =
       get_tx_partition_sizes(partition, max_tx_size, &mbmi->txb_pos, sub_txs);
@@ -2148,32 +2080,6 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   }
 
   return sub_txs[num_txfm_blocks - 1];
-#else
-  TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-  get_tx_partition_sizes(partition, max_tx_size, sub_txs);
-  // TODO(sarahparker) This assumes all of the tx sizes in the partition
-  // scheme are the same size. This will need to be adjusted to deal with the
-  // case where they can be different.
-  mbmi->tx_size = sub_txs[0];
-  const int index =
-      is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
-  mbmi->tx_partition_type[index] = partition;
-  if (is_inter) {
-    const TX_SIZE txs = sub_tx_size_map[max_txsize_rect_lookup[bsize]];
-    const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
-    const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
-    const int bw_log2 = mi_size_wide_log2[bsize];
-    const int stride_log2 = bw_log2 - tx_w_log2;
-    set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
-                      mbmi->tx_size, blk_row, blk_col);
-#if !CONFIG_TX_PARTITION_CTX
-    txfm_partition_update(xd->above_txfm_context + blk_col,
-                          xd->left_txfm_context + blk_row, mbmi->tx_size,
-                          max_tx_size);
-#endif  // !CONFIG_TX_PARTITION_CTX
-  }
-  return sub_txs[0];
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 }
 #else
 static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
@@ -2329,10 +2235,10 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   int inter_block_tx = is_inter_block(mbmi, xd->tree_type) ||
                        is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type != CHROMA_PART) {
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
     memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
            sizeof(mbmi->tx_partition_type));
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
     if (cm->features.tx_mode == TX_MODE_SELECT && block_signals_txsize(bsize) &&
         !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] && inter_block_tx &&
         !xd->lossless[mbmi->segment_id]) {

@@ -273,7 +273,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   }
 }
 
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const MB_MODE_INFO *const mbmi,
                                   const EDGE_DIR edge_dir, const int mi_row,
@@ -412,7 +412,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                     : txsize_vert_map[tx_size];
   return tx_size;
 }
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
 typedef struct AV1_DEBLOCKING_PARAMETERS {
   // length of the filter applied to the outer edge

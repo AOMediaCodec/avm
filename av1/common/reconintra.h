@@ -354,14 +354,14 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
   const int txhpx = tx_size_high[tx_size];
   int mrl_index = (plane == AOM_PLANE_Y ? mbmi->mrl_index : 0);
   const int is_dr_mode = av1_is_directional_mode(mode);
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   const int txb_idx = get_tx_partition_idx(mbmi, plane);
   mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
   mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
 #else
   mbmi->is_wide_angle[plane > 0] = 0;
   mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
   int p_angle = 0;
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
@@ -375,26 +375,26 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
         (txhpx == 8 * txwpx && p_angle < WAIP_WH_RATIO_8_THRES) ||
         (txhpx == 16 * txwpx && p_angle < WAIP_WH_RATIO_16_THRES)) {
       p_angle = 180 + p_angle;
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
       mbmi->is_wide_angle[plane > 0][txb_idx] = 1;
       mbmi->mapped_intra_mode[plane > 0][txb_idx] = D203_PRED;
 #else
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D203_PRED;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
     } else if ((txwpx == 2 * txhpx && p_angle > 270 - WAIP_WH_RATIO_2_THRES) ||
                (txwpx == 4 * txhpx && p_angle > 270 - WAIP_WH_RATIO_4_THRES) ||
                (txwpx == 8 * txhpx && p_angle > 270 - WAIP_WH_RATIO_8_THRES) ||
                (txwpx == 16 * txhpx &&
                 p_angle > 270 - WAIP_WH_RATIO_16_THRES)) {
       p_angle = p_angle - 180;
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
       mbmi->is_wide_angle[plane > 0][txb_idx] = 1;
       mbmi->mapped_intra_mode[plane > 0][txb_idx] = D45_PRED;
 #else
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D45_PRED;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
     }
   }
   return p_angle;

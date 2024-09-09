@@ -8983,7 +8983,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 #if CONFIG_WAIP
-#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_NEW_TX_PARTITION
   for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
     mbmi->is_wide_angle[0][i] = 0;
     mbmi->is_wide_angle[1][i] = 0;
@@ -8993,7 +8993,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #else
   mbmi->is_wide_angle[0] = 0;
   mbmi->is_wide_angle[1] = 0;
-#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
   set_default_interp_filters(mbmi,
 #if CONFIG_OPTFLOW_REFINEMENT
