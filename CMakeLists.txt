@@ -627,7 +627,11 @@ if(CONFIG_AV1_ENCODER)
              "tar -xzf FXdiv.tar.gz; "
              "tar -xzf xnnpack.tar.gz; "
              "tar -xzf benchmark.tar.gz; "
-             "tar -xzf ruy.tar.gz")
+             "tar -xzf ruy.tar.gz; "
+             "tar -xzf farmhash.tar.gz; "
+             "tar -xzf fft2d.tar.gz; "
+             "tar -xzf gemmlowp.tar.gz; "
+             "tar -xzf ml_dtypes.tar.gz")
     execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
@@ -637,6 +641,10 @@ if(CONFIG_AV1_ENCODER)
     set(XNNPACK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/XNNPACK)
     set(google_benchmark_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
     set(RUY_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ruy)
+    set(FARMHASH_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/farmhash)
+    set(FFT2D_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fft2d)
+    set(GEMMLOWP_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmlowp)
+    set(ML_DTYPES_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ml_dtypes)
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
