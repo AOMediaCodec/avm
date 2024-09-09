@@ -1481,11 +1481,11 @@ INSTANTIATE_TEST_SUITE_P(
                                       10)));
 
 const VarianceParams kArrayHBDVariance_avx2[] = {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(8, 8, &aom_highbd_8_variance256x256_avx2, 8),
   VarianceParams(8, 7, &aom_highbd_8_variance256x128_avx2, 8),
   VarianceParams(7, 8, &aom_highbd_8_variance128x256_avx2, 8),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(7, 7, &aom_highbd_8_variance128x128_avx2, 8),
   VarianceParams(7, 6, &aom_highbd_8_variance128x64_avx2, 8),
   VarianceParams(6, 7, &aom_highbd_8_variance64x128_avx2, 8),
@@ -1509,11 +1509,11 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(3, 6, &aom_highbd_8_variance8x64_avx2, 8),
 #endif  // CONFIG_FLEX_PARTITION
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(8, 8, &aom_highbd_10_variance256x256_avx2, 10),
   VarianceParams(8, 7, &aom_highbd_10_variance256x128_avx2, 10),
   VarianceParams(7, 8, &aom_highbd_10_variance128x256_avx2, 10),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(7, 7, &aom_highbd_10_variance128x128_avx2, 10),
   VarianceParams(7, 6, &aom_highbd_10_variance128x64_avx2, 10),
   VarianceParams(6, 7, &aom_highbd_10_variance64x128_avx2, 10),
@@ -1537,11 +1537,11 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(3, 6, &aom_highbd_10_variance8x64_avx2, 10),
 #endif  // CONFIG_FLEX_PARTITION
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(8, 8, &aom_highbd_12_variance256x256_avx2, 12),
   VarianceParams(8, 7, &aom_highbd_12_variance256x128_avx2, 12),
   VarianceParams(7, 8, &aom_highbd_12_variance128x256_avx2, 12),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_avx2, 12),
   VarianceParams(7, 6, &aom_highbd_12_variance128x64_avx2, 12),
   VarianceParams(6, 7, &aom_highbd_12_variance64x128_avx2, 12),

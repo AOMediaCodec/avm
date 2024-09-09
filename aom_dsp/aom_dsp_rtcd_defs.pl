@@ -39,7 +39,7 @@ if ($opts{arch} eq "x86_64") {
   $avx2_x86_64 = 'avx2';
 }
 
-if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
   @block_widths = (4, 8, 16, 32, 64, 128, 256);
 } else {
   @block_widths = (4, 8, 16, 32, 64, 128);
@@ -764,7 +764,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   # Variance
   #
-  if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
     add_proto qw/unsigned int aom_highbd_12_variance256x256/, "const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, int ref_stride, unsigned int *sse";
     specialize qw/aom_highbd_12_variance256x256 avx2/;
 
@@ -835,7 +835,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_12_variance8x64 sse2 avx2/;
   }
 
-  if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
     add_proto qw/unsigned int aom_highbd_10_variance256x256/, "const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, int ref_stride, unsigned int *sse";
     specialize qw/aom_highbd_10_variance256x256 avx2/;
 
@@ -919,7 +919,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_10_variance8x64 sse2 avx2/;
   }
 
-  if (aom_config("CONFIG_BLOCK_256") eq "yes") {
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes") {
     add_proto qw/unsigned int aom_highbd_8_variance256x256/, "const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, int ref_stride, unsigned int *sse";
     specialize qw/aom_highbd_8_variance256x256 avx2/;
 
@@ -1034,7 +1034,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   # Subpixel Variance
   #
-  if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
     # specialize qw/aom_highbd_12_sub_pixel_variance256x256 avx2/;
     # specialize qw/aom_highbd_12_sub_pixel_variance256x128 avx2/;
     # specialize qw/aom_highbd_12_sub_pixel_variance128x256 avx2/;
@@ -1131,7 +1131,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_12_sub_pixel_variance16x4 sse2 avx2/;
   }
 
-  if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
     specialize qw/aom_highbd_10_sub_pixel_variance256x256 avx2/;
     specialize qw/aom_highbd_10_sub_pixel_variance256x128 avx2/;
     specialize qw/aom_highbd_10_sub_pixel_variance128x256 avx2/;
@@ -1216,7 +1216,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
 
-  if (aom_config("CONFIG_BLOCK_256") eq "yes"){
+  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
     specialize qw/aom_highbd_8_sub_pixel_variance256x256 avx2/;
     specialize qw/aom_highbd_8_sub_pixel_variance256x128 avx2/;
     specialize qw/aom_highbd_8_sub_pixel_variance128x256 avx2/;

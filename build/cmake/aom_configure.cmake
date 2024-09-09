@@ -305,7 +305,7 @@ else()
   add_compiler_flag_if_supported("-Wvla")
 
   if(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    if(CONFIG_BLOCK_256)
+    if(CONFIG_EXT_RECUR_PARTITIONS)
       add_c_flag_if_supported("-Wstack-usage=960000")
       add_cxx_flag_if_supported("-Wstack-usage=960000")
     elseif("${SANITIZE}" MATCHES "address|undefined")

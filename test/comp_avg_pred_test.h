@@ -26,11 +26,11 @@
 #include "aom_ports/aom_timer.h"
 
 namespace libaom_test {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
 const int kMaxSize = MAX_SB_SIZE + 32;  // padding
 #else
 const int kMaxSize = 128 + 32;  // padding
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 namespace AV1DISTWTDCOMPAVG {
 

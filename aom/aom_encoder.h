@@ -255,7 +255,7 @@ typedef struct cfg_options {
    * 0 or 1
    */
   unsigned int init_by_cfg_file;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief Superblock size
    * 0, 64, 128 or 256
    */
@@ -281,7 +281,7 @@ typedef struct cfg_options {
    * 8, 16, 32, 64, 128
    */
   unsigned int min_partition_size;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief enable AB Shape partition type
    *
    */

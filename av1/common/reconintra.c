@@ -100,7 +100,6 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (row_off > 0) {  // Just need to check if enough pixels on the right.
     const int plane_bw_unit_64 = mi_size_wide[BLOCK_64X64] >> ss_x;
     if (block_size_wide[bsize] > block_size_wide[BLOCK_64X64]) {
-#if CONFIG_BLOCK_256
       // Special case: For 256 and 128 blocks, if the tx unit's top right center
       // is aligned with 64x64 boundary and we are not at the right most column,
       // then the tx unit does in fact have pixels available at its top-right
@@ -111,15 +110,6 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
           row_off % plane_bh_unit_64 == 0) {
         return 1;
       }
-#else
-      // Special case: For 128x128 blocks, the transform unit whose
-      // top-right corner is at the center of the block does in fact have
-      // pixels available at its top-right corner.
-      if (row_off == mi_size_high[BLOCK_64X64] >> ss_y &&
-          col_off + top_right_count_unit == mi_size_wide[BLOCK_64X64] >> ss_x) {
-        return 1;
-      }
-#endif  // CONFIG_BLOCK_256
       const int col_off_64 = col_off % plane_bw_unit_64;
       return col_off_64 + top_right_count_unit < plane_bw_unit_64;
     }
@@ -260,10 +250,6 @@ static const uint8_t *const has_tr_tables[BLOCK_SIZES_ALL] = {
   has_tr_32x64, has_tr_64x32, has_tr_64x64,
   // 64x128,    128x64,         128x128
   has_tr_64x128, has_tr_128x64, has_tr_128x128,
-#if CONFIG_BLOCK_256
-  // 128X256,   256X128,        256X256,
-  NULL, NULL, NULL,
-#endif  // CONFIG_BLOCK_256
   // 4x16,      16x4,            8x32
   has_tr_4x16, has_tr_16x4, has_tr_8x32,
   // 32x8,      16x64,           64x16
@@ -293,31 +279,15 @@ static const uint8_t *const has_tr_vert_tables[BLOCK_SIZES] = {
   // 4X4
   NULL,
   // 4X8,      8X4,         8X8
-  has_tr_4x8,
-  NULL,
-  has_tr_vert_8x8,
+  has_tr_4x8, NULL, has_tr_vert_8x8,
   // 8X16,     16X8,        16X16
-  has_tr_8x16,
-  NULL,
-  has_tr_vert_16x16,
+  has_tr_8x16, NULL, has_tr_vert_16x16,
   // 16X32,    32X16,       32X32
-  has_tr_16x32,
-  NULL,
-  has_tr_vert_32x32,
+  has_tr_16x32, NULL, has_tr_vert_32x32,
   // 32X64,    64X32,       64X64
-  has_tr_32x64,
-  NULL,
-  has_tr_vert_64x64,
+  has_tr_32x64, NULL, has_tr_vert_64x64,
   // 64x128,   128x64,      128x128
-  has_tr_64x128,
-  NULL,
-  has_tr_128x128
-#if CONFIG_BLOCK_256
-      // 128X256,   256X128,        256X256,
-      NULL,
-  NULL,
-  NULL,
-#endif  // CONFIG_BLOCK_256
+  has_tr_64x128, NULL, has_tr_128x128
 };
 
 static const uint8_t *get_has_tr_table(PARTITION_TYPE partition,

@@ -380,11 +380,11 @@ typedef struct TXB_POS_INFO {
 } TXB_POS_INFO;
 #endif  // CONFIG_NEW_TX_PARTITION
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define INTER_TX_SIZE_BUF_LEN 64
 #else
 #define INTER_TX_SIZE_BUF_LEN 16
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #define TXK_TYPE_BUF_LEN 64
 /*!\endcond */
 
@@ -1063,14 +1063,12 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
 static AOM_INLINE RECT_PART_TYPE
 rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
   // Handle luma part first
-#if CONFIG_BLOCK_256
   if (bsize == BLOCK_128X256) {
     return HORZ;
   }
   if (bsize == BLOCK_256X128) {
     return VERT;
   }
-#endif  // CONFIG_BLOCK_256
   if (bsize == BLOCK_4X8 || bsize == BLOCK_64X128
 #if CONFIG_CB1TO4_SPLIT
       || bsize == BLOCK_4X16
@@ -1109,14 +1107,8 @@ rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
 /*!\brief Returns whether square split is allowed for current bsize. */
 static AOM_INLINE bool is_square_split_eligible(BLOCK_SIZE bsize,
                                                 BLOCK_SIZE sb_size) {
-#if CONFIG_BLOCK_256
   (void)sb_size;
   return bsize == BLOCK_128X128 || bsize == BLOCK_256X256;
-#else
-  (void)bsize;
-  (void)sb_size;
-  return false;
-#endif  // CONFIG_BLOCK_256
 }
 
 /*!\brief Returns whether the current partition is horizontal type or vertical
@@ -1184,9 +1176,9 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
     case BLOCK_32X32: return 3;
     case BLOCK_64X64: return 4;
     case BLOCK_128X128: return 5;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     case BLOCK_256X256: return 6;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: return SQR_BLOCK_SIZES;
   }
 }
@@ -1249,11 +1241,9 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
       BLOCK_INVALID,  // BLOCK_64X128
       BLOCK_INVALID,  // BLOCK_128X64
       BLOCK_INVALID,  // BLOCK_128X128
-#if CONFIG_BLOCK_256
       BLOCK_INVALID,  // BLOCK_128X256
       BLOCK_INVALID,  // BLOCK_256X128
       BLOCK_INVALID,  // BLOCK_256X256
-#endif                // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
       BLOCK_INVALID,  // BLOCK_4X16
       BLOCK_INVALID,  // BLOCK_16X4
@@ -1318,9 +1308,6 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
-#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
-  if (p == PARTITION_SPLIT) return 0;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (is_partition_point(bsize))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else
@@ -1821,13 +1808,13 @@ typedef struct macroblockd_plane {
   // - Current superblock, on decoder side.
   uint8_t *color_index_map;
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   // block size in pixels
   uint16_t width, height;
 #else
   // block size in pixels
   uint8_t width, height;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
@@ -3291,11 +3278,11 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     3,
     3,
     3,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     3,
     3,
     3,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     0,
     1,
     1,
@@ -3328,11 +3315,11 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     3,
     3,
     3,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     3,
     3,
     3,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     1,
     0,
     2,
@@ -3365,11 +3352,11 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     1,
     2,
     2,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     3,
     3,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     0,
     1,
     0,
@@ -3438,11 +3425,11 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
     2,
     2,
     2,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     2,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     0,
     0,
     1,
@@ -3467,11 +3454,11 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
     2,
     2,
     2,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     2,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     0,
     0,
     1,
@@ -3496,11 +3483,11 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
     2,
     3,
     3,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     3,
     4,
     4,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     0,
     2,
     0,
@@ -4066,11 +4053,11 @@ static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
     2,
     2,
     2,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     2,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     2,
@@ -4120,11 +4107,11 @@ static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
     4,
     4,
     4,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     4,
     4,
     4,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     2,
     2,
     3,
@@ -4375,12 +4362,12 @@ static INLINE int is_motion_variation_allowed_compound(
   return !has_second_ref(mbmi);
 }
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
 static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4, 4 };
 #else
 // input: log2 of length, 0(4), 1(8), ...
 static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4 };
-#endif  // BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
   return !(mbmi->overlappable_neighbors[0] == 0 &&

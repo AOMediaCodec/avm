@@ -184,10 +184,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -207,10 +207,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     28, 30, 38,
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16,  16,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     16, 16,  16,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -230,10 +230,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -253,10 +253,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     30, 33, 16,
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16, 16,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     16, 16, 16,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -277,9 +277,9 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16, 16,
     // BLOCK_128X256 .. BLOCK_256X256
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     16, 16, 16,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -299,10 +299,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -322,10 +322,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     34, 35, 32,
     // BLOCK_64X128 .. BLOCK_128X128
     19, 16,  16,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_128X256 .. BLOCK_256X256
     19, 16,  16,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -756,13 +756,13 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
       oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed > 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
              ? BLOCK_256X256
              : BLOCK_128X128;
 #else
   return BLOCK_128X128;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static AOM_INLINE void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {

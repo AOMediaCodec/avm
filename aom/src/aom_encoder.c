@@ -93,11 +93,11 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
   if (cfg) {
     memset(&cfg->encoder_cfg, 0, sizeof(cfg->encoder_cfg));
     cfg->encoder_cfg.superblock_size = 0;  // Dynamic
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     cfg->encoder_cfg.max_partition_size = 256;
 #else
     cfg->encoder_cfg.max_partition_size = 128;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     cfg->encoder_cfg.min_partition_size = 4;
     cfg->encoder_cfg.enable_trellis_quant = 3;
   }

@@ -2561,11 +2561,7 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
-#if CONFIG_BLOCK_256
-  if (bsize < BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
-#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
-#endif  // CONFIG_BLOCK_256
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2580,11 +2576,7 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
-#if CONFIG_BLOCK_256
-  if (bsize < BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
-#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
-#endif  // CONFIG_BLOCK_256
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2667,7 +2659,7 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
 }
 #endif  // CONFIG_EXTENDED_SDP
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
 /*!\brief Returns the context used by \ref PARTITION_SPLIT. */
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
@@ -2685,7 +2677,7 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
 
   return (left * 2 + above) + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
 }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -2725,11 +2717,11 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     13,  // BLOCK_64X128,
     14,  // BLOCK_128X64,
     15,  // BLOCK_128X128,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     16,  // BLOCK_128X256,
     17,  // BLOCK_256X128,
     18,  // BLOCK_256X256,
-#endif   // CONFIG_BLOCK_256
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
     19,  // BLOCK_4X16,
     20,  // BLOCK_16X4,
     21,  // BLOCK_8X32,
@@ -2759,14 +2751,10 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
-  if (bsize <= BLOCK_8X8) return PARTITION_TYPES;
-#if CONFIG_BLOCK_256
-  else if (bsize >= BLOCK_128X128)
-    return EXT_PARTITION_TYPES - 2;
-#else
+  if (bsize <= BLOCK_8X8)
+    return PARTITION_TYPES;
   else if (bsize == BLOCK_128X128)
     return EXT_PARTITION_TYPES - 2;
-#endif  // CONFIG_BLOCK_256
   else
     return EXT_PARTITION_TYPES;
 }
@@ -2998,11 +2986,11 @@ static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
 #if CONFIG_INTRA_SDP_LATENCY_FIX
   return bsize >= BLOCK_64X64 && bsize <= BLOCK_LARGEST;
 #else
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   return bsize >= BLOCK_128X128 && bsize <= BLOCK_256X256;
 #else
   return bsize == BLOCK_128X128;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 }
 
@@ -3268,9 +3256,9 @@ static INLINE void txfm_partition_update(TXFM_CONTEXT *above_ctx,
 
 static INLINE TX_SIZE get_sqr_tx_size(int tx_dim) {
   switch (tx_dim) {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     case 256:
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     case 128:
     case 64: return TX_64X64; break;
     case 32: return TX_32X32; break;
@@ -3648,13 +3636,13 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
 
 static AOM_INLINE void av1_set_frame_sb_size(AV1_COMMON *cm,
                                              BLOCK_SIZE sb_size) {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   // BLOCK_256X256 gives no benefits in all intra encoding, so downsize the
   // superblock size to 128x128 on key frames.
   if (frame_is_intra_only(cm) && sb_size == BLOCK_256X256) {
     sb_size = BLOCK_128X128;
   }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   cm->sb_size = sb_size;
   cm->mib_size = mi_size_wide[sb_size];
   cm->mib_size_log2 = mi_size_wide_log2[sb_size];

@@ -349,7 +349,7 @@ void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
       h -= 2;
     } while (h);
   } else {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     assert(w == 256);
     do {
       highbd_copy_128(src, dst);
@@ -364,6 +364,6 @@ void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
     } while (h);
 #else
     assert(0);
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }

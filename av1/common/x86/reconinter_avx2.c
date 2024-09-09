@@ -213,7 +213,7 @@ static INLINE void build_compound_diffwtd_mask_d16_avx2(
       i += 1;
     } while (i < h);
   } else {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     assert(w == 256);
     do {
       const CONV_BUF_TYPE *src0_ptr = src0;
@@ -269,7 +269,7 @@ static INLINE void build_compound_diffwtd_mask_d16_avx2(
     } while (i < h);
 #else
     assert(0);
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }
 
@@ -433,7 +433,7 @@ static INLINE void build_compound_diffwtd_mask_d16_inv_avx2(
       i += 1;
     } while (i < h);
   } else {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     assert(w == 256);
     do {
       const CONV_BUF_TYPE *src0_ptr = src0;
@@ -489,7 +489,7 @@ static INLINE void build_compound_diffwtd_mask_d16_inv_avx2(
     } while (i < h);
 #else
     assert(0);
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }
 

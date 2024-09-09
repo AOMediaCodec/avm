@@ -2522,9 +2522,9 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                    PARTITION_TYPE partition, const int mi_row,
                                    const int mi_col, BLOCK_SIZE bsize,
                                    const int ctx, BLOCK_SIZE sb_size) {
-#if !CONFIG_BLOCK_256
+#if !CONFIG_EXT_RECUR_PARTITIONS
   (void)sb_size;
-#endif  // !CONFIG_BLOCK_256
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const TREE_TYPE tree_type = xd->tree_type;
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -2554,7 +2554,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
     return;
   }
 
-#if CONFIG_BLOCK_256
   const bool do_square_split = partition == PARTITION_SPLIT;
   if (is_square_split_eligible(bsize, sb_size)) {
     const int square_split_ctx =
@@ -2568,7 +2567,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   if (do_square_split) {
     return;
   }
-#endif  // CONFIG_BLOCK_256
 
   RECT_PART_TYPE rect_type = get_rect_part_type(partition);
   if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
@@ -8697,10 +8695,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       search_none_after_rect =
           try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
     }
-#if CONFIG_BLOCK_256
     // For 256X256, always search the subblocks first.
     search_none_after_split |= bsize == BLOCK_256X256;
-#endif  // CONFIG_BLOCK_256
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -8951,7 +8947,7 @@ BEGIN_PARTITION_SEARCH:
   prune_partitions_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
                                part_none_rd, part_split_rd);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (search_none_after_split) {
     // Based on split result, decide if we want to further delay the search to
     // after rect
@@ -9010,7 +9006,7 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
     );
   }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Rectangular partitions search stage.
   rectangular_partition_search(

@@ -3603,7 +3603,6 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   if (!do_split) {
     return;
   }
-#if CONFIG_BLOCK_256
   const bool do_square_split = p == PARTITION_SPLIT;
   if (is_square_split_eligible(bsize, cm->sb_size)) {
     const int square_split_ctx =
@@ -3615,7 +3614,6 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     assert(p == PARTITION_SPLIT);
     return;
   }
-#endif  // CONFIG_BLOCK_256
   RECT_PART_TYPE rect_type = get_rect_part_type(p);
   if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
     aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][rect_type_ctx],
@@ -3924,7 +3922,6 @@ static AOM_INLINE void write_modes_sb(
                        this_mi_col, this_bsize);
       }
       break;
-#if CONFIG_BLOCK_256
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
@@ -3939,7 +3936,6 @@ static AOM_INLINE void write_modes_sb(
                      get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
                      mi_col + hbs_w, subsize);
       break;
-#endif  // CONFIG_BLOCK_256
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
@@ -5467,7 +5463,7 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
   assert(seq_params->mib_size == mi_size_wide[seq_params->sb_size]);
   assert(seq_params->mib_size == 1 << seq_params->mib_size_log2);
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   assert(seq_params->sb_size == BLOCK_256X256 ||
          seq_params->sb_size == BLOCK_128X128 ||
          seq_params->sb_size == BLOCK_64X64);
@@ -5479,7 +5475,7 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 #else
   assert(seq_params->sb_size == BLOCK_128X128 ||
          seq_params->sb_size == BLOCK_64X64);
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->sb_size == BLOCK_128X128);
 }
 

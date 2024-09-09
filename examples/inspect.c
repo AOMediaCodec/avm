@@ -185,11 +185,11 @@ const map_entry block_size_map[] = { ENUM(BLOCK_4X4),
                                      ENUM(BLOCK_64X128),
                                      ENUM(BLOCK_128X64),
                                      ENUM(BLOCK_128X128),
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
                                      ENUM(BLOCK_128X256),
                                      ENUM(BLOCK_256X128),
                                      ENUM(BLOCK_256X256),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      ENUM(BLOCK_4X16),
                                      ENUM(BLOCK_16X4),
                                      ENUM(BLOCK_8X32),

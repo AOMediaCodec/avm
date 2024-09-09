@@ -53,9 +53,9 @@ static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2
                                           int tmvp_sample_step
 #endif  // CONFIG_TMVP_MEM_OPT
 ) {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   (void)mib_size_log2;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int mi_size_log2 = INT_MIN;
   if (sb_size <= 64
@@ -65,11 +65,11 @@ static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2
   ) {
     mi_size_log2 = mi_size_high_log2[BLOCK_64X64];
   } else {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     mi_size_log2 = mi_size_high_log2[BLOCK_128X128];
 #else
     mi_size_log2 = mib_size_log2;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
   return mi_size_log2 + MI_SIZE_LOG2;
 }

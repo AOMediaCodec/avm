@@ -193,14 +193,14 @@ const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
   make_tuple(&aom_highbd_masked_sad128x128_avx2,
              &aom_highbd_masked_sad128x128_ssse3),
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   make_tuple(&aom_highbd_masked_sad128x256_avx2,
              &aom_highbd_masked_sad128x256_c),
   make_tuple(&aom_highbd_masked_sad256x128_avx2,
              &aom_highbd_masked_sad256x128_c),
   make_tuple(&aom_highbd_masked_sad256x256_avx2,
              &aom_highbd_masked_sad256x256_c),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   make_tuple(&aom_highbd_masked_sad4x16_avx2, &aom_highbd_masked_sad4x16_ssse3),
   make_tuple(&aom_highbd_masked_sad16x4_avx2, &aom_highbd_masked_sad16x4_ssse3),

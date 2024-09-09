@@ -125,12 +125,12 @@ void av1_make_default_fullpel_ms_params(
       search_method = get_faster_search_method(search_method);
     }
   }
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   const int max_dim = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
   if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 && max_dim >= 256) {
     search_method = get_faster_search_method(search_method);
   }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
   // search
   if (cpi->common.seq_params.enable_flex_mvres &&
@@ -233,13 +233,13 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   ms_params->var_params.vfp = &cpi->fn_ptr[bsize];
   ms_params->var_params.subpel_search_type = cpi->sf.mv_sf.subpel_search_type;
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 &&
       AOMMAX(block_size_wide[bsize], block_size_high[bsize]) >= 256) {
     ms_params->var_params.subpel_search_type =
         AOMMIN(ms_params->var_params.subpel_search_type, USE_2_TAPS);
   }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   ms_params->var_params.w = block_size_wide[bsize];
   ms_params->var_params.h = block_size_high[bsize];

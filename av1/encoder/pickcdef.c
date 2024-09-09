@@ -360,11 +360,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     return;
   }
 
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
 #else
   cdef_list dlist[MI_SIZE_128X128 * MI_SIZE_128X128];
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   int var[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -427,7 +427,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
           mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc];
       BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
         const int bw = block_size_wide[bs];
         const int bh = block_size_high[bs];
@@ -444,13 +444,13 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
           ((fbr & 1) && (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
                          mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_64X128)))
         continue;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
       int nhb = AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
       int nvb = AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
       int hb_step = 1;
       int vb_step = 1;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
         if (block_size_wide[bs] == 256) {
           nhb =
@@ -493,7 +493,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       } else {
         bs = BLOCK_64X64;
       }
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
       const int cdef_count = av1_cdef_compute_sb_list(
           mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
@@ -603,10 +603,10 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     int mi_row = sb_index[i] / mi_params->mi_stride;
     int mi_col = sb_index[i] % mi_params->mi_stride;
     if (
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
         bsize_y == BLOCK_256X256 || bsize_y == BLOCK_256X128 ||
         bsize_y == BLOCK_128X256 ||
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         bsize_y == BLOCK_128X128 || bsize_y == BLOCK_128X64 ||
         bsize_y == BLOCK_64X128) {
       const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);

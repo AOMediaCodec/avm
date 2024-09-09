@@ -57,9 +57,9 @@ typedef struct tx_size_rd_info_node {
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   {
       64, 64, 64, 70, 60, 60, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       68, 68, 68,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       64, 64, 70, 70, 68, 68,
 #if CONFIG_FLEX_PARTITION
       60, 60, 68, 68, 68, 68,
@@ -67,9 +67,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   },
   {
       88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       68, 68, 68,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       88, 88, 86, 86, 68, 68,
 #if CONFIG_FLEX_PARTITION
       87, 87, 68, 68, 68, 68,
@@ -77,9 +77,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   },
   {
       90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       74, 74, 74,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       90, 90, 90, 90, 74, 74,
 #if CONFIG_FLEX_PARTITION
       93, 93, 74, 74, 74, 74,
@@ -95,9 +95,9 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
   TX_4X4,   TX_4X8,   TX_8X4,   TX_8X8,   TX_8X16,  TX_16X8,
   TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16,
   TX_16X16, TX_16X16, TX_16X16, TX_16X16,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   TX_16X16, TX_16X16, TX_16X16,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   TX_4X16,  TX_16X4,  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
 #if CONFIG_FLEX_PARTITION
   TX_4X16,  TX_16X4,  TX_8X16,  TX_16X8,  TX_4X16,  TX_16X4,
@@ -237,11 +237,11 @@ static const RD_RECORD_IDX_NODE *rd_record_tree[BLOCK_SIZES_ALL] = {
   rd_record_tree_64x128,   // BLOCK_64X128
   rd_record_tree_128x64,   // BLOCK_128X64
   rd_record_tree_128x128,  // BLOCK_128X128
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   NULL,                // BLOCK_128X256
   NULL,                // BLOCK_256X128
   NULL,                // BLOCK_256X256
-#endif                 // CONFIG_BLOCK_256
+#endif                 // CONFIG_EXT_RECUR_PARTITIONS
   NULL,                // BLOCK_4X16
   NULL,                // BLOCK_16X4
   rd_record_tree_1_4,  // BLOCK_8X32
@@ -267,13 +267,13 @@ static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
   sizeof(rd_record_tree_64x128) / sizeof(RD_RECORD_IDX_NODE),   // BLOCK_64X128
   sizeof(rd_record_tree_128x64) / sizeof(RD_RECORD_IDX_NODE),   // BLOCK_128X64
   sizeof(rd_record_tree_128x128) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_128X128
-#if CONFIG_BLOCK_256
-  0,                                                        // BLOCK_128X256
-  0,                                                        // BLOCK_256X128
-  0,                                                        // BLOCK_256X256
-#endif                                                      // CONFIG_BLOCK_256
-  0,                                                        // BLOCK_4X16
-  0,                                                        // BLOCK_16X4
+#if CONFIG_EXT_RECUR_PARTITIONS
+  0,    // BLOCK_128X256
+  0,    // BLOCK_256X128
+  0,    // BLOCK_256X256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  0,    // BLOCK_4X16
+  0,    // BLOCK_16X4
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_8X32
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_32X8
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_16X64

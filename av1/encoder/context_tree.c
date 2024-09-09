@@ -18,9 +18,9 @@
 static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
   BLOCK_4X4,     BLOCK_8X8,   BLOCK_16X16,
   BLOCK_32X32,   BLOCK_64X64, BLOCK_128X128,
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   BLOCK_256X256,
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
@@ -1090,13 +1090,13 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
 static AOM_INLINE int get_pc_tree_nodes(const BLOCK_SIZE sb_size,
                                         int stat_generation_stage) {
   const int is_sb_size_128 = sb_size == BLOCK_128X128;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   const int is_sb_size_256 = sb_size == BLOCK_256X256;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int tree_nodes_inc =
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
       is_sb_size_256 ? (1024 + 4 * 1024) :
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       is_sb_size_128 ? 1024
                      : 0;
   const int tree_nodes =
@@ -1108,9 +1108,9 @@ void av1_setup_sms_tree(AV1_COMP *const cpi, ThreadData *td) {
   AV1_COMMON *const cm = &cpi->common;
   const int stat_generation_stage = is_stat_generation_stage(cpi);
   const int is_sb_size_128 = cm->sb_size == BLOCK_128X128;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   const int is_sb_size_256 = cm->sb_size == BLOCK_256X256;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int tree_nodes = get_pc_tree_nodes(cm->sb_size, stat_generation_stage);
   int sms_tree_index = 0;
   SIMPLE_MOTION_DATA_TREE *this_sms;
@@ -1124,9 +1124,9 @@ void av1_setup_sms_tree(AV1_COMP *const cpi, ThreadData *td) {
 
   if (!stat_generation_stage) {
     const int leaf_factor =
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
         is_sb_size_256 ? 16 :
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         is_sb_size_128 ? 4
                        : 1;
 

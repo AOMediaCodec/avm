@@ -2199,7 +2199,6 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (!do_split) {
     return PARTITION_NONE;
   }
-#if CONFIG_BLOCK_256
   const int square_split_ctx = square_split_context(xd, mi_row, mi_col, bsize);
   if (is_square_split_eligible(bsize, cm->sb_size)) {
     const bool do_square_split =
@@ -2209,7 +2208,6 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       return PARTITION_SPLIT;
     }
   }
-#endif  // CONFIG_BLOCK_256
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
@@ -4020,7 +4018,7 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
 static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
                                          struct aom_read_bit_buffer *rb) {
   static const BLOCK_SIZE sb_sizes[] = {
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     BLOCK_256X256,
 #endif
     BLOCK_128X128,
@@ -4030,7 +4028,7 @@ static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
   bool bit = aom_rb_read_bit(rb);
   if (!bit) {
     index++;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     bit = aom_rb_read_bit(rb);
     if (!bit) {
       index++;

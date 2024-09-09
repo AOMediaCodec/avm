@@ -354,9 +354,9 @@ static BLOCK_SIZE dim_to_size(int dim) {
     case 32: return BLOCK_32X32;
     case 64: return BLOCK_64X64;
     case 128: return BLOCK_128X128;
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
     case 256: return BLOCK_256X256;
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: assert(0); return 0;
   }
 }

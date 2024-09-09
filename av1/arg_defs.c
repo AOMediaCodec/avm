@@ -486,7 +486,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(4:4x4, 8:8x8, 16:16x16, 32:32x32, 64:64x64, 128:128x128). "
               "On frame with 4k+ resolutions or higher speed settings, the min "
               "partition size will have a minimum of 8."),
-#if CONFIG_BLOCK_256
+#if CONFIG_EXT_RECUR_PARTITIONS
   .max_partition_size = ARG_DEF(
       NULL, "max-partition-size", 1,
       "Set max partition size "
@@ -496,7 +496,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "max-partition-size", 1,
               "Set max partition size "
               "(4:4x4, 8:8x8, 16:16x16, 32:32x32, 64:64x64, 128:128x128)"),
-#endif  // CONFIG_BLOCK_256
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_chroma_deltaq = ARG_DEF(NULL, "enable-chroma-deltaq", 1,
                                   "Enable chroma delta quant "
                                   "(0: false (default), 1: true)"),
