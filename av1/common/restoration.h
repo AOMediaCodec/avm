@@ -189,21 +189,13 @@ typedef struct {
   const int (*coeffs)[WIENERNS_COEFCFG_LEN];
 } WienernsFilterParameters;
 
-typedef struct {
-  const WienernsFilterParameters *y;
-  const WienernsFilterParameters *uv;
-} WienernsFilterPairParameters;
-
-extern const WienernsFilterPairParameters wienerns_filters_lowqp;
-extern const WienernsFilterPairParameters wienerns_filters_midqp;
-extern const WienernsFilterPairParameters wienerns_filters_highqp;
+extern const WienernsFilterParameters wienerns_filter_y;
+extern const WienernsFilterParameters wienerns_filter_uv;
 
 static INLINE const WienernsFilterParameters *get_wienerns_parameters(
     int qindex, int is_uv) {
-  const WienernsFilterPairParameters *pair_nsfilter_params = NULL;
   (void)qindex;
-  pair_nsfilter_params = &wienerns_filters_midqp;
-  return is_uv ? pair_nsfilter_params->uv : pair_nsfilter_params->y;
+  return is_uv ? &wienerns_filter_uv : &wienerns_filter_y;
 }
 
 static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
