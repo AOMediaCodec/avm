@@ -902,14 +902,12 @@ typedef struct {
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT - 1];
 #else
   int cfl_index_cost[CFL_TYPE_COUNT];
 #endif  // CONFIG_ENABLE_MHCCP
-#endif  // CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   //! cost of signaling filter direction
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];

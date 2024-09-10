@@ -1519,12 +1519,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   // very expensive.
   *(args->skip) = 0;
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
-#if CONFIG_IMPROVED_CFL
     cfl_store_tx(xd, blk_row, blk_col, tx_size,
                  cm->seq_params.enable_cfl_ds_filter);
-#else
-    cfl_store_tx(xd, blk_row, blk_col, tx_size);
-#endif  // CONFIG_IMPROVED_CFL
   }
 }
 

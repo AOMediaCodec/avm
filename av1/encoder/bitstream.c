@@ -1810,7 +1810,6 @@ static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
   aom_write_symbol(w, fsc_mode, fsc_cdf, FSC_MODES);
 }
 
-#if CONFIG_IMPROVED_CFL
 static AOM_INLINE void write_cfl_index(FRAME_CONTEXT *ec_ctx, uint8_t cfl_index,
                                        aom_writer *w) {
 #if CONFIG_ENABLE_MHCCP
@@ -1819,7 +1818,6 @@ static AOM_INLINE void write_cfl_index(FRAME_CONTEXT *ec_ctx, uint8_t cfl_index,
   aom_write_symbol(w, cfl_index, ec_ctx->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
 }
-#endif
 
 #if CONFIG_ENABLE_MHCCP
 // write MHCCP filter direction
@@ -2191,7 +2189,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     }
 #endif  // CONFIG_AIMC
     if (uv_mode == UV_CFL_PRED) {
-#if CONFIG_IMPROVED_CFL
       write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
 #if CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
@@ -2201,7 +2198,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
       }
 #endif  // CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx == 0)
-#endif
         write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     }
   }
@@ -5583,9 +5579,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 
-#if CONFIG_IMPROVED_CFL
   aom_wb_write_literal(wb, seq_params->enable_cfl_ds_filter, 2);
-#endif  // CONFIG_IMPROVED_CFL
 
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #if CONFIG_EXT_RECUR_PARTITIONS

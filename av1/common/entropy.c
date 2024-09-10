@@ -331,13 +331,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->dpcm_uv_vert_horz_cdf, 2);
 #endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT - 1);
 #else
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#endif
 #if CONFIG_ENABLE_MHCCP
   RESET_CDF_COUNTER(fc->filter_dir_cdf, MHCCP_MODE_NUM);
 #endif  // CONFIG_ENABLE_MHCCP

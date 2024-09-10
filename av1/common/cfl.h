@@ -16,13 +16,8 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 
-#if CONFIG_IMPROVED_CFL
 #define CFL_ADD_BITS_ALPHA 5
-#else
-#define CFL_ADD_BITS_ALPHA 0
-#endif
 
-#if CONFIG_IMPROVED_CFL || CONFIG_BAWP || CONFIG_MORPH_PRED
 // Linear modeal Y = alpha * X + beta has been used in a few coding tools.
 // This function derives parameter alpha. The equation is:
 // alpha = (sum_xy - sum_x * sum_y / n) / (sum_xx - sum_x * sum_x / n)
@@ -53,7 +48,6 @@ static INLINE int derive_linear_parameters_beta(int sum_x, int sum_y, int count,
   const int beta = ((sum_y << shift) - sum_x * alpha) / count;
   return beta;
 }
-#endif  // CONFIG_IMPROVED_CFL || CONFIG_BAWP || CONFIG_MORPH_PRED
 
 // Can we use CfL for the current block?
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
@@ -198,21 +192,12 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane);
 #endif
 
-void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
-#if CONFIG_IMPROVED_CFL
-                     ,
-                     int filter_type
-#endif  // CONFIG_IMPROVED_CFL
-);
+void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
+                     int filter_type);
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
-#if CONFIG_IMPROVED_CFL
-                  ,
-                  int filter_type
-#endif  // CONFIG_IMPROVED_CFL
-);
+void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
+                  int filter_type);
 
-#if CONFIG_IMPROVED_CFL
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,
                                             uint16_t *output_q3, int width,
@@ -222,9 +207,7 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
                                              int height, int filter_type);
-#endif  // CONFIG_IMPROVED_CFL
 
-#if CONFIG_IMPROVED_CFL
 // Get neighbor luma reconstruction pixels
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
@@ -244,9 +227,7 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
 // Derive the implicit scaling factor
 void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
                                         int row, int col, TX_SIZE tx_size);
-#endif
 
-#if CONFIG_IMPROVED_CFL
 // Derive the implicit scaling factor for the block
 void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                               const int width, const int height,
@@ -257,7 +238,6 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
 void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
                                         uint16_t *output_q3, int width,
                                         int height);
-#endif  // CONFIG_IMPROVED_CFL
 
 void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
                        CFL_PRED_TYPE pred_plane, int width);

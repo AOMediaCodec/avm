@@ -463,9 +463,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
-#if CONFIG_IMPROVED_CFL
   seq->enable_cfl_ds_filter = tool_cfg->enable_cfl_ds_filter;
-#endif  // CONFIG_CONFIG_IMPROVED_CFL
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
@@ -1741,7 +1739,6 @@ static void set_hole_fill_decision(AV1_COMP *cpi, int width, int height,
 #endif  // CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE
 }
 
-#if CONFIG_IMPROVED_CFL
 static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
                                int height, int round_offset, int num_pel_log2) {
   int sum = round_offset;
@@ -1917,7 +1914,6 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
     }
   }
 }
-#endif  // CONFIG_IMPROVED_CFL
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -3856,11 +3852,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_IMPROVED_CFL
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
   }
-#endif  // CONFIG_IMPROVED_CFL
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 

@@ -863,10 +863,8 @@ typedef struct {
   // Indicates if flexible MV resolution should be enabled.
   bool enable_flex_mvres;
 
-#if CONFIG_IMPROVED_CFL
   // Indicates if joint adaptive downsampling filter should be enabled.
   int enable_cfl_ds_filter;
-#endif  // CONFIG_IMPROVED_CFL
 
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;
@@ -1331,9 +1329,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int mrl_index[MRL_LINE_NUMBER];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-#if CONFIG_IMPROVED_CFL
   unsigned int cfl_index[CFL_TYPE_COUNT];
-#endif
 #if CONFIG_REFINEMV
   unsigned int refinemv_flag_cnts[NUM_REFINEMV_CTX]
                                  [REFINEMV_NUM_MODES];  // placeholder

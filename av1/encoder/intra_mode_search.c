@@ -677,11 +677,10 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mode_rd_info_uv != NULL && !xd->lossless[mbmi->segment_id];
   int best_uv_mode_idx = -1;
   get_uv_intra_mode_set(mbmi);
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
-  int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL + MHCCP_MODE_NUM;
+  int implicit_cfl_mode_num = 1 + MHCCP_MODE_NUM;
 #else
-  int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL;
+  int implicit_cfl_mode_num = 1;
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_uv = 0;
@@ -746,22 +745,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->uv_mode_idx = mode_idx - 2;
 #endif  // CONFIG_ENABLE_MHCCP
       }
-#else
-#if CONFIG_LOSSLESS_DPCM
-  mbmi->use_dpcm_uv = 0;
-  mbmi->dpcm_mode_uv = 0;
-  int dpcm_uv_loop_num = 1;
-  if (xd->lossless[mbmi->segment_id]) {
-    dpcm_uv_loop_num = 2;  // dpcm is only applied for lossless mode
-  }
-  for (int dpcm_uv_index = 0; dpcm_uv_index < dpcm_uv_loop_num;
-       ++dpcm_uv_index) {
-    mbmi->use_dpcm_uv = dpcm_uv_index;
-#endif  // CONFIG_LOSSLESS_DPCM
-    for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
-      mbmi->uv_mode_idx = mode_idx;
-      mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx];
-#endif
       if (mbmi->uv_mode == mbmi->mode)
         mbmi->angle_delta[PLANE_TYPE_UV] = mbmi->angle_delta[PLANE_TYPE_Y];
       else
@@ -786,8 +769,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mode_cost += dpcm_uv_dir_cost;
       }
 #else   // CONFIG_LOSSLESS_DPCM
-      int mode_cost = get_uv_mode_cost(mbmi, x->mode_costs, is_cfl_allowed(xd),
-                                       mbmi->uv_mode_idx);
+    int mode_cost = get_uv_mode_cost(mbmi, x->mode_costs, is_cfl_allowed(xd),
+                                     mbmi->uv_mode_idx);
 #endif  // CONFIG_LOSSLESS_DPCM
 #else
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
@@ -813,17 +796,12 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_ENABLE_MHCCP
       int filter_dir_rate = 0;
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_IMPROVED_CFL
       int cfl_idx_rate = 0;
-#endif
       if (mode == UV_CFL_PRED) {
         if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
         const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
-#if CONFIG_IMPROVED_CFL
         if (mbmi->cfl_idx == 0)
-#endif
           cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
-#if CONFIG_IMPROVED_CFL
         cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
 #if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
@@ -832,19 +810,14 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
               x->mode_costs.filter_dir_cost[mh_size_group][mbmi->mh_dir];
         }
 #endif  // CONFIG_ENABLE_MHCCP
-#endif
         if (cfl_alpha_rate == INT_MAX) continue;
       }
 #if CONFIG_AIMC
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
       mode_cost += cfl_alpha_rate + cfl_idx_rate + filter_dir_rate;
 #else
     mode_cost += cfl_alpha_rate + cfl_idx_rate;
 #endif  // CONFIG_ENABLE_MHCCP
-#else
-      mode_cost += cfl_alpha_rate;
-#endif
       // Check if the reuse is enabled. If enabled, save the mode information
       // (i.e., rate and distortion) when the mode is evaluated for the first
       // time, else fetch the mode info saved.

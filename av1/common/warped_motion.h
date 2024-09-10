@@ -87,7 +87,6 @@ static INLINE int16_t resolve_divisor_32(uint32_t D, int16_t *shift) {
   return div_lut[f];
 }
 
-#if CONFIG_IMPROVED_CFL || CONFIG_BAWP
 static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
                                              int16_t shift) {
   int32_t f_n, f_d;
@@ -137,7 +136,6 @@ static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
     return ret;
   }
 }
-#endif
 
 extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
 

@@ -375,11 +375,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
 
   if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
       xd->tree_type == SHARED_PART) {
-#if CONFIG_IMPROVED_CFL
     cfl_store_tx(xd, row, col, tx_size, cm->seq_params.enable_cfl_ds_filter);
-#else
-    cfl_store_tx(xd, row, col, tx_size);
-#endif  // CONFIG_IMPROVED_CFL
   }
 }
 
@@ -1200,12 +1196,8 @@ static AOM_INLINE void cfl_store_inter_block(AV1_COMMON *const cm,
                                              MACROBLOCKD *const xd) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   if (store_cfl_required(cm, xd) && xd->tree_type == SHARED_PART) {
-#if CONFIG_IMPROVED_CFL
     cfl_store_block(xd, mbmi->sb_type[PLANE_TYPE_Y], mbmi->tx_size,
                     cm->seq_params.enable_cfl_ds_filter);
-#else
-    cfl_store_block(xd, mbmi->sb_type[PLANE_TYPE_Y], mbmi->tx_size);
-#endif  // CONFIG_IMPROVED_CFL
   }
 }
 
@@ -6491,9 +6483,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
 #endif  // CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
-#if CONFIG_IMPROVED_CFL
   seq_params->enable_cfl_ds_filter = aom_rb_read_literal(rb, 2);
-#endif  // CONFIG_IMPROVED_CFL
 
   seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
 #if CONFIG_EXT_RECUR_PARTITIONS

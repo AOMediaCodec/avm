@@ -22,9 +22,7 @@
 #include "av1/common/reconinter.h"
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
-#if CONFIG_IMPROVED_CFL
 #include "av1/common/warped_motion.h"
-#endif
 
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   assert(block_size_wide[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
@@ -155,20 +153,6 @@ void cfl_predict_hbd_c(const int16_t *ac_buf_q3, uint16_t *dst, int dst_stride,
 
 CFL_PREDICT_FN(c, hbd)
 
-#if !CONFIG_IMPROVED_CFL
-static void cfl_compute_parameters(MACROBLOCKD *const xd, TX_SIZE tx_size) {
-  CFL_CTX *const cfl = &xd->cfl;
-  // Do not call cfl_compute_parameters multiple time on the same values.
-  assert(cfl->are_parameters_computed == 0);
-
-  cfl_pad(cfl, tx_size_wide[tx_size], tx_size_high[tx_size]);
-
-  cfl_get_subtract_average_fn(tx_size)(cfl->recon_buf_q3, cfl->ac_buf_q3);
-  cfl->are_parameters_computed = 1;
-}
-#endif
-
-#if CONFIG_IMPROVED_CFL
 // Subtract the average from neighoring pixels
 static void subtract_average_neighbor(const uint16_t *src, int16_t *dst,
                                       int width, int height, int avg) {
@@ -255,7 +239,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       uint16_t *input = dst - top_offset * input_stride;
       for (int i = 0; i < width; i += 2) {
         const int bot = i + bottom_offset * input_stride;
-#if CONFIG_IMPROVED_CFL
         const int filter_type = cm->seq_params.enable_cfl_ds_filter;
         if (filter_type == 1) {
           output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 2 * input[i] +
@@ -276,12 +259,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           output_q3[i >> 1] =
               (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
         }
-#else
-        output_q3[i >> 1] =
-            (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
-#endif  // CONFIG_IMPROVED_CFL
       }
-#if CONFIG_IMPROVED_CFL
     } else if (sub_x) {
       uint16_t *input = dst - input_stride;
       for (int i = 0; i < width; i += 2) {
@@ -295,7 +273,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
         }
       }
-#endif  // CONFIG_IMPROVED_CFL
     } else if (sub_y) {
       uint16_t *input = dst - top_offset * input_stride;
       for (int i = 0; i < width; ++i) {
@@ -328,7 +305,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       uint16_t *input = dst - 2;
       for (int j = 0; j < height; j += 2) {
         const int bot = input_stride;
-#if CONFIG_IMPROVED_CFL
         const int filter_type = cm->seq_params.enable_cfl_ds_filter;
         if (filter_type == 1) {
           output_q3[j >> 1] = input[-1] + 2 * input[0] + input[1] +
@@ -341,13 +317,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           output_q3[j >> 1] =
               (input[0] + input[1] + input[bot] + input[bot + 1]) << 1;
         }
-#else
-        output_q3[j >> 1] = (input[0] + input[1] + input[bot] + input[bot + 1])
-                            << 1;
-#endif  // CONFIG_IMPROVED_CFL
         input += input_stride * 2;
       }
-#if CONFIG_IMPROVED_CFL
     } else if (sub_x) {
       uint16_t *input = dst - 2;
       for (int j = 0; j < height; ++j) {
@@ -361,7 +332,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         }
         input += input_stride;
       }
-#endif  // CONFIG_IMPROVED_CFL
     } else if (sub_y) {
       uint16_t *input = dst - 1;
       for (int j = 0; j < height; ++j) {
@@ -628,9 +598,7 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
   mbmi->cfl_implicit_alpha[plane - 1] = derive_linear_parameters_alpha(
       sum_x, sum_y, sum_xx, sum_xy, count, shift, 0);
 }
-#endif
 
-#if CONFIG_IMPROVED_CFL
 void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                               const int width, const int height,
                                               const int stride,
@@ -652,7 +620,6 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
   *alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx, sum_xy, count,
                                           shift, 0);
 }
-#endif  // CONFIG_IMPROVED_CFL
 
 #if CONFIG_ENABLE_MHCCP
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
@@ -666,7 +633,6 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(is_cfl_allowed(xd));
 
-#if CONFIG_IMPROVED_CFL
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
 #if CONFIG_ENABLE_MHCCP
@@ -701,12 +667,6 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   }
 #endif  // CONFIG_ENABLE_MHCCP
 
-#else
-  if (!cfl->are_parameters_computed) cfl_compute_parameters(xd, tx_size);
-
-  const int alpha_q3 =
-      cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
-#endif
   assert((tx_size_high[tx_size] - 1) * CFL_BUF_LINE + tx_size_wide[tx_size] <=
          CFL_BUF_SQUARE);
   cfl_get_predict_hbd_fn(tx_size)(cfl->ac_buf_q3, dst, dst_stride, alpha_q3,
@@ -728,7 +688,6 @@ static void cfl_luma_subsampling_420_hbd_c(const uint16_t *input,
   }
 }
 
-#if CONFIG_IMPROVED_CFL
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,
                                             uint16_t *output_q3, int width,
@@ -744,6 +703,7 @@ void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
     output_q3 += CFL_BUF_LINE;
   }
 }
+
 void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
                                         uint16_t *output_q3, int width,
                                         int height) {
@@ -759,7 +719,6 @@ void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
     output_q3 += CFL_BUF_LINE;
   }
 }
-#endif  // CONFIG_IMPROVED_CFL
 
 static void cfl_luma_subsampling_422_hbd_c(const uint16_t *input,
                                            int input_stride,
@@ -775,7 +734,6 @@ static void cfl_luma_subsampling_422_hbd_c(const uint16_t *input,
   }
 }
 
-#if CONFIG_IMPROVED_CFL
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
@@ -796,7 +754,6 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
     output_q3 += CFL_BUF_LINE;
   }
 }
-#endif  // CONFIG_IMPROVED_CFL
 
 static void cfl_luma_subsampling_444_hbd_c(const uint16_t *input,
                                            int input_stride,
@@ -827,12 +784,7 @@ static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
 
 static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                       const uint16_t *input, int input_stride, int row, int col,
-                      TX_SIZE tx_size
-#if CONFIG_IMPROVED_CFL
-                      ,
-                      int filter_type
-#endif  // CONFIG_IMPROVED_CFL
-) {
+                      TX_SIZE tx_size, int filter_type) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int tx_off_log2 = MI_SIZE_LOG2;
@@ -872,7 +824,6 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
   // Store the input into the CfL pixel buffer
   uint16_t *recon_buf_q3 =
       cfl->recon_buf_q3 + (store_row * CFL_BUF_LINE + store_col);
-#if CONFIG_IMPROVED_CFL
   if (sub_x == 1 && sub_y == 0) {
     cfl_adaptive_luma_subsampling_422_hbd_c(input, input_stride, recon_buf_q3,
                                             width, height, filter_type);
@@ -927,26 +878,10 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                                                recon_buf_q3);
 #endif  // CONFIG_CFL_64x64
   }
-#else
-#if CONFIG_CFL_64x64
-  if (AOMMAX(width, height) > 32)
-    cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
-                                   height);
-  else
-    cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
-                                               recon_buf_q3);
-#else
-  cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride, recon_buf_q3);
-#endif  // CONFIG_CFL_64x64
-#endif  // CONFIG_IMPROVED_CFL
 }
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
-#if CONFIG_IMPROVED_CFL
-                  ,
-                  int filter_type
-#endif  // CONFIG_IMPROVED_CFL
-) {
+void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
+                  int filter_type) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
@@ -956,13 +891,8 @@ void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
   const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
   const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
 
-#if CONFIG_IMPROVED_CFL
   cfl_store(xd, cfl, dst, pd->dst.stride, row + row_offset, col + col_offset,
             tx_size, filter_type);
-#else
-  cfl_store(xd, cfl, dst, pd->dst.stride, row + row_offset, col + col_offset,
-            tx_size);
-#endif  // CONFIG_IMPROVED_CFL
 }
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -983,12 +913,8 @@ static INLINE int max_intra_block_height(const MACROBLOCKD *xd,
 }
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
-void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
-#if CONFIG_IMPROVED_CFL
-                     ,
-                     int filter_type
-#endif  // CONFIG_IMPROVED_CFL
-) {
+void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
+                     int filter_type) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -1009,13 +935,8 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 
   tx_size = get_tx_size(width, height);
   assert(tx_size != TX_INVALID);
-#if CONFIG_IMPROVED_CFL
   cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row_offset, col_offset,
             tx_size, filter_type);
-#else
-  cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row_offset, col_offset,
-            tx_size);
-#endif  // CONFIG_IMPROVED_CFL
 }
 
 #if CONFIG_ENABLE_MHCCP

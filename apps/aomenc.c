@@ -483,9 +483,7 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_adaptive_mvd,
   &g_av1_codec_arg_defs.enable_flex_mvres,
-#if CONFIG_IMPROVED_CFL
   &g_av1_codec_arg_defs.enable_cfl_ds_filter,
-#endif  // CONFIG_IMPROVED_CFL
   &g_av1_codec_arg_defs.enable_joint_mvd,
 #if CONFIG_REFINEMV
   &g_av1_codec_arg_defs.enable_refinemv,
@@ -677,9 +675,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_ibp = 1;
   config->enable_adaptive_mvd = 1;
   config->enable_flex_mvres = 1;
-#if CONFIG_IMPROVED_CFL
   config->enable_cfl_ds_filter = 1;
-#endif  // CONFIG_IMPROVED_CFL
   config->enable_joint_mvd = 1;
 #if CONFIG_REFINEMV
   config->enable_refinemv = 1;
@@ -1558,12 +1554,10 @@ static void show_stream_config(struct stream_state *stream,
 #endif  //  CONFIG_IDIF
           ,
           encoder_cfg->enable_ibp);
-#if CONFIG_IMPROVED_CFL
   fprintf(
       stdout,
       "                               : Adaptive Down sample filter: (%d)\n",
       encoder_cfg->enable_cfl_ds_filter);
-#endif  // CONFIG_IMPROVED_CFL
 
   fprintf(stdout,
           "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "

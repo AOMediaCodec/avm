@@ -749,11 +749,7 @@ enum {
 
 enum { PLANE_TYPE_Y, PLANE_TYPE_UV, PLANE_TYPES } UENUM1BYTE(PLANE_TYPE);
 
-#if CONFIG_IMPROVED_CFL
 #define CFL_ALPHABET_SIZE_LOG2 3
-#else
-#define CFL_ALPHABET_SIZE_LOG2 4
-#endif  // CONFIG_IMPROVED_CFL
 #define CFL_ALPHABET_SIZE (1 << CFL_ALPHABET_SIZE_LOG2)
 #define CFL_MAGS_SIZE ((2 << CFL_ALPHABET_SIZE_LOG2) + 1)
 #define CFL_IDX_U(idx) (idx >> CFL_ALPHABET_SIZE_LOG2)
@@ -901,7 +897,6 @@ enum {
   UV_MODE_INVALID,  // For uv_mode in inter blocks
 } UENUM1BYTE(UV_PREDICTION_MODE);
 
-#if CONFIG_IMPROVED_CFL
 enum {
   CFL_EXPLICIT,       // av1 cfl
   CFL_DERIVED_ALPHA,  // implicit CfL mode with derived scaling factor
@@ -911,7 +906,6 @@ enum {
 #endif                // CONFIG_ENABLE_MHCCP
   CFL_TYPE_COUNT,     // CfL mode type count
 } UENUM1BYTE(CFL_TYPE);
-#endif
 
 // Number of top model rd to store for pruning y modes in intra mode decision
 #define TOP_INTRA_MODEL_COUNT 4

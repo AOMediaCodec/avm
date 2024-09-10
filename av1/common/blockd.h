@@ -529,12 +529,10 @@ typedef struct MB_MODE_INFO {
   int8_t cfl_alpha_signs;
   /*! \brief Chroma from Luma: Index of the alpha Cb and alpha Cr combination */
   uint8_t cfl_alpha_idx;
-#if CONFIG_IMPROVED_CFL
   /*! \brief Chroma from Luma: Index of the CfL mode */
   uint8_t cfl_idx;
   /*! \brief The implicitly derived scaling factors*/
   int cfl_implicit_alpha[2];  //[u/v]
-#endif
 #if CONFIG_ENABLE_MHCCP
   /*! \brief The filter direction of multi hypothesis*/
   uint8_t mh_dir;
@@ -1992,7 +1990,6 @@ typedef struct cfl_ctx {
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   // multi-hypothesis cross component prediction reference area
   uint16_t mhccp_ref_buf_q3[MAX_MB_PLANE][CFL_BUF_SQUARE * 4];
@@ -2003,7 +2000,6 @@ typedef struct cfl_ctx {
   uint16_t recon_yuv_buf_left[MAX_MB_PLANE][CFL_BUF_LINE];
   // luma neighboring pixel average
   uint16_t avg_l;
-#endif
   // Cache the DC_PRED when performing RDO, so it does not have to be recomputed
   // for every scaling parameter
   int dc_pred_is_cached[CFL_PRED_PLANES];

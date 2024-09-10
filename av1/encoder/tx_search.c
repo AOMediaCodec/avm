@@ -4279,12 +4279,8 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
     assert(!is_inter || plane_bsize < BLOCK_8X8);
-#if CONFIG_IMPROVED_CFL
     cfl_store_tx(xd, blk_row, blk_col, tx_size,
                  cm->seq_params.enable_cfl_ds_filter);
-#else
-    cfl_store_tx(xd, blk_row, blk_col, tx_size);
-#endif  // CONFIG_IMPROVED_CFL
   }
 
 #if CONFIG_RD_DEBUG

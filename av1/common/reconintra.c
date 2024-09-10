@@ -2176,7 +2176,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           if ((h >= *above_lines && w >= *left_lines + width) ||
               (h >= *above_lines + height && w >= *left_lines))
             continue;
-#if CONFIG_IMPROVED_CFL
           if (cm->seq_params.enable_cfl_ds_filter == 1) {
             output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 2 * input[w] +
                                 input[w + 1] + input[bot + AOMMAX(-1, -w)] +
@@ -2190,18 +2189,12 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                 (input[w] + input[w + 1] + input[bot] + input[bot + 1] + 2)
                 << 1;
           }
-#else
-          output_q3[i >> 1] =
-              (input[i] + input[i + 1] + input[bot] + input[bot + 1] + 2) << 1;
-#endif  // CONFIG_IMPROVED_CFL
         }
         output_q3 += output_stride;
         input += (input_stride << 1);
       }
 
-    }
-#if CONFIG_IMPROVED_CFL
-    else if (sub_x) {
+    } else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
           const int filter_type = cm->seq_params.enable_cfl_ds_filter;
@@ -2217,7 +2210,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         output_q3 += output_stride;
         input += input_stride;
       }
-#endif
     } else if (sub_y) {
       for (int h = 0; h < (*ref_height); h += 2) {
         for (int i = 0; i < (*ref_width); ++i) {
@@ -2317,22 +2309,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(block_size_high[plane_bsize] == tx_size_high[tx_size]);
     }
 #endif
-#if !CONFIG_IMPROVED_CFL
-    CFL_CTX *const cfl = &xd->cfl;
-    CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
-    if (cfl->dc_pred_is_cached[pred_plane] == 0) {
-      av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
-                              angle_delta, use_palette, filter_intra_mode, dst,
-                              dst_stride, dst, dst_stride, blk_col, blk_row,
-                              plane);
-      if (cfl->use_dc_pred_cache) {
-        cfl_store_dc_pred(xd, dst, pred_plane, tx_size_wide[tx_size]);
-        cfl->dc_pred_is_cached[pred_plane] = 1;
-      }
-    } else {
-      cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
-    }
-#endif
     if (xd->tree_type == CHROMA_PART) {
 #if CONFIG_CFL_64x64
       const BLOCK_SIZE luma_bsize = mbmi->sb_type[PLANE_TYPE_UV];
@@ -2341,14 +2317,9 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       const int luma_tx_size =
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
 #endif
-#if CONFIG_IMPROVED_CFL
       cfl_store_tx(xd, blk_row, blk_col, luma_tx_size,
                    cm->seq_params.enable_cfl_ds_filter);
-#else
-      cfl_store_tx(xd, blk_row, blk_col, luma_tx_size);
-#endif  // CONFIG_IMPROVED_CFL
     }
-#if CONFIG_IMPROVED_CFL
     CFL_CTX *const cfl = &xd->cfl;
 
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
@@ -2447,7 +2418,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       }
 #endif  // CONFIG_ENABLE_MHCCP
     }
-#endif
 #if CONFIG_ENABLE_MHCCP
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane, above_lines > 0,
                       left_lines > 0, above_lines, left_lines);

@@ -201,7 +201,7 @@ static const aom_cdf_prob
                                                     { AOM_CDF2(32283) } } };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_ENABLE_MHCCP
-#if CONFIG_IMPROVED_CFL
+
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
     CFL_TYPE_COUNT - 1)] = { AOM_CDF3(4124, 16615), 75 };
@@ -210,10 +210,7 @@ static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
   AOM_CDF4(18000, 24000, 29000)
 };
 #endif  // CONFIG_ENTROPY_PARA
-#else
-static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
-    CFL_TYPE_COUNT - 1)] = { AOM_CDF3(16384, 23000) };
-#endif
+
 #else
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
   AOM_CDF2(18000), 0
@@ -4912,7 +4909,7 @@ static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {
   AOM_CDF8(1418, 2123, 13340, 18405, 26972, 28343, 32294)
 };
 #endif  // CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVED_CFL
+
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)] = {
@@ -4934,23 +4931,6 @@ static const aom_cdf_prob
       { AOM_CDF8(14990, 22180, 26430, 28600, 29820, 31200, 31980) }
     };
 #endif  // CONFIG_ENTROPY_PARA
-#else
-static const aom_cdf_prob
-    default_cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)] = {
-      { AOM_CDF16(7637, 20719, 31401, 32481, 32657, 32688, 32692, 32696, 32700,
-                  32704, 32708, 32712, 32716, 32720, 32724) },
-      { AOM_CDF16(14365, 23603, 28135, 31168, 32167, 32395, 32487, 32573, 32620,
-                  32647, 32668, 32672, 32676, 32680, 32684) },
-      { AOM_CDF16(11532, 22380, 28445, 31360, 32349, 32523, 32584, 32649, 32673,
-                  32677, 32681, 32685, 32689, 32693, 32697) },
-      { AOM_CDF16(26990, 31402, 32282, 32571, 32692, 32696, 32700, 32704, 32708,
-                  32712, 32716, 32720, 32724, 32728, 32732) },
-      { AOM_CDF16(17248, 26058, 28904, 30608, 31305, 31877, 32126, 32321, 32394,
-                  32464, 32516, 32560, 32576, 32593, 32622) },
-      { AOM_CDF16(14738, 21678, 25779, 27901, 29024, 30302, 30980, 31843, 32144,
-                  32413, 32520, 32594, 32622, 32656, 32660) }
-    };
-#endif  // CONFIG_IMPROVED_CFL
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -8096,9 +8076,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->dpcm_uv_cdf, default_dpcm_uv_cdf);
   av1_copy(fc->dpcm_uv_vert_horz_cdf, default_dpcm_uv_vert_horz_cdf);
 #endif  // CONFIG_LOSSLESS_DPCM
-#if CONFIG_IMPROVED_CFL
   av1_copy(fc->cfl_index_cdf, default_cfl_index_cdf);
-#endif
 #if CONFIG_ENABLE_MHCCP
   av1_copy(fc->filter_dir_cdf, default_filter_dir_cdf);
 #endif  // CONFIG_ENABLE_MHCCP

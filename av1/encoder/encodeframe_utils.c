@@ -843,7 +843,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                  UV_INTRA_MODES - 1);
 #endif  // CONFIG_LOSSLESS_DPCM
     }
-#if CONFIG_IMPROVED_CFL
     if (mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_ENTROPY_STATS
       ++counts->cfl_index[mbmi->cfl_idx];
@@ -858,7 +857,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
     }
-#endif
 #else
     update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
                UV_INTRA_MODES - !cfl_allowed);
@@ -1665,7 +1663,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               2);
 #endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf, MHCCP_MODE_NUM);
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
@@ -1673,7 +1670,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #else
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#endif
 #if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
