@@ -662,11 +662,9 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
-#if CONFIG_OPTFLOW_REFINEMENT
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
                                fc->use_optflow_cdf[i], NULL);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
     for (j = 0; j < NUM_MV_PREC_MPP_CONTEXT; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->pb_block_mv_mpp_flag_costs[j],
@@ -2106,9 +2104,7 @@ int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             InterpFilter interp_filter) {
   if (interp_filter == SWITCHABLE) {
     const MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_OPTFLOW_REFINEMENT
     assert(mbmi->mode < NEAR_NEARMV_OPTFLOW);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
     const int inter_filter_cost =
         x->mode_costs.switchable_interp_costs[ctx][mbmi->interp_fltr];

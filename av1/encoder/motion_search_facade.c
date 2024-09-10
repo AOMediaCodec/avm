@@ -1088,11 +1088,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_VQ_MVD_CODING
     if (bestsme == INT_MAX) best_mv.as_int = INVALID_MV;
 #endif  // CONFIG_VQ_MVD_CODING
-  } else if (mbmi->mode == JOINT_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-             || mbmi->mode == JOINT_NEWMV_OPTFLOW
-#endif
-  ) {
+  } else if (mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -1114,13 +1110,8 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                  &best_other_mv.as_mv, second_pred,
                                  &inter_pred_params, NULL);
     }
-  } else
-#if CONFIG_OPTFLOW_REFINEMENT
-      if (mbmi->mode == JOINT_AMVDNEWMV ||
-          mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) {
-#else
-      if (mbmi->mode == JOINT_AMVDNEWMV) {
-#endif
+  } else if (mbmi->mode == JOINT_AMVDNEWMV ||
+             mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -1362,11 +1353,7 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
   mbmi->interinter_comp.seg_mask = xd->seg_mask;
   const INTERINTER_COMPOUND_DATA *compound_data = &mbmi->interinter_comp;
 
-#if CONFIG_OPTFLOW_REFINEMENT
   if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
-#else
-  if (this_mode == NEW_NEWMV) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     do_masked_motion_search_indexed(cpi, x, cur_mv, compound_data, bsize,
                                     tmp_mv, &tmp_rate_mv, 2);
     mbmi->mv[0].as_int = tmp_mv[0].as_int;

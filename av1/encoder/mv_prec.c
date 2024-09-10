@@ -637,10 +637,7 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 
-  if (mode == NEWMV || mode == AMVDNEWMV ||
-#if CONFIG_OPTFLOW_REFINEMENT
-      mode == NEW_NEWMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  if (mode == NEWMV || mode == AMVDNEWMV || mode == NEW_NEWMV_OPTFLOW ||
       mode == NEW_NEWMV) {
     // All mvs are new
     for (int ref_idx = 0; ref_idx < 1 + is_compound; ++ref_idx) {
@@ -663,15 +660,9 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   } else if (have_nearmv_newmv_in_inter_mode(mode)) {
     // has exactly one new_mv
     mv_stats->default_mvs += 1;
-#if CONFIG_OPTFLOW_REFINEMENT
     int ref_idx = is_joint_mvd_coding_mode(mbmi->mode)
                       ? get_joint_mvd_base_ref_list(cm, mbmi)
                       : (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW);
-#else
-    int ref_idx = is_joint_mvd_coding_mode(mbmi->mode)
-                      ? get_joint_mvd_base_ref_list(cm, mbmi)
-                      : (mode == NEAR_NEWMV);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
     const MV ref_mv =
         get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;

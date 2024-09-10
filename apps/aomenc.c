@@ -470,9 +470,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.max_drl_refbvs,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   &g_av1_codec_arg_defs.enable_refmvbank,
-#if CONFIG_OPTFLOW_REFINEMENT
   &g_av1_codec_arg_defs.enable_opfl_refine,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_affine_refine,
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -730,9 +728,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_smooth_intra = 1;
   config->enable_filter_intra = 0;
   config->enable_angle_delta = 1;
-#if CONFIG_OPTFLOW_REFINEMENT
   config->enable_opfl_refine = 1;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   config->enable_affine_refine = 1;
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -1641,10 +1637,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_interintra_wedge,
           encoder_cfg->enable_ref_frame_mvs);
 
-#if CONFIG_OPTFLOW_REFINEMENT
   fprintf(stdout, "                               : OptflowRefinement (%d)\n",
           encoder_cfg->enable_opfl_refine);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   fprintf(stdout, "                               : AffineRefinement (%d)\n",
           encoder_cfg->enable_affine_refine);

@@ -19,7 +19,6 @@
 #include "av1/common/reconinter.h"
 #include "aom_dsp/x86/synonyms.h"
 
-#if CONFIG_OPTFLOW_REFINEMENT
 static INLINE __m128i round_power_of_two_signed_epi64(__m128i in, int n) {
   __m128i sign_mask = _mm_srai_epi32(in, 31);
   sign_mask = _mm_or_si128(sign_mask, _mm_srli_epi64(sign_mask, 4));
@@ -811,4 +810,3 @@ void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
   compute_pred_using_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw, bh,
                                                d0, d1, centered);
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT

@@ -76,7 +76,6 @@ static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
 
   *mv = get_mv_from_fullmv(&fullmv);
 }
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

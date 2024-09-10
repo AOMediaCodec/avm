@@ -285,13 +285,10 @@ static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
 
 static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
-#if CONFIG_OPTFLOW_REFINEMENT
                                                  const AV1_COMMON *cm,
                                                  const MB_MODE_INFO *const mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
-#if CONFIG_OPTFLOW_REFINEMENT
   int comp_mode_idx = opfl_get_comp_idx(mode);
   aom_write_symbol(w, comp_mode_idx,
                    xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
@@ -323,11 +320,6 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
       aom_write_symbol(w, use_optical_flow,
                        xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
   }
-#else
-  aom_write_symbol(w, INTER_COMPOUND_OFFSET(mode),
-                   xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
-                   INTER_COMPOUND_MODES);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
 #if CONFIG_NEW_TX_PARTITION
@@ -1322,7 +1314,6 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 
   if (!av1_is_interp_needed(cm, xd)) {
 #if CONFIG_DEBUG
-#if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
     int mb_interp_filter = (opfl_allowed_for_cur_block(cm,
 
@@ -1337,16 +1328,12 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
                             || is_tip_ref_frame(mbmi->ref_frame[0]))
                                ? MULTITAP_SHARP
                                : cm->features.interp_filter;
-#else
-    int mb_interp_filter = cm->features.interp_filter;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     assert(mbmi->interp_fltr == av1_unswitchable_filter(mb_interp_filter));
     (void)mb_interp_filter;
 #endif  // CONFIG_DEBUG
     return;
   }
   if (cm->features.interp_filter == SWITCHABLE) {
-#if CONFIG_OPTFLOW_REFINEMENT
     if (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
@@ -1359,7 +1346,6 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
       assert(mbmi->interp_fltr == MULTITAP_SHARP);
       return;
     }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
     const InterpFilter filter = mbmi->interp_fltr;
     aom_write_symbol(w, filter, ec_ctx->switchable_interp_cdf[ctx],
@@ -2590,11 +2576,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     // If segment skip is not enabled code the mode.
     if (!segfeature_active(seg, segment_id, SEG_LVL_SKIP)) {
       if (is_inter_compound_mode(mode))
-        write_inter_compound_mode(xd, w, mode,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                  cm, mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                                  mode_ctx);
+        write_inter_compound_mode(xd, w, mode, cm, mbmi, mode_ctx);
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -2769,11 +2751,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                       nmvc, pb_mv_precision);
 #endif  // CONFIG_VQ_MVD_CODING
         }
-      } else if (mode == NEAR_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-                 || mode == NEAR_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                 ||
+      } else if (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         int_mv ref_mv = get_ref_mv(x, 1);
@@ -2800,11 +2778,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                     nmvc, pb_mv_precision);
 #endif  // CONFIG_VQ_MVD_CODING
 
-      } else if (mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-                 || mode == NEW_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                 ||
+      } else if (mode == NEW_NEARMV || mode == NEW_NEARMV_OPTFLOW ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         int_mv ref_mv = get_ref_mv(x, 0);
@@ -2945,10 +2919,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     // group Group A (0): dist_wtd_comp, compound_average Group B (1):
     // interintra, compound_diffwtd, wedge
 
-    if (has_second_ref(mbmi)
-#if CONFIG_OPTFLOW_REFINEMENT
-        && mbmi->mode < NEAR_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW
 #if CONFIG_REFINEMV
         && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
 #endif  // CONFIG_REFINEMV
@@ -5664,7 +5635,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_IDIF
   aom_wb_write_bit(wb, seq_params->enable_idif);
 #endif  // CONFIG_IDIF
-#if CONFIG_OPTFLOW_REFINEMENT
   if (seq_params->order_hint_info.enable_order_hint) {
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
 #if CONFIG_AFFINE_REFINEMENT
@@ -5672,7 +5642,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
       aom_wb_write_bit(wb, seq_params->enable_affine_refine);
 #endif  // CONFIG_AFFINE_REFINEMENT
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   aom_wb_write_bit(wb, seq_params->enable_ibp);
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
 
@@ -6311,11 +6280,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #else
         aom_wb_write_bit(wb, features->switchable_motion_mode);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_OPTFLOW_REFINEMENT
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           aom_wb_write_literal(wb, features->opfl_refine_type, 2);
         }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       }
     }
   }

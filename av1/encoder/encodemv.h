@@ -141,32 +141,21 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
 
-#if CONFIG_OPTFLOW_REFINEMENT
   if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
-#else
-  if (this_mode == NEW_NEWMV) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int ||
         mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
-#if CONFIG_OPTFLOW_REFINEMENT
   } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
-#else
-  } else if (this_mode == NEAR_NEWMV) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
 
     if (mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
-  } else if (this_mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-             || this_mode == NEW_NEARMV_OPTFLOW
-#endif
-             || is_joint_mvd_coding_mode(this_mode)) {
+  } else if (this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW ||
+             is_joint_mvd_coding_mode(this_mode)) {
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
@@ -193,11 +182,7 @@ static inline int check_mv_precision(const AV1_COMMON *cm,
 
   const PREDICTION_MODE mode = mbmi->mode;
   if (is_pb_mv_precision_active(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
-    if (mode == NEWMV || mode == NEW_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-        || mode == NEW_NEWMV_OPTFLOW
-#endif
-    ) {
+    if (mode == NEWMV || mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
       for (int i = 0; i < is_comp_pred + 1; ++i) {
 #if CONFIG_C071_SUBBLK_WARPMV
         MV diff = { mbmi->mv[i].as_mv.row, mbmi->mv[i].as_mv.col };
@@ -227,11 +212,7 @@ static inline int check_mv_precision(const AV1_COMMON *cm,
       }
     } else {
       const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
-      const int i = (mode == JOINT_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-                     || mode == JOINT_NEWMV_OPTFLOW
-#endif
-                     )
+      const int i = (mode == JOINT_NEWMV || mode == JOINT_NEWMV_OPTFLOW)
                         ? jmvd_base_ref_list
                         : (compound_ref1_mode(mode) == NEWMV);
 #if CONFIG_C071_SUBBLK_WARPMV

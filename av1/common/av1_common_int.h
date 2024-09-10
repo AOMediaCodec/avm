@@ -360,7 +360,6 @@ typedef struct {
 #endif                   // CONFIG_FIX_CDEF_SYNTAX
 } CdefInfo;
 
-#if CONFIG_OPTFLOW_REFINEMENT
 enum {
   /*!
    * MV refinement disabled for the current frame.
@@ -375,7 +374,6 @@ enum {
    */
   REFINE_ALL = 2,
 } UENUM1BYTE(OPTFLOW_REFINE_TYPE);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_CCSO
 /** ccso info */
@@ -531,11 +529,9 @@ typedef struct SequenceHeader {
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
 #endif
-  uint8_t enable_masked_compound;  // enables/disables masked compound
-#if CONFIG_OPTFLOW_REFINEMENT
+  uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#endif                                      // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   uint8_t enable_affine_refine;  // To turn on/off DAMR
 #endif                           // CONFIG_AFFINE_REFINEMENT
@@ -753,13 +749,11 @@ typedef struct {
    */
   int max_bvp_drl_bits;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#if CONFIG_OPTFLOW_REFINEMENT
   /*!
    * Ternary symbol for optical flow refinement type. 0: do not refine,
    * 1: always refine, 2: switchable at block level.
    */
   OPTFLOW_REFINE_TYPE opfl_refine_type;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   /*!
    * TIP mode.
    */
@@ -4049,7 +4043,6 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   return diff;
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 // This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
 // case where d0 and d1 are very different. Assuming a = max(|d0|, |d1|) and
 // b = min(|d0|, |d1|), MV refinement will only be allowed only if a/b <= k.
@@ -4148,7 +4141,6 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT

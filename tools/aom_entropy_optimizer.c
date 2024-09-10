@@ -1143,7 +1143,6 @@ int main(int argc, const char **argv) {
                      "[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 
-#if CONFIG_OPTFLOW_REFINEMENT
   /* Optical flow MV refinement */
   cts_each_dim[0] = INTER_COMPOUND_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -1151,12 +1150,10 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_use_optflow_cdf"
                      "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   /* ext_inter experiment */
   /* New compound mode */
   cts_each_dim[0] = INTER_COMPOUND_MODE_CONTEXTS;
-#if CONFIG_OPTFLOW_REFINEMENT
   cts_each_dim[1] = INTER_COMPOUND_REF_TYPES;
   optimize_cdf_table(&fc.inter_compound_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
@@ -1164,14 +1161,6 @@ int main(int argc, const char **argv) {
                      "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE("
                      "INTER_COMPOUND_REF_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#else
-  cts_each_dim[1] = INTER_COMPOUND_MODES;
-  optimize_cdf_table(&fc.inter_compound_mode[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob\n"
-                     "default_inter_compound_mode_cdf"
-                     "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE("
-                     "INTER_COMPOUND_MODES)]");
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;

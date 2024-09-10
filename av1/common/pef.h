@@ -83,11 +83,8 @@ void enhance_tip_frame(struct AV1Common *const cm, MACROBLOCKD *xd);
 
 // enhance prediction blocks
 void enhance_prediction(const struct AV1Common *cm, MACROBLOCKD *xd, int plane,
-                        uint16_t *dst, int dst_stride, int bw, int bh
-#if CONFIG_OPTFLOW_REFINEMENT
-                        ,
+                        uint16_t *dst, int dst_stride, int bw, int bh,
                         int_mv *const mv_refined, int use_opfl
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
                         ,
                         int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo

@@ -163,7 +163,6 @@ static INLINE void clamp_mv_ref(MV *mv, int bw, int bh, const MACROBLOCKD *xd) {
   clamp_mv(mv, &mv_limits);
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
 #if CONFIG_OPTFLOW_ON_TIP
                                          ,
@@ -198,7 +197,6 @@ static INLINE void opfl_subblock_size_plane(const MACROBLOCKD *xd, int plane,
   *opfl_sub_bh =
       AOMMAX((sub_bsize_y >> xd->plane[plane].subsampling_y), OF_MIN_BSIZE);
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 // Convert a global motion vector into a motion vector at the centre of the
 // given block.

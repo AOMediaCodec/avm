@@ -1003,7 +1003,6 @@ static INLINE int compute_valid_comp_types(
     COMPOUND_TYPE *valid_comp_types) {
   int valid_type_count = 0;
   int comp_type, valid_check;
-#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
@@ -1019,7 +1018,6 @@ static INLINE int compute_valid_comp_types(
     valid_comp_types[0] = COMPOUND_AVERAGE;
     return 1;
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
@@ -1495,11 +1493,9 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // The following context indices are independent of compound type
   const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 
-#if CONFIG_OPTFLOW_REFINEMENT
   if (this_mode >= NEAR_NEARMV_OPTFLOW)
     av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   else
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
       if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi))
     av1_zero_array(masked_type_cost, COMPOUND_TYPES);
@@ -1516,10 +1512,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   // If the match is found, calculate the rd cost using the
   // stored stats and update the mbmi appropriately.
-  if (match_found &&
-#if CONFIG_OPTFLOW_REFINEMENT
-      this_mode < NEAR_NEARMV_OPTFLOW &&
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  if (match_found && this_mode < NEAR_NEARMV_OPTFLOW &&
 #if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
 #endif  // CONFIG_REFINEMV

@@ -1085,17 +1085,11 @@ typedef struct {
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 
-#if CONFIG_OPTFLOW_REFINEMENT
   /*! use_optflow_cost */
   int use_optflow_cost[INTER_COMPOUND_MODE_CONTEXTS][2];
   /*! inter_compound_mode_cost */
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_REF_TYPES];
-#else
-  /*! inter_compound_mode_cost */
-  int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
-                              [INTER_COMPOUND_MODES];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   //! cwp_idx_cost for compound weighted prediction
   int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];

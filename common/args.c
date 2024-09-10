@@ -158,9 +158,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_smooth_intra);
     GET_PARAMS(enable_filter_intra);
     GET_PARAMS(enable_angle_delta);
-#if CONFIG_OPTFLOW_REFINEMENT
     GET_PARAMS(enable_opfl_refine);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
     GET_PARAMS(enable_affine_refine);
 #endif  // CONFIG_AFFINE_REFINEMENT

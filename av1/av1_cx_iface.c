@@ -208,10 +208,8 @@ struct av1_extracfg {
   int enable_intrabc_ext;  // enable search range extension for intrabc
 #endif                     // CONFIG_IBC_SR_EXT
   int enable_angle_delta;
-#if CONFIG_OPTFLOW_REFINEMENT
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type
                                             // for sequence
-#endif                                      // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   int enable_affine_refine;  // enable affine refinement
 #endif                       // CONFIG_AFFINE_REFINEMENT
@@ -558,11 +556,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable search range extension for intrabc
 #endif  // CONFIG_IBC_SR_EXT
   1,    // enable angle delta
-#if CONFIG_OPTFLOW_REFINEMENT
-  1,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  1,    // enable optical flow refinement
 #if CONFIG_AFFINE_REFINEMENT
-  1,
+  1,    // enable affine refinement
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_DENOISE
   0,   // noise_level
@@ -983,9 +979,7 @@ static void update_encoder_config(cfg_options_t *cfg,
                                                                     : 0;
   cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
-#if CONFIG_OPTFLOW_REFINEMENT
   cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   cfg->enable_affine_refine = extra_cfg->enable_affine_refine;
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -1113,9 +1107,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
                                       : AOM_SUPERBLOCK_SIZE_DYNAMIC;
   extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
-#if CONFIG_OPTFLOW_REFINEMENT
   extra_cfg->enable_opfl_refine = cfg->enable_opfl_refine;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   extra_cfg->enable_affine_refine = cfg->enable_affine_refine;
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -1497,11 +1489,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
-#if CONFIG_OPTFLOW_REFINEMENT
   tool_cfg->enable_opfl_refine = extra_cfg->enable_order_hint
                                      ? extra_cfg->enable_opfl_refine
                                      : AOM_OPFL_REFINE_NONE;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   tool_cfg->enable_affine_refine =
       extra_cfg->enable_opfl_refine ? extra_cfg->enable_affine_refine : 0;
@@ -4118,11 +4108,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_angle_delta,
                               argv, err_string)) {
     extra_cfg.enable_angle_delta = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_OPTFLOW_REFINEMENT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_opfl_refine,
                               argv, err_string)) {
     extra_cfg.enable_opfl_refine = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_affine_refine,
                               argv, err_string)) {
@@ -4516,10 +4504,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT
-        1, 1,   1,   1,
-#if CONFIG_OPTFLOW_REFINEMENT
-        1,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+        1, 1,   1,   1, 1,
 #if CONFIG_AFFINE_REFINEMENT
         1,
 #endif  // CONFIG_AFFINE_REFINEMENT

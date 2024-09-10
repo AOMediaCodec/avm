@@ -739,33 +739,27 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   }
 }
 #if !CONFIG_REFINEMV
-static void dec_calc_subpel_params(
-    const MV *const src_mv, InterPredParams *const inter_pred_params,
-    const MACROBLOCKD *const xd, int mi_x, int mi_y, uint16_t **pre,
-    SubpelParams *subpel_params, int *src_stride, PadBlock *block,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
+static void dec_calc_subpel_params(const MV *const src_mv,
+                                   InterPredParams *const inter_pred_params,
+                                   const MACROBLOCKD *const xd, int mi_x,
+                                   int mi_y, uint16_t **pre,
+                                   SubpelParams *subpel_params, int *src_stride,
+                                   PadBlock *block, int use_optflow_refinement,
+                                   MV32 *scaled_mv, int *subpel_x_mv,
+                                   int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
-#if CONFIG_OPTFLOW_REFINEMENT
   // Use original block size to clamp MV and to extend block boundary
   const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
                                         : inter_pred_params->block_width;
   const int bh = use_optflow_refinement ? inter_pred_params->orig_block_height
                                         : inter_pred_params->block_height;
-#else
-  const int bw = inter_pred_params->block_width;
-  const int bh = inter_pred_params->block_height;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   const int is_scaled = av1_is_scaled(sf);
   if (is_scaled) {
     int ssx = inter_pred_params->subsampling_x;
     int ssy = inter_pred_params->subsampling_y;
     int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
     int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-#if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_refinement) {
       orig_pos_y += ROUND_POWER_OF_TWO_SIGNED(src_mv->row * (1 << SUBPEL_BITS),
                                               MV_REFINE_PREC_BITS + ssy);
@@ -775,10 +769,6 @@ static void dec_calc_subpel_params(
       orig_pos_y += src_mv->row * (1 << (1 - ssy));
       orig_pos_x += src_mv->col * (1 << (1 - ssx));
     }
-#else
-    orig_pos_y += src_mv->row * (1 << (1 - ssy));
-    orig_pos_x += src_mv->col * (1 << (1 - ssx));
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     int pos_y = sf->scale_value_y(orig_pos_y, sf);
     int pos_x = sf->scale_value_x(orig_pos_x, sf);
     pos_x += SCALE_EXTRA_OFF;
@@ -812,12 +802,9 @@ static void dec_calc_subpel_params(
         1;
 
     MV temp_mv;
-    temp_mv = clamp_mv_to_umv_border_sb(xd, src_mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                                        inter_pred_params->subsampling_x,
-                                        inter_pred_params->subsampling_y);
+    temp_mv = clamp_mv_to_umv_border_sb(
+        xd, src_mv, bw, bh, use_optflow_refinement,
+        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
     *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf);
     scaled_mv->row += SCALE_EXTRA_OFF;
     scaled_mv->col += SCALE_EXTRA_OFF;
@@ -830,10 +817,7 @@ static void dec_calc_subpel_params(
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
 
     const MV mv_q4 = clamp_mv_to_umv_border_sb(
-        xd, src_mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+        xd, src_mv, bw, bh, use_optflow_refinement,
         inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -872,19 +856,12 @@ static void dec_calc_subpel_params(
 static void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
-    int *src_stride) {
-
+    int use_optflow_refinement, uint16_t **mc_buf, uint16_t **pre,
+    SubpelParams *subpel_params, int *src_stride) {
 #if CONFIG_REFINEMV
   if (inter_pred_params->use_ref_padding) {
     common_calc_subpel_params_and_extend(
-        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref, use_optflow_refinement,
         mc_buf, pre, subpel_params, src_stride);
     return;
   }
@@ -893,12 +870,9 @@ static void dec_calc_subpel_params_and_extend(
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
-  dec_calc_subpel_params(src_mv, inter_pred_params, xd, mi_x, mi_y, pre,
-                         subpel_params, src_stride, &block,
-#if CONFIG_OPTFLOW_REFINEMENT
-                         use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                         &scaled_mv, &subpel_x_mv, &subpel_y_mv);
+  dec_calc_subpel_params(
+      src_mv, inter_pred_params, xd, mi_x, mi_y, pre, subpel_params, src_stride,
+      &block, use_optflow_refinement, &scaled_mv, &subpel_x_mv, &subpel_y_mv);
   extend_mc_border(inter_pred_params->scale_factors,
                    &inter_pred_params->ref_frame_buf, scaled_mv, block,
                    subpel_x_mv, subpel_y_mv,
@@ -6418,9 +6392,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
-#if CONFIG_OPTFLOW_REFINEMENT
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
     seq_params->enable_affine_refine = 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -6558,7 +6530,6 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_IDIF
   seq_params->enable_idif = aom_rb_read_bit(rb);
 #endif  // CONFIG_IDIF
-#if CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)
                                        : AOM_OPFL_REFINE_NONE;
@@ -6566,7 +6537,6 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_affine_refine =
       seq_params->enable_opfl_refine ? aom_rb_read_bit(rb) : 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 
@@ -7748,7 +7718,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
       features->switchable_motion_mode = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_OPTFLOW_REFINEMENT
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           features->opfl_refine_type = aom_rb_read_literal(rb, 2);
           if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
@@ -7757,7 +7726,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
         }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       }
     }
 

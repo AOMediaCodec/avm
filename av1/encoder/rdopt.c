@@ -475,15 +475,12 @@ int64_t av1_highbd_block_error_c(const tran_low_t *coeff,
 }
 
 static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
-#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
                        const AV1_COMMON *cm, const MB_MODE_INFO *const mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_EXTENDED_WARP_PREDICTION
                        const MACROBLOCKD *xd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
-#if CONFIG_OPTFLOW_REFINEMENT
     int use_optical_flow_cost = 0;
     const int comp_mode_idx = opfl_get_comp_idx(mode);
     if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
@@ -515,10 +512,6 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
     }
     return use_optical_flow_cost +
            mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
-#else
-    return mode_costs
-        ->inter_compound_mode_cost[mode_context][INTER_COMPOUND_OFFSET(mode)];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   }
 
   assert(is_inter_mode(mode));
@@ -916,7 +909,6 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   }
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
-#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
   const MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
   const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, cm, mbmi,
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -928,10 +920,6 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
                                     &x->e_mbd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
                                     mode_ctx);
-#else
-  const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
-  const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
-#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
 
   // Only skip if the mode cost is larger than compare mode cost
   if (this_cost > compare_cost) {
@@ -1031,7 +1019,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
     const int valid_mv0 = valid_mv0_found;
     const int valid_mv1 = valid_mv1_found;
 
-#if CONFIG_OPTFLOW_REFINEMENT
     if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
 #if CONFIG_SKIP_ME_FOR_OPFL_MODES
       if (this_mode == NEW_NEWMV_OPTFLOW &&
@@ -1070,9 +1057,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         }
       } else {
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
-#else
-    if (this_mode == NEW_NEWMV) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
         if (valid_mv0) {
           cur_mv[0].as_int =
 #if CONFIG_SEP_COMP_DRL
@@ -1128,14 +1112,14 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_SEP_COMP_DRL
                                 [av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx)]
 #else
-                              [mbmi->ref_mv_idx]
+                                [mbmi->ref_mv_idx]
 #endif
                                 [pb_mv_precision] = 1;
           args->comp_newmv[av1_ref_frame_type(mbmi->ref_frame)]
 #if CONFIG_SEP_COMP_DRL
                           [av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx)]
 #else
-                        [mbmi->ref_mv_idx]
+                          [mbmi->ref_mv_idx]
 #endif
                           [pb_mv_precision][0]
                               .as_int = cur_mv[0].as_int;
@@ -1143,18 +1127,14 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_SEP_COMP_DRL
                           [av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx)]
 #else
-                        [mbmi->ref_mv_idx]
+                          [mbmi->ref_mv_idx]
 #endif
                           [pb_mv_precision][1]
                               .as_int = cur_mv[1].as_int;
         }
       }
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
-#if CONFIG_OPTFLOW_REFINEMENT
     } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
-#else
-    } else if (this_mode == NEAR_NEWMV) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       if (valid_mv1) {
         cur_mv[1].as_int =
 #if CONFIG_SEP_COMP_DRL
@@ -1241,11 +1221,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
 #endif  // CONFIG_VQ_MVD_CODING
     } else {
-#if CONFIG_OPTFLOW_REFINEMENT
       assert(this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
-#else
-      assert(this_mode == NEW_NEARMV);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       if (valid_mv0) {
         cur_mv[0].as_int =
 #if CONFIG_SEP_COMP_DRL
@@ -3901,10 +3877,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 
     mbmi->mv[i].as_int = cur_mv[i].as_int;
   }
-  const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode,
-#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
-                                      cm, mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
+  const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode, cm, mbmi,
 #if CONFIG_EXTENDED_WARP_PREDICTION
                                       xd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -3929,13 +3902,10 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     mbmi->comp_group_idx = 0;
   }
-  set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                             cm,
+  set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
 
   const int mi_row = xd->mi_row;
@@ -5209,10 +5179,7 @@ static int64_t handle_inter_mode(
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
 
   const ModeCosts *mode_costs = &x->mode_costs;
-  const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode,
-#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
-                                      cm, mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXTENDED_WARP_PREDICTION
+  const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, cm, mbmi,
 #if CONFIG_EXTENDED_WARP_PREDICTION
                                       xd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -5994,9 +5961,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_EXTENDED_WARP_PREDICTION
                                             mbmi->mode == WARPMV ||
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_OPTFLOW_REFINEMENT
                                             mbmi->mode == NEAR_NEARMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                             mbmi->mode == NEAR_NEARMV) &&
 #if CONFIG_SEP_COMP_DRL
                                            mbmi->ref_mv_idx[0] == 0 &&
@@ -6135,11 +6100,7 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
         // Compute modelled RD if enabled
                   if (args->modelled_rd != NULL) {
-#if CONFIG_OPTFLOW_REFINEMENT
                     if (is_comp_pred && this_mode < NEAR_NEARMV_OPTFLOW) {
-#else
-            if (is_comp_pred) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                       const int mode0 = compound_ref0_mode(this_mode);
                       const int mode1 = compound_ref1_mode(this_mode);
                       const int64_t mrd =
@@ -7354,7 +7315,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
 
-#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#if !CONFIG_SKIP_MODE_NO_REFINEMENTS
   const PREDICTION_MODE this_mode =
       cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
               opfl_allowed_for_cur_refs(cm,
@@ -7367,7 +7328,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
           : NEAR_NEARMV;
 #else
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
-#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
 
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
@@ -7433,7 +7394,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#if !CONFIG_SKIP_MODE_NO_REFINEMENTS
   assert(this_mode == (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
                                opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
@@ -7445,7 +7406,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
                            : NEAR_NEARMV));
 #else
   assert(this_mode == NEAR_NEARMV);
-#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
 
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
   if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
@@ -7489,13 +7450,10 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   mbmi->warpmv_with_mvd_flag = 0;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-  set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                             cm,
+  set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
@@ -7709,7 +7667,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
 
-#if CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#if !CONFIG_SKIP_MODE_NO_REFINEMENTS
       search_state->best_mbmode.mode =
 #if CONFIG_D072_SKIP_MODE_IMPROVE
           !is_compound ? NEARMV :
@@ -7729,7 +7687,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
           !is_compound ? NEARMV :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
                        NEAR_NEARMV;
-#endif  // CONFIG_OPTFLOW_REFINEMENT && !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
 #if CONFIG_AFFINE_REFINEMENT
       search_state->best_mbmode.comp_refine_type =
           search_state->best_mbmode.mode == NEAR_NEARMV_OPTFLOW
@@ -7805,13 +7763,10 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
           (INTERINTRA_MODE)(II_DC_PRED - 1);
       search_state->best_mbmode.filter_intra_mode_info.use_filter_intra = 0;
 
-      set_default_interp_filters(&search_state->best_mbmode,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                 cm,
+      set_default_interp_filters(&search_state->best_mbmode, cm,
 #if CONFIG_COMPOUND_4XN
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                  cm->features.interp_filter);
 #if CONFIG_REFINEMV
       search_state->best_mbmode.refinemv_flag = mbmi->refinemv_flag;
@@ -7916,13 +7871,10 @@ static AOM_INLINE void rd_pick_skip_mode(
 #endif  // CONFIG_SEP_COMP_DRL
   mbmi->skip_mode = mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
 
-  set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                             cm,
+  set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
 
   set_mv_precision(mbmi, mbmi->max_mv_precision);
@@ -8011,13 +7963,10 @@ static AOM_INLINE void rd_pick_skip_mode(
         (INTERINTRA_MODE)(II_DC_PRED - 1);
     search_state->best_mbmode.filter_intra_mode_info.use_filter_intra = 0;
 
-    set_default_interp_filters(&search_state->best_mbmode,
-#if CONFIG_OPTFLOW_REFINEMENT
-                               cm,
+    set_default_interp_filters(&search_state->best_mbmode, cm,
 #if CONFIG_COMPOUND_4XN
                                xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                cm->features.interp_filter);
 
     // Update rd_cost
@@ -8804,23 +8753,12 @@ static INLINE int skip_inter_mode_with_cached_mode(
       // If the mode is single, we know the modes can't match. But we might
       // still want to search it if compound mode depends on the current mode.
       int skip_motion_mode_only = 0;
-      if (cached_mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-          || cached_mode == NEW_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      ) {
+      if (cached_mode == NEW_NEARMV || cached_mode == NEW_NEARMV_OPTFLOW) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
-      } else if (cached_mode == NEAR_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-                 || cached_mode == NEAR_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      ) {
+      } else if (cached_mode == NEAR_NEWMV ||
+                 cached_mode == NEAR_NEWMV_OPTFLOW) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
-      } else if (cached_mode == NEW_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-                 || cached_mode == NEW_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      ) {
+      } else if (cached_mode == NEW_NEWMV || cached_mode == NEW_NEWMV_OPTFLOW) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
                                  ref_frame[0] == cached_frame[1]);
       } else if (is_joint_mvd_coding_mode(cached_mode)) {
@@ -8995,13 +8933,10 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->is_wide_angle[1] = 0;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
-  set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                             cm,
+  set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
@@ -9628,10 +9563,8 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   // Skip this compound mode based on the RD results from the single
   // prediction modes
   if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
-#if CONFIG_OPTFLOW_REFINEMENT
-      this_mode < NEAR_NEARMV_OPTFLOW &&
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      comp_pred && !has_second_drl(xd->mi[0])) {
+      this_mode < NEAR_NEARMV_OPTFLOW && comp_pred &&
+      !has_second_drl(xd->mi[0])) {
     if (compound_skip_by_single_states(cpi, args->search_state, this_mode,
                                        ref_frame, second_ref_frame, x))
       return 1;
@@ -10291,7 +10224,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (is_pb_mv_precision_active(cm, mbmi, bsize))
           set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_OPTFLOW_REFINEMENT
         // Initialize compound average type for optical flow refinement
         mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
@@ -10310,8 +10242,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (is_thin_4xn_nx4_block(bsize) && (this_mode >= NEAR_NEARMV_OPTFLOW))
           continue;
 #endif  // CONFIG_COMPOUND_4XN
-
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_AFFINE_REFINEMENT
         // Search compound refine type
@@ -10332,11 +10262,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                               ref_frames, &sf_args))
             continue;
 
-          if ((this_mode == AMVDNEWMV || mbmi->mode == JOINT_AMVDNEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-               || mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif
-               ) &&
+          if ((this_mode == AMVDNEWMV || mbmi->mode == JOINT_AMVDNEWMV ||
+               mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) &&
               cm->seq_params.enable_adaptive_mvd == 0)
             continue;
 
@@ -11098,12 +11025,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   const InterpFilter interp_filter = features->interp_filter;
   set_default_interp_filters(mbmi,
 
-#if CONFIG_OPTFLOW_REFINEMENT
                              cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              interp_filter);
 
   if (interp_filter != SWITCHABLE) {

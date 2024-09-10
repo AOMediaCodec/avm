@@ -49,11 +49,9 @@ void av1_encode_sb_row(struct AV1_COMP *cpi, struct ThreadData *td,
 void av1_enc_calc_subpel_params(const MV *const src_mv,
                                 InterPredParams *const inter_pred_params,
                                 MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                                uint16_t **mc_buf, uint16_t **pre,
-                                SubpelParams *subpel_params, int *src_stride);
+                                int use_optflow_refinement, uint16_t **mc_buf,
+                                uint16_t **pre, SubpelParams *subpel_params,
+                                int *src_stride);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -5972,7 +5972,6 @@ static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)] = {
@@ -5989,11 +5988,6 @@ static const aom_cdf_prob
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
         INTER_COMPOUND_REF_TYPES)] = {
-#else
-static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
-        INTER_COMPOUND_MODES)] = {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_ENTROPY_PARA
       { AOM_CDF7(9967, 23734, 27123, 27502, 30774, 32039), 1 },
       { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087), 0 },
@@ -6011,23 +6005,15 @@ static const aom_cdf_prob
 #endif  // CONFIG_ENTROPY_PARA
     };
 #else
-#if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob
     default_use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
     };
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
         INTER_COMPOUND_REF_TYPES)] = {
-#else
-static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
-        INTER_COMPOUND_MODES)] = {
-#endif
       { AOM_CDF7(8510, 13103, 16330, 17536, 23536, 29536) },
       { AOM_CDF7(12805, 16117, 19655, 20891, 24891, 29891) },
       { AOM_CDF7(13700, 16333, 19425, 20305, 25305, 29305) },
@@ -8821,9 +8807,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->explicit_bawp_cdf, default_explicit_bawp_cdf);
   av1_copy(fc->explicit_bawp_scale_cdf, default_explicit_bawp_scale_cdf);
 #endif  // CONFIG_EXPLICIT_BAWP
-#if CONFIG_OPTFLOW_REFINEMENT
   av1_copy(fc->use_optflow_cdf, default_use_optflow_cdf);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   av1_copy(fc->cwp_idx_cdf, default_cwp_idx_cdf);
   av1_copy(fc->jmvd_scale_mode_cdf, default_jmvd_scale_mode_cdf);

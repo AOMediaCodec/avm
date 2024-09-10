@@ -256,14 +256,9 @@ typedef struct frame_contexts {
                                 [CDF_SIZE(REFINEMV_NUM_MODES)];
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_OPTFLOW_REFINEMENT
   aom_cdf_prob use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
-#else
-  aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
-                                      [CDF_SIZE(INTER_COMPOUND_MODES)];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   aom_cdf_prob cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)];
   aom_cdf_prob jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)];
@@ -826,7 +821,6 @@ static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
 #endif  // CONFIG_C076_INTER_MOD_CTX
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
   NEAR_NEARMV_OPTFLOW, NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW,      -1,
   NEW_NEWMV_OPTFLOW,   JOINT_NEWMV_OPTFLOW, JOINT_AMVDNEWMV_OPTFLOW,
@@ -850,7 +844,6 @@ static INLINE int opfl_get_comp_idx(int mode) {
     default: assert(0); return 0;
   }
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 // Returns the context for palette color index at row 'r' and column 'c',
 // along with the 'color_order' of neighbors and the 'color_idx'.

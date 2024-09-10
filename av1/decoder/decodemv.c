@@ -764,10 +764,8 @@ static int read_cwp_idx(MACROBLOCKD *xd, aom_reader *r, const AV1_COMMON *cm,
 }
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
-#if CONFIG_OPTFLOW_REFINEMENT
                                                 const AV1_COMMON *cm,
                                                 MB_MODE_INFO *const mbmi,
-#endif  // CONFIG_OPTFLOW_REFINEMNET
                                                 int16_t ctx) {
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = cm->features.opfl_refine_type == REFINE_ALL
@@ -776,7 +774,6 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                       : COMP_REFINE_SUBBLK2P)
                                : COMP_REFINE_NONE;
 #endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_OPTFLOW_REFINEMENT
   int use_optical_flow = 0;
   const int mode = aom_read_symbol(
       r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_REF_TYPES,
@@ -811,11 +808,6 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
       return comp_idx_to_opfl_mode[mode];
     }
   }
-#else
-  const int mode = aom_read_symbol(
-      r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_MODES,
-      ACCT_INFO("inter_compound_mode_cdf"));
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   assert(is_inter_compound_mode(NEAR_NEARMV + mode));
   return NEAR_NEARMV + mode;
 }
@@ -2808,13 +2800,10 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   if (!av1_is_interp_needed(cm, xd)) {
-    set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                               cm,
+    set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                                xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                interp_filter);
     return;
   }
@@ -3157,10 +3146,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
     case NEW_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    {
+    case NEW_NEWMV_OPTFLOW: {
       assert(is_compound);
 #if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 2;
@@ -3188,20 +3174,14 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
     case NEAR_NEARMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEAR_NEARMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    {
+    case NEAR_NEARMV_OPTFLOW: {
       assert(is_compound);
       mv[0].as_int = ref_mv[0].as_int;
       mv[1].as_int = ref_mv[1].as_int;
       break;
     }
     case NEAR_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEAR_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    {
+    case NEAR_NEWMV_OPTFLOW: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = ref_mv[0].as_int;
 #if CONFIG_DERIVED_MVD_SIGN
@@ -3229,10 +3209,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
     case NEW_NEARMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEARMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    {
+    case NEW_NEARMV_OPTFLOW: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1].as_int = ref_mv[1].as_int;
@@ -3273,10 +3250,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
               .as_int;
       break;
     }
-#if CONFIG_OPTFLOW_REFINEMENT
     case JOINT_NEWMV_OPTFLOW:
     case JOINT_AMVDNEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     case JOINT_AMVDNEWMV:
     case JOINT_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
@@ -3676,7 +3651,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     assert(is_compound);
 #endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_SKIP_MODE_NO_REFINEMENTS
     mbmi->mode = NEAR_NEARMV;
 #else
@@ -3686,7 +3661,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 #else
     mbmi->mode = NEAR_NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     read_drl_idx(cm->features.max_drl_bits,
@@ -3725,7 +3700,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_D072_SKIP_MODE_IMPROVE
     is_compound = has_second_ref(mbmi);
     if (!is_compound) {
@@ -3751,7 +3726,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 #else
     mbmi->mode = NEAR_NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_AFFINE_REFINEMENT
     mbmi->comp_refine_type = mbmi->mode == NEAR_NEARMV_OPTFLOW
                                  ? COMP_REFINE_TYPE_FOR_SKIP
@@ -3765,11 +3740,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       const int16_t mode_ctx =
           av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
       if (is_compound)
-#if CONFIG_OPTFLOW_REFINEMENT
         mbmi->mode = read_inter_compound_mode(xd, r, cm, mbmi, mode_ctx);
-#else
-        mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -3997,7 +3968,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
   if (mbmi->skip_mode) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_D072_SKIP_MODE_IMPROVE
 #if CONFIG_SKIP_MODE_NO_REFINEMENTS
     assert(mbmi->mode == (!is_compound ? NEARMV : NEAR_NEARMV));
@@ -4027,7 +3998,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 #else
     assert(mbmi->mode == NEAR_NEARMV);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx == 0);
@@ -4143,10 +4114,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
-  if (has_second_ref(mbmi) &&
-#if CONFIG_OPTFLOW_REFINEMENT
-      mbmi->mode < NEAR_NEARMV_OPTFLOW &&
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
 #if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
 #endif  // CONFIG_REFINEMV

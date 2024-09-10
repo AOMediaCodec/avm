@@ -1139,9 +1139,7 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   cm->features.switchable_motion_mode = 1;
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_OPTFLOW_REFINEMENT
   cm->features.opfl_refine_type = REFINE_SWITCHABLE;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
 static AOM_INLINE void release_scaled_references(AV1_COMP *cpi) {

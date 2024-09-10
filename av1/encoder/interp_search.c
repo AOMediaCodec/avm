@@ -104,13 +104,10 @@ int av1_find_interp_filter_match(
         cpi->sf.interp_sf.use_interp_filter);
 
   if (!need_search || match_found_idx == -1)
-    set_default_interp_filters(mbmi,
-#if CONFIG_OPTFLOW_REFINEMENT
-                               &cpi->common,
+    set_default_interp_filters(mbmi, &cpi->common,
 #if CONFIG_COMPOUND_4XN
                                xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                                assign_filter);
   return match_found_idx;
 }
@@ -126,11 +123,9 @@ static INLINE void swap_dst_buf(MACROBLOCKD *xd, const BUFFER_SET *dst_bufs[2],
 static INLINE int get_switchable_rate(MACROBLOCK *const x,
                                       const InterpFilter interp_fltr,
                                       const int ctx[2]) {
-#if CONFIG_OPTFLOW_REFINEMENT
   // When optical flow refinement is used, interp filter type is always set
   // to MULTITAP_SHARP, and thus is not switchable.
   assert(x->e_mbd.mi[0]->mode < NEAR_NEARMV_OPTFLOW);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
   assert(!x->e_mbd.mi[0]->refinemv_flag);
 #endif  // CONFIG_REFINEMV
@@ -200,7 +195,6 @@ static INLINE int64_t interpolation_filter_rd(
   this_rd_stats = *rd_stats_luma;
   const InterpFilter last_best = mbmi->interp_fltr;
   mbmi->interp_fltr = filter_idx;
-#if CONFIG_OPTFLOW_REFINEMENT
   const int tmp_rs =
       (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
@@ -213,9 +207,6 @@ static INLINE int64_t interpolation_filter_rd(
        || is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
-#else
-  const int tmp_rs = get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   int64_t min_rd = RDCOST(x->rdmult, tmp_rs, 0);
   if (min_rd > *rd) {
@@ -353,12 +344,8 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
       struct macroblockd_plane *const pd = &xd->plane[plane_idx];
       const int bw = pd->width;
       const int bh = pd->height;
-      const MV mv_q4 =
-          clamp_mv_to_umv_border_sb(xd, &mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                    0,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                                    pd->subsampling_x, pd->subsampling_y);
+      const MV mv_q4 = clamp_mv_to_umv_border_sb(
+          xd, &mv, bw, bh, 0, pd->subsampling_x, pd->subsampling_y);
       const int sub_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
       const int sub_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
       skip_hor_plane |= ((sub_x == 0) << plane_idx);
@@ -462,7 +449,6 @@ int64_t av1_interpolation_filter_search(
   int switchable_ctx[2];
   switchable_ctx[0] = av1_get_pred_context_switchable_interp(xd, 0);
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
-#if CONFIG_OPTFLOW_REFINEMENT
   *switchable_rate =
       (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
@@ -475,9 +461,6 @@ int64_t av1_interpolation_filter_search(
        || is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
-#else
-  *switchable_rate = get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   // Do MC evaluation for default filter_type.
   // Luma MC
@@ -507,7 +490,6 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (!need_search) {
-#if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
     assert(mbmi->interp_fltr ==
            ((opfl_allowed_for_cur_block(cm,
@@ -528,33 +510,24 @@ int64_t av1_interpolation_filter_search(
                                      ? MULTITAP_SHARP
                                      : EIGHTTAP_REGULAR));
 #endif  // CONFIG_REFINEMV
-#else
-    assert(mbmi->interp_fltr == EIGHTTAP_REGULAR);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     return 0;
   }
   if (args->modelled_rd != NULL) {
 #if CONFIG_REFINEMV
-    int use_default_filter = mbmi->refinemv_flag
-#if CONFIG_OPTFLOW_REFINEMENT
-                             || opfl_allowed_for_cur_block(cm,
+    int use_default_filter = mbmi->refinemv_flag ||
+                             opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
-                                                           xd,
+                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                                           mbmi)
-#endif
-                             || is_tip_ref_frame(mbmi->ref_frame[0]);
+                                                        mbmi) ||
+                             is_tip_ref_frame(mbmi->ref_frame[0]);
     if (has_second_ref(mbmi) && !use_default_filter) {
 #else
-#if CONFIG_OPTFLOW_REFINEMENT
     if (has_second_ref(mbmi) && !opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                             xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                             mbmi)) {
-#else
-    if (has_second_ref(mbmi)) {
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #endif  // CONFIG_REFINEMV
 #if !CONFIG_SEP_COMP_DRL
       const int ref_mv_idx = mbmi->ref_mv_idx;

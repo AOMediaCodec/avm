@@ -1932,10 +1932,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                      mbmi->comp_group_idx == 0 &&
                          mbmi->interinter_comp.type == COMPOUND_AVERAGE));
 #endif  // CONFIG_REFINEMV
-      if (has_second_ref(mbmi)
-#if CONFIG_OPTFLOW_REFINEMENT
-          && mbmi->mode < NEAR_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+      if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW
 #if CONFIG_REFINEMV
           && (!mbmi->refinemv_flag || !is_refinemv_signaled)
 #endif  // CONFIG_REFINEMV
@@ -2028,7 +2025,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int16_t mode_ctx =
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
     if (has_second_ref(mbmi)) {
-#if CONFIG_OPTFLOW_REFINEMENT
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
           opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
@@ -2061,13 +2057,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
       update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
                  INTER_COMPOUND_REF_TYPES);
-#else
-#if CONFIG_ENTROPY_STATS
-      ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
-#endif
-      update_cdf(fc->inter_compound_mode_cdf[mode_ctx],
-                 INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
         const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode
@@ -2204,11 +2193,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_VQ_MVD_CODING
           }
         } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
-          const int ref =
-#if CONFIG_OPTFLOW_REFINEMENT
-              mbmi->mode == NEAR_NEWMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-              jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
+          const int ref = mbmi->mode == NEAR_NEWMV_OPTFLOW ||
+                          jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_DERIVED_MVD_SIGN
           num_signaled_mvd = 1;

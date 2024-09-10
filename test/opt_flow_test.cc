@@ -22,7 +22,6 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/mvref_common.h"
 
-#if CONFIG_OPTFLOW_REFINEMENT
 namespace {
 
 class BlockSize {
@@ -1206,5 +1205,3 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_AVX2
 #endif  // CONFIG_AFFINE_REFINEMENT
 }  // namespace
-
-#endif  // CONFIG_OPTFLOW_REFINEMENT

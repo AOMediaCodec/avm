@@ -925,10 +925,8 @@ typedef struct {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
-#if CONFIG_OPTFLOW_REFINEMENT
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   // Indicates if affine motion refinement should be enabled
   aom_opfl_refine_type enable_affine_refine;
@@ -1529,20 +1527,9 @@ typedef struct FRAME_COUNTS {
 
   unsigned int cwp_idx_cnts[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
                            [2];  // placeholder
-
-#if CONFIG_OPTFLOW_REFINEMENT
-  unsigned int use_optflow_cnts[INTER_COMPOUND_MODE_CONTEXTS]
-                               [2];  // placeholder
-#endif                               // CONFIG_OPTFLOW_REFINEMENT
-
-#if CONFIG_OPTFLOW_REFINEMENT
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
                                   [INTER_COMPOUND_REF_TYPES];
-#else
-  unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
-                                  [INTER_COMPOUND_MODES];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int wedge_angle_dir_cnt[2];
@@ -1739,11 +1726,7 @@ typedef struct {
 // TODO(angiebird): This is an estimated size. We still need to figure what is
 // the maximum number of modes.
 
-#if CONFIG_OPTFLOW_REFINEMENT
 #define MAX_INTER_MODES 1536 * 6
-#else
-#define MAX_INTER_MODES 1024 * 6
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 // TODO(any): rename this struct to something else. There is already another
 // struct called inter_mode_info, which makes this terribly confusing.

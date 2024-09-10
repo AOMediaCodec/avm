@@ -269,7 +269,6 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int sub_bsize_y = PEF_MCU_SZ;  // n is motion compensation unit size
   int sub_bw = sub_bsize_y;
   int sub_bh = sub_bsize_y;
-#if CONFIG_OPTFLOW_REFINEMENT
   if (pef_mode == 0) {
     opfl_subblock_size_plane(xd, plane
 #if CONFIG_OPTFLOW_ON_TIP
@@ -279,7 +278,6 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
                              ,
                              &sub_bw, &sub_bh);
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_EXT_WARP_FILTER
   if (pef_mode == 4) {
     sub_bw = PEF_MCU_SZ / 2;
@@ -491,11 +489,8 @@ void enhance_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd) {
 }
 
 void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
-                        uint16_t *dst, int dst_stride, int bw, int bh
-#if CONFIG_OPTFLOW_REFINEMENT
-                        ,
+                        uint16_t *dst, int dst_stride, int bw, int bh,
                         int_mv *const mv_refined, int use_opfl
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
                         ,
                         int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo
@@ -521,7 +516,6 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     return;
   }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 #if !CONFIG_AFFINE_REFINEMENT
   use_opfl &= (plane == 0);
 #endif  // !CONFIG_AFFINE_REFINEMENT
@@ -535,7 +529,6 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     enhance_sub_prediction_blocks(cm, xd, &pef_input);
     return;
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
   if (use_refinemv) {
     PefFuncInput pef_input;

@@ -4904,13 +4904,10 @@ static INLINE unsigned int compute_motion_cost(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-  set_default_interp_filters(xd->mi[0],
-#if CONFIG_OPTFLOW_REFINEMENT
-                             cm,
+  set_default_interp_filters(xd->mi[0], cm,
 #if CONFIG_COMPOUND_4XN
                              xd,
 #endif  // CONFIG_COMPOUND_4XN
-#endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                 AOM_PLANE_Y, AOM_PLANE_Y);
@@ -5207,12 +5204,9 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
         }
       }
     }
-  } else if (mbmi->mode == NEAR_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-             || mbmi->mode == NEAR_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-             || (is_joint_mvd_coding_mode(mbmi->mode) &&
-                 jmvd_base_ref_list == 1)) {
+  } else if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEAR_NEWMV_OPTFLOW ||
+             (is_joint_mvd_coding_mode(mbmi->mode) &&
+              jmvd_base_ref_list == 1)) {
     const int_mv ref_mv = av1_get_ref_mv(x, 1);
     get_mvd_from_ref_mv(mbmi->mv[1].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                         pb_mv_precision, &mv_diffs[1]);
@@ -5228,12 +5222,9 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
         num_nonzero_mvd_comp++;
       }
     }
-  } else if (mbmi->mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-             || mbmi->mode == NEW_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-             || (is_joint_mvd_coding_mode(mbmi->mode) &&
-                 jmvd_base_ref_list == 0)) {
+  } else if (mbmi->mode == NEW_NEARMV || mbmi->mode == NEW_NEARMV_OPTFLOW ||
+             (is_joint_mvd_coding_mode(mbmi->mode) &&
+              jmvd_base_ref_list == 0)) {
     const int_mv ref_mv = av1_get_ref_mv(x, 0);
     get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                         pb_mv_precision, &mv_diffs[0]);

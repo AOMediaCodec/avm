@@ -222,9 +222,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_intrabc_ext;
 #endif  // CONFIG_IBC_SR_EXT
   arg_def_t enable_angle_delta;
-#if CONFIG_OPTFLOW_REFINEMENT
   arg_def_t enable_opfl_refine;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   arg_def_t enable_affine_refine;
 #endif  // CONFIG_AFFINE_REFINEMENT

@@ -124,14 +124,12 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEWMV,     // NEW_NEWMV
     NEWMV,     // JOINT_NEWMV
     NEWMV,     // JOINT_AMVDNEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-    NEARMV,  // NEAR_NEARMV_OPTFLOW
-    NEARMV,  // NEAR_NEWMV_OPTFLOW
-    NEWMV,   // NEW_NEARMV_OPTFLOW
-    NEWMV,   // NEW_NEWMV_OPTFLOW
-    NEWMV,   // JOINT_NEWMV_OPTFLOW
-    NEWMV,   // JOINT_AMVDNEWMV_OPTFLOW
-#endif       // CONFIG_OPTFLOW_REFINEMENT
+    NEARMV,    // NEAR_NEARMV_OPTFLOW
+    NEARMV,    // NEAR_NEWMV_OPTFLOW
+    NEWMV,     // NEW_NEARMV_OPTFLOW
+    NEWMV,     // NEW_NEWMV_OPTFLOW
+    NEWMV,     // JOINT_NEWMV_OPTFLOW
+    NEWMV,     // JOINT_AMVDNEWMV_OPTFLOW
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -167,14 +165,12 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     NEWMV,          // NEW_NEWMV
     NEARMV,         // JOINT_NEWMV
     NEARMV,         // JOINT_AMVDNEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-    NEARMV,  // NEAR_NEARMV_OPTFLOW
-    NEWMV,   // NEAR_NEWMV_OPTFLOW
-    NEARMV,  // NEW_NEARMV_OPTFLOW
-    NEWMV,   // NEW_NEWMV_OPTFLOW
-    NEARMV,  // JOINT_NEWMV_OPTFLOW
-    NEARMV,  // JOINT_AMVDNEWMV_OPTFLOW
-#endif       // CONFIG_OPTFLOW_REFINEMENT
+    NEARMV,         // NEAR_NEARMV_OPTFLOW
+    NEWMV,          // NEAR_NEWMV_OPTFLOW
+    NEARMV,         // NEW_NEARMV_OPTFLOW
+    NEWMV,          // NEW_NEWMV_OPTFLOW
+    NEARMV,         // JOINT_NEWMV_OPTFLOW
+    NEARMV,         // JOINT_AMVDNEWMV_OPTFLOW
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -183,45 +179,30 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 
 // return whether current mode is joint MVD coding mode
 static INLINE int is_joint_mvd_coding_mode(PREDICTION_MODE mode) {
-  return mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-         || mode == JOINT_NEWMV_OPTFLOW || mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      ;
+  return mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV ||
+         mode == JOINT_NEWMV_OPTFLOW || mode == JOINT_AMVDNEWMV_OPTFLOW;
 }
 
 static INLINE int have_nearmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEARMV || mode == NEAR_NEARMV || mode == NEAR_NEWMV ||
-#if CONFIG_OPTFLOW_REFINEMENT
           mode == NEAR_NEARMV_OPTFLOW || mode == NEAR_NEWMV_OPTFLOW ||
-          mode == NEW_NEARMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-          mode == NEW_NEARMV);
+          mode == NEW_NEARMV_OPTFLOW || mode == NEW_NEARMV);
 }
 
 static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
-  return mode == NEAR_NEWMV ||
-#if CONFIG_OPTFLOW_REFINEMENT
-         mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-         is_joint_mvd_coding_mode(mode) || mode == NEW_NEARMV;
+  return mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW ||
+         mode == NEW_NEARMV_OPTFLOW || is_joint_mvd_coding_mode(mode) ||
+         mode == NEW_NEARMV;
 }
 
 static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
-  return mode == NEWMV || mode == AMVDNEWMV ||
-#if CONFIG_OPTFLOW_REFINEMENT
-         mode == NEW_NEWMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  return mode == NEWMV || mode == AMVDNEWMV || mode == NEW_NEWMV_OPTFLOW ||
          mode == NEW_NEWMV;
 }
 
 // return whether current mode is joint AMVD coding mode
 static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode) {
-  return mode == JOINT_AMVDNEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-         || mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      ;
+  return mode == JOINT_AMVDNEWMV || mode == JOINT_AMVDNEWMV_OPTFLOW;
 }
 
 // Scale the MVD for joint MVD coding mode based on the jmvd_scale_mode.
@@ -259,11 +240,8 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
           mode == AMVDNEWMV || is_joint_mvd_coding_mode(mode) ||
-#if CONFIG_OPTFLOW_REFINEMENT
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
-          mode == NEW_NEWMV_OPTFLOW ||
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-          mode == NEW_NEARMV);
+          mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEARMV);
 }
 static INLINE int have_drl_index(PREDICTION_MODE mode) {
   return have_nearmv_in_inter_mode(mode) || have_newmv_in_inter_mode(mode);
@@ -363,7 +341,6 @@ typedef struct PadArea {
 
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
 #define OF_MIN_BSIZE_LOG2 2
@@ -374,9 +351,6 @@ typedef struct PadArea {
 #define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
 // Maximum number of offsets to be computed
 #define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
-#else
-#define N_OF_OFFSETS 1
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 /*! \brief Stores the coordinate/bsize for chroma plane. */
 typedef struct CHROMA_REF_INFO {

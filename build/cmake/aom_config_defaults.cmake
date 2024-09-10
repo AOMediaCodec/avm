@@ -184,8 +184,6 @@ set_aom_config_var(
   CONFIG_CCSO 1 "AV2 experiment flag to enable cross component sample offset.")
 set_aom_config_var(CONFIG_CCSO_EDGE_CLF 1
                    "Enable adaptive edge classifier for CCSO.")
-set_aom_config_var(CONFIG_OPTFLOW_REFINEMENT 1
-                   "AV2 experiment flag for optical flow MV refinement")
 set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")

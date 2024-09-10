@@ -71,10 +71,7 @@ static const int mode_lf_lut[] = {
   1,              // WARPMV
 #endif            // CONFIG_EXTENDED_WARP_PREDICTION
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
-  1, 1,
-#if CONFIG_OPTFLOW_REFINEMENT
-  1, 1, 1, 1, 1, 1,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  1, 1, 1, 1, 1, 1, 1, 1,
 };
 
 // Function obtains q_threshold from the quantization index.
@@ -440,7 +437,6 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
   }
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 // Check whether current block is OPFL mode
 static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const int plane,
@@ -461,7 +457,6 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
     *ts = opfl_ts;
   }
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_REFINEMV
 // Check whether current block is RFMV mode
@@ -492,14 +487,12 @@ static AOM_INLINE void check_sub_pu_edge(
   TX_SIZE temp_ts = 0;
 
   check_tip_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
-#if CONFIG_OPTFLOW_REFINEMENT
   if (!temp_edge)
     check_opfl_edge(cm, plane,
 #if CONFIG_COMPOUND_4XN
                     xd,
 #endif  // CONFIG_COMPOUND_4XN
                     mbmi, &temp_ts, &temp_edge);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
   if (!temp_edge)
     check_rfmv_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);

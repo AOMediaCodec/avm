@@ -285,7 +285,6 @@ static INLINE __m256i add_epi32_as_epi64(__m256i a, __m256i b) {
   return sum;
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
 static INLINE void calc_max_vector(__m256i *gx_vec, __m256i *gy_vec,
                                    __m256i *pdiff_vec, __m256i *max_vec) {
@@ -2589,4 +2588,3 @@ int av1_opfl_mv_refinement_nxn_avx2(const int16_t *pdiff, int pstride,
   }
   return n_blocks;
 }
-#endif  // CONFIG_OPTFLOW_REFINEMENT

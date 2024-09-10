@@ -420,9 +420,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_LF_SUB_PU
   seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
-#if CONFIG_OPTFLOW_REFINEMENT
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   seq->enable_affine_refine = tool_cfg->enable_affine_refine;
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -904,9 +902,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->features.switchable_motion_mode = 1;
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_OPTFLOW_REFINEMENT
   cm->features.opfl_refine_type = REFINE_SWITCHABLE;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   if (frm_dim_cfg->render_width > 0 && frm_dim_cfg->render_height > 0) {
     cm->render_width = frm_dim_cfg->render_width;
