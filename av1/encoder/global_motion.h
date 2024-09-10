@@ -125,7 +125,12 @@ int64_t av1_refine_integerized_param(
     WarpedMotionParams *wm, TransformationType wmtype, int bd, uint16_t *ref,
     int r_width, int r_height, int r_stride, uint16_t *dst, int d_width,
     int d_height, int d_stride, int n_refinements, int64_t ref_frame_error,
-    uint8_t *segment_map, int segment_map_stride);
+    uint8_t *segment_map, int segment_map_stride
+#if CONFIG_ACROSS_SCALE_WARP
+    ,
+    const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
 void av1_compute_feature_segmentation_map(uint8_t *segment_map, int width,
                                           int height, int *inliers,

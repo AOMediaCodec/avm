@@ -2075,6 +2075,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_COMPOUND_4XN
             bsize,
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+            xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
             comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
         const int allow_affine = is_affine_refinement_allowed(
             cm, xd, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);

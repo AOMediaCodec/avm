@@ -318,8 +318,14 @@ typedef struct {
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_REFINEMV
+#if CONFIG_ACROSS_SCALE_REFINEMV
+// Currently we supports upto 2x super-res in horizontal direction only
+#define REF_BUFFER_WIDTH \
+  (2 * REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#else
 #define REF_BUFFER_WIDTH \
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#endif  // CONFIG_ACROSS_SCALE_REFINEMV
 #define REF_BUFFER_HEIGHT \
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
 typedef struct PadBlock {

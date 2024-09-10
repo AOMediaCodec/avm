@@ -6804,6 +6804,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
                                      struct aom_read_bit_buffer *rb,
+#if CONFIG_ACROSS_SCALE_WARP
+                                     const struct scale_factors *sf,
+#endif  // CONFIG_ACROSS_SCALE_WARP
                                      MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
 #if CONFIG_IMPROVED_GLOBAL_MOTION
@@ -6885,7 +6888,12 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
   if (params->wmtype <= AFFINE) {
     av1_reduce_warp_model(params);
-    int good_shear_params = av1_get_shear_params(params);
+    int good_shear_params = av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                                                 ,
+                                                 sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+    );
     if (!good_shear_params) return 0;
   }
 
@@ -6976,6 +6984,9 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
     int good_params =
         read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
+#if CONFIG_ACROSS_SCALE_WARP
+                                  get_ref_scale_factors_const(cm, frame),
+#endif  // CONFIG_ACROSS_SCALE_WARP
                                   cm->features.fr_mv_precision);
     if (!good_params) {
 #if WARPED_MOTION_DEBUG

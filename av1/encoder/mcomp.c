@@ -5385,13 +5385,19 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
               av1_selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
-        if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params[ref], mi_row,
+        if (!av1_find_projection(
+                mbmi->num_proj_ref[ref], pts, pts_inref, bsize, this_mv,
+                &mbmi->wm_params[ref], mi_row,
 #else
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                  this_mv, &mbmi->wm_params[0], mi_row,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-                                 mi_col)) {
+                mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                ,
+                get_ref_scale_factors((AV1_COMMON *const)cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                    )) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {
@@ -5706,6 +5712,10 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
+#if CONFIG_ACROSS_SCALE_WARP
+  const struct scale_factors *sf =
+      get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
 #if CONFIG_WARP_PRECISION
   bool skip_mv_search = 0;
@@ -5849,10 +5859,21 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   av1_reduce_warp_model(params);
 #if CONFIG_EXT_WARP_FILTER
-  av1_get_shear_params(params);
+  av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                       ,
+                       sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+  );
   params->invalid = 0;
 #else
-  valid = av1_get_shear_params(params);
+  valid =
+      av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                           ,
+                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+      );
   params->invalid = !valid;
   if (!valid) {
     // Don't try to refine from a broken starting point
@@ -5928,11 +5949,21 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         }
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
 #if CONFIG_EXT_WARP_FILTER
-        valid =
-            av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
+        valid = av1_is_warp_model_reduced(params) && av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                                                                          ,
+                                                                          sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                                     );
 #else
         av1_reduce_warp_model(params);
-        valid = av1_get_shear_params(params);
+        valid = av1_get_shear_params(
+            params
+#if CONFIG_ACROSS_SCALE_WARP
+            ,
+            get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
         params->invalid = !valid;
 #endif  // CONFIG_EXT_WARP_FILTER
         if (valid) {
@@ -5972,11 +6003,21 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         }
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
 #if CONFIG_EXT_WARP_FILTER
-        valid =
-            av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
+        valid = av1_is_warp_model_reduced(params) && av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                                                                          ,
+                                                                          sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                                     );
 #else
         av1_reduce_warp_model(params);
-        valid = av1_get_shear_params(params);
+        valid = av1_get_shear_params(
+            params
+#if CONFIG_ACROSS_SCALE_WARP
+            ,
+            get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
         params->invalid = !valid;
 #endif  // CONFIG_EXT_WARP_FILTER
         if (valid) {
@@ -6072,7 +6113,13 @@ int av1_refine_mv_for_base_param_warp_model(
   *params = base_params;
 
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
-  int valid = av1_get_shear_params(params);
+  int valid =
+      av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                           ,
+                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+      );
   params->invalid = !valid;
   if (!valid) {
     // Don't try to refine from a broken starting point
@@ -6118,7 +6165,14 @@ int av1_refine_mv_for_base_param_warp_model(
         // Update model and costs according to the motion vector which
         // is being tried out this iteration
         av1_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
-        if (!av1_get_shear_params(params)) continue;
+        if (!av1_get_shear_params(
+                params
+#if CONFIG_ACROSS_SCALE_WARP
+                ,
+                get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                    ))
+          continue;
 
         unsigned int this_sse = compute_motion_cost(xd, cm, ms_params, bsize,
                                                     &this_mv, can_refine_mv);
@@ -6196,9 +6250,14 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
-        if (!av1_extend_warp_model(neighbor_is_above, bsize, &this_mv, mi_row,
-                                   mi_col, neighbor_params,
-                                   &mbmi->wm_params[0])) {
+        if (!av1_extend_warp_model(
+                neighbor_is_above, bsize, &this_mv, mi_row, mi_col,
+                neighbor_params, &mbmi->wm_params[0]
+#if CONFIG_ACROSS_SCALE_WARP
+                ,
+                get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                    )) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {

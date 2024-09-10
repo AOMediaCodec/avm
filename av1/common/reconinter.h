@@ -761,6 +761,9 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
                                                       BLOCK_SIZE bsize,
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+                                                      const MACROBLOCKD *xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
                                                       const int mode) {
   assert(cm->seq_params.enable_opfl_refine);
   if (mode < NEAR_NEARMV_OPTFLOW) return 0;
@@ -769,6 +772,14 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #endif  // CONFIG_COMPOUND_4XN
 
   if (!cm->seq_params.enable_affine_refine) return 1;
+
+#if CONFIG_ACROSS_SCALE_WARP
+  for (int ref = 0; ref < 1 + has_second_ref(xd->mi[0]); ref++) {
+    if (av1_is_scaled(
+            get_ref_scale_factors_const(cm, xd->mi[0]->ref_frame[ref])))
+      return 1;
+  }
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   return 0;
 }
@@ -783,6 +794,14 @@ static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
       (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
        mode < NEAR_NEARMV_OPTFLOW))
     return 0;
+
+#if CONFIG_ACROSS_SCALE_WARP
+  for (int ref = 0; ref < 1 + has_second_ref(xd->mi[0]); ref++) {
+    if (av1_is_scaled(
+            get_ref_scale_factors_const(cm, xd->mi[0]->ref_frame[ref])))
+      return 0;
+  }
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (mbmi->skip_mode && COMP_REFINE_TYPE_FOR_SKIP < COMP_AFFINE_REFINE_START)
@@ -838,6 +857,9 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
           mbmi->sb_type[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+          xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
           mbmi->mode))
     mask |= (1 << COMP_REFINE_SUBBLK2P);
 
@@ -1005,8 +1027,11 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
 static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
                                       const MB_MODE_INFO *mbmi,
                                       BLOCK_SIZE bsize) {
-  if (!cm->seq_params.enable_refinemv ||
-      cm->superres_scale_denominator != SCALE_NUMERATOR)
+  if (!cm->seq_params.enable_refinemv
+#if !CONFIG_ACROSS_SCALE_REFINEMV
+      || cm->superres_scale_denominator != SCALE_NUMERATOR
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+  )
     return 0;
   int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip) return 0;
@@ -1023,7 +1048,9 @@ static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
   return cm->seq_params.enable_refinemv &&
+#if !CONFIG_ACROSS_SCALE_REFINEMV
          cm->superres_scale_denominator == SCALE_NUMERATOR &&
+#endif  //! ALLOW_REFINEMV_TIP_SUPERRES
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
@@ -1040,15 +1067,20 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
   if (mbmi->ref_frame[1] == NONE_FRAME) return 0;
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
   return cm->seq_params.enable_refinemv &&
+#if !CONFIG_ACROSS_SCALE_REFINEMV
          cm->superres_scale_denominator == SCALE_NUMERATOR &&
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
          is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_refinemv_allowed_reference(cm, mbmi);
 #endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 }
 static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_refinemv ||
-      cm->superres_scale_denominator != SCALE_NUMERATOR)
+  if (!cm->seq_params.enable_refinemv
+#if !CONFIG_ACROSS_SCALE_REFINEMV
+      || cm->superres_scale_denominator != SCALE_NUMERATOR
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+  )
     return 0;
   int is_refinemv =
       (mbmi->skip_mode

@@ -723,7 +723,13 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 
   av1_reduce_warp_model(params);
-  int valid = av1_get_shear_params(params);
+  int valid =
+      av1_get_shear_params(params
+#if CONFIG_ACROSS_SCALE_WARP
+                           ,
+                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+      );
   params->invalid = !valid;
   if (!valid) {
 #if WARPED_MOTION_DEBUG
@@ -990,6 +996,9 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
 #if CONFIG_COMPOUND_4XN
         mbmi->sb_type[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+        xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
         comp_idx_to_opfl_mode[mode]);
     const int allow_affine =
         is_affine_refinement_allowed(cm, xd, comp_idx_to_opfl_mode[mode]);
@@ -4346,6 +4355,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     MV mv0 = mbmi->mv[0].as_mv;
     MV mv1 = mbmi->mv[1].as_mv;
 
+#if CONFIG_ACROSS_SCALE_WARP
+    const struct scale_factors *sf[2];
+    sf[0] = get_ref_scale_factors(cm, mbmi->ref_frame[0]);
+    sf[1] = get_ref_scale_factors(cm, mbmi->ref_frame[1]);
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
     if (mbmi->num_proj_ref[0] > 1) {
       mbmi->num_proj_ref[0] = av1_selectSamples(
           &mbmi->mv[0].as_mv, pts0, pts0_inref, mbmi->num_proj_ref[0], bsize);
@@ -4353,7 +4368,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (mbmi->num_proj_ref[0] > 0) {
       if (!av1_find_projection(mbmi->num_proj_ref[0], pts0, pts0_inref, bsize,
-                               mv0, &mbmi->wm_params[0], mi_row, mi_col))
+                               mv0, &mbmi->wm_params[0], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                               ,
+                               sf[0]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                               ))
         mbmi->wm_params[0].invalid = 0;
     }
     if (has_second_ref(mbmi)) {
@@ -4363,7 +4383,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
       if (mbmi->num_proj_ref[1] > 0) {
         if (!av1_find_projection(mbmi->num_proj_ref[1], pts1, pts1_inref, bsize,
-                                 mv1, &mbmi->wm_params[1], mi_row, mi_col))
+                                 mv1, &mbmi->wm_params[1], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                                 ,
+                                 sf[1]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                 ))
           mbmi->wm_params[1].invalid = 0;
       }
     }
@@ -4389,7 +4414,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
 
     if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
-                            &mbmi->wm_params[0], mi_row, mi_col)) {
+                            &mbmi->wm_params[0], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                            ,
+                            get_ref_scale_factors(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                )) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
@@ -4438,9 +4468,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
       WarpedMotionParams neighbor_params;
       av1_get_neighbor_warp_model(cm, xd, neighbor_mi, &neighbor_params);
-      if (av1_extend_warp_model(neighbor_is_above, bsize, &mbmi->mv[0].as_mv,
-                                mi_row, mi_col, &neighbor_params,
-                                &mbmi->wm_params[0])) {
+      if (av1_extend_warp_model(
+              neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row, mi_col,
+              &neighbor_params, &mbmi->wm_params[0]
+#if CONFIG_ACROSS_SCALE_WARP
+              ,
+              get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                  )) {
 #if WARPED_MOTION_DEBUG
         printf("Warning: unexpected warped model from aomenc\n");
 #endif

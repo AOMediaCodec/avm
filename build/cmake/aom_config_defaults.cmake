@@ -232,6 +232,15 @@ set_aom_config_var(
 # CWG-D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
+set_aom_config_var(
+  CONFIG_ACROSS_SCALE_TPL_MVS 0 NUMBER
+  "AV2 experiment flag to enable across scale temporal mv projection")
+
+set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 0 NUMBER
+                   "AV2 experiment flag to enable across scale warp modes.")
+
+set_aom_config_var(CONFIG_ACROSS_SCALE_REFINEMV 0 NUMBER
+                   "AV2 experiment flag to enable across scale refinemv modes.")
 
 # CWG-E210
 set_aom_config_var(CONFIG_RECT_CTX 1

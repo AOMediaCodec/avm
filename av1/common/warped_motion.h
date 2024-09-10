@@ -196,7 +196,12 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        int width, int height, int stride, uint16_t *const pred,
                        int p_col, int p_row, int p_width, int p_height,
                        int p_stride, int subsampling_x, int subsampling_y,
-                       int bd, ConvolveParams *conv_params);
+                       int bd, ConvolveParams *conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+                       ,
+                       const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
 void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
                 int height, int stride, uint8_t *pred, int p_col, int p_row,
@@ -213,13 +218,28 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,
                     int p_stride, int subsampling_x, int subsampling_y,
-                    ConvolveParams *conv_params);
+                    ConvolveParams *conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+                    ,
+                    const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                        int mi_row, int mi_col);
+                        int mi_row, int mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                        ,
+                        const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
-int av1_get_shear_params(WarpedMotionParams *wm);
+int av1_get_shear_params(WarpedMotionParams *wm
+#if CONFIG_ACROSS_SCALE_WARP
+                         ,
+                         const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
 // Reduce the precision of a warp model, ready for use in the warp filter
 // and for storage. This should be called after the non-translational parameters
@@ -237,7 +257,12 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const MV *center_mv, const int mi_row,
                           const int mi_col,
                           const WarpedMotionParams *neighbor_wm,
-                          WarpedMotionParams *wm_params);
+                          WarpedMotionParams *wm_params
+#if CONFIG_ACROSS_SCALE_WARP
+                          ,
+                          const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
 // Given a warp model which was initially used at a temporal distance of
@@ -332,5 +357,10 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
                                      const int x, const int y,
                                      MvSubpelPrecision precision);
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
-                              int np, int *mvs, const BLOCK_SIZE bsize);
+                              int np, int *mvs, const BLOCK_SIZE bsize
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+);
 #endif  // AOM_AV1_COMMON_WARPED_MOTION_H_

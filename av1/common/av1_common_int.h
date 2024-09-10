@@ -4768,14 +4768,18 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   // From here on, all modes are warped, so have some common criteria:
   const int allow_warped_motion =
       motion_variation_allowed &&
+#if !CONFIG_ACROSS_SCALE_WARP
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv;
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
   const int allow_warp_causal_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       is_inter_mode(mbmi->mode) &&
+#if !CONFIG_ACROSS_SCALE_WARP
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
       (is_motion_variation_allowed_compound(mbmi) ||
        is_compound_warp_causal_allowed(

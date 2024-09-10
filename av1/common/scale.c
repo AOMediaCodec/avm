@@ -35,11 +35,44 @@ static INLINE int scaled_y(int val, const struct scale_factors *sf) {
                                            REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
 }
 
+#if CONFIG_ACROSS_SCALE_WARP
+// Note: Expect val to be in q16 precision
+static INLINE int64_t scaled_warp_x(int64_t val,
+                                    const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->x_scale_fp;
+  return (int64_t)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+
+// Note: Expect val to be in q16 precision
+static INLINE int64_t scaled_warp_y(int64_t val,
+                                    const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->y_scale_fp;
+  return (int64_t)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
 // Note: Expect val to be in q4 precision
 static int unscaled_value(int val, const struct scale_factors *sf) {
   (void)sf;
   return val * (1 << SCALE_EXTRA_BITS);
 }
+
+#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->x_scale_fp;
+  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+
+static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->y_scale_fp;
+  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+
+static int unscaled_value_gen(int val, const struct scale_factors *sf) {
+  (void)sf;
+  return val;
+}
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
 
 static int get_fixed_point_scale_factor(int other_size, int this_size) {
   // Calculate scaling factor once for each reference frame
@@ -81,8 +114,22 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
   if (av1_is_scaled(sf)) {
     sf->scale_value_x = scaled_x;
     sf->scale_value_y = scaled_y;
+
+#if CONFIG_ACROSS_SCALE_WARP
+    sf->scale_value_warp_x = scaled_warp_x;
+    sf->scale_value_warp_y = scaled_warp_y;
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
+#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+    sf->scale_value_x_gen = scaled_x_gen;
+    sf->scale_value_y_gen = scaled_y_gen;
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
   } else {
     sf->scale_value_x = unscaled_value;
     sf->scale_value_y = unscaled_value;
+#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+    sf->scale_value_x_gen = unscaled_value_gen;
+    sf->scale_value_y_gen = unscaled_value_gen;
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
   }
 }

@@ -571,14 +571,26 @@ static int is_affine_shear_allowed(int16_t alpha, int16_t beta, int16_t gamma,
 }
 
 // Returns 1 on success or 0 on an invalid affine set
-int av1_get_shear_params(WarpedMotionParams *wm) {
-  const int32_t *mat = wm->wmmat;
+int av1_get_shear_params(WarpedMotionParams *wm
+#if CONFIG_ACROSS_SCALE_WARP
+                         ,
+                         const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   if (!is_affine_valid(wm)) return 0;
 #if CONFIG_RELAX_AFFINE_CONSTRAINTS
   const int16_t max_value = INT16_MAX - (1 << (WARP_PARAM_REDUCE_BITS - 1));
 #else
   const int16_t max_value = INT16_MAX;
 #endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
+
+#if CONFIG_ACROSS_SCALE_WARP
+  // Always use 4x4 warp in scale of across-scale
+  const int is_scaled = sf ? av1_is_scaled(sf) : 0;
+  const int32_t *mat = wm->wmmat;
+#else
+  const int32_t *mat = wm->wmmat;
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   wm->alpha =
       clamp(mat[2] - (1 << WARPEDMODEL_PREC_BITS), INT16_MIN, max_value);
@@ -620,7 +632,12 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
 
 #if CONFIG_EXT_WARP_FILTER
   wm->use_affine_filter =
-      is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
+#if CONFIG_ACROSS_SCALE_WARP
+      is_scaled
+          ? 1
+          :
+#endif  // CONFIG_ACROSS_SCALE_WARP
+          is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
 #else
   if (!is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta))
     return 0;
@@ -1069,6 +1086,161 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   }
 }
 
+#if CONFIG_ACROSS_SCALE_WARP
+void av1_ext_highbd_warp_affine_scaled_c(
+    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
+    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y, int bd,
+    ConvolveParams *conv_params, const struct scale_factors *sf) {
+  //  int32_t im_block[(4 + EXT_WARP_TAPS - 1) * 4];
+  int32_t im_block[(2 * 4 + EXT_WARP_TAPS) * 4];
+  const int reduce_bits_horiz = conv_params->round_0;
+  const int reduce_bits_vert = conv_params->is_compound
+                                   ? conv_params->round_1
+                                   : 2 * FILTER_BITS - reduce_bits_horiz;
+  const int max_bits_horiz = bd + FILTER_BITS + 1 - reduce_bits_horiz;
+  const int offset_bits_horiz = bd + FILTER_BITS - 1;
+  const int offset_bits_vert = bd + 2 * FILTER_BITS - reduce_bits_horiz;
+  const int round_bits =
+      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
+  (void)max_bits_horiz;
+  assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
+
+  // Check that, even with 12-bit input, the intermediate values will fit
+  // into an unsigned 16-bit intermediate array.
+  assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
+  const int taps = EXT_WARP_TAPS;
+  const int taps_half = taps >> 1;
+  const int fo_vert = taps_half - 1;
+  const int fo_horiz = taps_half - 1;
+
+  for (int i = p_row; i < p_row + p_height; i += 4) {
+    for (int j = p_col; j < p_col + p_width; j += 4) {
+      // Calculate the center of this 4x4 block,
+      // project to luma coordinates (if in a subsampled chroma plane),
+      // apply the affine transformation,
+      // then convert back to the original coordinates (if necessary)
+      const int32_t src_x = (j + 2) << subsampling_x;
+      const int32_t src_y = (i + 2) << subsampling_y;
+      const int64_t dst_x =
+          (int64_t)mat[2] * src_x + (int64_t)mat[3] * src_y + (int64_t)mat[0];
+      const int64_t dst_y =
+          (int64_t)mat[4] * src_x + (int64_t)mat[5] * src_y + (int64_t)mat[1];
+
+      // Top left location in ref frame of a 4x4 block
+      // We need to do (- 2 * (1 << WARPEDMODEL_PREC_BITS)) becasue actual dst_x
+      // and dst_y is computed at the center of the 4x4 block
+      const int64_t x4_org =
+          (dst_x >> subsampling_x) - 2 * (1 << WARPEDMODEL_PREC_BITS);
+      const int64_t y4_org =
+          (dst_y >> subsampling_y) - 2 * (1 << WARPEDMODEL_PREC_BITS);
+
+      const int64_t x4 = sf->scale_value_warp_x(x4_org, sf);
+      const int64_t y4 = sf->scale_value_warp_y(y4_org, sf);
+
+      // No vertical scaling is supported in current super-res mode
+      assert(y4_org == y4);
+      const int32_t x_step_qn = sf->x_step_q4
+                                << (WARPEDMODEL_PREC_BITS - SCALE_SUBPEL_BITS);
+      const int32_t y_step_qn = sf->y_step_q4
+                                << (WARPEDMODEL_PREC_BITS - SCALE_SUBPEL_BITS);
+
+      const int32_t iy4 = (int32_t)(y4 >> WARPEDMODEL_PREC_BITS);
+      int32_t subpel_y_qn = y4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
+
+      // Horizontal Filter
+
+      int im_h =
+          (((4 - 1) * y_step_qn + subpel_y_qn) >> WARPEDMODEL_PREC_BITS) + taps;
+      int im_stride = 4;
+      int init_y = iy4 - fo_vert;
+
+      for (int y = 0; y < im_h; ++y) {
+        const int y_pos = init_y + y;
+        const int iy = clamp(y_pos, 0, height - 1);
+        int64_t x_qn = x4;
+        for (int x = 0; x < 4; ++x, x_qn += x_step_qn) {
+          // Extract the filter parameters
+          int32_t sx4 = x_qn & ((1 << WARPEDMODEL_PREC_BITS) - 1);
+          const int offs_x = ROUND_POWER_OF_TWO(sx4, EXT_WARP_ROUND_BITS);
+          assert(offs_x >= 0 && offs_x <= EXT_WARP_PHASES);
+          const int16_t *coeffs_x = av1_ext_warped_filter[offs_x];
+
+          // position in the unit of integer pixel
+          int ix = (int32_t)(x_qn >> WARPEDMODEL_PREC_BITS);  // init_x + x;
+
+          int32_t sum = 1 << offset_bits_horiz;
+          for (int m = 0; m < taps; ++m) {
+            const int sample_x = clamp(ix - fo_horiz + m, 0, width - 1);
+            sum += ref[iy * stride + sample_x] * coeffs_x[m];
+          }
+          sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
+          assert(0 <= sum && sum < (1 << max_bits_horiz));
+          im_block[y * im_stride + x] = sum;
+        }
+      }
+
+      // Vertical filter
+      int32_t *src_vert = im_block + fo_vert * im_stride;
+
+      for (int x = 0; x < AOMMIN(4, p_col + p_width - j); ++x) {
+        int64_t y_qn = subpel_y_qn;
+        for (int y = 0; y < AOMMIN(4, p_row + p_height - i);
+             ++y, y_qn += y_step_qn) {
+          // Extract the filter parameters
+          int32_t sy4 = y_qn & ((1 << WARPEDMODEL_PREC_BITS) - 1);
+          const int offs_y = ROUND_POWER_OF_TWO(sy4, EXT_WARP_ROUND_BITS);
+          assert(offs_y >= 0 && offs_y <= EXT_WARP_PHASES);
+          const int16_t *coeffs_y = av1_ext_warped_filter[offs_y];
+
+          const int32_t *src_vert_y =
+              &src_vert[(y_qn >> WARPEDMODEL_PREC_BITS) * im_stride];
+
+          int32_t sum = 1 << offset_bits_vert;
+          for (int m = 0; m < taps; ++m) {
+            sum += src_vert_y[(m - fo_vert) * im_stride] * coeffs_y[m];
+          }
+
+          if (conv_params->is_compound) {
+            CONV_BUF_TYPE *p =
+                &conv_params->dst[(i - p_row + y) * conv_params->dst_stride +
+                                  (j - p_col + x)];
+            sum = ROUND_POWER_OF_TWO(sum, reduce_bits_vert);
+            if (conv_params->do_average) {
+              uint16_t *dst16 =
+                  &pred[(i - p_row + y) * p_stride + (j - p_col + x)];
+              int32_t tmp32 = *p;
+              if (use_wtd_comp_avg) {
+                tmp32 = tmp32 * conv_params->fwd_offset +
+                        sum * conv_params->bck_offset;
+                tmp32 = tmp32 >> DIST_PRECISION_BITS;
+              } else {
+                tmp32 += sum;
+                tmp32 = tmp32 >> 1;
+              }
+              tmp32 = tmp32 - (1 << (offset_bits - conv_params->round_1)) -
+                      (1 << (offset_bits - conv_params->round_1 - 1));
+              *dst16 =
+                  clip_pixel_highbd(ROUND_POWER_OF_TWO(tmp32, round_bits), bd);
+            } else {
+              *p = sum;
+            }
+          } else {
+            uint16_t *p = &pred[(i - p_row + y) * p_stride + (j - p_col + x)];
+            sum = ROUND_POWER_OF_TWO(sum, reduce_bits_vert);
+            assert(0 <= sum && sum < (1 << (bd + 2)));
+            *p = clip_pixel_highbd(sum - (1 << (bd - 1)) - (1 << bd), bd);
+          }
+        }
+        src_vert++;
+      }
+    }
+  }
+}
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
 #if CONFIG_AFFINE_REFINEMENT
 void av1_warp_plane_ext(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                         int width, int height, int stride, uint16_t *pred,
@@ -1093,7 +1265,17 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        int width, int height, int stride, uint16_t *const pred,
                        int p_col, int p_row, int p_width, int p_height,
                        int p_stride, int subsampling_x, int subsampling_y,
-                       int bd, ConvolveParams *conv_params) {
+                       int bd, ConvolveParams *conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+                       ,
+                       const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
+
+#if CONFIG_ACROSS_SCALE_WARP
+  const int is_scaled = sf ? av1_is_scaled(sf) : 0;
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
   assert(wm->wmtype <= AFFINE);
   if (wm->wmtype == ROTZOOM) {
     wm->wmmat[5] = wm->wmmat[2];
@@ -1106,33 +1288,68 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   const int16_t delta = wm->delta;
 
 #if CONFIG_EXT_WARP_FILTER
+#if CONFIG_ACROSS_SCALE_WARP
+  assert(IMPLIES(!is_scaled,
+                 wm->use_affine_filter ==
+                     is_affine_shear_allowed(alpha, beta, gamma, delta)));
+#else
   assert(wm->use_affine_filter ==
          is_affine_shear_allowed(alpha, beta, gamma, delta));
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   if (!wm->use_affine_filter
 #if CONFIG_AFFINE_REFINEMENT
       || p_width < 8 || p_height < 8
 #endif  // CONFIG_AFFINE_REFINEMENT
-  )
-    av1_ext_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col,
-                               p_row, p_width, p_height, p_stride,
-                               subsampling_x, subsampling_y, bd, conv_params);
-  else
+#if CONFIG_ACROSS_SCALE_WARP
+      || is_scaled
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
+  ) {
+    WarpedMotionParams wm_scaled = *wm;
+#if CONFIG_ACROSS_SCALE_WARP
+    if (is_scaled) {
+      av1_ext_highbd_warp_affine_scaled_c(
+          &wm_scaled.wmmat[0], ref, width, height, stride, pred, p_col, p_row,
+          p_width, p_height, p_stride, subsampling_x, subsampling_y, bd,
+          conv_params, sf);
+    } else {
+#endif  // CONFIG_ACROSS_SCALE_WARP
+      av1_ext_highbd_warp_affine(&wm_scaled.wmmat[0], ref, width, height,
+                                 stride, pred, p_col, p_row, p_width, p_height,
+                                 p_stride, subsampling_x, subsampling_y, bd,
+                                 conv_params);
+#if CONFIG_ACROSS_SCALE_WARP
+    }
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
+  } else {
 #endif  // CONFIG_EXT_WARP_FILTER
     av1_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row,
                            p_width, p_height, p_stride, subsampling_x,
                            subsampling_y, bd, conv_params, alpha, beta, gamma,
                            delta);
+  }
 }
 
 void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,
                     int p_stride, int subsampling_x, int subsampling_y,
-                    ConvolveParams *conv_params) {
+                    ConvolveParams *conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+                    ,
+                    const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
                     p_height, p_stride, subsampling_x, subsampling_y, bd,
-                    conv_params);
+                    conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+                    ,
+                    sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+  );
 }
 
 #define LS_MV_MAX 256  // max mv in 1/8-pel
@@ -1249,7 +1466,12 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
 
 static int find_affine_int(int np, const int *pts1, const int *pts2,
                            BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm,
-                           int mi_row, int mi_col) {
+                           int mi_row, int mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                           ,
+                           const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
   int32_t Bx[2] = { 0, 0 };
   int32_t By[2] = { 0, 0 };
@@ -1340,7 +1562,13 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
   av1_reduce_warp_model(wm);
   // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(wm)) return 1;
+  if (!av1_get_shear_params(wm
+#if CONFIG_ACROSS_SCALE_WARP
+                            ,
+                            sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                            ))
+    return 1;
   av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
   wm->wmmat[6] = wm->wmmat[7] = 0;
   return 0;
@@ -1348,11 +1576,26 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                        int mi_row, int mi_col) {
+                        int mi_row, int mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                        ,
+                        const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   assert(wm_params->wmtype == AFFINE);
 
+#if CONFIG_ACROSS_SCALE_WARP
+  if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col, sf
+
+                      )) {
+    wm_params->invalid = 1;
+    return 1;
+  }
+  wm_params->invalid = 0;
+#else
   if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col))
     return 1;
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   return 0;
 }
@@ -1366,14 +1609,19 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
     is above the current block, or false if it is to the left of the current
     block.
 
-    Returns 0 if the resulting model can be used with the warp filter,
+    Returns 0 if  the resulting model can be used with the warp filter,
     1 if not.
 */
 int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const MV *center_mv, const int mi_row,
                           const int mi_col,
                           const WarpedMotionParams *neighbor_wm,
-                          WarpedMotionParams *wm_params) {
+                          WarpedMotionParams *wm_params
+#if CONFIG_ACROSS_SCALE_WARP
+                          ,
+                          const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   const int half_width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2 - 1;
   const int half_height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2 - 1;
   const int center_x = (mi_col * MI_SIZE) + (1 << half_width_log2) - 1;
@@ -1450,11 +1698,19 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 
   av1_reduce_warp_model(wm_params);
   // check compatibility with the fast warp filter
+#if CONFIG_ACROSS_SCALE_WARP
+  if (!av1_get_shear_params(wm_params, sf)) {
+    wm_params->invalid = 1;
+    return 1;
+  }
+#else
   if (!av1_get_shear_params(wm_params)) return 1;
-
+#endif  // CONFIG_ACROSS_SCALE_WARP
   // Derive translational part from signaled MV
   av1_set_warp_translation(mi_row, mi_col, bsize, *center_mv, wm_params);
-
+#if CONFIG_ACROSS_SCALE_WARP
+  wm_params->invalid = 0;
+#endif  // CONFIG_ACROSS_SCALE_WARP
   return 0;
 }
 
@@ -1537,7 +1793,12 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
 //  is the row value of mv pts_inref[2*n] is the col value of the projected
 //  position. pts_inref[2*n + 1] is the row value of the projected position
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
-                              int np, int *mvs, const BLOCK_SIZE bsize) {
+                              int np, int *mvs, const BLOCK_SIZE bsize
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   // In order to derive the warp model we need 3 projected points
   // If the number of projected points (np) is not equal to 3, model is not
   // valid.
@@ -1606,7 +1867,12 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   av1_reduce_warp_model(derive_model);
 
   // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(derive_model)) {
+  if (!av1_get_shear_params(derive_model
+#if CONFIG_ACROSS_SCALE_WARP
+                            ,
+                            sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                            )) {
     derive_model->invalid = 1;
     return 0;
   }

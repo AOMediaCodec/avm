@@ -493,6 +493,9 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
 #if CONFIG_COMPOUND_4XN
           mbmi->sb_type[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+          xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
           comp_idx_to_opfl_mode[comp_mode_idx]);
       const int allow_affine = is_affine_refinement_allowed(
           cm, xd, comp_idx_to_opfl_mode[comp_mode_idx]);
@@ -2653,7 +2656,12 @@ static int64_t motion_mode_rd(
             //  using the collected samples
             mbmi->wm_params[0].invalid = l0_invalid = av1_find_projection(
                 mbmi->num_proj_ref[0], pts, pts_inref, bsize, mbmi->mv[0].as_mv,
-                &mbmi->wm_params[0], mi_row, mi_col);
+                &mbmi->wm_params[0], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                ,
+                get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+            );
 
             if (has_second_ref(mbmi)) {
               memcpy(pts, pts1, total_samples1 * 2 * sizeof(*pts1));
@@ -2669,7 +2677,12 @@ static int64_t motion_mode_rd(
               //  using the collected samples
               mbmi->wm_params[1].invalid = l1_invalid = av1_find_projection(
                   mbmi->num_proj_ref[1], pts, pts_inref, bsize,
-                  mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col);
+                  mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                  ,
+                  get_ref_scale_factors_const(cm, mbmi->ref_frame[1])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+              );
             }
 
             if (!l0_invalid && (!has_second_ref(mbmi) || !l1_invalid)) {
@@ -2687,7 +2700,13 @@ static int64_t motion_mode_rd(
           //  using the collected samples
           if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                    mbmi->mv[0].as_mv, &mbmi->wm_params[0],
-                                   mi_row, mi_col)) {
+                                   mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+                                   ,
+                                   get_ref_scale_factors((AV1_COMMON *const)cm,
+                                                         mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                       )) {
             assert(!is_comp_pred);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_COMPOUND_WARP_CAUSAL
@@ -3024,9 +3043,14 @@ static int64_t motion_mode_rd(
               // Backup initial motion vector and resulting warp params
               int_mv mv0 = mbmi->mv[0];
               WarpedMotionParams wm_params0;
-              if (!av1_extend_warp_model(neighbor_is_above, bsize,
-                                         &mbmi->mv[0].as_mv, mi_row, mi_col,
-                                         &neighbor_params, &wm_params0)) {
+              if (!av1_extend_warp_model(
+                      neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
+                      mi_col, &neighbor_params, &wm_params0
+#if CONFIG_ACROSS_SCALE_WARP
+                      ,
+                      get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                          )) {
                 // NEWMV search produced a valid model
                 mbmi->wm_params[0] = wm_params0;
               } else {
@@ -3067,7 +3091,12 @@ static int64_t motion_mode_rd(
                 // this case, in order to try to find a valid model?
                 if (av1_extend_warp_model(
                         neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
-                        mi_col, &neighbor_params, &mbmi->wm_params[0])) {
+                        mi_col, &neighbor_params, &mbmi->wm_params[0]
+#if CONFIG_ACROSS_SCALE_WARP
+                        ,
+                        get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                            )) {
                   continue;
                 }
               }

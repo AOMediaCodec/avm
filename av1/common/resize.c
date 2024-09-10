@@ -1300,6 +1300,14 @@ static void calculate_scaled_size_helper(int *dim, int denom) {
     // *width = (*width * SCALE_NUMERATOR + denom) / (2 * denom);
     // *width <<= 1;
     *dim = (*dim * SCALE_NUMERATOR + denom / 2) / (denom);
+    int mask = (1 << DIMENTION_SHIFT_BITS) - 1;
+    int is_not_multiple = *dim & mask;
+    if (is_not_multiple) {
+      // Make multiple of 8 to avoid issue related to TIP mode
+      *dim = (*dim >> DIMENTION_SHIFT_BITS) << DIMENTION_SHIFT_BITS;
+      *dim = *dim + (1 << DIMENTION_SHIFT_BITS);  // ceiling
+    }
+    assert((*dim & mask) == 0);
     *dim = AOMMAX(*dim, min_dim);
   }
 }

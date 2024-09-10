@@ -137,7 +137,9 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       }
       continue;
     }
-
+#if CONFIG_ACROSS_SCALE_WARP
+    cm->global_motion[frame].invalid = 0;
+#endif  // CONFIG_ACROSS_SCALE_WARP
     for (int i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
       if (motion_models[i].num_inliers == 0) continue;
 
@@ -148,7 +150,13 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       tmp_wm_params.invalid = 0;
 
       // Check that the generated model is warp-able
-      if (!av1_get_shear_params(&tmp_wm_params)) continue;
+      if (!av1_get_shear_params(&tmp_wm_params
+#if CONFIG_ACROSS_SCALE_WARP
+                                ,
+                                get_ref_scale_factors_const(cm, frame)
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                    ))
+        continue;
 
       // Skip models that we won't use (IDENTITY or TRANSLATION)
       //
@@ -178,7 +186,12 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
           ref_buf[frame]->y_buffer, ref_buf[frame]->y_crop_width,
           ref_buf[frame]->y_crop_height, ref_buf[frame]->y_stride,
           cpi->source->y_buffer, src_width, src_height, src_stride,
-          num_refinements, ref_frame_error, segment_map, segment_map_w);
+          num_refinements, ref_frame_error, segment_map, segment_map_w
+#if CONFIG_ACROSS_SCALE_WARP
+          ,
+          get_ref_scale_factors_const(cm, frame)
+#endif  // CONFIG_ACROSS_SCALE_WARP
+      );
 
       // av1_refine_integerized_param() can return a simpler model type than
       // its input, so re-check model type here
@@ -330,7 +343,15 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       continue;
     } else {
+#if CONFIG_ACROSS_SCALE_WARP
+      // Get the scaled buffer
+      if (av1_is_scaled(get_ref_scale_factors(cm, frame)))
+        ref_buf[frame] = &cpi->scaled_ref_buf[frame]->buf;
+      else
+        ref_buf[frame] = &buf->buf;
+#else
       ref_buf[frame] = &buf->buf;
+#endif  // CONFIG_ACROSS_SCALE_WARP
     }
 
     int prune_ref_frames =

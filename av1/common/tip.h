@@ -55,21 +55,27 @@ static AOM_INLINE int tip_derive_scale_factor(int num, int den_signed) {
 static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
                                             const int blk_row,
                                             const int blk_col) {
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+  // What will happen if width and heights are not multiple of 8?
+  const int y_width = cm->width;    // cm->mi_params.mi_rows << MI_SIZE_LOG2;
+  const int y_height = cm->height;  // cm->mi_params.mi_cols << MI_SIZE_LOG2;
+#else
   const int y_width = cm->tip_ref.ref_frame_buffer[0]->buf.y_width;
   const int y_height = cm->tip_ref.ref_frame_buffer[0]->buf.y_height;
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   FULLPEL_MV fullmv;
   fullmv = get_fullmv_from_mv(mv);
   const int row_offset = fullmv.row + (blk_row << MI_SIZE_LOG2);
-  if (row_offset > y_height) {
-    fullmv.row = y_height - (blk_row << MI_SIZE_LOG2);
+  if (row_offset >= y_height) {
+    fullmv.row = y_height - (blk_row << MI_SIZE_LOG2) - 1;
   } else if (row_offset < 0) {
     fullmv.row = -(blk_row << MI_SIZE_LOG2);
   }
 
   const int col_offset = fullmv.col + (blk_col << MI_SIZE_LOG2);
-  if (col_offset > y_width) {
-    fullmv.col = y_width - (blk_col << MI_SIZE_LOG2);
+  if (col_offset >= y_width) {
+    fullmv.col = y_width - (blk_col << MI_SIZE_LOG2) - 1;
   } else if (col_offset < 0) {
     fullmv.col = -(blk_col << MI_SIZE_LOG2);
   }

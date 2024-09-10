@@ -43,7 +43,11 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
   // Note: As per the spec, we must test the fixed point scales here, which are
   // at a higher precision (1 << 14) than the xs and ys in subpel_params (that
   // have 1 << 10 precision).
+#if CONFIG_ACROSS_SCALE_WARP
+  (void)sf;
+#else
   if (av1_is_scaled(sf)) return 0;
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
   if (final_warp_params != NULL) *final_warp_params = default_warp_params;
 
@@ -157,7 +161,12 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
         inter_pred_params->pix_col, inter_pred_params->pix_row,
         inter_pred_params->block_width, inter_pred_params->block_height,
         dst_stride, inter_pred_params->subsampling_x,
-        inter_pred_params->subsampling_y, &inter_pred_params->conv_params);
+        inter_pred_params->subsampling_y, &inter_pred_params->conv_params
+#if CONFIG_ACROSS_SCALE_WARP
+        ,
+        inter_pred_params->scale_factors
+#endif  // CONFIG_ACROSS_SCALE_WARP
+    );
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
     highbd_inter_predictor(
         src, src_stride, dst, dst_stride, subpel_params,
@@ -1886,7 +1895,12 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
 void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
                            const AffineModelParams *am_params,
                            WarpedMotionParams *wm, const int d,
-                           const MV *const mv) {
+                           const MV *const mv
+#if CONFIG_ACROSS_SCALE_WARP
+                           ,
+                           const struct scale_factors *sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   wm->invalid = 1;
 
   const int64_t unit_offset = 1 << WARPEDMODEL_PREC_BITS;
@@ -1950,7 +1964,12 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
   av1_reduce_warp_model(wm);
 
 #if CONFIG_EXT_WARP_FILTER
-  av1_get_shear_params(wm);
+  av1_get_shear_params(wm
+#if CONFIG_ACROSS_SCALE_WARP
+                       ,
+                       sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+  );
 #else
   // check compatibility with the fast warp filter
   if (!av1_get_shear_params(wm)) {
@@ -2293,8 +2312,12 @@ void av1_opfl_affine_refinement_mxn(int16_t *pdiff, int pstride, int16_t *gx,
 #if CONFIG_REFINEMV
                                     const MV *const src_mv,
 #endif  // CONFIG_REFINEMV
-                                    int grad_prec_bits,
-                                    WarpedMotionParams *wms) {
+                                    int grad_prec_bits, WarpedMotionParams *wms
+#if CONFIG_ACROSS_SCALE_WARP
+                                    ,
+                                    const struct scale_factors *sf[2]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+) {
   int n_blocks = 0;
 #if CONFIG_AFFINE_REFINEMENT_SB
   int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
@@ -2323,14 +2346,34 @@ void av1_opfl_affine_refinement_mxn(int16_t *pdiff, int pstride, int16_t *gx,
               grad_prec_bits, &affine_params)) {
 #if CONFIG_REFINEMV
         get_ref_affine_params(bw, bh, mi_x, mi_y, &affine_params,
-                              wms + n_blocks * 2, d0, &src_mv[0]);
+                              wms + n_blocks * 2, d0, &src_mv[0]
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              sf[0]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
         get_ref_affine_params(bw, bh, mi_x, mi_y, &affine_params,
-                              wms + n_blocks * 2 + 1, d1, &src_mv[1]);
+                              wms + n_blocks * 2 + 1, d1, &src_mv[1]
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              sf[1]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
 #else
         get_ref_affine_params(bw, bh, mi_x, mi_y, &affine_params,
-                              wms + n_blocks * 2, d0, &mbmi->mv[0].as_mv);
+                              wms + n_blocks * 2, d0, &mbmi->mv[0].as_mv
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              sf[0]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
         get_ref_affine_params(bw, bh, mi_x, mi_y, &affine_params,
-                              wms + n_blocks * 2 + 1, d1, &mbmi->mv[1].as_mv);
+                              wms + n_blocks * 2 + 1, d1, &mbmi->mv[1].as_mv
+#if CONFIG_ACROSS_SCALE_WARP
+                              ,
+                              sf[1]
+#endif  // CONFIG_ACROSS_SCALE_WARP
+        );
 #endif  // CONFIG_REFINEMV
       }
       n_blocks++;
@@ -2605,7 +2648,11 @@ void av1_get_optflow_based_mv(
     if (sad_pred >= sad_thr * bw * bh) *use_affine_opfl = 1;
   }
 #endif
-
+#if CONFIG_ACROSS_SCALE_WARP
+  const struct scale_factors *sf[2];
+  sf[0] = get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+  sf[1] = get_ref_scale_factors_const(cm, mbmi->ref_frame[1]);
+#endif  // CONFIG_ACROSS_SCALE_WARP
   if (mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START && wms &&
       *use_affine_opfl) {
     av1_opfl_affine_refinement_mxn(tmp1, bw, gx0, gy0, bw, bw, bh, d0, d1, mi_x,
@@ -2613,7 +2660,12 @@ void av1_get_optflow_based_mv(
 #if CONFIG_REFINEMV
                                    best_mv_ref,
 #endif  // CONFIG_REFINEMV
-                                   grad_prec_bits, wms);
+                                   grad_prec_bits, wms
+#if CONFIG_ACROSS_SCALE_WARP
+                                   ,
+                                   sf
+#endif  // CONFIG_ACROSS_SCALE_WARP
+    );
 
     update_pred_grad_with_affine_model(xd, plane, bw, bh, wms, mi_x, mi_y, tmp0,
                                        tmp1, gx0, gy0, d0, d1, &grad_prec_bits);
@@ -5359,6 +5411,12 @@ static void build_inter_predictors_8x8_and_bigger(
           !inter_pred_params.warp_params.use_affine_filter) {
         *ext_warp_used = true;
       }
+
+#if CONFIG_ACROSS_SCALE_WARP
+      assert(IMPLIES(av1_is_scaled(sf),
+                     mi->comp_refine_type < COMP_AFFINE_REFINE_START));
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
 #if CONFIG_AFFINE_REFINEMENT
       if (use_optflow_refinement &&
           mi->comp_refine_type >= COMP_AFFINE_REFINE_START &&
@@ -5509,6 +5567,13 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
         get_tip_mv(cm, &mi->mv[0].as_mv, tpl_col, tpl_row, tip_mv_tmp);
+
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+        clamp_mv_ref(&tip_mv_tmp[0].as_mv, xd->width << MI_SIZE_LOG2,
+                     xd->height << MI_SIZE_LOG2, xd);
+        clamp_mv_ref(&tip_mv_tmp[1].as_mv, xd->width << MI_SIZE_LOG2,
+                     xd->height << MI_SIZE_LOG2, xd);
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
         tip_mv[0] = tip_mv_tmp[0].as_mv;
         tip_mv[1] = tip_mv_tmp[1].as_mv;

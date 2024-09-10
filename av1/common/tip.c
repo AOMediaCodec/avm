@@ -171,9 +171,19 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
 #else
   const int start_frame_order_hint = start_frame_buf->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+  const int is_scaled = (start_frame_buf->width != cm->width ||
+                         start_frame_buf->height != cm->height);
+  struct scale_factors sf_;
+  // Inverse scale factor
+  av1_setup_scale_factors_for_frame(&sf_, cm->width, cm->height,
+                                    start_frame_buf->width,
+                                    start_frame_buf->height);
+  const struct scale_factors *sf = &sf_;
+#else
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
@@ -200,9 +210,40 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
-  for (int blk_row = 0; blk_row < mvs_rows; ++blk_row) {
-    for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
-      const MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_stride + blk_col];
+  const int start_mvs_rows =
+      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
+  const int start_mvs_cols =
+      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
+  (void)mvs_rows;
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+  uint32_t scaled_blk_col_hr_0 = 0;
+  uint32_t scaled_blk_col_hr_step = 0;
+  uint32_t scaled_blk_col_hr = 0;
+  uint32_t scaled_blk_row_hr_0 = 0;
+  uint32_t scaled_blk_row_hr_step = 0;
+  uint32_t scaled_blk_row_hr = 0;
+  if (is_scaled) {
+    scaled_blk_col_hr_0 =
+        (uint32_t)sf->x_scale_fp * 4;  // center of first block
+    scaled_blk_col_hr_step = (uint32_t)sf->x_scale_fp * 8;  // step
+    scaled_blk_row_hr_0 =
+        (uint32_t)sf->y_scale_fp * 4;  // center of first block
+    scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
+    scaled_blk_row_hr = scaled_blk_row_hr_0;
+  }
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+  for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
+    int scaled_blk_row = blk_row;
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+    if (is_scaled) {
+      scaled_blk_col_hr = scaled_blk_col_hr_0;
+      scaled_blk_row =
+          ROUND_POWER_OF_TWO(scaled_blk_row_hr, REF_SCALE_SHIFT + 3);
+      scaled_blk_row = AOMMIN(scaled_blk_row, mvs_rows - 1);
+    }
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+    for (int blk_col = 0; blk_col < start_mvs_cols; ++blk_col) {
+      const MV_REF *mv_ref = &mv_ref_base[blk_row * start_mvs_cols + blk_col];
       MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                           mv_ref->ref_frame[1] };
       for (int idx = 0; idx < 2; ++idx) {
@@ -210,14 +251,27 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
           const int ref_frame_order_hint = ref_order_hints[ref_frame[idx]];
           if (ref_frame_order_hint == target_order_hint) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+            int scaled_blk_col = blk_col;
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+            if (is_scaled) {
+              scaled_blk_col =
+                  ROUND_POWER_OF_TWO(scaled_blk_col_hr, REF_SCALE_SHIFT + 3);
+              scaled_blk_col = AOMMIN(scaled_blk_col, mvs_cols - 1);
+              ref_mv.row = sf->scale_value_y_gen(ref_mv.row, sf);
+              ref_mv.col = sf->scale_value_x_gen(ref_mv.col, sf);
+            }
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
             int_mv this_mv;
             int mi_r = 0;
             int mi_c = 0;
             tip_get_mv_projection(&this_mv.as_mv, ref_mv,
                                   temporal_scale_factor);
-            const int pos_valid = get_block_position(cm, &mi_r, &mi_c, blk_row,
-                                                     blk_col, this_mv.as_mv, 0);
+            const int pos_valid =
+                get_block_position(cm, &mi_r, &mi_c, scaled_blk_row,
+                                   scaled_blk_col, this_mv.as_mv, 0);
             if (pos_valid) {
+              assert(mi_r < mvs_rows);
+              assert(mi_c < mvs_cols);
               if (is_backward) {
                 ref_mv.row = -ref_mv.row;
                 ref_mv.col = -ref_mv.col;
@@ -233,7 +287,13 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
           }
         }
       }
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+      if (is_scaled) scaled_blk_col_hr += scaled_blk_col_hr_step;
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
     }
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+    if (is_scaled) scaled_blk_row_hr += scaled_blk_row_hr_step;
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
   }
 
   return 1;
@@ -546,8 +606,13 @@ static void tip_motion_field_within_frame(AV1_COMMON *cm) {
   assert(mvs_rows * mvs_stride <= cm->tpl_mvs_mem_size);
   av1_zero_array(cm->tip_ref.mf_need_clamp, mvs_rows * mvs_stride);
 
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+  const int width = cm->width;
+  const int height = cm->height;
+#else
   const int width = (mvs_cols << TMVP_MI_SZ_LOG2);
   const int height = (mvs_rows << TMVP_MI_SZ_LOG2);
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   int *mf_need_clamp = cm->tip_ref.mf_need_clamp;
   for (int i = 0; i < mvs_rows; i++) {

@@ -333,6 +333,9 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
 #if CONFIG_COMPOUND_4XN
         mbmi->sb_type[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+        xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
         comp_idx_to_opfl_mode[comp_mode_idx]);
     const int allow_affine = is_affine_refinement_allowed(
         cm, xd, comp_idx_to_opfl_mode[comp_mode_idx]);
