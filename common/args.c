@@ -131,7 +131,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_cdef);
     GET_PARAMS(enable_restoration);
     GET_PARAMS(enable_ccso);
-    GET_PARAMS(enable_pef);
 #if CONFIG_LF_SUB_PU
     GET_PARAMS(enable_lf_sub_pu);
 #endif  // CONFIG_LF_SUB_PU

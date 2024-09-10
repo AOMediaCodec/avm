@@ -412,7 +412,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
-  seq->enable_pef = tool_cfg->enable_pef;
 #if CONFIG_LF_SUB_PU
   seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
@@ -3066,49 +3065,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
     }
 #endif  // CONFIG_LF_SUB_PU
 
-    if (cm->seq_params.enable_pef && cm->features.allow_pef) {
-#if CONFIG_TIP_IMPLICIT_QUANT
-      const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
-      const int v_ac_delta_q_backup = cm->quant_params.v_ac_delta_q;
-      const int base_qindex_backup = cm->quant_params.base_qindex;
-      if (cm->seq_params.enable_tip_explicit_qp == 0) {
-        const int avg_u_ac_delta_q =
-            (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
-             cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
-            1;
-        const int avg_v_ac_delta_q =
-            (cm->tip_ref.ref_frame_buffer[0]->v_ac_delta_q +
-             cm->tip_ref.ref_frame_buffer[1]->v_ac_delta_q + 1) >>
-            1;
-        const int avg_base_qindex =
-            (cm->tip_ref.ref_frame_buffer[0]->base_qindex +
-             cm->tip_ref.ref_frame_buffer[1]->base_qindex + 1) >>
-            1;
-        cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
-            avg_u_ac_delta_q;
-        cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
-            avg_v_ac_delta_q;
-        cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
-            avg_base_qindex;
-        init_pef_parameter(cm, 0, av1_num_planes(cm));
-      }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
-      enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
-#if CONFIG_TIP_IMPLICIT_QUANT
-      if (cm->seq_params.enable_tip_explicit_qp == 0) {
-        cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
-            u_ac_delta_q_backup;
-        cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
-            v_ac_delta_q_backup;
-        cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
-            base_qindex_backup;
-      }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
-#if CONFIG_TIP_DIRECT_FRAME_MV
-      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
-    }
-
     // Compute sse and rate.
     YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
 #if CONFIG_TIP_DIRECT_FRAME_MV
@@ -3146,8 +3102,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         cm->tip_global_motion.as_int = ref_mv.as_int;
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av1_enc_calc_subpel_params);
-        if (cm->seq_params.enable_pef && cm->features.allow_pef)
-          enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
 #if CONFIG_LF_SUB_PU
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3189,8 +3143,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       cm->tip_interp_filter = interp_filter;
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                           av1_enc_calc_subpel_params);
-      if (cm->seq_params.enable_pef && cm->features.allow_pef)
-        enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
         loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3296,10 +3248,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av1_enc_calc_subpel_params);
-    if (cm->seq_params.enable_pef && cm->features.allow_pef) {
-      enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
-      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
-    }
 #if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));

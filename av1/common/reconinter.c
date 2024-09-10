@@ -4687,30 +4687,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                                   mi_x, mi_y, ref, mc_buf,
                                   calc_subpel_params_func);
   }
-
-#if CONFIG_AFFINE_REFINEMENT
-  const int apply_pef_opfl =
-      (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
-      (damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
-                            opfl_sub_bh) &&
-       use_affine_opfl);
-#endif  // CONFIG_AFFINE_REFINEMENT
-  if (use_optflow_refinement && plane == 0 && !tip_ref_frame) {
-    enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh, mv_refined_sb,
-                       use_optflow_refinement
-#if CONFIG_AFFINE_REFINEMENT
-                           && apply_pef_opfl
-#endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_REFINEMV
-                       ,
-                       0, NULL
-#endif  // CONFIG_REFINEMV
-#if CONFIG_EXT_WARP_FILTER
-                       ,
-                       false
-#endif  // CONFIG_EXT_WARP_FILTER
-    );
-  }
 }
 #endif  // CONFIG_REFINEMV
 
@@ -5288,46 +5264,6 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 #endif  // CONFIG_REFINEMV
                                           &ext_warp_used, xd->mv_refined);
   }
-  int apply_sub_block_refinemv =
-      !tip_ref_frame && is_sub_block_refinemv_enabled(cm, mi, build_for_obmc,
-                                                      plane, tip_ref_frame);
-  int use_optflow_refinement =
-      !tip_ref_frame && !apply_sub_block_refinemv &&
-      is_optflow_refinement_enabled(cm,
-#if CONFIG_COMPOUND_4XN
-                                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                    mi, plane, tip_ref_frame);
-  int use_4x4 = tip_ref_frame ? 0 : 1;
-
-  int opfl_sub_bw = OF_BSIZE;
-  int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane,
-#if CONFIG_OPTFLOW_ON_TIP
-                           use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                           &opfl_sub_bw, &opfl_sub_bh);
-
-#if CONFIG_AFFINE_REFINEMENT
-  const int apply_pef_opfl =
-      (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
-      damr_refine_subblock(plane, bw, bh, mi->comp_refine_type, opfl_sub_bw,
-                           opfl_sub_bh);
-#endif  // CONFIG_AFFINE_REFINEMENT
-  enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh, xd->mv_refined,
-                     use_optflow_refinement
-#if CONFIG_AFFINE_REFINEMENT
-                         && apply_pef_opfl
-#endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_REFINEMV
-                     ,
-                     apply_sub_block_refinemv, &xd->refinemv_subinfo[0]
-#endif  // CONFIG_REFINEMV
-#if CONFIG_EXT_WARP_FILTER
-                     ,
-                     ext_warp_used
-#endif  // CONFIG_EXT_WARP_FILTER
-  );
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,

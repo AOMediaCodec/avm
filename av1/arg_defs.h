@@ -136,7 +136,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_pc_wiener;
   arg_def_t enable_wiener_nonsep;
   arg_def_t enable_ccso;
-  arg_def_t enable_pef;
 #if CONFIG_LF_SUB_PU
   arg_def_t enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU

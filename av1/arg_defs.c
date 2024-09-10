@@ -354,9 +354,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "
                          "1: true)"),
-  .enable_pef = ARG_DEF(NULL, "enable-pef", 1,
-                        "Enable prediction enhancement filter (0: false "
-                        "1: true)"),
 #if CONFIG_LF_SUB_PU
   .enable_lf_sub_pu = ARG_DEF(NULL, "enable-lf-sub-pu", 1,
                               "Enable the deblocking filter on sub prediction "

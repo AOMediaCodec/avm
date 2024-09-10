@@ -452,10 +452,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ccso;
-  /*!\brief enable prediction enhancement filter
-   *
-   */
-  unsigned int enable_pef;
 #if CONFIG_LF_SUB_PU
   /*!\brief enable loop filter on sub-block
    *

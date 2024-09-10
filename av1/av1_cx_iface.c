@@ -73,7 +73,6 @@ struct av1_extracfg {
   unsigned int enable_pc_wiener;
   unsigned int enable_wiener_nonsep;
   unsigned int enable_ccso;
-  unsigned int enable_pef;
 #if CONFIG_LF_SUB_PU
   unsigned int enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
@@ -413,10 +412,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_wiener_nonsep
   1,                                         // enable_ccso
 #if CONFIG_LF_SUB_PU
-  0,  // enable_pef
-  1,  // enable_lf_sub_pu
-#else
-  1,                        // enable_pef
+  1,                            // enable_lf_sub_pu
 #endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
   0,                            // enable_obmc
@@ -963,7 +959,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
   cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
   cfg->enable_ccso = extra_cfg->enable_ccso;
-  cfg->enable_pef = extra_cfg->enable_pef;
 #if CONFIG_LF_SUB_PU
   cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
@@ -1089,7 +1084,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
   extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
   extra_cfg->enable_ccso = cfg->enable_ccso;
-  extra_cfg->enable_pef = cfg->enable_pef;
 #if CONFIG_LF_SUB_PU
   extra_cfg->enable_lf_sub_pu = cfg->enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
@@ -1398,16 +1392,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj |
        tool_cfg->enable_pc_wiener | tool_cfg->enable_wiener_nonsep);
   tool_cfg->enable_ccso = extra_cfg->enable_ccso;
-  tool_cfg->enable_pef = extra_cfg->enable_pef;
-  if (tool_cfg->enable_pef) {
-    if (cfg->g_lag_in_frames == 0) {
-      tool_cfg->enable_pef = 0;
-    }
-
-    if (cfg->kf_max_dist == 0) {
-      tool_cfg->enable_pef = 0;
-    }
-  }
 #if CONFIG_LF_SUB_PU
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   if (tool_cfg->enable_lf_sub_pu) {
@@ -3779,9 +3763,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ccso, argv,
                               err_string)) {
     extra_cfg.enable_ccso = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_pef, argv,
-                              err_string)) {
-    extra_cfg.enable_pef = arg_parse_int_helper(&arg, err_string);
 #if CONFIG_LF_SUB_PU
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_lf_sub_pu,
                               argv, err_string)) {
@@ -4477,8 +4458,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif  // CONFIG_DERIVED_MVD_SIGN
         1, 1,   1,   1, 1, 1, 1, 1, 1,
 #if CONFIG_LF_SUB_PU
-        0, 1,
-#else
         1,
 #endif  // CONFIG_LF_SUB_PU
         1, 1,

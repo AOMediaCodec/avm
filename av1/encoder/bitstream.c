@@ -5547,7 +5547,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #endif  // CONFIG_D071_IMP_MSK_BLD
   aom_wb_write_bit(wb, seq_params->enable_fsc);
   aom_wb_write_bit(wb, seq_params->enable_ccso);
-  aom_wb_write_bit(wb, seq_params->enable_pef);
 #if CONFIG_LF_SUB_PU
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
 #endif  // CONFIG_LF_SUB_PU
@@ -5555,8 +5554,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->enable_tip == 1 &&
 #if CONFIG_LF_SUB_PU
       seq_params->enable_lf_sub_pu
-#else
-      seq_params->enable_pef
 #endif  // CONFIG_LF_SUB_PU
   ) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
@@ -6112,12 +6109,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_bit(wb, features->allow_ref_frame_mvs);
       } else {
         assert(features->allow_ref_frame_mvs == 0);
-      }
-      if (cm->seq_params.enable_pef) {
-        aom_wb_write_bit(wb, features->allow_pef);
-        if (features->allow_pef) {
-          aom_wb_write_bit(wb, cm->pef_params.pef_delta - 1);
-        }
       }
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {

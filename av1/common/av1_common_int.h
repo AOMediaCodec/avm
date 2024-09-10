@@ -20,7 +20,6 @@
 #include "aom_util/aom_thread.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_loopfilter.h"
-#include "av1/common/pef.h"
 #include "av1/common/blockd.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
@@ -539,7 +538,6 @@ typedef struct SequenceHeader {
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
-  uint8_t enable_pef;          // To turn on/off prediction enhancement filter
 #if CONFIG_LF_SUB_PU
   uint8_t enable_lf_sub_pu;          // To turn on/off sub-block deblocking
 #endif                               // CONFIG_LF_SUB_PU
@@ -758,10 +756,6 @@ typedef struct {
    * Enables/disables hole fill for TIP
    */
   bool allow_tip_hole_fill;
-  /*!
-   * Enables/disables prediction enhancement filter
-   */
-  bool allow_pef;
 #if CONFIG_LF_SUB_PU
   /*!
    * Enables/disables loop filtering on sub block
@@ -1595,14 +1589,6 @@ typedef struct AV1Common {
   /**@{*/
   loop_filter_info_n lf_info; /*!< Loop filter info */
   struct loopfilter lf;       /*!< Loop filter parameters */
-  /**@}*/
-
-  /**
-   * \name Prediction enhancement filter parameters.
-   */
-  /**@{*/
-  PefInfo pef_info;     /*!< Prediction enhancement filter info*/
-  PefParams pef_params; /*!< Prediction enhancement filter parameters*/
   /**@}*/
 
   /**

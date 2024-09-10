@@ -1613,15 +1613,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
 
-  const int pef_qp_thr =
-      PEF_QTHR + (cm->seq_params.bit_depth - AOM_BITS_8) * PEF_BD_FACTOR;
-  if (!cm->seq_params.enable_pef || cm->quant_params.base_qindex < pef_qp_thr) {
-    cm->features.allow_pef = 0;
-  } else {
-    cm->features.allow_pef = 1;
-    cm->pef_params.pef_delta = PEF_DELTA;
-  }
-  if (cm->features.allow_pef) init_pef_parameter(cm, 0, av1_num_planes(cm));
 #if CONFIG_LF_SUB_PU
   const int sub_pu_qp_thr =
       SUB_PU_QTHR + (cm->seq_params.bit_depth - AOM_BITS_8) * SUB_PU_BD_FACTOR;

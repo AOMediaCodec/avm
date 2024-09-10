@@ -475,7 +475,6 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_affine_refine,
 #endif  // CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_ccso,
-  &g_av1_codec_arg_defs.enable_pef,
 #if CONFIG_LF_SUB_PU
   &g_av1_codec_arg_defs.enable_lf_sub_pu,
 #endif  // CONFIG_LF_SUB_PU
@@ -698,10 +697,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_wiener_nonsep = 1;
   config->enable_ccso = 1;
 #if CONFIG_LF_SUB_PU
-  config->enable_pef = 0;
   config->enable_lf_sub_pu = 1;
-#else
-  config->enable_pef = 1;
 #endif  // CONFIG_LF_SUB_PU
   config->enable_obmc = 0;
   config->enable_warped_motion = 1;
@@ -1639,8 +1635,6 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : AffineRefinement (%d)\n",
           encoder_cfg->enable_affine_refine);
 #endif  // CONFIG_AFFINE_REFINEMENT
-  fprintf(stdout, "                               : PEF (%d)\n",
-          encoder_cfg->enable_pef);
 
   fprintf(stdout,
           "Tool setting (Transform)       : Flip & IDT (%d), "
