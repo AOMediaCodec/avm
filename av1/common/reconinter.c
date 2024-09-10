@@ -4139,8 +4139,7 @@ static void get_ref_area_info(const MV *const src_mv,
                               int use_optflow_refinement,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                               uint16_t **pre, SubpelParams *subpel_params,
-                              int *src_stride, ReferenceArea *ref_area
-) {
+                              int *src_stride, ReferenceArea *ref_area) {
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -4466,7 +4465,7 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
 #if CONFIG_AFFINE_REFINEMENT
     if (apply_sub_block_refinemv && default_refinemv_modes(cm, mi))
 #else
-    if (apply_sub_block_refinemv && default_refinemv_modes(mi))
+      if (apply_sub_block_refinemv && default_refinemv_modes(mi))
 #endif  // CONFIG_AFFINE_REFINEMENT
       apply_sub_block_refinemv &=
           (mi->comp_group_idx == 0 &&
@@ -4524,7 +4523,7 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
 #if CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.interp_fltr = cm->tip_interp_filter;
 #else
-  mbmi.interp_fltr = EIGHTTAP_REGULAR;
+    mbmi.interp_fltr = EIGHTTAP_REGULAR;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi.use_intrabc[0] = 0;
@@ -4600,9 +4599,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   int is_global[2] = { 0, 0 };
   if (!tip_ref_frame) {
     for (int ref = 0; ref < 1 + is_compound; ++ref) {
-        const WarpedMotionParams *const wm =
-            &xd->global_motion[mi->ref_frame[ref]];
-        is_global[ref] = is_global_mv_block(mi, wm->wmtype);
+      const WarpedMotionParams *const wm =
+          &xd->global_motion[mi->ref_frame[ref]];
+      is_global[ref] = is_global_mv_block(mi, wm->wmtype);
     }
   }
 
@@ -4633,8 +4632,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     if (build_for_refine_mv_only) {
       return;
     }
-  }
-  else if (!tip_ref_frame) {
+  } else if (!tip_ref_frame) {
     best_mv_ref[0] = chroma_refined_mv[0];
     best_mv_ref[1] = chroma_refined_mv[1];
   }
@@ -5066,9 +5064,9 @@ static void build_inter_predictors_8x8_and_bigger(
   int is_global[2] = { 0, 0 };
   if (!tip_ref_frame) {
     for (int ref = 0; ref < 1 + is_compound; ++ref) {
-        const WarpedMotionParams *const wm =
-            &xd->global_motion[mi->ref_frame[ref]];
-        is_global[ref] = is_global_mv_block(mi, wm->wmtype);
+      const WarpedMotionParams *const wm =
+          &xd->global_motion[mi->ref_frame[ref]];
+      is_global[ref] = is_global_mv_block(mi, wm->wmtype);
     }
   }
 
@@ -5222,9 +5220,9 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_AFFINE_REFINEMENT_SB
       memcpy(xd->wm_params_sb, wms, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
 #elif CONFIG_AFFINE_REFINEMENT
-      // parameters derived are saved here and may be reused by chroma
-      mi->wm_params[0] = wms[0];
-      mi->wm_params[1] = wms[1];
+        // parameters derived are saved here and may be reused by chroma
+        mi->wm_params[0] = wms[0];
+        mi->wm_params[1] = wms[1];
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
     }
   }

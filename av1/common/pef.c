@@ -224,7 +224,7 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
     *diff_mv = (mv1y != mv2y || mv1x != mv2x);
     return;
   }
-#endif  // CONFIG_AFFINE_REFINEMENT
+#endif                                   // CONFIG_AFFINE_REFINEMENT
   if (pef_mode == 0 || pef_mode == 1) {  // opfl mv || refined tip mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[offset];
     const int_mv *cur_mv_refined_ref1 = &mv_refined[offset + 1];
