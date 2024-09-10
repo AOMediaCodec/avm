@@ -1201,7 +1201,6 @@ static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
   output->col = (int16_t)clamp(mv_col, clamp_min, clamp_max);
 }
 
-#if CONFIG_TIP_REF_PRED_MERGING
 // Compute TMVP unit offset related to block mv
 static AOM_INLINE int derive_block_mv_tpl_offset(const AV1_COMMON *const cm,
                                                  const MV *mv,
@@ -1232,48 +1231,14 @@ static AOM_INLINE int derive_block_mv_tpl_offset(const AV1_COMMON *const cm,
 
   return tpl_offset;
 }
-#else
-// Convert motion vector to fullpel and clamp the fullpel mv if it is outside
-// of frame boundary
-static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
-                                              const MV *mv, const int blk_row,
-                                              const int blk_col) {
-  const int y_width = cm->tip_ref.ref_frame_buffer[0]->buf.y_width;
-  const int y_height = cm->tip_ref.ref_frame_buffer[0]->buf.y_height;
-
-  FULLPEL_MV fullmv;
-  fullmv = get_fullmv_from_mv(mv);
-  if (fullmv.row + ((blk_row + 1) << TMVP_MI_SZ_LOG2) > y_height) {
-    fullmv.row = y_height - ((blk_row + 1) << TMVP_MI_SZ_LOG2);
-  } else if (fullmv.row + (blk_row << TMVP_MI_SZ_LOG2) < 0) {
-    fullmv.row = -(blk_row << TMVP_MI_SZ_LOG2);
-  }
-
-  if (fullmv.col + ((blk_col + 1) << TMVP_MI_SZ_LOG2) > y_width) {
-    fullmv.col = y_width - ((blk_col + 1) << TMVP_MI_SZ_LOG2);
-  } else if (fullmv.col + (blk_col << TMVP_MI_SZ_LOG2) < 0) {
-    fullmv.col = -(blk_col << TMVP_MI_SZ_LOG2);
-  }
-
-  return fullmv;
-}
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 
 static AOM_INLINE void get_tip_mv(const AV1_COMMON *cm, const MV *block_mv,
                                   int blk_col, int blk_row, int_mv tip_mv[2]) {
   const int mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
-#if CONFIG_TIP_REF_PRED_MERGING
   const int blk_to_tip_frame_offset =
       derive_block_mv_tpl_offset(cm, block_mv, blk_row, blk_col);
-#else
-  const FULLPEL_MV blk_fullmv =
-      clamp_tip_fullmv(cm, block_mv, blk_row, blk_col);
-  const int blk_to_tip_frame_offset =
-      (blk_fullmv.row >> TMVP_MI_SZ_LOG2) * mvs_stride +
-      (blk_fullmv.col >> TMVP_MI_SZ_LOG2);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
   const int tpl_offset =
       blk_row * mvs_stride + blk_col + blk_to_tip_frame_offset;
   const TPL_MV_REF *tpl_mvs = cm->tpl_mvs + tpl_offset;

@@ -144,10 +144,6 @@ static INLINE void dec_init_tip_ref_frame(AV1_COMMON *const cm) {
 }
 
 static INLINE void dec_free_tip_ref_frame(AV1_COMMON *const cm) {
-#if !CONFIG_TIP_REF_PRED_MERGING
-  aom_free(cm->tip_ref.available_flag);
-  cm->tip_ref.available_flag = NULL;
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
   aom_free(cm->tip_ref.mf_need_clamp);
   cm->tip_ref.mf_need_clamp = NULL;
 

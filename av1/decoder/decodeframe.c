@@ -906,210 +906,12 @@ static void dec_calc_subpel_params_and_extend(
                    inter_pred_params->is_intrabc, mc_buf[ref], pre, src_stride);
 }
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-#if !CONFIG_REFINEMV
-static AOM_INLINE void tip_dec_calc_subpel_params(
-    const MV *const src_mv, InterPredParams *const inter_pred_params, int mi_x,
-    int mi_y, uint16_t **pre, SubpelParams *subpel_params, int *src_stride,
-    PadBlock *block,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
-  const struct scale_factors *sf = inter_pred_params->scale_factors;
-  struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
-
-#if CONFIG_REFINEMV
-  const int bw = inter_pred_params->original_pu_width;
-  const int bh = inter_pred_params->original_pu_height;
-#else
-#if CONFIG_OPTFLOW_REFINEMENT
-  // Use original block size to clamp MV and to extend block boundary
-  const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
-                                        : inter_pred_params->block_width;
-  const int bh = use_optflow_refinement ? inter_pred_params->orig_block_height
-                                        : inter_pred_params->block_height;
-#else
-  const int bw = inter_pred_params->block_width;
-  const int bh = inter_pred_params->block_height;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#endif  // CONFIG_REFINEMV
-
-  const int is_scaled = av1_is_scaled(sf);
-  if (is_scaled) {
-    const int ssx = inter_pred_params->subsampling_x;
-    const int ssy = inter_pred_params->subsampling_y;
-    int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-    int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-#if CONFIG_OPTFLOW_REFINEMENT
-    if (use_optflow_refinement) {
-      orig_pos_y += ROUND_POWER_OF_TWO_SIGNED(src_mv->row * (1 << SUBPEL_BITS),
-                                              MV_REFINE_PREC_BITS + ssy);
-      orig_pos_x += ROUND_POWER_OF_TWO_SIGNED(src_mv->col * (1 << SUBPEL_BITS),
-                                              MV_REFINE_PREC_BITS + ssx);
-    } else {
-      orig_pos_y += src_mv->row * (1 << (1 - ssy));
-      orig_pos_x += src_mv->col * (1 << (1 - ssx));
-    }
-#else
-    orig_pos_y += src_mv->row * (1 << (1 - ssy));
-    orig_pos_x += src_mv->col * (1 << (1 - ssx));
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    int pos_y = sf->scale_value_y(orig_pos_y, sf);
-    int pos_x = sf->scale_value_x(orig_pos_x, sf);
-    pos_x += SCALE_EXTRA_OFF;
-    pos_y += SCALE_EXTRA_OFF;
-
-    const int top = -AOM_LEFT_TOP_MARGIN_SCALED(ssy);
-    const int left = -AOM_LEFT_TOP_MARGIN_SCALED(ssx);
-    const int bottom = (pre_buf->height + AOM_INTERP_EXTEND)
-                       << SCALE_SUBPEL_BITS;
-    const int right = (pre_buf->width + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
-    pos_y = clamp(pos_y, top, bottom);
-    pos_x = clamp(pos_x, left, right);
-
-    subpel_params->subpel_x = pos_x & SCALE_SUBPEL_MASK;
-    subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
-    subpel_params->xs = sf->x_step_q4;
-    subpel_params->ys = sf->y_step_q4;
-
-    // Get reference block top left coordinate.
-    block->x0 = pos_x >> SCALE_SUBPEL_BITS;
-    block->y0 = pos_y >> SCALE_SUBPEL_BITS;
-
-    // Get reference block bottom right coordinate.
-#if CONFIG_D071_IMP_MSK_BLD
-    block->x1 =
-        ((pos_x + (inter_pred_params->block_width - 1) * subpel_params->xs) >>
-         SCALE_SUBPEL_BITS) +
-        1;
-    block->y1 =
-        ((pos_y + (inter_pred_params->block_height - 1) * subpel_params->ys) >>
-         SCALE_SUBPEL_BITS) +
-        1;
-#else
-    block->x1 =
-        ((pos_x + (bw - 1) * subpel_params->xs) >> SCALE_SUBPEL_BITS) + 1;
-    block->y1 =
-        ((pos_y + (bh - 1) * subpel_params->ys) >> SCALE_SUBPEL_BITS) + 1;
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
-    MV temp_mv;
-    temp_mv = tip_clamp_mv_to_umv_border_sb(inter_pred_params, src_mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-                                            use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                                            inter_pred_params->subsampling_x,
-                                            inter_pred_params->subsampling_y);
-    *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf);
-    scaled_mv->row += SCALE_EXTRA_OFF;
-    scaled_mv->col += SCALE_EXTRA_OFF;
-
-    *subpel_x_mv = scaled_mv->col & SCALE_SUBPEL_MASK;
-    *subpel_y_mv = scaled_mv->row & SCALE_SUBPEL_MASK;
-  } else {
-    // Get block position in current frame.
-    int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-    int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-
-    const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
-        inter_pred_params, src_mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
-    subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
-    subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
-    subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
-
-    // Get reference block top left coordinate.
-    pos_x += mv_q4.col;
-    pos_y += mv_q4.row;
-    pos_x = (pos_x >> SUBPEL_BITS);
-    pos_y = (pos_y >> SUBPEL_BITS);
-    block->x0 = pos_x;
-    block->y0 = pos_y;
-
-    // Get reference block bottom right coordinate.
-#if CONFIG_D071_IMP_MSK_BLD
-    block->x1 = pos_x + inter_pred_params->block_width;
-    block->y1 = pos_y + inter_pred_params->block_height;
-#else
-    block->x1 = pos_x + bw;
-    block->y1 = pos_y + bh;
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
-    scaled_mv->row = mv_q4.row;
-    scaled_mv->col = mv_q4.col;
-    *subpel_x_mv = scaled_mv->col & SUBPEL_MASK;
-    *subpel_y_mv = scaled_mv->row & SUBPEL_MASK;
-  }
-  *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
-  *src_stride = pre_buf->stride;
-
-#if CONFIG_D071_IMP_MSK_BLD
-  if (inter_pred_params->border_data.enable_bacp) {
-    subpel_params->x0 = block->x0;
-    subpel_params->x1 = block->x1;
-    subpel_params->y0 = block->y0;
-    subpel_params->y1 = block->y1;
-  }
-#endif  // CONFIG_D071_IMP_MSK_BLD
-}
-#endif
-static void tip_dec_calc_subpel_params_and_extend(
-    const MV *const src_mv, InterPredParams *const inter_pred_params,
-    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
-    int *src_stride) {
-
-#if CONFIG_REFINEMV
-  if (inter_pred_params->use_ref_padding) {
-    // printf(" used pading in the decoder \n");
-    tip_common_calc_subpel_params_and_extend(
-        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-        mc_buf, pre, subpel_params, src_stride);
-    return;
-  }
-#else
-
-  (void)xd;
-#endif  // CONFIG_REFINEMV
-  PadBlock block;
-  MV32 scaled_mv;
-  int subpel_x_mv, subpel_y_mv;
-  tip_dec_calc_subpel_params(src_mv, inter_pred_params, mi_x, mi_y, pre,
-                             subpel_params, src_stride, &block,
-#if CONFIG_OPTFLOW_REFINEMENT
-                             use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                             &scaled_mv, &subpel_x_mv, &subpel_y_mv);
-  extend_mc_border(inter_pred_params->scale_factors,
-                   &inter_pred_params->ref_frame_buf, scaled_mv, block,
-                   subpel_x_mv, subpel_y_mv,
-                   inter_pred_params->mode == WARP_PRED,
-                   inter_pred_params->is_intrabc, mc_buf[ref], pre, src_stride);
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-
 static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     uint16_t **mc_buf,
                                     CONV_BUF_TYPE *tmp_conv_dst) {
   av1_setup_tip_motion_field(cm, 0);
-
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
-#if CONFIG_TIP_REF_PRED_MERGING
-                      dec_calc_subpel_params_and_extend
-#else
-                      tip_dec_calc_subpel_params_and_extend
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-  );
+                      dec_calc_subpel_params_and_extend);
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (cm->seq_params.enable_tip_explicit_qp == 0) {
     const int avg_u_ac_delta_q =
@@ -1148,89 +950,6 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_LF_SUB_PU
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
-
-#if !CONFIG_TIP_REF_PRED_MERGING
-static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
-                                   uint16_t **mc_buf, CONV_BUF_TYPE *conv_dst) {
-  const MV *mv = &xd->mi[0]->mv[0].as_mv;
-  const int mvs_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-  const int mvs_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int extra_pixel = 1 << TMVP_MI_SZ_LOG2;
-
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  const int x_inside_boundary = xd->width;
-  const int y_inside_boundary = xd->height;
-
-  // define the block start and end pixel locations
-  FULLPEL_MV start_mv = get_fullmv_from_mv(mv);
-  const int bw = (x_inside_boundary << MI_SIZE_LOG2);
-  const int bh = (y_inside_boundary << MI_SIZE_LOG2);
-  int start_pixel_row = (mi_row << MI_SIZE_LOG2) + start_mv.row;
-  int start_pixel_col = (mi_col << MI_SIZE_LOG2) + start_mv.col;
-  int end_pixel_row = start_pixel_row + bh;
-  int end_pixel_col = start_pixel_col + bw;
-
-  // extend for handling interpolation
-  if (mv->row != 0) {
-    start_pixel_row -= extra_pixel;
-    end_pixel_row += extra_pixel;
-  }
-
-  if (mv->col != 0) {
-    start_pixel_col -= extra_pixel;
-    end_pixel_col += extra_pixel;
-  }
-
-  // clamp block start and end locations to make sure the block is in the
-  // frame
-  start_pixel_row = AOMMAX(0, start_pixel_row);
-  start_pixel_col = AOMMAX(0, start_pixel_col);
-  end_pixel_row = AOMMAX(0, end_pixel_row);
-  end_pixel_col = AOMMAX(0, end_pixel_col);
-  start_pixel_row = AOMMIN(cm->mi_params.mi_rows * MI_SIZE, start_pixel_row);
-  start_pixel_col = AOMMIN(cm->mi_params.mi_cols * MI_SIZE, start_pixel_col);
-  end_pixel_row = AOMMIN(cm->mi_params.mi_rows * MI_SIZE, end_pixel_row);
-  end_pixel_col = AOMMIN(cm->mi_params.mi_cols * MI_SIZE, end_pixel_col);
-
-  // convert the pixel block location to MV field grid location
-  int tpl_start_row = start_pixel_row >> TMVP_MI_SZ_LOG2;
-  int tpl_end_row = (end_pixel_row + TMVP_MI_SIZE - 1) >> TMVP_MI_SZ_LOG2;
-  int tpl_start_col = start_pixel_col >> TMVP_MI_SZ_LOG2;
-  int tpl_end_col = (end_pixel_col + TMVP_MI_SIZE - 1) >> TMVP_MI_SZ_LOG2;
-
-  // handling the boundary case when start and end locations are the same
-  if (tpl_start_row == tpl_end_row) {
-    if (tpl_start_row > 0) {
-      tpl_start_row -= 1;
-    } else {
-      tpl_end_row += 1;
-    }
-  }
-
-  if (tpl_start_col == tpl_end_col) {
-    if (tpl_start_col > 0) {
-      tpl_start_col -= 1;
-    } else {
-      tpl_end_col += 1;
-    }
-  }
-
-  // handle SIMD alignment for the chroma case
-  tpl_start_row = (tpl_start_row >> 1) << 1;
-  tpl_start_col = (tpl_start_col >> 1) << 1;
-  tpl_end_row = ((tpl_end_row + 1) >> 1) << 1;
-  tpl_end_col = ((tpl_end_col + 1) >> 1) << 1;
-  tpl_end_row = AOMMIN(mvs_rows, tpl_end_row);
-  tpl_end_col = AOMMIN(mvs_cols, tpl_end_col);
-
-  av1_setup_tip_on_the_fly(cm, xd, tpl_start_row, tpl_start_col, tpl_end_row,
-                           tpl_end_col, mvs_cols, mc_buf, conv_dst,
-                           tip_dec_calc_subpel_params_and_extend);
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
                                          DecoderCodingBlock *dcb, int mi_row,
@@ -1276,12 +995,6 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 #if CONFIG_EXT_RECUR_PARTITIONS
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_TIP_REF_PRED_MERGING
-  if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF &&
-      is_tip_ref_frame(xd->mi[0]->ref_frame[0])) {
-    av1_dec_tip_on_the_fly(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
-  }
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 }
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
@@ -1541,25 +1254,17 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-#if CONFIG_TIP_REF_PRED_MERGING
   const int is_compound =
       has_second_ref(mbmi) || is_tip_ref_frame(mbmi->ref_frame[0]);
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
-#else
-  for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#endif
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame == INTRA_FRAME) {
       assert(is_intrabc_block(mbmi, xd->tree_type));
       assert(ref == 0);
     } else {
-#if CONFIG_TIP_REF_PRED_MERGING
       const RefCntBuffer *ref_buf = is_tip_ref_frame(mbmi->ref_frame[0])
                                         ? cm->tip_ref.ref_frame_buffer[ref]
                                         : get_ref_frame_buf(cm, frame);
-#else
-      const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
-#endif
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, frame);
 
@@ -8474,13 +8179,6 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 #endif  // !CONFIG_TIP_DIRECT_FRAME_MV
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
-#if !CONFIG_TIP_REF_PRED_MERGING
-      const int mvs_rows =
-          ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-      const int mvs_cols =
-          ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-      av1_zero_array(cm->tip_ref.available_flag, mvs_rows * mvs_cols);
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
     }
   }
 

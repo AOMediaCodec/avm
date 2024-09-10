@@ -1313,141 +1313,6 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-AOM_INLINE void av1_tip_enc_calc_subpel_params(
-    const MV *const src_mv, InterPredParams *const inter_pred_params,
-    MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
-    int *src_stride) {
-
-#if CONFIG_REFINEMV
-  if (inter_pred_params->use_ref_padding) {
-    tip_common_calc_subpel_params_and_extend(
-        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-        mc_buf, pre, subpel_params, src_stride);
-    return;
-  }
-#endif  // CONFIG_REFINEMV
-
-  // These are part of the function signature to use this function through a
-  // function pointer. See typedef of 'CalcSubpelParamsFunc'.
-  (void)xd;
-  (void)mi_x;
-  (void)mi_y;
-  (void)ref;
-  (void)mc_buf;
-
-  const struct scale_factors *sf = inter_pred_params->scale_factors;
-  struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
-  const int is_scaled = av1_is_scaled(sf);
-  if (is_scaled) {
-    const int ssx = inter_pred_params->subsampling_x;
-    const int ssy = inter_pred_params->subsampling_y;
-    int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-    int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-#if CONFIG_OPTFLOW_REFINEMENT
-    if (use_optflow_refinement) {
-      orig_pos_y += ROUND_POWER_OF_TWO_SIGNED(src_mv->row * (1 << SUBPEL_BITS),
-                                              MV_REFINE_PREC_BITS + ssy);
-      orig_pos_x += ROUND_POWER_OF_TWO_SIGNED(src_mv->col * (1 << SUBPEL_BITS),
-                                              MV_REFINE_PREC_BITS + ssx);
-    } else {
-      orig_pos_y += src_mv->row * (1 << (1 - ssy));
-      orig_pos_x += src_mv->col * (1 << (1 - ssx));
-    }
-#else
-    orig_pos_y += src_mv->row * (1 << (1 - ssy));
-    orig_pos_x += src_mv->col * (1 << (1 - ssx));
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    int pos_y = sf->scale_value_y(orig_pos_y, sf);
-    int pos_x = sf->scale_value_x(orig_pos_x, sf);
-    pos_x += SCALE_EXTRA_OFF;
-    pos_y += SCALE_EXTRA_OFF;
-
-    const int top = -AOM_LEFT_TOP_MARGIN_SCALED(ssy);
-    const int left = -AOM_LEFT_TOP_MARGIN_SCALED(ssx);
-    const int bottom = (pre_buf->height + AOM_INTERP_EXTEND)
-                       << SCALE_SUBPEL_BITS;
-    const int right = (pre_buf->width + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
-    pos_y = clamp(pos_y, top, bottom);
-    pos_x = clamp(pos_x, left, right);
-
-    subpel_params->subpel_x = pos_x & SCALE_SUBPEL_MASK;
-    subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
-    subpel_params->xs = sf->x_step_q4;
-    subpel_params->ys = sf->y_step_q4;
-
-#if CONFIG_D071_IMP_MSK_BLD
-    if (inter_pred_params->border_data.enable_bacp) {
-      // Get reference block top left coordinate.
-      subpel_params->x0 = pos_x >> SCALE_SUBPEL_BITS;
-      subpel_params->y0 = pos_y >> SCALE_SUBPEL_BITS;
-      // Get reference block bottom right coordinate.
-      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
-      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
-    }
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
-    *pre = pre_buf->buf0 + (pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
-           (pos_x >> SCALE_SUBPEL_BITS);
-  } else {
-    int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-    int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-
-#if CONFIG_REFINEMV
-    const int bw = inter_pred_params->original_pu_width;
-    const int bh = inter_pred_params->original_pu_height;
-
-#else
-#if CONFIG_OPTFLOW_REFINEMENT
-    // Use original block size to clamp MV and to extend block boundary
-    const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
-                                          : inter_pred_params->block_width;
-    const int bh = use_optflow_refinement ? inter_pred_params->orig_block_height
-                                          : inter_pred_params->block_height;
-#else
-    const int bw = inter_pred_params->block_width;
-    const int bh = inter_pred_params->block_height;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-#endif  // CONFIG_REFINEMV
-    const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
-        inter_pred_params, src_mv, bw, bh,
-#if CONFIG_OPTFLOW_REFINEMENT
-        use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
-
-    subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
-    subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
-    subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
-    pos_x += mv_q4.col;
-    pos_y += mv_q4.row;
-
-#if CONFIG_D071_IMP_MSK_BLD
-    if (inter_pred_params->border_data.enable_bacp) {
-      // Get reference block top left coordinate.
-      subpel_params->x0 = pos_x >> SUBPEL_BITS;
-      subpel_params->y0 = pos_y >> SUBPEL_BITS;
-      // Get reference block bottom right coordinate.
-      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
-      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
-    }
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
-    *pre = pre_buf->buf0 + (pos_y >> SUBPEL_BITS) * pre_buf->stride +
-           (pos_x >> SUBPEL_BITS);
-  }
-  *src_stride = pre_buf->stride;
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-
 static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
   AV1_COMMON *const cm = &cpi->common;
@@ -1467,15 +1332,8 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #if CONFIG_OPTFLOW_ON_TIP
         cm->features.use_optflow_tip = 1;
 #endif  // CONFIG_OPTFLOW_ON_TIP
-        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst
-#if CONFIG_TIP_REF_PRED_MERGING
-                            ,
-                            av1_enc_calc_subpel_params
-#else
-                            ,
-                            av1_tip_enc_calc_subpel_params
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-        );
+        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+                            av1_enc_calc_subpel_params);
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, av1_enc_setup_tip_frame_time);

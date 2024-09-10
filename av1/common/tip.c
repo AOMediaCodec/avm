@@ -19,10 +19,6 @@
 #include "av1/common/reconinter.h"
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPTFLOW_ON_TIP
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-// CHROMA_MI_SIZE is the block size in luma unit for Chroma TIP interpolation
-#define CHROMA_MI_SIZE (TMVP_MI_SIZE)
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 // Maximum block size is allowed to combine the blocks with same MV
 #define MAX_BLOCK_SIZE_WITH_SAME_MV \
   8  // Needs to be 8 when across scale
@@ -658,118 +654,6 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold) {
   }
 }
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-static AOM_INLINE void tip_highbd_convolve_2d_facade_compound(
-    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride,
-    const int w, const int h, const InterpFilterParams *interp_filters[2],
-    SubpelParams *subpel_params, ConvolveParams *conv_params, int bd) {
-  const int subpel_x_qn = subpel_params->subpel_x;
-  const int subpel_y_qn = subpel_params->subpel_y;
-  if (subpel_x_qn && subpel_y_qn) {
-    assert(subpel_x_qn && subpel_y_qn);
-    av1_highbd_dist_wtd_convolve_2d(src, src_stride, dst, dst_stride, w, h,
-                                    interp_filters[0], interp_filters[1],
-                                    subpel_x_qn, subpel_y_qn, conv_params, bd);
-  } else if (subpel_x_qn && !subpel_y_qn) {
-    av1_highbd_dist_wtd_convolve_x(src, src_stride, dst, dst_stride, w, h,
-                                   interp_filters[0], subpel_x_qn, conv_params,
-                                   bd);
-  } else if (!subpel_x_qn && subpel_y_qn) {
-    av1_highbd_dist_wtd_convolve_y(src, src_stride, dst, dst_stride, w, h,
-                                   interp_filters[1], subpel_y_qn, conv_params,
-                                   bd);
-  } else {
-    av1_highbd_dist_wtd_convolve_2d_copy(src, src_stride, dst, dst_stride, w, h,
-                                         conv_params, bd);
-  }
-}
-
-static AOM_INLINE void tip_highbd_inter_predictor(
-    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride,
-    SubpelParams *subpel_params, int w, int h, ConvolveParams *conv_params,
-    const InterpFilterParams *interp_filters[2], int bd) {
-  assert(conv_params->do_average == 0 || conv_params->do_average == 1);
-  const int is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
-  assert(conv_params->dst != NULL);
-  if (is_scaled) {
-    av1_highbd_convolve_2d_scale(
-        src, src_stride, dst, dst_stride, w, h, interp_filters[0],
-        interp_filters[1], subpel_params->subpel_x, subpel_params->xs,
-        subpel_params->subpel_y, subpel_params->ys, conv_params, bd);
-  } else {
-    revert_scale_extra_bits(subpel_params);
-    tip_highbd_convolve_2d_facade_compound(src, src_stride, dst, dst_stride, w,
-                                           h, interp_filters, subpel_params,
-                                           conv_params, bd);
-  }
-}
-
-#if !CONFIG_REFINEMV
-static AOM_INLINE
-#endif  //! CONFIG_REFINEMV
-    void
-    tip_build_one_inter_predictor(
-        uint16_t *dst, int dst_stride, const MV *const src_mv,
-        InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
-        int ref, uint16_t **mc_buf,
-        CalcSubpelParamsFunc calc_subpel_params_func) {
-  SubpelParams subpel_params;
-  uint16_t *src;
-  int src_stride;
-  calc_subpel_params_func(src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-                          0,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-                          mc_buf, &src, &subpel_params, &src_stride);
-
-#if CONFIG_D071_IMP_MSK_BLD
-  int use_bacp = 0;
-  int n_blocks = 0;
-  if (inter_pred_params->border_data.enable_bacp) {
-    const int sub_blk_idx = n_blocks * 2 + ref;
-    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].x0 =
-        subpel_params.x0;
-    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].x1 =
-        subpel_params.x1;
-    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].y0 =
-        subpel_params.y0;
-    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].y1 =
-        subpel_params.y1;
-    if (ref == 1) {
-      use_bacp = is_out_of_frame_block(
-          inter_pred_params, inter_pred_params->ref_frame_buf.width,
-          inter_pred_params->ref_frame_buf.height, n_blocks);
-
-      if (use_bacp && inter_pred_params->mask_comp.type == COMPOUND_AVERAGE) {
-        inter_pred_params->conv_params.do_average = 0;
-        inter_pred_params->comp_mode = MASK_COMP;
-        inter_pred_params->mask_comp.seg_mask = xd->seg_mask;
-      }
-    }
-  }
-
-  assert(IMPLIES(ref == 0, !use_bacp));
-
-  if (use_bacp) {
-    assert(inter_pred_params->comp_mode == MASK_COMP);
-    make_masked_inter_predictor(src, src_stride, dst, dst_stride,
-                                inter_pred_params, &subpel_params, use_bacp,
-                                n_blocks);
-
-  } else {
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
-    tip_highbd_inter_predictor(
-        src, src_stride, dst, dst_stride, &subpel_params,
-        inter_pred_params->block_width, inter_pred_params->block_height,
-        &inter_pred_params->conv_params,
-        inter_pred_params->interp_filter_params, inter_pred_params->bit_depth);
-#if CONFIG_D071_IMP_MSK_BLD
-  }
-#endif  // CONFIG_D071_IMP_MSK_BLD
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 #define MAKE_BFP_SAD_WRAPPER_COMMON8x8(fnname)                                \
   static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
@@ -897,13 +781,9 @@ MAKE_BFP_SAD_WRAPPER_COMMON8x8(aom_highbd_sad8x8)
 }
 // Build an 8x8 block in the TIP frame
 static AOM_INLINE void tip_build_inter_predictors_8x8(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
-#if !CONFIG_TIP_REF_PRED_MERGING
-    TIP_PLANE *tip_plane,
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-    const MV mv[2], int mi_x, int mi_y, uint16_t **mc_buf,
-    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
-    uint16_t *dst, int dst_stride
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MV mv[2], int mi_x,
+    int mi_y, uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
+    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride
 #if CONFIG_REFINEMV
     ,
     uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv,
@@ -916,10 +796,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   int bw = 8;
   int bh = 8;
-
-#if !CONFIG_TIP_REF_PRED_MERGING
-  TIP_PLANE *const tip = &tip_plane[plane];
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
   const int bd = cm->seq_params.bit_depth;
 
@@ -982,10 +858,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     dst_ref1 = &dst1_16_refinemv[0];
     mbmi->refinemv_flag = 1;
 
-    apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf,
-#if CONFIG_TIP_REF_PRED_MERGING
-                        mv,
-#endif  // CONFIG_TIP_REF_PRED_MERGING
+    apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf, mv,
                         calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
                         dst_ref0, dst_ref1, best_mv_ref, bw, bh);
   }
@@ -1078,11 +951,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   for (int ref = 0; ref < 2; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
-#if CONFIG_TIP_REF_PRED_MERGING
     struct buf_2d *const pred_buf = &xd->plane[plane].pre[ref];
-#else
-    struct buf_2d *const pred_buf = &tip->pred[ref];
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
@@ -1111,15 +980,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     inter_pred_params.mask_comp = mbmi->interinter_comp;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-    const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
-    const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);
-    inter_pred_params.dist_to_top_edge = -GET_MV_SUBPEL(mi_y);
-    inter_pred_params.dist_to_bottom_edge = GET_MV_SUBPEL(height - bh - mi_y);
-    inter_pred_params.dist_to_left_edge = -GET_MV_SUBPEL(mi_x);
-    inter_pred_params.dist_to_right_edge = GET_MV_SUBPEL(width - bw - mi_x);
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-
     inter_pred_params.conv_params =
         get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
 
@@ -1133,7 +993,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif  // CONFIG_AFFINE_REFINEMENT
           ref, mc_buf, calc_subpel_params_func, use_4x4);
     } else {
-#if CONFIG_TIP_REF_PRED_MERGING
       av1_build_one_inter_predictor(dst, dst_stride,
 #if CONFIG_REFINEMV
                                     &best_mv_ref[ref],
@@ -1142,16 +1001,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif  // CONFIG_REFINEMV
                                     &inter_pred_params, xd, mi_x, mi_y, ref,
                                     mc_buf, calc_subpel_params_func);
-#else
-      tip_build_one_inter_predictor(dst, dst_stride,
-#if CONFIG_REFINEMV
-                                    &best_mv_ref[ref],
-#else
-                                    &mv[ref],
-#endif  // CONFIG_REFINEMV
-                                    &inter_pred_params, xd, mi_x, mi_y, ref,
-                                    mc_buf, calc_subpel_params_func);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
     }
   }
 
@@ -1167,14 +1016,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   struct buf_2d *const dst_buf = &tip->dst;
   uint16_t *const dst = dst_buf->buf;
 
-#if CONFIG_TIP_REF_PRED_MERGING
   const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
   const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_y);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL(height - bh - mi_y);
   xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_x);
   xd->mb_to_right_edge = GET_MV_SUBPEL(width - bw - mi_x);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
@@ -1208,17 +1055,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
     mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#if CONFIG_TIP_REF_PRED_MERGING
     av1_get_reference_area_with_padding(cm, xd, plane, mbmi, mv, bw, bh, mi_x,
                                         mi_y, ref_area, bw, bh);
-#else
-    const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
-    const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
-    const int comp_pixel_x = (mi_x >> ss_x);
-    const int comp_pixel_y = (mi_y >> ss_y);
-    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
-                                        ref_area, comp_pixel_x, comp_pixel_y);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
     aom_free(mbmi);
   }
 #endif  // CONFIG_REFINEMV
@@ -1241,12 +1079,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
       dst_buf->buf = dst;
       return;
     }
-    tip_build_inter_predictors_8x8(cm, xd, plane,
-#if !CONFIG_TIP_REF_PRED_MERGING
-                                   tip_plane,
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-                                   mv, mi_x, mi_y, mc_buf, tmp_conv_dst,
-                                   calc_subpel_params_func, dst, dst_stride
+    tip_build_inter_predictors_8x8(cm, xd, plane, mv, mi_x, mi_y, mc_buf,
+                                   tmp_conv_dst, calc_subpel_params_func, dst,
+                                   dst_stride
 #if CONFIG_REFINEMV
                                    ,
                                    dst0_16_refinemv, dst1_16_refinemv, ref_area
@@ -1272,11 +1107,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
   for (int ref = 0; ref < 2; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
-#if CONFIG_TIP_REF_PRED_MERGING
     struct buf_2d *const pred_buf = &xd->plane[plane].pre[ref];
-#else
-    struct buf_2d *const pred_buf = &tip->pred[ref];
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
@@ -1300,27 +1131,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     inter_pred_params.mask_comp.type = COMPOUND_AVERAGE;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-#if !CONFIG_TIP_REF_PRED_MERGING
-    const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
-    const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);
-    inter_pred_params.dist_to_top_edge = -GET_MV_SUBPEL(mi_y);
-    inter_pred_params.dist_to_bottom_edge = GET_MV_SUBPEL(height - bh - mi_y);
-    inter_pred_params.dist_to_left_edge = -GET_MV_SUBPEL(mi_x);
-    inter_pred_params.dist_to_right_edge = GET_MV_SUBPEL(width - bw - mi_x);
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
-
     inter_pred_params.conv_params =
         get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
 
-#if CONFIG_TIP_REF_PRED_MERGING
     av1_build_one_inter_predictor(dst, dst_buf->stride, &mv[ref],
                                   &inter_pred_params, xd, mi_x, mi_y, ref,
                                   mc_buf, calc_subpel_params_func);
-#else
-    tip_build_one_inter_predictor(dst, dst_buf->stride, &mv[ref],
-                                  &inter_pred_params, xd, mi_x, mi_y, ref,
-                                  mc_buf, calc_subpel_params_func);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
   }
 }
 
@@ -1346,31 +1162,6 @@ static INLINE void tip_setup_pred_plane(struct buf_2d *dst, uint16_t *src,
   dst->height = height;
   dst->stride = stride;
 }
-
-#if !CONFIG_TIP_REF_PRED_MERGING
-static AOM_INLINE void tip_component_setup_pred_planes(AV1_COMMON *const cm,
-                                                       const int plane,
-                                                       const int tpl_row,
-                                                       const int tpl_col) {
-  TIP *tip_ref = &cm->tip_ref;
-  for (int ref = 0; ref < 2; ++ref) {
-    const YV12_BUFFER_CONFIG *ref_buf = &tip_ref->ref_frame_buffer[ref]->buf;
-    TIP_PLANE *const pd = &tip_ref->tip_plane[plane];
-    int is_uv = 0;
-    int subsampling_x = 0;
-    int subsampling_y = 0;
-    if (plane > 0) {
-      is_uv = 1;
-      subsampling_x = cm->seq_params.subsampling_x;
-      subsampling_y = cm->seq_params.subsampling_y;
-    }
-    tip_setup_pred_plane(
-        &pd->pred[ref], ref_buf->buffers[plane], ref_buf->crop_widths[is_uv],
-        ref_buf->crop_heights[is_uv], ref_buf->strides[is_uv], tpl_row, tpl_col,
-        tip_ref->ref_scale_factor[ref], subsampling_x, subsampling_y);
-  }
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 static AOM_INLINE void tip_component_setup_dst_planes(AV1_COMMON *const cm,
                                                       const int plane,
@@ -1449,13 +1240,10 @@ static void tip_setup_tip_frame_plane(
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
       }
 
-#if CONFIG_TIP_REF_PRED_MERGING
       setup_pred_planes_for_tip(&cm->tip_ref, xd, plane, plane + 1,
                                 tpl_col >> MI_SIZE_LOG2,
                                 tpl_row >> MI_SIZE_LOG2);
-#else
-      tip_component_setup_pred_planes(cm, plane, tpl_row, tpl_col);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
+
       tip_component_setup_dst_planes(cm, plane, tpl_row, tpl_col);
       tip_component_build_inter_predictors(
           cm, xd, plane, tip_ref->tip_plane, mv, blk_width, blk_height, tpl_col,
@@ -1476,21 +1264,12 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
                                 TMVP_MI_SIZE, MAX_BLOCK_SIZE_WITH_SAME_MV,
                                 mc_buf, tmp_conv_dst, calc_subpel_params_func);
     } else {
-#if CONFIG_TIP_REF_PRED_MERGING
       // TMVP_MI_SIZE_UV is the block size in luma unit for Chroma
       // TIP interpolation, will convert to the step size in TMVP 8x8 unit
       tip_setup_tip_frame_plane(cm, xd, plane, blk_row_start, blk_col_start,
                                 blk_row_end, blk_col_end, mvs_stride,
                                 TMVP_MI_SIZE_UV, MAX_BLOCK_SIZE_WITH_SAME_MV,
                                 mc_buf, tmp_conv_dst, calc_subpel_params_func);
-#else
-      // CHROMA_MI_SIZE is the block size in luma unit for Chroma
-      // TIP interpolation, will convert to the step size in TMVP 8x8 unit
-      tip_setup_tip_frame_plane(cm, xd, plane, blk_row_start, blk_col_start,
-                                blk_row_end, blk_col_end, mvs_stride,
-                                CHROMA_MI_SIZE, MAX_BLOCK_SIZE_WITH_SAME_MV,
-                                mc_buf, tmp_conv_dst, calc_subpel_params_func);
-#endif  // CONFIG_TIP_REF_PRED_MERGING
     }
   }
 
@@ -1507,231 +1286,6 @@ void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
   tip_setup_tip_frame_planes(cm, xd, 0, 0, mvs_rows, mvs_cols, mvs_cols, mc_buf,
                              tmp_conv_dst, calc_subpel_params_func);
 }
-
-#if !CONFIG_TIP_REF_PRED_MERGING
-static void tip_extend_plane_block_based_highbd(
-    uint16_t *const src, int src_stride, int width, int height, int extend_top,
-    int extend_left, int extend_bottom, int extend_right, int start_w,
-    int start_h, int blk_w, int blk_h) {
-  assert(src != NULL);
-  int i = 0;
-
-  if (extend_left) {
-    // copy the left most columns out
-    uint16_t *src_ptr = src + start_h * src_stride;
-    uint16_t *dst_ptr = src_ptr - extend_left;
-    for (i = 0; i < blk_h; ++i) {
-      aom_memset16(dst_ptr, src_ptr[0], extend_left);
-      src_ptr += src_stride;
-      dst_ptr += src_stride;
-    }
-  }
-
-  if (extend_right) {
-    // copy the right most columns out
-    uint16_t *src_ptr = src + start_h * src_stride + width - 1;
-    uint16_t *dst_ptr = src_ptr + 1;
-    for (i = 0; i < blk_h; ++i) {
-      aom_memset16(dst_ptr, src_ptr[0], extend_right);
-      src_ptr += src_stride;
-      dst_ptr += src_stride;
-    }
-  }
-
-  if (extend_top) {
-    // copy the top lines into each line of the respective borders
-    uint16_t *src_ptr = src + start_w - extend_left;
-    uint16_t *dst_ptr = src_ptr - src_stride * extend_top;
-    const int extend_size = extend_left + extend_right + blk_w;
-    for (i = 0; i < extend_top; ++i) {
-      memcpy(dst_ptr, src_ptr, extend_size * sizeof(uint16_t));
-      dst_ptr += src_stride;
-    }
-  }
-
-  if (extend_bottom) {
-    // copy the bottom lines into each line of the respective borders
-    uint16_t *src_ptr = src + src_stride * (height - 1) + start_w - extend_left;
-    uint16_t *dst_ptr = src_ptr + src_stride;
-    const int extend_size = extend_left + extend_right + blk_w;
-    for (i = 0; i < extend_bottom; ++i) {
-      memcpy(dst_ptr, src_ptr, extend_size * sizeof(uint16_t));
-      dst_ptr += src_stride;
-    }
-  }
-}
-
-static void tip_extend_plane_border(AV1_COMMON *cm, int blk_row_start,
-                                    int blk_col_start, int blk_height,
-                                    int blk_width) {
-  YV12_BUFFER_CONFIG *tip_buf = &cm->tip_ref.tip_frame->buf;
-  const int width = tip_buf->y_width;
-  const int height = tip_buf->y_height;
-
-  int top_border = 0;
-  int bottom_border = 0;
-  int left_border = 0;
-  int right_border = 0;
-  if (blk_row_start == 0) {
-    top_border = 1;
-  }
-
-  if (blk_row_start + blk_height >= height) {
-    bottom_border = 1;
-    blk_height = height - blk_row_start;
-  }
-
-  if (blk_col_start == 0) {
-    left_border = 1;
-  }
-
-  if (blk_col_start + blk_width >= width) {
-    right_border = 1;
-    blk_width = width - blk_col_start;
-  }
-
-  if (top_border || bottom_border || left_border || right_border) {
-    const int subsampling_x = cm->seq_params.subsampling_x;
-    const int subsampling_y = cm->seq_params.subsampling_y;
-    const int y_stride = tip_buf->y_stride;
-    const int uv_stride = tip_buf->uv_stride;
-    const int extend_border = tip_buf->border;
-    const int y_width = tip_buf->y_crop_width;
-    const int y_height = tip_buf->y_crop_height;
-    const int uv_width = tip_buf->uv_crop_width;
-    const int uv_height = tip_buf->uv_crop_height;
-    uint16_t *y_dst = tip_buf->y_buffer;
-    uint16_t *u_dst = tip_buf->u_buffer;
-    uint16_t *v_dst = tip_buf->v_buffer;
-
-    const int extend_top = top_border ? extend_border : 0;
-    const int extend_bottom = bottom_border ? extend_border : 0;
-    const int extend_left = left_border ? extend_border : 0;
-    const int extend_right = right_border ? extend_border : 0;
-
-    const int uv_extend_top = extend_top >> subsampling_y;
-    const int uv_extend_bottom = extend_bottom >> subsampling_y;
-    const int uv_extend_left = extend_left >> subsampling_x;
-    const int uv_extend_right = extend_right >> subsampling_x;
-
-    tip_extend_plane_block_based_highbd(y_dst, y_stride, y_width, y_height,
-                                        extend_top, extend_left, extend_bottom,
-                                        extend_right, blk_col_start,
-                                        blk_row_start, blk_width, blk_height);
-
-    blk_col_start >>= subsampling_x;
-    blk_row_start >>= subsampling_y;
-    blk_width >>= subsampling_x;
-    blk_height >>= subsampling_y;
-    tip_extend_plane_block_based_highbd(
-        u_dst, uv_stride, uv_width, uv_height, uv_extend_top, uv_extend_left,
-        uv_extend_bottom, uv_extend_right, blk_col_start, blk_row_start,
-        blk_width, blk_height);
-    tip_extend_plane_block_based_highbd(
-        v_dst, uv_stride, uv_width, uv_height, uv_extend_top, uv_extend_left,
-        uv_extend_bottom, uv_extend_right, blk_col_start, blk_row_start,
-        blk_width, blk_height);
-  }
-}
-
-static void tip_setup_tip_plane_blocks(
-    AV1_COMMON *cm, MACROBLOCKD *xd, int plane, int blk_row_start,
-    int blk_col_start, int blk_row_end, int blk_col_end, int mvs_stride,
-    int unit_blk_size, int max_allow_blk_size, uint16_t **mc_buf,
-    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func) {
-  TIP *tip_ref = &cm->tip_ref;
-  const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-
-  MV zero_mv[2];
-  memset(zero_mv, 0, sizeof(zero_mv));
-
-  const int step = (unit_blk_size >> TMVP_MI_SZ_LOG2);
-  for (int blk_row = blk_row_start; blk_row < blk_row_end; blk_row += step) {
-    for (int blk_col = blk_col_start; blk_col < blk_col_end; blk_col += step) {
-      const int tpl_offset = blk_row * mvs_stride + blk_col;
-      if (tip_ref->available_flag[tpl_offset]) continue;
-      const TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
-      const int tpl_row = blk_row << TMVP_MI_SZ_LOG2;
-      const int tpl_col = blk_col << TMVP_MI_SZ_LOG2;
-
-      int blk_width = unit_blk_size;
-      int blk_height = unit_blk_size;
-      int offset = step;
-      while (blk_col + offset < blk_col_end && blk_width < max_allow_blk_size &&
-             !tip_ref->available_flag[tpl_offset + offset] &&
-             tip_ref->mf_need_clamp[tpl_offset] ==
-                 tip_ref->mf_need_clamp[tpl_offset + offset] &&
-             tpl_mvs->mfmv0.as_int ==
-                 tpl_mvs_base[tpl_offset + offset].mfmv0.as_int) {
-        blk_width += unit_blk_size;
-        offset += step;
-      }
-      blk_col += (offset - step);
-
-      MV mv[2];
-      if (tpl_mvs->mfmv0.as_int != 0 && tpl_mvs->mfmv0.as_int != INVALID_MV) {
-        tip_get_mv_projection(&mv[0], tpl_mvs->mfmv0.as_mv,
-                              tip_ref->ref_frames_offset_sf[0]);
-        tip_get_mv_projection(&mv[1], tpl_mvs->mfmv0.as_mv,
-                              tip_ref->ref_frames_offset_sf[1]);
-      } else {
-        mv[0] = zero_mv[0];
-        mv[1] = zero_mv[1];
-      }
-
-      tip_component_setup_pred_planes(cm, plane, tpl_row, tpl_col);
-      tip_component_setup_dst_planes(cm, plane, tpl_row, tpl_col);
-      tip_component_build_inter_predictors(
-          cm, xd, plane, tip_ref->tip_plane, mv, blk_width, blk_height, tpl_col,
-          tpl_row, mc_buf, tmp_conv_dst, calc_subpel_params_func);
-    }
-  }
-}
-
-static AOM_INLINE void tip_setup_tip_planes_blocks(
-    AV1_COMMON *cm, MACROBLOCKD *xd, int blk_row_start, int blk_col_start,
-    int blk_row_end, int blk_col_end, int mvs_stride, uint16_t **mc_buf,
-    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func) {
-  const int num_planes = av1_num_planes(cm);
-  for (int plane = 0; plane < num_planes; ++plane) {
-    if (plane == 0) {
-      tip_setup_tip_plane_blocks(cm, xd, plane, blk_row_start, blk_col_start,
-                                 blk_row_end, blk_col_end, mvs_stride,
-                                 TMVP_MI_SIZE, MAX_BLOCK_SIZE_WITH_SAME_MV,
-                                 mc_buf, tmp_conv_dst, calc_subpel_params_func);
-    } else {
-      // CHROMA_MI_SIZE is the block size in luma unit for Chroma
-      // TIP interpolation, will convert to the step size in TMVP 8x8 unit
-      tip_setup_tip_plane_blocks(cm, xd, plane, blk_row_start, blk_col_start,
-                                 blk_row_end, blk_col_end, mvs_stride,
-                                 CHROMA_MI_SIZE, MAX_BLOCK_SIZE_WITH_SAME_MV,
-                                 mc_buf, tmp_conv_dst, calc_subpel_params_func);
-    }
-  }
-
-  const int step = (TMVP_MI_SIZE >> TMVP_MI_SZ_LOG2);
-  for (int blk_row = blk_row_start; blk_row < blk_row_end; blk_row += step) {
-    for (int blk_col = blk_col_start; blk_col < blk_col_end; blk_col += step) {
-      const int tpl_offset = blk_row * mvs_stride + blk_col;
-      cm->tip_ref.available_flag[tpl_offset] = 1;
-    }
-  }
-}
-
-void av1_setup_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
-                              int blk_row_start, int blk_col_start,
-                              int blk_row_end, int blk_col_end, int mvs_stride,
-                              uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
-                              CalcSubpelParamsFunc calc_subpel_params_func) {
-  tip_setup_tip_planes_blocks(cm, xd, blk_row_start, blk_col_start, blk_row_end,
-                              blk_col_end, mvs_stride, mc_buf, tmp_conv_dst,
-                              calc_subpel_params_func);
-  tip_extend_plane_border(cm, blk_row_start << TMVP_MI_SZ_LOG2,
-                          blk_col_start << TMVP_MI_SZ_LOG2,
-                          (blk_row_end - blk_row_start) << TMVP_MI_SZ_LOG2,
-                          (blk_col_end - blk_col_start) << TMVP_MI_SZ_LOG2);
-}
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
   MV_REF *frame_mvs = cm->cur_frame->mvs;

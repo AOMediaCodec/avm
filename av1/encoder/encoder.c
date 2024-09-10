@@ -3017,12 +3017,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-#if CONFIG_TIP_REF_PRED_MERGING
-                        av1_enc_calc_subpel_params
-#else
-                        av1_tip_enc_calc_subpel_params
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-    );
+                        av1_enc_calc_subpel_params);
 #endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
 #if !CONFIG_TIP_DIRECT_FRAME_MV
     av1_finalize_encoded_frame(cpi);
@@ -3160,12 +3155,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
         cm->tip_global_motion.as_int = ref_mv.as_int;
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-#if CONFIG_TIP_REF_PRED_MERGING
-                            av1_enc_calc_subpel_params
-#else
-                            av1_tip_enc_calc_subpel_params
-#endif
-        );
+                            av1_enc_calc_subpel_params);
         if (cm->seq_params.enable_pef && cm->features.allow_pef)
           enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
 #if CONFIG_LF_SUB_PU
@@ -3208,12 +3198,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
       cm->tip_interp_filter = interp_filter;
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-#if CONFIG_TIP_REF_PRED_MERGING
-                          av1_enc_calc_subpel_params
-#else
-                          av1_tip_enc_calc_subpel_params
-#endif
-      );
+                          av1_enc_calc_subpel_params);
       if (cm->seq_params.enable_pef && cm->features.allow_pef)
         enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
 #if CONFIG_LF_SUB_PU
@@ -3320,12 +3305,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-#if CONFIG_TIP_REF_PRED_MERGING
-                        av1_enc_calc_subpel_params
-#else
-                        av1_tip_enc_calc_subpel_params
-#endif
-    );
+                        av1_enc_calc_subpel_params);
     if (cm->seq_params.enable_pef && cm->features.allow_pef) {
       enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));

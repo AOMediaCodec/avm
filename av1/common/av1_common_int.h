@@ -112,11 +112,9 @@ extern "C" {
 // TMVP unit size
 #define TMVP_MI_SZ_LOG2 (MI_SIZE_LOG2 + TMVP_SHIFT_BITS)
 #define TMVP_MI_SIZE (1 << TMVP_MI_SZ_LOG2)
-#if CONFIG_TIP_REF_PRED_MERGING
 // TMVP_MI_SIZE_UV is the block size in luma unit for Chroma TIP interpolation
 #define TMVP_MI_SIZE_UV (TMVP_MI_SIZE)
 #define TIP_MV_STRIDE (1 << (MAX_SB_SIZE_LOG2 - TMVP_MI_SZ_LOG2))
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 // TIP MV search range constraint in TMVP unit
 #define TIP_MV_SEARCH_RANGE 4
 
@@ -1316,10 +1314,6 @@ typedef struct {
 typedef struct {
   /** dst buffer */
   struct buf_2d dst;
-#if !CONFIG_TIP_REF_PRED_MERGING
-  /** pred buffer */
-  struct buf_2d pred[2];
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 } TIP_PLANE;
 
 /*!
@@ -1385,12 +1379,6 @@ typedef struct TIP_Buffer {
    * than the coded dimensions of the current frame.
    */
   RefCntBuffer *scaled_tip_frame;
-#if !CONFIG_TIP_REF_PRED_MERGING
-  /*!
-   * Check a block is already interpolated
-   */
-  int *available_flag;
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
   /*!
    * Check the motion field of TIP block is within the frame
    */
@@ -2150,16 +2138,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     }
 #endif  // CONFIG_MV_TRAJECTORY
   }
-
-#if !CONFIG_TIP_REF_PRED_MERGING
-  realloc = cm->tip_ref.available_flag == NULL || is_tpl_mvs_mem_size_too_small;
-  if (realloc) {
-    aom_free(cm->tip_ref.available_flag);
-    CHECK_MEM_ERROR(
-        cm, cm->tip_ref.available_flag,
-        (int *)aom_calloc(mem_size, sizeof(*cm->tip_ref.available_flag)));
-  }
-#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
   realloc = cm->tip_ref.mf_need_clamp == NULL || is_tpl_mvs_mem_size_too_small;
   if (realloc) {

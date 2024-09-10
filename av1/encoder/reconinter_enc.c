@@ -29,7 +29,6 @@
 #include "av1/common/reconintra.h"
 #include "av1/encoder/reconinter_enc.h"
 
-#if CONFIG_TIP_REF_PRED_MERGING
 void av1_enc_calc_subpel_params(const MV *const src_mv,
                                 InterPredParams *const inter_pred_params,
                                 MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
@@ -38,20 +37,6 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                 uint16_t **mc_buf, uint16_t **pre,
                                 SubpelParams *subpel_params, int *src_stride) {
-#else
-#if CONFIG_OPFL_MV_SEARCH
-void enc_calc_subpel_params(
-#else
-static void enc_calc_subpel_params(
-#endif
-    const MV *const src_mv, InterPredParams *const inter_pred_params,
-    MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
-#if CONFIG_OPTFLOW_REFINEMENT
-    int use_optflow_refinement,
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
-    int *src_stride) {
-#endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
   if (inter_pred_params->use_ref_padding) {
     common_calc_subpel_params_and_extend(
@@ -198,15 +183,9 @@ static void enc_calc_subpel_params(
 void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
                                        const MV *src_mv,
                                        InterPredParams *inter_pred_params) {
-  av1_build_one_inter_predictor(dst, dst_stride, src_mv, inter_pred_params,
-                                NULL /* xd */, 0 /* mi_x */, 0 /* mi_y */,
-                                0 /* ref */, NULL /* mc_buf */,
-#if CONFIG_TIP_REF_PRED_MERGING
-                                av1_enc_calc_subpel_params
-#else
-                                enc_calc_subpel_params
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-  );
+  av1_build_one_inter_predictor(
+      dst, dst_stride, src_mv, inter_pred_params, NULL /* xd */, 0 /* mi_x */,
+      0 /* mi_y */, 0 /* ref */, NULL /* mc_buf */, av1_enc_calc_subpel_params);
 }
 
 void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -226,13 +205,7 @@ void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                              0 /* build_for_obmc */, bw, bh, mi_x, mi_y,
-                             NULL /* mc_buf */,
-#if CONFIG_TIP_REF_PRED_MERGING
-                             av1_enc_calc_subpel_params
-#else
-                             enc_calc_subpel_params
-#endif  // CONFIG_TIP_REF_PRED_MERGING
-  );
+                             NULL /* mc_buf */, av1_enc_calc_subpel_params);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
@@ -279,13 +252,11 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_AFFINE_REFINEMENT
     need_chroma_dmvr &= (mbmi->comp_group_idx == 0 &&
                          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
-#if CONFIG_TIP_REF_PRED_MERGING
   // Set the prediction buffer as reference frames of TIP_FRAME
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     setup_pred_planes_for_tip(&cm->tip_ref, xd, plane_from, plane_to + 1,
                               mi_col, mi_row);
   }
-#endif
 
   if (need_chroma_dmvr) {
     fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
@@ -347,14 +318,12 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-#if CONFIG_TIP_REF_PRED_MERGING
   // Restore the prediction buffer to TIP_FRAME
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     av1_setup_pre_planes(xd, 0, &cm->tip_ref.tip_frame->buf, mi_row, mi_col,
                          &cm->tip_ref.scale_factor, plane_to + 1,
                          &mbmi->chroma_ref_info);
   }
-#endif
 
 #if CONFIG_MORPH_PRED
   if (mbmi->morph_pred) {
