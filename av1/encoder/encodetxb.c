@@ -1615,9 +1615,7 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
             const int step = stepr * stepc;
             int blk_row = row + txb_pos.row_offset[txb_idx];
             int blk_col = col + txb_pos.col_offset[txb_idx];
-#if CONFIG_NEW_TX_PARTITION
             xd->mi[0]->txb_idx = txb_idx;
-#endif  // CONFIG_NEW_TX_PARTITION
             if (blk_row >= plane_unit_height || blk_col >= plane_unit_width)
               continue;
 
@@ -6761,9 +6759,7 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
           for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions;
                ++txb_idx) {
             TX_SIZE sub_tx_size = mbmi->sub_txs[txb_idx];
-#if CONFIG_NEW_TX_PARTITION
             mbmi->txb_idx = txb_idx;
-#endif  // CONFIG_NEW_TX_PARTITION
             const uint8_t txw_unit = tx_size_wide_unit[sub_tx_size];
             const uint8_t txh_unit = tx_size_high_unit[sub_tx_size];
             const int step = txw_unit * txh_unit;
