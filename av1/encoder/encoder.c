@@ -70,9 +70,7 @@
 #include "av1/encoder/mv_prec.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/pickcdef.h"
-#if CONFIG_CCSO
 #include "av1/encoder/pickccso.h"
-#endif
 #include "av1/encoder/picklpf.h"
 #include "av1/encoder/pickrst.h"
 #include "av1/encoder/random.h"
@@ -413,9 +411,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_restoration = tool_cfg->enable_restoration;
-#if CONFIG_CCSO
   seq->enable_ccso = tool_cfg->enable_ccso;
-#endif
   seq->enable_pef = tool_cfg->enable_pef;
 #if CONFIG_LF_SUB_PU
   seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
@@ -2270,7 +2266,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
                                    int use_cdef) {
-#if CONFIG_CCSO
   uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
   uint16_t *org_uv[CCSO_NUM_COMPONENTS];
   uint16_t *ext_rec_y = NULL;
@@ -2310,7 +2305,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     }
     extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
   }
-#endif
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
@@ -2345,16 +2339,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   }
 
-#if CONFIG_CCSO
   if (use_ccso) {
     av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
     // Reading original and reconstructed chroma samples as input
-#if CONFIG_CCSO_EXT
     for (int pli = 0; pli < num_planes; pli++) {
-#else
-    for (int pli = 1; pli < num_planes; pli++) {
-#endif
       const int pic_height = xd->plane[pli].dst.height;
       const int pic_width = xd->plane[pli].dst.width;
       const int dst_stride = xd->plane[pli].dst.stride;
@@ -2385,15 +2374,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
     aom_free(ext_rec_y);
   }
-#if CONFIG_CCSO_EXT
   for (int pli = 0; pli < num_planes; pli++) {
-#else
-  for (int pli = 1; pli < num_planes; pli++) {
-#endif
     aom_free(rec_uv[pli]);
     aom_free(org_uv[pli]);
   }
-#endif
 
   av1_superres_post_encode(cpi);
 

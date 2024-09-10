@@ -117,12 +117,10 @@ if(CONFIG_AV1_ENCODER)
   endif()
 endif()
 
-if(CONFIG_CCSO)
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/ccso.c"
-       "${AOM_ROOT}/av1/common/ccso.h")
-  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
-       "${AOM_ROOT}/av1/encoder/pickccso.h")
-endif()
+list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/ccso.c"
+     "${AOM_ROOT}/av1/common/ccso.h")
+list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
+     "${AOM_ROOT}/av1/encoder/pickccso.h")
 
 list(
   APPEND

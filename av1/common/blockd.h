@@ -670,16 +670,12 @@ typedef struct MB_MODE_INFO {
   int8_t cdef_strength : 4;
   /*! \brief chroma block info for sub-8x8 cases */
   CHROMA_REF_INFO chroma_ref_info;
-#if CONFIG_CCSO
-#if CONFIG_CCSO_EXT
   /*! \brief Whether to use cross-component sample offset for the Y plane. */
   uint8_t ccso_blk_y : 2;
-#endif
   /*! \brief Whether to use cross-component sample offset for the U plane. */
   uint8_t ccso_blk_u : 2;
   /*! \brief Whether to use cross-component sample offset for the V plane. */
   uint8_t ccso_blk_v : 2;
-#endif
   /**@}*/
 
 #if CONFIG_RD_DEBUG
@@ -2626,16 +2622,12 @@ typedef struct macroblockd {
    * Enable IST for current coding block.
    */
   uint8_t enable_ist;
-#if CONFIG_CCSO
-#if CONFIG_CCSO_EXT
   /** ccso blk y */
   uint8_t ccso_blk_y;
-#endif
   /** ccso blk u */
   uint8_t ccso_blk_u;
   /** ccso blk v */
   uint8_t ccso_blk_v;
-#endif
 
 #if CONFIG_CONTEXT_DERIVATION
   /** buffer to store AOM_PLANE_U txfm coefficient signs */

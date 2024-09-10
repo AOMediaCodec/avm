@@ -375,13 +375,10 @@ enum {
   REFINE_ALL = 2,
 } UENUM1BYTE(OPTFLOW_REFINE_TYPE);
 
-#if CONFIG_CCSO
 /** ccso info */
 typedef struct {
-#if CONFIG_CCSO_BO_ONLY_OPTION
   /** ccso band offset only option */
   uint8_t ccso_bo_only[CCSO_NUM_COMPONENTS];
-#endif
 #if CONFIG_D143_CCSO_FM_FLAG
   /** ccso frame flag */
   bool ccso_frame_flag;
@@ -390,20 +387,15 @@ typedef struct {
   bool ccso_enable[CCSO_NUM_COMPONENTS];
   /** ccso filter offset */
   int8_t filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16];
-#if CONFIG_CCSO_EXT
   /** ccso log2 of max bands */
   int max_band_log2[CCSO_NUM_COMPONENTS];
-#endif
   /** quant index */
   uint8_t quant_idx[CCSO_NUM_COMPONENTS];
   /** extended filter support */
   uint8_t ext_filter_support[CCSO_NUM_COMPONENTS];
-#if CONFIG_CCSO_EDGE_CLF
   /** edge classifier index */
   uint8_t edge_clf[CCSO_NUM_COMPONENTS];
-#endif  // CONFIG_CCSO_EDGE_CLF
 } CcsoInfo;
-#endif
 
 /*!\cond */
 
@@ -546,10 +538,8 @@ typedef struct SequenceHeader {
   uint8_t enable_cdef;      // To turn on/off CDEF
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
-#if CONFIG_CCSO
-  uint8_t enable_ccso;  // To turn on/off CCSO
-#endif
-  uint8_t enable_pef;  // To turn on/off prediction enhancement filter
+  uint8_t enable_ccso;         // To turn on/off CCSO
+  uint8_t enable_pef;          // To turn on/off prediction enhancement filter
 #if CONFIG_LF_SUB_PU
   uint8_t enable_lf_sub_pu;          // To turn on/off sub-block deblocking
 #endif                               // CONFIG_LF_SUB_PU
@@ -1637,12 +1627,10 @@ typedef struct AV1Common {
   int frame_filter_dictionary_stride;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-#if CONFIG_CCSO
   /*!
    * CCSO (Cross Component Sample Offset) parameters.
    */
   CcsoInfo ccso_info;
-#endif
 
   /*!
    * Parameters for film grain synthesis.

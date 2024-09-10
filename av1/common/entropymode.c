@@ -7368,7 +7368,6 @@ static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     11570) };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_CCSO_EXT
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_ccso_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(12979), 37 },
@@ -7378,7 +7377,6 @@ static const aom_cdf_prob default_ccso_cdf[3][CDF_SIZE(2)] = {
 #else
 static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif  // CONFIG_ENTROPY_PARA
-#endif
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = {
@@ -8065,7 +8063,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->switchable_flex_restore_cdf,
            default_switchable_flex_restore_cdf);
   av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
-#if CONFIG_CCSO_EXT
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
 #if CONFIG_ENTROPY_PARA
     av1_copy(fc->ccso_cdf[plane], default_ccso_cdf[plane]);
@@ -8073,7 +8070,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
     av1_copy(fc->ccso_cdf[plane], default_ccso_cdf);
 #endif  // CONFIG_ENTROPY_PARA
   }
-#endif
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);
   av1_copy(fc->wienerns_length_cdf, default_wienerns_length_cdf);

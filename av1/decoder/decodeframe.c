@@ -40,9 +40,7 @@
 
 #include "av1/common/alloccommon.h"
 #include "av1/common/cdef.h"
-#if CONFIG_CCSO
 #include "av1/common/ccso.h"
-#endif
 #include "av1/common/cfl.h"
 #if CONFIG_INSPECTION
 #include "av1/decoder/inspection.h"
@@ -3625,8 +3623,6 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_CCSO
-#if CONFIG_CCSO_EDGE_CLF
 // read offset idx using truncated unary coding
 static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
   int offset_idx = 0;
@@ -3637,32 +3633,22 @@ static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
   }
   return offset_idx;
 }
-#endif  // CONFIG_CCSO_EDGE_CLF
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   if (is_global_intrabc_allowed(cm)) return;
-#if CONFIG_CCSO_EXT
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_D143_CCSO_FM_FLAG
   cm->ccso_info.ccso_frame_flag = aom_rb_read_literal(rb, 1);
   if (cm->ccso_info.ccso_frame_flag) {
 #endif  // CONFIG_D143_CCSO_FM_FLAG
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-#else
-  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
-  for (int plane = 0; plane < 2; plane++) {
-#endif
       cm->ccso_info.ccso_enable[plane] = aom_rb_read_literal(rb, 1);
       if (cm->ccso_info.ccso_enable[plane]) {
-#if CONFIG_CCSO_BO_ONLY_OPTION
         cm->ccso_info.ccso_bo_only[plane] = aom_rb_read_literal(rb, 1);
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
 #if !CONFIG_CCSO_SIGFIX
         cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
         cm->ccso_info.ext_filter_support[plane] = aom_rb_read_literal(rb, 3);
 #endif  // !CONFIG_CCSO_SIGFIX
-#if CONFIG_CCSO_EXT
-#if CONFIG_CCSO_BO_ONLY_OPTION
         if (cm->ccso_info.ccso_bo_only[plane]) {
 #if CONFIG_CCSO_SIGFIX
           cm->ccso_info.quant_idx[plane] = 0;
@@ -3678,60 +3664,34 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #endif  // CONFIG_CCSO_SIGFIX
           cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
         }
-#else
-      cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
         const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
-#endif
-#if CONFIG_CCSO_EDGE_CLF
 #if !CONFIG_CCSO_SIGFIX
         cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
 #endif  // !CONFIG_CCSO_SIGFIX
         const int edge_clf = cm->ccso_info.edge_clf[plane];
         const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
-#if CONFIG_CCSO_BO_ONLY_OPTION
         const int num_edge_offset_intervals =
             cm->ccso_info.ccso_bo_only[plane] ? 1 : max_edge_interval;
         for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
           for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
-#else
-      for (int d0 = 0; d0 < max_edge_interval; d0++) {
-        for (int d1 = 0; d1 < max_edge_interval; d1++) {
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
-#else
-      for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
-        for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
-#endif  // CONFIG_CCSO_EDGE_CLF
-#if !CONFIG_CCSO_EXT
-            const int lut_idx_ext = (d0 << 2) + d1;
-#else
-          for (int band_num = 0; band_num < max_band; band_num++) {
-            const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
-#endif
-#if CONFIG_CCSO_EDGE_CLF
-            const int offset_idx = read_ccso_offset_idx(rb);
-#else
-            const int offset_idx = aom_rb_read_literal(rb, 3);
-#endif  // CONFIG_CCSO_EDGE_CLF
-            cm->ccso_info.filter_offset[plane][lut_idx_ext] =
-                ccso_offset[offset_idx];
+            for (int band_num = 0; band_num < max_band; band_num++) {
+              const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
+              const int offset_idx = read_ccso_offset_idx(rb);
+              cm->ccso_info.filter_offset[plane][lut_idx_ext] =
+                  ccso_offset[offset_idx];
+            }
           }
-#if CONFIG_CCSO_EXT
         }
-#endif
       }
     }
-  }
 #if CONFIG_D143_CCSO_FM_FLAG
-}
-else {
-  cm->ccso_info.ccso_enable[0] = 0;
-  cm->ccso_info.ccso_enable[1] = 0;
-  cm->ccso_info.ccso_enable[2] = 0;
-}
+  } else {
+    cm->ccso_info.ccso_enable[0] = 0;
+    cm->ccso_info.ccso_enable[1] = 0;
+    cm->ccso_info.ccso_enable[2] = 0;
+  }
 #endif  // CONFIG_D143_CCSO_FM_FLAG
 }
-#endif
 
 static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {
   return aom_rb_read_bit(rb) ? aom_rb_read_inv_signed_literal(rb, 6) : 0;
@@ -5597,7 +5557,7 @@ static AOM_INLINE void reset_dec_workers(AV1Decoder *pbi,
 #if CONFIG_THROUGHPUT_ANALYSIS
     aom_accounting_cal_total(pbi);
 #else
-      aom_accounting_dump(&pbi->accounting);
+    aom_accounting_dump(&pbi->accounting);
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
     aom_accounting_reset(&pbi->accounting);
   }
@@ -6504,9 +6464,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
 #endif  // CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_fsc = aom_rb_read_bit(rb);
-#if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);
-#endif
   seq_params->enable_pef = aom_rb_read_bit(rb);
 #if CONFIG_LF_SUB_PU
   seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);
@@ -6516,7 +6474,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_LF_SUB_PU
       seq_params->enable_lf_sub_pu
 #else
-        seq_params->enable_pef
+      seq_params->enable_pef
 #endif  // CONFIG_LF_SUB_PU
   ) {
     seq_params->enable_tip_explicit_qp = aom_rb_read_bit(rb);
@@ -6695,8 +6653,8 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
 #else
-        const int our_ref_order_hint = buf->order_hint;
-        const int their_ref_order_hint = buf->ref_order_hints[their_ref];
+      const int our_ref_order_hint = buf->order_hint;
+      const int their_ref_order_hint = buf->ref_order_hints[their_ref];
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       cm->base_global_motion_model = buf->global_motion[their_ref];
       cm->base_global_motion_distance =
@@ -6715,8 +6673,8 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
       const int ref_order_hint = ref_buf->display_order_hint;
       const int cur_order_hint = cm->cur_frame->display_order_hint;
 #else
-        const int ref_order_hint = ref_buf->order_hint;
-        const int cur_order_hint = cm->cur_frame->order_hint;
+      const int ref_order_hint = ref_buf->order_hint;
+      const int cur_order_hint = cm->cur_frame->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                             cur_order_hint, ref_order_hint);
@@ -8020,11 +7978,9 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   if (!features->all_lossless && seq_params->enable_restoration) {
     decode_restoration_mode(cm, rb);
   }
-#if CONFIG_CCSO
   if (!features->coded_lossless && seq_params->enable_ccso) {
     setup_ccso(cm, rb);
   }
-#endif
 
   if (features->coded_lossless || !cm->seq_params.enable_parity_hiding)
     features->allow_parity_hiding = false;
@@ -8368,14 +8324,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
     }
 
-#if CONFIG_CCSO
     const int use_ccso =
         !pbi->skip_loop_filter && !cm->features.coded_lossless &&
-        (cm->ccso_info.ccso_enable[0] || cm->ccso_info.ccso_enable[1]
-#if CONFIG_CCSO_EXT
-         || cm->ccso_info.ccso_enable[2]
-#endif
-        );
+        (cm->ccso_info.ccso_enable[0] || cm->ccso_info.ccso_enable[1] ||
+         cm->ccso_info.ccso_enable[2]);
     uint16_t *ext_rec_y;
     if (use_ccso) {
       av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -8390,33 +8342,20 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         int pic_height = xd->plane[pli].dst.height;
         int pic_width = xd->plane[pli].dst.width;
         const int dst_stride = xd->plane[pli].dst.stride;
-#if CONFIG_CCSO_EXT
         ext_rec_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#endif
         for (int r = 0; r < pic_height; ++r) {
           for (int c = 0; c < pic_width; ++c) {
-#if CONFIG_CCSO_EXT
             ext_rec_y[c] = xd->plane[pli].dst.buf[c];
-#else
-              ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
-                        CCSO_PADDING_SIZE] =
-                  xd->plane[pli].dst.buf[r * dst_stride + c];
-#endif
           }
-#if CONFIG_CCSO_EXT
           ext_rec_y += ccso_stride_ext;
           xd->plane[0].dst.buf += dst_stride;
         }
         ext_rec_y -= CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
         ext_rec_y -= pic_height * ccso_stride_ext;
         xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
-#else
-          }
-#endif
       }
       extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
     }
-#endif
 
     const int do_loop_restoration =
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
@@ -8434,10 +8373,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_superres = av1_superres_scaled(cm);
 
     const int optimized_loop_restoration =
-#if CONFIG_CCSO
-        !use_ccso &&
-#endif
-        !do_cdef && !do_superres;
+        !use_ccso && !do_cdef && !do_superres;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
@@ -8448,12 +8384,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
       }
 
-#if CONFIG_CCSO
       if (use_ccso) {
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
         aom_free(ext_rec_y);
       }
-#endif
 
       superres_post_decode(pbi);
 

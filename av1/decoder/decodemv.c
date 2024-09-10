@@ -90,7 +90,6 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 }
 
-#if CONFIG_CCSO
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
   if (is_global_intrabc_allowed(cm)) return;
@@ -102,7 +101,6 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
 
-#if CONFIG_CCSO_EXT
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
     const int blk_idc =
@@ -113,17 +111,11 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_y = blk_idc;
   }
-#endif
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
-#if CONFIG_CCSO_EXT
       cm->ccso_info.ccso_enable[1]) {
     const int blk_idc =
         aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1], 2, ACCT_INFO("blk_idc"));
-#else
-      cm->ccso_info.ccso_enable[0]) {
-    const int blk_idc = aom_read_bit(r, ACCT_INFO("blk_idc"));
-#endif
     xd->ccso_blk_u = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
@@ -132,14 +124,9 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
-#if CONFIG_CCSO_EXT
       cm->ccso_info.ccso_enable[2]) {
     const int blk_idc =
         aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2], 2, ACCT_INFO("blk_idc"));
-#else
-      cm->ccso_info.ccso_enable[1]) {
-    const int blk_idc = aom_read_bit(r, ACCT_INFO("blk_idc"));
-#endif
     xd->ccso_blk_v = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
@@ -147,7 +134,6 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_v = blk_idc;
   }
 }
-#endif
 
 static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
                              aom_reader *r, MB_MODE_INFO *const mbmi) {
@@ -2018,16 +2004,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   if (xd->tree_type != CHROMA_PART) read_cdef(cm, r, xd);
 
-#if CONFIG_CCSO
-  if (cm->seq_params.enable_ccso
-#if CONFIG_CCSO_EXT
-      && xd->tree_type != CHROMA_PART
-#else
-      && xd->tree_type != LUMA_PART
-#endif
-  )
+  if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     read_ccso(cm, r, xd);
-#endif
 
   read_delta_q_params(cm, xd, r);
 
@@ -4509,9 +4487,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   read_cdef(cm, r, xd);
 
-#if CONFIG_CCSO
   if (cm->seq_params.enable_ccso) read_ccso(cm, r, xd);
-#endif
 
   read_delta_q_params(cm, xd, r);
 

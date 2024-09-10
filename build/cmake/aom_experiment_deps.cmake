@@ -40,12 +40,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_THROUGHPUT_ANALYSIS 0 !CONFIG_ACCOUNTING)
   endif()
 
-  # CONFIG_CCSO_EXT is dependent on CONFIG_CCSO. If CONFIG_CCSO is off,
-  # CONFIG_CCSO_EXT needs to be turned off.
-  if(NOT CONFIG_CCSO AND CONFIG_CCSO_EXT)
-    change_config_and_warn(CONFIG_CCSO_EXT 0 !CONFIG_CCSO)
-  endif()
-
   # CONFIG_EXPLICIT_BAWP is dependent on CONFIG_BAWP. If CONFIG_BAWP is off,
   # CONFIG_EXPLICIT_BAWP needs to be turned off.
   if(NOT CONFIG_BAWP AND CONFIG_EXPLICIT_BAWP)
@@ -139,11 +133,6 @@ macro(fix_experiment_configs)
   # CONFIG_TMVP_IMPROVE depends on CONFIG_MVP_IMPROVEMENT
   if(NOT CONFIG_MVP_IMPROVEMENT AND CONFIG_TMVP_IMPROVE)
     change_config_and_warn(CONFIG_TMVP_IMPROVE 0 !CONFIG_MVP_IMPROVEMENT)
-  endif()
-
-  # CONFIG_CCSO_SIGFIX depends on CONFIG_CCSO_BO_ONLY_OPTION
-  if(NOT CONFIG_CCSO_BO_ONLY_OPTION AND CONFIG_CCSO_SIGFIX)
-    change_config_and_warn(CONFIG_CCSO_SIGFIX 0 !CONFIG_CCSO_BO_ONLY_OPTION)
   endif()
 
   if(CONFIG_ML_PART_SPLIT)

@@ -1779,7 +1779,6 @@ int main(int argc, const char **argv) {
       "default_filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)]",
       0, &total_count, 0, mem_wanted, "Intra");
 
-#if CONFIG_CCSO_EXT
 #if CONFIG_ENTROPY_PARA
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
@@ -1793,7 +1792,6 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_ccso_cdf[2]",
                      0, &total_count, 0, mem_wanted, "Intra");
-#endif
 #endif
 
   cts_each_dim[0] = MAX_LR_FLEX_SWITCHABLE_BITS;

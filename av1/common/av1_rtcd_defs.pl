@@ -571,68 +571,33 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
 }
 
 # Cross-component Sample Offset
-if (aom_config("CONFIG_CCSO") eq "yes") {
-  if (aom_config("CONFIG_CCSO_EXT") eq "yes") {
-    if (aom_config("CONFIG_CCSO_EDGE_CLF") eq "yes") {
-          if (aom_config("CONFIG_CCSO_BO_ONLY_OPTION") eq "yes") {
-            add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
-          }
-          else{
-            add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf";
-          }
-    }
-    else{
-      add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits";
-    }
-    specialize qw/ccso_filter_block_hbd_wo_buf avx2/;
+add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
+specialize qw/ccso_filter_block_hbd_wo_buf avx2/;
 
-    if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
-          if (aom_config("CONFIG_CCSO_BO_ONLY_OPTION") eq "yes") {
-            add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
-            const int src_y_stride, const int dst_stride,
-            const int ccso_stride,
-            const int x, const int y,
-            const int pic_width, const int pic_height,
-            const int8_t *filter_offset, const int blk_size,
-            const int y_uv_hscale,  const int y_uv_vscale,
-            const int max_val, const uint8_t shift_bits,
-            const uint8_t ccso_bo_only";
-          }
-          else{
-            add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
-            const int src_y_stride, const int dst_stride,
-            const int ccso_stride,
-            const int x, const int y,
-            const int pic_width, const int pic_height,
-            const int8_t *filter_offset, const int blk_size,
-            const int y_uv_hscale,  const int y_uv_vscale,
-            const int max_val, const uint8_t shift_bits";
-          }
-      specialize qw/ccso_filter_block_hbd_with_buf avx2/;
+if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
+  add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
+  const int src_y_stride, const int dst_stride,
+  const int ccso_stride,
+  const int x, const int y,
+  const int pic_width, const int pic_height,
+  const int8_t *filter_offset, const int blk_size,
+  const int y_uv_hscale,  const int y_uv_vscale,
+  const int max_val, const uint8_t shift_bits,
+  const uint8_t ccso_bo_only";
+  specialize qw/ccso_filter_block_hbd_with_buf avx2/;
 
-      add_proto qw/uint64_t compute_distortion_block/, "const uint16_t *org, const int org_stride,
-                          const uint16_t *rec16, const int rec_stride, const int x, const int y,
-                          const int log2_filter_unit_size, const int height,
-                          const int width";
-      specialize qw/compute_distortion_block avx2/;
+  add_proto qw/uint64_t compute_distortion_block/, "const uint16_t *org, const int org_stride,
+                      const uint16_t *rec16, const int rec_stride, const int x, const int y,
+                      const int log2_filter_unit_size, const int height,
+                      const int width";
+  specialize qw/compute_distortion_block avx2/;
 
-      if (aom_config("CONFIG_CCSO_EDGE_CLF") eq "yes") {
-        add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
-                              uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
-                              const int x, const int y, const int pic_width, const int pic_height,
-                              const int y_uv_hscale, const int y_uv_vscale, const int qstep,
-                              const int neg_qstep, const int *src_loc, const int blk_size, const int edge_clf";
-      }
-      else {
-        add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
-                              uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
-                              const int x, const int y, const int pic_width, const int pic_height,
-                              const int y_uv_hscale, const int y_uv_vscale, const int qstep,
-                              const int neg_qstep, const int *src_loc, const int blk_size";
-      }
-      specialize qw/ccso_derive_src_block avx2/
-    }
-  }
+  add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
+                        uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
+                        const int x, const int y, const int pic_width, const int pic_height,
+                        const int y_uv_hscale, const int y_uv_vscale, const int qstep,
+                        const int neg_qstep, const int *src_loc, const int blk_size, const int edge_clf";
+  specialize qw/ccso_derive_src_block avx2/
 }
 
 # Prediction enhancement filter

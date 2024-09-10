@@ -351,11 +351,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_wiener_nonsep = ARG_DEF(NULL, "enable-wiener-nonsep", 1,
                                   "Enable nonsep-wiener lr filter (0: false, "
                                   "1: true (default))"),
-#if CONFIG_CCSO
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "
                          "1: true)"),
-#endif
   .enable_pef = ARG_DEF(NULL, "enable-pef", 1,
                         "Enable prediction enhancement filter (0: false "
                         "1: true)"),

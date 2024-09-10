@@ -443,9 +443,7 @@ typedef struct frame_contexts {
   aom_cdf_prob switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
                                           [MAX_LR_FLEX_MB_PLANE][CDF_SIZE(2)];
   aom_cdf_prob wiener_restore_cdf[CDF_SIZE(2)];
-#if CONFIG_CCSO_EXT
   aom_cdf_prob ccso_cdf[3][CDF_SIZE(2)];
-#endif
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_length_cdf[2][CDF_SIZE(2)];

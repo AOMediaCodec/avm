@@ -34,9 +34,7 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/cdef.h"
-#if CONFIG_CCSO
 #include "av1/common/ccso.h"
-#endif
 #include "av1/common/cfl.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
@@ -1892,7 +1890,6 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
   }
 }
 
-#if CONFIG_CCSO
 static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w) {
   if (cm->features.coded_lossless) return;
@@ -1908,40 +1905,27 @@ static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
       mi_params->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                               (mi_col & ~blk_size_x)];
 
-#if CONFIG_CCSO_EXT
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
     aom_write_symbol(w, mbmi->ccso_blk_y == 0 ? 0 : 1,
                      xd->tile_ctx->ccso_cdf[0], 2);
     xd->ccso_blk_y = mbmi->ccso_blk_y;
   }
-#endif
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
-#if CONFIG_CCSO_EXT
       cm->ccso_info.ccso_enable[1]) {
     aom_write_symbol(w, mbmi->ccso_blk_u == 0 ? 0 : 1,
                      xd->tile_ctx->ccso_cdf[1], 2);
-#else
-      cm->ccso_info.ccso_enable[0]) {
-    aom_write_bit(w, mbmi->ccso_blk_u == 0 ? 0 : 1);
-#endif
     xd->ccso_blk_u = mbmi->ccso_blk_u;
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
-#if CONFIG_CCSO_EXT
       cm->ccso_info.ccso_enable[2]) {
     aom_write_symbol(w, mbmi->ccso_blk_v == 0 ? 0 : 1,
                      xd->tile_ctx->ccso_cdf[2], 2);
-#else
-      cm->ccso_info.ccso_enable[1]) {
-    aom_write_bit(w, mbmi->ccso_blk_v == 0 ? 0 : 1);
-#endif
     xd->ccso_blk_v = mbmi->ccso_blk_v;
   }
 }
-#endif
 
 static AOM_INLINE void write_inter_segment_id(
     AV1_COMP *cpi, aom_writer *w, const struct segmentation *const seg,
@@ -2460,9 +2444,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_cdef(cm, xd, w, skip);
 
-#if CONFIG_CCSO
   if (cm->seq_params.enable_ccso) write_ccso(cm, xd, w);
-#endif
 
   write_delta_q_params(cpi, skip, w);
 
@@ -3153,16 +3135,8 @@ static AOM_INLINE void write_mb_modes_kf(
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
-#if CONFIG_CCSO
-  if (cm->seq_params.enable_ccso
-#if CONFIG_CCSO_EXT
-      && xd->tree_type != CHROMA_PART
-#else
-      && xd->tree_type != LUMA_PART
-#endif
-  )
+  if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     write_ccso(cm, xd, w);
-#endif
 
   write_delta_q_params(cpi, skip, w);
   if (av1_allow_intrabc(cm, xd
@@ -4796,8 +4770,6 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_CCSO
-#if CONFIG_CCSO_EDGE_CLF
 // write CCSO offset idx using truncated unary coding
 static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
                                              int offset_idx) {
@@ -4806,32 +4778,22 @@ static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
     if (offset_idx == idx) break;
   }
 }
-#endif  // CONFIG_CCSO_EDGE_CLF
 static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
   if (is_global_intrabc_allowed(cm)) return;
-#if CONFIG_CCSO_EXT
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_D143_CCSO_FM_FLAG
   aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
   if (cm->ccso_info.ccso_frame_flag) {
 #endif  // CONFIG_D143_CCSO_FM_FLAG
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-#else
-  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
-  for (int plane = 0; plane < 2; plane++) {
-#endif
       aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
       if (cm->ccso_info.ccso_enable[plane]) {
-#if CONFIG_CCSO_BO_ONLY_OPTION
         aom_wb_write_literal(wb, cm->ccso_info.ccso_bo_only[plane], 1);
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
 #if !CONFIG_CCSO_SIGFIX
         aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
         aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
 #endif  // !CONFIG_CCSO_SIGFIX
-#if CONFIG_CCSO_EXT
-#if CONFIG_CCSO_BO_ONLY_OPTION
         if (cm->ccso_info.ccso_bo_only[plane]) {
           aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 3);
         } else {
@@ -4842,59 +4804,34 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #endif  // CONFIG_CCSO_SIGFIX
           aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
         }
-#else
-      aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
         const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
-#endif
-#if CONFIG_CCSO_EDGE_CLF
         const int edge_clf = cm->ccso_info.edge_clf[plane];
 #if !CONFIG_CCSO_SIGFIX
         aom_wb_write_bit(wb, edge_clf);
 #endif  // !CONFIG_CCSO_SIGFIX
         const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
-#if CONFIG_CCSO_BO_ONLY_OPTION
         const int num_edge_offset_intervals =
             cm->ccso_info.ccso_bo_only[plane] ? 1 : max_edge_interval;
         for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
           for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
-#else
-      for (int d0 = 0; d0 < max_edge_interval; d0++) {
-        for (int d1 = 0; d1 < max_edge_interval; d1++) {
-#endif  // CONFIG_CCSO_BO_ONLY_OPTION
-#else
-      for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
-        for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
-#endif  // CONFIG_CCSO_EDGE_CLF
-#if !CONFIG_CCSO_EXT
-            const int lut_idx_ext = (d0 << 2) + d1;
-#else
-          for (int band_num = 0; band_num < max_band; band_num++) {
-            const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
-#endif
-            for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
-              if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
-                  ccso_offset[offset_idx]) {
-#if CONFIG_CCSO_EDGE_CLF
-                write_ccso_offset_idx(wb, offset_idx);
-#else
-                aom_wb_write_literal(wb, offset_idx, 3);
-#endif  // CONFIG_CCSO_EDGE_CLF
-                break;
+            for (int band_num = 0; band_num < max_band; band_num++) {
+              const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
+              for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
+                if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
+                    ccso_offset[offset_idx]) {
+                  write_ccso_offset_idx(wb, offset_idx);
+                  break;
+                }
               }
             }
-#if CONFIG_CCSO_EXT
           }
-#endif
         }
       }
     }
-  }
 #if CONFIG_D143_CCSO_FM_FLAG
-}
+  }
 #endif  // CONFIG_D143_CCSO_FM_FLAG
 }
-#endif
 
 static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb,
                                      int delta_q) {
@@ -5609,9 +5546,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
 #endif  // CONFIG_D071_IMP_MSK_BLD
   aom_wb_write_bit(wb, seq_params->enable_fsc);
-#if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);
-#endif
   aom_wb_write_bit(wb, seq_params->enable_pef);
 #if CONFIG_LF_SUB_PU
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
@@ -5621,7 +5556,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_LF_SUB_PU
       seq_params->enable_lf_sub_pu
 #else
-        seq_params->enable_pef
+      seq_params->enable_pef
 #endif  // CONFIG_LF_SUB_PU
   ) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
@@ -5801,8 +5736,8 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
       const int ref_order_hint = ref_buf->display_order_hint;
       const int cur_order_hint = cm->cur_frame->display_order_hint;
 #else
-        const int ref_order_hint = ref_buf->order_hint;
-        const int cur_order_hint = cm->cur_frame->order_hint;
+      const int ref_order_hint = ref_buf->order_hint;
+      const int cur_order_hint = cm->cur_frame->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                             cur_order_hint, ref_order_hint);
@@ -6360,11 +6295,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
       encode_cdef(cm, wb);
     }
     encode_restoration_mode(cm, wb);
-#if CONFIG_CCSO
     if (!features->coded_lossless && cm->seq_params.enable_ccso) {
       encode_ccso(cm, wb);
     }
-#endif
   }
 
   if (features->coded_lossless || !cm->seq_params.enable_parity_hiding) {

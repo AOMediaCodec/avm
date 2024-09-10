@@ -29,39 +29,26 @@ static INLINE double clamp_dbl(double value, double low, double high) {
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
                  uint16_t *org_uv[3]);
-#if CONFIG_CCSO_EXT
 void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
                                 const uint16_t *src_y, const uint16_t *ref,
                                 const uint16_t *dst, uint8_t *src_cls0,
                                 uint8_t *src_cls1, const uint8_t shift_bits);
-#if CONFIG_CCSO_BO_ONLY_OPTION
 // pre compute classes for band offset only option
 void ccso_pre_compute_class_err_bo(MACROBLOCKD *xd, const int plane,
                                    const uint16_t *src_y, const uint16_t *ref,
                                    const uint16_t *dst,
                                    const uint8_t shift_bits);
-#endif
 void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                           const uint16_t *src_y, uint16_t *dst_yuv,
                           const int dst_stride, const int8_t *filter_offset,
                           uint8_t *src_cls0, uint8_t *src_cls1,
-                          const uint8_t shift_bits
-#if CONFIG_CCSO_BO_ONLY_OPTION
-                          ,
-                          const uint8_t ccso_bo_only
-#endif
-);
+                          const uint8_t shift_bits, const uint8_t ccso_bo_only);
 void ccso_try_chroma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                             const uint16_t *src_y, uint16_t *dst_yuv,
                             const int dst_stride, const int8_t *filter_offset,
                             uint8_t *src_cls0, uint8_t *src_cls1,
-                            const uint8_t shift_bits
-#if CONFIG_CCSO_BO_ONLY_OPTION
-                            ,
-                            const uint8_t ccso_bo_only
-#endif
-);
-#endif
+                            const uint8_t shift_bits,
+                            const uint8_t ccso_bo_only);
 
 void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                         const uint16_t *org_uv, const uint16_t *ext_rec_y,
@@ -71,54 +58,21 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                    const uint64_t *unfiltered_dist,
                    const uint64_t *training_dist, bool *m_filter_control,
                    uint64_t *cur_total_dist, int *cur_total_rate,
-                   bool *filter_enable
-#if !CONFIG_CCSO_EDGE_CLF
-                   ,
-                   const int rdmult
-#endif  // !CONFIG_CCSO_EDGE_CLF
-);
+                   bool *filter_enable);
 
 void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
                          const int plane, const uint16_t *org_chroma,
                          const uint16_t *rec_uv_16, const uint8_t quanStep,
-                         const uint8_t ext_filter_support
-#if CONFIG_CCSO_EXT
-                         ,
-                         const int shift_bits
-#endif
-#if CONFIG_CCSO_EDGE_CLF
-                         ,
-                         int edge_clf
-#endif  // CONFIG_CCSO_EDGE_CLF
-);
-#if CONFIG_CCSO_EXT
-void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
-                            const int max_band_log2
-#if CONFIG_CCSO_EDGE_CLF
-                            ,
-                            const int max_edge_interval
-#endif  // CONFIG_CCSO_EDGE_CLF
-#if CONFIG_CCSO_BO_ONLY_OPTION
-                            ,
-                            const uint8_t ccso_bo_only
-#endif
-);
-#endif
+                         const uint8_t ext_filter_support, const int shift_bits,
+                         int edge_clf);
 
-void derive_lut_offset(int8_t *temp_filter_offset
-#if CONFIG_CCSO_EXT
-                       ,
-                       const int max_band_log2
-#endif
-#if CONFIG_CCSO_EDGE_CLF
-                       ,
-                       const int max_edge_interval
-#endif  // CONFIG_CCSO_EDGE_CLF
-#if CONFIG_CCSO_BO_ONLY_OPTION
-                       ,
-                       const uint8_t ccso_bo_only
-#endif
-);
+void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
+                            const int max_band_log2,
+                            const int max_edge_interval,
+                            const uint8_t ccso_bo_only);
+
+void derive_lut_offset(int8_t *temp_filter_offset, const int max_band_log2,
+                       const int max_edge_interval, const uint8_t ccso_bo_only);
 
 #ifdef __cplusplus
 }  // extern "C"

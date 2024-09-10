@@ -474,9 +474,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_affine_refine,
 #endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_CCSO
   &g_av1_codec_arg_defs.enable_ccso,
-#endif
   &g_av1_codec_arg_defs.enable_pef,
 #if CONFIG_LF_SUB_PU
   &g_av1_codec_arg_defs.enable_lf_sub_pu,
@@ -698,9 +696,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_sgrproj = 1;
   config->enable_pc_wiener = 1;
   config->enable_wiener_nonsep = 1;
-#if CONFIG_CCSO
   config->enable_ccso = 1;
-#endif
 #if CONFIG_LF_SUB_PU
   config->enable_pef = 0;
   config->enable_lf_sub_pu = 1;
@@ -1655,17 +1651,12 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
-#if CONFIG_CCSO
           "CCSO (%d), "
-#endif
           "LoopRestoration (%d: [%d/%d/%d/%d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
-#if CONFIG_CCSO
-          encoder_cfg->enable_ccso,
-#endif
-          encoder_cfg->enable_restoration, encoder_cfg->enable_wiener,
-          encoder_cfg->enable_sgrproj, encoder_cfg->enable_pc_wiener,
-          encoder_cfg->enable_wiener_nonsep);
+          encoder_cfg->enable_ccso, encoder_cfg->enable_restoration,
+          encoder_cfg->enable_wiener, encoder_cfg->enable_sgrproj,
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

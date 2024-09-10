@@ -24,9 +24,7 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 
-#if CONFIG_CCSO_EDGE_CLF
 static const int edge_clf_to_edge_interval[2] = { 3, 2 };
-#endif  // CONFIG_CCSO_EDGE_CLF
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,36 +34,18 @@ void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd);
 
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
                         const uint8_t quant_step_size, const int inv_quant_step,
-                        const int *rec_idx
-#if CONFIG_CCSO_EDGE_CLF
-                        ,
-                        const int edge_clf
-#endif  // CONFIG_CCSO_EDGE_CLF
-);
-#if CONFIG_CCSO_EXT
+                        const int *rec_idx, const int edge_clf);
+
 void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support);
-#else
 
-void apply_ccso_filter_hbd(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
-                           const uint16_t *temp_rec_y_buf, uint16_t *rec_uv_16,
-                           const int dst_stride, const int8_t *filter_offset,
-                           const uint8_t quant_step_size,
-                           const uint8_t ext_filter_support);
-#endif  // CONFIG_CCSO_EXT
-#if CONFIG_CCSO_EXT
 /* Apply CCSO on one color component */
 typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
                                  const uint8_t thr, const uint8_t filter_sup,
-                                 const uint8_t max_band_log2
-#if CONFIG_CCSO_EDGE_CLF
-                                 ,
-                                 const int edge_clf
-#endif  // CONFIG_CCSO_EDGE_CLF
-);
-#endif  // CONFIG_CCSO_EXT
+                                 const uint8_t max_band_log2,
+                                 const int edge_clf);
 
 void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
                 uint16_t *ext_rec_y);

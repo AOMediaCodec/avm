@@ -448,12 +448,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_wiener_nonsep;
-#if CONFIG_CCSO
   /*!\brief enable cross-component sample offset
    *
    */
   unsigned int enable_ccso;
-#endif
   /*!\brief enable prediction enhancement filter
    *
    */

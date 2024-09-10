@@ -178,10 +178,6 @@ set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
 set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(
-  CONFIG_CCSO 1 "AV2 experiment flag to enable cross component sample offset.")
-set_aom_config_var(CONFIG_CCSO_EDGE_CLF 1
-                   "Enable adaptive edge classifier for CCSO.")
-set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
@@ -226,8 +222,6 @@ set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
                    "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_IBC_MAX_DRL 1
                    "Enables Max DRL index signaling for IntraBC")
-set_aom_config_var(CONFIG_CCSO_EXT 1
-                   "AV2 experiment flag to enable extended CCSO.")
 set_aom_config_var(
   CONFIG_PALETTE_IMPROVEMENTS
   1
@@ -384,9 +378,6 @@ set_aom_config_var(CONFIG_IST_ANY_SET 1
 
 set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
                    "Enable CCSO frame level joint flag.")
-
-set_aom_config_var(CONFIG_CCSO_BO_ONLY_OPTION 1
-                   "Enable CCSO band offset only option.")
 
 set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1

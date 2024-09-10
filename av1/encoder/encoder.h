@@ -851,10 +851,8 @@ typedef struct {
   bool enable_pc_wiener;
   // Indicates if nonsep wiener in loop restoration filter should be enabled.
   bool enable_wiener_nonsep;
-#if CONFIG_CCSO
   // Indicates if ccso should be enabled.
   bool enable_ccso;
-#endif
   // Indicates if prediction enhancement filter should be enabled.
   bool enable_pef;
 #if CONFIG_LF_SUB_PU
@@ -1662,9 +1660,7 @@ typedef struct FRAME_COUNTS {
   unsigned int switchable_flex_restore_cnts[MAX_LR_FLEX_SWITCHABLE_BITS]
                                            [MAX_MB_PLANE][2];  // placeholder
 
-#if CONFIG_CCSO_EXT
   unsigned int default_ccso_cnts[3][2];
-#endif
 
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
