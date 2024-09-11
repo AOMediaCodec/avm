@@ -1693,6 +1693,12 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
   }
 
 #if ADJUST_SUPER_RES_Q
+  // Maximum horizontal downscaled resolution can be 2x,
+  // For 2x resolution the value superres_scale_denominator is 16.
+  // It is assumed that the qindex value is reduced by 23 for 2x resolution
+  // The value 23 is found by experiments maynot be optimal value
+  // Assume 23 is maximum, the qindex is reduced by (23 *
+  // log2(superres_scale_denominator/8))
   if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
       cpi->common.superres_scale_denominator != SCALE_NUMERATOR) {
     q = AOMMAX(
