@@ -272,11 +272,9 @@ DECLS(sse2);
     int se = 0;                                                                \
     unsigned int sse = 0;                                                      \
     unsigned int sse2;                                                         \
-    int row_rep = (w > 64) ? 2 : 1;                                            \
+    const int row_rep = (w > 128) ? 4 : (w > 64) ? 2 : 1;                      \
     const int wr = AOMMIN(w, 64);                                              \
     for (int wd_64 = 0; wd_64 < row_rep; wd_64++) {                            \
-      src += wd_64 * 64;                                                       \
-      dst += wd_64 * 64;                                                       \
       int se2 = aom_highbd_sub_pixel_variance##wf##xh_##opt(                   \
           src, src_stride, x_offset, y_offset, dst, dst_stride, h, &sse2,      \
           NULL, NULL);                                                         \
@@ -323,6 +321,8 @@ DECLS(sse2);
           }                                                                    \
         }                                                                      \
       }                                                                        \
+      src += 64;                                                               \
+      dst += 64;                                                               \
     }                                                                          \
     *sse_ptr = sse;                                                            \
     return sse - (uint32_t)((cast se * se) >> (wlog2 + hlog2));                \
@@ -335,11 +335,9 @@ DECLS(sse2);
     uint32_t sse;                                                              \
     uint64_t long_sse = 0;                                                     \
     int se = 0;                                                                \
-    int row_rep = (w > 64) ? 2 : 1;                                            \
+    const int row_rep = (w > 128) ? 4 : (w > 64) ? 2 : 1;                      \
     const int wr = AOMMIN(w, 64);                                              \
     for (int wd_64 = 0; wd_64 < row_rep; wd_64++) {                            \
-      src += wd_64 * 64;                                                       \
-      dst += wd_64 * 64;                                                       \
       int se2 = aom_highbd_sub_pixel_variance##wf##xh_##opt(                   \
           src, src_stride, x_offset, y_offset, dst, dst_stride, h, &sse, NULL, \
           NULL);                                                               \
@@ -387,6 +385,8 @@ DECLS(sse2);
           }                                                                    \
         }                                                                      \
       }                                                                        \
+      src += 64;                                                               \
+      dst += 64;                                                               \
     }                                                                          \
     se = ROUND_POWER_OF_TWO(se, 2);                                            \
     sse = (uint32_t)ROUND_POWER_OF_TWO(long_sse, 4);                           \
@@ -403,7 +403,7 @@ DECLS(sse2);
     int se = 0;                                                                \
     int64_t var;                                                               \
     uint64_t long_sse = 0;                                                     \
-    int row_rep = (w > 64) ? 2 : 1;                                            \
+    const int row_rep = (w > 128) ? 4 : (w > 64) ? 2 : 1;                      \
     const int wr = AOMMIN(w, 64);                                              \
     for (start_row = 0; start_row < h; start_row += 16) {                      \
       uint32_t sse2;                                                           \
@@ -411,8 +411,6 @@ DECLS(sse2);
       uint16_t *src_tmp = (uint16_t *)src + (start_row * src_stride);          \
       uint16_t *dst_tmp = (uint16_t *)dst + (start_row * dst_stride);          \
       for (int wd_64 = 0; wd_64 < row_rep; wd_64++) {                          \
-        src_tmp += wd_64 * 64;                                                 \
-        dst_tmp += wd_64 * 64;                                                 \
         int se2 = aom_highbd_sub_pixel_variance##wf##xh_##opt(                 \
             src_tmp, src_stride, x_offset, y_offset, dst_tmp, dst_stride,      \
             height, &sse2, NULL, NULL);                                        \
@@ -459,6 +457,8 @@ DECLS(sse2);
             }                                                                  \
           }                                                                    \
         }                                                                      \
+        src_tmp += 64;                                                         \
+        dst_tmp += 64;                                                         \
       }                                                                        \
     }                                                                          \
     se = ROUND_POWER_OF_TWO(se, 4);                                            \
@@ -472,6 +472,9 @@ DECLS(sse2);
 // fixing alignment issues.
 #if CONFIG_EXT_RECUR_PARTITIONS
 #define FNS(opt)                          \
+  FN(256, 256, 16, 8, 8, opt, (int64_t)); \
+  FN(256, 128, 16, 8, 7, opt, (int64_t)); \
+  FN(128, 256, 16, 7, 8, opt, (int64_t)); \
   FN(128, 128, 16, 7, 7, opt, (int64_t)); \
   FN(128, 64, 16, 7, 6, opt, (int64_t));  \
   FN(64, 128, 16, 6, 7, opt, (int64_t));  \

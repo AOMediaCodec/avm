@@ -1002,9 +1002,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # Subpixel Variance
   #
   if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
-    # specialize qw/aom_highbd_12_sub_pixel_variance256x256 avx2/;
-    # specialize qw/aom_highbd_12_sub_pixel_variance256x128 avx2/;
-    # specialize qw/aom_highbd_12_sub_pixel_variance128x256 avx2/;
+    specialize qw/aom_highbd_12_sub_pixel_variance256x256 sse2/;
+    specialize qw/aom_highbd_12_sub_pixel_variance256x128 sse2/;
+    specialize qw/aom_highbd_12_sub_pixel_variance128x256 sse2/;
   }
 
   add_proto qw/uint32_t aom_highbd_12_sub_pixel_variance128x128/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
@@ -1099,9 +1099,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
   if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
-    specialize qw/aom_highbd_10_sub_pixel_variance256x256 avx2/;
-    specialize qw/aom_highbd_10_sub_pixel_variance256x128 avx2/;
-    specialize qw/aom_highbd_10_sub_pixel_variance128x256 avx2/;
+    specialize qw/aom_highbd_10_sub_pixel_variance256x256 sse2/;
+    specialize qw/aom_highbd_10_sub_pixel_variance256x128 sse2 avx2/;
+    specialize qw/aom_highbd_10_sub_pixel_variance128x256 sse2 avx2/;
   }
 
   add_proto qw/uint32_t aom_highbd_10_sub_pixel_variance128x128/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
@@ -1184,9 +1184,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
 
   if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "yes"){
-    specialize qw/aom_highbd_8_sub_pixel_variance256x256 avx2/;
-    specialize qw/aom_highbd_8_sub_pixel_variance256x128 avx2/;
-    specialize qw/aom_highbd_8_sub_pixel_variance128x256 avx2/;
+    specialize qw/aom_highbd_8_sub_pixel_variance256x256 sse2/;
+    specialize qw/aom_highbd_8_sub_pixel_variance256x128 sse2 avx2/;
+    specialize qw/aom_highbd_8_sub_pixel_variance128x256 sse2 avx2/;
   }
 
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_variance128x128/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";

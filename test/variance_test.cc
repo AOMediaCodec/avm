@@ -1567,12 +1567,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDVarianceTest,
 
 const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
 #if CONFIG_EXT_RECUR_PARTITIONS
-//  SubpelVarianceParams(8, 8, &aom_highbd_12_sub_pixel_variance256x256_avx2,
-//  12),
-//  SubpelVarianceParams(8, 7, &aom_highbd_12_sub_pixel_variance256x128_avx2,
-//  12),
-//  SubpelVarianceParams(7, 8, &aom_highbd_12_sub_pixel_variance128x256_avx2,
-//  12),
+// SubpelVarianceParams(8, 8, &aom_highbd_12_sub_pixel_variance256x256_avx2,
+// 12),
+// SubpelVarianceParams(8, 7, &aom_highbd_12_sub_pixel_variance256x128_avx2,
+// 12),
+// SubpelVarianceParams(7, 8, &aom_highbd_12_sub_pixel_variance128x256_avx2,
+// 12),
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   // SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_avx2,
   // 12),
@@ -1655,6 +1655,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDSubpelVarianceTest,
 #endif  // HAVE_AVX2
 
 const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SubpelVarianceParams(8, 8, &aom_highbd_12_sub_pixel_variance256x256_sse2, 12),
+  SubpelVarianceParams(8, 7, &aom_highbd_12_sub_pixel_variance256x128_sse2, 12),
+  SubpelVarianceParams(7, 8, &aom_highbd_12_sub_pixel_variance128x256_sse2, 12),
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_sse2, 12),
   SubpelVarianceParams(7, 6, &aom_highbd_12_sub_pixel_variance128x64_sse2, 12),
   SubpelVarianceParams(6, 7, &aom_highbd_12_sub_pixel_variance64x128_sse2, 12),
@@ -1671,6 +1676,12 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
   SubpelVarianceParams(3, 4, &aom_highbd_12_sub_pixel_variance8x16_sse2, 12),
   SubpelVarianceParams(3, 3, &aom_highbd_12_sub_pixel_variance8x8_sse2, 12),
   SubpelVarianceParams(3, 2, &aom_highbd_12_sub_pixel_variance8x4_sse2, 12),
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SubpelVarianceParams(8, 8, &aom_highbd_10_sub_pixel_variance256x256_sse2, 10),
+  SubpelVarianceParams(8, 7, &aom_highbd_10_sub_pixel_variance256x128_sse2, 10),
+  SubpelVarianceParams(7, 8, &aom_highbd_10_sub_pixel_variance128x256_sse2, 10),
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   SubpelVarianceParams(7, 7, &aom_highbd_10_sub_pixel_variance128x128_sse2, 10),
   SubpelVarianceParams(7, 6, &aom_highbd_10_sub_pixel_variance128x64_sse2, 10),
   SubpelVarianceParams(6, 7, &aom_highbd_10_sub_pixel_variance64x128_sse2, 10),
@@ -1687,6 +1698,12 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
   SubpelVarianceParams(3, 4, &aom_highbd_10_sub_pixel_variance8x16_sse2, 10),
   SubpelVarianceParams(3, 3, &aom_highbd_10_sub_pixel_variance8x8_sse2, 10),
   SubpelVarianceParams(3, 2, &aom_highbd_10_sub_pixel_variance8x4_sse2, 10),
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SubpelVarianceParams(8, 8, &aom_highbd_8_sub_pixel_variance256x256_sse2, 8),
+  SubpelVarianceParams(8, 7, &aom_highbd_8_sub_pixel_variance256x128_sse2, 8),
+  SubpelVarianceParams(7, 8, &aom_highbd_8_sub_pixel_variance128x256_sse2, 8),
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   SubpelVarianceParams(7, 7, &aom_highbd_8_sub_pixel_variance128x128_sse2, 8),
   SubpelVarianceParams(7, 6, &aom_highbd_8_sub_pixel_variance128x64_sse2, 8),
   SubpelVarianceParams(6, 7, &aom_highbd_8_sub_pixel_variance64x128_sse2, 8),
