@@ -904,14 +904,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
   // read  sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
-#if CONFIG_INTER_IST
   if ((plane == AOM_PLANE_Y) &&
       (is_inter_block(mbmi, xd->tree_type)
            ? (*eob > 3 && cm->seq_params.enable_inter_ist)
            : (*eob != 1 && cm->seq_params.enable_ist))) {
-#else
-  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && (*eob != 1)) {
-#endif  // // CONFIG_INTER_IST
     av1_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);
   }
   //
@@ -1333,10 +1329,8 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level, col,
                            row);
   if (is_inter_block(mbmi, xd->tree_type)) {
-#if CONFIG_INTER_IST
-    const TX_TYPE tx_type1 = av1_get_tx_type(xd, plane_type, row, col, tx_size,
-                                             cm->features.reduced_tx_set_used);
-#endif  // CONFIG_INTER_IST
+    const TX_TYPE tx_type_inter = av1_get_tx_type(
+        xd, plane_type, row, col, tx_size, cm->features.reduced_tx_set_used);
     if (plane == 0) {
       const int txw = tx_size_wide_unit[tx_size];
       const int txh = tx_size_high_unit[tx_size];
@@ -1345,11 +1339,7 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
       const int stride = xd->tx_type_map_stride;
       for (int idy = 0; idy < txh; idy += tx_unit) {
         for (int idx = 0; idx < txw; idx += tx_unit) {
-#if CONFIG_INTER_IST
-          xd->tx_type_map[(row + idy) * stride + col + idx] = tx_type1;
-#else
-          xd->tx_type_map[(row + idy) * stride + col + idx] = tx_type;
-#endif  // CONFIG_INTER_IST
+          xd->tx_type_map[(row + idy) * stride + col + idx] = tx_type_inter;
         }
       }
     }

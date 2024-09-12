@@ -546,14 +546,9 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
   const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
-#if CONFIG_INTER_IST
   if (!is_inter_block(mbmi, xd->tree_type))
     assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
             txfm_param->sec_tx_type) == 0);
-#else
-  assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
-          txfm_param->sec_tx_type) == 0);
-#endif  // CONFIG_INTER_IST
   (void)intra_mode;
   (void)filter;
   (void)is_depth0;
@@ -657,7 +652,6 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
-#if CONFIG_INTER_IST
   txfm_param->is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
@@ -675,18 +669,6 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
 #endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }
-#else
-  if ((txfm_param->intra_mode < PAETH_PRED) &&
-      !xd->lossless[mbmi->segment_id] &&
-      !(mbmi->filter_intra_mode_info.use_filter_intra) &&
-      !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) &&
-      cm->seq_params.enable_ist) {
-#if CONFIG_IST_SET_FLAG
-    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
-#endif  // CONFIG_IST_SET_FLAG
-    txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-  }
-#endif  // CONFIG_INTER_IST
   txfm_param->cctx_type = cctx_type;
 #if CONFIG_INTER_DDT
   txfm_param->use_ddt =

@@ -927,11 +927,7 @@ typedef struct {
 #endif  // CONFIG_AIMC
 
   //! Cost of signaling secondary transform index
-#if CONFIG_INTER_IST
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];
-#else
-  int stx_flag_cost[TX_SIZES][STX_TYPES];
-#endif  // CONFIG_INTER_IST
 #if CONFIG_IST_SET_FLAG
   //! Cost of signaling secondary transform set index
 #if CONFIG_INTRA_TX_IST_PARSE

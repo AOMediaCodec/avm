@@ -535,21 +535,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->morph_pred_cdf[i], NULL);
   }
 #endif  // CONFIG_MORPH_PRED
-
-#if CONFIG_INTER_IST
   for (j = 0; j < 2; ++j) {
     for (i = 0; i < TX_SIZES; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[j][i],
                                fc->stx_cdf[j][i], NULL);
     }
   }
-#else
-  for (i = 0; i < TX_SIZES; ++i) {
-    av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[i], fc->stx_cdf[i],
-                             NULL);
-  }
-#endif  // CONFIG_INTER_IST
-
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   av1_cost_tokens_from_cdf(mode_costs->most_probable_stx_set_flag_cost,

@@ -165,9 +165,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_idif;
 #endif  // CONFIG_IDIF
   arg_def_t enable_ist;
-#if CONFIG_INTER_IST
   arg_def_t enable_inter_ist;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   arg_def_t enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT

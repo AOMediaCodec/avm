@@ -1461,7 +1461,6 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 
 // This function reads a 'secondary tx set' from the bitstream
-#if CONFIG_INTER_IST
 static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
                                   aom_reader *r, MB_MODE_INFO *mbmi,
                                   TX_TYPE *tx_type) {
@@ -1486,28 +1485,6 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
   if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
   set_secondary_tx_set(tx_type, stx_set_flag);
 }
-#else
-static void read_secondary_tx_set(FRAME_CONTEXT *ec_ctx, aom_reader *r,
-                                  MB_MODE_INFO *mbmi, TX_TYPE *tx_type) {
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_INTRA_TX_IST_PARSE
-  const TX_TYPE reordered_stx_set_flag =
-      aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE,
-                      ACCT_INFO("stx_set_flag"));
-  TX_TYPE stx_set_flag =
-      inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
-#else
-  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
-  assert(stx_set_ctx < IST_DIR_SIZE);
-  TX_TYPE stx_set_flag =
-      aom_read_symbol(r, ec_ctx->stx_set_cdf[stx_set_ctx], IST_DIR_SIZE,
-                      ACCT_INFO("stx_set_flag"));
-#endif  // CONFIG_INTRA_TX_IST_PARSE
-  assert(stx_set_flag < IST_DIR_SIZE);
-  if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
-  set_secondary_tx_set(tx_type, stx_set_flag);
-}
-#endif  // CONFIG_INTER_IST
 
 void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           int blk_row, int blk_col, TX_SIZE tx_size,
@@ -1529,53 +1506,25 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       1) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-#if !CONFIG_INTER_IST
-    if (!inter_block) {
-#endif  // CONFIG_INTER_IST
-      if (block_signals_sec_tx_type(xd, tx_size, *tx_type, *eob)) {
-#if CONFIG_INTER_IST
-        const uint8_t stx_flag =
-            aom_read_symbol(r, ec_ctx->stx_cdf[inter_block][square_tx_size],
-                            STX_TYPES, ACCT_INFO("stx_flag"));
-#else
-      const uint8_t stx_flag = aom_read_symbol(
-          r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
-#endif  // CONFIG_INTER_IST
-        *tx_type |= (stx_flag << PRIMARY_TX_BITS);
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_INTER_IST
-        if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
-#else
-        if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
-#endif  // CONFIG_INTER_IST
-#endif  // CONFIG_IST_SET_FLAG
-      }
-#if !CONFIG_INTER_IST
-    }
-#endif  // CONFIG_INTER_IST
-#if CONFIG_INTER_IST
-  } else {
-#else
-  } else if (!inter_block) {
-#endif  // CONFIG_INTER_IST
-    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     if (block_signals_sec_tx_type(xd, tx_size, *tx_type, *eob)) {
-#if CONFIG_INTER_IST
       const uint8_t stx_flag =
           aom_read_symbol(r, ec_ctx->stx_cdf[inter_block][square_tx_size],
                           STX_TYPES, ACCT_INFO("stx_flag"));
-#else
-      const uint8_t stx_flag = aom_read_symbol(
-          r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
-#endif  // // CONFIG_INTER_IST
       *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 #if CONFIG_IST_SET_FLAG
-#if CONFIG_INTER_IST
       if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
-#else
-      if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
-#endif  // CONFIG_INTER_IST
+#endif  // CONFIG_IST_SET_FLAG
+    }
+  } else {
+    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    if (block_signals_sec_tx_type(xd, tx_size, *tx_type, *eob)) {
+      const uint8_t stx_flag =
+          aom_read_symbol(r, ec_ctx->stx_cdf[inter_block][square_tx_size],
+                          STX_TYPES, ACCT_INFO("stx_flag"));
+      *tx_type |= (stx_flag << PRIMARY_TX_BITS);
+#if CONFIG_IST_SET_FLAG
+      if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
 #endif  // CONFIG_IST_SET_FLAG
     }
   }

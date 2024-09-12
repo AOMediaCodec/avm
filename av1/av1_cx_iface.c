@@ -137,12 +137,10 @@ struct av1_extracfg {
   int enable_fsc;   // enable forward skip coding
   int enable_orip;  // enable ORIP
 #if CONFIG_IDIF
-  int enable_idif;  // enable IDIF
-#endif              // CONFIG_IDIF
-  int enable_ist;   // enable intra secondary transform
-#if CONFIG_INTER_IST
+  int enable_idif;       // enable IDIF
+#endif                   // CONFIG_IDIF
+  int enable_ist;        // enable intra secondary transform
   int enable_inter_ist;  // enable inter secondary transform
-#endif                   // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   int enable_inter_ddt;     // enable inter data-driven transform
 #endif                      // CONFIG_INTER_DDT
@@ -475,9 +473,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable IDIF
 #endif  // CONFIG_IDIF
   1,    // enable intra secondary transform
-#if CONFIG_INTER_IST
   1,    // enable inter secondary transform
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   1,    // enable inter data-driven transform
 #endif  // CONFIG_INTER_DDT
@@ -997,9 +993,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_idif = extra_cfg->enable_idif;
 #endif  // CONFIG_IDIF
   cfg->enable_ist = extra_cfg->enable_ist;
-#if CONFIG_INTER_IST
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   cfg->enable_inter_ddt = extra_cfg->enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT
@@ -1120,9 +1114,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_idif = cfg->enable_idif;
 #endif  // CONFIG_IDIF
   extra_cfg->enable_ist = cfg->enable_ist;
-#if CONFIG_INTER_IST
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   extra_cfg->enable_inter_ddt = cfg->enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT
@@ -1712,10 +1704,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
   txfm_cfg->enable_ist = extra_cfg->enable_ist && !extra_cfg->lossless;
-#if CONFIG_INTER_IST
   txfm_cfg->enable_inter_ist =
       extra_cfg->enable_inter_ist && !extra_cfg->lossless;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   txfm_cfg->enable_inter_ddt =
       extra_cfg->enable_inter_ddt && !extra_cfg->lossless;
@@ -3912,11 +3902,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_INTER_IST
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ist,
                               argv, err_string)) {
     extra_cfg.enable_inter_ist = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ddt,
                               argv, err_string)) {
@@ -4425,9 +4413,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif      // CONFIG_IDIF
         1,  // IST
-#if CONFIG_INTER_IST
         1,  // inter IST
-#endif      // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
         1,  // inter DDT
 #endif      // CONFIG_INTER_DDT

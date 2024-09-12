@@ -506,12 +506,8 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
                          : 32;
 
   if ((width >= 4 && height >= 4) && stx_type) {
-#if CONFIG_INTER_IST
     const PREDICTION_MODE intra_mode =
         (txfm_param->is_inter ? DC_PRED : txfm_param->intra_mode);
-#else
-    const PREDICTION_MODE intra_mode = txfm_param->intra_mode;
-#endif  // CONFIG_INTER_IST
     PREDICTION_MODE mode = 0, mode_t = 0;
     const int log2width = tx_size_wide_log2[txfm_param->tx_size];
     const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;

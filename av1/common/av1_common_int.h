@@ -486,10 +486,8 @@ typedef struct SequenceHeader {
   uint8_t
       enable_idif;  // enables/disables Intra Directional Interpolation Filter
 #endif              // CONFIG_IDIF
-  uint8_t enable_ist;  // enables/disables intra secondary transform
-#if CONFIG_INTER_IST
+  uint8_t enable_ist;        // enables/disables intra secondary transform
   uint8_t enable_inter_ist;  // enables/disables inter secondary transform
-#endif                       // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
 #endif                       // CONFIG_INTER_DDT

@@ -7555,7 +7555,6 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
 
 #if CONFIG_ENTROPY_PARA
 #if CONFIG_IST_ANY_SET
-#if CONFIG_INTER_IST
 static const aom_cdf_prob default_stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   {
       { AOM_CDF4(293, 11683, 25053), 75 },
@@ -7572,13 +7571,6 @@ static const aom_cdf_prob default_stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)] = {
       { AOM_CDF4(10685, 14127, 17177), 31 },
   },
 };
-#else
-static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
-  { AOM_CDF4(303, 12789, 26360), 75 }, { AOM_CDF4(1671, 11400, 19958), 30 },
-  { AOM_CDF4(2286, 9675, 16955), 5 },  { AOM_CDF4(3524, 9155, 13661), 0 },
-  { AOM_CDF4(8277, 13215, 16769), 6 },
-};
-#endif  // CONFIG_INTER_IST
 #else
 static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   { AOM_CDF4(1542, 11565, 24287), 0 },  { AOM_CDF4(4776, 13664, 21624), 0 },

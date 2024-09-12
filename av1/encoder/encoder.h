@@ -338,12 +338,10 @@ typedef struct {
    * Flag to indicate if intra secondary transform should be enabled.
    */
   bool enable_ist;
-#if CONFIG_INTER_IST
   /*!
    * Flag to indicate if inter secondary transform should be enabled.
    */
   bool enable_inter_ist;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   /*!
    * Flag to indicate if inter data-driven transform should be enabled.
@@ -1281,11 +1279,7 @@ typedef struct FRAME_COUNTS {
   unsigned int delta_lf_multi_cnts[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS +
                                                             1)];  // placeholder
   unsigned int delta_lf_cnts[CDF_SIZE(DELTA_LF_PROBS + 1)];       // placeholder
-#if CONFIG_INTER_IST
-  unsigned int stx_cnts[2][TX_SIZES][CDF_SIZE(STX_TYPES)];  // placeholder
-#else
-  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];      // placeholder
-#endif  // CONFIG_INTER_IST
+  unsigned int stx_cnts[2][TX_SIZES][CDF_SIZE(STX_TYPES)];        // placeholder
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   unsigned int stx_set_cnts[CDF_SIZE(IST_DIR_SIZE)];  // placeholder

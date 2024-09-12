@@ -6425,9 +6425,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_SAME_REF_COMPOUND
   seq_params->enable_sdp = aom_rb_read_bit(rb);
   seq_params->enable_ist = aom_rb_read_bit(rb);
-#if CONFIG_INTER_IST
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
 #endif  // CONFIG_INTER_DDT

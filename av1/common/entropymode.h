@@ -554,11 +554,7 @@ typedef struct frame_contexts {
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
-#if CONFIG_INTER_IST
   aom_cdf_prob stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)];
-#else
-  aom_cdf_prob stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)];
-#endif  // CONFIG_INTER_IST
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob most_probable_stx_set_cdf[CDF_SIZE(IST_DIR_SIZE)];

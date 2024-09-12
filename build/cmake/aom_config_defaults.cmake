@@ -413,7 +413,6 @@ set_aom_config_var(CONFIG_ML_PART_SPLIT 1
 set_aom_config_var(
   CONFIG_INTRA_TX_IST_PARSE 1
   "Parsing dependency removal for intra tx type and IST set signaling.")
-set_aom_config_var(CONFIG_INTER_IST 1 "Enable IST for inter blocks.")
 set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_IBP_WEIGHT 1 "Reduce IBP weights memory.")

@@ -434,7 +434,6 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
-#if CONFIG_INTER_IST
   txfm_param->is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
@@ -450,17 +449,6 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
 #endif  // CONFIG_IST_SET_FLAG
   }
-#else
-  if ((txfm_param->intra_mode < PAETH_PRED) &&
-      !xd->lossless[mbmi->segment_id] &&
-      !(mbmi->filter_intra_mode_info.use_filter_intra)) {
-    // updated EOB condition
-    txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-#if CONFIG_IST_SET_FLAG
-    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
-#endif  // CONFIG_IST_SET_FLAG
-  }
-#endif  // CONFIG_INTER_IST
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
   if (txfm_param->sec_tx_type) {
@@ -642,13 +630,9 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
-#if CONFIG_INTER_IST
   if (!is_inter_block(xd->mi[0], xd->tree_type))
     assert(((intra_mode >= PAETH_PRED || filter) && txfm_param.sec_tx_type) ==
            0);
-#else
-  assert(((intra_mode >= PAETH_PRED || filter) && txfm_param.sec_tx_type) == 0);
-#endif  // CONFIG_INTER_IST
   (void)intra_mode;
   (void)filter;
 
@@ -723,12 +707,8 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
                          : 32;
 
   if ((width >= 4 && height >= 4) && stx_type) {
-#if CONFIG_INTER_IST
     const PREDICTION_MODE intra_mode =
         (txfm_param->is_inter ? DC_PRED : txfm_param->intra_mode);
-#else
-    const PREDICTION_MODE intra_mode = txfm_param->intra_mode;
-#endif  // CONFIG_INTER_IST
     PREDICTION_MODE mode = 0, mode_t = 0;
     const int log2width = tx_size_wide_log2[txfm_param->tx_size];
 

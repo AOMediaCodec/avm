@@ -2683,13 +2683,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       // Therefore transform domain distortion is not valid for these
       // transform sizes.
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
-  // Use pixel domain distortion for IST
-  // TODO(any): Make IST compatible with tx domain distortion
-#if CONFIG_INTER_IST
+      // Use pixel domain distortion for IST
+      // TODO(any): Make IST compatible with tx domain distortion
       !(cm->seq_params.enable_ist || cm->seq_params.enable_inter_ist) &&
-#else
-      !cm->seq_params.enable_ist &&
-#endif  // CONFIG_INTER_IST
       // Use pixel domain distortion for DC only blocks
       !dc_only_blk;
   // Flag to indicate if an extra calculation of distortion in the pixel domain
@@ -2794,13 +2790,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     }
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     bool skip_idx = false;
-#if CONFIG_INTER_IST
     xd->enable_ist =
         (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.enable_inter_ist
                                              : cm->seq_params.enable_ist) &&
-#else
-    xd->enable_ist = cm->seq_params.enable_ist &&
-#endif  // CONFIG_INTER_IST
         !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
         !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
         !xd->lossless[mbmi->segment_id];
@@ -2808,7 +2800,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
     const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
     const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
-#if CONFIG_INTER_IST
     bool skip_stx =
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
@@ -2816,29 +2807,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
               ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
          dc_only_blk || !is_depth0 || (eob_found) || !xd->enable_ist);
-#else
-    bool skip_stx =
-        ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
-         plane != 0 || is_inter_block(mbmi, xd->tree_type) || dc_only_blk ||
-         intra_mode >= PAETH_PRED || filter || !is_depth0 || (eob_found) ||
-         !xd->enable_ist);
-#endif  // CONFIG_INTER_IST
-
 #if CONFIG_IST_ANY_SET
-#if CONFIG_INTER_IST
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
-#else
-    int max_set_id = skip_stx ? 1 : IST_DIR_SIZE;
-#endif  // CONFIG_INTER_IST
-
     // Iterate through all possible secondary tx sets for given primary tx type
-#if CONFIG_INTER_IST
     for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
-#else
-    for (int set_id = 0; set_id < max_set_id; ++set_id) {
-#endif  // CONFIG_INTER_IST
 #endif  // CONFIG_IST_ANY_SET
 
       const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
@@ -2923,7 +2897,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
         // pre-skip DC only case to make things faster
         uint16_t *const eob = &p->eobs[block];
-#if CONFIG_INTER_IST
         if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
           if (tx_type1 == DCT_DCT) eob_found = 1;
           if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
@@ -2935,15 +2908,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
           continue;
         }
-#else
-      if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
-        if (tx_type1 == DCT_DCT) eob_found = 1;
-        if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
-          update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-          continue;
-        }
-      }
-#endif  // CONFIG_INTER_IST
 #if CONFIG_IMPROVEIDTX_RDPH
         if (fsc_mode_in && quant_param.use_optimize_b) {
           av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
@@ -2971,7 +2935,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
               cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
                           txb_ctx, cm->features.reduced_tx_set_used);
         }
-#if CONFIG_INTER_IST
         if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
           if (tx_type1 == DCT_DCT) eob_found = 1;
           if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
@@ -2985,19 +2948,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
           continue;
         }
-#else
-      if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
-        // post quant-skip DC only case
-        if (tx_type1 == DCT_DCT) eob_found = 1;
-        if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
-          if (plane == 0)
-            update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-          continue;
-        }
-        if (get_secondary_tx_type(tx_type) > 0) continue;
-        if (txfm_param.sec_tx_type > 0) continue;
-      }
-#endif  // CONFIG_INTER_IST
         // If rd cost based on coeff rate alone is already more than best_rd,
         // terminate early.
         if (RDCOST(x->rdmult, rate_cost, 0) > best_rd) continue;
@@ -3128,9 +3078,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
       }  // for (int stx = 0;
 #if CONFIG_IST_ANY_SET
-#if CONFIG_INTER_IST
       if (skip_idx) break;
-#endif  // CONFIG_INTER_IST
     }   // for (int stx_set = 0;
 #endif  // CONFIG_IST_ANY_SET
     if (skip_idx) break;
@@ -3665,11 +3613,7 @@ static void select_tx_partition_type(
   int64_t best_rd = INT64_MAX;
   TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_INVALID;
   uint8_t best_partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
-#if CONFIG_INTER_IST
   TX_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
-#else
-  TX_PARTITION_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
-#endif  // CONFIG_INTER_IST
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
   const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
@@ -3755,11 +3699,7 @@ static void select_tx_partition_type(
     get_tx_partition_sizes(type, max_tx_size, &txb_pos, sub_txs);
     uint8_t this_blk_skip[MAX_TX_PARTITIONS] = { 0 };
     uint8_t partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
-#if CONFIG_INTER_IST
     TX_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
-#else
-    TX_PARTITION_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
-#endif  // CONFIG_INTER_IST
     int cur_block = block;
 
     // Compute cost of each tx size in this partition

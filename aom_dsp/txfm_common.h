@@ -37,9 +37,7 @@ typedef struct txfm_param {
   TX_TYPE sec_tx_type;
   // intra prediction mode used for the current tx block
   PREDICTION_MODE intra_mode;
-#if CONFIG_INTER_IST
   int is_inter;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   int use_ddt;
 #endif  // CONFIG_INTER_DDT

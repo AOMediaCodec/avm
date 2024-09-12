@@ -453,9 +453,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_idif = oxcf->intra_mode_cfg.enable_idif;
 #endif  // CONFIG_IDIF
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
-#if CONFIG_INTER_IST
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT

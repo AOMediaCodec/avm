@@ -104,9 +104,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_idif);
 #endif  // CONFIG_IDIF
     GET_PARAMS(enable_ist);
-#if CONFIG_INTER_IST
     GET_PARAMS(enable_inter_ist);
-#endif  // CONFIG_INTER_IST
 #if CONFIG_INTER_DDT
     GET_PARAMS(enable_inter_ddt);
 #endif  // CONFIG_INTER_DDT
