@@ -541,4 +541,7 @@ HIGH_SAD4XN  8, 2 ; highbd_sad_skip_4x8_sse2
 HIGH_SAD4XN 64 ; highbd_sad_4x64_sse2
 HIGH_SAD4XN 64, 1 ; highbd_sad_4x64_avg_sse2
 HIGH_SAD4XN 64, 2 ; highbd_sad_skip_4x64_sse2
+HIGH_SAD4XN 32 ; highbd_sad_4x32_sse2
+HIGH_SAD4XN 32, 1 ; highbd_sad_4x32_avg_sse2
+HIGH_SAD4XN 32, 2 ; highbd_sad_skip_4x32_sse2
 %endif

@@ -227,6 +227,25 @@ static AOM_FORCE_INLINE void sad16x4(const uint16_t *src_ptr, int src_stride,
   highbd_sad16x4_core_avx2(s, r, sad_acc);
 }
 
+static AOM_FORCE_INLINE void sad16x2(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *sec_ptr,
+                                     __m256i *sad_acc) {
+  __m256i s[2], r[2];
+  s[0] = _mm256_loadu_si256((const __m256i *)src_ptr);
+  s[1] = _mm256_loadu_si256((const __m256i *)(src_ptr + src_stride));
+
+  r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);
+  r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride));
+
+  if (sec_ptr) {
+    r[0] = _mm256_avg_epu16(r[0], _mm256_loadu_si256((const __m256i *)sec_ptr));
+    r[1] = _mm256_avg_epu16(
+        r[1], _mm256_loadu_si256((const __m256i *)(sec_ptr + 16)));
+  }
+  highbd_sad16x4_core_ds_avx2(s, r, sad_acc);
+}
+
 #if CONFIG_SUBBLK_REF_EXT
 static AOM_FORCE_INLINE void sad20x4_ds(const uint16_t *src_ptr, int src_stride,
                                         const uint16_t *ref_ptr, int ref_stride,
@@ -368,6 +387,18 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad16xN_avx2(
   return (unsigned int)get_sad_from_mm256_epi32(&sad);
 }
 
+static AOM_FORCE_INLINE unsigned int aom_highbd_sad16xN_2rows_avx2(
+    int N, const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr,
+    int ref_stride) {
+  __m256i sad = _mm256_setzero_si256();
+  for (int i = 0; i < N; i += 2) {
+    sad16x2(src_ptr, src_stride, ref_ptr, ref_stride, NULL, &sad);
+    src_ptr += src_stride << 1;
+    ref_ptr += ref_stride << 1;
+  }
+  return (unsigned int)get_sad_from_mm256_epi32(&sad);
+}
+
 #if CONFIG_SUBBLK_REF_DS
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad16xN_ds_avx2(
     int N, const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr,
@@ -487,6 +518,38 @@ static AOM_FORCE_INLINE void sad32x4(const uint16_t *src_ptr, int src_stride,
   }
 }
 
+static AOM_FORCE_INLINE void sad32x2(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *sec_ptr,
+                                     __m256i *sad_acc) {
+  __m256i s[4], r[4];
+
+  s[0] = _mm256_loadu_si256((const __m256i *)src_ptr);
+  s[1] = _mm256_loadu_si256((const __m256i *)(src_ptr + 16));
+  s[2] = _mm256_loadu_si256((const __m256i *)(src_ptr + src_stride));
+  s[3] = _mm256_loadu_si256((const __m256i *)(src_ptr + src_stride + 16));
+
+  r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);
+  r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 16));
+  r[2] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride));
+  r[3] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride + 16));
+
+  if (sec_ptr) {
+    r[0] = _mm256_avg_epu16(r[0], _mm256_loadu_si256((const __m256i *)sec_ptr));
+    r[1] = _mm256_avg_epu16(
+        r[1], _mm256_loadu_si256((const __m256i *)(sec_ptr + 16)));
+    r[2] = _mm256_avg_epu16(
+        r[2], _mm256_loadu_si256((const __m256i *)(sec_ptr + 32)));
+    r[3] = _mm256_avg_epu16(
+        r[3], _mm256_loadu_si256((const __m256i *)(sec_ptr + 48)));
+    sec_ptr += 32 << 1;
+  }
+  highbd_sad16x4_core_avx2(s, r, sad_acc);
+
+  src_ptr += src_stride << 1;
+  ref_ptr += ref_stride << 1;
+}
+
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad32xN_avx2(
     int N, const uint16_t *src, int src_stride, const uint16_t *ref,
     int ref_stride) {
@@ -496,6 +559,20 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad32xN_avx2(
 
   for (i = 0; i < N; i += 4) {
     sad32x4(src, src_stride, ref, ref_stride, NULL, &sad);
+    src += src_stride << left_shift;
+    ref += ref_stride << left_shift;
+  }
+  return get_sad_from_mm256_epi32(&sad);
+}
+
+static AOM_FORCE_INLINE unsigned int aom_highbd_sad32xN_2rows_avx2(
+    int N, const uint16_t *src, int src_stride, const uint16_t *ref,
+    int ref_stride) {
+  __m256i sad = _mm256_setzero_si256();
+  const int left_shift = 1;
+
+  for (int i = 0; i < N; i += 2) {
+    sad32x2(src, src_stride, ref, ref_stride, NULL, &sad);
     src += src_stride << left_shift;
     ref += ref_stride << left_shift;
   }
@@ -637,6 +714,15 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad256xN_avx2(
                                           2 * ref_stride);                   \
   }
 
+// Handle height 4 cases where only 2 rows are processed
+#define highbd_sad_skip_MxN_2rows_avx2(m, n)                                  \
+  unsigned int aom_highbd_sad_skip_##m##x##n##_avx2(                          \
+      const uint16_t *src, int src_stride, const uint16_t *ref,               \
+      int ref_stride) {                                                       \
+    return 2 * aom_highbd_sad##m##xN_2rows_avx2((n / 2), src, 2 * src_stride, \
+                                                ref, 2 * ref_stride);         \
+  }
+
 highbd_sadMxN_avx2(16, 4);
 highbd_sadMxN_avx2(16, 8);
 highbd_sadMxN_avx2(16, 16);
@@ -661,11 +747,14 @@ highbd_sadMxN_avx2(12, 20);
 highbd_sadMxN_avx2(12, 12);
 #endif  // CONFIG_SUBBLK_REF_EXT
 
+highbd_sadMxN_avx2(32, 4);
 highbd_sadMxN_avx2(32, 8);
 highbd_sadMxN_avx2(32, 16);
 highbd_sadMxN_avx2(32, 32);
 highbd_sadMxN_avx2(32, 64);
 
+highbd_sadMxN_avx2(64, 4);
+highbd_sadMxN_avx2(64, 8);
 highbd_sadMxN_avx2(64, 16);
 highbd_sadMxN_avx2(64, 32);
 highbd_sadMxN_avx2(64, 64);
@@ -678,16 +767,20 @@ highbd_sadMxN_avx2(128, 256);
 highbd_sadMxN_avx2(256, 128);
 highbd_sadMxN_avx2(256, 256);
 
+highbd_sad_skip_MxN_2rows_avx2(16, 4);
 highbd_sad_skip_MxN_avx2(16, 8);
 highbd_sad_skip_MxN_avx2(16, 16);
 highbd_sad_skip_MxN_avx2(16, 32);
 highbd_sad_skip_MxN_avx2(16, 64);
 
+highbd_sad_skip_MxN_2rows_avx2(32, 4);
 highbd_sad_skip_MxN_avx2(32, 8);
 highbd_sad_skip_MxN_avx2(32, 16);
 highbd_sad_skip_MxN_avx2(32, 32);
 highbd_sad_skip_MxN_avx2(32, 64);
 
+highbd_sad_skip_MxN_avx2(64, 4);
+highbd_sad_skip_MxN_avx2(64, 8);
 highbd_sad_skip_MxN_avx2(64, 16);
 highbd_sad_skip_MxN_avx2(64, 32);
 highbd_sad_skip_MxN_avx2(64, 64);
@@ -1038,6 +1131,27 @@ static AOM_FORCE_INLINE void aom_highbd_sad16xNx4d_avx2(
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
 
+static AOM_FORCE_INLINE void aom_highbd_sad16xNx4d_2rows_avx2(
+    int N, const uint16_t *src, int src_stride,
+    const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
+  __m256i sad_vec[4];
+  const int shift_for_2_rows = 1;
+
+  init_sad(sad_vec);
+
+  for (int i = 0; i < 4; ++i) {
+    const uint16_t *srcp = src;
+    const uint16_t *refp = ref_array[i];
+
+    for (int j = 0; j < N; j += 2) {
+      sad16x2(srcp, src_stride, refp, ref_stride, 0, &sad_vec[i]);
+      srcp += src_stride << shift_for_2_rows;
+      refp += ref_stride << shift_for_2_rows;
+    }
+  }
+  get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
+}
+
 static AOM_FORCE_INLINE void aom_highbd_sad32xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
@@ -1055,6 +1169,27 @@ static AOM_FORCE_INLINE void aom_highbd_sad32xNx4d_avx2(
       sad32x4(srcp, src_stride, refp, ref_stride, 0, &sad_vec[i]);
       srcp += src_stride << shift_for_4_rows;
       refp += ref_stride << shift_for_4_rows;
+    }
+  }
+  get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
+}
+
+static AOM_FORCE_INLINE void aom_highbd_sad32xNx4d_2rows_avx2(
+    int N, const uint16_t *src, int src_stride,
+    const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
+  __m256i sad_vec[4];
+  const int shift_for_2_rows = 1;
+
+  init_sad(sad_vec);
+
+  for (int i = 0; i < 4; ++i) {
+    const uint16_t *srcp = src;
+    const uint16_t *refp = ref_array[i];
+
+    for (int r = 0; r < N; r += 2) {
+      sad32x2(srcp, src_stride, refp, ref_stride, 0, &sad_vec[i]);
+      srcp += src_stride << shift_for_2_rows;
+      refp += ref_stride << shift_for_2_rows;
     }
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
@@ -1143,17 +1278,33 @@ static AOM_FORCE_INLINE void aom_highbd_sad256xNx4d_avx2(
     sad_array[3] <<= 1;                                                       \
   }
 
+// Handle height 4 cases where only 2 rows are processed
+#define highbd_sad_skip_MxNx4d_2rows_avx2(m, n)                                \
+  void aom_highbd_sad_skip_##m##x##n##x4d_avx2(                                \
+      const uint16_t *src, int src_stride, const uint16_t *const ref_array[],  \
+      int ref_stride, uint32_t *sad_array) {                                   \
+    aom_highbd_sad##m##xNx4d_2rows_avx2((n / 2), src, 2 * src_stride,          \
+                                        ref_array, 2 * ref_stride, sad_array); \
+    sad_array[0] <<= 1;                                                        \
+    sad_array[1] <<= 1;                                                        \
+    sad_array[2] <<= 1;                                                        \
+    sad_array[3] <<= 1;                                                        \
+  }
+
 highbd_sadMxNx4d_avx2(16, 4);
 highbd_sadMxNx4d_avx2(16, 8);
 highbd_sadMxNx4d_avx2(16, 16);
 highbd_sadMxNx4d_avx2(16, 32);
 highbd_sadMxNx4d_avx2(16, 64);
 
+highbd_sadMxNx4d_avx2(32, 4);
 highbd_sadMxNx4d_avx2(32, 8);
 highbd_sadMxNx4d_avx2(32, 16);
 highbd_sadMxNx4d_avx2(32, 32);
 highbd_sadMxNx4d_avx2(32, 64);
 
+highbd_sadMxNx4d_avx2(64, 4);
+highbd_sadMxNx4d_avx2(64, 8);
 highbd_sadMxNx4d_avx2(64, 16);
 highbd_sadMxNx4d_avx2(64, 32);
 highbd_sadMxNx4d_avx2(64, 64);
@@ -1166,16 +1317,20 @@ highbd_sadMxNx4d_avx2(128, 256);
 highbd_sadMxNx4d_avx2(256, 128);
 highbd_sadMxNx4d_avx2(256, 256);
 
+highbd_sad_skip_MxNx4d_2rows_avx2(16, 4);
 highbd_sad_skip_MxNx4d_avx2(16, 8);
 highbd_sad_skip_MxNx4d_avx2(16, 16);
 highbd_sad_skip_MxNx4d_avx2(16, 32);
 highbd_sad_skip_MxNx4d_avx2(16, 64);
 
+highbd_sad_skip_MxNx4d_2rows_avx2(32, 4);
 highbd_sad_skip_MxNx4d_avx2(32, 8);
 highbd_sad_skip_MxNx4d_avx2(32, 16);
 highbd_sad_skip_MxNx4d_avx2(32, 32);
 highbd_sad_skip_MxNx4d_avx2(32, 64);
 
+highbd_sad_skip_MxNx4d_avx2(64, 4);
+highbd_sad_skip_MxNx4d_avx2(64, 8);
 highbd_sad_skip_MxNx4d_avx2(64, 16);
 highbd_sad_skip_MxNx4d_avx2(64, 32);
 highbd_sad_skip_MxNx4d_avx2(64, 64);
