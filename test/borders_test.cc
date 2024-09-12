@@ -42,15 +42,9 @@ class BordersTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (pkt->data.frame.flags & AOM_FRAME_IS_KEY) {
     }
   }

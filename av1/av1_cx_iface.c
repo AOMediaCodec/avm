@@ -166,11 +166,9 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int explicit_ref_frame_map;     // explicitly signal reference frame mapping
   int enable_frame_output_order;  // enable frame output order derivation based
                                   // on order hint value
-#endif                            // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   int enable_ref_frame_mvs;       // sequence level
   int allow_ref_frame_mvs;        // frame level
   int enable_masked_comp;         // enable masked compound for sequence
@@ -503,20 +501,18 @@ static struct av1_extracfg default_extra_cfg = {
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  1,    // enable frame output order derivation based on order hint value
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  1,    // enable_ref_frame_mvs sequence level
-  1,    // allow ref_frame_mvs frame level
-  1,    // enable masked compound at sequence level
-  1,    // enable one sided compound at sequence level
-  1,    // enable interintra compound at sequence level
-  1,    // enable smooth interintra mode
-  1,    // enable difference-weighted compound
-  1,    // enable interinter wedge compound
-  1,    // enable interintra wedge compound
-  0,    // enable_global_motion usage
-  1,    // enable_warped_motion at sequence level
+  1,  // enable frame output order derivation based on order hint value
+  1,  // enable_ref_frame_mvs sequence level
+  1,  // allow ref_frame_mvs frame level
+  1,  // enable masked compound at sequence level
+  1,  // enable one sided compound at sequence level
+  1,  // enable interintra compound at sequence level
+  1,  // enable smooth interintra mode
+  1,  // enable difference-weighted compound
+  1,  // enable interinter wedge compound
+  1,  // enable interintra wedge compound
+  0,  // enable_global_motion usage
+  1,  // enable_warped_motion at sequence level
 #if CONFIG_EXTENDED_WARP_PREDICTION
   1,  // enable_warped_causal at sequence level
   1,  // enable_warp_delta at sequence level
@@ -844,9 +840,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RANGE_CHECK(extra_cfg, enable_frame_output_order, 0, 1);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -1043,9 +1037,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -1164,9 +1156,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -1620,7 +1610,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // Disable the implicit derivation of frame output order
   // when order_hint is not available, S-frame is used or error resilience mode
   // is used.
@@ -1629,7 +1618,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
        tool_cfg->error_resilient_mode)
           ? 0
           : extra_cfg->enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
   oxcf->row_mt = extra_cfg->row_mt;
 
@@ -2700,7 +2688,6 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2708,7 +2695,6 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
       CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -3131,9 +3117,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     size_t frame_size = 0;
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int is_frame_visible_null = 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int index_size = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
@@ -3193,7 +3177,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
         if (cpi->common.current_frame.frame_type != KEY_FRAME &&
             cpi->common.show_existing_frame) {
@@ -3202,9 +3185,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         assert(IMPLIES(is_frame_visible_null, frame_size == 0));
       }
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
-#else
-      if (frame_size == 0) is_frame_visible = 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
@@ -3281,9 +3261,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (!is_frame_visible_null) {
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         if (ctx->oxcf.save_as_annexb) {
           //  B_PRIME (add TU size)
           size_t tu_size = ctx->pending_cx_data_sz;
@@ -3299,17 +3277,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           ctx->pending_cx_data_sz += length_field_size;
         }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
                                        : AOM_CODEC_CX_FRAME_PKT;
-#else
-      pkt.kind = AOM_CODEC_CX_FRAME_PKT;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
@@ -3971,13 +3942,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_frame_output_order,
                               argv, err_string)) {
     extra_cfg.enable_frame_output_order =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4304,9 +4273,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -4443,11 +4410,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_AFFINE_REFINEMENT
         1,
 #endif  // CONFIG_AFFINE_REFINEMENT
-        1, 1,   1,   1, 1, 1, 3, 1, 1, 0,
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        1,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        0, 0,
+        1, 1,   1,   1, 1, 1, 3, 1, 1, 0, 1, 0, 0,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL

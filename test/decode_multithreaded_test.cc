@@ -86,12 +86,8 @@ class AV1DecodeMultiThreadedTest
   }
 
   void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
-                 ::libaom_test::MD5 *md5
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                 ,
-                 ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
+                 ::libaom_test::MD5 *md5,
+                 ::libaom_test::DxDataIterator *dec_iter) {
     const aom_image_t *img;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
       const aom_codec_err_t res = dec->DecodeFrame(
@@ -101,35 +97,19 @@ class AV1DecodeMultiThreadedTest
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
       img = dec->GetDxData().Next();
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     md5->Add(img);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-    UpdateMD5(single_thread_dec_, pkt, &md5_single_thread_
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-              ,
-              dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    );
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
+    UpdateMD5(single_thread_dec_, pkt, &md5_single_thread_, dec_iter);
 
     for (int i = 0; i < kNumMultiThreadDecoders; ++i)
-      UpdateMD5(multi_thread_dec_[i], pkt, &md5_multi_thread_[i]
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                ,
-                dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      );
+      UpdateMD5(multi_thread_dec_[i], pkt, &md5_multi_thread_[i], dec_iter);
   }
 
   void DoTest() {

@@ -1261,11 +1261,9 @@ enum aome_enc_control_id {
   /*!\brief Control to get frame info
    */
   AV1E_GET_FRAME_INFO = 165,
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief Control to set frame output order derivation method
    */
   AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION = 166,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1756,10 +1754,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_STR, const char *)
 AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_SUBGOP_CONFIG_PATH
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 #define AOM_CTRL_AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

@@ -73,11 +73,8 @@ static void write_ivf_frame_header(const aom_codec_cx_pkt_t *const pkt,
   char header[12];
   aom_codec_pts_t pts;
 
-  if (pkt->kind != AOM_CODEC_CX_FRAME_PKT
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      && pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  )
+  if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+      pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
     return;
 
   pts = pkt->data.frame.pts;
@@ -282,15 +279,9 @@ class ResizeInternalTestLarge : public ResizeTest {
   }
 
 #if WRITE_COMPRESSED_STREAM
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     ++out_frames_;
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     // Write initial file header if first frame.
@@ -384,9 +375,7 @@ class ResizeModeTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 

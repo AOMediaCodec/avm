@@ -889,11 +889,9 @@ static int main_loop(int argc, const char **argv_) {
     got_data = 0;
     while ((img = aom_codec_get_frame(&decoder, &iter))) {
       ++frame_out;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
       }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       got_data = 1;
 
       if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AOMD_GET_FRAME_CORRUPTED,

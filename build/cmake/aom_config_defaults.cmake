@@ -236,8 +236,6 @@ set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
                    "AV2 experiment flag to enable skip mode enhancement.")
-set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 1
-                   "Enable frame output order derivation from order hint")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1

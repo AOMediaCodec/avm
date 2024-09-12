@@ -57,11 +57,8 @@ class SuperframeTest
 
   virtual const aom_codec_cx_pkt_t *MutateEncoderOutputHook(
       const aom_codec_cx_pkt_t *pkt) {
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        && pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    ) {
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT) {
       return pkt;
     }
 

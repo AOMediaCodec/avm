@@ -5466,10 +5466,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -7163,17 +7161,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 
   const int write_frame_header =
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
         (!cm->seq_params.order_hint_info.enable_order_hint ||
          !cm->seq_params.enable_frame_output_order)) ||
        (encode_show_existing_frame(cm) &&
-        cm->cur_frame->frame_type == KEY_FRAME)
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      (cpi->num_tg > 1 || encode_show_existing_frame(cm)
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-       || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
+        cm->cur_frame->frame_type == KEY_FRAME) ||
+       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
   struct aom_write_bit_buffer saved_wb = { NULL, 0 };
   size_t length_field = 0;
   if (write_frame_header) {
@@ -7195,7 +7189,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     data += fh_info.total_length;
   }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
   // is not signaled for non-error-resilient mode.
   // For error-resilienet mode, still an OBU is signaled.
@@ -7204,11 +7197,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        !cm->features.error_resilient_mode) ||
       ((!cm->seq_params.order_hint_info.enable_order_hint ||
         !cm->seq_params.enable_frame_output_order) &&
-       encode_show_existing_frame(cm))
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  if (encode_show_existing_frame(cm)
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
+       encode_show_existing_frame(cm)) ||
+      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
     data_size = 0;
   } else {
     // Since length_field is determined adaptively after frame header

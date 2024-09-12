@@ -82,9 +82,7 @@ class ErrorResilienceTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     frame_flags_ &= ~(AOM_EFLAG_NO_REF_FRAME_MVS | AOM_EFLAG_ERROR_RESILIENT |
                       AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_SET_S_FRAME |
@@ -151,15 +149,9 @@ class ErrorResilienceTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     // Check that the encode frame flags are correctly reflected
     // in the output frame flags.
@@ -514,9 +506,7 @@ class SFramePresenceTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
         encoder->Control(AOME_SET_QP, 210);
       }

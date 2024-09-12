@@ -197,7 +197,6 @@ static int is_visible(FRAME_TYPE_CODE code) {
   switch (code) {
     case FRAME_TYPE_INO_VISIBLE:
     case FRAME_TYPE_INO_REPEAT:
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     case FRAME_TYPE_OOO_UNFILTERED:
     case FRAME_TYPE_INO_SHOWEXISTING: return 1;
@@ -207,11 +206,6 @@ static int is_visible(FRAME_TYPE_CODE code) {
     case FRAME_TYPE_INO_SHOWEXISTING:
     case FRAME_TYPE_OOO_FILTERED: return 0;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    case FRAME_TYPE_INO_SHOWEXISTING: return 1;
-    case FRAME_TYPE_OOO_FILTERED:
-    case FRAME_TYPE_OOO_UNFILTERED: return 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     default: assert(0 && "Invalid frame type code"); return 0;
   }
 }
@@ -225,7 +219,6 @@ static int check_subgop_config(SubGOPCfg *config) {
   // Each disp frame index must be shown exactly once and in ascending order
   int last_visible = 0;
   for (int s = 0; s < config->num_steps; ++s) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (config->step[s].type_code == FRAME_TYPE_INO_VISIBLE ||
         config->step[s].type_code == FRAME_TYPE_INO_REPEAT) {
       int updated_last_visible = config->step[s].disp_frame_idx;
@@ -238,11 +231,6 @@ static int check_subgop_config(SubGOPCfg *config) {
           }
         }
       } while (last_visible != updated_last_visible);
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    if (is_visible(config->step[s].type_code)) {
-      if (config->step[s].disp_frame_idx != last_visible + 1) return 0;
-      last_visible = config->step[s].disp_frame_idx;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
   if (last_visible != config->num_frames) return 0;

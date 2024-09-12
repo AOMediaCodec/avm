@@ -77,12 +77,8 @@ class AV1SBMultipassTest
     encoder->Control(AV1E_SET_TILE_ROWS, 1);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     size_enc_.push_back(pkt->data.frame.sz);
 
     ::libaom_test::MD5 md5_enc;
@@ -99,11 +95,9 @@ class AV1SBMultipassTest
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
       img = decoder_->GetDxData().Next();
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
 
     if (img) {

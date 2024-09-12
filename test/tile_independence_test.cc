@@ -62,9 +62,7 @@ class TileIndependenceTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_TILE_COLUMNS, n_tile_cols_);
       encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       SetCpuUsed(encoder);
     } else if (video->frame() == 3) {
       encoder->Control(AV1E_SET_NUM_TG, n_tile_groups_);
@@ -77,12 +75,8 @@ class TileIndependenceTest
   }
 
   void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
-                 ::libaom_test::MD5 *md5
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                 ,
-                 ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
+                 ::libaom_test::MD5 *md5,
+                 ::libaom_test::DxDataIterator *dec_iter) {
     const aom_image_t *img;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
       const aom_codec_err_t res = dec->DecodeFrame(
@@ -92,33 +86,17 @@ class TileIndependenceTest
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
       img = dec->GetDxData().Next();
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     md5->Add(img);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-    UpdateMD5(fw_dec_, pkt, &md5_fw_order_
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-              ,
-              dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    );
-    UpdateMD5(inv_dec_, pkt, &md5_inv_order_
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-              ,
-              dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    );
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
+    UpdateMD5(fw_dec_, pkt, &md5_fw_order_, dec_iter);
+    UpdateMD5(inv_dec_, pkt, &md5_inv_order_, dec_iter);
   }
 
   void DoTest() {

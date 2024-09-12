@@ -73,15 +73,9 @@ class KeyFrameIntervalTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (kf_dist_ != -1) {
       (void)pkt;
       ++kf_dist_;
@@ -185,9 +179,6 @@ class ForcedKeyTestLarge
           is_kf_placement_violated_ = true;
         }
       }
-#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      ++frame_num_;
-#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     return AOM_CODEC_OK == res_dec;
   }

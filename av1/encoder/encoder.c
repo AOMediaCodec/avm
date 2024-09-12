@@ -380,10 +380,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #if CONFIG_SAME_REF_COMPOUND
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
@@ -3892,22 +3890,14 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   const int encode_show_existing = encode_show_existing_frame(cm);
-  if (encode_show_existing
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      || cm->show_existing_frame
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
+  if (encode_show_existing || cm->show_existing_frame) {
     av1_finalize_encoded_frame(cpi);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (encode_show_existing) {
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       // Build the bitstream
       int largest_tile_id = 0;  // Output from bitstream: unused here
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
         return AOM_CODEC_ERROR;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
     if (seq_params->frame_id_numbers_present_flag &&
         current_frame->frame_type == KEY_FRAME) {
@@ -4466,16 +4456,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (cpi->b_calculate_psnr) {
     if (cm->show_existing_frame ||
         (*size > 0 && !is_stat_generation_stage(cpi) && cm->show_frame)) {
-#else
-  // Note *size = 0 indicates a dropeed frame for which psnr is not calculated
-  if (cpi->b_calculate_psnr >= 1 && *size > 0) {
-    if (cm->show_existing_frame ||
-        (!is_stat_generation_stage(cpi) && cm->show_frame)) {
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       generate_psnr_packet(cpi);
     }
   }

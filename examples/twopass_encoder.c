@@ -103,11 +103,8 @@ static int encode_frame(aom_codec_ctx_t *ctx, const aom_image_t *img,
 
   while ((pkt = aom_codec_get_cx_data(ctx, &iter)) != NULL) {
     got_pkts = 1;
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        || pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    ) {
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
       const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
 
       if (!aom_video_writer_write_frame(writer, pkt->data.frame.buf,

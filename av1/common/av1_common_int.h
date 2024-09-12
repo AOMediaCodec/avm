@@ -443,10 +443,8 @@ typedef struct SequenceHeader {
   int mib_size;                // Size of the superblock in units of MI blocks
   int mib_size_log2;           // Log 2 of above.
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
-#endif                            // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   int max_reference_frames;       // Number of reference frames allowed
 #if CONFIG_SAME_REF_COMPOUND
   int num_same_ref_compound;  // Number of the allowed same reference frames for

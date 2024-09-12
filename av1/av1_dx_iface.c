@@ -695,7 +695,6 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     struct AV1Decoder *pbi = frame_worker_data->pbi;
     if (ctx->enable_subgop_stats)
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // When multiple layers are enabled, use the mechanism of
     // show_existing_frame
     if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
@@ -703,13 +702,10 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       if (!pbi->common.show_existing_frame)
         decrease_ref_count(pbi->output_frames[0], pool);
     } else {
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     pbi->num_output_frames = 0;
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {
@@ -719,7 +715,6 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // When enable_frame_order_output == 1, output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
@@ -730,7 +725,6 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       res = flush_showable_frames(ctx, user_priv);
       return res;
     }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   }
 
   /* Sanity checks */
@@ -1134,7 +1128,6 @@ static aom_codec_err_t ctrl_copy_new_frame_image(aom_codec_alg_priv_t *ctx,
   }
 }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t ctrl_incr_output_frames_offset(aom_codec_alg_priv_t *ctx,
                                                       va_list args) {
   int incr = va_arg(args, int);
@@ -1142,7 +1135,6 @@ static aom_codec_err_t ctrl_incr_output_frames_offset(aom_codec_alg_priv_t *ctx,
       incr;
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 static aom_codec_err_t ctrl_get_last_ref_updates(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
@@ -1783,9 +1775,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1_GET_ACCOUNTING, ctrl_get_accounting },
   { AV1_GET_NEW_FRAME_IMAGE, ctrl_get_new_frame_image },
   { AV1_COPY_NEW_FRAME_IMAGE, ctrl_copy_new_frame_image },
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AOMD_INCR_OUTPUT_FRAMES_OFFSET, ctrl_incr_output_frames_offset },
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AV1_GET_REFERENCE, ctrl_get_reference },
   { AV1D_GET_FRAME_HEADER_INFO, ctrl_get_frame_header_info },
   { AV1D_GET_TILE_DATA, ctrl_get_tile_data },

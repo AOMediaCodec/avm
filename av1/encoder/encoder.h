@@ -690,10 +690,8 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // Indicates if the implicit frame order derivation is enabled.
   bool enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 } RefFrameCfg;
 
 typedef struct {
@@ -3582,14 +3580,12 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
   if (!cm->show_existing_frame) return 0;
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // When enable_frame_output_order == 1, show_existing_frame can be equal to 1
   // only for a forward key frame
   if (cm->seq_params.enable_frame_output_order)
     return (!cm->features.error_resilient_mode &&
             cm->current_frame.frame_type == KEY_FRAME);
   else
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     return (!cm->features.error_resilient_mode ||
             cm->current_frame.frame_type == KEY_FRAME);
 }

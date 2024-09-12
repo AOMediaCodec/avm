@@ -95,13 +95,11 @@ typedef uint32_t aom_codec_er_flags_t;
  * extend this list to provide additional functionality.
  */
 enum aom_codec_cx_pkt_kind {
-  AOM_CODEC_CX_FRAME_PKT,   /**< Compressed video frame */
-  AOM_CODEC_STATS_PKT,      /**< Two-pass statistics for this frame */
-  AOM_CODEC_FPMB_STATS_PKT, /**< first pass mb statistics for this frame */
-  AOM_CODEC_PSNR_PKT,       /**< PSNR statistics for this frame */
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  AOM_CODEC_CX_FRAME_PKT,      /**< Compressed video frame */
+  AOM_CODEC_STATS_PKT,         /**< Two-pass statistics for this frame */
+  AOM_CODEC_FPMB_STATS_PKT,    /**< first pass mb statistics for this frame */
+  AOM_CODEC_PSNR_PKT,          /**< PSNR statistics for this frame */
   AOM_CODEC_CX_FRAME_NULL_PKT, /**< Null show-existing frame */
-#endif                         // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   AOM_CODEC_CUSTOM_PKT = 256   /**< Algorithm extensions  */
 };
 
@@ -577,12 +575,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int explicit_ref_frame_map;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief enable frame output order derivation based on order hint
    *
    */
   unsigned int enable_frame_output_order;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief use reduced transform type set
    *
    */

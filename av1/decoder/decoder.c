@@ -460,7 +460,6 @@ static void release_current_frame(AV1Decoder *pbi) {
   cm->cur_frame = NULL;
 }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 // This function outputs frames that are ready to be output.
 // The output frames may be the output trigger frame along with
 // past frames that have not yet been output,
@@ -536,7 +535,6 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     }
   }
 }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
@@ -548,9 +546,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   pbi->output_frames_offset = 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (frame_decoded) {
     lock_buffer_pool(pool);
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -578,7 +574,6 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                           pbi->enable_subgop_stats);
     }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (cm->seq_params.order_hint_info.enable_order_hint &&
         cm->seq_params.enable_frame_output_order &&
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
@@ -587,9 +582,6 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
                 !cm->seq_params.enable_frame_output_order) &&
                (cm->show_existing_frame || cm->show_frame)) {
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    if (cm->show_existing_frame || cm->show_frame) {
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
         if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS) {
@@ -753,7 +745,6 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 // TODO(rachelbarker): What should this do?
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   const size_t out_frame_idx =
       (pbi->common.seq_params.order_hint_info.enable_order_hint &&
        pbi->common.seq_params.enable_frame_output_order)
@@ -763,9 +754,6 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
       pbi->common.seq_params.enable_frame_output_order) {
     if (pbi->num_output_frames <= out_frame_idx) return -1;
   }
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  const size_t out_frame_idx = pbi->num_output_frames - 1;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
 }

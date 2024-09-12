@@ -202,9 +202,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
     number_spatial_layers_ = GetNumSpatialLayers();
 
     bool again;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     DxDataIterator dec_iter = decoder->GetDxData();
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     for (again = true; again; video->Next()) {
       again = (video->img() != NULL);
 
@@ -219,14 +217,11 @@ void EncoderTest::RunLoop(VideoSource *video) {
         bool has_cxdata = false;
         bool has_dxdata = false;
         aom_codec_err_t res_dec = AOM_CODEC_OK;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         bool pkt_decoded = false;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         while (const aom_codec_cx_pkt_t *pkt = iter.Next()) {
           pkt = MutateEncoderOutputHook(pkt);
           again = true;
           switch (pkt->kind) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
             case AOM_CODEC_CX_FRAME_NULL_PKT:
               has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
@@ -237,7 +232,6 @@ void EncoderTest::RunLoop(VideoSource *video) {
               if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
               FramePktHook(pkt, &dec_iter);
               break;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
             case AOM_CODEC_CX_FRAME_PKT:
               has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
@@ -254,17 +248,11 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 if (!HandleDecodeResult(res_dec, decoder.get())) break;
 
                 has_dxdata = true;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                 pkt_decoded = true;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
               }
               ASSERT_GE(pkt->data.frame.pts, last_pts_);
               if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
               FramePktHook(pkt, NULL);
-#else
-              FramePktHook(pkt);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
               break;
 
             case AOM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
@@ -275,15 +263,11 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
         if (has_dxdata && has_cxdata) {
           const aom_image_t *img_enc = encoder->GetPreviewFrame();
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           if (pkt_decoded) {
             // reset iterator only if a pkt was decoded, else continue
             // with the previous iterator to get the next frame.
             dec_iter = decoder->GetDxData();
           }
-#else
-          DxDataIterator dec_iter = decoder->GetDxData();
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           const aom_image_t *img_dec = dec_iter.Next();
           if (img_enc && img_dec) {
             const bool res =

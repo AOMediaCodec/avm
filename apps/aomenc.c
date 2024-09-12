@@ -224,9 +224,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -460,9 +458,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_cctx,
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.enable_frame_output_order,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   &g_av1_codec_arg_defs.max_drl_refbvs,
@@ -717,9 +713,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_affine_refine = 1;
 #endif  // CONFIG_AFFINE_REFINEMENT
   config->explicit_ref_frame_map = 0;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_frame_output_order = 1;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;
@@ -1928,7 +1922,6 @@ static void get_cx_data(struct stream_state *stream,
     static FileOffset ivf_header_pos = 0;
 
     switch (pkt->kind) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       case AOM_CODEC_CX_FRAME_NULL_PKT:
         ++stream->frames_out;
         update_rate_histogram(stream->rate_hist, cfg, pkt);
@@ -1941,7 +1934,6 @@ static void get_cx_data(struct stream_state *stream,
         }
 #endif
         break;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       case AOM_CODEC_CX_FRAME_PKT:
         ++stream->frames_out;
@@ -2401,11 +2393,7 @@ int main(int argc, const char **argv_) {
     }
 
     // Keep track of the total number of frames passed to the encoder.
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     unsigned int seen_frames = 0;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    int seen_frames = 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // Does the encoder have queued data that needs retrieval?
     int got_data = 0;
     // Is there a frame available for processing?

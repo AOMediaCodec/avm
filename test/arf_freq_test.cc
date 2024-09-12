@@ -115,20 +115,11 @@ class ArfFreqTestLarge
     return frames;
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-                            ,
-                            ::libaom_test::DxDataIterator *dec_iter
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
+                            ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        && pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    )
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
       return;
     const int frames = GetNumFramesInPkt(pkt);
     if (frames == 1) {

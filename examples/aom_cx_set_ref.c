@@ -165,7 +165,6 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
           if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
             die_codec(dcodec, "Failed to get decoder new frame");
       }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     } else if (pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
       const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
 
@@ -184,7 +183,6 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
           if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
             die_codec(dcodec, "Failed to get decoder new frame");
       }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 

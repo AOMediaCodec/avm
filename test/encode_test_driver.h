@@ -28,9 +28,7 @@ namespace libaom_test {
 
 class CodecFactory;
 class VideoSource;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 class DxDataIterator;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 enum TestMode { kOnePassGood };
 #define ALL_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
@@ -204,12 +202,9 @@ class EncoderTest {
 
   // Hook to be called on every compressed data packet.
   virtual void FramePktHook(const aom_codec_cx_pkt_t * /*pkt*/
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                             ,
                             DxDataIterator * /*dec_iter*/
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  ) {
-  }
+  ) {}
 
   // Hook to be called on every PSNR packet.
   virtual void PSNRPktHook(const aom_codec_cx_pkt_t * /*pkt*/) {}
