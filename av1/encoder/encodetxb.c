@@ -334,47 +334,49 @@ static const int golomb_cost_diff[32] = {
 
 static AOM_FORCE_INLINE int get_golomb_cost(int abs_qc) {
 #if NEWHR
-  if (abs_qc >= NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
-    const int r = 1 + get_high_range(abs_qc, 0);
-    const int length = get_msb(r) + 1;
-    return av1_cost_literal(2 * length - 1);
-  }
+  const int r = 1 + get_high_range(abs_qc, 0);
+  const int length = get_msb(r) + 1;
+  return av1_cost_literal(2 * length - 1);
 #else
   if (abs_qc >= 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
     const int r = abs_qc - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
     const int length = get_msb(r) + 1;
     return av1_cost_literal(2 * length - 1);
   }
-#endif
   return 0;
+#endif  // NEWHR
 }
 
 // Golomb cost of coding bypass coded level values in the
 // low-frequency region.
 static AOM_FORCE_INLINE int get_golomb_cost_lf(int abs_qc) {
 #if NEWHR
-  if (abs_qc >= LF_NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
-    const int r = 1 + get_high_range(abs_qc, 1);
-    const int length = get_msb(r) + 1;
-    return av1_cost_literal(2 * length - 1);
-  }
+  const int r = 1 + get_high_range(abs_qc, 1);
+  const int length = get_msb(r) + 1;
+  return av1_cost_literal(2 * length - 1);
 #else
   if (abs_qc >= 1 + LF_NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
     const int r = abs_qc - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS;
     const int length = get_msb(r) + 1;
     return av1_cost_literal(2 * length - 1);
   }
-#endif
   return 0;
+#endif  // NEWHR
 }
 
 // Base range cost of coding level values in the
 // low-frequency region, includes the bypass cost.
 static AOM_FORCE_INLINE int get_br_lf_cost(tran_low_t level,
                                            const int *coeff_lps) {
+#if NEWHR
+  const int base_range = get_low_range(level, 1);
+  if (base_range < COEFF_BASE_RANGE - 1) return coeff_lps[base_range];
+  return coeff_lps[base_range] + get_golomb_cost_lf(level);
+#else
   const int base_range =
       AOMMIN(level - 1 - LF_NUM_BASE_LEVELS, COEFF_BASE_RANGE);
   return coeff_lps[base_range] + get_golomb_cost_lf(level);
+#endif  // NEWHR
 }
 
 // Calculates differential cost for base range coding in the low-frequency
@@ -429,8 +431,14 @@ static AOM_FORCE_INLINE int get_br_cost_with_diff(tran_low_t level,
 
 static AOM_FORCE_INLINE int get_br_cost(tran_low_t level,
                                         const int *coeff_lps) {
+#if NEWHR
+  const int base_range = get_low_range(level, 0);
+  if (base_range < COEFF_BASE_RANGE - 1) return coeff_lps[base_range];
+  return coeff_lps[base_range] + get_golomb_cost(level);
+#else
   const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
   return coeff_lps[base_range] + get_golomb_cost(level);
+#endif  // NEWHR
 }
 
 #if CONFIG_LCCHROMA
