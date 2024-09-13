@@ -4886,8 +4886,11 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_AFFINE_REFINEMENT
   int use_affine_opfl = mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
 #if CONFIG_AFFINE_REFINEMENT_SB
+  // Used to store warped motion parameters for non-refinemv cases. When affine
+  // refinement is enabled, the parameters stored in this structure is used for
+  // pred data calculation. The default initialization of 'wms' is not required
+  // here as it is later populated and utilized for the necessary sub-blocks.
   WarpedMotionParams wms[2 * NUM_AFFINE_PARAMS];
-  for (int i = 0; i < 2 * NUM_AFFINE_PARAMS; i++) wms[i] = default_warp_params;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
   if (use_optflow_refinement && plane) {
     use_affine_opfl = xd->use_affine_opfl;
