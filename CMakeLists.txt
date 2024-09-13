@@ -625,27 +625,87 @@ if(CONFIG_AV1_ENCODER)
              "tar -xzf pthreadpool.tar.gz; "
              "tar -xzf psimd.tar.gz; "
              "tar -xzf FXdiv.tar.gz; "
-             "tar -xzf xnnpack.tar.gz; "
-             "tar -xzf benchmark.tar.gz; "
-             "tar -xzf ruy.tar.gz; "
-             "tar -xzf farmhash.tar.gz; "
-             "tar -xzf fft2d.tar.gz; "
-             "tar -xzf gemmlowp.tar.gz; "
-             "tar -xzf ml_dtypes.tar.gz")
+             "tar -xzf benchmark.tar.gz")
+
     execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
     set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
     set(PTHREADPOOL_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
     set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
     set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
-    set(XNNPACK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/XNNPACK)
     set(google_benchmark_SOURCE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
-    set(RUY_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ruy)
-    set(FARMHASH_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/farmhash)
-    set(FFT2D_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fft2d)
-    set(GEMMLOWP_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmlowp)
-    set(ML_DTYPES_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ml_dtypes)
+
+    string(
+      CONCAT
+        UPDATE_DEPS_CMAKE_CONFIG
+        "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party;"
+        "tar -xzf deps_cmake.tar.gz;"
+        "cp deps_cmake/abseil-cpp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/cpuinfo.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/eigen.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/farmhash.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/fft2d.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/flatbuffers.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/gemmlowp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/ml_dtypes.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/neon2sse.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/protobuf.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/ruy.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
+        "cp deps_cmake/xnnpack.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules"
+    )
+
+    execute_process(COMMAND bash -c "${UPDATE_DEPS_CMAKE_CONFIG}")
+
+    string(
+      CONCAT
+        COPY_DEPS_TO_BUILD
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/neon2sse.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/xnnpack.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ruy.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/farmhash.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fft2d.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmlowp.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ml_dtypes.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpuinfo.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cat ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz.* > ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz ${CMAKE_BINARY_DIR}; "
+        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/flatbuffers.tar.gz ${CMAKE_BINARY_DIR}"
+    )
+
+    string(
+      CONCAT EXTRACT_DEPS_FOR_TFLITE
+             "cd ${CMAKE_BINARY_DIR}; "
+             "tar -xzf eigen.tar.gz; "
+             "tar -xzf neon2sse.tar.gz; "
+             "tar -xzf xnnpack.tar.gz; "
+             "tar -xzf ruy.tar.gz; "
+             "tar -xzf farmhash.tar.gz; "
+             "tar -xzf fft2d.tar.gz; "
+             "tar -xzf gemmlowp.tar.gz; "
+             "tar -xzf ml_dtypes.tar.gz; "
+             "tar -xzf abseil-cpp.tar.gz; "
+             "tar -xzf cpuinfo.tar.gz; "
+             "tar -xzf protobuf.tar.gz; "
+             "tar -xzf flatbuffers.tar.gz")
+
+    execute_process(COMMAND bash -c "${COPY_DEPS_TO_BUILD}")
+    execute_process(COMMAND bash -c "${EXTRACT_DEPS_FOR_TFLITE}")
+
+    set(abseil-cpp_SOURCE_DIR ${CMAKE_BINARY_DIR}/abseil-cpp)
+    set(cpuinfo_SOURCE_DIR ${CMAKE_BINARY_DIR}/cpuinfo)
+    set(EIGEN_SOURCE_DIR ${CMAKE_BINARY_DIR}/eigen)
+    set(FARMHASH_SOURCE_DIR ${CMAKE_BINARY_DIR}/farmhash)
+    set(FFT2D_SOURCE_DIR ${CMAKE_BINARY_DIR}/fft2d)
+    set(FLATBUFFERS_SOURCE_DIR ${CMAKE_BINARY_DIR}/flatbuffers)
+    set(GEMMLOWP_SOURCE_DIR ${CMAKE_BINARY_DIR}/gemmlowp)
+    set(ML_DTYPES_SOURCE_DIR ${CMAKE_BINARY_DIR}/ml_dtypes)
+    set(PROTOBUF_SOURCE_DIR ${CMAKE_BINARY_DIR}/protobuf)
+    set(RUY_SOURCE_DIR ${CMAKE_BINARY_DIR}/ruy)
+    set(NEON2SSE_SOURCE_DIR ${CMAKE_BINARY_DIR}/neon2sse)
+    set(XNNPACK_SOURCE_DIR ${CMAKE_BINARY_DIR}/XNNPACK)
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
