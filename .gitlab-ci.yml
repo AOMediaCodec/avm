@@ -354,7 +354,6 @@ Build (aarch64-linux-gcc):
     CMAKE_FLAGS: >-
       -DENABLE_CCACHE=1
       -DENABLE_DOCS=0
-      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/arm64-linux-gcc.cmake
 
 Build (armv7-linux-gcc):
@@ -376,7 +375,6 @@ Build (armv7-linux-gcc):
     CMAKE_FLAGS: >-
       -DENABLE_CCACHE=1
       -DENABLE_DOCS=0
-      -DCONFIG_ML_PART_SPLIT=0
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/armv7-linux-gcc.cmake
 
 Build (ppc-linux-gcc):
