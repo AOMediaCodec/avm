@@ -89,7 +89,6 @@ extern "C" {
 
 #define WIENERNS_4PART_CTX_MAX 1
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Parameters which determine the warp delta coding
 // The raw values which can be signaled are
 //   {-WARP_DELTA_CODED_MAX, ..., 0, ..., +WARP_DELTA_CODED_MAX}
@@ -135,7 +134,6 @@ extern "C" {
 // Second context is log2(number of MI units along common edge)
 #define WARP_EXTEND_CTXS1 5
 #define WARP_EXTEND_CTXS2 5
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_REFINEMV
 #define NUM_REFINEMV_CTX 24
@@ -242,9 +240,7 @@ typedef struct frame_contexts {
 
   aom_cdf_prob inter_single_mode_cdf[INTER_SINGLE_MODE_CONTEXTS]
                                     [CDF_SIZE(INTER_SINGLE_MODES)];
-#if CONFIG_EXTENDED_WARP_PREDICTION
   aom_cdf_prob inter_warp_mode_cdf[WARPMV_MODE_CONTEXT][CDF_SIZE(2)];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -299,7 +295,6 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   aom_cdf_prob warped_causal_cdf[CDF_SIZE(2)];
 #else
@@ -329,9 +324,7 @@ typedef struct frame_contexts {
   aom_cdf_prob warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]
                               [CDF_SIZE(2)];
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
-#else
-  aom_cdf_prob motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
   aom_cdf_prob bawp_cdf[2][CDF_SIZE(2)];

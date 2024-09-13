@@ -314,13 +314,11 @@ typedef struct {
   //! Context used to encode the current mode.
   int16_t mode_context[MODE_CTX_REF_FRAMES];
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   /*!
    * warp_param_stack is the warp candidate list.
    */
   WARP_CANDIDATE warp_param_stack[INTER_REFS_PER_FRAME]
                                  [MAX_WARP_REF_CANDIDATES];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 } MB_MODE_INFO_EXT;
 
@@ -358,10 +356,8 @@ typedef struct {
   //! Offset of current coding block's coeff buffer relative to the sb.
   int cb_offset[MAX_MB_PLANE];
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   //! warp_param_stack is the warp candidate list.
   WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 } MB_MODE_INFO_EXT_FRAME;
 
@@ -1002,10 +998,8 @@ typedef struct {
   //! inter single mode cost
   int inter_single_mode_cost[INTER_SINGLE_MODE_CONTEXTS][INTER_SINGLE_MODES];
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   //! inter warpmv mode cost
   int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
@@ -1136,7 +1130,7 @@ typedef struct {
 #else
   int obmc_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_EXTENDED_WARP_PREDICTION
+
   //! warped_causal_cost
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   int warped_causal_cost[2];
@@ -1173,10 +1167,7 @@ typedef struct {
 #else
   int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
-#else
-  //! motion_mode_cost
-  int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_REFINEMV
   //! refinemv_flag_cost
   int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];

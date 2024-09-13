@@ -240,9 +240,7 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                        int64_t best_error, uint8_t *segment_map,
                        int segment_map_stride) {
   if (wm->wmtype <= AFFINE) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_reduce_warp_model(wm);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     if (!av1_get_shear_params(wm)) return INT64_MAX;
   }
 

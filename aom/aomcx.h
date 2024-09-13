@@ -945,20 +945,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_WARPED_MOTION = 96,
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
-/* Note: enum value 97 unused */
-#else
-  /*!\brief Codec control function to turn on / off warped motion usage
-   * at frame level, int parameter
-   *
-   * \attention If AV1E_SET_ENABLE_WARPED_MOTION is 0, then this flag is
-   * forced to 0.
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV1E_SET_ALLOW_WARPED_MOTION = 97,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  /* Note: enum value 97 unused */
 
   /*!\brief Codec control function to turn on / off filter intra usage at
    * sequence level, int parameter
@@ -1556,11 +1543,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_GLOBAL_MOTION, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_WARPED_MOTION, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_WARPED_MOTION
-
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-AOM_CTRL_USE_TYPE(AV1E_SET_ALLOW_WARPED_MOTION, int)
-#define AOM_CTRL_AV1E_SET_ALLOW_WARPED_MOTION
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FILTER_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_FILTER_INTRA

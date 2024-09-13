@@ -429,13 +429,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_D071_IMP_MSK_BLD
   seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
-#if CONFIG_EXTENDED_WARP_PREDICTION
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
-#else
-  seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
-  seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -886,10 +881,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   cm->features.interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
-
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  cm->features.switchable_motion_mode = 1;
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
   cm->features.opfl_refine_type = REFINE_SWITCHABLE;
 
@@ -3862,14 +3853,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // while cm->tiles.large_scale is 1, therefore, "cm->tiles.large_scale=1" case
   // is separated from frame_might_allow_ref_frame_mvs().
   features->allow_ref_frame_mvs &= !cm->tiles.large_scale;
-
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  features->allow_warped_motion = oxcf->motion_mode_cfg.allow_warped_motion &&
-                                  frame_might_allow_warped_motion(cm);
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_EXTENDED_WARP_PREDICTION
   features->allow_warpmv_mode = features->enabled_motion_modes;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   // temporal set of frame level enable_bawp flag.
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;

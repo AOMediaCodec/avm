@@ -624,12 +624,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->inter_single_mode_cdf[i], NULL);
     }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     for (i = 0; i < WARPMV_MODE_CONTEXT; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_warp_mode_cost[i],
                                fc->inter_warp_mode_cdf[i], NULL);
     }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[0][i],
@@ -743,7 +741,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
     av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost,
                              fc->warped_causal_cdf, NULL);
@@ -805,12 +803,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       }
     }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
-#else
-    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->motion_mode_cost[i],
-                               fc->motion_mode_cdf[i], NULL);
-    }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
     av1_cost_tokens_from_cdf(mode_costs->bawp_flg_cost[0], fc->bawp_cdf[0],

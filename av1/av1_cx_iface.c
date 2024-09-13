@@ -180,17 +180,13 @@ struct av1_extracfg {
   int enable_interintra_wedge;    // enable interintra-wedge compound usage
   int enable_global_motion;       // enable global motion usage for sequence
   int enable_warped_motion;       // enable local warped motion for sequence
-#if CONFIG_EXTENDED_WARP_PREDICTION
-  int enable_warped_causal;  // enable spatial warp prediction for sequence
-  int enable_warp_delta;     // enable explicit warp models for sequence
-  int enable_warp_extend;    // enable warp extension for sequence
-#else
-  int allow_warped_motion;  // enable local warped motion for frame
-#endif                      // CONFIG_EXTENDED_WARP_PREDICTION
-  int enable_filter_intra;  // enable filter intra for sequence
-  int enable_smooth_intra;  // enable smooth intra modes for sequence
-  int enable_paeth_intra;   // enable Paeth intra mode for sequence
-  int enable_cfl_intra;     // enable CFL uv intra mode for sequence
+  int enable_warped_causal;       // enable spatial warp prediction for sequence
+  int enable_warp_delta;          // enable explicit warp models for sequence
+  int enable_warp_extend;         // enable warp extension for sequence
+  int enable_filter_intra;        // enable filter intra for sequence
+  int enable_smooth_intra;        // enable smooth intra modes for sequence
+  int enable_paeth_intra;         // enable Paeth intra mode for sequence
+  int enable_cfl_intra;           // enable CFL uv intra mode for sequence
   int enable_superres;
   int enable_overlay;  // enable overlay for filtered arf frames
   int enable_palette;
@@ -449,7 +445,7 @@ static struct av1_extracfg default_extra_cfg = {
   2,  // use ml model for erp pruning
   1,  // enable extended partitions
 #else
-  0,                        // disable ML based partition speed up features
+  0,    // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -491,7 +487,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_EXT_RECUR_PARTITIONS
   256,  // max_partition_size
 #else
-  128,                      // max_partition_size
+  128,  // max_partition_size
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   1,    // enable intra edge filter
   1,    // frame order hint
@@ -513,22 +509,18 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable interintra wedge compound
   0,  // enable_global_motion usage
   1,  // enable_warped_motion at sequence level
-#if CONFIG_EXTENDED_WARP_PREDICTION
   1,  // enable_warped_causal at sequence level
   1,  // enable_warp_delta at sequence level
   1,  // enable_warp_extend at sequence level
-#else
-  1,                        // allow_warped_motion at frame level
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-  0,    // enable filter intra at sequence level
-  1,    // enable smooth intra modes usage for sequence
-  1,    // enable Paeth intra mode usage for sequence
-  1,    // enable CFL uv intra mode usage for sequence
-  1,    // superres
+  0,  // enable filter intra at sequence level
+  1,  // enable smooth intra modes usage for sequence
+  1,  // enable Paeth intra mode usage for sequence
+  1,  // enable CFL uv intra mode usage for sequence
+  1,  // superres
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  1,                        // enable overlay
+  1,    // enable overlay
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,    // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
@@ -1016,11 +1008,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_interinter_wedge = extra_cfg->enable_interinter_wedge;
   cfg->enable_interintra_wedge = extra_cfg->enable_interintra_wedge;
   cfg->enable_global_motion = extra_cfg->enable_global_motion;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   cfg->enable_warped_causal = extra_cfg->enable_warped_causal;
   cfg->enable_warp_delta = extra_cfg->enable_warp_delta;
   cfg->enable_warp_extend = extra_cfg->enable_warp_extend;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
@@ -1136,11 +1126,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_interinter_wedge = cfg->enable_interinter_wedge;
   extra_cfg->enable_interintra_wedge = cfg->enable_interintra_wedge;
   extra_cfg->enable_global_motion = cfg->enable_global_motion;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   extra_cfg->enable_warped_causal = cfg->enable_warped_causal;
   extra_cfg->enable_warp_delta = cfg->enable_warp_delta;
   extra_cfg->enable_warp_extend = cfg->enable_warp_extend;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   extra_cfg->enable_filter_intra = cfg->enable_filter_intra;
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
@@ -1418,9 +1406,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  tool_cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
@@ -1622,7 +1607,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->row_mt = extra_cfg->row_mt;
 
   // Set motion mode related configuration.
-#if CONFIG_EXTENDED_WARP_PREDICTION
   int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
 
   if (extra_cfg->enable_interintra_comp) {
@@ -1644,12 +1628,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   oxcf->motion_mode_cfg.seq_enabled_motion_modes = seq_enabled_motion_modes;
-#else
-  oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
-  oxcf->motion_mode_cfg.enable_warped_motion = extra_cfg->enable_warped_motion;
-  oxcf->motion_mode_cfg.allow_warped_motion =
-      (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   // Set partition related configuration.
   part_cfg->disable_ml_partition_speed_features =
@@ -2345,15 +2323,6 @@ static aom_codec_err_t ctrl_set_enable_warped_motion(aom_codec_alg_priv_t *ctx,
   extra_cfg.enable_warped_motion = CAST(AV1E_SET_ENABLE_WARPED_MOTION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-static aom_codec_err_t ctrl_set_allow_warped_motion(aom_codec_alg_priv_t *ctx,
-                                                    va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.allow_warped_motion = CAST(AV1E_SET_ALLOW_WARPED_MOTION, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static aom_codec_err_t ctrl_set_enable_filter_intra(aom_codec_alg_priv_t *ctx,
                                                     va_list args) {
@@ -3981,7 +3950,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warped_motion,
                               argv, err_string)) {
     extra_cfg.enable_warped_motion = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_EXTENDED_WARP_PREDICTION
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warped_causal,
                               argv, err_string)) {
     extra_cfg.enable_warped_causal = arg_parse_int_helper(&arg, err_string);
@@ -3991,7 +3959,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warp_extend,
                               argv, err_string)) {
     extra_cfg.enable_warp_extend = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_filter_intra,
                               argv, err_string)) {
     extra_cfg.enable_filter_intra = arg_parse_int_helper(&arg, err_string);
@@ -4219,9 +4186,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_INTERINTRA_WEDGE, ctrl_set_enable_interintra_wedge },
   { AV1E_SET_ENABLE_GLOBAL_MOTION, ctrl_set_enable_global_motion },
   { AV1E_SET_ENABLE_WARPED_MOTION, ctrl_set_enable_warped_motion },
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  { AV1E_SET_ALLOW_WARPED_MOTION, ctrl_set_allow_warped_motion },
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   { AV1E_SET_ENABLE_FILTER_INTRA, ctrl_set_enable_filter_intra },
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
@@ -4398,11 +4362,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_LF_SUB_PU
         1,
 #endif  // CONFIG_LF_SUB_PU
-        1, 1,
-#if CONFIG_EXTENDED_WARP_PREDICTION
-        1, 1,   1,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        1, 1,   1,   1, 0, 0, 1,
+        1, 1,   1,   1, 1, 1, 1, 1, 1, 0, 0, 1,
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT

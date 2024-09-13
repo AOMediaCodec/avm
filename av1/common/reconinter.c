@@ -37,10 +37,7 @@
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpTypesAllowed *const warp_types,
-                   const WarpedMotionParams *const gm_params,
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
-                   int ref,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
+                   const WarpedMotionParams *const gm_params, int ref,
                    int build_for_obmc, const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params) {
   // Note: As per the spec, we must test the fixed point scales here, which are
@@ -52,18 +49,11 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
 
   if (build_for_obmc) return 0;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
   if (warp_types->local_warp_allowed && !mbmi->wm_params[ref].invalid) {
     if (final_warp_params != NULL)
       memcpy(final_warp_params, &mbmi->wm_params[ref],
              sizeof(*final_warp_params));
     return 1;
-#else
-  if (warp_types->local_warp_allowed && !mbmi->wm_params.invalid) {
-    if (final_warp_params != NULL)
-      memcpy(final_warp_params, &mbmi->wm_params, sizeof(*final_warp_params));
-    return 1;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
   } else if (warp_types->global_warp_allowed && !gm_params->invalid) {
     if (final_warp_params != NULL)
       memcpy(final_warp_params, gm_params, sizeof(*final_warp_params));
@@ -144,10 +134,7 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
   if (xd->cur_frame_force_integer_mv) return;
 
   if (av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]],
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
-                     ref,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
-                     0, inter_pred_params->scale_factors,
+                     ref, 0, inter_pred_params->scale_factors,
                      &inter_pred_params->warp_params))
     inter_pred_params->mode = WARP_PRED;
 }
@@ -1887,17 +1874,13 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
     wm->wmmat[0] = -d * am_params->tran_x;
     wm->wmmat[1] = -d * am_params->tran_y;
   }
-#if CONFIG_EXTENDED_WARP_PREDICTION
   wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - unit_offset);
   wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - unit_offset);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   wm->wmmat[6] = wm->wmmat[7] = 0;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   av1_reduce_warp_model(wm);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_EXT_WARP_FILTER
   av1_get_shear_params(wm);
@@ -1924,17 +1907,10 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
       mv->row * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
       (center_x * wm->wmmat[4] + center_y * (wm->wmmat[5] - unit_offset));
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - unit_offset);
   wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - unit_offset);
-#else
-  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - 1);
-  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - 1);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   wm->wmtype = AFFINE;
   wm->invalid = 0;
@@ -2935,7 +2911,6 @@ void make_inter_pred_of_nxn(
                   vy[delta_idx] *
                   (1 << (WARPEDMODEL_PREC_BITS - MV_REFINE_PREC_BITS));
             }
-#if CONFIG_EXTENDED_WARP_PREDICTION
             inter_pred_params->warp_params.wmmat[0] =
                 clamp(inter_pred_params->warp_params.wmmat[0],
                       -WARPEDMODEL_TRANS_CLAMP,
@@ -2944,14 +2919,6 @@ void make_inter_pred_of_nxn(
                 clamp(inter_pred_params->warp_params.wmmat[1],
                       -WARPEDMODEL_TRANS_CLAMP,
                       WARPEDMODEL_TRANS_CLAMP - unit_offset);
-#else
-            inter_pred_params->warp_params.wmmat[0] =
-                clamp(inter_pred_params->warp_params.wmmat[0],
-                      -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - 1);
-            inter_pred_params->warp_params.wmmat[1] =
-                clamp(inter_pred_params->warp_params.wmmat[1],
-                      -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - 1);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
           }
           subblock_mv = &mv_refined[ref].as_mv;
         }
@@ -5279,7 +5246,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
   if (plane == AOM_PLANE_Y)
     memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // just for debugging purpose
   // Can be removed later on
   if (mi->mode == WARPMV) {
@@ -5287,11 +5253,11 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
     assert(mi->ref_mv_idx[0] == 0);
     assert(mi->ref_mv_idx[1] == 0);
 #else
-      assert(mi->ref_mv_idx == 0);
+    assert(mi->ref_mv_idx == 0);
 #endif  // CONFIG_SEP_COMP_DRL
     assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARPED_CAUSAL);
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
   if (is_sub8x8_inter(cm, xd, mi, plane, is_intrabc_block(mi, xd->tree_type),
                       build_for_obmc)) {
 #if !CONFIG_EXT_RECUR_PARTITIONS

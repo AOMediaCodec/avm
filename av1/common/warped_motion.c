@@ -285,12 +285,10 @@ void av1_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
                  (center_x * wm->wmmat[4] +
                   center_y * (wm->wmmat[5] - (1 << WARPEDMODEL_PREC_BITS)));
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
   wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 const uint16_t div_lut[DIV_LUT_NUM + 1] = {
@@ -387,7 +385,6 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
   return 1;
 }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Reduce the precision of a warp model, ready for use in the warp filter
 // and for storage. This should be called after the non-translational parameters
 // are calculated, but before av1_set_warp_translation() or
@@ -460,7 +457,6 @@ bool av1_is_warp_model_reduced(WarpedMotionParams *wm) {
   return true;
 }
 #endif  // CONFIG_EXT_WARP_FILTER
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 /* The warp filter for ROTZOOM and AFFINE models works as follows:
    * Split the input into 8x8 blocks
@@ -1086,20 +1082,10 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   wm->wmmat[4] = get_mult_shift_ndiag(Py[0], iDet, shift);
   wm->wmmat[5] = get_mult_shift_diag(Py[1], iDet, shift);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   av1_reduce_warp_model(wm);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   // check compatibility with the fast warp filter
   if (!av1_get_shear_params(wm)) return 1;
-
   av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - 1);
-  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - 1);
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-
   wm->wmmat[6] = wm->wmmat[7] = 0;
   return 0;
 }
@@ -1115,7 +1101,6 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
   return 0;
 }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 /* Given a neighboring block's warp model and the motion vector at the center
    of the current block, construct a new warp model which is continuous with
    the neighbor at the common edge but which has the given motion vector at
@@ -1372,4 +1357,3 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
 
   return 1;
 }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION

@@ -318,14 +318,12 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
                            const struct buf_2d *ref_buf,
                            InterpFilter interp_filter);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   return (mbmi->mode != WARPMV && cm->features.allow_warpmv_mode &&
           mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
 }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // Map the index to weighting factor for compound weighted prediction
 static INLINE int get_cwp_coding_idx(int val, int encode,
@@ -1227,10 +1225,7 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   if (mbmi->skip_mode) return 0;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == WARPMV) return 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
   // No interpolation filter search when optical flow MV refinement is used.
   if (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
@@ -1325,10 +1320,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
 
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpTypesAllowed *const warp_types,
-                   const WarpedMotionParams *const gm_params,
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
-                   int ref,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_AFFINE_REFINEMENT
+                   const WarpedMotionParams *const gm_params, int ref,
                    int build_for_obmc, const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
@@ -1387,7 +1379,7 @@ MvSubpelPrecision av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm,
 // check if pb_mv_precision is allowed or not
 int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
-#if CONFIG_EXTENDED_WARP_PREDICTION
+
 // check if the WARPMV mode is allwed for a given blocksize
 static INLINE int is_warpmv_allowed_bsize(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -1414,8 +1406,6 @@ static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
   if (!cm->features.allow_warpmv_mode) return 0;
   return (mbmi->mode == WARPMV && mbmi->warp_ref_idx < 2);
 }
-
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_DERIVED_MVD_SIGN
 // Return the threshold value for number of non-zero componenets for sign

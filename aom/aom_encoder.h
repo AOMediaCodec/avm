@@ -460,7 +460,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_warped_motion;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   /*!\brief enable spatial warp prediction
    *
    */
@@ -473,7 +472,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_warp_extend;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
   /*!\brief enable global motion
    *
    */

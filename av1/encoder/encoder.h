@@ -645,17 +645,8 @@ typedef struct {
 } FrameDimensionCfg;
 
 typedef struct {
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // Bitmask of which motion modes are enabled at the sequence level
   int seq_enabled_motion_modes;
-#else
-  // Indicates if warped motion should be enabled.
-  bool enable_warped_motion;
-  // Indicates if warped motion should be evaluated or not.
-  bool allow_warped_motion;
-  // Indicates if OBMC motion should be enabled.
-  bool enable_obmc;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 } MotionModeCfg;
 
 typedef struct {
@@ -901,10 +892,6 @@ typedef struct {
   bool ref_frame_mvs_present;
   // Indicates if ref_frame_mvs should be enabled at the frame level.
   bool enable_ref_frame_mvs;
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  // Indicates if interintra compound mode is enabled.
-  bool enable_interintra_comp;
-#endif
   // Indicates if global motion should be enabled.
   bool enable_global_motion;
   // Indicates if palette should be enabled.
@@ -1495,9 +1482,7 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_LCCHROMA
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
-#if CONFIG_EXTENDED_WARP_PREDICTION
   unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];  // placeholder
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -1548,7 +1533,6 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int obmc[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   unsigned int warped_causal[2];
 #else
@@ -1575,9 +1559,6 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int warp_extend[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
-#else
-  unsigned int motion_mode[BLOCK_SIZES_ALL][MOTION_MODES];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   unsigned int intra_inter[INTRA_INTER_SKIP_TXFM_CONTEXTS][INTRA_INTER_CONTEXTS]
                           [2];

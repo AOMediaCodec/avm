@@ -339,12 +339,7 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
 // search. The purpose for upscaling the MVD is to increase the search range and
 // obtain a new search point not covered by the traditional local search.
 static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == NEWMV
-#if CONFIG_EXTENDED_WARP_PREDICTION
-      || mbmi->mode == WARPMV
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-  )
-    return 3;
+  if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
   return 0;
 }
 
@@ -504,7 +499,6 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                            int *num_nonzero_mvd);
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Returns 1 if able to select a good model, 0 if not
 int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT *mbmi_ext,
@@ -524,7 +518,6 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    const WarpedMotionParams *neighbor_params,
                                    WARP_SEARCH_METHOD search_method,
                                    int num_iterations);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {
