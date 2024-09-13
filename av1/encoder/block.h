@@ -183,7 +183,7 @@ typedef struct {
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   //! Cost for encoding the base_eob level of a low-frequency chroma coefficient
   int base_lf_eob_cost_uv[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency chroma coefficient
@@ -204,7 +204,7 @@ typedef struct {
   //! Cost for encoding an increment to the chroma coefficient
   int lps_cost_uv[LEVEL_CONTEXTS_UV]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
   /*! \brief Cost for encoding the base_eob of a level in the low frequency
    * region.
    *
