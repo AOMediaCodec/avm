@@ -486,11 +486,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_mvd_sign_derive,
 #endif  // CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_parity_hiding,
-#if CONFIG_EXTENDED_WARP_PREDICTION
   &g_av1_codec_arg_defs.enable_warped_causal,
   &g_av1_codec_arg_defs.enable_warp_delta,
   &g_av1_codec_arg_defs.enable_warp_extend,
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_MRSSE
   &g_av1_codec_arg_defs.enable_mrsse,
 #endif  // CONFIG_MRSSE
@@ -689,11 +687,9 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_LF_SUB_PU
   config->enable_obmc = 0;
   config->enable_warped_motion = 1;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   config->enable_warped_causal = 1;
   config->enable_warp_delta = 1;
   config->enable_warp_extend = 1;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   config->enable_global_motion = 1;
   config->enable_diff_wtd_comp = 1;
   config->enable_interintra_comp = 1;
@@ -1553,7 +1549,6 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_interintra_comp, encoder_cfg->enable_obmc,
           encoder_cfg->enable_warped_motion);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (encoder_cfg->enable_warped_motion) {
     fprintf(stdout,
             "                               : WARPED_CAUSAL (%d), "
@@ -1561,7 +1556,6 @@ static void show_stream_config(struct stream_state *stream,
             encoder_cfg->enable_warped_causal, encoder_cfg->enable_warp_delta,
             encoder_cfg->enable_warp_extend);
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   fprintf(stdout, "                               : TIP (%d)\n",
           encoder_cfg->enable_tip);

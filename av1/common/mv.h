@@ -288,7 +288,6 @@ static INLINE void get_adaptive_mvd_from_ref_mv(MV mv, MV ref_mv, MV *mvd) {
 // Calculation precision for warp models
 #define WARPEDMODEL_PREC_BITS 16
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Storage precision for warp models
 //
 // Warp models are initially calculated using WARPEDMODEL_PREC_BITS fractional
@@ -319,10 +318,6 @@ static INLINE void get_adaptive_mvd_from_ref_mv(MV mv, MV ref_mv, MV *mvd) {
 // for a total of 4 * 10 + 2 * 22 = 84 bits/model
 #define WARP_PARAM_REDUCE_BITS 6
 #define WARP_TRANS_INTEGER_BITS 12
-#else
-#define WARP_PARAM_REDUCE_BITS 6
-#define WARP_TRANS_INTEGER_BITS 8
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #define WARPEDMODEL_TRANS_CLAMP \
   (1 << (WARPEDMODEL_PREC_BITS + WARP_TRANS_INTEGER_BITS - 1))
@@ -416,7 +411,6 @@ static const WarpedMotionParams default_warp_params = {
 
 #define SUBEXPFIN_K 3
 
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_IMPROVED_GLOBAL_MOTION
 #define GM_TRANS_PREC_BITS 3
 #define GM_TRANS_ONLY_PREC_BITS 3
 #define GM_ABS_TRANS_BITS 14
@@ -439,22 +433,6 @@ static const WarpedMotionParams default_warp_params = {
 #endif  // CONFIG_EXT_WARP_FILTER
 #define GM_ALPHA_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_ALPHA_PREC_BITS)
 #define GM_ALPHA_DECODE_FACTOR (1 << GM_ALPHA_PREC_DIFF)
-#else
-#define GM_TRANS_PREC_BITS 6
-#define GM_TRANS_ONLY_PREC_BITS 3
-#define GM_ABS_TRANS_BITS 12
-#define GM_ABS_TRANS_ONLY_BITS 9
-#define GM_TRANS_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_TRANS_PREC_BITS)
-#define GM_TRANS_ONLY_PREC_DIFF \
-  (WARPEDMODEL_PREC_BITS - GM_TRANS_ONLY_PREC_BITS)
-#define GM_TRANS_DECODE_FACTOR (1 << GM_TRANS_PREC_DIFF)
-#define GM_TRANS_ONLY_DECODE_FACTOR (1 << GM_TRANS_ONLY_PREC_DIFF)
-
-#define GM_ALPHA_PREC_BITS 15
-#define GM_ABS_ALPHA_BITS 12
-#define GM_ALPHA_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_ALPHA_PREC_BITS)
-#define GM_ALPHA_DECODE_FACTOR (1 << GM_ALPHA_PREC_DIFF)
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_IMPROVED_GLOBAL_MOTION
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
 #define GM_TRANS_MAX ((1 << GM_ABS_TRANS_BITS) - 1)
@@ -510,7 +488,6 @@ static INLINE TransformationType get_wmtype(const WarpedMotionParams *model) {
     return AFFINE;
 }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Special value for row_offset and col_offset in the `CANDIDATE_MV` struct,
 // to indicate that this motion vector did not come from spatial prediction
 // (eg, temporal prediction, or a scaled MV from a nearby block which used
@@ -520,12 +497,10 @@ static INLINE TransformationType get_wmtype(const WarpedMotionParams *model) {
 // both above and left of the current block. Thus valid offsets will always
 // have at least one of row_offset and col_offset negative.
 #define OFFSET_NONSPATIAL 0
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 typedef struct candidate_mv {
   int_mv this_mv;
   int_mv comp_mv;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // Position of the candidate block relative to the current block.
   // This is used to decide whether to signal the WARP_EXTEND mode,
   // and to fetch the corresponding warp model if that is used
@@ -535,19 +510,16 @@ typedef struct candidate_mv {
   // candidate, and so does not allow WARP_EXTEND
   int row_offset;
   int col_offset;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   // Record the cwp index of the neighboring blocks
   int8_t cwp_idx;
 } CANDIDATE_MV;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // structure of the warp-reference-list (WRL)
 // Each entry of the WRL contain warp parameter and projection type.
 typedef struct warp_candidate {
   WarpedMotionParams wm_params;
   WarpProjectionType proj_type;
 } WARP_CANDIDATE;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE int is_zero_mv(const MV *mv) {
   return *((const uint32_t *)mv) == 0;

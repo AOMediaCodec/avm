@@ -421,9 +421,7 @@ int64_t av1_interpolation_filter_search(
   const int ref_frame = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
   RD_STATS rd_stats_luma, rd_stats;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == WARPMV) return 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   // Initialization of rd_stats structures with default values
   av1_init_rd_stats(&rd_stats_luma);

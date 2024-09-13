@@ -102,14 +102,12 @@ void av1_rd_pick_inter_mode_sb_seg_skip(
     struct macroblock *x, int mi_row, int mi_col, struct RD_STATS *rd_cost,
     BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx, int64_t best_rd_so_far);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Internal function, shared by rdopt.c and mcomp.c
 // Calculate the rate cost of directly signaling a warp model
 int av1_cost_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                         const MB_MODE_INFO *mbmi,
                         const MB_MODE_INFO_EXT *mbmi_ext,
                         const ModeCosts *mode_costs);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // TODO(any): The defs below could potentially be moved to rdopt_utils.h instead
 // because they are not the main rdopt functions.
@@ -371,13 +369,11 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (ref_frame_type < INTER_REFS_PER_FRAME) {
     memcpy(mbmi_ext_best->warp_param_stack,
            mbmi_ext->warp_param_stack[ref_frame_type],
            sizeof(mbmi_ext->warp_param_stack[0]));
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 #if CONFIG_C071_SUBBLK_WARPMV

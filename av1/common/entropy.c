@@ -196,9 +196,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->coeff_br_cdf_idtx, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->inter_single_mode_cdf, INTER_SINGLE_MODES);
-#if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->inter_warp_mode_cdf, 2);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
@@ -230,7 +228,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_REFINEMV
 
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
-#if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
   RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, 2);
@@ -240,9 +237,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warpmv_with_mvd_flag_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);
-#else
-  RESET_CDF_COUNTER(fc->motion_mode_cdf, MOTION_MODES);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
   RESET_CDF_COUNTER(fc->bawp_cdf[0], 2);

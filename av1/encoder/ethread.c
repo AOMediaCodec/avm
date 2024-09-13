@@ -470,12 +470,10 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_zero(td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
     td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     av1_encode_sb_row(cpi, td, tile_row, tile_col, current_mi_row);
 #if CONFIG_MULTITHREAD
@@ -863,13 +861,11 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
         &thread_data->td->mb.e_mbd.ref_mv_bank;
 
 #endif
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_zero(thread_data->td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
     thread_data->td->mb.e_mbd.warp_param_bank_pt =
         &thread_data->td->mb.e_mbd.warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   }
 }
 

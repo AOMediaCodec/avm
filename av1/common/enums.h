@@ -81,11 +81,11 @@ enum {
 #define WEDGE_BLD_LUT_SIZE 128
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION && CONFIG_MVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
 #define WARP_CU_BANK 1
 #else
 #define WARP_CU_BANK 0
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION && CONFIG_MVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_REFINEMV
 #define REFINEMV_SUBBLOCK_WIDTH 16
@@ -837,10 +837,7 @@ enum {
   GLOBALMV,
   NEWMV,
   AMVDNEWMV,
-
-#if CONFIG_EXTENDED_WARP_PREDICTION
   WARPMV,  // WARPMV mode
-#endif     // CONFIG_EXTENDED_WARP_PREDICTION
            // Compound ref compound modes
   NEAR_NEARMV,
   NEAR_NEWMV,
@@ -915,15 +912,11 @@ enum {
 
 enum {
   SIMPLE_TRANSLATION,
-#if CONFIG_EXTENDED_WARP_PREDICTION
   INTERINTRA,
-#endif            // CONFIG_EXTENDED_WARP_PREDICTION
   OBMC_CAUSAL,    // 2-sided OBMC
   WARPED_CAUSAL,  // Warp estimation from spatial MVs
-#if CONFIG_EXTENDED_WARP_PREDICTION
-  WARP_DELTA,   // Directly-signaled warp model
-  WARP_EXTEND,  // Extension of an existing warp model into another block
-#endif
+  WARP_DELTA,     // Directly-signaled warp model
+  WARP_EXTEND,    // Extension of an existing warp model into another block
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
 
@@ -1026,13 +1019,9 @@ enum {
 #define TOTAL_ANGLE_DELTA_COUNT 7
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // The warpmv mode is signalled as a separate flag
 // So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-1)
 #define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 1)
-#else
-#define INTER_SINGLE_MODES SINGLE_INTER_MODE_NUM
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
@@ -1068,9 +1057,7 @@ enum {
 #define DRL_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS)
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #define WARPMV_MODE_CONTEXT 10
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_IBC_BV_IMPROVEMENT
 #define MAX_REF_BV_STACK_SIZE 4
@@ -1136,10 +1123,8 @@ enum {
 #define REF_CAT_LEVEL 640
 #endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #define MAX_WARP_REF_CANDIDATES 4
 #define WARP_REF_CONTEXTS 1
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CONTEXT_DERIVATION
 #define INTRA_INTER_SKIP_TXFM_CONTEXTS 2
@@ -1284,7 +1269,6 @@ enum {
 #define IBP_WEIGHT_SHIFT 8
 #define IBP_WEIGHT_MAX 255
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 /*!\enum Warp projection type
  * \brief This enumeration defines various warp projection type supported
  */
@@ -1295,7 +1279,6 @@ typedef enum {
   PROJ_DEFAULT,        /**< Default values */
   WARP_PROJ_TYPES = 4, /**< Num projection types */
 } WarpProjectionType;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 /*!\endcond */
 

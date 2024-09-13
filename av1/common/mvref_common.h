@@ -236,16 +236,8 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
     clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
                  xd->height << MI_SIZE_LOG2, xd);
 
-    // When extended warp prediction is enabled, the warp model can be derived
-    // from the neighbor. Neighbor may have different MV precision than current
-    // block. Therefore, this assertion is not valid when
-    // CONFIG_EXTENDED_WARP_PREDICTION is enabled
     // When subblock warp mv is enabled. The precision is kept as higherst
     // regardless the frame level mv during search
-#if !CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_C071_SUBBLK_WARPMV
-    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
-                   precision == MV_PRECISION_ONE_EIGHTH_PEL));
-#endif
 #if CONFIG_C071_SUBBLK_WARPMV
     if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -293,7 +285,6 @@ static INLINE int_mv get_block_mv(const MB_MODE_INFO *candidate,
   return candidate->mv[which_mv];
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 }
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // return derive MV from the ref_warp_model
 // ref_warp_model is extracted from the WRL listb before calling this function
 static INLINE int_mv get_mv_from_wrl(const MACROBLOCKD *xd,
@@ -306,7 +297,6 @@ static INLINE int_mv get_mv_from_wrl(const MACROBLOCKD *xd,
                               mi_col, mi_row);
   return mv;
 }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // Checks that the given mi_row, mi_col and search point
 // are inside the borders of the tile.
@@ -517,14 +507,12 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
   return ec_ctx->drl_cdf[AOMMIN(idx, 2)][ctx];
 }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Get the cdf of the warp_ref_idx
 static INLINE aom_cdf_prob *av1_get_warp_ref_idx_cdf(FRAME_CONTEXT *ec_ctx,
                                                      int bit_idx) {
   const int ctx = 0;
   return ec_ctx->warp_ref_idx_cdf[AOMMIN(bit_idx, 2)][ctx];
 }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // TODO(jingning): Consider the use of lookup table for (num / den)
 // altogether.
@@ -600,24 +588,19 @@ void av1_find_mv_refs(
     ,
     int16_t *mode_context
 #endif  //! CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_EXTENDED_WARP_PREDICTION
     ,
     WARP_CANDIDATE warp_param_stack[][MAX_WARP_REF_CANDIDATES],
     int max_num_of_warp_candidates,
-    uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-);
+    uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]);
 
 #if CONFIG_D072_SKIP_MODE_IMPROVE
 void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]);
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Initialize the warp cadidate lists to invalid values
 void av1_initialize_warp_wrl_list(
     WARP_CANDIDATE warp_param_stack[][MAX_WARP_REF_CANDIDATES],
     uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // check a list of motion vectors by sad score using a number rows of pixels
 // above and a number cols of pixels in the left to select the one with best
@@ -969,7 +952,6 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 );
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if !CONFIG_BANK_IMPROVE
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
@@ -1163,7 +1145,6 @@ bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
                                        const MACROBLOCKD *xd, int_mv cand_mv);
 int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                               const MB_MODE_INFO *mbmi);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_TMVP_MEM_OPT
 void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm);
@@ -1182,11 +1163,9 @@ static INLINE int is_ref_motion_field_eligible(
   return 1;
 }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // Check all 3 neighbors to generate projected points
 int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
                                  int *np, MV_REFERENCE_FRAME ref_frame);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // Temporal scaling the motion vector
 static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,

@@ -304,15 +304,10 @@ static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
 }
 
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
-                                       int16_t ctx
-#if CONFIG_EXTENDED_WARP_PREDICTION
-                                       ,
-                                       const AV1_COMMON *const cm,
+                                       int16_t ctx, const AV1_COMMON *const cm,
                                        const MACROBLOCKD *xd,
                                        const MB_MODE_INFO *mbmi,
-                                       BLOCK_SIZE bsize
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-) {
+                                       BLOCK_SIZE bsize) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index = aom_read_symbol(
@@ -321,7 +316,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
   }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   int is_warpmv = 0;
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
@@ -332,7 +326,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
       return WARPMV;
     }
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
   return SINGLE_INTER_MODE_START +
@@ -455,7 +448,6 @@ static int8_t read_wedge_mode(aom_reader *r, FRAME_CONTEXT *ec_ctx,
 }
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 // read the reference index warp_ref_idx of WRL
 static void read_warp_ref_idx(FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
                               aom_reader *r) {
@@ -679,39 +671,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 
   return SIMPLE_TRANSLATION;
 }
-#else
-static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
-                                    MB_MODE_INFO *mbmi, aom_reader *r) {
-  if (mbmi->skip_mode) return SIMPLE_TRANSLATION;
-
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) return SIMPLE_TRANSLATION;
-
-  const MOTION_MODE last_motion_mode_allowed =
-      motion_mode_allowed(cm, xd, mbmi);
-  int motion_mode;
-
-  if (last_motion_mode_allowed == SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;
-
-  if (last_motion_mode_allowed == OBMC_CAUSAL) {
-#if !CONFIG_D149_CTX_MODELING_OPT
-    const int bsize = mbmi->sb_type[PLANE_TYPE_Y];
-#endif  // !CONFIG_D149_CTX_MODELING_OPT
-    motion_mode = aom_read_symbol(r,
-#if CONFIG_D149_CTX_MODELING_OPT
-                                  xd->tile_ctx->obmc_cdf,
-#else
-                                  xd->tile_ctx->obmc_cdf[bsize],
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-                                  2, ACCT_INFO("motion_mode", "obmc_cdf"));
-    return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
-  } else {
-    motion_mode = aom_read_symbol(
-        r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
-        MOTION_MODES, ACCT_INFO("motion_mode", "motion_mode_cdf"));
-    return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
-  }
-}
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // Read scale mode flag for joint mvd coding mode
 static PREDICTION_MODE read_jmvd_scale_mode(MACROBLOCKD *xd, aom_reader *r,
@@ -1693,10 +1652,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_IBC_MAX_DRL
       xd->ref_mv_stack[INTRA_FRAME][i].this_mv.as_int = 0;
       xd->ref_mv_stack[INTRA_FRAME][i].comp_mv.as_int = 0;
-#if CONFIG_EXTENDED_WARP_PREDICTION
       xd->ref_mv_stack[INTRA_FRAME][i].row_offset = OFFSET_NONSPATIAL;
       xd->ref_mv_stack[INTRA_FRAME][i].col_offset = OFFSET_NONSPATIAL;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
       xd->ref_mv_stack[INTRA_FRAME][i].cwp_idx = CWP_EQUAL;
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -1707,12 +1664,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                      ,
                      inter_mode_ctx
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_EXTENDED_WARP_PREDICTION
                      ,
-                     NULL, 0, NULL
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
-    );
+                     NULL, 0, NULL);
 
 #if CONFIG_IBC_BV_IMPROVEMENT
     mbmi->intrabc_mode =
@@ -3021,7 +2974,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       mv[0].as_int = ref_mv[0].as_int;
       break;
     }
-#if CONFIG_EXTENDED_WARP_PREDICTION
+
     case WARPMV: {
       mbmi->mv[0] = ref_mv[0];
       if (mbmi->warpmv_with_mvd_flag) {
@@ -3051,7 +3004,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 
       break;
     }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
     case GLOBALMV: {
       // Global motion is never used for the TIP ref frame
       if (is_tip_ref_frame(ref_frame[0])) {
@@ -3515,10 +3468,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   av1_initialize_warp_wrl_list(xd->warp_param_stack,
                                xd->valid_num_warp_candidates);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if !CONFIG_SEP_COMP_DRL
   av1_find_mv_refs(
@@ -3528,13 +3479,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       ,
       inter_mode_ctx
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_EXTENDED_WARP_PREDICTION
       ,
       xd->warp_param_stack,
       ref_frame < INTER_REFS_PER_FRAME ? MAX_WARP_REF_CANDIDATES : 0,
-      xd->valid_num_warp_candidates
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-  );
+      xd->valid_num_warp_candidates);
 #endif  // !CONFIG_SEP_COMP_DRL
 
 #if CONFIG_C076_INTER_MOD_CTX
@@ -3551,20 +3499,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->cwp_idx = CWP_EQUAL;
   mbmi->jmvd_scale_mode = 0;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = COMP_REFINE_NONE;
 #endif  // CONFIG_AFFINE_REFINEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->warpmv_with_mvd_flag = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
   WarpedMotionParams ref_warp_model = default_warp_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   if (mbmi->skip_mode) {
 #if !CONFIG_D072_SKIP_MODE_IMPROVE
@@ -3597,13 +3541,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         ,
         inter_mode_ctx
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_EXTENDED_WARP_PREDICTION
         ,
         xd->warp_param_stack,
         ref_frame < SINGLE_REF_FRAMES ? MAX_WARP_REF_CANDIDATES : 0,
-        xd->valid_num_warp_candidates
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-    );
+        xd->valid_num_warp_candidates);
 #endif  // CONFIG_SEP_COMP_DRL
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
@@ -3662,12 +3603,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (is_compound)
         mbmi->mode = read_inter_compound_mode(xd, r, cm, mbmi, mode_ctx);
       else
-        mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx
-#if CONFIG_EXTENDED_WARP_PREDICTION
-                                     ,
-                                     cm, xd, mbmi, bsize
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        );
+        mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx, cm, xd, mbmi, bsize);
 
 #if CONFIG_SEP_COMP_DRL
       av1_find_mv_refs(
@@ -3677,16 +3613,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           ,
           inter_mode_ctx
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_EXTENDED_WARP_PREDICTION
           ,
           xd->warp_param_stack,
           ref_frame < SINGLE_REF_FRAMES ? MAX_WARP_REF_CANDIDATES : 0,
-          xd->valid_num_warp_candidates
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-      );
+          xd->valid_num_warp_candidates);
 #endif  // CONFIG_SEP_COMP_DRL
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
@@ -3789,8 +3721,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       } else {
         mbmi->warpmv_with_mvd_flag = 0;
       }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
       mbmi->jmvd_scale_mode = read_jmvd_scale_mode(xd, r, mbmi);
       int max_drl_bits = cm->features.max_drl_bits;
       if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
@@ -3818,7 +3748,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                        mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == WARPMV) {
     ref_mv[0] = get_mv_from_wrl(xd, &ref_warp_model,
                                 !mbmi->warpmv_with_mvd_flag
@@ -3827,7 +3756,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                 bsize, xd->mi_col, xd->mi_row);
 
   } else {
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_SEP_COMP_DRL
     if (has_second_drl(mbmi))
       ref_mv[0] =
@@ -3835,11 +3763,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     else
       ref_mv[0] = xd->ref_mv_stack[ref_frame][get_ref_mv_idx(mbmi, 0)].this_mv;
 #else
-  ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
+    ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
 #endif  // CONFIG_SEP_COMP_DRL
-#if CONFIG_EXTENDED_WARP_PREDICTION
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   if (is_compound && mbmi->mode != GLOBAL_GLOBALMV) {
 #if CONFIG_SEP_COMP_DRL
     if (has_second_drl(mbmi))
@@ -3931,34 +3857,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
-#if CONFIG_BAWP && !CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_BAWP_CHROMA
-  if (cm->features.enable_bawp && av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)
-#if CONFIG_D072_SKIP_MODE_IMPROVE
-      && !mbmi->skip_mode
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-  ) {
-    mbmi->bawp_flag[0] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[0], 2,
-                                         ACCT_INFO("bawp_flag_luma"));
-  }
-  if (mbmi->bawp_flag[0]) {
-    mbmi->bawp_flag[1] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[1], 2,
-                                         ACCT_INFO("bawp_flag_chroma"));
-  } else {
-    mbmi->bawp_flag[1] = 0;
-  }
-#else
-  if (cm->features.enable_bawp && av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)
-#if CONFIG_D072_SKIP_MODE_IMPROVE
-      && !mbmi->skip_mode
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-  )
-    mbmi->bawp_flag =
-        aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_INFO("bawp_flag"));
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP && !CONFIG_EXTENDED_WARP_PREDICTION
-
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if !CONFIG_COMPOUND_WARP_CAUSAL
   assert(IMPLIES(mbmi->motion_mode != SIMPLE_TRANSLATION,
                  mbmi->mode >= SINGLE_INTER_MODE_START &&
@@ -3967,62 +3865,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (mbmi->motion_mode == WARP_DELTA) {
     read_warp_delta(cm, xd, mbmi, r, warp_param_stack);
   }
-#else
-  mbmi->use_wedge_interintra = 0;
-  if (cm->seq_params.enable_interintra_compound && !mbmi->skip_mode &&
-      is_interintra_allowed(mbmi)) {
-    const int bsize_group = size_group_lookup[bsize];
-    const int interintra = aom_read_symbol(
-        r, ec_ctx->interintra_cdf[bsize_group], 2, ACCT_INFO("interintra"));
-    assert(mbmi->ref_frame[1] == NONE_FRAME);
-    if (interintra) {
-      const INTERINTRA_MODE interintra_mode =
-          read_interintra_mode(xd, r, bsize_group);
-      mbmi->ref_frame[1] = INTRA_FRAME;
-      mbmi->interintra_mode = interintra_mode;
-      mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-      mbmi->angle_delta[PLANE_TYPE_UV] = 0;
-      mbmi->filter_intra_mode_info.use_filter_intra = 0;
-      if (av1_is_wedge_used(bsize)) {
-        mbmi->use_wedge_interintra =
-            aom_read_symbol(r,
-#if CONFIG_D149_CTX_MODELING_OPT
-                            ec_ctx->wedge_interintra_cdf,
-#else
-                            ec_ctx->wedge_interintra_cdf[bsize],
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-                            2, ACCT_INFO("use_wedge_interintra"));
-        if (mbmi->use_wedge_interintra) {
-#if CONFIG_WEDGE_MOD_EXT
-          mbmi->interintra_wedge_index = read_wedge_mode(r, ec_ctx, bsize);
-          assert(mbmi->interintra_wedge_index != -1);
-#else
-          mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
-              r, ec_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES,
-              ACCT_INFO("interintra_wedge_index"));
-#endif
-        }
-      }
-    }
-  }
-
-  for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-    const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
-    xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);
-  }
-
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], xd->mi_row,
-                                        xd->mi_col) &&
-      !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode &&
-      !has_second_ref(mbmi)) {
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
-  }
-  av1_count_overlappable_neighbors(cm, xd);
-
-  if (mbmi->ref_frame[1] != INTRA_FRAME)
-    mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_REFINEMV
   if (!mbmi->skip_mode) {
@@ -4135,7 +3977,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->motion_mode == WARPED_CAUSAL) {
     mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
 #if CONFIG_COMPOUND_WARP_CAUSAL
@@ -4255,29 +4096,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   }
-#else
-  if (mbmi->motion_mode == WARPED_CAUSAL) {
-    mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
-    mbmi->wm_params.invalid = 0;
-
-    if (mbmi->num_proj_ref > 1) {
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
-    }
-
-    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                            mbmi->mv[0].as_mv, &mbmi->wm_params, mi_row,
-                            mi_col)) {
-#if WARPED_MOTION_DEBUG
-      printf("Warning: unexpected warped model from aomenc\n");
-#endif
-      mbmi->wm_params.invalid = 1;
-    }
-#if CONFIG_C071_SUBBLK_WARPMV
-    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params, mi_row, mi_col);
-#endif  // CONFIG_C071_SUBBLK_WARPMV
-  }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   if (xd->tree_type != LUMA_PART) xd->cfl.store_y = store_cfl_required(cm, xd);
 
@@ -4354,11 +4172,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   mbmi->cwp_idx = CWP_EQUAL;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
   mbmi->warpmv_with_mvd_flag = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_NEW_CONTEXT_MODELING
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
@@ -4512,9 +4328,7 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
   MACROBLOCKD *const xd = &dcb->xd;
   MB_MODE_INFO *const mi = xd->mi[0];
   mi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   mi->warpmv_with_mvd_flag = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   if (xd->tree_type == SHARED_PART)
     mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
 
@@ -4564,11 +4378,9 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
     if (is_inter_block(mbmi_tmp, xd->tree_type))
       av1_update_warp_param_bank(cm, xd, mbmi_tmp);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
       av1_copy_frame_mvs(cm, xd, mi, xd->mi_row, xd->mi_col, x_inside_boundary,

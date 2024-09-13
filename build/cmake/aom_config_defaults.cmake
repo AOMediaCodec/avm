@@ -189,8 +189,7 @@ set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
-set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
-                   "AV2 experiment flag to add new local warp modes")
+
 set_aom_config_var(CONFIG_EXTENDED_SDP 1
                    "Enable SDP for intra blocks in inter frame")
 set_aom_config_var(

@@ -325,12 +325,7 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
 
   // Optical flow MV search is allowed for NEWMV and WARPMV only, since it
   // shows little improvements in compound modes.
-  if (mbmi->mode == NEWMV
-#if CONFIG_EXTENDED_WARP_PREDICTION
-      || mbmi->mode == WARPMV
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-  )
-    return 3;
+  if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
 
   return 0;
 }
@@ -5038,14 +5033,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   MV *best_mv = &mbmi->mv[ref].as_mv;
   WarpedMotionParams best_wm_params = mbmi->wm_params[ref];
   int best_num_proj_ref = mbmi->num_proj_ref[ref];
-#else  // CONFIG_COMPOUND_WARP_CAUSAL
+#else   // CONFIG_COMPOUND_WARP_CAUSAL
   MV *best_mv = &mbmi->mv[0].as_mv;
-
-#if CONFIG_EXTENDED_WARP_PREDICTION
   WarpedMotionParams best_wm_params = mbmi->wm_params[0];
-#else
-  WarpedMotionParams best_wm_params = mbmi->wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   int best_num_proj_ref = mbmi->num_proj_ref;
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
   unsigned int bestmse;
@@ -5089,7 +5079,6 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
               av1_selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_COMPOUND_WARP_CAUSAL
         if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
                                  this_mv, &mbmi->wm_params[ref], mi_row,
@@ -5098,10 +5087,6 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                  this_mv, &mbmi->wm_params[0], mi_row,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                  mi_col)) {
-#else
-        if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params, mi_row, mi_col)) {
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
 
           if (thismse < bestmse) {
@@ -5110,11 +5095,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
             best_wm_params = mbmi->wm_params[ref];
             best_num_proj_ref = mbmi->num_proj_ref[ref];
 #else
-#if CONFIG_EXTENDED_WARP_PREDICTION
             best_wm_params = mbmi->wm_params[0];
-#else
-            best_wm_params = mbmi->wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
             best_num_proj_ref = mbmi->num_proj_ref;
 #endif
             bestmse = thismse;
@@ -5136,11 +5117,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   mbmi->wm_params[ref] = best_wm_params;
   mbmi->num_proj_ref[ref] = best_num_proj_ref;
 #else
-#if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->wm_params[0] = best_wm_params;
-#else
-  mbmi->wm_params = best_wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->num_proj_ref = best_num_proj_ref;
 #endif
   return bestmse;
@@ -5252,7 +5229,6 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #define MAX_WARP_DELTA_ITERS 8
 
 // Returns 1 if able to select a good model, 0 if not
@@ -5667,7 +5643,6 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   mbmi->wm_params[0] = best_wm_params;
 }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // Calculates the variance of prediction residue
 static int upsampled_obmc_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,

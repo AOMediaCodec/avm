@@ -51,12 +51,7 @@ static int use_fine_search_interval(const AV1_COMP *const cpi) {
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
                               int search_range, inter_mode_info *mode_info,
-                              int_mv *best_mv
-#if CONFIG_EXTENDED_WARP_PREDICTION
-                              ,
-                              const int_mv *warp_ref_mv
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-) {
+                              int_mv *best_mv, const int_mv *warp_ref_mv) {
   MACROBLOCKD *xd = &x->e_mbd;
   const AV1_COMMON *cm = &cpi->common;
   const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
@@ -72,11 +67,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int range_thr = OMVS_RANGE_THR * radix;
   const int step = OMVS_BIG_STEP * radix;
 #endif  // CONFIG_OPFL_MV_SEARCH
-#if CONFIG_EXTENDED_WARP_PREDICTION
   MOTION_MODE backup_motion_mode = mbmi->motion_mode;
   // Make the motion mode transalational, so that transalation MS can be used.
   if (mbmi->mode == WARPMV) mbmi->motion_mode = SIMPLE_TRANSLATION;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
   int bestsme = INT_MAX;
@@ -115,11 +108,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     step_param = mv_search_params->mv_step_param;
   }
 
-  MV ref_mv_low_prec =
-#if CONFIG_EXTENDED_WARP_PREDICTION
-      (mbmi->mode == WARPMV) ? warp_ref_mv->as_mv :
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-                             av1_get_ref_mv(x, ref_idx).as_mv;
+  MV ref_mv_low_prec = (mbmi->mode == WARPMV)
+                           ? warp_ref_mv->as_mv
+                           : av1_get_ref_mv(x, ref_idx).as_mv;
 #if CONFIG_C071_SUBBLK_WARPMV
   MV sub_mv_offset = { 0, 0 };
   get_phase_from_mv(ref_mv_low_prec, &sub_mv_offset, mbmi->pb_mv_precision);
@@ -343,10 +334,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   //  2. The rate needed to encode the current fullpel_mv is larger than that
   //     for the other ref_mv.
   if (cpi->sf.inter_sf.skip_repeated_full_newmv &&
-      mbmi->motion_mode == SIMPLE_TRANSLATION &&
-#if CONFIG_EXTENDED_WARP_PREDICTION
-      mbmi->mode != WARPMV &&
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+      mbmi->motion_mode == SIMPLE_TRANSLATION && mbmi->mode != WARPMV &&
       best_mv->as_int != INVALID_MV) {
     int_mv this_mv;
     this_mv.as_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
@@ -475,10 +463,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(is_this_mv_precision_compliant(best_mv->as_mv, mbmi->pb_mv_precision));
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // Restore the motion mode
   if (mbmi->mode == WARPMV) mbmi->motion_mode = backup_motion_mode;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
@@ -1043,10 +1029,8 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     av1_get_scaled_ref_frame(cpi, refs[1])
   };
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // Check that this is either an interinter or an interintra block
   assert(has_second_ref(mbmi) || (ref_idx == 0 && is_interintra_mode(mbmi)));
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   for (int idx = 0; idx < 2; idx++) {
     if (scaled_ref_frame[idx]) {

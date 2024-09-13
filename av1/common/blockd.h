@@ -114,22 +114,20 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     GLOBALMV,       // GLOBALMV
     NEWMV,          // NEWMV
     NEWMV,          // AMVDNEWMV
-#if CONFIG_EXTENDED_WARP_PREDICTION
-    WARPMV,    // WARPMV
-#endif         // CONFIG_EXTENDED_WARP_PREDICTION
-    NEARMV,    // NEAR_NEARMV
-    NEARMV,    // NEAR_NEWMV
-    NEWMV,     // NEW_NEARMV
-    GLOBALMV,  // GLOBAL_GLOBALMV
-    NEWMV,     // NEW_NEWMV
-    NEWMV,     // JOINT_NEWMV
-    NEWMV,     // JOINT_AMVDNEWMV
-    NEARMV,    // NEAR_NEARMV_OPTFLOW
-    NEARMV,    // NEAR_NEWMV_OPTFLOW
-    NEWMV,     // NEW_NEARMV_OPTFLOW
-    NEWMV,     // NEW_NEWMV_OPTFLOW
-    NEWMV,     // JOINT_NEWMV_OPTFLOW
-    NEWMV,     // JOINT_AMVDNEWMV_OPTFLOW
+    WARPMV,         // WARPMV
+    NEARMV,         // NEAR_NEARMV
+    NEARMV,         // NEAR_NEWMV
+    NEWMV,          // NEW_NEARMV
+    GLOBALMV,       // GLOBAL_GLOBALMV
+    NEWMV,          // NEW_NEWMV
+    NEWMV,          // JOINT_NEWMV
+    NEWMV,          // JOINT_AMVDNEWMV
+    NEARMV,         // NEAR_NEARMV_OPTFLOW
+    NEARMV,         // NEAR_NEWMV_OPTFLOW
+    NEWMV,          // NEW_NEARMV_OPTFLOW
+    NEWMV,          // NEW_NEWMV_OPTFLOW
+    NEWMV,          // JOINT_NEWMV_OPTFLOW
+    NEWMV,          // JOINT_AMVDNEWMV_OPTFLOW
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -155,9 +153,7 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // GLOBALMV
     MB_MODE_COUNT,  // NEWMV
     MB_MODE_COUNT,  // AMVDNEWMV
-#if CONFIG_EXTENDED_WARP_PREDICTION
     MB_MODE_COUNT,  // WARPMV
-#endif              // CONFIG_EXTENDED_WARP_PREDICTION
     NEARMV,         // NEAR_NEARMV
     NEWMV,          // NEAR_NEWMV
     NEARMV,         // NEW_NEARMV
@@ -479,13 +475,7 @@ typedef struct MB_MODE_INFO {
    * mode. */
   uint8_t overlappable_neighbors[2];
   /*! \brief The parameters used in warp motion mode. */
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL || \
-    CONFIG_AFFINE_REFINEMENT
   WarpedMotionParams wm_params[2];
-#else
-  WarpedMotionParams wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL ||
-        // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
   /*! \brief Compound refinement type */
   CompoundRefineType comp_refine_type;
@@ -650,7 +640,6 @@ typedef struct MB_MODE_INFO {
   int morph_beta;
 #endif  // CONFIG_MORPH_PRED
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   /*! \brief Which index to use for warp base parameter. */
   uint8_t warp_ref_idx;
   /*! \brief Maximum number of warp reference indices to use for warp base
@@ -658,8 +647,6 @@ typedef struct MB_MODE_INFO {
   uint8_t max_num_warp_candidates;
   /*! \brief warpmv_with_mvd_flag. */
   uint8_t warpmv_with_mvd_flag;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
   /*! \brief Indicates if masked compound is used(1) or not (0). */
   uint8_t comp_group_idx : 1;
   /*! \brief Whether to use interintra wedge */
@@ -2067,7 +2054,6 @@ typedef struct {
 #endif  // CONFIG_BANK_IMPROVE
 } REF_MV_BANK;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #define WARP_PARAM_BANK_SIZE 4
 
 /*! \brief Variables related to reference warp parameters bank. */
@@ -2089,7 +2075,6 @@ typedef struct {
    */
   int wpb_sb_hits;
 } WARP_PARAM_BANK;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
 /*! \brief Variables related to mvp list of skip mode.*/
@@ -2141,7 +2126,6 @@ typedef struct macroblockd {
   REF_MV_BANK ref_mv_bank; /*!< Ref mv bank to update */
   /**@}*/
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   /**
    * \name Reference warp parameters bank info.
    */
@@ -2151,7 +2135,6 @@ typedef struct macroblockd {
   WARP_PARAM_BANK *warp_param_bank_pt; /*!< Pointer to bank to refer to */
 #endif                                 //! WARP_CU_BANK
   /**@}*/
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   /*!
    * True if current block transmits chroma information.
@@ -2423,7 +2406,6 @@ typedef struct macroblockd {
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   /*!
    * warp_param_stack contains the predicted warp parameters
    */
@@ -2433,7 +2415,6 @@ typedef struct macroblockd {
    * valid number of candidates in the warp_param_stack.
    */
   uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
   /*!
@@ -4204,12 +4185,7 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
   return mbmi->motion_mode == INTERINTRA;
-#else
-  return (mbmi->ref_frame[0] > INTRA_FRAME &&
-          mbmi->ref_frame[1] == INTRA_FRAME);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -4249,10 +4225,7 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 }
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == WARPMV) return 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
   return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame)
@@ -4340,9 +4313,7 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
 #if CONFIG_BAWP
 static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
                                  int mi_col) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == WARPMV) return 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
                                         mi_col) &&

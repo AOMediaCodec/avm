@@ -246,13 +246,11 @@ static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
   memcpy(mbmi_ext->global_mvs, mbmi_ext_best->global_mvs,
          sizeof(mbmi_ext->global_mvs));
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (ref_frame_type < INTER_REFS_PER_FRAME) {
     memcpy(mbmi_ext->warp_param_stack[ref_frame_type],
            mbmi_ext_best->warp_param_stack,
            sizeof(mbmi_ext->warp_param_stack[0]));
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
@@ -464,13 +462,10 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 }
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                 PREDICTION_MODE mode, int16_t mode_context
-#if CONFIG_EXTENDED_WARP_PREDICTION
-                                 ,
+                                 PREDICTION_MODE mode, int16_t mode_context,
                                  const AV1_COMMON *const cm,
                                  const MACROBLOCKD *xd,
                                  const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 ) {
   (void)counts;
@@ -487,13 +482,11 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
     update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
     if (mode == WARPMV) return;
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
 #if CONFIG_ENTROPY_STATS
@@ -1503,9 +1496,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               BR_CDF_SIZE);
 #endif  // CONFIG_LCCHROMA
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_REFINEMV
   AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
@@ -1544,7 +1535,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,
               INTERINTRA_MODES);
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
-#if CONFIG_EXTENDED_WARP_PREDICTION
   AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
@@ -1558,9 +1548,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->warpmv_with_mvd_flag_cdf,
               ctx_tr->warpmv_with_mvd_flag_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_extend_cdf, ctx_tr->warp_extend_cdf, 2);
-#else
-  AVERAGE_CDF(ctx_left->motion_mode_cdf, ctx_tr->motion_mode_cdf, MOTION_MODES);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
   AVERAGE_CDF(ctx_left->bawp_cdf[0], ctx_tr->bawp_cdf[0], 2);

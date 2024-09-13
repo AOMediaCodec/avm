@@ -835,10 +835,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   inter_sf->reuse_erp_mode_flag = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-#if CONFIG_EXTENDED_WARP_PREDICTION
   inter_sf->prune_warpmv_prob_thresh = 32;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
@@ -1162,17 +1159,12 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     if (sf->inter_sf.disable_wedge_interintra_search) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
     }
     if (sf->inter_sf.disable_obmc) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << OBMC_CAUSAL);
     }
-#else
-    cpi->common.seq_params.enable_interintra_compound &=
-        !sf->inter_sf.disable_wedge_interintra_search;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   }
 
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64

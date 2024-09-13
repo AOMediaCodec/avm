@@ -4603,9 +4603,9 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
     xd->ref_mv_bank.rmb_sb_hits = 0;
 #endif  // CONFIG_BANK_IMPROVE
 
-#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#if !CONFIG_BANK_IMPROVE
     xd->warp_param_bank.wpb_sb_hits = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#endif  // !CONFIG_BANK_IMPROVE
 
     // Decoding of the super-block
     decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
@@ -4691,12 +4691,10 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_zero(xd->warp_param_bank);
 #if !WARP_CU_BANK
     xd->warp_param_bank_pt = &td->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->mib_size) {
@@ -4715,12 +4713,12 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       td->ref_mv_bank = xd->ref_mv_bank;
 #endif  // !CONFIG_MVP_IMPROVEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#if !CONFIG_BANK_IMPROVE
       xd->warp_param_bank.wpb_sb_hits = 0;
 #if !WARP_CU_BANK
       td->warp_param_bank = xd->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#endif  // !CONFIG_BANK_IMPROVE
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
                           0x3);
 
@@ -5218,12 +5216,10 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_zero(xd->warp_param_bank);
 #if !WARP_CU_BANK
     xd->warp_param_bank_pt = &td->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->mib_size) {
@@ -5240,12 +5236,12 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
       td->ref_mv_bank = xd->ref_mv_bank;
 #endif  // !CONFIG_MVP_IMPROVEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#if !CONFIG_BANK_IMPROVE
       xd->warp_param_bank.wpb_sb_hits = 0;
 #if !WARP_CU_BANK
       td->warp_param_bank = xd->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#endif  // !CONFIG_BANK_IMPROVE
 
       // Bit-stream parsing of the superblock
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
@@ -6319,15 +6315,8 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_filter_intra = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
   if (seq_params->reduced_still_picture_hdr) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
-#else
-    seq_params->enable_interintra_compound = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_masked_compound = 0;
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-    seq_params->enable_warped_motion = 0;
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->order_hint_info.enable_order_hint = 0;
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
@@ -6338,7 +6327,6 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->enable_affine_refine = 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
   } else {
-#if CONFIG_EXTENDED_WARP_PREDICTION
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
          motion_mode++) {
@@ -6348,13 +6336,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
       }
     }
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
-#else
-    seq_params->enable_interintra_compound = aom_rb_read_bit(rb);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-    seq_params->enable_warped_motion = aom_rb_read_bit(rb);
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
     seq_params->order_hint_info.enable_ref_frame_mvs =
         seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
@@ -6580,9 +6562,7 @@ static int read_global_motion_params(WarpedMotionParams *params,
   }
 
   if (params->wmtype <= AFFINE) {
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_reduce_warp_model(params);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     int good_shear_params = av1_get_shear_params(params);
     if (!good_shear_params) return 0;
   }
@@ -7625,7 +7605,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
 
         features->interp_filter = read_frame_interp_filter(rb);
-#if CONFIG_EXTENDED_WARP_PREDICTION
         int seq_enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
         int frame_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
         for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
@@ -7638,9 +7617,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         }
         features->enabled_motion_modes = frame_enabled_motion_modes;
-#else
-      features->switchable_motion_mode = aom_rb_read_bit(rb);
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           features->opfl_refine_type = aom_rb_read_literal(rb, 2);
           if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
@@ -7961,13 +7937,6 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   current_frame->skip_mode_info.skip_mode_flag =
       current_frame->skip_mode_info.skip_mode_allowed ? aom_rb_read_bit(rb) : 0;
 
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-  if (frame_might_allow_warped_motion(cm))
-    features->allow_warped_motion = aom_rb_read_bit(rb);
-  else
-    features->allow_warped_motion = 0;
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-
 #if CONFIG_BAWP
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
     features->enable_bawp = aom_rb_read_bit(rb);
@@ -7976,13 +7945,11 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
 #endif  // CONFIG_BAWP
 
   features->enable_cwp = seq_params->enable_cwp;
-#if CONFIG_EXTENDED_WARP_PREDICTION
   features->allow_warpmv_mode = 0;
   if (!frame_is_intra_only(cm) &&
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
     features->allow_warpmv_mode = aom_rb_read_bit(rb);
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;

@@ -46,18 +46,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_EXPLICIT_BAWP 0 !CONFIG_BAWP)
   endif()
 
-  # Tools which depend on CONFIG_EXTENDED_WARP_PREDICTION
-  if(NOT CONFIG_EXTENDED_WARP_PREDICTION)
-    change_config_and_warn(CONFIG_EXT_WARP_FILTER 0
-                           !CONFIG_EXTENDED_WARP_PREDICTION)
-    change_config_and_warn(CONFIG_INTERINTRA_IMPROVEMENT 0
-                           !CONFIG_EXTENDED_WARP_PREDICTION)
-    change_config_and_warn(CONFIG_COMPOUND_WARP_CAUSAL 0
-                           !CONFIG_EXTENDED_WARP_PREDICTION)
-    change_config_and_warn(CONFIG_AFFINE_REFINEMENT 0
-                           !CONFIG_EXTENDED_WARP_PREDICTION)
-  endif()
-
   # CONFIG_PARA_BD_REDUCE is dependent on CONFIG_ENTROPY_PARA.
   if(NOT CONFIG_ENTROPY_PARA AND CONFIG_PARA_BD_REDUCE)
     change_config_and_warn(CONFIG_PARA_BD_REDUCE 0 !CONFIG_ENTROPY_PARA)

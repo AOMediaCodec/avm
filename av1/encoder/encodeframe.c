@@ -984,9 +984,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     xd->ref_mv_bank.rmb_sb_hits = 0;
 #endif  // CONFIG_BANK_IMPROVE
 
-#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#if !CONFIG_BANK_IMPROVE
     xd->warp_param_bank.wpb_sb_hits = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
+#endif  // !CONFIG_BANK_IMPROVE
 
     // Get segment id and skip flag
     const struct segmentation *const seg = &cm->seg;
@@ -1151,12 +1151,10 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
     av1_zero(td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
     td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
   }
@@ -1408,7 +1406,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   // Decide which motion modes to scan this frame
   // TODO(rachelbarker): Rework pruning into something more unified in phase 2
   int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
@@ -1433,15 +1430,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       features->allow_warpmv_mode = 0;
     }
   }
-#else
-  if (features->allow_warped_motion &&
-      cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-    if (frame_probs->warped_probs[update_type] <
-        cpi->sf.inter_sf.prune_warped_prob_thresh)
-      features->allow_warped_motion = 0;
-  }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
@@ -1709,12 +1697,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-#else
-  if (features->allow_warped_motion &&
-      cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
@@ -1723,7 +1706,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   if (cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     int sum = 0;
@@ -1732,7 +1714,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {
@@ -1794,10 +1775,6 @@ void av1_encode_frame(AV1_COMP *cpi) {
 
     features->interp_filter = SWITCHABLE;
     if (cm->tiles.large_scale) features->interp_filter = EIGHTTAP_REGULAR;
-
-#if !CONFIG_EXTENDED_WARP_PREDICTION
-    features->switchable_motion_mode = 1;
-#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
     rdc->compound_ref_used_flag = 0;
     rdc->skip_mode_used_flag = 0;
