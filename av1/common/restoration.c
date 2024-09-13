@@ -1348,9 +1348,13 @@ void apply_pc_wiener_highbd(
   // Hence, not prefered to pass this variable as an argument to this function
   // to avoid build failure.
   for (int row = 0; row < feature_length - 1; ++row) {
+    // With 3-pixel buffering last row is height + 3 - 1. We need an extra pixel
+    // during feature compute, resulting in the (height + 3 - 2) clip. The
+    // clipping here should not be needed for any frame with three or more rows.
+    const int row_to_process = AOMMIN(row - feature_lead, height + 3 - 2);
     fill_directional_feature_buffers_highbd(
         buffers->feature_sum_buffers, buffers->feature_line_buffers,
-        row - feature_lead, row, dgd, stride, width, feature_lead, feature_lag);
+        row_to_process, row, dgd, stride, width, feature_lead, feature_lag);
   }
   for (int row = 0; row < tskip_length - 1; ++row) {
     if (!tskip_zero_flag)
