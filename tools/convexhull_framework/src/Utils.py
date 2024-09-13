@@ -27,7 +27,7 @@ from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y
 APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG, DATASET
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 from CalcBDRate import BD_RATE
-from AV2SubjectiveVideo import SUBJECTIVE_CLIPS, AV2_SUBJECTIVE_TEST 
+from AV2SubjectiveVideo import SUBJECTIVE_CLIPS, AV2_SUBJECTIVE_TEST
 
 class Clip:
     file_name = ""
@@ -236,7 +236,7 @@ def CreateClipList(test_cfg):
         test_set = CTC_TEST_SET[test_cfg]
     elif DATASET == "AV2_SUBJECTIVE_TEST":
         test_set = AV2_SUBJECTIVE_TEST[test_cfg]
-    
+
     for cls in test_set:
         if DATASET == "CTC_TEST_SET":
             clips = Y4M_CLIPs[cls]

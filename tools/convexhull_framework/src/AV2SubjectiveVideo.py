@@ -30,4 +30,3 @@ SUBJECTIVE_CLIPS = {
             "YonseiS01_R_00_00.y4m"
             ]
 }
-

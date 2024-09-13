@@ -121,7 +121,7 @@ def Run_Parallel_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly =
         for QP in QPSet:
             Utils.Logger.info("start encode with QP %d" % (QP))
             total_frame = get_total_frame(test_cfg, clip)
-            
+
             # Encode
             start_frame = 0
             while start_frame < total_frame:
@@ -151,7 +151,7 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
         Utils.Logger.info("start running %s decode tests with %s"
                           % (test_cfg, clip.file_name))
         QPSet = QPs[test_cfg]
-        
+
         for QP in QPSet:
             Utils.Logger.info("start decode  with QP %d" % (QP))
             total_frame = get_total_frame(test_cfg, clip.file_name)
@@ -371,7 +371,8 @@ if __name__ == "__main__":
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
             for clip in clip_list:
-				total_frame = get_total_frame(test_cfg, clip)
+                total_frame = get_total_frame(test_cfg, clip)
+
                 if (test_cfg == "RA" and total_frame <= GOP_SIZE):
                     EnableParallelGopEncoding = False
 
