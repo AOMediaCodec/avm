@@ -404,16 +404,16 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       specialize qw/av1_fwd_txfm2d_8x4 sse4_1/;
       specialize qw/av1_fwd_txfm2d_8x16 sse4_1 avx2/;
       specialize qw/av1_fwd_txfm2d_16x8 sse4_1 avx2/;
-      specialize qw/av1_fwd_txfm2d_16x32 sse4_1 neon/;
-      specialize qw/av1_fwd_txfm2d_32x16 sse4_1 neon/;
+      specialize qw/av1_fwd_txfm2d_16x32 sse4_1/;
+      specialize qw/av1_fwd_txfm2d_32x16 sse4_1/;
       specialize qw/av1_fwd_txfm2d_4x16 sse4_1/;
       specialize qw/av1_fwd_txfm2d_16x4 sse4_1/;
-      specialize qw/av1_fwd_txfm2d_8x32 sse4_1 neon/;
-      specialize qw/av1_fwd_txfm2d_32x8 sse4_1 neon/;
+      specialize qw/av1_fwd_txfm2d_8x32 sse4_1/;
+      specialize qw/av1_fwd_txfm2d_32x8 sse4_1/;
       specialize qw/av1_fwd_txfm2d_4x4 sse4_1/;
       specialize qw/av1_fwd_txfm2d_8x8 sse4_1 avx2/;
       specialize qw/av1_fwd_txfm2d_16x16 sse4_1 avx2/;
-      specialize qw/av1_fwd_txfm2d_32x32 sse4_1 avx2 neon/;
+      specialize qw/av1_fwd_txfm2d_32x32 sse4_1 avx2/;
   } else {
       specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2 neon/;
       specialize qw/av1_fwd_txfm2d_4x8 sse4_1 neon/;
