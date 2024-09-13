@@ -148,7 +148,7 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane) {
 #endif
 }
 
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
 /*
    This function performs coefficient optimization over the quantized
    coefficient samples when the transform type is 2D IDTX. Returns skip cost if
@@ -171,7 +171,7 @@ int av1_optimize_fsc(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   return av1_optimize_fsc_block(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                                 rate_cost, cpi->oxcf.algo_cfg.sharpness);
 }
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
 
 /*
  This function performs coefficient optimization over the quantized coefficient
@@ -490,9 +490,9 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
   const uint8_t fsc_mode =
       (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && plane == PLANE_TYPE_Y) ||
       use_inter_fsc(cm, plane, txfm_param->tx_type, is_inter);
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
   if (fsc_mode) qparam->use_optimize_b = false;
-#endif  // !CONFIG_IMPROVEIDTX_RDPH
+#endif  // !CONFIG_IMPROVEIDTX
   av1_quant(x, plane, block, txfm_param, qparam);
   if (fsc_mode) {
     if (get_primary_tx_type(txfm_param->tx_type) == IDTX) {
@@ -766,9 +766,9 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                           plane == PLANE_TYPE_Y) ||
                          use_inter_fsc(cm, plane, tx_type, is_inter);
     const int use_trellis = is_trellis_used(args->enable_optimize_b, dry_run)
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
                             && !fsc_mode
-#endif  // !CONFIG_IMPROVEIDTX_RDPH
+#endif  // !CONFIG_IMPROVEIDTX
         ;
     int quant_idx;
     if (use_trellis)
@@ -787,12 +787,12 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
         plane == PLANE_TYPE_Y &&
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] &&
         (p->eobs[block] > PHTHRESH);
 #else
         get_primary_tx_type(tx_type) < IDTX;
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
 
     // Whether trellis or dropout optimization is required for inter frames.
     const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
@@ -803,12 +803,12 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
       else
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx, &dummy_rate_cost);
     }
@@ -1336,9 +1336,9 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                              use_inter_fsc(cm, plane, tx_type, is_inter);
     const int use_trellis =
         is_trellis_used(args->enable_optimize_b, args->dry_run)
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
         && !fsc_mode
-#endif  // !CONFIG_IMPROVEIDTX_RDPH
+#endif  // !CONFIG_IMPROVEIDTX
         ;
     int quant_idx;
     if (use_trellis)
@@ -1358,11 +1358,11 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
         plane == PLANE_TYPE_Y &&
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
 #else
         get_primary_tx_type(tx_type) < IDTX;
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
 #if DEBUG_EXTQUANT
     if (args->dry_run == OUTPUT_ENABLED) {
       fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
@@ -1391,12 +1391,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
       else
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
                        &txb_ctx, &dummy_rate_cost);
     }
@@ -1421,12 +1421,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         TXB_CTX txb_ctx;
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
         if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
         else
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
                          CCTX_NONE, &txb_ctx, &dummy_rate_cost);
       }
@@ -1709,12 +1709,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                       &quant_param);
     av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
     const uint8_t fsc_mode =
         (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
          plane == PLANE_TYPE_Y) ||
         use_inter_fsc(cm, plane, tx_type, 0 /*is_inter*/);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
     if (quant_param.use_optimize_b && do_trellis) {
       const ENTROPY_CONTEXT *a =
           &args->ta[blk_col + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
@@ -1723,12 +1723,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
       else
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx, &dummy_rate_cost);
     }
@@ -1753,12 +1753,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         TXB_CTX txb_ctx;
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
         if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
         else
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
                          cctx_type, &txb_ctx, &dummy_rate_cost);
       }

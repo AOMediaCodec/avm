@@ -210,7 +210,7 @@ static const aom_cdf_prob av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS]
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS]
                               [CDF_SIZE(2)] = {
@@ -492,9 +492,9 @@ static const aom_cdf_prob
                                     { AOM_CDF2(16384), 0 },
                                 },
                               };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     av1_default_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS]
                             [DC_SIGN_CONTEXTS][CDF_SIZE(2)] = {
@@ -656,7 +656,7 @@ static const aom_cdf_prob
                                   },
                               },
                             };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS]
@@ -1522,7 +1522,7 @@ static const aom_cdf_prob
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB]
     [CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
@@ -1659,7 +1659,7 @@ static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
           { AOM_CDF3(32306, 32749), 110 },
       },
     };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
@@ -3278,7 +3278,7 @@ static const aom_cdf_prob
 #endif  // CONFIG_EOB_POS_LUMA
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
       {
@@ -3678,7 +3678,7 @@ static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
           { AOM_CDF4(8192, 16384, 24576), 0 },
       },
     };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs_idtx[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]
@@ -3933,7 +3933,7 @@ static const aom_cdf_prob
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
     [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
@@ -4335,7 +4335,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
           { AOM_CDF4(8192, 16384, 24576), 0 },
       },
     };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]

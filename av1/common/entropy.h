@@ -89,9 +89,9 @@ extern "C" {
 #define LF_RC_LIM_UV 1  // row or column limit for chroma
 
 #define COEFF_BASE_CONTEXTS (SIG_COEF_CONTEXTS)
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 #define DC_SIGN_GROUPS 2
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #define DC_SIGN_CONTEXTS 3
 
 #define BR_TMP_OFFSET 12

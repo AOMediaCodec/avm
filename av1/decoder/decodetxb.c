@@ -703,31 +703,31 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
 #endif  // CONFIG_INSPECTION
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
   const int16_t *const scan = scan_order->scan;
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const int size_ctx = AOMMIN(txs_ctx, TX_16X16);
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
   if (eob_data->eob > 1) {
     memset(levels_buf, 0, sizeof(*levels_buf) * TX_PAD_2D);
     memset(signs_buf, 0, sizeof(*signs_buf) * TX_PAD_2D);
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf_idtx[size_ctx];
     br_cdf_arr br_cdf = ec_ctx->coeff_br_cdf_idtx[size_ctx];
 #else
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf_idtx;
     br_cdf_arr br_cdf = ec_ctx->coeff_br_cdf_idtx;
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
     const int bob = av1_get_max_eob(tx_size) - bob_data->eob;
     {
       const int pos = scan[bob];
       const int coeff_ctx_bob = get_lower_levels_ctx_bob(bwl, height, bob);
       const int nsymbs_bob = 3;
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
       aom_cdf_prob *cdf_bob =
           ec_ctx->coeff_base_bob_cdf[size_ctx][coeff_ctx_bob];
 #else
       aom_cdf_prob *cdf_bob = ec_ctx->coeff_base_bob_cdf[coeff_ctx_bob];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
       int level = aom_read_symbol(r, cdf_bob, nsymbs_bob,
                                   ACCT_INFO("level", "cdf_bob")) +
                   1;
@@ -751,29 +751,29 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
   for (int c = bob; c < eob_data->eob; c++) {
 #else
   for (int c = eob_data->eob - 1; c >= 0; --c) {
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
     const int pos = scan[c];
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
     const int sign_idx = get_padded_idx_left(pos, bwl);
 #else
     const int sign_idx = get_padded_idx(pos, bwl);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
     uint8_t sign;
     tran_low_t level = levels[get_padded_idx_left(pos, bwl)];
     if (level) {
       eob_data->max_scan_line = AOMMAX(eob_data->max_scan_line, pos);
       int idtx_sign_ctx = get_sign_ctx_skip(signs, levels, pos, bwl);
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
       sign = aom_read_symbol(r, ec_ctx->idtx_sign_cdf[size_ctx][idtx_sign_ctx],
                              2, ACCT_INFO("sign"));
 #else
       sign = aom_read_symbol(r, ec_ctx->idtx_sign_cdf[idtx_sign_ctx], 2,
                              ACCT_INFO("sign"));
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
       signs[sign_idx] = sign > 0 ? -1 : 1;
       if (level >= MAX_BASE_BR_RANGE) {
 #if CONFIG_COEFF_HR_ADAPTIVE
@@ -1037,11 +1037,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   bool enable_parity_hiding =
       cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
       plane == PLANE_TYPE_Y &&
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
       ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
 #else
       get_primary_tx_type(tx_type) < IDTX;
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
   int num_nz = 0, sum_abs1 = 0;
   bool is_hidden = false;
   if (*eob > 1) {
@@ -1133,19 +1133,19 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-#if CONFIG_IMPROVEIDTX_RDPH || CONFIG_COEFF_HR_ADAPTIVE
+#if CONFIG_IMPROVEIDTX || CONFIG_COEFF_HR_ADAPTIVE
   for (int c = *eob - 1; c >= 0; --c) {
 #else
   for (int c = 0; c < *eob; ++c) {
-#endif  // CONFIG_IMPROVEIDTX_RDPH || CONFIG_COEFF_HR_ADAPTIVE
+#endif  // CONFIG_IMPROVEIDTX || CONFIG_COEFF_HR_ADAPTIVE
     const int pos = scan[c];
     uint8_t sign;
     tran_low_t level = levels[get_padded_idx(pos, bwl)];
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
     const int tmp_sign_idx = pos;
 #else
     const int tmp_sign_idx = 0;
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_CONTEXT_DERIVATION
     if (plane == AOM_PLANE_U) {
       xd->tmp_sign[pos] = 0;
@@ -1153,7 +1153,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_CONTEXT_DERIVATION
     if (level) {
       *max_scan_line = AOMMAX(*max_scan_line, pos);
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       const bool dc_2dtx = (c == 0);
@@ -1164,10 +1164,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #else
       if (c == 0) {
         const int dc_sign_ctx = txb_ctx->dc_sign_ctx;
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
           sign = aom_read_symbol(
               r,
               ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
@@ -1176,7 +1176,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
           sign = aom_read_symbol(
               r, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], 2,
               ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
         } else {
           int32_t tmp_sign = 0;
           if (c < xd->eob_u) tmp_sign = xd->tmp_sign[tmp_sign_idx];
@@ -1215,10 +1215,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
-#if !CONFIG_IMPROVEIDTX_CTXS
+#if !CONFIG_IMPROVEIDTX
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
-#endif  // !CONFIG_IMPROVEIDTX_CTXS
+#endif  // !CONFIG_IMPROVEIDTX
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
           if (level >= LF_MAX_BASE_BR_RANGE) {

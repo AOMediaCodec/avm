@@ -494,7 +494,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          CctxType cctx_type, const TXB_CTX *const txb_ctx,
                          int *rate_cost, int sharpness);
 
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off if transform type is 2D IDTX.
  *
@@ -529,7 +529,7 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                            int block, TX_SIZE tx_size, TX_TYPE tx_type,
                            const TXB_CTX *const txb_ctx, int *rate_cost,
                            int sharpness);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
+#endif  // CONFIG_IMPROVEIDTX
 
 /*!\brief Get the corresponding \ref CB_COEFF_BUFFER of the current macro block.
  *

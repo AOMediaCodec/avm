@@ -237,11 +237,11 @@ typedef struct {
    */
   int eob_extra_cost[EOB_COEF_CONTEXTS][2];
   //! Cost for encoding the dc_sign
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   int dc_sign_cost[DC_SIGN_GROUPS][DC_SIGN_CONTEXTS][2];
 #else
   int dc_sign_cost[DC_SIGN_CONTEXTS][2];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding the AOM_PLANE_V txfm coefficient dc_sign
   int v_dc_sign_cost[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS][2];
@@ -1207,7 +1207,7 @@ typedef struct {
   int skip_txfm_cost[SKIP_CONTEXTS][2];
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   //! txfm_do_partition_cost
   int txfm_do_partition_cost[FSC_MODES][2][TXFM_SPLIT_GROUP][2];
   //! txfm_4way_partition_type_cost
@@ -1219,7 +1219,7 @@ typedef struct {
   //! txfm_4way_partition_type_cost
   int txfm_4way_partition_type_cost[2][TXFM_PARTITION_GROUP - 1]
                                    [TX_PARTITION_TYPE_NUM];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
   //! intra_4way_txfm_partition_cost
   int intra_4way_txfm_partition_cost[2][TX_SIZE_CONTEXTS][4];

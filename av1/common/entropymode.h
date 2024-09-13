@@ -160,20 +160,20 @@ typedef struct frame_contexts {
 #endif  // CONFIG_CONTEXT_DERIVATION
   aom_cdf_prob eob_extra_cdf[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]
                             [CDF_SIZE(2)];
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS]
                           [CDF_SIZE(2)];
 #else
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_CONTEXTS][CDF_SIZE(2)];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_CONTEXT_DERIVATION
   aom_cdf_prob v_dc_sign_cdf[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS]
                             [CDF_SIZE(2)];
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if !CONFIG_IMPROVEIDTX_CTXS
+#if !CONFIG_IMPROVEIDTX
   aom_cdf_prob coeff_base_bob_cdf[SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
-#endif  // !CONFIG_IMPROVEIDTX_CTXS
+#endif  // !CONFIG_IMPROVEIDTX
 #if CONFIG_EOB_POS_LUMA
   aom_cdf_prob eob_flag_cdf16[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 6)];
   aom_cdf_prob eob_flag_cdf32[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 5)];
@@ -224,7 +224,7 @@ typedef struct frame_contexts {
                               [CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_br_cdf[PLANE_TYPES][LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
 #endif  // CONFIG_LCCHROMA
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   aom_cdf_prob idtx_sign_cdf[TX_SIZES][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
                                   [CDF_SIZE(4)];
@@ -235,7 +235,7 @@ typedef struct frame_contexts {
   aom_cdf_prob idtx_sign_cdf[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[IDTX_SIG_COEF_CONTEXTS][CDF_SIZE(4)];
   aom_cdf_prob coeff_br_cdf_idtx[IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
   aom_cdf_prob coeff_base_ph_cdf[COEFF_BASE_PH_CONTEXTS]
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
   aom_cdf_prob coeff_br_ph_cdf[COEFF_BR_PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
@@ -384,7 +384,7 @@ typedef struct frame_contexts {
 #endif  // CONFIG_SAME_REF_COMPOUND
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
   aom_cdf_prob txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP]
                                     [CDF_SIZE(2)];
   aom_cdf_prob txfm_4way_partition_type_cdf[FSC_MODES][2]
@@ -394,7 +394,7 @@ typedef struct frame_contexts {
   aom_cdf_prob txfm_do_partition_cdf[2][TXFM_SPLIT_GROUP][CDF_SIZE(2)];
   aom_cdf_prob txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1]
                                            [CDF_SIZE(TX_PARTITION_TYPE_NUM)];
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
   aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
                                             [CDF_SIZE(4)];

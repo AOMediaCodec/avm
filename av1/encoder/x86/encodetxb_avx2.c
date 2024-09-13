@@ -172,7 +172,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i abs01 = _mm256_abs_epi16(c0c1);
       const __m256i abs01_8 = _mm256_packs_epi16(y_zeros, abs01);
       const __m256i sig01 = _mm256_sign_epi16(one16, c0c1);
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
       const __m256i sig01_8 = _mm256_packs_epi16(sig01, y_zeros);
 #else
       const __m256i sig01_8 = _mm256_packs_epi16(y_zeros, sig01);
@@ -218,7 +218,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       xx_storel_64(ls + stride * 2 + TX_PAD_LEFT, res1);
       xx_storel_32(ls + stride * 3, x_zeros);
       xx_storel_64(ls + stride * 3 + TX_PAD_LEFT, _mm_srli_si128(res1, 8));
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
       xx_storel_64(si, sig0);
       xx_storel_32(si + width, x_zeros);
       xx_storel_64(si + stride, _mm_srli_si128(sig0, 8));
@@ -265,7 +265,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       xx_storel_32(ls + stride, x_zeros);
       xx_storeu_128(ls + stride + TX_PAD_LEFT,
                     _mm256_extracti128_si256(res, 1));
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
       xx_storeu_128(si, _mm256_castsi256_si128(sig));
       xx_storel_32(si + width, x_zeros);
       xx_storeu_128(si + stride, _mm256_extracti128_si256(sig, 1));
@@ -302,7 +302,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i sig = _mm256_shuffle_epi32(sig_, 0xd8);
       xx_storel_32(ls, x_zeros);
       yy_storeu_256(ls + TX_PAD_LEFT, res);
-#if !CONFIG_IMPROVEIDTX_RDPH
+#if !CONFIG_IMPROVEIDTX
       yy_storeu_256(si, sig);
       xx_storel_32(si + width, x_zeros);
 #else

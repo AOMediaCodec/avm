@@ -6840,7 +6840,7 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP]
                                  [CDF_SIZE(2)] = {
@@ -7033,7 +7033,7 @@ static const aom_cdf_prob
         { AOM_CDF5(10851, 12023, 13254, 22599), 0 },
         { AOM_CDF5(13302, 15600, 17200, 24322), 0 } }
     };
-#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
