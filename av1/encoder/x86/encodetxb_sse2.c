@@ -18,7 +18,7 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/txb_common.h"
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
 static INLINE void load_levels_4x4x5_sse2(const uint8_t *const src,
                                           const int stride,
                                           const ptrdiff_t *const offsets,
@@ -833,7 +833,7 @@ static INLINE void get_16n_coeff_contexts_ver_chroma(const uint8_t *levels,
     levels += TX_PAD_HOR;
   } while (--row);
 }
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
 static INLINE void load_levels_4x4x5_skip_sse2(const uint8_t *const src,
                                                const int stride,
@@ -974,7 +974,7 @@ void av1_get_nz_map_contexts_sse2(const uint8_t *const levels,
                                   const TX_CLASS tx_class,
                                   int8_t *const coeff_contexts,
                                   const int plane) {
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   const int last_idx = eob - 1;
   if (!last_idx) {
     coeff_contexts[0] = 0;
