@@ -1398,10 +1398,10 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]
                                     [NUM_BASE_LEVELS + 2];
 #endif  // CONFIG_IMPROVEIDTX_CTXS
-#if !CONFIG_LCCHROMA
+#if !CONFIG_CHROMA_CODING
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
-#endif  // !CONFIG_LCCHROMA
+#endif  // !CONFIG_CHROMA_CODING
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];
 #if !CONFIG_IMPROVEIDTX_CTXS
   unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]
@@ -1424,7 +1424,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 1];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS];
 #endif  // CONFIG_EOB_POS_LUMA
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   unsigned int coeff_lps_lf[BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
                                   [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
@@ -1445,13 +1445,13 @@ typedef struct FRAME_COUNTS {
                                  [LF_LEVEL_CONTEXTS][BR_CDF_SIZE];
   unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][PLANE_TYPES][LEVEL_CONTEXTS]
                               [BR_CDF_SIZE];
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
   unsigned int coeff_base_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [NUM_BASE_LEVELS + 2];
   unsigned int coeff_lps_ph[BR_CDF_SIZE - 1][COEFF_BR_PH_CONTEXTS][2];
   unsigned int coeff_lps_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BR_PH_CONTEXTS]
                                  [BR_CDF_SIZE];
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   // LF Base, BR UV
   unsigned int coeff_base_lf_multi_uv[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV]
                                      [LF_BASE_SYMBOLS];
@@ -1479,7 +1479,7 @@ typedef struct FRAME_COUNTS {
                                [SIG_COEF_CONTEXTS][NUM_BASE_LEVELS + 2];
   unsigned int coeff_base_eob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                    [SIG_COEF_CONTEXTS_EOB][NUM_BASE_LEVELS + 1];
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
   unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];  // placeholder

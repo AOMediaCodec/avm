@@ -2070,7 +2070,7 @@ int main(int argc, const char **argv) {
                      1, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // CONFIG_EOB_POS_LUMA
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   // LF Base, BR
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_SIG_COEF_CONTEXTS_UV;
@@ -2130,7 +2130,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_EOB][CDF_SIZE(NUM_BASE_LEVELS + "
       "1)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = COEFF_BASE_PH_CONTEXTS;
@@ -2152,7 +2152,7 @@ int main(int argc, const char **argv) {
                      "PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = LF_SIG_COEF_CONTEXTS;
@@ -2242,9 +2242,9 @@ int main(int argc, const char **argv) {
                      "[PLANE_TYPES][LEVEL_CONTEXTS]"
                      "[CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = SIG_COEF_CONTEXTS;
@@ -2267,7 +2267,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
 #if CONFIG_IMPROVEIDTX_CTXS
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -2314,7 +2314,7 @@ int main(int argc, const char **argv) {
       1, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = SIG_COEF_CONTEXTS_EOB;
@@ -2337,7 +2337,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 1)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
 #if CONFIG_CONTEXT_DERIVATION
 #if CONFIG_IMPROVEIDTX_CTXS
