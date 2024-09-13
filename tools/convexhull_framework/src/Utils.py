@@ -24,9 +24,10 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from operator import itemgetter
 from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y_WEIGHT, PSNR_U_WEIGHT, PSNR_V_WEIGHT, \
-APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG
+APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG, DATASET
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 from CalcBDRate import BD_RATE
+from AV2SubjectiveVideo import SUBJECTIVE_CLIPS, AV2_SUBJECTIVE_TEST 
 
 class Clip:
     file_name = ""
@@ -231,10 +232,17 @@ def parseY4MHeader(y4m):
 def CreateClipList(test_cfg):
     clip_list = []; test_set = []
     #[filename, class, width, height, fps_num, fps_denom, bitdepth, fmt]
-    test_set = CTC_TEST_SET[test_cfg]
-
+    if DATASET == "CTC_TEST_SET":
+        test_set = CTC_TEST_SET[test_cfg]
+    elif DATASET == "AV2_SUBJECTIVE_TEST":
+        test_set = AV2_SUBJECTIVE_TEST[test_cfg]
+    
     for cls in test_set:
-        for file in Y4M_CLIPs[cls]:
+        if DATASET == "CTC_TEST_SET":
+            clips = Y4M_CLIPs[cls]
+        elif DATASET == "AV2_SUBJECTIVE_TEST":
+            clips = SUBJECTIVE_CLIPS[cls]
+        for file in clips:
             y4m = os.path.join(ContentPath, cls, file)
             w, h, fps_num, fps_denom, fps, fmt, bit_depth = parseY4MHeader(y4m)
             clip = Clip(file, y4m, cls, w, h, fmt, fps_num, fps_denom, bit_depth)

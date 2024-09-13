@@ -38,4 +38,4 @@ def GatherQualityMetrics(reconYUV, logfilePath):
             logger.error("invalid quality metrics in QualityList")
             results.append(0.0)
 
-    return results, per_frame_log
+    return results, per_frame_log, len(per_frame_log)

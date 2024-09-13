@@ -23,7 +23,7 @@ import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
      EnableTimingInfo, CodecNames, EnableMD5, HEVC_QPs, SUFFIX, EnableParallelGopEncoding, \
-     GOP_SIZE
+     GOP_SIZE, EnableSubjectiveTest
 from EncDecUpscale import Encode, Decode, GetBitstreamFile
 
 ###############################################################################
@@ -66,6 +66,12 @@ def setupWorkFolderStructure():
     Path_DecLog = CreateNewSubfolder(WorkPath, "decLogs")
     Path_VmafLog = CreateNewSubfolder(WorkPath, "vmafLogs")
 
+def get_total_frame(test_cfg, clip):
+    if EnableSubjectiveTest:
+        total_frame = FrameNum[test_cfg][clip.file_name]
+    else:
+        total_frame = FrameNum[test_cfg]
+    return total_frame
 
 ###############################################################################
 ######### Major Functions #####################################################
@@ -83,7 +89,7 @@ def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
     for QP in QPSet:
         Utils.Logger.info("start encode with QP %d" % (QP))
         #encode
-        total_frame = FrameNum[test_cfg]
+        total_frame = get_total_frame(test_cfg, clip)
         JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
                     (GetShortContentName(clip.file_name, False),
                     method, codec, test_cfg, preset, QP)
@@ -114,7 +120,8 @@ def Run_Parallel_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly =
         QPSet = QPs[test_cfg]
         for QP in QPSet:
             Utils.Logger.info("start encode with QP %d" % (QP))
-            total_frame = FrameNum[test_cfg]
+            total_frame = get_total_frame(test_cfg, clip)
+            
             # Encode
             start_frame = 0
             while start_frame < total_frame:
@@ -144,12 +151,11 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
         Utils.Logger.info("start running %s decode tests with %s"
                           % (test_cfg, clip.file_name))
         QPSet = QPs[test_cfg]
-        if codec == "hevc":
-            QPSet = HEVC_QPs[test_cfg]
-
+        
         for QP in QPSet:
             Utils.Logger.info("start decode  with QP %d" % (QP))
-            total_frame = FrameNum[test_cfg]
+            total_frame = get_total_frame(test_cfg, clip.file_name)
+
             # decode
             JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
                           (GetShortContentName(clip.file_name, False),
@@ -181,12 +187,12 @@ def Run_Concatenate_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = Fal
         Utils.Logger.info("start running %s concatenate tests with %s"
                       % (test_cfg, clip.file_name))
         QPSet = QPs[test_cfg]
-        if codec == "hevc":
-            QPSet = HEVC_QPs[test_cfg]
 
         for QP in QPSet:
             Utils.Logger.info("start encode with QP %d" % (QP))
-            total_frame = FrameNum[test_cfg]; start_frame = 0
+            total_frame = get_total_frame(test_cfg, clip.file_name)
+
+            start_frame = 0
             JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
                           (GetShortContentName(clip.file_name, False),
                           method, codec, test_cfg, preset, QP)
@@ -252,15 +258,15 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                 missing.write("\n%s is missing" % bs)
                 continue
 
-            filesize = os.path.getsize(bs)
-            bitrate = round((filesize * 8 * (clip.fps_num / clip.fps_denom)
-                       / FrameNum[test_cfg]) / 1000.0, 6)
-
-            quality, perframe_vmaf_log = GatherQualityMetrics(dec, Path_QualityLog)
+            quality, perframe_vmaf_log, frame_num = GatherQualityMetrics(dec, Path_QualityLog)
             if not quality:
                 print("%s is missing" % bs)
                 missing.write("\n%s is missing" % bs)
                 continue
+
+            print("%s Frame number = %d"%(bs, frame_num))
+            filesize = os.path.getsize(bs)
+            bitrate = round((filesize * 8 * (clip.fps_num / clip.fps_denom) / frame_num) / 1000.0, 6)
 
             csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%s,%d,"
                       %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,
@@ -365,7 +371,7 @@ if __name__ == "__main__":
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
             for clip in clip_list:
-                total_frame = FrameNum[test_cfg]
+				total_frame = get_total_frame(test_cfg, clip)
                 if (test_cfg == "RA" and total_frame <= GOP_SIZE):
                     EnableParallelGopEncoding = False
 
