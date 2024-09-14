@@ -670,7 +670,6 @@ if(CONFIG_AV1_ENCODER)
         "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ml_dtypes.tar.gz ${CMAKE_BINARY_DIR}; "
         "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp.tar.gz ${CMAKE_BINARY_DIR}; "
         "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpuinfo.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cat ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz.* > ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz; "
         "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz ${CMAKE_BINARY_DIR}; "
         "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/flatbuffers.tar.gz ${CMAKE_BINARY_DIR}"
     )
