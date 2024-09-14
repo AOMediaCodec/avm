@@ -1861,7 +1861,7 @@ typedef struct {
 // Adjust slots by limiting the number of bits, select_pc_wiener_filters will
 // be adjusted accordingly.
 static const int num_frame_first_predictor_bits[WIENERNS_MAX_CLASSES + 1] = {
-  6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
+  6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
 };
 
 static inline int num_dictionary_slots(int num_classes) {

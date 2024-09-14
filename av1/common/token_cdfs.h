@@ -3743,7 +3743,7 @@ static const aom_cdf_prob
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS][LEVEL_CONTEXTS][CDF_SIZE(
         BR_CDF_SIZE)] = {
@@ -3868,7 +3868,7 @@ static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs
           },
       },
     };
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 #else
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES]
@@ -4397,7 +4397,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
                                           { AOM_CDF4(1568, 3054, 5228) } } };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
@@ -4645,10 +4645,10 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_uv_cdfs
           { AOM_CDF3(32568, 32742), 24 },
       },
     };
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_LCCHROMA
+#if CONFIG_CHROMA_CODING
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS]
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
@@ -8063,7 +8063,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(2000, 5709, 9041), 118 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(26623, 32136, 32605), 5 },
                   { AOM_CDF4(14915, 29115, 31840), 93 },
@@ -8128,7 +8128,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(5679, 14414, 20529), 75 },
                   { AOM_CDF4(3011, 8253, 12720), 75 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27813, 32432, 32694), 5 },
                   { AOM_CDF4(17580, 30186, 32207), 118 },
@@ -8193,7 +8193,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(6740, 16074, 21894), 90 },
                   { AOM_CDF4(2492, 7448, 10520), 79 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28120, 32533, 32718), 5 },
                   { AOM_CDF4(17479, 30138, 32190), 78 },
@@ -8258,7 +8258,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(26995, 32426, 32694), 5 },
                   { AOM_CDF4(16756, 29595, 31914), 75 },
@@ -8329,7 +8329,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                   { 0 },
                   { 0 },
                   { 0 },
@@ -8384,7 +8384,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(2661, 8674, 13852), 75 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27329, 32486, 32703), 90 },
                   { AOM_CDF4(15264, 29850, 32222), 90 },
@@ -8449,7 +8449,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(6570, 16915, 23673), 75 },
                   { AOM_CDF4(4437, 12284, 18544), 90 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28445, 32605, 32732), 0 },
                   { AOM_CDF4(17318, 30580, 32376), 75 },
@@ -8514,7 +8514,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(7407, 18594, 25145), 75 },
                   { AOM_CDF4(4256, 12188, 18615), 81 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28613, 32573, 32738), 30 },
                   { AOM_CDF4(17565, 30536, 32348), 75 },
@@ -8579,7 +8579,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28326, 32550, 32741), 5 },
                   { AOM_CDF4(17213, 30236, 32269), 75 },
@@ -8650,7 +8650,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                   { 0 },
                   { 0 },
                   { 0 },
@@ -8705,7 +8705,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(3227, 8009, 13961), 124 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27671, 32447, 32744), 90 },
                   { AOM_CDF4(14384, 30101, 32439), 90 },
@@ -8770,7 +8770,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(7902, 19172, 25362), 0 },
                   { AOM_CDF4(5364, 13771, 20162), 30 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(29210, 32548, 32723), 5 },
                   { AOM_CDF4(16211, 30087, 32236), 75 },
@@ -8835,7 +8835,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(9559, 23281, 29279), 75 },
                   { AOM_CDF4(6452, 17004, 24353), 75 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28949, 32552, 32737), 0 },
                   { AOM_CDF4(17296, 30332, 32282), 75 },
@@ -8900,7 +8900,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27735, 32555, 32745), 0 },
                   { AOM_CDF4(18172, 30598, 32387), 75 },
@@ -8971,7 +8971,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                   { 0 },
                   { 0 },
                   { 0 },
@@ -9026,7 +9026,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27509, 31959, 32363), 35 },
                   { AOM_CDF4(9255, 32268, 32518), 25 },
@@ -9091,7 +9091,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(12562, 26743, 31314), 100 },
                   { AOM_CDF4(10116, 26621, 31413), 19 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(28338, 32562, 32741), 6 },
                   { AOM_CDF4(13895, 30154, 32423), 0 },
@@ -9156,7 +9156,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(10768, 27603, 31550), 108 },
                   { AOM_CDF4(7839, 26183, 29476), 15 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27188, 32465, 32738), 5 },
                   { AOM_CDF4(13637, 29512, 32339), 75 },
@@ -9221,7 +9221,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
               },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
               {
                   { AOM_CDF4(27333, 32518, 32747), 6 },
                   { AOM_CDF4(14511, 30193, 32451), 76 },
@@ -9292,7 +9292,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
                   { AOM_CDF4(8192, 16384, 24576), 0 },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                   { 0 },
                   { 0 },
                   { 0 },
@@ -9617,7 +9617,7 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
           },
       },
     };
-#endif  // CONFIG_LCCHROMA
+#endif  // CONFIG_CHROMA_CODING
 #else
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
@@ -11326,7 +11326,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(4483, 9506, 13699) },
                                         { AOM_CDF4(1297, 4214, 7289) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(19135, 30417, 31991) },
                                         { AOM_CDF4(14491, 28094, 31018) },
                                         { AOM_CDF4(8945, 21185, 26447) },
@@ -11358,7 +11358,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11384,7 +11384,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(12037, 19614, 23852) },
                                         { AOM_CDF4(4465, 11681, 17147) },
                                         { AOM_CDF4(2558, 6634, 10234) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(27014, 32282, 32624) },
                                         { AOM_CDF4(18372, 30473, 32069) },
                                         { AOM_CDF4(11968, 25325, 29433) },
@@ -11416,7 +11416,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(11080, 23329, 28473) },
                                         { AOM_CDF4(7546, 18192, 24706) },
                                         { AOM_CDF4(5233, 14072, 20603) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11442,7 +11442,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(27648, 28672, 29696) },
                                         { AOM_CDF4(5461, 10923, 16384) },
                                         { AOM_CDF4(1260, 5041, 6302) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(31299, 32746, 32750) },
                                         { AOM_CDF4(25619, 32490, 32733) },
                                         { AOM_CDF4(13895, 28789, 31663) },
@@ -11474,7 +11474,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(14690, 27831, 31362) },
                                         { AOM_CDF4(10349, 24093, 30340) },
                                         { AOM_CDF4(6217, 17861, 24628) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11500,7 +11500,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(32196, 32752, 32756) },
                                         { AOM_CDF4(27038, 32752, 32756) },
                                         { AOM_CDF4(15188, 32164, 32675) },
@@ -11532,7 +11532,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(22567, 32150, 32459) },
                                         { AOM_CDF4(11703, 28087, 30427) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11563,7 +11563,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                         { 0 },
                                         { 0 },
                                         { 0 },
@@ -11585,7 +11585,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11611,7 +11611,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(6801, 15102, 20506) },
                                         { AOM_CDF4(3016, 8139, 12710) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(21314, 31149, 32400) },
                                         { AOM_CDF4(13584, 27392, 31186) },
                                         { AOM_CDF4(8640, 21101, 27416) },
@@ -11643,7 +11643,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(25788, 32330, 32681) },
                                         { AOM_CDF4(20016, 31068, 32402) },
                                         { AOM_CDF4(10665, 23493, 28974) },
@@ -11669,7 +11669,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(10816, 24030, 29256) },
                                         { AOM_CDF4(7337, 18755, 25541) },
                                         { AOM_CDF4(4870, 13165, 19533) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(23884, 31898, 32575) },
                                         { AOM_CDF4(15626, 28936, 31769) },
                                         { AOM_CDF4(9986, 23064, 28819) },
@@ -11701,7 +11701,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(14082, 27820, 30821) },
                                         { AOM_CDF4(8733, 21446, 26987) },
                                         { AOM_CDF4(5168, 14251, 20499) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(28654, 32664, 32748) },
                                         { AOM_CDF4(23420, 32157, 32662) },
                                         { AOM_CDF4(16226, 29212, 31774) },
@@ -11727,7 +11727,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(13467, 27551, 31357) },
                                         { AOM_CDF4(8943, 22214, 28633) },
                                         { AOM_CDF4(5926, 15983, 22935) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(27887, 32547, 32719) },
                                         { AOM_CDF4(19271, 30722, 32281) },
                                         { AOM_CDF4(11892, 25529, 30173) },
@@ -11759,7 +11759,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(15356, 29862, 31969) },
                                         { AOM_CDF4(9059, 25257, 29704) },
                                         { AOM_CDF4(6476, 16673, 23048) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(32344, 32752, 32756) },
                                         { AOM_CDF4(22611, 31796, 32559) },
                                         { AOM_CDF4(14312, 28140, 31342) },
@@ -11785,7 +11785,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(31570, 32711, 32748) },
                                         { AOM_CDF4(23621, 31549, 32455) },
                                         { AOM_CDF4(12438, 25484, 30321) },
@@ -11817,7 +11817,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(15091, 30090, 32158) },
                                         { AOM_CDF4(7740, 26199, 30487) },
                                         { AOM_CDF4(5586, 16225, 23385) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11848,7 +11848,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                         { 0 },
                                         { 0 },
                                         { 0 },
@@ -11870,7 +11870,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -11896,7 +11896,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(7900, 16134, 21420) },
                                         { AOM_CDF4(2967, 7943, 12633) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(23999, 32069, 32603) },
                                         { AOM_CDF4(15535, 29289, 31900) },
                                         { AOM_CDF4(9278, 22445, 28424) },
@@ -11928,7 +11928,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(27253, 32523, 32718) },
                                         { AOM_CDF4(21144, 31481, 32469) },
                                         { AOM_CDF4(10920, 23427, 28487) },
@@ -11954,7 +11954,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(11876, 25717, 30363) },
                                         { AOM_CDF4(7816, 19941, 26672) },
                                         { AOM_CDF4(5058, 13760, 20285) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(25536, 32435, 32691) },
                                         { AOM_CDF4(17517, 30391, 32254) },
                                         { AOM_CDF4(11072, 24944, 29961) },
@@ -11986,7 +11986,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(14125, 27325, 30836) },
                                         { AOM_CDF4(8569, 20954, 27186) },
                                         { AOM_CDF4(5224, 14145, 20929) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(29082, 32718, 32748) },
                                         { AOM_CDF4(24401, 32416, 32706) },
                                         { AOM_CDF4(17288, 30016, 32027) },
@@ -12012,7 +12012,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(13982, 28053, 31548) },
                                         { AOM_CDF4(8938, 22407, 28754) },
                                         { AOM_CDF4(5910, 16148, 23121) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(27339, 32634, 32738) },
                                         { AOM_CDF4(19404, 31172, 32455) },
                                         { AOM_CDF4(12513, 26583, 30798) },
@@ -12044,7 +12044,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(16246, 29925, 32255) },
                                         { AOM_CDF4(10715, 25012, 30394) },
                                         { AOM_CDF4(7008, 18333, 25379) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(32073, 32752, 32756) },
                                         { AOM_CDF4(24620, 32252, 32654) },
                                         { AOM_CDF4(16194, 28966, 31659) },
@@ -12070,7 +12070,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(28700, 32609, 32738) },
                                         { AOM_CDF4(19365, 30939, 32373) },
                                         { AOM_CDF4(12114, 25813, 30306) },
@@ -12102,7 +12102,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(14536, 28524, 31749) },
                                         { AOM_CDF4(9243, 22910, 28947) },
                                         { AOM_CDF4(5710, 15811, 22711) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -12133,7 +12133,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                         { 0 },
                                         { 0 },
                                         { 0 },
@@ -12155,7 +12155,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -12181,7 +12181,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(9417, 17696, 23296) },
                                         { AOM_CDF4(2874, 7882, 13117) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(26612, 32418, 32701) },
                                         { AOM_CDF4(16120, 30146, 32235) },
                                         { AOM_CDF4(10283, 24438, 29851) },
@@ -12213,7 +12213,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(29610, 32636, 32735) },
                                         { AOM_CDF4(22449, 31382, 32420) },
                                         { AOM_CDF4(10632, 23259, 28519) },
@@ -12239,7 +12239,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(12145, 25408, 30028) },
                                         { AOM_CDF4(7438, 19086, 25723) },
                                         { AOM_CDF4(4807, 13126, 19333) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(27781, 32523, 32707) },
                                         { AOM_CDF4(16991, 30297, 32257) },
                                         { AOM_CDF4(10886, 24688, 29834) },
@@ -12271,7 +12271,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(13659, 27613, 31334) },
                                         { AOM_CDF4(9155, 22747, 29043) },
                                         { AOM_CDF4(6007, 17327, 24711) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(30869, 32744, 32748) },
                                         { AOM_CDF4(26067, 32320, 32677) },
                                         { AOM_CDF4(17135, 28788, 31428) },
@@ -12297,7 +12297,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(13731, 27390, 31202) },
                                         { AOM_CDF4(8812, 21899, 28252) },
                                         { AOM_CDF4(6190, 16749, 23663) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(28149, 32587, 32732) },
                                         { AOM_CDF4(18967, 30893, 32387) },
                                         { AOM_CDF4(12077, 25916, 30428) },
@@ -12329,7 +12329,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(17397, 30724, 32478) },
                                         { AOM_CDF4(11452, 26024, 30965) },
                                         { AOM_CDF4(7411, 19977, 26797) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(32084, 32752, 32756) },
                                         { AOM_CDF4(26230, 32380, 32697) },
                                         { AOM_CDF4(17278, 29471, 31990) },
@@ -12355,7 +12355,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) } },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                       { { AOM_CDF4(27564, 32533, 32734) },
                                         { AOM_CDF4(18515, 30526, 32310) },
                                         { AOM_CDF4(11168, 24493, 29590) },
@@ -12387,7 +12387,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(16326, 29832, 32190) },
                                         { AOM_CDF4(10269, 24608, 30078) },
                                         { AOM_CDF4(6609, 18034, 25225) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
@@ -12418,7 +12418,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#if CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_CHROMA_CODING
                                         { 0 },
                                         { 0 },
                                         { 0 },
@@ -12440,7 +12440,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
-#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#endif  // CONFIG_CHROMA_CODING
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },
                                         { AOM_CDF4(8192, 16384, 24576) },

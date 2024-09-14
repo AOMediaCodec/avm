@@ -1578,10 +1578,15 @@ typedef struct AV1Common {
   CdefInfo cdef_info;
 
 #if CONFIG_COMBINE_PC_NS_WIENER
-  int16_t *frame_filter_dictionary;
-  int16_t *translated_pcwiener_filters;
-  int translation_done;
-  int frame_filter_dictionary_stride;
+  /**
+   * \name Frame filter prediction dictionary related parameters.
+   */
+  /**@{*/
+  int16_t *frame_filter_dictionary;   /*!< Buffer holding the dictionary. */
+  int frame_filter_dictionary_stride; /*!< Stride for the dictionary buffer. */
+  int16_t *translated_pcwiener_filters; /*!< pcw filters in wienerns format. */
+  int translation_done; /*!< Whether format translation has been done. */
+  /**@}*/
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   /*!
