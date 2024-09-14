@@ -56,13 +56,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_ENABLE_MHCCP 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
-  # CONFIG_IMPROVEIDTX_CTXS depends on CONFIG_IMPROVEIDTX_RDPH This is because
-  # IDTX contexts are trained after scan and RDOQ changes advising retraining
-  # contexts if CONFIG_IMPROVEIDTX_RDPH=0 and vice versa
-  if(NOT CONFIG_IMPROVEIDTX_CTXS AND CONFIG_IMPROVEIDTX_RDPH)
-    change_config_and_warn(CONFIG_IMPROVEIDTX_RDPH 0 !CONFIG_IMPROVEIDTX_CTXS)
-  endif()
-
   # CONFIG_CB1TO4_SPLIT is dependent on CONFIG_EXT_RECUR_PARTITIONS.
   if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_CB1TO4_SPLIT)
     change_config_and_warn(CONFIG_CB1TO4_SPLIT 0 !CONFIG_EXT_RECUR_PARTITIONS)
