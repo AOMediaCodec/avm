@@ -641,7 +641,7 @@ if(CONFIG_AV1_ENCODER)
     execute_process(COMMAND bash -c "${EXTRACT_TF_UPDATE_DEPS_CMAKE_CONFIG}")
     string(
       CONCAT EXTRACT_DEPS_TO_BUILD
-      "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
+             "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
              "tar -xzf abseil-cpp.tar.gz -C ${CMAKE_BINARY_DIR}; "
              "tar -xzf eigen.tar.gz -C ${CMAKE_BINARY_DIR}; "
              "tar -xzf neon2sse.tar.gz -C ${CMAKE_BINARY_DIR}; "
@@ -663,15 +663,12 @@ if(CONFIG_AV1_ENCODER)
 
     execute_process(COMMAND bash -c "${EXTRACT_DEPS_TO_BUILD}")
 
-    set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
-    set(PTHREADPOOL_SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
-    set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
-    set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
-    set(GOOGLEBENCHMARK_SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
-    set(GOOGLETEST_SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest)
+    set(FP16_SOURCE_DIR ${CMAKE_BINARY_DIR}/fp16)
+    set(PTHREADPOOL_SOURCE_DIR ${CMAKE_BINARY_DIR}/pthreadpool)
+    set(PSIMD_SOURCE_DIR ${CMAKE_BINARY_DIR}/psimd)
+    set(FXDIV_SOURCE_DIR ${CMAKE_BINARY_DIR}/FXdiv)
+    set(GOOGLEBENCHMARK_SOURCE_DIR ${CMAKE_BINARY_DIR}/benchmark)
+    set(GOOGLETEST_SOURCE_DIR ${CMAKE_BINARY_DIR}/googletest)
     set(abseil-cpp_SOURCE_DIR ${CMAKE_BINARY_DIR}/abseil-cpp)
     set(CPUINFO_SOURCE_DIR ${CMAKE_BINARY_DIR}/cpuinfo)
     set(EIGEN_SOURCE_DIR ${CMAKE_BINARY_DIR}/eigen)
