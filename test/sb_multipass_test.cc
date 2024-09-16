@@ -31,7 +31,7 @@ class AV1SBMultipassTest
   AV1SBMultipassTest()
       : EncoderTest(GET_PARAM(0)), set_cpu_used_(GET_PARAM(1)),
         row_mt_(GET_PARAM(2)) {
-    init_flags_ = AOM_CODEC_USE_PSNR | AOM_CODEC_USE_PER_FRAME_STATS;
+    init_flags_ = AOM_CODEC_USE_PSNR;
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
     cfg.w = 1280;
     cfg.h = 720;

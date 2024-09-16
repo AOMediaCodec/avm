@@ -201,6 +201,8 @@ class SubGopTestLarge
     cfg_.g_timebase = timebase;
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.rc_undershoot_pct = 100;
+    cfg_.rc_overshoot_pct = 100;
     if (rc_end_usage_ == AOM_Q) {
       cfg_.use_fixed_qp_offsets = subgop_test_params_.use_fixed_qp_offsets;
     }
@@ -748,6 +750,8 @@ class SubGopPSNRCheckTestLarge
     cfg_.g_threads = 1;
     cfg_.g_lag_in_frames = test_params_.lag_in_frames;
     cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.rc_undershoot_pct = 100;
+    cfg_.rc_overshoot_pct = 100;
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
 
@@ -875,6 +879,8 @@ class SubGopSwitchingTestLarge
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.rc_target_bitrate = 200;
+    cfg_.rc_undershoot_pct = 100;
+    cfg_.rc_overshoot_pct = 100;
     // Keep sufficient distance between keyframes to let subgop configs be used.
     cfg_.kf_min_dist = 65;
     cfg_.kf_max_dist = 9999;

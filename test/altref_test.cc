@@ -66,6 +66,8 @@ class AltRefFramePresenceTestLarge
     cfg_.kf_max_dist = altref_test_params_.max_kf_dist;
     cfg_.g_lag_in_frames = altref_test_params_.lag_in_frames;
     cfg_.rc_target_bitrate = 200;
+    cfg_.rc_undershoot_pct = 100;
+    cfg_.rc_overshoot_pct = 100;
   }
 
   virtual bool DoDecode() const { return 1; }
@@ -149,6 +151,8 @@ class GoldenFrameIntervalTestLarge
     const aom_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.rc_undershoot_pct = 100;
+    cfg_.rc_overshoot_pct = 100;
     cfg_.g_threads = 1;
     // kf_min_dist is equal to kf_max_dist to make sure that there are no scene
     // cuts due to which the min_gf_interval may not be respected.
