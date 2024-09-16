@@ -4,12 +4,7 @@ cmbuild
 .project
 .vscode
 .gitignore
-third_party/FXdiv/
-third_party/benchmark/
 third_party/deps_cmake/
-third_party/fp16/
-third_party/psimd/
-third_party/pthreadpool/
 third_party/tensorflow/
 TAGS
 __pycache__

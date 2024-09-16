@@ -617,30 +617,13 @@ if(CONFIG_AV1_ENCODER)
     # "xyz-source", Then archive the source into "xyz.tar.gz" and and add the
     # variable "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below, also
     # update the command line to extrac the archive below.
-    string(
-      CONCAT EXTRACT_DEPS
-             "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
-             "tar -xzf tensorflow.tar.gz; "
-             "tar -xzf fp16.tar.gz; "
-             "tar -xzf pthreadpool.tar.gz; "
-             "tar -xzf psimd.tar.gz; "
-             "tar -xzf FXdiv.tar.gz; "
-             "tar -xzf benchmark.tar.gz")
-
-    execute_process(COMMAND bash -c "${EXTRACT_DEPS}")
-    set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
-    set(PTHREADPOOL_SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
-    set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
-    set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
-    set(google_benchmark_SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
 
     string(
       CONCAT
-        UPDATE_DEPS_CMAKE_CONFIG
+        EXTRACT_TF_UPDATE_DEPS_CMAKE_CONFIG
         "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party;"
-        "tar -xzf deps_cmake.tar.gz;"
+        "tar -xzf tensorflow.tar.gz; "
+        "tar -xzf deps_cmake.tar.gz; "
         "cp deps_cmake/abseil-cpp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
         "cp deps_cmake/cpuinfo.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
         "cp deps_cmake/eigen.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
@@ -655,46 +638,42 @@ if(CONFIG_AV1_ENCODER)
         "cp deps_cmake/xnnpack.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules"
     )
 
-    execute_process(COMMAND bash -c "${UPDATE_DEPS_CMAKE_CONFIG}")
-
+    execute_process(COMMAND bash -c "${EXTRACT_TF_UPDATE_DEPS_CMAKE_CONFIG}")
     string(
-      CONCAT
-        COPY_DEPS_TO_BUILD
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/eigen.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/neon2sse.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/xnnpack.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ruy.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/farmhash.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fft2d.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmlowp.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ml_dtypes.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpuinfo.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/protobuf.tar.gz ${CMAKE_BINARY_DIR}; "
-        "cp ${CMAKE_CURRENT_SOURCE_DIR}/third_party/flatbuffers.tar.gz ${CMAKE_BINARY_DIR}"
-    )
+      CONCAT EXTRACT_DEPS_TO_BUILD
+      "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
+             "tar -xzf abseil-cpp.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf eigen.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf neon2sse.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf xnnpack.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf ruy.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf farmhash.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf fft2d.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf gemmlowp.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf ml_dtypes.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf cpuinfo.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf protobuf.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf flatbuffers.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf fp16.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf pthreadpool.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf psimd.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf FXdiv.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf benchmark.tar.gz -C ${CMAKE_BINARY_DIR}; "
+             "tar -xzf googletest.tar.gz -C ${CMAKE_BINARY_DIR}")
 
-    string(
-      CONCAT EXTRACT_DEPS_FOR_TFLITE
-             "cd ${CMAKE_BINARY_DIR}; "
-             "tar -xzf eigen.tar.gz; "
-             "tar -xzf neon2sse.tar.gz; "
-             "tar -xzf xnnpack.tar.gz; "
-             "tar -xzf ruy.tar.gz; "
-             "tar -xzf farmhash.tar.gz; "
-             "tar -xzf fft2d.tar.gz; "
-             "tar -xzf gemmlowp.tar.gz; "
-             "tar -xzf ml_dtypes.tar.gz; "
-             "tar -xzf abseil-cpp.tar.gz; "
-             "tar -xzf cpuinfo.tar.gz; "
-             "tar -xzf protobuf.tar.gz; "
-             "tar -xzf flatbuffers.tar.gz")
+    execute_process(COMMAND bash -c "${EXTRACT_DEPS_TO_BUILD}")
 
-    execute_process(COMMAND bash -c "${COPY_DEPS_TO_BUILD}")
-    execute_process(COMMAND bash -c "${EXTRACT_DEPS_FOR_TFLITE}")
-
+    set(FP16_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fp16)
+    set(PTHREADPOOL_SOURCE_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pthreadpool)
+    set(PSIMD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/psimd)
+    set(FXDIV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FXdiv)
+    set(GOOGLEBENCHMARK_SOURCE_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark)
+    set(GOOGLETEST_SOURCE_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest)
     set(abseil-cpp_SOURCE_DIR ${CMAKE_BINARY_DIR}/abseil-cpp)
-    set(cpuinfo_SOURCE_DIR ${CMAKE_BINARY_DIR}/cpuinfo)
+    set(CPUINFO_SOURCE_DIR ${CMAKE_BINARY_DIR}/cpuinfo)
     set(EIGEN_SOURCE_DIR ${CMAKE_BINARY_DIR}/eigen)
     set(FARMHASH_SOURCE_DIR ${CMAKE_BINARY_DIR}/farmhash)
     set(FFT2D_SOURCE_DIR ${CMAKE_BINARY_DIR}/fft2d)
