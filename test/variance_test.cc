@@ -294,6 +294,7 @@ class MainTestClass
   void RefTest();
   void RefStrideTest();
   void OneQuarterTest();
+  void AllExtremeTest();
   void SpeedTest();
 
   // MSE/SSE tests
@@ -387,6 +388,19 @@ void MainTestClass<VarianceFunctionType>::OneQuarterTest() {
       var = params_.func(src_, width(), ref_, width(), &sse));
   expected = block_size() * 255l * 255 / 4;
   EXPECT_EQ(expected, var);
+}
+
+template <typename VarianceFunctionType>
+void MainTestClass<VarianceFunctionType>::AllExtremeTest() {
+  aom_memset16(src_, (1 << params_.bit_depth) - 1, block_size());
+  aom_memset16(ref_, 0, block_size());
+  unsigned int sse_ref, sse_mod, var_ref, var_mod;
+  ASM_REGISTER_STATE_CHECK(
+      var_mod = params_.func(src_, width(), ref_, width(), &sse_mod));
+  var_ref = variance_ref(src_, ref_, params_.log2width, params_.log2height,
+                         width(), width(), &sse_ref, params_.bit_depth);
+  EXPECT_EQ(var_ref, var_mod);
+  EXPECT_EQ(sse_ref, sse_mod);
 }
 
 template <typename VarianceFunctionType>
@@ -820,6 +834,7 @@ TEST_P(AvxHBDVarianceTest, Zero) { ZeroTest(); }
 TEST_P(AvxHBDVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxHBDVarianceTest, RefStride) { RefStrideTest(); }
 TEST_P(AvxHBDVarianceTest, OneQuarter) { OneQuarterTest(); }
+TEST_P(AvxHBDVarianceTest, AllExtreme) { AllExtremeTest(); }
 TEST_P(AvxHBDVarianceTest, DISABLED_Speed) { SpeedTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
@@ -1504,9 +1519,17 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 3, &aom_highbd_8_variance32x8_avx2, 8),
   VarianceParams(4, 6, &aom_highbd_8_variance16x64_avx2, 8),
   VarianceParams(6, 4, &aom_highbd_8_variance64x16_avx2, 8),
+  VarianceParams(2, 4, &aom_highbd_8_variance4x16_avx2, 8),
+  VarianceParams(4, 2, &aom_highbd_8_variance16x4_avx2, 8),
+  VarianceParams(2, 3, &aom_highbd_8_variance4x8_avx2, 8),
+  VarianceParams(3, 2, &aom_highbd_8_variance8x4_avx2, 8),
 #if CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(6, 3, &aom_highbd_8_variance64x8_avx2, 8),
   VarianceParams(3, 6, &aom_highbd_8_variance8x64_avx2, 8),
+  VarianceParams(2, 6, &aom_highbd_8_variance4x64_avx2, 8),
+  VarianceParams(6, 2, &aom_highbd_8_variance64x4_avx2, 8),
+  VarianceParams(2, 5, &aom_highbd_8_variance4x32_avx2, 8),
+  VarianceParams(5, 2, &aom_highbd_8_variance32x4_avx2, 8),
 
   VarianceParams(8, 8, &aom_highbd_10_variance256x256_avx2, 10),
   VarianceParams(8, 7, &aom_highbd_10_variance256x128_avx2, 10),
@@ -1530,9 +1553,17 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 3, &aom_highbd_10_variance32x8_avx2, 10),
   VarianceParams(4, 6, &aom_highbd_10_variance16x64_avx2, 10),
   VarianceParams(6, 4, &aom_highbd_10_variance64x16_avx2, 10),
+  VarianceParams(2, 4, &aom_highbd_10_variance4x16_avx2, 10),
+  VarianceParams(4, 2, &aom_highbd_10_variance16x4_avx2, 10),
+  VarianceParams(2, 3, &aom_highbd_10_variance4x8_avx2, 10),
+  VarianceParams(3, 2, &aom_highbd_10_variance8x4_avx2, 10),
 #if CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(6, 3, &aom_highbd_10_variance64x8_avx2, 10),
   VarianceParams(3, 6, &aom_highbd_10_variance8x64_avx2, 10),
+  VarianceParams(2, 6, &aom_highbd_10_variance4x64_avx2, 10),
+  VarianceParams(6, 2, &aom_highbd_10_variance64x4_avx2, 10),
+  VarianceParams(2, 5, &aom_highbd_10_variance4x32_avx2, 10),
+  VarianceParams(5, 2, &aom_highbd_10_variance32x4_avx2, 10),
 
   VarianceParams(8, 8, &aom_highbd_12_variance256x256_avx2, 12),
   VarianceParams(8, 7, &aom_highbd_12_variance256x128_avx2, 12),

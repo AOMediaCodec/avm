@@ -20,7 +20,7 @@
 
 typedef void (*high_variance_fn_t)(const uint16_t *src, int src_stride,
                                    const uint16_t *ref, int ref_stride,
-                                   uint32_t *sse, int *sum);
+                                   uint32_t *sse, int *sum, int n);
 
 // TODO(any): need to support 12-bit
 static AOM_FORCE_INLINE void aom_highbd_var_filter_block2d_bil_avx2(
@@ -591,12 +591,12 @@ static AOM_FORCE_INLINE void aom_highbd_var_filter_block2d_bil_avx2(
   *sum = sum_long;
 }
 
-void aom_highbd_calc8x8var_avx2(const uint16_t *src, int src_stride,
+void aom_highbd_calc8xNvar_avx2(const uint16_t *src, int src_stride,
                                 const uint16_t *ref, int ref_stride,
-                                uint32_t *sse, int *sum) {
+                                uint32_t *sse, int *sum, int n) {
   __m256i v_sum_d = _mm256_setzero_si256();
   __m256i v_sse_d = _mm256_setzero_si256();
-  for (int i = 0; i < 8; i += 2) {
+  for (int i = 0; i < n; i += 2) {
     const __m128i v_p_a0 = _mm_loadu_si128((const __m128i *)src);
     const __m128i v_p_a1 = _mm_loadu_si128((const __m128i *)(src + src_stride));
     const __m128i v_p_b0 = _mm_loadu_si128((const __m128i *)ref);
@@ -628,13 +628,13 @@ void aom_highbd_calc8x8var_avx2(const uint16_t *src, int src_stride,
 
 // TODO(any): Rewrite this function to make it work for 12-bit input
 // Overflows for 12-bit inputs
-void aom_highbd_calc16x16var_avx2(const uint16_t *src, int src_stride,
-                                  const uint16_t *ref, int ref_stride,
-                                  uint32_t *sse, int *sum) {
+void aom_highbd_calc16xNvar_avx2(const uint16_t *src, int src_stride,
+                                 const uint16_t *ref, int ref_stride,
+                                 uint32_t *sse, int *sum, int n) {
   __m256i v_sum_d = _mm256_setzero_si256();
   __m256i v_sse_d = _mm256_setzero_si256();
   const __m256i one = _mm256_set1_epi16(1);
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < n; ++i) {
     const __m256i v_p_a = _mm256_loadu_si256((const __m256i *)src);
     const __m256i v_p_b = _mm256_loadu_si256((const __m256i *)ref);
     const __m256i v_diff = _mm256_sub_epi16(v_p_a, v_p_b);
@@ -656,6 +656,86 @@ void aom_highbd_calc16x16var_avx2(const uint16_t *src, int src_stride,
   *sse = _mm_extract_epi32(v_d, 1);
 }
 
+static AOM_INLINE void aom_highbd_calc4xNvar_avx2(const uint16_t *src,
+                                                  int src_stride,
+                                                  const uint16_t *ref,
+                                                  int ref_stride, int h,
+                                                  uint32_t *sse, int *sum) {
+  __m256i v_sum_d = _mm256_setzero_si256();
+  __m256i v_sse_d = _mm256_setzero_si256();
+  const __m256i one = _mm256_set1_epi16(1);
+  for (int j = 0; j < h; j += 8) {
+    const __m128i a0 = _mm_loadl_epi64((__m128i const *)(src + 0 * src_stride));
+    const __m128i a1 = _mm_loadl_epi64((__m128i const *)(src + 1 * src_stride));
+    const __m128i a2 = _mm_loadl_epi64((__m128i const *)(src + 2 * src_stride));
+    const __m128i a3 = _mm_loadl_epi64((__m128i const *)(src + 3 * src_stride));
+    const __m128i a4 = _mm_loadl_epi64((__m128i const *)(src + 4 * src_stride));
+    const __m128i a5 = _mm_loadl_epi64((__m128i const *)(src + 5 * src_stride));
+    const __m128i a6 = _mm_loadl_epi64((__m128i const *)(src + 6 * src_stride));
+    const __m128i a7 = _mm_loadl_epi64((__m128i const *)(src + 7 * src_stride));
+
+    const __m128i b0 = _mm_loadl_epi64((__m128i const *)(ref + 0 * ref_stride));
+    const __m128i b1 = _mm_loadl_epi64((__m128i const *)(ref + 1 * ref_stride));
+    const __m128i b2 = _mm_loadl_epi64((__m128i const *)(ref + 2 * ref_stride));
+    const __m128i b3 = _mm_loadl_epi64((__m128i const *)(ref + 3 * ref_stride));
+    const __m128i b4 = _mm_loadl_epi64((__m128i const *)(ref + 4 * ref_stride));
+    const __m128i b5 = _mm_loadl_epi64((__m128i const *)(ref + 5 * ref_stride));
+    const __m128i b6 = _mm_loadl_epi64((__m128i const *)(ref + 6 * ref_stride));
+    const __m128i b7 = _mm_loadl_epi64((__m128i const *)(ref + 7 * ref_stride));
+
+    // a00 a10 a01 a11 a02 a12 a03 a13
+    const __m128i u0 = _mm_unpacklo_epi16(a0, a1);
+    // a20 a30 a21 a31 a22 a32 a23 a33
+    const __m128i u1 = _mm_unpacklo_epi16(a2, a3);
+    // a00 a10 a01 a11 a02 a12 a03 a13
+    const __m128i u2 = _mm_unpacklo_epi16(a4, a5);
+    // a20 a30 a21 a31 a22 a32 a23 a33
+    const __m128i u3 = _mm_unpacklo_epi16(a6, a7);
+
+    // b00 b10 b01 b11 b02 b12 b03 b13
+    const __m128i u4 = _mm_unpacklo_epi16(b0, b1);
+    // b20 b30 b21 b31 b22 b32 b23 b33
+    const __m128i u5 = _mm_unpacklo_epi16(b2, b3);
+    // b00 b10 b01 b11 b02 b12 b03 b13
+    const __m128i u6 = _mm_unpacklo_epi16(b4, b5);
+    // b20 b30 b21 b31 b22 b32 b23 b33
+    const __m128i u7 = _mm_unpacklo_epi16(b6, b7);
+
+    const __m256i x1 =
+        _mm256_insertf128_si256(_mm256_castsi128_si256(u0), u1, 0x1);
+    const __m256i x2 =
+        _mm256_insertf128_si256(_mm256_castsi128_si256(u2), u3, 0x1);
+    const __m256i y1 =
+        _mm256_insertf128_si256(_mm256_castsi128_si256(u4), u5, 0x1);
+    const __m256i y2 =
+        _mm256_insertf128_si256(_mm256_castsi128_si256(u6), u7, 0x1);
+
+    const __m256i v_diff1 = _mm256_sub_epi16(x1, y1);
+    const __m256i v_diff2 = _mm256_sub_epi16(x2, y2);
+
+    const __m256i v_sqrdiff1 = _mm256_madd_epi16(v_diff1, v_diff1);
+    const __m256i v_sqrdiff2 = _mm256_madd_epi16(v_diff2, v_diff2);
+
+    v_sum_d = _mm256_add_epi16(v_sum_d, _mm256_add_epi16(v_diff1, v_diff2));
+
+    v_sse_d =
+        _mm256_add_epi32(v_sse_d, _mm256_add_epi32(v_sqrdiff1, v_sqrdiff2));
+
+    src += 8 * src_stride;
+    ref += 8 * ref_stride;
+  }
+  const __m256i v_sum0 = _mm256_madd_epi16(v_sum_d, one);
+  const __m256i v_d_l = _mm256_unpacklo_epi32(v_sum0, v_sse_d);
+  const __m256i v_d_h = _mm256_unpackhi_epi32(v_sum0, v_sse_d);
+  const __m256i v_d_lh = _mm256_add_epi32(v_d_l, v_d_h);
+  const __m128i v_d0_d = _mm256_castsi256_si128(v_d_lh);
+  const __m128i v_d1_d = _mm256_extracti128_si256(v_d_lh, 1);
+  __m128i v_d = _mm_add_epi32(v_d0_d, v_d1_d);
+  v_d = _mm_add_epi32(v_d, _mm_srli_si128(v_d, 8));
+  *sum = _mm_extract_epi32(v_d, 0);
+  *sse = _mm_extract_epi32(v_d, 1);
+}
+
 static AOM_FORCE_INLINE void highbd_variance_avx2(
     const uint16_t *src, int src_stride, const uint16_t *ref, int ref_stride,
     int w, int h, uint64_t *sse, int64_t *sum, high_variance_fn_t var_fn,
@@ -663,13 +743,13 @@ static AOM_FORCE_INLINE void highbd_variance_avx2(
   int i, j;
   uint64_t sse_long = 0;
   int64_t sum_long = 0;
-
-  for (i = 0; i < h; i += block_size) {
+  const int tmp_h = h < block_size ? h : block_size;
+  for (i = 0; i < h; i += tmp_h) {
     for (j = 0; j < w; j += block_size) {
       unsigned int sse0;
       int sum0;
       var_fn(src + src_stride * i + j, src_stride, ref + ref_stride * i + j,
-             ref_stride, &sse0, &sum0);
+             ref_stride, &sse0, &sum0, tmp_h);
       sse_long += sse0;
       sum_long += sum0;
     }
@@ -719,44 +799,67 @@ static AOM_INLINE void highbd_8_variance_avx2(
   *sum = (int)sum_long;
   *sse = (uint32_t)sse_long;
 }
-
-// The 12-bit function is separated out because aom_highbd_calc16x16var_avx2
-// currently cannot handle 12-bit inputs
-#define VAR_FN_BD12(w, h, block_size, shift)                               \
-  uint32_t aom_highbd_12_variance##w##x##h##_avx2(                         \
+// Specialized functions to handle width equal to 4 case.
+#define VAR_FN_WD4(h, shift)                                               \
+  uint32_t aom_highbd_10_variance4x##h##_avx2(                             \
+      const uint16_t *src, int src_stride, const uint16_t *ref,            \
+      int ref_stride, uint32_t *sse) {                                     \
+    int sum;                                                               \
+    aom_highbd_calc4xNvar_avx2(src, src_stride, ref, ref_stride, h, sse,   \
+                               &sum);                                      \
+    sum = (int)ROUND_POWER_OF_TWO(sum, 2);                                 \
+    *sse = (uint32_t)ROUND_POWER_OF_TWO(*sse, 4);                          \
+    const int64_t var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift); \
+    return (var >= 0) ? (uint32_t)var : 0;                                 \
+  }                                                                        \
+  uint32_t aom_highbd_8_variance4x##h##_avx2(                              \
       const uint16_t *src, int src_stride, const uint16_t *ref,            \
       int ref_stride, uint32_t *sse) {                                     \
     int sum;                                                               \
     int64_t var;                                                           \
-    highbd_12_variance_avx2(                                               \
-        src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
-        aom_highbd_calc##block_size##x##block_size##var_avx2, block_size); \
+    aom_highbd_calc4xNvar_avx2(src, src_stride, ref, ref_stride, h, sse,   \
+                               &sum);                                      \
     var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);               \
     return (var >= 0) ? (uint32_t)var : 0;                                 \
   }
 
-#define VAR_FN(w, h, block_size, shift)                                    \
-  uint32_t aom_highbd_10_variance##w##x##h##_avx2(                         \
-      const uint16_t *src, int src_stride, const uint16_t *ref,            \
-      int ref_stride, uint32_t *sse) {                                     \
-    int sum;                                                               \
-    int64_t var;                                                           \
-    highbd_10_variance_avx2(                                               \
-        src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
-        aom_highbd_calc##block_size##x##block_size##var_avx2, block_size); \
-    var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);               \
-    return (var >= 0) ? (uint32_t)var : 0;                                 \
-  }                                                                        \
-  uint32_t aom_highbd_8_variance##w##x##h##_avx2(                          \
-      const uint16_t *src, int src_stride, const uint16_t *ref,            \
-      int ref_stride, uint32_t *sse) {                                     \
-    int sum;                                                               \
-    int64_t var;                                                           \
-    highbd_8_variance_avx2(                                                \
-        src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
-        aom_highbd_calc##block_size##x##block_size##var_avx2, block_size); \
-    var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);               \
-    return (var >= 0) ? (uint32_t)var : 0;                                 \
+// The 12-bit function is separated out because aom_highbd_calc16x16var_avx2
+// currently cannot handle 12-bit inputs
+#define VAR_FN_BD12(w, h, block_size, shift)                                   \
+  uint32_t aom_highbd_12_variance##w##x##h##_avx2(                             \
+      const uint16_t *src, int src_stride, const uint16_t *ref,                \
+      int ref_stride, uint32_t *sse) {                                         \
+    int sum;                                                                   \
+    int64_t var;                                                               \
+    highbd_12_variance_avx2(src, src_stride, ref, ref_stride, w, h, sse, &sum, \
+                            aom_highbd_calc##block_size##xNvar_avx2,           \
+                            block_size);                                       \
+    var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);                   \
+    return (var >= 0) ? (uint32_t)var : 0;                                     \
+  }
+
+#define VAR_FN(w, h, block_size, shift)                                        \
+  uint32_t aom_highbd_10_variance##w##x##h##_avx2(                             \
+      const uint16_t *src, int src_stride, const uint16_t *ref,                \
+      int ref_stride, uint32_t *sse) {                                         \
+    int sum;                                                                   \
+    int64_t var;                                                               \
+    highbd_10_variance_avx2(src, src_stride, ref, ref_stride, w, h, sse, &sum, \
+                            aom_highbd_calc##block_size##xNvar_avx2,           \
+                            block_size);                                       \
+    var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);                   \
+    return (var >= 0) ? (uint32_t)var : 0;                                     \
+  }                                                                            \
+  uint32_t aom_highbd_8_variance##w##x##h##_avx2(                              \
+      const uint16_t *src, int src_stride, const uint16_t *ref,                \
+      int ref_stride, uint32_t *sse) {                                         \
+    int sum;                                                                   \
+    int64_t var;                                                               \
+    highbd_8_variance_avx2(src, src_stride, ref, ref_stride, w, h, sse, &sum,  \
+                           aom_highbd_calc##block_size##xNvar_avx2,            \
+                           block_size);                                        \
+    var = (int64_t)(*sse) - (((int64_t)sum * sum) >> shift);                   \
+    return (var >= 0) ? (uint32_t)var : 0;                                     \
   }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -774,17 +877,25 @@ VAR_FN(32, 32, 16, 10);
 VAR_FN(32, 16, 16, 9);
 VAR_FN(16, 32, 16, 9);
 VAR_FN(16, 16, 16, 8);
-VAR_FN(16, 8, 8, 7);
+VAR_FN(16, 8, 16, 7);
 VAR_FN(8, 8, 8, 6);
 
 VAR_FN(8, 32, 8, 8);
-VAR_FN(32, 8, 8, 8);
+VAR_FN(32, 8, 16, 8);
 VAR_FN(16, 64, 16, 10);
 VAR_FN(64, 16, 16, 10);
 VAR_FN(8, 16, 8, 7);
+VAR_FN(16, 4, 16, 6);
+VAR_FN(8, 4, 8, 5);
+VAR_FN_WD4(16, 6);
+VAR_FN_WD4(8, 5);
 #if CONFIG_EXT_RECUR_PARTITIONS
-VAR_FN(64, 8, 8, 9);
+VAR_FN(64, 8, 16, 9);
 VAR_FN(8, 64, 8, 9);
+VAR_FN(64, 4, 16, 8);
+VAR_FN(32, 4, 16, 7);
+VAR_FN_WD4(64, 8);
+VAR_FN_WD4(32, 7);
 
 VAR_FN_BD12(256, 256, 8, 16);
 VAR_FN_BD12(256, 128, 8, 15);
