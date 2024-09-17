@@ -2983,7 +2983,8 @@ static INLINE __m256i highbd_clamp_epi32_avx2(__m256i u, int bd) {
 static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_idif_avx2(
     int N, __m128i *dst, const uint16_t *above, int dx, int mrl_index, int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((N + 4) - 1 + (mrl_index << 1));
+  // max base for the 4-tap filter is on the last ref sample (+1 to re-use code)
+  const int max_base_x = ((N + 4) + (mrl_index << 1));
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3049,7 +3050,7 @@ highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(int N, __m128i *dst,
                                                      int dx, int mrl_index,
                                                      int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((N + 4) - 1 + (mrl_index << 1));
+  const int max_base_x = ((N + 4) + (mrl_index << 1));
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3144,7 +3145,7 @@ static void highbd_dr_prediction_z1_4xN_idif_avx2(
 static AOM_FORCE_INLINE void highbd_dr_prediction_z1_8xN_internal_idif_avx2(
     int N, __m128i *dst, const uint16_t *above, int dx, int mrl_index, int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((N + 8) - 1 + (mrl_index << 1));
+  const int max_base_x = ((N + 8) + (mrl_index << 1));
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3211,7 +3212,7 @@ highbd_dr_prediction_32bit_z1_8xN_internal_idif_avx2(int N, __m128i *dst,
                                                      int dx, int mrl_index,
                                                      int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((N + 8) - 1 + (mrl_index << 1));
+  const int max_base_x = ((N + 8) + (mrl_index << 1));
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3313,7 +3314,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_16xN_internal_idif_avx2(
     int N, __m256i *dstvec, const uint16_t *above, int dx, int mrl_index,
     int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((16 + N) + (mrl_index << 1));
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3378,7 +3379,7 @@ highbd_dr_prediction_32bit_z1_16xN_internal_idif_avx2(int N, __m256i *dstvec,
                                                       int dx, int mrl_index,
                                                       int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((16 + N) + (mrl_index << 1));
   __m256i a0, a1, a2, a3;
   __m256i val0, val1;
   __m256i f0, f1, f2, f3;
@@ -3495,7 +3496,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_32xN_internal_idif_avx2(
     int N, __m256i *dstvec, const uint16_t *above, int dx, int mrl_index,
     int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((32 + N) + (mrl_index << 1));
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3576,7 +3577,7 @@ highbd_dr_prediction_32bit_z1_32xN_internal_idif_avx2(int N, __m256i *dstvec,
                                                       int dx, int mrl_index,
                                                       int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((32 + N) + (mrl_index << 1));
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3710,7 +3711,7 @@ static void highbd_dr_prediction_z1_64xN_internal_idif_avx2(
     int N, uint16_t *dst, ptrdiff_t stride, const uint16_t *above, int dx,
     int mrl_index, int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((64 + N) + (mrl_index << 1));
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3788,7 +3789,7 @@ static void highbd_dr_prediction_32bit_z1_64xN_internal_idif_avx2(
     int N, uint16_t *dst, ptrdiff_t stride, const uint16_t *above, int dx,
     int mrl_index, int bd) {
   const int frac_bits = 6;
-  const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
+  const int max_base_x = ((64 + N) + (mrl_index << 1));
 
   __m256i a0, a1, a2, a3;
 

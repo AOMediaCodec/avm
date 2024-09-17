@@ -876,7 +876,7 @@ void av1_highbd_dr_prediction_z1_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
     base = x >> frac_bits;
     shift = (x & 0x3F) >> 1;
 
-    if (base >= max_base_x) {
+    if (base > max_base_x) {
       for (int i = r; i < bh; ++i) {
         aom_memset16(dst, above[max_base_x], bw);
         dst += stride;
@@ -885,7 +885,7 @@ void av1_highbd_dr_prediction_z1_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
     }
 
     for (c = 0; c < bw; ++c, base += base_inc) {
-      if (base < max_base_x) {
+      if (base <= max_base_x) {
         // 4-tap filter
         ref[0] = above[base - 1];
         ref[1] = above[base];
@@ -996,7 +996,7 @@ void av1_highbd_dr_prediction_z3_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
     shift = (y & 0x3F) >> 1;
 
     for (r = 0; r < bh; ++r, base += base_inc) {
-      if (base < max_base_y) {
+      if (base <= max_base_y) {
         // 4-tap filter
         ref[0] = left[base - 1];
         ref[1] = left[base];
@@ -1028,22 +1028,30 @@ static void highbd_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   const int bh = tx_size_high[tx_size];
   assert(angle > 0 && angle < 270);
 
-  const int min_base = -((1 + mrl_index));
-  const int max_base = ((bw + bh) - 1 + (mrl_index << 1));
+  const int max_base_z1_z3 = (bw + bh) - 1 + (mrl_index << 1);
+  const int max_base_z2_above = bw - 1;
+  const int max_base_z2_left = bh - 1;
+  const int min_base_z2 = -(1 + mrl_index);
 
   if (angle > 0 && angle < 90) {
-    above[max_base + 1] = above[max_base];
+    above[max_base_z1_z3 + 1] = above[max_base_z1_z3];
+    above[max_base_z1_z3 + 2] = above[max_base_z1_z3];
     av1_highbd_dr_prediction_z1_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, mrl_index);
 
   } else if (angle > 90 && angle < 180) {
-    above[min_base - 1] = above[min_base];
-    left[min_base - 1] = left[min_base];
+    above[min_base_z2 - 1] = above[min_base_z2];
+    left[min_base_z2 - 1] = left[min_base_z2];
+    if (mrl_index == 0) {
+      above[max_base_z2_above + 1] = above[max_base_z2_above];
+      left[max_base_z2_left + 1] = left[max_base_z2_left];
+    }
     av1_highbd_dr_prediction_z2_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, mrl_index);
 
   } else if (angle > 180 && angle < 270) {
-    left[max_base + 1] = left[max_base];
+    left[max_base_z1_z3 + 1] = left[max_base_z1_z3];
+    left[max_base_z1_z3 + 2] = left[max_base_z1_z3];
     av1_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, mrl_index);
 
@@ -1130,6 +1138,7 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = 1;
     left[max_base + 1] = left[max_base];
+    left[max_base + 2] = left[max_base];
     av1_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   } else if (angle > 180 && angle < 270) {
@@ -1140,6 +1149,7 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = 1;
     above[max_base + 1] = above[max_base];
+    above[max_base + 2] = above[max_base];
     av1_highbd_dr_prediction_z1_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   }
@@ -1655,16 +1665,8 @@ static void build_intra_predictors_high(
     if (is_dr_mode)
       need_bottom =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
-#if CONFIG_IDIF
-    int num_left_pixels_needed =
-        txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1) + 1;
-    if (enable_idif && (p_angle > 90 && p_angle < 180)) {
-      num_left_pixels_needed += 1;
-    }
-#else
     int num_left_pixels_needed =
         txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1);
-#endif  // CONFIG_IDIF
 #if CONFIG_DIP
     if (use_intra_dip) {
       // DIP mode requires left edge + 1/4 tx height for overhang feature.
@@ -1696,16 +1698,8 @@ static void build_intra_predictors_high(
     if (is_dr_mode)
       need_right =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
-#if CONFIG_IDIF
     int num_top_pixels_needed =
         txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
-    if (enable_idif && (p_angle > 90 && p_angle < 180)) {
-      num_top_pixels_needed += 1;
-    }
-#else
-    int num_top_pixels_needed =
-        txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
-#endif  // CONFIG_IDIF
 #if CONFIG_DIP
     if (use_intra_dip) {
       // DIP mode requires above line + 1/4 tx width for overhang feature.
