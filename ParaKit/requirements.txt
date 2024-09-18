@@ -1,0 +1,9 @@
+numpy==1.24.4
+pandas==1.2.4
+pandas-stubs==2.2.2.240603
+python-dateutil==2.8.2
+pytz==2024.1
+PyYAML==6.0.1
+types-PyYAML==6.0.12.20240311
+six==1.16.0
+termcolor==2.4.0

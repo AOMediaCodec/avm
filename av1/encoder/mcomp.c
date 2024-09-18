@@ -27,7 +27,7 @@
 #include "av1/common/mvref_common.h"
 #include "av1/common/reconinter.h"
 
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/mcomp.h"

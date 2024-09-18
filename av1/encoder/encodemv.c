@@ -15,7 +15,7 @@
 #include "av1/common/common.h"
 #include "av1/common/entropymode.h"
 
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encodemv.h"
 
 #include "aom_dsp/aom_dsp_common.h"

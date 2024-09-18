@@ -19,7 +19,7 @@
 
 #include "av1/encoder/block.h"
 #include "av1/encoder/context_tree.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 
 #ifdef __cplusplus
 extern "C" {
