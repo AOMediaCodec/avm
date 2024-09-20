@@ -5969,7 +5969,7 @@ static int upsampled_obmc_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   const int is_scaled_ref = ms_buffers->src->width == ms_buffers->ref->width &&
                             ms_buffers->src->height == ms_buffers->ref->height;
 
-  DECLARE_ALIGNED(16, uint16_t, pred[MAX_SB_SQUARE]);
+  uint16_t *pred = xd->tmp_upsample_pred;
   aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred, w, h,
                             subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd,
                             subpel_search_type, is_scaled_ref);

@@ -831,9 +831,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (x->upsample_pred == NULL) {
-    CHECK_MEM_ERROR(
-        cm, x->upsample_pred,
-        aom_memalign(16, MAX_SB_SQUARE * sizeof(*x->upsample_pred)));
+    CHECK_MEM_ERROR(cm, x->upsample_pred,
+                    aom_memalign(16, ((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE *
+                                         sizeof(*x->upsample_pred)));
     x->e_mbd.tmp_upsample_pred = x->upsample_pred;
   }
 

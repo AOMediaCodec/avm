@@ -814,33 +814,7 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
   const InterpFilterParams *filter = av1_get_filter(subpel_search);
   int filter_taps = (subpel_search <= USE_4_TAPS) ? 4 : SUBPEL_TAPS;
   if (!subpel_x_q3 && !subpel_y_q3) {
-    if (width >= 8) {
-      int i;
-      assert(!(width & 7));
-      /*Read 8 pixels one row at a time.*/
-      for (i = 0; i < height; i++) {
-        int j;
-        for (j = 0; j < width; j += 8) {
-          __m128i s0 = _mm_loadu_si128((const __m128i *)ref);
-          _mm_storeu_si128((__m128i *)comp_pred, s0);
-          comp_pred += 8;
-          ref += 8;
-        }
-        ref += ref_stride - width;
-      }
-    } else {
-      int i;
-      assert(!(width & 3));
-      /*Read 4 pixels two rows at a time.*/
-      for (i = 0; i < height; i += 2) {
-        __m128i s0 = _mm_loadl_epi64((const __m128i *)ref);
-        __m128i s1 = _mm_loadl_epi64((const __m128i *)(ref + ref_stride));
-        __m128i t0 = _mm_unpacklo_epi64(s0, s1);
-        _mm_storeu_si128((__m128i *)comp_pred, t0);
-        comp_pred += 8;
-        ref += 2 * ref_stride;
-      }
-    }
+    aom_highbd_convolve_copy(ref, ref_stride, comp_pred, width, width, height);
   } else if (!subpel_y_q3) {
     const int16_t *const kernel =
         av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
@@ -852,8 +826,7 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
     aom_highbd_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1,
                               kernel, 16, width, height, bd);
   } else {
-    DECLARE_ALIGNED(16, uint16_t,
-                    temp[((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE]);
+    uint16_t *temp = comp_pred;
     const int16_t *const kernel_x =
         av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
     const int16_t *const kernel_y =

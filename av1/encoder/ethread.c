@@ -604,8 +604,8 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
       CHECK_MEM_ERROR(
           cm, thread_data->td->upsample_pred,
-          aom_memalign(
-              16, MAX_SB_SQUARE * sizeof(*thread_data->td->upsample_pred)));
+          aom_memalign(16, ((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE *
+                               sizeof(*thread_data->td->upsample_pred)));
 
       for (int j = 0; j < 2; ++j) {
         CHECK_MEM_ERROR(

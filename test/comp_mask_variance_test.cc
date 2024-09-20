@@ -329,5 +329,253 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(8, 13, 2)));
 #endif
 
+typedef void (*highbd_convolve8_func)(const uint16_t *src, ptrdiff_t src_stride,
+                                      uint16_t *dst, ptrdiff_t dst_stride,
+                                      const int16_t *filter_x, int x_step_q4,
+                                      const int16_t *filter_y, int y_step_q4,
+                                      int w, int h, int bd);
+
+typedef std::tuple<highbd_convolve8_func, BLOCK_SIZE, int> HighbdConvolve8Param;
+
+class AV1HighbdSubPelConv8HorizTest
+    : public ::testing::TestWithParam<HighbdConvolve8Param> {
+ public:
+  ~AV1HighbdSubPelConv8HorizTest();
+  void SetUp();
+  void TearDown();
+
+ protected:
+  void RunCheckOutput(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
+  void RunSpeedTest(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
+  bool CheckResult(int width, int height) {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        const int idx = y * width + x;
+        if (comp_pred1_[idx] != comp_pred2_[idx]) {
+          printf("%dx%d mismatch @%d(%d,%d) ", width, height, idx, y, x);
+          printf("%d != %d ", comp_pred1_[idx], comp_pred2_[idx]);
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  libaom_test::ACMRandom rnd_;
+  uint16_t *comp_pred1_;
+  uint16_t *comp_pred2_;
+  uint16_t *ref_buffer_;
+  uint16_t *ref_;
+};
+
+AV1HighbdSubPelConv8HorizTest::~AV1HighbdSubPelConv8HorizTest() { ; }
+
+void AV1HighbdSubPelConv8HorizTest::SetUp() {
+  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+  comp_pred1_ =
+      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+  comp_pred2_ =
+      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  ref_buffer_ = (uint16_t *)aom_memalign(
+      16, (MAX_SB_SQUARE + (8 * MAX_SB_SIZE)) * sizeof(*ref_buffer_));
+  ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
+}
+
+void AV1HighbdSubPelConv8HorizTest::TearDown() {
+  aom_free(comp_pred1_);
+  aom_free(comp_pred2_);
+  aom_free(ref_buffer_);
+  libaom_test::ClearSystemState();
+}
+
+void AV1HighbdSubPelConv8HorizTest::RunCheckOutput(
+    highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
+  const int bd = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd) - 1);
+  }
+
+  for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
+    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    for (int subpel = 0; subpel < 16; ++subpel) {
+      const int16_t *const kernel =
+          av1_get_interp_filter_subpel_kernel(filter, subpel);
+
+      aom_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
+                                   16, NULL, -1, w, h, bd);
+      test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, kernel, 16, NULL, -1, w, h,
+                bd);
+
+      ASSERT_EQ(CheckResult(w, h), true);
+    }
+  }
+}
+
+void AV1HighbdSubPelConv8HorizTest::RunSpeedTest(
+    highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
+  const int bd = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd) - 1);
+  }
+
+  const int num_loops = 1000000000 / (w + h);
+  aom_usec_timer timer;
+
+  for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
+    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const int16_t *const kernel =
+        av1_get_interp_filter_subpel_kernel(filter, 8);
+
+    aom_usec_timer_start(&timer);
+    for (int j = 0; j < num_loops; ++j) {
+      aom_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
+                                   16, NULL, -1, w, h, bd);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    aom_usec_timer_start(&timer);
+    for (int j = 0; j < num_loops; ++j) {
+      test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, kernel, 16, NULL, -1, w, h,
+                bd);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    printf("%3dx%-3d: bd:%d ref: %d mod: %d (%3.2f)\n", w, h, bd, time1, time2,
+           (double)time1 / time2);
+  }
+}
+
+TEST_P(AV1HighbdSubPelConv8HorizTest, CheckOutput) {
+  RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV1HighbdSubPelConv8HorizTest, DISABLED_Speed) {
+  RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1HighbdSubPelConv8HorizTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_horiz_avx2),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1HighbdSubPelConv8HorizTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_horiz_sse2),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
+class AV1HighbdSubPelConv8VertTest : public AV1HighbdSubPelConv8HorizTest {
+ public:
+  ~AV1HighbdSubPelConv8VertTest();
+
+ protected:
+  void RunCheckOutput(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
+  void RunSpeedTest(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
+};
+
+AV1HighbdSubPelConv8VertTest::~AV1HighbdSubPelConv8VertTest() { ; }
+
+void AV1HighbdSubPelConv8VertTest::RunCheckOutput(
+    highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
+  const int bd = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd) - 1);
+  }
+
+  for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
+    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    for (int subpel = 0; subpel < 8; ++subpel) {
+      const int16_t *const kernel =
+          av1_get_interp_filter_subpel_kernel(filter, subpel << 1);
+
+      aom_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
+                                  kernel, 16, w, h, bd);
+      test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, NULL, -1, kernel, 16, w, h,
+                bd);
+
+      ASSERT_EQ(CheckResult(w, h), true);
+    }
+  }
+}
+
+void AV1HighbdSubPelConv8VertTest::RunSpeedTest(highbd_convolve8_func test_impl,
+                                                BLOCK_SIZE bsize) {
+  const int bd = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd) - 1);
+  }
+
+  const int num_loops = 1000000000 / (w + h);
+  aom_usec_timer timer;
+
+  for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
+    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const int16_t *const kernel =
+        av1_get_interp_filter_subpel_kernel(filter, 8);
+
+    aom_usec_timer_start(&timer);
+    for (int j = 0; j < num_loops; ++j) {
+      aom_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
+                                  kernel, 16, w, h, bd);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    aom_usec_timer_start(&timer);
+    for (int j = 0; j < num_loops; ++j) {
+      test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, NULL, -1, kernel, 16, w, h,
+                bd);
+    }
+    aom_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    printf("%3dx%-3d: bd:%d ref: %d mod: %d (%3.2f)\n", w, h, bd, time1, time2,
+           (double)time1 / time2);
+  }
+}
+
+TEST_P(AV1HighbdSubPelConv8VertTest, CheckOutput) {
+  RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV1HighbdSubPelConv8VertTest, DISABLED_Speed) {
+  RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1HighbdSubPelConv8VertTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_vert_avx2),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1HighbdSubPelConv8VertTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_vert_sse2),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
 #endif  // ifndef aom_highbd_comp_mask_pred
 }  // namespace AV1CompMaskVariance
