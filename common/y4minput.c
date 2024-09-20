@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config/aom_config.h"
+
 #include "aom/aom_integer.h"
 #include "aom_ports/msvc.h"
 #include "y4minput.h"
@@ -890,6 +892,18 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   /* Only support vertical chroma sample position if the input format is
    * already 420mpeg2. Colocated is not supported in Y4M.
    */
+#if CONFIG_NEW_CSP
+  if (csp == AOM_CSP_LEFT && strcmp(y4m_ctx->chroma_type, "420mpeg2") != 0) {
+    fprintf(stderr,
+            "Left chroma sample position only supported for 420mpeg2 input\n");
+    return -1;
+  }
+  if (csp == AOM_CSP_TOPLEFT) {
+    // TODO(any): check the right way to handle this in Y4M
+    fprintf(stderr,
+            "Ignoring topleft chroma sample position for reading in Y4M\n");
+  }
+#else   // !CONFIG_NEW_CSP
   if (csp == AOM_CSP_VERTICAL &&
       strcmp(y4m_ctx->chroma_type, "420mpeg2") != 0) {
     fprintf(stderr,
@@ -902,6 +916,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
     fprintf(stderr,
             "Ignoring colocated chroma sample position for reading in Y4M\n");
   }
+#endif  // CONFIG_NEW_CSP
   y4m_ctx->aom_fmt = AOM_IMG_FMT_I420;
   y4m_ctx->bps = 12;
   y4m_ctx->bit_depth = 8;

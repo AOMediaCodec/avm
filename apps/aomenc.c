@@ -766,7 +766,11 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   // Set default passes
   global->passes = 1;
   global->color_type = I420;
+#if CONFIG_NEW_CSP
+  global->csp = AOM_CSP_UNSPECIFIED;
+#else
   global->csp = AOM_CSP_UNKNOWN;
+#endif  // CONFIG_NEW_CSP
   global->show_psnr = 0;
   global->step_frames = 1;
 

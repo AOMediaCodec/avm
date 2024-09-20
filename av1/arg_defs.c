@@ -85,9 +85,19 @@ static const struct arg_enum_list matrix_coefficients_enum[] = {
 };
 
 static const struct arg_enum_list chroma_sample_position_enum[] = {
+#if CONFIG_NEW_CSP
+  { "unspecified", AOM_CSP_UNSPECIFIED },
+  { "left", AOM_CSP_LEFT },
+  { "center", AOM_CSP_CENTER },
+  { "topleft", AOM_CSP_TOPLEFT },
+  { "top", AOM_CSP_TOP },
+  { "bottomleft", AOM_CSP_BOTTOMLEFT },
+  { "bottom", AOM_CSP_BOTTOM },
+#else   // !CONFIG_NEW_CSP
   { "unknown", AOM_CSP_UNKNOWN },
   { "vertical", AOM_CSP_VERTICAL },
   { "colocated", AOM_CSP_COLOCATED },
+#endif  // CONFIG_NEW_CSP
   { NULL, 0 }
 };
 
@@ -754,10 +764,17 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       NULL, "matrix-coefficients", 1,
       "Matrix coefficients (CICP) of input content:", matrix_coefficients_enum),
 
+#if CONFIG_NEW_CSP
+  .input_chroma_sample_position = ARG_DEF_ENUM(
+      NULL, "chroma-sample-position", 1,
+      "The chroma sample position when chroma 4:2:2 or 4:2:0 is signaled:",
+      chroma_sample_position_enum),
+#else   // !CONFIG_NEW_CSP
   .input_chroma_sample_position =
       ARG_DEF_ENUM(NULL, "chroma-sample-position", 1,
                    "The chroma sample position when chroma 4:2:0 is signaled:",
                    chroma_sample_position_enum),
+#endif  // CONFIG_NEW_CSP
 
   .tune_content = ARG_DEF_ENUM(NULL, "tune-content", 1, "Tune content type",
                                tune_content_enum),

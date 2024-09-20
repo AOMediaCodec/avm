@@ -19,6 +19,8 @@
 #include "test/util.h"
 #include "test/yuv_video_source.h"
 
+#include "config/aom_config.h"
+
 #include "aom/aom_decoder.h"
 #include "av1/decoder/decoder.h"
 
@@ -51,28 +53,44 @@ const EncodeParameters kAV1EncodeParameterSet[] = {
     AOM_CICP_TC_BT_709,
     AOM_CICP_MC_BT_709,
     AOM_CR_STUDIO_RANGE,
+#if CONFIG_NEW_CSP
+    AOM_CSP_UNSPECIFIED,
+#else
     AOM_CSP_UNKNOWN,
+#endif  // CONFIG_NEW_CSP
     { 0, 0 } },
   { 0,
     AOM_CICP_CP_BT_470_M,
     AOM_CICP_TC_BT_470_M,
     AOM_CICP_MC_BT_470_B_G,
     AOM_CR_FULL_RANGE,
+#if CONFIG_NEW_CSP
+    AOM_CSP_LEFT,
+#else
     AOM_CSP_VERTICAL,
+#endif  // CONFIG_NEW_CSP
     { 0, 0 } },
   { 1,
     AOM_CICP_CP_BT_601,
     AOM_CICP_TC_BT_601,
     AOM_CICP_MC_BT_601,
     AOM_CR_STUDIO_RANGE,
+#if CONFIG_NEW_CSP
+    AOM_CSP_CENTER,
+#else
     AOM_CSP_COLOCATED,
+#endif  // CONFIG_NEW_CSP
     { 0, 0 } },
   { 0,
     AOM_CICP_CP_BT_2020,
     AOM_CICP_TC_BT_2020_10_BIT,
     AOM_CICP_MC_BT_2020_NCL,
     AOM_CR_FULL_RANGE,
+#if CONFIG_NEW_CSP
+    AOM_CSP_TOPLEFT,
+#else
     AOM_CSP_RESERVED,
+#endif  // CONFIG_NEW_CSP
     { 160, 120 } },
 };
 

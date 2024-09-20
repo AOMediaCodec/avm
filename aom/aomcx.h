@@ -519,12 +519,21 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MATRIX_COEFFICIENTS = 47,
 
+#if CONFIG_NEW_CSP
+  /*!\brief Codec control function to set chroma 4:2:2 or 4:2:0 sample position
+   * info, aom_chroma_sample_position_t parameter
+   *
+   * AOM_CSP_UNSPECIFIED is default
+   */
+  AV1E_SET_CHROMA_SAMPLE_POSITION = 48,
+#else   // !CONFIG_NEW_CSP
   /*!\brief Codec control function to set chroma 4:2:0 sample position info,
    * aom_chroma_sample_position_t parameter
    *
    * AOM_CSP_UNKNOWN is default
    */
   AV1E_SET_CHROMA_SAMPLE_POSITION = 48,
+#endif  // CONFIG_NEW_CSP
 
   /*!\brief Codec control function to set minimum interval between GF/ARF
    * frames, unsigned int parameter

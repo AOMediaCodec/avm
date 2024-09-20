@@ -452,7 +452,11 @@ static struct av1_extracfg default_extra_cfg = {
   AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
   AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
   AOM_CICP_MC_UNSPECIFIED,      // CICP matrix coefficients
+#if CONFIG_NEW_CSP
+  AOM_CSP_UNSPECIFIED,          // chroma sample position
+#else
   AOM_CSP_UNKNOWN,              // chroma sample position
+#endif
   0,                            // color range
   0,                            // render width
   0,                            // render height

@@ -674,7 +674,11 @@ typedef struct {
   aom_transfer_characteristics_t transfer_characteristics;
   // Indicates the matrix coefficients to be used for the transfer function.
   aom_matrix_coefficients_t matrix_coefficients;
+#if CONFIG_NEW_CSP
+  // Indicates the chroma 4:2:2 or 4:2:0 sample position info.
+#else
   // Indicates the chroma 4:2:0 sample position info.
+#endif  // CONFIG_NEW_CSP
   aom_chroma_sample_position_t chroma_sample_position;
   // Indicates if a limited color range or full color range should be used.
   aom_color_range_t color_range;

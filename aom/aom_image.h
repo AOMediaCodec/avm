@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
+
 #include "aom/aom_integer.h"
 
 /*!\brief Current ABI version number
@@ -130,15 +132,44 @@ typedef enum aom_color_range {
   AOM_CR_FULL_RANGE = 1    /**< YUV/RGB [0..255] */
 } aom_color_range_t;       /**< alias for enum aom_color_range */
 
+#if CONFIG_NEW_CSP
+/*!\brief List of chroma sample positions, specified by offsets from (0, 0)
+ * luma sample */
+#else
 /*!\brief List of chroma sample positions */
+#endif  // CONFIG_NEW_CSP
+// clang-format off
 typedef enum aom_chroma_sample_position {
+#if CONFIG_NEW_CSP
+  AOM_CSP_UNSPECIFIED = 6,      /**< Unknown or determined by the application */
+  AOM_CSP_LEFT = 0,             /**< 4:2:2: horizontal offset 0. */
+                                /**< 4:2:0: horizontal offset 0, */
+                                /**<        vertical offset 0.5. */
+  AOM_CSP_CENTER = 1,           /**< 4:2:2: horizontal offset 0.5. */
+                                /**< 4:2:0: horizontal offset 0.5, */
+                                /**<        vertical offset 0.5. */
+  AOM_CSP_TOPLEFT = 2,          /**< 4:2:2: N/A. */
+                                /**< 4:2:0: horizontal offset 0, */
+                                /**<        vertical offset 0. */
+  AOM_CSP_TOP = 3,              /**< 4:2:2: N/A. */
+                                /**< 4:2:0: horizontal offset 0.5, */
+                                /**<        vertical offset 0. */
+  AOM_CSP_BOTTOMLEFT = 4,       /**< 4:2:2: N/A. */
+                                /**< 4:2:0: horizontal offset 0, */
+                                /**<        vertical offset 1. */
+  AOM_CSP_BOTTOM = 5,           /**< 4:2:2: N/A. */
+                                /**< 4:2:0: horizontal offset 0.5, */
+                                /**<        vertical offset 1. */
+#else  // !CONFIG_NEW_CSP
   AOM_CSP_UNKNOWN = 0,          /**< Unknown */
   AOM_CSP_VERTICAL = 1,         /**< Horizontally co-located with luma(0, 0)*/
                                 /**< sample, between two vertical samples */
   AOM_CSP_COLOCATED = 2,        /**< Co-located with luma(0, 0) sample */
   AOM_CSP_RESERVED = 3          /**< Reserved value */
+#endif  // CONFIG_NEW_CSP
 } aom_chroma_sample_position_t; /**< alias for enum aom_chroma_sample_position
                                  */
+// clang-format on
 
 /*!\brief List of insert flags for Metadata
  *

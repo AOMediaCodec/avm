@@ -1122,11 +1122,19 @@ static int main_loop(int argc, const char **argv_) {
                   aom_input_ctx.height, &aom_input_ctx.framerate,
                   img->monochrome, img->csp, img->fmt, img->bit_depth,
                   img->range);
+#if CONFIG_NEW_CSP
+              if (img->csp == AOM_CSP_TOPLEFT) {
+                fprintf(stderr,
+                        "Warning: Y4M lacks a colorspace for topleft chroma. "
+                        "Using a placeholder.\n");
+              }
+#else   // !CONFIG_NEW_CSP
               if (img->csp == AOM_CSP_COLOCATED) {
                 fprintf(stderr,
                         "Warning: Y4M lacks a colorspace for colocated "
                         "chroma. Using a placeholder.\n");
               }
+#endif  // CONFIG_NEW_CSP
               if (do_md5) {
                 MD5Update(&md5_ctx, (md5byte *)y4m_buf, (unsigned int)len);
               } else {

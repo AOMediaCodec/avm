@@ -12,6 +12,8 @@
 #ifndef AOM_COMMON_AV1_CONFIG_H_
 #define AOM_COMMON_AV1_CONFIG_H_
 
+#include "config/aom_config.h"
+
 #include "aom/aom_integer.h"
 
 #ifdef __cplusplus
@@ -33,8 +35,13 @@ extern "C" {
 // unsigned int (1) monochrome;
 // unsigned int (1) chroma_subsampling_x;
 // unsigned int (1) chroma_subsampling_y;
+#if CONFIG_NEW_CSP
+// unsigned int (3) chroma_sample_position;
+// unsigned int (2) reserved = 0;
+#else
 // unsigned int (2) chroma_sample_position;
 // unsigned int (3) reserved = 0;
+#endif
 //
 // unsigned int (1) initial_presentation_delay_present;
 // if (initial_presentation_delay_present) {

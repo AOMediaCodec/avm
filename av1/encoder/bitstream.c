@@ -5135,9 +5135,36 @@ static AOM_INLINE void write_color_config(
         assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
       }
+#if CONFIG_NEW_CSP
+      if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
+        // YUV 4:2:2
+        assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
+               seq_params->chroma_sample_position == AOM_CSP_LEFT ||
+               seq_params->chroma_sample_position == AOM_CSP_CENTER);
+        const int csp_present_flag =
+            seq_params->chroma_sample_position != AOM_CSP_UNSPECIFIED;
+        aom_wb_write_bit(wb, csp_present_flag);
+        if (csp_present_flag) {
+          aom_wb_write_bit(wb, seq_params->chroma_sample_position);
+        }
+      } else if (seq_params->subsampling_x == 1 &&
+                 seq_params->subsampling_y == 1) {
+        // YUV 4:2:0
+        assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
+               (seq_params->chroma_sample_position >= AOM_CSP_LEFT &&
+                seq_params->chroma_sample_position <= AOM_CSP_BOTTOM));
+        const int csp_present_flag =
+            seq_params->chroma_sample_position != AOM_CSP_UNSPECIFIED;
+        aom_wb_write_bit(wb, csp_present_flag);
+        if (csp_present_flag) {
+          aom_wb_write_literal(wb, seq_params->chroma_sample_position, 3);
+        }
+      }
+#else   // !CONFIG_NEW_CSP
       if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
         aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2);
       }
+#endif  // CONFIG_NEW_CSP
     }
   }
 }

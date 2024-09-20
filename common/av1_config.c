@@ -223,10 +223,35 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
       }
     }
 
+#if CONFIG_NEW_CSP
+    if (config->chroma_subsampling_x && !config->chroma_subsampling_y) {
+      // YUV 4:2:2
+      config->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+      AV1C_READ_BIT_OR_RETURN_ERROR(csp_present_flag);
+      if (csp_present_flag) {
+        AV1C_READ_BIT_OR_RETURN_ERROR(chroma_sample_position);
+        config->chroma_sample_position = chroma_sample_position;
+      }
+    } else if (config->chroma_subsampling_x && config->chroma_subsampling_y) {
+      // YUV 4:2:0
+      config->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+      AV1C_READ_BIT_OR_RETURN_ERROR(csp_present_flag);
+      if (csp_present_flag) {
+        AV1C_READ_BITS_OR_RETURN_ERROR(chroma_sample_position, 3);
+        if (chroma_sample_position > AOM_CSP_BOTTOM) {
+          fprintf(stderr, "av1c: Invaid chroma_sample_position, value=%d.\n",
+                  chroma_sample_position);
+          return -1;
+        }
+        config->chroma_sample_position = chroma_sample_position;
+      }
+    }
+#else   // !CONFIG_NEW_CSP
     if (config->chroma_subsampling_x && config->chroma_subsampling_y) {
       AV1C_READ_BITS_OR_RETURN_ERROR(chroma_sample_position, 2);
       config->chroma_sample_position = chroma_sample_position;
     }
+#endif  // CONFIG_NEW_CSP
   }
 
   AV1C_POP_ERROR_HANDLER_DATA();
@@ -405,10 +430,18 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
   AV1C_READ_BIT_OR_RETURN_ERROR(chroma_subsampling_y);
   config->chroma_subsampling_y = chroma_subsampling_y;
 
+#if CONFIG_NEW_CSP
+  AV1C_READ_BITS_OR_RETURN_ERROR(chroma_sample_position, 3);
+#else
   AV1C_READ_BITS_OR_RETURN_ERROR(chroma_sample_position, 2);
+#endif  // CONFIG_NEW_CSP
   config->chroma_sample_position = chroma_sample_position;
 
+#if CONFIG_NEW_CSP
+  AV1C_READ_BITS_OR_RETURN_ERROR(reserved, 2);
+#else
   AV1C_READ_BITS_OR_RETURN_ERROR(reserved, 3);
+#endif  // CONFIG_NEW_CSP
 
   AV1C_READ_BIT_OR_RETURN_ERROR(initial_presentation_delay_present);
   config->initial_presentation_delay_present =
@@ -442,8 +475,13 @@ int write_av1config(const Av1Config *config, size_t capacity,
   aom_wb_write_bit(&writer, config->monochrome);
   aom_wb_write_bit(&writer, config->chroma_subsampling_x);
   aom_wb_write_bit(&writer, config->chroma_subsampling_y);
+#if CONFIG_NEW_CSP
+  aom_wb_write_literal(&writer, config->chroma_sample_position, 3);
+  aom_wb_write_literal(&writer, 0, 2);  // reserved
+#else
   aom_wb_write_literal(&writer, config->chroma_sample_position, 2);
   aom_wb_write_literal(&writer, 0, 3);  // reserved
+#endif
   aom_wb_write_bit(&writer, config->initial_presentation_delay_present);
 
   if (config->initial_presentation_delay_present) {

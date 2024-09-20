@@ -191,7 +191,11 @@ TEST(Y4MHeaderTest, RegularHeader) {
   EXPECT_EQ(0, fseek(f.file(), 0, 0));
 
   y4m_input y4m;
+#if CONFIG_NEW_CSP
+  EXPECT_EQ(y4m_input_open(&y4m, f.file(), NULL, 0, AOM_CSP_UNSPECIFIED,
+#else
   EXPECT_EQ(y4m_input_open(&y4m, f.file(), NULL, 0, AOM_CSP_UNKNOWN,
+#endif
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);
@@ -219,7 +223,11 @@ TEST(Y4MHeaderTest, LongHeader) {
   EXPECT_EQ(fseek(f, 0, 0), 0);
 
   y4m_input y4m;
+#if CONFIG_NEW_CSP
+  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNSPECIFIED,
+#else
   EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+#endif
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);
@@ -245,7 +253,11 @@ TEST(Y4MHeaderTest, FullRangeHeader) {
   EXPECT_EQ(fseek(f, 0, 0), 0);
 
   y4m_input y4m;
+#if CONFIG_NEW_CSP
+  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNSPECIFIED,
+#else
   EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+#endif
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);
@@ -263,7 +275,11 @@ TEST(Y4MHeaderTest, WriteStudioColorRange) {
   struct AvxRational framerate = { /*numerator=*/30, /*denominator=*/1 };
   EXPECT_GE(y4m_write_file_header(
                 buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+#if CONFIG_NEW_CSP
+                /*monochrome=*/0, AOM_CSP_UNSPECIFIED, AOM_IMG_FMT_I420,
+#else
                 /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+#endif
                 /*bit_depth=*/8, AOM_CR_STUDIO_RANGE),
             0);
   EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg\n", buf), 0);
@@ -274,7 +290,11 @@ TEST(Y4MHeaderTest, WriteFullColorRange) {
   struct AvxRational framerate = { /*numerator=*/30, /*denominator=*/1 };
   EXPECT_GE(y4m_write_file_header(
                 buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+#if CONFIG_NEW_CSP
+                /*monochrome=*/0, AOM_CSP_UNSPECIFIED, AOM_IMG_FMT_I420,
+#else
                 /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+#endif
                 /*bit_depth=*/8, AOM_CR_FULL_RANGE),
             0);
   EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg XCOLORRANGE=FULL\n", buf),

@@ -12,6 +12,8 @@
 
 #include <assert.h>
 
+#include "config/aom_config.h"
+
 #include "common/rawenc.h"
 #include "common/y4menc.h"
 
@@ -34,10 +36,19 @@ const char *colorspace8(aom_chroma_sample_position_t csp, aom_img_fmt_t fmt) {
     case AOM_IMG_FMT_I444: return "C444";
     case AOM_IMG_FMT_I422: return "C422";
     default:
+#if CONFIG_NEW_CSP
+      if (csp == AOM_CSP_LEFT) {
+#else
       if (csp == AOM_CSP_VERTICAL) {
+#endif
         return "C420mpeg2 XYSCSS=420MPEG2";
+#if CONFIG_NEW_CSP
+      } else if (csp == AOM_CSP_TOPLEFT) {
+        // Note that Y4M does not have a dedicated header for topleft chroma,
+#else
       } else if (csp == AOM_CSP_COLOCATED) {
         // Note that Y4M does not have a dedicated header for colocated chroma,
+#endif
         // and that FFMPEG interprets C420 as C420jpeg.
         return "C420";
       } else {
