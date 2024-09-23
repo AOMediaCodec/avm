@@ -1748,7 +1748,7 @@ int main(int argc, const char **argv) {
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.morph_pred_count[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob\n"
+                     "static const aom_cdf_prob "
                      "default_morph_pred_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif  // CONFIG_MORPH_PRED
