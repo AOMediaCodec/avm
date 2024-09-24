@@ -163,11 +163,13 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
                   0,
 #endif  // CONFIG_INTER_DDT
                   bit_depth_);
-    ASM_REGISTER_STATE_CHECK(inv_txfm_(coeffs_, output_, stride, tx_type_,
 #if CONFIG_INTER_DDT
-                                       0,
+    ASM_REGISTER_STATE_CHECK(
+        inv_txfm_(coeffs_, output_, stride, tx_type_, 0, bit_depth_));
+#else
+    ASM_REGISTER_STATE_CHECK(
+        inv_txfm_(coeffs_, output_, stride, tx_type_, bit_depth_));
 #endif  // CONFIG_INTER_DDT
-                                       bit_depth_));
 
     for (int j = 0; j < num_coeffs_; ++j) {
       EXPECT_EQ(output_ref_[j], output_[j])
