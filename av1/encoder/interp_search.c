@@ -489,15 +489,19 @@ int64_t av1_interpolation_filter_search(
   }
   if (!need_search) {
 #if CONFIG_REFINEMV
-    assert(mbmi->interp_fltr ==
-           ((opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
-                                        xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                        mbmi) ||
-             mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
+    assert(mbmi->interp_fltr ==
+           ((opfl_allowed_for_cur_block(cm, xd, mbmi) || mbmi->refinemv_flag ||
+             is_tip_ref_frame(mbmi->ref_frame[0]))
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
+#else
+    assert(mbmi->interp_fltr ==
+           ((opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag ||
+             is_tip_ref_frame(mbmi->ref_frame[0]))
+                ? MULTITAP_SHARP
+                : EIGHTTAP_REGULAR));
+#endif  // CONFIG_COMPOUND_4XN
 #else
     assert(mbmi->interp_fltr == (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN

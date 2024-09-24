@@ -3896,14 +3896,17 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     } else {
 #if CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_4XN
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
              (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-              is_compound_warp_causal_allowed(
-#if CONFIG_COMPOUND_4XN
-                  xd,
+              is_compound_warp_causal_allowed(xd, mbmi)));
+#else
+      assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
+             is_inter_compound_mode(mbmi->mode) &&
+             (mbmi->motion_mode == SIMPLE_TRANSLATION ||
+              is_compound_warp_causal_allowed(mbmi)));
 #endif  // CONFIG_COMPOUND_4XN
-                  mbmi)));
 #else
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
