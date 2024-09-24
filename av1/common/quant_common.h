@@ -27,6 +27,8 @@ extern "C" {
 #define TCQ_HDR_FLAG 1  // Enable through header flag(s)
 #define DQENABLE 0      // Determine whether to use DQ by dq_enable()
 #define NEWQINDEX 1     // QP shift
+#define QINDEX_INCR 2     // tunable QP index increment
+#define MORESTATES 0    // 1: 8-state; 0: 4-state
 #define NEWHR 1         // 1:parity is determined by (base + LR)
 #else
 #define TCQ_HDR_FLAG 0
@@ -111,7 +113,7 @@ static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
                                            int use_tcq_offset) {
   if (use_tcq_offset && qindex != 0) {
 #if NEWQINDEX
-    qindex += 2;
+    qindex += QINDEX_INCR;
 #endif
   }
   return av1_dc_quant_QTX(qindex, delta, base_dc_delta_q, bit_depth);
@@ -122,7 +124,7 @@ static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
                                            int use_tcq_offset) {
   if (use_tcq_offset && qindex != 0) {
 #if NEWQINDEX
-    qindex += 2;
+    qindex += QINDEX_INCR;
 #endif
   }
   return av1_ac_quant_QTX(qindex, delta, bit_depth);
