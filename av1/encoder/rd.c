@@ -933,9 +933,16 @@ static const int rd_layer_depth_factor[6] = {
 };
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
-  const int q =
+#if CONFIG_DQ
+    const int tcq_mode = 1;  // currently bluntly set TCQ mode as 1, need to pass in
+    const int q =
+            av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+                             cpi->common.seq_params.bit_depth, tcq_mode);
+#else
+    const int q =
       av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                        cpi->common.seq_params.bit_depth);
+#endif // CONFIG_DQ
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
       (int64_t)((int64_t)q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN),
       2 * QUANT_TABLE_BITS);
