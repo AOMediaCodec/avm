@@ -130,11 +130,20 @@ typedef struct {
   /*!
    * Saved MV information for opfl off case.
    */
-  int_mv (*comp_newmv)[4][NUM_MV_PRECISIONS][2];
-  /*!
-   * Valid status of saved MV information for opfl off case.
-   */
-  int (*comp_newmv_valid)[4][NUM_MV_PRECISIONS];
+  NEW_NEWMV_STATS new_newmv_stats[MAX_COMP_MV_STATS];
+  int new_newmv_stats_idx;
+
+  NEAR_NEWMV_STATS near_newmv_stats[MAX_COMP_MV_STATS];
+  int near_newmv_stats_idx;
+
+  NEW_NEARMV_STATS new_nearmv_stats[MAX_COMP_MV_STATS];
+  int new_nearmv_stats_idx;
+
+  JOINT_NEWMV_STATS joint_newmv_stats[MAX_COMP_MV_STATS];
+  int joint_newmv_stats_idx;
+
+  JOINT_AMVDNEWMV_STATS joint_amvdnewmv_stats[MAX_COMP_MV_STATS];
+  int joint_amvdnewmv_stats_idx;
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
 } HandleInterModeArgs;

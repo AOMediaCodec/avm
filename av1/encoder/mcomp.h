@@ -425,6 +425,47 @@ typedef struct {
   SUBPEL_SEARCH_VAR_PARAMS var_params;
 } SUBPEL_MOTION_SEARCH_PARAMS;
 
+#if CONFIG_SKIP_ME_FOR_OPFL_MODES
+#define MAX_COMP_MV_STATS 128
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  MvSubpelPrecision mv_precision;
+  int_mv mv[2];
+} NEW_NEWMV_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int_mv start_mv;
+  int_mv ref_mv;
+  int_mv mv[2];
+} NEAR_NEWMV_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int_mv mv;
+} NEW_NEARMV_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  MvSubpelPrecision mv_precision;
+  int joint_newmv_scale_idx;
+  int8_t cwp_idx;
+  int_mv mv[2];
+} JOINT_NEWMV_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int joint_amvd_scale_idx;
+  int8_t cwp_idx;
+  int_mv mv[2];
+} JOINT_AMVDNEWMV_STATS;
+#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
+
 #if CONFIG_OPFL_MV_SEARCH
 int opfl_refine_fullpel_mv_one_sided(
     const AV1_COMMON *cm, MACROBLOCKD *xd,
