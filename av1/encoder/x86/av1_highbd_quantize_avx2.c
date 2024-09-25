@@ -68,7 +68,20 @@ static INLINE void quantize(const __m256i *qp, const tran_low_t *coeff_ptr,
                             __m256i *eob) {
   const __m256i coeff = _mm256_loadu_si256((const __m256i *)coeff_ptr);
   const __m256i abs_coeff = _mm256_abs_epi32(coeff);
+  const __m256i abs_s =
+      _mm256_slli_epi32(abs_coeff, 1 + log_scale + QUANT_TABLE_BITS);
+  const __m256i mask = _mm256_cmpgt_epi32(qp[2], abs_s);
+  const __m256i zbin_mask = _mm256_xor_si256(mask, _mm256_set1_epi32(-1));
 
+  // If all the transformed coefficient values are less than the dequantized
+  // value then reset both qcoeff and dqcoeff and skip further computations of
+  // quantization and dequantization.
+  if (LIKELY(_mm256_movemask_epi8(zbin_mask) == 0)) {
+    const __m256i zero = _mm256_setzero_si256();
+    _mm256_storeu_si256((__m256i *)qcoeff, zero);
+    _mm256_storeu_si256((__m256i *)dqcoeff, zero);
+    return;
+  }
   const __m256i round = _mm256_set1_epi32((1 << QUANT_TABLE_BITS) >> 1);
   __m256i q = _mm256_add_epi32(abs_coeff, qp[0]);
   __m256i q_lo = _mm256_mul_epi32(q, qp[1]);
@@ -78,15 +91,11 @@ static INLINE void quantize(const __m256i *qp, const tran_low_t *coeff_ptr,
   q_lo = _mm256_srli_epi64(q_lo, 16 - log_scale + QUANT_FP_BITS);
   q_hi = _mm256_slli_epi64(q_hi, 32 - (16 - log_scale + QUANT_FP_BITS));
   q = _mm256_blend_epi32(q_lo, q_hi, 0xAA);
-
-  log_scale += QUANT_TABLE_BITS;
-  const __m256i abs_s = _mm256_slli_epi32(abs_coeff, 1 + log_scale);
-  const __m256i mask = _mm256_cmpgt_epi32(qp[2], abs_s);
   q = _mm256_andnot_si256(mask, q);
 
   __m256i dq = _mm256_mullo_epi32(q, qp[2]);
   dq = _mm256_add_epi64(dq, round);
-  dq = _mm256_srai_epi32(dq, log_scale);
+  dq = _mm256_srai_epi32(dq, log_scale + QUANT_TABLE_BITS);
   const __m256i nz_mask = _mm256_cmpgt_epi32(q, _mm256_setzero_si256());
   q = _mm256_sign_epi32(q, coeff);
   dq = _mm256_sign_epi32(dq, coeff);
