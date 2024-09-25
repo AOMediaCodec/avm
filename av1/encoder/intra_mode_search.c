@@ -51,6 +51,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (model_intra_yrd_and_prune(cpi, x, bsize, mode_cost, best_model_rd)) {
       continue;
     }
+    x->prune_tx_partition = 0;
+
     av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
                                       *best_rd);
     if (tokenonly_rd_stats.rate == INT_MAX) continue;
@@ -165,7 +167,6 @@ void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi) {
 
 int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
                        int64_t top_intra_model_rd[]) {
-  const double thresh_best = 1.50;
   const double thresh_top = 1.00;
   for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
@@ -181,9 +182,6 @@ int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
           thresh_top * top_intra_model_rd[TOP_INTRA_MODEL_COUNT - 1])
     return 1;
 
-  if (this_model_rd != INT64_MAX &&
-      this_model_rd > thresh_best * (*best_model_rd))
-    return 1;
   if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
   return 0;
 }
@@ -676,6 +674,7 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   RD_STATS rd_stats;
+  x->prune_tx_partition = 0;
   // In order to improve txfm search avoid rd based breakouts during winner
   // mode evaluation. Hence passing ref_best_rd as a maximum value
   av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats, bsize, INT64_MAX);
@@ -744,6 +743,7 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   for (FILTER_INTRA_MODE fi_mode = FILTER_DC_PRED; fi_mode < FILTER_INTRA_MODES;
        ++fi_mode) {
     mbmi->filter_intra_mode_info.filter_intra_mode = fi_mode;
+    x->prune_tx_partition = 0;
     av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y_fi, bsize, best_rd);
     if (rd_stats_y_fi.rate == INT_MAX) continue;
     const int this_rate_tmp =
@@ -832,6 +832,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd))
     return INT64_MAX;
   av1_init_rd_stats(rd_stats_y);
+  x->prune_tx_partition = 0;
   av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
 
   // Pick filter intra modes.
@@ -1024,6 +1025,10 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
   for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
     top_intra_model_rd[i] = INT64_MAX;
+  }
+  x->prune_tx_partition = 1;
+  for (int i = 0; i < TOP_TX_PART_COUNT; i++) {
+    x->top_tx_part_rd[i] = INT64_MAX;
   }
   for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
        ++mode_idx) {

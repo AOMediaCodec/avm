@@ -3061,6 +3061,7 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   x->rd_model = FULL_TXFM_RD;
   int64_t rd[MAX_TX_DEPTH + 1] = { INT64_MAX, INT64_MAX, INT64_MAX };
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+  int iter = 0;
   for (int tx_size = start_tx, depth = init_depth; depth <= MAX_TX_DEPTH;
        depth++, tx_size = sub_tx_size_map[tx_size]) {
     if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
@@ -3085,6 +3086,21 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
         x->source_variance < 256) {
       if (rd[depth - 1] != INT64_MAX && rd[depth] > rd[depth - 1]) break;
     }
+    if (x->prune_tx_partition && iter == 0) {
+      for (int i = 0; i < TOP_TX_PART_COUNT; i++) {
+        if (rd[depth] < x->top_tx_part_rd[i]) {
+          for (int j = TOP_TX_PART_COUNT - 1; j > i; j--) {
+            x->top_tx_part_rd[j] = x->top_tx_part_rd[j - 1];
+          }
+          x->top_tx_part_rd[i] = rd[depth];
+          break;
+        }
+      }
+      if (x->top_tx_part_rd[TOP_TX_PART_COUNT - 1] != INT64_MAX &&
+          rd[depth] > x->top_tx_part_rd[TOP_TX_PART_COUNT - 1])
+        break;
+    }
+    ++iter;
   }
 
   if (rd_stats->rate != INT_MAX) {

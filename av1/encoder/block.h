@@ -1177,6 +1177,11 @@ typedef struct macroblock {
   unsigned int source_variance;
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
+
+  /*! \brief Whether to prune current transform partition search. */
+  int prune_tx_partition;
+  /*! \brief Keep records of top rdcosts of transform partition search. */
+  int64_t top_tx_part_rd[TOP_TX_PART_COUNT];
   /**@}*/
 #if CONFIG_SCC_DETERMINATION
   /*!\brief Number of pixels in current thread that choose palette mode in the
