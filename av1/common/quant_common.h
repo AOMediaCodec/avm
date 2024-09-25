@@ -27,8 +27,7 @@ extern "C" {
 #define TCQ_HDR_FLAG 1  // Enable through header flag(s)
 #define DQENABLE 0      // Determine whether to use DQ by dq_enable()
 #define NEWQINDEX 1     // QP shift
-#define QINDEX_INCR 0     // tunable QP index increment
-#define MORESTATES 0    // 1: 8-state; 0: 4-state
+#define QINDEX_INCR 4   // tunable QP index increment
 #define NEWHR 1         // 1:parity is determined by (base + LR)
 #else
 #define TCQ_HDR_FLAG 0
