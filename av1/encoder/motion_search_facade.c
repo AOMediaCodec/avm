@@ -1060,7 +1060,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     struct buf_2d ref_yv12 = xd->plane[0].pre[!ref_idx];
     av1_init_inter_params(&inter_pred_params, pw, ph, mi_row * MI_SIZE,
                           mi_col * MI_SIZE, 0, 0, xd->bd, 0, &cm->sf_identity,
-                          &ref_yv12, mbmi->interp_fltr);
+                          &ref_yv12, EIGHTTAP_REGULAR);
     inter_pred_params.conv_params = get_conv_params(0, PLANE_TYPE_Y, xd->bd);
   }
 
