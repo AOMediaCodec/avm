@@ -21,6 +21,7 @@
 
 #include "av1/common/warped_motion.h"
 #include "av1/common/scale.h"
+#include "av1/common/mvref_common.h"
 
 // For warping, we really use a 6-tap filter, but we do blocks of 8 pixels
 // at a time. The zoom/rotation/shear in the model are applied to the
@@ -1205,7 +1206,8 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 // From the warp model, derive the MV in (x,y) position.
 // (x,y) is the horizontal and vertical position of the frame
 //(0,0) is the top-left co-ordinate of the frame
-int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
+int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
+                                     const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision) {
   int_mv res;
@@ -1232,6 +1234,9 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
     res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
     res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
 
+    clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
+                 xd->height << MI_SIZE_LOG2, xd);
+
 #if CONFIG_C071_SUBBLK_WARPMV
     if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -1255,8 +1260,11 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
   tx = convert_to_trans_prec(precision, xc);
   ty = convert_to_trans_prec(precision, yc);
 
-  res.as_mv.row = ty;
-  res.as_mv.col = tx;
+  res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
+  res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
+
+  clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
+               xd->height << MI_SIZE_LOG2, xd);
 
 #if CONFIG_C071_SUBBLK_WARPMV
   if (precision < MV_PRECISION_HALF_PEL)
@@ -1284,8 +1292,8 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   }
 
   int x0, y0;
-  int ref_x0, ref_x1, ref_x2, ref_y0, ref_y1, ref_y2;
-  int pts_inref[2 * 3];
+  int64_t ref_x0, ref_x1, ref_x2, ref_y0, ref_y1, ref_y2;
+  int64_t pts_inref[2 * 3];
   const int width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2;
   const int height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2;
 
@@ -1324,11 +1332,11 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   ref_x2 = pts_inref[2 * 2];
   ref_y2 = pts_inref[2 * 2 + 1];
 
-  derive_model->wmmat[2] = (ref_x1 - ref_x0) >> width_log2;
-  derive_model->wmmat[4] = (ref_y1 - ref_y0) >> width_log2;
+  derive_model->wmmat[2] = (int32_t)((ref_x1 - ref_x0) >> width_log2);
+  derive_model->wmmat[4] = (int32_t)((ref_y1 - ref_y0) >> width_log2);
 
-  derive_model->wmmat[3] = (ref_x2 - ref_x0) >> height_log2;
-  derive_model->wmmat[5] = (ref_y2 - ref_y0) >> height_log2;
+  derive_model->wmmat[3] = (int32_t)((ref_x2 - ref_x0) >> height_log2);
+  derive_model->wmmat[5] = (int32_t)((ref_y2 - ref_y0) >> height_log2);
 
   int64_t wmmat0 = (int64_t)ref_x0 -
                    (int64_t)derive_model->wmmat[2] * (int64_t)x0 -

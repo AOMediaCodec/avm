@@ -6465,7 +6465,8 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 // return 1 if valid point is found
 // return 0 if the point is not valid
-static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
+static int fill_warp_corner_projected_point(const MACROBLOCKD *xd,
+                                            const MB_MODE_INFO *neighbor_mi,
                                             MV_REFERENCE_FRAME this_ref,
                                             const int pos_col,
                                             const int pos_row, int *pts,
@@ -6479,7 +6480,7 @@ static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
   int mv_col;
   if (is_warp_mode(neighbor_mi->motion_mode)) {
     int_mv warp_mv =
-        get_warp_motion_vector_xy_pos(&neighbor_mi->wm_params[0], pos_col,
+        get_warp_motion_vector_xy_pos(xd, &neighbor_mi->wm_params[0], pos_col,
                                       pos_row, MV_PRECISION_ONE_EIGHTH_PEL);
     mv_row = warp_mv.as_mv.row;
     mv_col = warp_mv.as_mv.col;
@@ -6516,8 +6517,8 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
-                                                 pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }
@@ -6531,8 +6532,8 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE + bw;
-    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
-                                                 pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }
@@ -6546,8 +6547,8 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE + bh;
     int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
-                                                 pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }

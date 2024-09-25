@@ -26,6 +26,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/mv.h"
 #include "av1/common/convolve.h"
+#include "av1/common/blockd.h"
 
 #define LEAST_SQUARES_SAMPLES_MAX_BITS 3
 #define LEAST_SQUARES_SAMPLES_MAX (1 << LEAST_SQUARES_SAMPLES_MAX_BITS)
@@ -322,7 +323,8 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
 }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
-int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
+int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
+                                     const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision);
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
