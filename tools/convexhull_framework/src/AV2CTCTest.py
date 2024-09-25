@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
-     Cleanfolder, CreateClipList, GetEncLogFile, GatherPerfInfo, \
+     Cleanfolder, CreateClipList, GetEncLogFile, GetDecLogFile, ParseDecLogFile, GatherPerfInfo, \
      GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile, md5
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
@@ -25,6 +25,7 @@ from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      EnableTimingInfo, CodecNames, EnableMD5, HEVC_QPs, SUFFIX, EnableParallelGopEncoding, \
      GOP_SIZE, EnableSubjectiveTest
 from EncDecUpscale import Encode, Decode, GetBitstreamFile
+from CalcQtyWithVmafTool import GetVMAFLogFile
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -254,17 +255,35 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
             if not os.path.exists(bs):
-                print("%s is missing" % bs)
-                missing.write("\n%s is missing" % bs)
+                print("bitstream %s is missing" % bs)
+                missing.write("\nbitstream %s is missing" % bs)
+                continue
+
+            dec_log = GetDecLogFile(bs, Path_DecLog)
+            if not os.path.exists(dec_log):
+                print("dec_log %s is missing" % dec_log)
+                missing.write("\ndec_log %s is missing" % dec_log)
+                continue
+
+            num_dec_frames = ParseDecLogFile(dec_log)
+            if num_dec_frames == 0:
+                print("decoding error in %s" % dec_log)
+                missing.write("\ndecoding error in %s" % dec_log)
+                continue
+
+            vmaf_log = GetVMAFLogFile(dec, Path_QualityLog)
+            if not os.path.exists(vmaf_log):
+                print("vmaf_log %s is missing" % vmaf_log)
+                missing.write("\nvmaf_log %s is missing" % vmaf_log)
                 continue
 
             quality, perframe_vmaf_log, frame_num = GatherQualityMetrics(dec, Path_QualityLog)
             if not quality:
-                print("%s is missing" % bs)
-                missing.write("\n%s is missing" % bs)
+                print("missing quality in %s" % vmaf_log)
+                missing.write("\nmissing quality in %s" % vmaf_log)
                 continue
 
-            print("%s Frame number = %d"%(bs, frame_num))
+            # print("%s Frame number = %d"%(bs, frame_num))
             filesize = os.path.getsize(bs)
             bitrate = round((filesize * 8 * (clip.fps_num / clip.fps_denom) / frame_num) / 1000.0, 6)
 
@@ -280,16 +299,21 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             for qty in quality:
                 csv.write(",%f"%qty)
 
-            if test_cfg == "RA" and EnableParallelGopEncoding:
-                csv.write(",,,")
-            elif UsePerfUtil:
-                enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
-                csv.write(",%.2f,%.2f,%s,%s,%s,%s," % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
+            if UsePerfUtil:
+                if test_cfg == "RA" and EnableParallelGopEncoding:
+                    csv.write(",,,,,,,")
+                else:
+                    enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
+                    csv.write(",%.2f,%.2f,%s,%s,%s,%s," % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
             elif EnableTimingInfo:
-                enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
-                csv.write(",%.2f,%.2f,"%(enc_time,dec_time))
+                if test_cfg == "RA" and EnableParallelGopEncoding:
+                    csv.write(",,,")
+                else:
+                    enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
+                    csv.write(",%.2f,%.2f,"%(enc_time,dec_time))
             else:
                 csv.write(",,,")
+
             if EnableMD5:
                 enc_md5 = md5(bs)
                 dec_md5 = md5(dec)

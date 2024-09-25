@@ -28,7 +28,7 @@ def CalculateQualityMetric(src_file, framenum, reconYUV, fmt, width, height,
 def GatherQualityMetrics(reconYUV, logfilePath):
     qresult, per_frame_log = VMAF_GatherQualityMetrics(reconYUV, logfilePath)
     if (len(qresult) == 0):
-        return [], per_frame_log
+        return [], per_frame_log, 0
     results = []
     for metric in QualityList:
         if metric in VMAFMetricsFullList:

@@ -11,6 +11,7 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import re
+import os
 import openpyxl
 import xlsxwriter
 import shutil
@@ -23,49 +24,20 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from CalcBDRate import BD_RATE
 from itertools import cycle
+import pandas as pd
+from tabulate import tabulate
 
 qtys = ["psnr_y", "psnr_u", "psnr_v", "overall_psnr", "ssim_y", "ms_ssim_y",
         "vmaf", "vmaf_neg", "psnr_hvs","ciede2k", "apsnr_y", "apsnr_u",
         "apsnr_v", "overall_apsnr"]
 
-'''
-csv_files = {
-    "HM_CloseGOP":
-    {
-        "LD":     "D:\\HEVC-AV1-Study\\HEVC-RA-CloseGop\\analysis\\rdresult\\RDResults_hm_hevc_RA_Preset_0.csv",
-    },
-    "HM_OpenGOP":
-    {
-        "LD":     "D:\\HEVC-AV1-Study\\HEVC-RA-OpenGop\\analysis\\rdresult\\RDResults_hm_hevc_RA_Preset_0.csv",
-    },
-    "AV1_CloseGOP":
-    {
-        "LD":     "D:\\HEVC-AV1-Study\\AV1-RA-CloseGop\\analysis\\rdresult\\RDResults_aom_av1_RA_Preset_0.csv",
-    },
-    "AV1_OpenGOP":
-    {
-        "LD":     "D:\\HEVC-AV1-Study\\AV1-RA-OpenGop\\analysis\\rdresult\\RDResults_aom_av1_RA_Preset_0.csv",
-    },
+csv_paths = {
+    "v1.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v1.0.0-alt-anchor-r3.0-new\\analysis\\rdresult",
+    "v2.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v2.0.0-new\\analysis\\rdresult",
+    "v3.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v3.0.0-new\\analysis\\rdresult",
+    "v7.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v7.0.0-new\\analysis\\rdresult",
 }
-'''
-csv_files = {
-    "v1.0.0":
-    {
-        "AI":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-    "v4.0.0":
-    {
-        "AI":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-}
+
 
 start_row = {
     "AI": 2,
@@ -77,7 +49,9 @@ start_row = {
 
 formats = {
     "v1.0.0":       ['r', '-', 'o'],
-    "v4.0.0":       ['g', '-', '*'],
+    "v2.0.0":       ['g', '-', '*'],
+    "v3.0.0":       ['b', '-', '^'],
+    "v7.0.0":       ['r', '-', '+'],
 }
 
 AS_formats = {
@@ -93,6 +67,17 @@ anchor = "v1.0.0"
 rd_curve_pdf = "rdcurve.pdf"
 colors = cycle('bgrycmk')
 markers = cycle('o*^+<x')
+
+def populate_stats_files():
+    stats_files = {}
+    for tag in csv_paths.keys():
+        stats_files[tag] = {}
+        for cfg in ["AI", "LD", "RA", "Still", "AS"]:
+            if cfg == "Still":
+                stats_files[tag][cfg] = os.path.join(csv_paths[tag], "RDResults_aom_av2_STILL_Preset_0.csv")
+            else:
+                stats_files[tag][cfg] = os.path.join(csv_paths[tag], "RDResults_aom_av2_%s_Preset_0.csv"%cfg)
+    return stats_files
 
 def WriteSheet(csv_file, sht, start_row):
     csv = open(csv_file, 'rt')
@@ -264,6 +249,8 @@ def DrawCombinedRuntime(records):
     with PdfPages(pdf) as export_pdf:
         for tag in csv_files.keys():
             for cfg in csv_files[tag].keys():
+                if cfg == "RA":
+                    continue
                 videos = records[tag][cfg].keys()
                 plt.figure(figsize=(30, 30))
                 plt.suptitle("%s : %s" % (tag, cfg))
@@ -297,43 +284,41 @@ def DrawCombinedRuntime(records):
                 export_pdf.savefig()
                 plt.close()
 
-def GetQty(record, qty):
-    qtys = []
-    for key in record.keys():
-        if qty == 'psnr_y':
-            qtys.append(record[key].psnr_y)
-        elif qty == 'psnr_u':
-            qtys.append(record[key].psnr_u)
-        elif qty == 'psnr_v':
-            qtys.append(record[key].psnr_v)
-        elif qty == 'overall_psnr':
-            qtys.append(record[key].overall_psnr)
-        elif qty == 'ssim_y':
-            qtys.append(record[key].ssim_y)
-        elif qty == 'ms_ssim_y':
-            qtys.append(record[key].ms_ssim_y)
-        elif qty == 'vmaf':
-            qtys.append(record[key].vmaf_y)
-        elif qty == 'vmaf_neg':
-            qtys.append(record[key].vmaf_y_neg)
-        elif qty == 'psnr_hvs':
-            qtys.append(record[key].psnr_hvs)
-        elif qty == 'ciede2k':
-            qtys.append(record[key].ciede2k)
-        elif qty == 'apsnr_y':
-            qtys.append(record[key].apsnr_y)
-        elif qty == 'apsnr_u':
-            qtys.append(record[key].apsnr_u)
-        elif qty == 'apsnr_v':
-            qtys.append(record[key].apsnr_v)
-        elif qty == 'overall_apsnr':
-            qtys.append(record[key].overall_apsnr)
-        else:
-            assert(0)
-    return qtys
+def GetQty(record, key, qty):
+    if qty == 'psnr_y':
+        q = record[key].psnr_y
+    elif qty == 'psnr_u':
+        q = record[key].psnr_u
+    elif qty == 'psnr_v':
+        q = record[key].psnr_v
+    elif qty == 'overall_psnr':
+        q = record[key].overall_psnr
+    elif qty == 'ssim_y':
+        q = record[key].ssim_y
+    elif qty == 'ms_ssim_y':
+        q = record[key].ms_ssim_y
+    elif qty == 'vmaf':
+        q = record[key].vmaf_y
+    elif qty == 'vmaf_neg':
+        q = record[key].vmaf_y_neg
+    elif qty == 'psnr_hvs':
+        q = record[key].psnr_hvs
+    elif qty == 'ciede2k':
+        q = record[key].ciede2k
+    elif qty == 'apsnr_y':
+        q = record[key].apsnr_y
+    elif qty == 'apsnr_u':
+        q = record[key].apsnr_u
+    elif qty == 'apsnr_v':
+        q = record[key].apsnr_v
+    elif qty == 'overall_apsnr':
+        q = record[key].overall_apsnr
+    else:
+        assert(0)
+    return q
 
-def CalcBDRate(anchor, test):
-    anchor_qty = {}; test_qty = {}
+def CalcBDRate(tag, cfg, cls, video, anchor, test):
+    bdrate = {}; anchor_qty = {}; test_qty = {}
     br_anchor = []; br_test = []
     for key in anchor.keys():
         br_anchor.append(anchor[key].bitrate)
@@ -341,35 +326,114 @@ def CalcBDRate(anchor, test):
         br_test.append(test[key].bitrate)
 
     for qty in qtys:
-        anchor_qty[qty]   = GetQty(anchor, qty)
-        test_qty[qty] = GetQty(test, qty)
+        anchor_qty[qty] = []; test_qty[qty] = []
+        for key in anchor.keys():
+            anchor_qty[qty].append(GetQty(anchor, key, qty))
+            test_qty[qty].append(GetQty(test, key, qty))
 
-    bdrate = {}; err = 0
+    bdrate["tag"] = tag
+    bdrate["cfg"] = cfg
+    bdrate["class"] = cls
+    bdrate["video"] = video
+
     for qty in qtys:
-        (err, bdrate[qty]) = BD_RATE(qty, br_anchor, anchor_qty[qty],
+        (err, bd ) = BD_RATE(qty, br_anchor, anchor_qty[qty],
                                      br_test, test_qty[qty])
+        if err == 0:
+            bdrate[qty] = bd
+        else:
+            bdrate[qty] = 0.0
     return bdrate
 
-def CalcFullBDRate(cfg):
-    bdrate = {}; seq_time = {}; seq_instr = {}
-    for video in records[anchor][cfg].keys():
-        bdrate[video] = {}; seq_time[video] = {}
-        seq_instr[video] = {}
-        for mode in records.keys():
-            record = records[mode][cfg][video]
-            if mode not in seq_time[video].keys():
-                seq_time[video][mode] = 0
 
-            if mode not in seq_instr[video].keys():
-                seq_instr[video][mode] = 0
+def CalcConvexHull(record):
+    br = {}; quality = {}
+    cvx_hull = {}
 
-            for key in record.keys():
-                seq_time[video][mode] += record[key].enc_time
-                seq_instr[video][mode] += record[key].enc_instr
-            if mode == anchor:
-                continue
-            bdrate[video][mode] = CalcBDRate(records[anchor][cfg][video], records[mode][cfg][video])
-    return (bdrate, seq_time, seq_instr)
+    for key in record.keys():
+        res = re.split('_', key)[0]
+        if res not in br.keys():
+            br[res] = []
+            quality[res] = {}
+
+        br[res].append(record[key].bitrate)
+        for q in qtys:
+            if q not in quality[res].keys():
+                quality[res][q] = []
+            quality[res][q].append(GetQty(record, key, q))
+
+    for q in qtys:
+        Int_RDPoints = []
+        for res in br.keys():
+            rdpnts = [(brt, qty) for brt, qty in zip(br[res], quality[res][q])]
+            if UsePCHIPInterpolation:
+                int_rdpnts = Interpolate_PCHIP(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+            else:
+                int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+            Int_RDPoints += int_rdpnts
+
+        lower, upper = convex_hull(Int_RDPoints)
+        cvx_hull[q] = upper
+
+    return cvx_hull
+
+def CalcASBDRate(tag, cfg, cls, video, anchor, test):
+    # first produce convex hull for each quality
+    convex_hull = {}
+    convex_hull['anchor'] = CalcConvexHull(anchor)
+    convex_hull['test'] = CalcConvexHull(test)
+
+    # calculate bdrate for each quality metric
+    bdrate = {};
+    bdrate["tag"] = tag
+    bdrate["cfg"] = cfg
+    bdrate["class"] = cls
+    bdrate["video"] = video
+
+    for q in qtys:
+        br_anchor = list(zip(*convex_hull['anchor'][q]))[0]
+        br_test = list(zip(*convex_hull['test'][q]))[0]
+        quality_anchor = list(zip(*convex_hull['anchor'][q]))[1]
+        quality_test = list(zip(*convex_hull['test'][q]))[1]
+
+        (err, bd ) = BD_RATE(q, br_anchor, quality_anchor, br_test, quality_test)
+        if err == 0:
+            bdrate[q] = bd
+        else:
+            bdrate[q] = 0.0
+    return bdrate
+
+def CalcFullBDRate(anchor):
+    bdrate = []; seq_time = []
+    for cfg in csv_files[anchor].keys():
+        for video in records[anchor][cfg].keys():
+            for tag in records.keys():
+                record = records[tag][cfg][video]
+                time = 0; instr = 0
+                for key in record.keys():
+                    time += record[key].enc_time
+                    instr += record[key].enc_instr
+                    video_class = record[key].file_class
+
+                total_time = {}
+                total_time["tag"] = tag
+                total_time["cfg"] = cfg
+                total_time["class"] = video_class
+                total_time["video"] = video
+                total_time["time"] = time
+                total_time["instr"] = instr
+
+                seq_time.append(total_time)
+
+                if tag == anchor:
+                    continue
+                if cfg == "AS":
+                    bd = CalcASBDRate(tag, cfg, video_class, video, records[anchor][cfg][video], records[tag][cfg][video])
+                else:
+                    bd = CalcBDRate(tag, cfg, video_class, video, records[anchor][cfg][video], records[tag][cfg][video])
+                bdrate.append(bd)
+
+    return (bdrate, seq_time)
 
 
 def WriteSummaryXlsFile(bdrate, seq_time, seq_instr, summary):
@@ -444,11 +508,13 @@ def WriteSummaryXlsFile(bdrate, seq_time, seq_instr, summary):
 # main
 ######################################
 if __name__ == "__main__":
+    csv_files = populate_stats_files()
     records = {}
     for tag in csv_files.keys():
         records[tag] = {}
         for test_cfg in csv_files[tag].keys():
-            records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg])
+            IgnorePerf = (test_cfg == "RA")
+            records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg], IgnorePerf)
 
     FillXlsFile()
     DrawCombinedRDCurve(records)
@@ -456,8 +522,49 @@ if __name__ == "__main__":
     DrawIndividualRDCurve(records, anchor, rd_curve_pdf)
 
     #Calculate BDRate and collect total time
-    for test_cfg in csv_files[anchor].keys():
-        (bdrate, seq_time, seq_instr) = CalcFullBDRate(test_cfg)
-        #Write output summary xls file
-        filename = "Summary-AV1-vs-AV2_v4.0_%s"%test_cfg
-        WriteSummaryXlsFile(bdrate, seq_time, seq_instr, filename)
+    (bdrate, seq_time) = CalcFullBDRate(anchor)
+
+    df = pd.DataFrame(bdrate)
+    average_bdrate_by_tag = df.groupby(['tag', 'cfg', 'class']).agg({
+        'psnr_y': ['mean'],
+        'psnr_u': ['mean'],
+        'psnr_v': ['mean'],
+        'overall_psnr': ['mean'],
+        'ssim_y': ['mean'],
+        'ms_ssim_y':['mean'],
+        'vmaf':['mean'],
+        'vmaf_neg':['mean'],
+        'psnr_hvs':['mean'],
+        'ciede2k':['mean'],
+        'apsnr_y':['mean'],
+        'apsnr_u':['mean'],
+        'apsnr_v':['mean'],
+        'overall_apsnr':['mean']
+    })
+
+    #print(average_bdrate)
+    #print(tabulate(average_bdrate, headers='keys', tablefmt='psql'))
+
+    # Write output summary csv file
+    AvgBDRATEFile = "AverageBdrate-Summary-AV1-vs-AV2.csv"
+    average_bdrate_by_tag.to_csv(AvgBDRATEFile, index=True)
+
+    average_bdrate_by_video = df.groupby(['cfg', 'class', 'video', 'tag']).agg({
+        'psnr_y': ['mean'],
+        'psnr_u': ['mean'],
+        'psnr_v': ['mean'],
+        'overall_psnr': ['mean'],
+        'ssim_y': ['mean'],
+        'ms_ssim_y': ['mean'],
+        'vmaf': ['mean'],
+        'vmaf_neg': ['mean'],
+        'psnr_hvs': ['mean'],
+        'ciede2k': ['mean'],
+        'apsnr_y': ['mean'],
+        'apsnr_u': ['mean'],
+        'apsnr_v': ['mean'],
+        'overall_apsnr': ['mean']
+    })
+
+    PerVideoBDRATEFile = "PerVideoBdrate-Summary-AV1-vs-AV2.csv"
+    average_bdrate_by_video.to_csv(PerVideoBDRATEFile, index=True)

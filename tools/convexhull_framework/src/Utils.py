@@ -90,11 +90,12 @@ class Record:
     dec_instr = 0.0
     enc_cycle = 0.0
     dec_cycle = 0.0
+    ignore_perf = False
 
     def __init__(self, test_cfg, encode_mode , codec_name, encode_preset, file_class, file_name,
                  orig_res, fps, bit_depth, coded_res, qp, bitrate, psnr_y, psnr_u, psnr_v,
                  ssim_y, ms_ssim_y, vmaf_y, vmaf_y_neg, psnr_hvs, ciede2k, apsnr_y, apsnr_u,
-                 apsnr_v, cambi, enc_time, dec_time, enc_instr, dec_instr, enc_cycle, dec_cycle):
+                 apsnr_v, cambi, enc_time, dec_time, enc_instr, dec_instr, enc_cycle, dec_cycle, ignore_perf):
 
         self.test_cfg = test_cfg
         self.encode_mode = encode_mode
@@ -128,14 +129,15 @@ class Record:
                                                    APSNR_V_WEIGHT/pow(10, (self.apsnr_v / 10))) /
                                               (APSNR_Y_WEIGHT + APSNR_U_WEIGHT + APSNR_V_WEIGHT)))
         self.cambi = float(cambi)
-        self.enc_time = float(enc_time)
-        self.dec_time = float(dec_time)
-        self.enc_instr = float(enc_instr)
-        self.dec_instr = float(dec_instr)
-        self.enc_cycle = float(enc_cycle)
-        self.dec_cycle = float(dec_cycle)
+        if not ignore_perf:
+            self.enc_time = float(enc_time)
+            self.dec_time = float(dec_time)
+            self.enc_instr = float(enc_instr)
+            self.dec_instr = float(dec_instr)
+            self.enc_cycle = float(enc_cycle)
+            self.dec_cycle = float(dec_cycle)
 
-def ParseCSVFile(csv_file):
+def ParseCSVFile(csv_file, IgnorePerf=False):
     records = {}
     with open(csv_file, 'r') as f:
         list_of_data = list(DictReader(f))
@@ -148,12 +150,13 @@ def ParseCSVFile(csv_file):
                             data['PSNR_V'], data['SSIM_Y(dB)'], data['MS-SSIM_Y(dB)'], data['VMAF_Y'],
                             data['VMAF_Y-NEG'], data['PSNR-HVS'], data['CIEDE2000'], data['APSNR_Y'],
                             data['APSNR_U'], data['APSNR_V'], data['CAMBI'], data['EncT[s]'], data['DecT[s]'],
-                            data['EncInstr'], data['DecInstr'], data['EncCycles'], data['DecCycles'])
+                            data['EncInstr'], data['DecInstr'], data['EncCycles'], data['DecCycles'], IgnorePerf)
 
             if name not in records.keys():
                 records[name] = {}
             records[name][key] = record
     return records
+
 
 def Cleanfolder(folder):
     if os.path.isdir(folder):
@@ -203,6 +206,17 @@ def GetVmafLogFile(bsfile, logpath):
     filename = GetShortContentName(bsfile, False) + '_VmafLog.txt'
     return os.path.join(logpath, filename)
 
+def ParseDecLogFile(dec_log):
+    """
+    Parse dec log
+    """
+    num_dec_frame = 0
+    with open(dec_log, 'r') as f:
+        for line in f:
+            m = re.search(r"(\d+) decoded frames/(\d+) showed frames", line)
+            if m:
+                num_dec_frame = int(m.group(1))
+    return num_dec_frame
 
 def parseY4MHeader(y4m):
     """
@@ -298,6 +312,9 @@ def GatherInstrCycleInfo(bsfile, Path_TimingLog):
     dec_instr = 0; dec_cycles = 0
     flog = open(enc_perf, 'r')
     for line in flog:
+        m = re.search(r"<not supported>\s+", line)
+        if m:
+            continue
         m = re.search(r"(\S+)\s+instructions", line)
         if m:
             enc_instr = int(m.group(1).replace(',', ''))
@@ -311,6 +328,9 @@ def GatherInstrCycleInfo(bsfile, Path_TimingLog):
 
     flog = open(dec_perf, 'r')
     for line in flog:
+        m = re.search(r"<not supported>\s+", line)
+        if m:
+            continue
         m = re.search(r"(\S+)\s+instructions", line)
         if m:
             dec_instr = int(m.group(1).replace(',', ''))

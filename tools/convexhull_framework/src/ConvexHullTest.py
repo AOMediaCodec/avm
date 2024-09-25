@@ -142,16 +142,16 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                     missing.write("\n%s is missing" % bs)
                     continue
 
-                bitrate = round((os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
-                           / FrameNum['AS']) / 1000.0, 6)
-                bitratesKbps.append(bitrate)
-
-                quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
+                quality, perframe_vmaf_log, frame_num = GatherQualityMetrics(reconyuv, Path_QualityLog)
 
                 if not quality:
                     print("%s quality metrics is missing" % bs)
                     missing.write("\n%s quality metrics is missing" % bs)
                     continue
+
+                bitrate = round((os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
+                           / frame_num) / 1000.0, 6)
+                bitratesKbps.append(bitrate)
 
                 qualities.append(quality)
 

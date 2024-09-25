@@ -68,7 +68,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
         if (br2[i] != '' and qtyMtrc2[i] != ''):
             brqtypairs2.append((br2[i], qtyMtrc2[i]))
 
-    if (qty_type == 'VMAF_Y' or qty_type == 'VMAF_Y-NEG'):
+    if (qty_type == 'VMAF_Y' or qty_type == 'VMAF_Y-NEG' or qty_type == 'vmaf' or qty_type == 'vmaf-neg'):
         brqtypairs1 = filter_vmaf_non_monotonic(brqtypairs1)
         brqtypairs2 = filter_vmaf_non_monotonic(brqtypairs2)
 
