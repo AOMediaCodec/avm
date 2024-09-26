@@ -934,17 +934,18 @@ static const int rd_layer_depth_factor[6] = {
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 #if CONFIG_DQ
-  const int tcq_mode =
-      cpi->common.quant_params
-          .tcq_mode;  // currently bluntly set TCQ mode as 1, need to pass in
-  const int q =
-      av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                           cpi->common.seq_params.bit_depth, tcq_mode);
+    const int tcq_mode =
+            cpi->common.quant_params
+                    .tcq_mode;  // currently bluntly set TCQ mode as 1, need to pass in
+    const int q =
+            av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+                                 cpi->common.seq_params.bit_depth, tcq_mode);
 #else
   const int q =
       av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                        cpi->common.seq_params.bit_depth);
-#endif  // CONFIG_DQ
+#endif // CONFIG_DQ
+
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
       (int64_t)((int64_t)q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN),
       2 * QUANT_TABLE_BITS);
@@ -1857,40 +1858,40 @@ static double interp_bicubic(const double *p, int p_stride, double x,
 */
 
 static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    2,
-    2,
-    2,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
+  0,
+  0,
+  0,
+  1,
+  1,
+  1,
+  2,
+  2,
+  2,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
 #if CONFIG_BLOCK_256
-    3,
-    3,
-    3,
+  3,
+  3,
+  3,
 #endif  // CONFIG_BLOCK_256
-    1,
-    1,
-    2,
-    2,
-    3,
-    3,
+  1,
+  1,
+  2,
+  2,
+  3,
+  3,
 #if CONFIG_FLEX_PARTITION
-    1,
-    1,
-    2,
-    2,
-    2,
-    2,
+  1,
+  1,
+  2,
+  2,
+  2,
+  2,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
@@ -1916,40 +1917,40 @@ static double get_rate_clamplinear(double l, double a, double b) {
 }
 
 static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    2,
-    3,
-    3,
-    4,
-    5,
-    5,
-    6,
-    7,
-    7,
-    8,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  2,
+  3,
+  3,
+  4,
+  5,
+  5,
+  6,
+  7,
+  7,
+  8,
 #if CONFIG_BLOCK_256
-    8,
-    8,
-    8,
+  8,
+  8,
+  8,
 #endif  // CONFIG_BLOCK_256
-    0,
-    0,
-    2,
-    2,
-    4,
-    4,
+  0,
+  0,
+  2,
+  2,
+  4,
+  4,
 #if CONFIG_FLEX_PARTITION
-    1,
-    1,
-    3,
-    3,
-    2,
-    2,
+  1,
+  1,
+  3,
+  3,
+  2,
+  2,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
