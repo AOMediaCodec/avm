@@ -356,7 +356,9 @@ set_aom_config_var(CONFIG_TMVP_IMPROVE 1
                    "Enable to improve TMVP candidate selection in DRL list")
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
-
+set_aom_config_var(
+  CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE 1
+  "CWG-E186: Enable CDEF frame-level enabling decision improvement.")
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 
