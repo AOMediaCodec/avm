@@ -93,6 +93,8 @@ typedef struct aom_codec_dec_cfg {
   unsigned int threads; /**< Maximum number of threads to use, default 1 */
   unsigned int w;       /**< Width */
   unsigned int h;       /**< Height */
+  char *path_parakit;   /**< ParaKit data path */
+  char *suffix_parakit; /**< ParaKit data suffix */
 } aom_codec_dec_cfg_t;  /**< alias for struct aom_codec_dec_cfg */
 
 /*!\brief Initialize a decoder instance

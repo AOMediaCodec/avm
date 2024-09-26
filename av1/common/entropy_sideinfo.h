@@ -26,10 +26,6 @@ extern "C" {
 extern int beginningFrameFlag[MAX_NUMBER_CONTEXTS][MAX_DIMS_CONTEXT3]
                              [MAX_DIMS_CONTEXT2][MAX_DIMS_CONTEXT1]
                              [MAX_DIMS_CONTEXT0];
-
-extern char *datafilename_suffix;
-extern char *datafilename_path;
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

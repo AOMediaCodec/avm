@@ -46,8 +46,6 @@
 #include "av1/common/entropy_sideinfo.h"
 int beginningFrameFlag[MAX_NUMBER_CONTEXTS][MAX_DIMS_CONTEXT3]
                       [MAX_DIMS_CONTEXT2][MAX_DIMS_CONTEXT1][MAX_DIMS_CONTEXT0];
-char *datafilename_suffix = NULL;
-char *datafilename_path = NULL;
 #endif
 
 static void initialize_dec(void) {
@@ -191,7 +189,12 @@ static INLINE void dec_free_optflow_bufs(AV1_COMMON *const cm) {
 }
 #endif  // CONFIG_OPTFLOW_ON_TIP
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+AV1Decoder *av1_decoder_create(BufferPool *const pool, const char *path,
+                               const char *suffix) {
+#else
 AV1Decoder *av1_decoder_create(BufferPool *const pool) {
+#endif
   AV1Decoder *volatile const pbi = aom_memalign(32, sizeof(*pbi));
   if (!pbi) return NULL;
   av1_zero(*pbi);
@@ -298,8 +301,8 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
     const int num_idx2 = cm->prob_models[f].num_idx[2];
     const int num_idx3 = cm->prob_models[f].num_idx[3];
     const char *str_ctx = cm->prob_models[f].ctx_group_name;
-    const char *str_path = datafilename_path ? datafilename_path : ".";
-    const char *str_suffix = datafilename_suffix ? datafilename_suffix : "data";
+    const char *str_path = path ? path : ".";
+    const char *str_suffix = suffix ? suffix : "data";
     char filename[2048];
     sprintf(filename, "%s/Stat_%s_%s.csv", str_path, str_ctx, str_suffix);
     FILE *fData = fopen(filename, "wt");

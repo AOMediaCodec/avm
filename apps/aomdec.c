@@ -551,7 +551,7 @@ static int main_loop(int argc, const char **argv_) {
   int opt_yv12 = 0;
   int opt_i420 = 0;
   int opt_raw = 0;
-  aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
+  aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
   unsigned int fixed_output_bit_depth = 0;
   unsigned int is_annexb = 0;
   int frames_corrupted = 0;
@@ -574,6 +574,11 @@ static int main_loop(int argc, const char **argv_) {
 
   MD5Context md5_ctx;
   unsigned char md5_digest[16];
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+  char *datafilename_path = NULL;
+  char *datafilename_suffix = NULL;
+#endif
 
   struct AvxDecInputContext input = { NULL, NULL, NULL };
   struct AvxInputContext aom_input_ctx;
@@ -612,9 +617,9 @@ static int main_loop(int argc, const char **argv_) {
       outfile_pattern = arg.val;
 #if CONFIG_PARAKIT_COLLECT_DATA
     } else if (arg_match(&arg, &datafilesuffix, argi)) {
-      datafilename_suffix = (char*) arg.val;
+      datafilename_suffix = (char *)arg.val;
     } else if (arg_match(&arg, &datafilepath, argi)) {
-      datafilename_path = (char*) arg.val;
+      datafilename_path = (char *)arg.val;
 #endif
     } else if (arg_match(&arg, &use_yv12, argi)) {
       use_y4m = 0;
@@ -792,6 +797,10 @@ static int main_loop(int argc, const char **argv_) {
 
   if (!interface) interface = get_aom_decoder_by_index(0);
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+  cfg.path_parakit = datafilename_path;
+  cfg.suffix_parakit = datafilename_suffix;
+#endif
   dec_flags = 0;
   if (aom_codec_dec_init(&decoder, interface, &cfg, dec_flags)) {
     fprintf(stderr, "Failed to initialize decoder: %s\n",

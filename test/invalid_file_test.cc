@@ -102,7 +102,7 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
 
   void RunTest() {
     const DecodeParam input = GET_PARAM(1);
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
     cfg.threads = input.threads;
     const std::string filename = input.filename;
     libaom_test::IVFVideoSource decode_video(filename);
