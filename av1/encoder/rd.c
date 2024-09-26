@@ -936,12 +936,12 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 #if CONFIG_DQ
   const int tcq_mode = cpi->common.quant_params.tcq_mode;
   const int q =
-          av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                               cpi->common.seq_params.bit_depth, tcq_mode);
+      av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+                           cpi->common.seq_params.bit_depth, tcq_mode);
 #else
   const int q =
-          av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                           cpi->common.seq_params.bit_depth);
+      av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+                       cpi->common.seq_params.bit_depth);
 #endif  // CONFIG_DQ
 
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
