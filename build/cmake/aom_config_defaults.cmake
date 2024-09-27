@@ -505,6 +505,8 @@ set_aom_config_var(CONFIG_IST_ANY_SET 1
 set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
                    "Enable CCSO frame level joint flag.")
 
+set_aom_config_var(CONFIG_CCSO_BO_REDUCE 1 "Reduce band only 128 case.")
+
 set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
   "CWG-D086: Context modeling for transform block zero flag signaling")

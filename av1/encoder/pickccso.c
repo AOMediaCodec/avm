@@ -1053,7 +1053,11 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
             }
             int num_band_iter = total_band_log2_plus1;
             if (ccso_bo_only) {
-              num_band_iter = total_band_log2_plus1 + 4;
+#if CONFIG_CCSO_BO_REDUCE
+              num_band_iter = total_band_log2_plus1 + 3;
+#else
+            num_band_iter = total_band_log2_plus1 + 4;
+#endif  // CONFIG_CCSO_BO_REDUCE
             }
             for (int max_band_log2 = 0; max_band_log2 < num_band_iter;
                  max_band_log2++) {

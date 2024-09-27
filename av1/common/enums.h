@@ -140,7 +140,11 @@ enum {
 // Cross-Component Sample Offset (CCSO)
 #define CCSO_BLK_SIZE 7
 #define CCSO_PADDING_SIZE 5
+#if CONFIG_CCSO_BO_REDUCE
+#define CCSO_BAND_NUM 64
+#else
 #define CCSO_BAND_NUM 128
+#endif  // CONFIG_CCSO_BO_REDUCE
 #define CCSO_NUM_COMPONENTS 3
 
 #define BUGFIX_AMVD_AMVR 1
