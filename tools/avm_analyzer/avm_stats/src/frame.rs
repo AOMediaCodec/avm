@@ -192,4 +192,16 @@ impl Frame {
         }
         "UNKNOWN".into()
     }
+
+    pub fn subsampling_x(&self) -> u8 {
+        self.frame_params
+            .as_ref()
+            .map_or(0, |frame_params| frame_params.subsampling_x as u8)
+    }
+
+    pub fn subsampling_y(&self) -> u8 {
+        self.frame_params
+            .as_ref()
+            .map_or(0, |frame_params| frame_params.subsampling_y as u8)
+    }
 }

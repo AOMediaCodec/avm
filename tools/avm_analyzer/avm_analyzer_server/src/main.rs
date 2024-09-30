@@ -305,6 +305,10 @@ async fn create_thumbnail(first_frame: &Path, thumbnail_out: &Path) {
 
         let width = planes[0].width as usize;
         let height = planes[0].height as usize;
+        let uv_width = planes[1].width as usize;
+        let uv_height = planes[1].height as usize;
+        let uv_width_scale = width / uv_width;
+        let uv_height_scale = height / uv_height;
         let mut img = RgbImage::new(width as u32, height as u32);
         let raw_y = planes[0].pixels.as_slice();
         let raw_u = planes[1].pixels.as_slice();
@@ -313,8 +317,8 @@ async fn create_thumbnail(first_frame: &Path, thumbnail_out: &Path) {
         for i in 0..height {
             for j in 0..width {
                 let y = raw_y[i * width + j] as f32;
-                let u = raw_u[(i / 2) * (width / 2) + (j / 2)] as f32;
-                let v = raw_v[(i / 2) * (width / 2) + (j / 2)] as f32;
+                let u = raw_u[(i / uv_height_scale) * (width / uv_width_scale) + (j / uv_width_scale)] as f32;
+                let v = raw_v[(i / uv_height_scale) * (width / uv_width_scale) + (j / uv_width_scale)] as f32;
 
                 let is_8_bit = planes[0].bit_depth == 8;
                 let y = if is_8_bit { y } else { y / 4.0 };

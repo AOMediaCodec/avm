@@ -232,6 +232,8 @@ message FrameParams {
   int32 bit_depth = 9;
   // Raw display index, may not be unique within the whole stream (e.g. if the stream contains more than one sequence).
   int32 raw_display_index = 10;
+  int32 subsampling_x = 11;  // Chroma subsampling for x
+  int32 subsampling_y = 12;  // Chroma subsampling for y
 }
 
 message StreamParams {

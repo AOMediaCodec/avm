@@ -133,8 +133,8 @@ impl PixelPlane {
     fn create_from_tip_frame(frame: &Frame, plane: Plane, pixel_type: PixelType) -> Result<Self, FrameError> {
         use FrameError::*;
         let tip_params = frame.tip_frame_params.as_ref().unwrap();
-        let width = plane.subsampled(frame.width());
-        let height = plane.subsampled(frame.height());
+        let width = plane.subsampled(frame.width(), frame.subsampling_x());
+        let height = plane.subsampled(frame.height(), frame.subsampling_y());
         let bit_depth = frame.bit_depth();
         let mut pixels = vec![0; (width * height) as usize];
 
@@ -194,22 +194,24 @@ impl PixelPlane {
 
     fn create_from_superblocks(frame: &Frame, plane: Plane, pixel_type: PixelType) -> Result<Self, FrameError> {
         use FrameError::*;
-        let width = plane.subsampled(frame.width());
-        let height = plane.subsampled(frame.height());
+        let width = plane.subsampled(frame.width(), frame.subsampling_x());
+        let height = plane.subsampled(frame.height(), frame.subsampling_y());
         let bit_depth = frame.bit_depth();
         let mut pixels = vec![0; (width * height) as usize];
+        let frame_width=frame.width();
+        let frame_height=frame.height();
 
         for sb_ctx in frame.iter_superblocks() {
             let sb = sb_ctx.superblock;
-            let sb_width = plane.subsampled(sb.width());
-            let sb_height = plane.subsampled(sb.height());
+            let sb_width = plane.subsampled(sb.width(), frame.subsampling_x());
+            let sb_height = plane.subsampled(sb.height(), frame.subsampling_y());
 
             if sb_width <= 0 || sb_height <= 0 {
                 return Err(BadSuperblock(format!("Invalid dimensions: {sb_width}x{sb_height}")));
             }
 
-            let sb_x = plane.subsampled(sb.x());
-            let sb_y = plane.subsampled(sb.y());
+            let sb_x = plane.subsampled(sb.x(), frame.subsampling_x());
+            let sb_y = plane.subsampled(sb.y(), frame.subsampling_y());
             if sb_x < 0 || sb_x >= width || sb_y < 0 || sb_y >= height {
                 return Err(BadSuperblock(format!("Outside frame bounds: x={sb_x}, y={sb_y}")));
             }

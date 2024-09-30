@@ -45,9 +45,13 @@ impl Plane {
         }
     }
 
-    pub fn subsampled(&self, dimension: i32) -> i32 {
+    pub fn subsampled(&self, dimension: i32, subsample: u8) -> i32 {
         if self.is_chroma() {
+            if subsample == 0 {
+                dimension
+            } else {
             (dimension + 1) / 2
+            }
         } else {
             dimension
         }

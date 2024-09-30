@@ -533,13 +533,13 @@ struct YuvFrameSizeInfo {
   size_t plane_stride_bytes[3];
 };
 
-YuvFrameSizeInfo GetYuvFrameSizeInfo(int bit_depth, size_t frame_width,
-                                     size_t frame_height) {
+YuvFrameSizeInfo GetYuvFrameSizeInfo(int bit_depth, size_t frame_width, size_t frame_height,
+                                     int subsampling_x, int subsampling_y) {
   const size_t bytes_per_sample = (bit_depth == 8) ? 1 : 2;
   const size_t luma_size_bytes = frame_width * frame_height * bytes_per_sample;
   // Round up in the case of odd frame dimensions:
-  const size_t chroma_width = (frame_width + 1) / 2;
-  const size_t chroma_height = (frame_height + 1) / 2;
+  const size_t chroma_width = subsampling_x ? (frame_width + 1) / 2 : frame_width;
+  const size_t chroma_height = subsampling_y ? (frame_height + 1) / 2 : frame_height;
   const size_t chroma_size_bytes =
       chroma_width * chroma_height * bytes_per_sample;
   const size_t frame_size_bytes = luma_size_bytes + 2 * chroma_size_bytes;
@@ -648,8 +648,11 @@ void InspectTipFrame(void *pbi, void *data) {
   }
   const size_t frame_width = cm->width;
   const size_t frame_height = cm->height;
+  const int subsampling_x = cm->seq_params.subsampling_x;
+  const int subsampling_y = cm->seq_params.subsampling_y;
   YuvFrameSizeInfo frame_size_info =
-      GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height);
+      GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height,
+                          subsampling_x, subsampling_y);
 
   auto *frame_params = frame.mutable_frame_params();
   frame_params->set_display_index(GetAbsoluteDisplayIndex(
@@ -658,6 +661,8 @@ void InspectTipFrame(void *pbi, void *data) {
   frame_params->set_decode_index(ctx->decode_count++);
   frame_params->set_width(frame_width);
   frame_params->set_height(frame_height);
+  frame_params->set_subsampling_x(subsampling_x);
+  frame_params->set_subsampling_y(subsampling_y);
   frame_params->set_bit_depth(bit_depth);
   frame_params->set_frame_type(cm->current_frame.frame_type);
   frame_params->set_show_frame(cm->show_frame);
@@ -709,13 +714,18 @@ void InspectFrame(void *pbi, void *data) {
     return;
   }
 
+  AV1Decoder *decoder = (AV1Decoder *)pbi;
+  AV1_COMMON *const cm = &decoder->common;
   StreamParams *stream_params = ctx->stream_params;
   Frame frame;
   *frame.mutable_stream_params() = *stream_params;
   const size_t frame_width = frame_data.width;
   const size_t frame_height = frame_data.height;
+  const int subsampling_x = cm->seq_params.subsampling_x;
+  const int subsampling_y = cm->seq_params.subsampling_y;
   YuvFrameSizeInfo frame_size_info =
-      GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height);
+      GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height,
+                          subsampling_x, subsampling_y);
   auto *frame_params = frame.mutable_frame_params();
   frame_params->set_display_index(GetAbsoluteDisplayIndex(
       ctx, frame_data.frame_number, frame_data.frame_type));
@@ -725,6 +735,8 @@ void InspectFrame(void *pbi, void *data) {
   frame_params->set_base_qindex(frame_data.base_qindex);
   frame_params->set_width(frame_width);
   frame_params->set_height(frame_height);
+  frame_params->set_subsampling_x(subsampling_x);
+  frame_params->set_subsampling_y(subsampling_y);
 
   auto *tip_frame = frame.mutable_tip_frame_params();
   tip_frame->set_tip_mode(frame_data.tip_frame_mode);
@@ -777,10 +789,12 @@ void InspectFrame(void *pbi, void *data) {
       sb->mutable_size()->set_enum_value(frame_data.superblock_size);
       // TODO(comc): Add special case for monochrome
       for (int plane = 0; plane < 3; plane++) {
-        int sb_plane_x_offset_px = plane ? sb_x_offset_px / 2 : sb_x_offset_px;
-        int sb_plane_y_offset_px = plane ? sb_y_offset_px / 2 : sb_y_offset_px;
-        int sb_plane_width_px = plane ? sb_width_px / 2 : sb_width_px;
-        int sb_plane_height_px = plane ? sb_height_px / 2 : sb_height_px;
+        int subsampling_x = plane ? frame_params->subsampling_x() : 0;
+        int subsampling_y = plane ? frame_params->subsampling_y() : 0;
+        int sb_plane_x_offset_px = sb_x_offset_px >> subsampling_x;
+        int sb_plane_y_offset_px = sb_y_offset_px >> subsampling_y;
+        int sb_plane_width_px = sb_width_px >> subsampling_x;
+        int sb_plane_height_px = sb_height_px >> subsampling_y;
         int remaining_width =
             frame_size_info.plane_width[plane] - sb_plane_x_offset_px;
         int remaining_height =
