@@ -30,6 +30,17 @@ impl FrameInfoViewer {
         // info.push(("Show frame".into(), params.show_frame.to_string()));
         info.push(("Base QIndex".into(), params.base_qindex.to_string()));
         info.push(("Bit depth".into(), params.bit_depth.to_string()));
+        let chroma_format =
+            if params.subsampling_x == 0 && params.subsampling_y == 0 {
+                "4:4:4"
+            } else if params.subsampling_x == 1 && params.subsampling_y == 0 {
+                "4:2:2"
+            } else if params.subsampling_x == 1 && params.subsampling_y == 1 {
+                "4:2:0"
+            } else {
+                "Unknown"
+            };
+        info.push(("Chroma format".into(), chroma_format.to_string()));
         Some(info)
     }
 }
