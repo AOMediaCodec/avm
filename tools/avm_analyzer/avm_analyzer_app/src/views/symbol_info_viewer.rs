@@ -36,9 +36,9 @@ impl RenderView for SymbolInfoViewer {
 
         ui.separator();
         TableBuilder::new(ui)
-            .column(Column::initial(200.0).resizable(true))
-            .column(Column::initial(100.0).resizable(true))
-            .column(Column::remainder())
+            .column(Column::auto().resizable(true).clip(false).at_least(200.0))
+            .column(Column::auto().resizable(true).clip(false).at_least(50.0))
+            .column(Column::remainder().clip(false).at_least(100.0))
             .striped(true)
             .header(20.0, |mut header| {
                 header.col(|ui| {
@@ -68,7 +68,7 @@ impl RenderView for SymbolInfoViewer {
                         })
                         .collect()
                 };
-                body.rows(20.0, symbols.len(), |mut row| {
+                body.rows(30.0, symbols.len(), |mut row| {
                     let symbol = &symbols[row.index()];
                     row.col(|col| {
                         let prefix_start = symbol.file.rfind(AVM_SOURCE_ROOT);

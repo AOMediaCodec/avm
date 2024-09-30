@@ -90,8 +90,8 @@ impl RenderView for BlockInfoViewer {
         };
 
         TableBuilder::new(ui)
-            .column(Column::initial(300.0).resizable(true))
-            .column(Column::remainder())
+            .column(Column::auto().resizable(true).clip(false).at_least(100.0))
+            .column(Column::remainder().clip(false).at_least(100.0))
             .striped(true)
             .header(20.0, |mut header| {
                 header.col(|ui| {
@@ -103,7 +103,7 @@ impl RenderView for BlockInfoViewer {
             })
             .body(|mut body| {
                 for field in info.fields.iter() {
-                    body.row(20.0, |mut row| {
+                    body.row(30.0, |mut row| {
                         row.col(|col| {
                             col.label(&field.name);
                         });
