@@ -37,7 +37,14 @@ impl RenderView for DetailedPixelViewer {
         };
         let mut object_rect = selected_object.rect(frame).ok_or(anyhow!("Invalid selected object"))?;
         if plane.is_chroma() {
-            object_rect = object_rect / 2.0;
+            if frame.subsampling_x() != 0 {
+                *object_rect.right_mut() /= 2.0;
+                *object_rect.left_mut() /= 2.0;
+            }
+            if frame.subsampling_y() != 0 {
+                *object_rect.bottom_mut() /= 2.0;
+                *object_rect.top_mut() /= 2.0;
+            }
         }
 
         let size = ui.available_size_before_wrap();

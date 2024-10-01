@@ -130,8 +130,8 @@ impl ImageManager {
         let height = planes[0].height as usize;
         let uv_width = planes[1].width as usize;
         let uv_height = planes[1].height as usize;
-        let uv_width_scale = width / uv_width;
-        let uv_height_scale = height / uv_height;
+        let uv_width_scale = (width + 1) / uv_width;
+        let uv_height_scale = (height + 1) / uv_height;
 
         let mut raw_rgb = vec![0; width * height * 3];
         let raw_y = planes[0].pixels.as_slice();
