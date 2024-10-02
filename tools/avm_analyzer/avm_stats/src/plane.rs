@@ -50,7 +50,7 @@ impl Plane {
             if subsample == 0 {
                 dimension
             } else {
-            (dimension + 1) / 2
+                (dimension + 1) / 2
             }
         } else {
             dimension
