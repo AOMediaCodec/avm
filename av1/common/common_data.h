@@ -420,6 +420,7 @@ static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(
         return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
     case PARTITION_SPLIT:
       return (bh_chr < 8 || bw_chr < 8) ? PARTITION_NONE : PARTITION_SPLIT;
+    case PARTITION_INVALID: return PARTITION_INVALID;
     default: assert(0);
   }
   return PARTITION_INVALID;

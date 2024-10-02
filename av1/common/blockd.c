@@ -95,7 +95,7 @@ PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index) {
 
   ptree->parent = parent;
   ptree->index = index;
-  ptree->partition = PARTITION_NONE;
+  ptree->partition = PARTITION_INVALID;
   ptree->is_settled = 0;
   for (int i = 0; i < 4; ++i) ptree->sub_tree[i] = NULL;
 

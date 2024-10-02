@@ -2964,7 +2964,8 @@ static AOM_INLINE bool tree_has_bsize_smaller_than(const PARTITION_TREE *ptree,
 static AOM_INLINE bool is_luma_chroma_share_same_partition(
     TREE_TYPE tree_type, const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
   if (tree_type != CHROMA_PART || !ptree_luma ||
-      !is_bsize_above_decoupled_thresh(bsize)) {
+      !is_bsize_above_decoupled_thresh(bsize) ||
+      ptree_luma->partition == PARTITION_INVALID) {
     return false;
   }
 
