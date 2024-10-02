@@ -533,13 +533,16 @@ struct YuvFrameSizeInfo {
   size_t plane_stride_bytes[3];
 };
 
-YuvFrameSizeInfo GetYuvFrameSizeInfo(int bit_depth, size_t frame_width, size_t frame_height,
-                                     int subsampling_x, int subsampling_y) {
+YuvFrameSizeInfo GetYuvFrameSizeInfo(int bit_depth, size_t frame_width,
+                                     size_t frame_height, int subsampling_x,
+                                     int subsampling_y) {
   const size_t bytes_per_sample = (bit_depth == 8) ? 1 : 2;
   const size_t luma_size_bytes = frame_width * frame_height * bytes_per_sample;
   // Round up in the case of odd frame dimensions:
-  const size_t chroma_width = subsampling_x ? (frame_width + 1) / 2 : frame_width;
-  const size_t chroma_height = subsampling_y ? (frame_height + 1) / 2 : frame_height;
+  const size_t chroma_width =
+      subsampling_x ? (frame_width + 1) / 2 : frame_width;
+  const size_t chroma_height =
+      subsampling_y ? (frame_height + 1) / 2 : frame_height;
   const size_t chroma_size_bytes =
       chroma_width * chroma_height * bytes_per_sample;
   const size_t frame_size_bytes = luma_size_bytes + 2 * chroma_size_bytes;
