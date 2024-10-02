@@ -721,7 +721,6 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(DELTA_Q_PROBS + 1)]",
                      0, &total_count, 0, mem_wanted, "Filters");
 
-#if CONFIG_INTER_IST
   cts_each_dim[0] = 2;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = STX_TYPES;
@@ -729,14 +728,6 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_stx_cdf"
                      "[2][TX_SIZES][CDF_SIZE(STX_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Transforms");
-#else
-  cts_each_dim[0] = TX_SIZES;
-  cts_each_dim[1] = STX_TYPES;
-  optimize_cdf_table(&fc.stx_cnts[0][0], probsfile, 2, cts_each_dim,
-                     "static aom_cdf_prob default_stx_cdf"
-                     "[TX_SIZES][CDF_SIZE(STX_TYPES)]",
-                     0, &total_count, 0, mem_wanted, "Transforms");
-#endif  // CONFIG_INTER_IST
 
 #if CONFIG_IST_ANY_SET
 #if CONFIG_INTRA_TX_IST_PARSE
