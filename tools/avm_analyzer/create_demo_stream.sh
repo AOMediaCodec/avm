@@ -32,4 +32,4 @@ ${avm_build_dir}/aomenc -w 176 -h 144 --limit=3 ${ASSETS_FOLDER}/leo_qcif.yuv \
 
 ${GIT_ROOT}/tools/avm_analyzer/convert_stream.sh \
   --avm_build_dir ${avm_build_dir} --stream ${ASSETS_FOLDER}/leo_qcif.ivf     \
-  --output ${ASSETS_FOLDER}/leo_qcif.zip --yuv ${ASSETS_FOLDER}/leo_qcif.yuv 
+  --output ${ASSETS_FOLDER}/leo_qcif.zip --yuv ${ASSETS_FOLDER}/leo_qcif.yuv
