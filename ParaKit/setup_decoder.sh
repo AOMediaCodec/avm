@@ -17,31 +17,31 @@ if [ ! -f binaries/aomdec ]; then
     # create build directory
     mkdir -p binaries/build
 
-    # check Makefile 
-    if [ ! -f binaries/build/Makefile ]; then 
+    # check Makefile
+    if [ ! -f binaries/build/Makefile ]; then
         cmake -S ../ -B ./binaries/build -DCONFIG_PARAKIT_COLLECT_DATA=1
-    else 
+    else
         echo "Makefile exists: building aomdec..."
-    fi 
+    fi
 
     # Makefile should exist
-    if [ -f binaries/build/Makefile ]; then 
-        make aomdec -C ./binaries/build 
+    if [ -f binaries/build/Makefile ]; then
+        make aomdec -C ./binaries/build
     else
         echo "Error: Makefile does not exist cannot compile aomdec"
         exit 1
-    fi 
+    fi
 
     # copy aomdec under binaries
-    if [ -f binaries/build/aomdec ]; then 
+    if [ -f binaries/build/aomdec ]; then
         cp ./binaries/build/aomdec ./binaries/aomdec
     else
         echo "Error: aomdec does not exist under ./binaries/build/"
         exit 1
-    fi 
+    fi
 
     #clear build if aomdec is under binaries
-    if [ -f binaries/aomdec ]; then 
+    if [ -f binaries/aomdec ]; then
         rm -rf ./binaries/build/
         echo "Compilation complete!"
     else
