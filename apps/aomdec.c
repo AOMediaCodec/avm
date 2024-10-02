@@ -50,6 +50,10 @@
 
 static const char *exec_name;
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#include "av1/common/entropy_sideinfo.h"
+#endif
+
 struct AvxDecInputContext {
   struct AvxInputContext *aom_input_ctx;
   struct ObuDecInputContext *obu_ctx;
@@ -81,6 +85,14 @@ static const arg_def_t summaryarg =
     ARG_DEF(NULL, "summary", 0, "Show timing summary");
 static const arg_def_t outputfile =
     ARG_DEF("o", "output", 1, "Output file name pattern (see below)");
+#if CONFIG_PARAKIT_COLLECT_DATA
+static const arg_def_t datafilesuffix =
+    ARG_DEF(NULL, "suffix-ctxdata", 1,
+            "Filename prefix for collecting probability data");
+static const arg_def_t datafilepath =
+    ARG_DEF(NULL, "path-ctxdata", 1,
+            "Path for the file used to collect probability data");
+#endif
 static const arg_def_t threadsarg =
     ARG_DEF("t", "threads", 1, "Max threads to use");
 static const arg_def_t verbosearg =
@@ -111,12 +123,15 @@ static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
 
 static const arg_def_t *all_args[] = {
-  &help,           &codecarg,   &use_yv12,      &use_i420,
-  &flipuvarg,      &rawvideo,   &noblitarg,     &progressarg,
-  &limitarg,       &skiparg,    &summaryarg,    &outputfile,
-  &threadsarg,     &verbosearg, &scalearg,      &fb_arg,
-  &md5arg,         &verifyarg,  &framestatsarg, &continuearg,
-  &outbitdeptharg, &isannexb,   &oppointarg,    &outallarg,
+  &help,           &codecarg,     &use_yv12,      &use_i420,
+  &flipuvarg,      &rawvideo,     &noblitarg,     &progressarg,
+  &limitarg,       &skiparg,      &summaryarg,    &outputfile,
+#if CONFIG_PARAKIT_COLLECT_DATA
+  &datafilesuffix, &datafilepath,
+#endif
+  &threadsarg,     &verbosearg,   &scalearg,      &fb_arg,
+  &md5arg,         &verifyarg,    &framestatsarg, &continuearg,
+  &outbitdeptharg, &isannexb,     &oppointarg,    &outallarg,
   &skipfilmgrain,  NULL
 };
 
@@ -536,7 +551,7 @@ static int main_loop(int argc, const char **argv_) {
   int opt_yv12 = 0;
   int opt_i420 = 0;
   int opt_raw = 0;
-  aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
+  aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
   unsigned int fixed_output_bit_depth = 0;
   unsigned int is_annexb = 0;
   int frames_corrupted = 0;
@@ -559,6 +574,11 @@ static int main_loop(int argc, const char **argv_) {
 
   MD5Context md5_ctx;
   unsigned char md5_digest[16];
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+  char *datafilename_path = NULL;
+  char *datafilename_suffix = NULL;
+#endif
 
   struct AvxDecInputContext input = { NULL, NULL, NULL };
   struct AvxInputContext aom_input_ctx;
@@ -595,6 +615,12 @@ static int main_loop(int argc, const char **argv_) {
       // no-op
     } else if (arg_match(&arg, &outputfile, argi)) {
       outfile_pattern = arg.val;
+#if CONFIG_PARAKIT_COLLECT_DATA
+    } else if (arg_match(&arg, &datafilesuffix, argi)) {
+      datafilename_suffix = (char *)arg.val;
+    } else if (arg_match(&arg, &datafilepath, argi)) {
+      datafilename_path = (char *)arg.val;
+#endif
     } else if (arg_match(&arg, &use_yv12, argi)) {
       use_y4m = 0;
       flipuv = 1;
@@ -771,6 +797,10 @@ static int main_loop(int argc, const char **argv_) {
 
   if (!interface) interface = get_aom_decoder_by_index(0);
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+  cfg.path_parakit = datafilename_path;
+  cfg.suffix_parakit = datafilename_suffix;
+#endif
   dec_flags = 0;
   if (aom_codec_dec_init(&decoder, interface, &cfg, dec_flags)) {
     fprintf(stderr, "Failed to initialize decoder: %s\n",

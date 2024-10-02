@@ -42,6 +42,12 @@
 #include "av1/decoder/detokenize.h"
 #include "av1/decoder/obu.h"
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#include "av1/common/entropy_sideinfo.h"
+int beginningFrameFlag[MAX_NUMBER_CONTEXTS][MAX_DIMS_CONTEXT3]
+                      [MAX_DIMS_CONTEXT2][MAX_DIMS_CONTEXT1][MAX_DIMS_CONTEXT0];
+#endif
+
 static void initialize_dec(void) {
   av1_rtcd();
   aom_dsp_rtcd();
@@ -175,7 +181,12 @@ static INLINE void dec_free_optflow_bufs(AV1_COMMON *const cm) {
 }
 #endif  // CONFIG_OPTFLOW_ON_TIP
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+AV1Decoder *av1_decoder_create(BufferPool *const pool, const char *path,
+                               const char *suffix) {
+#else
 AV1Decoder *av1_decoder_create(BufferPool *const pool) {
+#endif
   AV1Decoder *volatile const pbi = aom_memalign(32, sizeof(*pbi));
   if (!pbi) return NULL;
   av1_zero(*pbi);
@@ -248,6 +259,103 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");
 #endif
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#include "av1/common/entropy_inits_coeffs.h"
+#include "av1/common/entropy_inits_modes.h"
+#include "av1/common/entropy_inits_mv.h"
+
+  // @ParaKit: add side information needed in array of prob_models structure to
+  // be used in collecting data
+  cm->prob_models[EOB_FLAG_CDF16] =
+      (ProbModelInfo){ .ctx_group_name = "eob_flag_cdf16",
+                       .prob = (aom_cdf_prob *)av1_default_eob_multi16_cdfs,
+                       .cdf_stride = 0,
+                       .num_symb = 5,
+                       .num_dim = 2,
+                       .num_idx = { 0, 0, 4, 3 } };
+  cm->prob_models[EOB_FLAG_CDF32] =
+      (ProbModelInfo){ .ctx_group_name = "eob_flag_cdf32",
+                       .prob = (aom_cdf_prob *)av1_default_eob_multi32_cdfs,
+                       .cdf_stride = 0,
+                       .num_symb = 6,
+                       .num_dim = 2,
+                       .num_idx = { 0, 0, 4, 3 } };
+
+  for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++) {
+    for (int j = 0; j < MAX_DIMS_CONTEXT3; j++)
+      for (int k = 0; k < MAX_DIMS_CONTEXT2; k++)
+        for (int l = 0; l < MAX_DIMS_CONTEXT1; l++)
+          for (int h = 0; h < MAX_DIMS_CONTEXT0; h++)
+            beginningFrameFlag[i][j][k][l][h] = 0;
+  }
+
+  for (int f = 0; f < MAX_NUM_CTX_GROUPS; f++) {
+    cm->prob_models[f].model_idx = f;
+    const int fixed_stride = cm->prob_models[f].cdf_stride;
+    const int num_sym = cm->prob_models[f].num_symb;
+    const int num_dims = cm->prob_models[f].num_dim;
+    const int num_idx0 = cm->prob_models[f].num_idx[0];
+    const int num_idx1 = cm->prob_models[f].num_idx[1];
+    const int num_idx2 = cm->prob_models[f].num_idx[2];
+    const int num_idx3 = cm->prob_models[f].num_idx[3];
+    const char *str_ctx = cm->prob_models[f].ctx_group_name;
+    const char *str_path = path ? path : ".";
+    const char *str_suffix = suffix ? suffix : "data";
+    char filename[2048];
+    sprintf(filename, "%s/Stat_%s_%s.csv", str_path, str_ctx, str_suffix);
+    FILE *fData = fopen(filename, "wt");
+    cm->prob_models[f].fDataCollect = fData;
+
+    fprintf(fData, "Header:%s,%d,%d", str_ctx, num_sym, num_dims);
+    const int dim_offset = MAX_CTX_DIM - num_dims;
+    for (int i = 0; i < num_dims; i++) {
+      fprintf(fData, ",%d", cm->prob_models[f].num_idx[i + dim_offset]);
+    }
+    fprintf(fData, "\n");
+
+    aom_cdf_prob *prob_ptr;
+    prob_ptr = cm->prob_models[f].prob;
+    int ctx_group_counter = 0;
+    for (int d0 = 0; d0 < (num_idx0 == 0 ? 1 : num_idx0); d0++)
+      for (int d1 = 0; d1 < (num_idx1 == 0 ? 1 : num_idx1); d1++)
+        for (int d2 = 0; d2 < (num_idx2 == 0 ? 1 : num_idx2); d2++)
+          for (int d3 = 0; d3 < (num_idx3 == 0 ? 1 : num_idx3); d3++) {
+            // indexing according to MAX_CTX_DIM
+            fprintf(fData, "%d,%d,%d,%d,%d,", ctx_group_counter, d0, d1, d2,
+                    d3);
+            ctx_group_counter++;
+            for (int sym = 0; sym < CDF_SIZE(num_sym); sym++) {
+              int cdf_stride = (fixed_stride == 0) ? num_sym : fixed_stride;
+              int offset =
+                  (d0 * num_idx3 * num_idx2 * num_idx1 * CDF_SIZE(cdf_stride)) +
+                  (d1 * num_idx3 * num_idx2 * CDF_SIZE(cdf_stride)) +
+                  (d2 * num_idx3 * CDF_SIZE(cdf_stride)) +
+                  (d3 * CDF_SIZE(cdf_stride)) + sym;
+              if (sym < num_sym)
+                fprintf(fData, "%d", (int)AOM_ICDF(*(prob_ptr + offset)));
+              else
+                fprintf(fData, "%d", (int)*(prob_ptr + offset));
+              if (sym < CDF_SIZE(num_sym - 1)) {
+                fprintf(fData, ",");
+              } else {
+                fprintf(fData, "\n");
+              }
+            }
+          }
+    // main header
+    for (int i = 0; i < num_dims; i++) {
+      fprintf(fData, "Dim%d,", i);
+    }
+
+    fprintf(fData, "FrameNum,FrameType,isBeginFrame,Counter,Value,Cost");
+
+    for (int sym = 0; sym < num_sym; sym++) {
+      fprintf(fData, ",cdf%d", sym);
+    }
+    fprintf(fData, ",rate");
+    fprintf(fData, "\n");
+  }
+#endif
   return pbi;
 }
 
@@ -336,6 +444,14 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 #if DEBUG_EXTQUANT
   if (pbi->common.fDecCoeffLog != NULL) {
     fclose(pbi->common.fDecCoeffLog);
+  }
+#endif
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+  for (int f = 0; f < MAX_NUM_CTX_GROUPS; f++) {
+    if (pbi->common.prob_models[f].fDataCollect != NULL) {
+      fclose(pbi->common.prob_models[f].fDataCollect);
+    }
   }
 #endif
 

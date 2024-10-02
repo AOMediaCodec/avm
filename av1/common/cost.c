@@ -11,7 +11,7 @@
  */
 #include <assert.h>
 
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/common/entropy.h"
 
 // round(-log2(i/256.) * (1 << AV1_PROB_COST_SHIFT)); i = 128~255.

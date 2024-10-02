@@ -1,0 +1,7 @@
+TEST_OUTPUT_TAG: "Unit-Test"
+BITSTREAM_EXTENSION: "avm"
+DESIRED_CTX_LIST:
+ - eob_flag_cdf16
+ - eob_flag_cdf32
+eob_flag_cdf16: "av1_default_eob_multi16_cdfs"
+eob_flag_cdf32: "av1_default_eob_multi32_cdfs"

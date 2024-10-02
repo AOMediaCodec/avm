@@ -154,6 +154,22 @@ extern "C" {
 
 /*!\cond */
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#define MAX_CTX_DIM 4
+typedef struct ProbModelInfo {
+  char *ctx_group_name;
+  aom_cdf_prob *prob;
+  int cdf_stride;
+  int num_symb;
+  int num_dim;
+  int num_idx[MAX_CTX_DIM];
+  FILE *fDataCollect;
+  int frameNumber;
+  int frameType;
+  int model_idx;
+} ProbModelInfo;
+#endif
+
 enum {
   SINGLE_REFERENCE = 0,
   COMPOUND_REFERENCE = 1,
@@ -1808,6 +1824,10 @@ typedef struct AV1Common {
 #if DEBUG_EXTQUANT
   FILE *fEncCoeffLog;
   FILE *fDecCoeffLog;
+#endif
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+  ProbModelInfo prob_models[MAX_NUM_CTX_GROUPS];
 #endif
 
   /*!

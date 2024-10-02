@@ -20,7 +20,7 @@
 #include "av1/common/reconintra.h"
 #include "av1/common/scan.h"
 #include "av1/encoder/bitstream.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/hash.h"
 #include "av1/encoder/rdopt.h"

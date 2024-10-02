@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ParaKit"
+version = "1.0.0"
+authors = [
+  { name="Hilmi E. Egilmez", email="hegilmez@apple.com" },
+]
+description = "ParaKit is a Python toolkit for training Probability and Adaptation Rate Adjustment (PARA)."
+readme = "README.md"
+requires-python = ">=3.8"

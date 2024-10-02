@@ -25,6 +25,12 @@
 #include "av1/common/odintrin.h"
 #include "aom_dsp/recenter.h"
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#include "av1/common/cost.h"
+#include "av1/common/av1_common_int.h"
+#include "av1/common/entropy_sideinfo.h"
+#endif
+
 #if CONFIG_BITSTREAM_DEBUG
 #include "aom_util/debug_util.h"
 #endif  // CONFIG_BITSTREAM_DEBUG
@@ -382,6 +388,78 @@ static INLINE int aom_read_symbol_(aom_reader *r, aom_cdf_prob *cdf,
   if (r->allow_update_cdf) update_cdf(cdf, ret, nsymbs);
   return ret;
 }
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+static INLINE int aom_read_cdf_probdata(aom_reader *r, const aom_cdf_prob *cdf,
+                                        int nsymbs) {
+  int symb;
+  assert(cdf != NULL);
+  symb = od_ec_decode_cdf_q15(&r->ec, cdf, nsymbs);
+  return symb;
+}
+
+// @ParaKit: use aom_read_symbol_probdata function for decoding to collect data
+//            make sure that "const AV1_COMMON *const cm" pointer that has
+//            prob_info information
+static INLINE int aom_read_symbol_probdata(aom_reader *r, aom_cdf_prob *cdf,
+                                           const int *indexlist,
+                                           ProbModelInfo prob_info) {
+  FILE *filedata = prob_info.fDataCollect;
+  const int symLength = prob_info.num_symb;
+  // Estimated probability and counter information
+  const int counter_engine = (int)cdf[symLength];
+  for (int i = 0; i < prob_info.num_dim; i++) {
+    fprintf(filedata, "%d,", *(indexlist + i));
+  }
+
+  const int frameNumber = prob_info.frameNumber;
+  fprintf(filedata, "%d,", frameNumber);
+  const int frameType = prob_info.frameType;
+  fprintf(filedata, "%d,", frameType);
+  int begin_idx[4] = { 0, 0, 0, 0 };
+  for (int i = 0; i < prob_info.num_dim; i++) {
+    const int offset = 4 - prob_info.num_dim;
+    assert(offset >= 0);
+    begin_idx[i + offset] = indexlist[i];
+  }
+  assert(begin_idx[0] >= 0 && begin_idx[0] < MAX_DIMS_CONTEXT3);
+  assert(begin_idx[1] >= 0 && begin_idx[1] < MAX_DIMS_CONTEXT2);
+  assert(begin_idx[2] >= 0 && begin_idx[2] < MAX_DIMS_CONTEXT1);
+  assert(begin_idx[3] >= 0 && begin_idx[3] < MAX_DIMS_CONTEXT0);
+  const int beginFrameFlag =
+      beginningFrameFlag[prob_info.model_idx][begin_idx[0]][begin_idx[1]]
+                        [begin_idx[2]][begin_idx[3]];
+  fprintf(filedata, "%d,", beginFrameFlag);
+
+  int cdf_list[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  for (int sym = 0; sym < symLength; sym++) {
+    cdf_list[sym] = CDF_INIT_TOP - cdf[sym];
+  }
+  int cost_list[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  av1_cost_tokens_from_cdf(cost_list, cdf, NULL);
+
+  int ret;
+  ret = aom_read_cdf_probdata(r, cdf, symLength);
+  if (r->allow_update_cdf) update_cdf(cdf, ret, symLength);
+
+  const int cost = cost_list[ret];
+  fprintf(filedata, "%d,%d,%d", counter_engine, ret, cost);
+
+  if (beginningFrameFlag[prob_info.model_idx][begin_idx[0]][begin_idx[1]]
+                        [begin_idx[2]][begin_idx[3]] ||
+      counter_engine == 0) {
+    for (int sym = 0; sym < symLength; sym++) {
+      fprintf(filedata, ",%d", cdf_list[sym]);
+    }
+    fprintf(filedata, ",%d", (int)cdf[symLength + 1]);
+  }
+  beginningFrameFlag[prob_info.model_idx][begin_idx[0]][begin_idx[1]]
+                    [begin_idx[2]][begin_idx[3]] = 0;
+  fprintf(filedata, "\n");
+
+  return ret;
+}
+#endif
 
 // Implements a code where a symbol with an alphabet size a power of 2 with
 // nsymb_bits bits (with nsymb_bits >= 3), is coded by decomposing the symbol

@@ -577,7 +577,12 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
     return AOM_CODEC_MEM_ERROR;
   }
   frame_worker_data = (FrameWorkerData *)worker->data1;
+#if CONFIG_PARAKIT_COLLECT_DATA
+  frame_worker_data->pbi = av1_decoder_create(
+      ctx->buffer_pool, ctx->cfg.path_parakit, ctx->cfg.suffix_parakit);
+#else
   frame_worker_data->pbi = av1_decoder_create(ctx->buffer_pool);
+#endif
   if (frame_worker_data->pbi == NULL) {
     set_error_detail(ctx, "Failed to allocate frame_worker_data");
     return AOM_CODEC_MEM_ERROR;

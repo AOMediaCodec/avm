@@ -21,6 +21,19 @@
 #include "av1/common/txb_common.h"
 #include "av1/decoder/decodemv.h"
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+#include "av1/common/cost.h"
+#endif
+
+#if CONFIG_PARAKIT_COLLECT_DATA
+static int get_q_ctx(int q) {
+  if (q <= 90) return 0;
+  if (q <= 140) return 1;
+  if (q <= 190) return 2;
+  return 3;
+}
+#endif
+
 /*!\brief Read and decode from bitstream an integer value following Exp-Golomb
  * coding with order k
  *
@@ -432,7 +445,12 @@ static INLINE void read_coeffs_forward_2d(aom_reader *r, int start_si,
 
 // Decode the end-of-block syntax.
 static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
-                              const int plane, const TX_SIZE tx_size) {
+                              const int plane, const TX_SIZE tx_size
+#if CONFIG_PARAKIT_COLLECT_DATA
+                              ,
+                              const AV1_COMMON *const cm
+#endif
+) {
   MACROBLOCKD *const xd = &dcb->xd;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
@@ -452,19 +470,47 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   int eob_extra = 0;
   int eob_pt = 1;
   const int eob_multi_size = txsize_log2_minus4[tx_size];
+#if CONFIG_PARAKIT_COLLECT_DATA
+  const int qp_index = get_q_ctx(cm->quant_params.base_qindex);
+  int idxlist[MAX_CTX_DIM];
+  idxlist[0] = qp_index;
+  idxlist[1] = pl_ctx;
+  idxlist[2] = -1;
+  idxlist[3] = -1;
+#endif
   switch (eob_multi_size) {
     case 0:
+#if CONFIG_PARAKIT_COLLECT_DATA
+    {
+      eob_pt =
+          aom_read_symbol_probdata(r, ec_ctx->eob_flag_cdf16[pl_ctx], idxlist,
+                                   cm->prob_models[EOB_FLAG_CDF16]) +
+          1;
+      break;
+    }
+#else
       eob_pt =
           aom_read_symbol(r, ec_ctx->eob_flag_cdf16[pl_ctx], EOB_MAX_SYMS - 6,
                           ACCT_INFO("eob_pt", "eob_multi_size:0")) +
           1;
       break;
+#endif
     case 1:
+#if CONFIG_PARAKIT_COLLECT_DATA
+    {
+      eob_pt =
+          aom_read_symbol_probdata(r, ec_ctx->eob_flag_cdf32[pl_ctx], idxlist,
+                                   cm->prob_models[EOB_FLAG_CDF32]) +
+          1;
+      break;
+    }
+#else
       eob_pt =
           aom_read_symbol(r, ec_ctx->eob_flag_cdf32[pl_ctx], EOB_MAX_SYMS - 5,
                           ACCT_INFO("eob_pt", "eob_multi_size:1")) +
           1;
       break;
+#endif
     case 2:
       eob_pt =
           aom_read_symbol(r, ec_ctx->eob_flag_cdf64[pl_ctx], EOB_MAX_SYMS - 4,
@@ -624,7 +670,12 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
     return 0;
   }
-  decode_eob(dcb, r, plane, tx_size);
+  decode_eob(dcb, r, plane, tx_size
+#if CONFIG_PARAKIT_COLLECT_DATA
+             ,
+             cm
+#endif
+  );
   av1_read_tx_type(cm, xd, blk_row, blk_col, tx_size, r, plane, *eob,
                    is_inter ? 0 : *eob);
 

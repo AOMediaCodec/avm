@@ -47,6 +47,11 @@ extern "C" {
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
 #endif                        // CONFIG_D071_IMP_MSK_BLD
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+// @ParaKit: add enum variables to indiciate context groups
+enum { EOB_FLAG_CDF16, EOB_FLAG_CDF32, MAX_NUM_CTX_GROUPS };
+#endif
+
 #if CONFIG_WEDGE_MOD_EXT
 /*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
  * the anticlockwise.*/

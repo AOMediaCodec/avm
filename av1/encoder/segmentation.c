@@ -17,7 +17,7 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/tile_common.h"
 
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/segmentation.h"
 
 void av1_enable_segmentation(struct segmentation *seg) {

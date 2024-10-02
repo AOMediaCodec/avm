@@ -47,7 +47,7 @@
 #include "av1/common/tile_common.h"
 
 #include "av1/encoder/bitstream.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/mcomp.h"

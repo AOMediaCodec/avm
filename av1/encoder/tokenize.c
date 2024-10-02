@@ -22,7 +22,7 @@
 #include "av1/common/scan.h"
 #include "av1/common/seg_common.h"
 
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/rdopt.h"

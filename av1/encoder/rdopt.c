@@ -46,7 +46,7 @@
 
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/av1_quantize.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/compound_type.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encodemv.h"

@@ -10,8 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_AV1_ENCODER_COST_H_
-#define AOM_AV1_ENCODER_COST_H_
+#ifndef AOM_AV1_COMMON_COST_H_
+#define AOM_AV1_COMMON_COST_H_
 
 #include "aom_dsp/prob.h"
 #include "aom/aom_integer.h"
@@ -49,4 +49,4 @@ void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
 }  // extern "C"
 #endif
 
-#endif  // AOM_AV1_ENCODER_COST_H_
+#endif  // AOM_AV1_COMMON_COST_H_

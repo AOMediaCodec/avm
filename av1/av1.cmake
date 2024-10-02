@@ -96,7 +96,13 @@ list(
   "${AOM_ROOT}/av1/common/warped_motion.c"
   "${AOM_ROOT}/av1/common/warped_motion.h"
   "${AOM_ROOT}/av1/common/hr_coding.h"
-  "${AOM_ROOT}/av1/common/hr_coding.c")
+  "${AOM_ROOT}/av1/common/hr_coding.c"
+  "${AOM_ROOT}/av1/common/cost.c"
+  "${AOM_ROOT}/av1/common/cost.h"
+  "${AOM_ROOT}/av1/common/entropy_inits_coeffs.h"
+  "${AOM_ROOT}/av1/common/entropy_inits_modes.h"
+  "${AOM_ROOT}/av1/common/entropy_inits_mv.h"
+  "${AOM_ROOT}/av1/common/entropy_sideinfo.h")
 
 if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
@@ -164,8 +170,6 @@ list(
   "${AOM_ROOT}/av1/encoder/compound_type.h"
   "${AOM_ROOT}/av1/encoder/context_tree.c"
   "${AOM_ROOT}/av1/encoder/context_tree.h"
-  "${AOM_ROOT}/av1/encoder/cost.c"
-  "${AOM_ROOT}/av1/encoder/cost.h"
   "${AOM_ROOT}/av1/encoder/encodeframe.c"
   "${AOM_ROOT}/av1/encoder/encodeframe.h"
   "${AOM_ROOT}/av1/encoder/encodeframe_utils.c"

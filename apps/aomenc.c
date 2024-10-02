@@ -1781,7 +1781,7 @@ static void initialize_encoder(struct stream_state *stream,
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(
         get_short_name_by_aom_encoder(global->codec));
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
     aom_codec_dec_init(&stream->decoder, decoder, &cfg, 0);
 
     if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {

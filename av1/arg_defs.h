@@ -33,6 +33,10 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t help;
   arg_def_t debugmode;
   arg_def_t outputfile;
+#if CONFIG_PARAKIT_COLLECT_DATA
+  arg_def_t datafilesuffix;
+  arg_def_t datafilepath;
+#endif
   arg_def_t reconfile;
   arg_def_t use_yv12;
   arg_def_t use_i420;

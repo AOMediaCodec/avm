@@ -35,7 +35,7 @@
 #include "av1/common/seg_common.h"
 
 #include "av1/encoder/av1_quantize.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"

@@ -8,3 +8,10 @@ third_party/deps_cmake/
 third_party/tensorflow/
 TAGS
 __pycache__
+ParaKit/venv/
+ParaKit/bitstreams/*
+ParaKit/results/*
+ParaKit/unit_test/data/*
+ParaKit/unit_test/*.h
+ParaKit/binaries/*
+parakit.egg-info/

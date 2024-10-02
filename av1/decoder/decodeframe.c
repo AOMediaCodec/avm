@@ -7056,6 +7056,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   sframe_info->is_s_frame = 0;
   sframe_info->is_s_frame_at_altref = 0;
 
+#if CONFIG_PARAKIT_COLLECT_DATA
+  for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++) {
+    cm->prob_models[i].frameNumber = current_frame->frame_number;
+    cm->prob_models[i].frameType = current_frame->frame_type;
+    for (int j = 0; j < MAX_DIMS_CONTEXT3; j++)
+      for (int k = 0; k < MAX_DIMS_CONTEXT2; k++)
+        for (int l = 0; l < MAX_DIMS_CONTEXT1; l++)
+          for (int h = 0; h < MAX_DIMS_CONTEXT0; h++)
+            beginningFrameFlag[i][j][k][l][h] = 1;
+  }
+#endif
+
   if (!pbi->sequence_header_ready) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
@@ -8614,5 +8626,13 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   // Non frame parallel update frame context here.
   if (!tiles->large_scale) {
     cm->cur_frame->frame_context = *cm->fc;
+#if CONFIG_PARAKIT_COLLECT_DATA
+    for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++)
+      for (int j = 0; j < MAX_DIMS_CONTEXT3; j++)
+        for (int k = 0; k < MAX_DIMS_CONTEXT2; k++)
+          for (int l = 0; l < MAX_DIMS_CONTEXT1; l++)
+            for (int h = 0; h < MAX_DIMS_CONTEXT0; h++)
+              beginningFrameFlag[i][j][k][l][h] = 1;
+#endif
   }
 }

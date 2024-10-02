@@ -37,7 +37,7 @@ class BaseKeyValAPI : public testing::Test {
 #endif
 #if CONFIG_AV1_DECODER
     aom_codec_iface_t *iface_dx = aom_codec_av1_dx();
-    aom_codec_dec_cfg_t dec_cfg = { 0, 0, 0 };
+    aom_codec_dec_cfg_t dec_cfg = { 0, 0, 0, NULL, NULL };
 
     EXPECT_EQ(AOM_CODEC_OK, aom_codec_dec_init(&dec_, iface_dx, &dec_cfg, 0));
 #endif

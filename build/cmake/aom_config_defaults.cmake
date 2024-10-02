@@ -77,7 +77,7 @@ set_aom_config_var(CONFIG_GCOV 0 "Enable gcov support.")
 set_aom_config_var(CONFIG_GPROF 0 "Enable gprof support.")
 set_aom_config_var(CONFIG_LIBYUV 1 "Enables libyuv scaling/conversion support.")
 
-set_aom_config_var(CONFIG_MULTITHREAD 1 "Multithread support.")
+set_aom_config_var(CONFIG_MULTITHREAD 0 "Multithread support.")
 set_aom_config_var(CONFIG_OS_SUPPORT 0 "Internal flag.")
 set_aom_config_var(CONFIG_PIC 0 "Build with PIC enabled.")
 set_aom_config_var(CONFIG_RUNTIME_CPU_DETECT 1 "Runtime CPU detection support.")
@@ -142,6 +142,9 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
                    "Use AV2 CTC type PSNR peak for 10- and 12-bit")
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
+
+set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 1
+                   "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1

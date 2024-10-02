@@ -16,7 +16,7 @@
 #include "av1/common/pred_common.h"
 
 #include "av1/encoder/block.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/intra_mode_search.h"
 #include "av1/encoder/intra_mode_search_utils.h"

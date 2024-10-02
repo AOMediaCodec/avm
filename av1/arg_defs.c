@@ -147,6 +147,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .debugmode =
       ARG_DEF("D", "debug", 0, "Debug mode (makes output deterministic)"),
   .outputfile = ARG_DEF("o", "output", 1, "Output filename"),
+#if CONFIG_PARAKIT_COLLECT_DATA
+  .datafilesuffix = ARG_DEF(NULL, "suffix-ctxdata", 1,
+                            "Prefix for filename used for data collection"),
+  .datafilepath = ARG_DEF(NULL, "path-ctxdata", 1,
+                          "Path for file used for data collection"),
+#endif
   .reconfile = ARG_DEF(NULL, "recon", 1, "Recon filename"),
   .use_yv12 = ARG_DEF(NULL, "yv12", 0, "Input file is YV12 "),
   .use_i420 = ARG_DEF(NULL, "i420", 0, "Input file is I420 (default)"),

@@ -24,7 +24,7 @@
 
 #if CONFIG_RD_DEBUG
 #include "av1/common/blockd.h"
-#include "av1/encoder/cost.h"
+#include "av1/common/cost.h"
 #endif
 
 #if CONFIG_BITSTREAM_DEBUG
