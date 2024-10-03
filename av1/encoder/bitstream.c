@@ -2498,9 +2498,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_EXPLICIT_BAWP
       }
 
-      if (mbmi->bawp_flag[0]) {
+      if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+          mbmi->bawp_flag[0]) {
         aom_write_symbol(w, mbmi->bawp_flag[1] == 1, xd->tile_ctx->bawp_cdf[1],
                          2);
+      } else {
+        assert(mbmi->bawp_flag[1] == 0);
       }
 #else
       if (cm->features.enable_bawp &&

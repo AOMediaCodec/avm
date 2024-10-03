@@ -3641,7 +3641,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_EXPLICIT_BAWP
       }
 
-      if (mbmi->bawp_flag[0]) {
+      if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+          mbmi->bawp_flag[0]) {
         mbmi->bawp_flag[1] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[1], 2,
                                              ACCT_INFO("bawp_flag_chroma"));
       } else {
