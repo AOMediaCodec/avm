@@ -100,8 +100,8 @@ void bitstream_queue_push(int result, const aom_cdf_prob *cdf, int nsymbs) {
 static int frame_buf_idx_r = 0;
 static int frame_buf_idx_w = 0;
 #define MAX_FRAME_BUF_NUM 6
-#define MAX_FRAME_STRIDE 1280
-#define MAX_FRAME_HEIGHT 720
+#define MAX_FRAME_STRIDE 2100
+#define MAX_FRAME_HEIGHT 1200
 static uint16_t
     frame_pre[MAX_FRAME_BUF_NUM][3]
              [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];  // prediction only
