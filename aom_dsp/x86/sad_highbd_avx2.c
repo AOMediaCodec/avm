@@ -63,17 +63,37 @@ static AOM_FORCE_INLINE void highbd_sad16x4_core_avx2(__m256i *s, __m256i *r,
                                                       __m256i *sad_acc) {
   const __m256i zero = _mm256_setzero_si256();
   int i;
+  __m256i res[4];
   for (i = 0; i < 4; i++) {
-    s[i] = _mm256_sub_epi16(s[i], r[i]);
-    s[i] = _mm256_abs_epi16(s[i]);
+    res[i] = _mm256_sub_epi16(s[i], r[i]);
+    res[i] = _mm256_abs_epi16(res[i]);
   }
 
-  s[0] = _mm256_add_epi16(s[0], s[1]);
-  s[0] = _mm256_add_epi16(s[0], s[2]);
-  s[0] = _mm256_add_epi16(s[0], s[3]);
+  res[0] = _mm256_add_epi16(res[0], res[1]);
+  res[0] = _mm256_add_epi16(res[0], res[2]);
+  res[0] = _mm256_add_epi16(res[0], res[3]);
 
-  r[0] = _mm256_unpacklo_epi16(s[0], zero);
-  r[1] = _mm256_unpackhi_epi16(s[0], zero);
+  r[0] = _mm256_unpacklo_epi16(res[0], zero);
+  r[1] = _mm256_unpackhi_epi16(res[0], zero);
+
+  r[0] = _mm256_add_epi32(r[0], r[1]);
+  *sad_acc = _mm256_add_epi32(*sad_acc, r[0]);
+}
+
+static AOM_FORCE_INLINE void highbd_sad16x2_core_avx2(__m256i *s, __m256i *r,
+                                                      __m256i *sad_acc) {
+  const __m256i zero = _mm256_setzero_si256();
+  int i;
+  __m256i res[2];
+  for (i = 0; i < 2; i++) {
+    res[i] = _mm256_sub_epi16(s[i], r[i]);
+    res[i] = _mm256_abs_epi16(res[i]);
+  }
+
+  res[0] = _mm256_add_epi16(res[0], res[1]);
+
+  r[0] = _mm256_unpacklo_epi16(res[0], zero);
+  r[1] = _mm256_unpackhi_epi16(res[0], zero);
 
   r[0] = _mm256_add_epi32(r[0], r[1]);
   *sad_acc = _mm256_add_epi32(*sad_acc, r[0]);
@@ -244,6 +264,33 @@ static AOM_FORCE_INLINE void sad16x2(const uint16_t *src_ptr, int src_stride,
         r[1], _mm256_loadu_si256((const __m256i *)(sec_ptr + 16)));
   }
   highbd_sad16x4_core_ds_avx2(s, r, sad_acc);
+}
+
+static AOM_FORCE_INLINE void sad16x4_4d(__m256i *s, const uint16_t *ref_ptr,
+                                        int ref_stride, __m256i *sad_acc) {
+  __m256i r[4];
+  r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);
+  r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride));
+  r[2] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 2 * ref_stride));
+  r[3] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 3 * ref_stride));
+
+  highbd_sad16x4_core_avx2(s, r, sad_acc);
+}
+
+static AOM_FORCE_INLINE void sad16x2_4d(__m256i *s, const uint16_t *ref_ptr,
+                                        int ref_stride, __m256i *sad_acc) {
+  __m256i r[2];
+  const __m128i a = _mm_loadu_si128((const __m128i *)ref_ptr);
+  const __m128i b = _mm_loadu_si128((const __m128i *)(ref_ptr + ref_stride));
+  const __m128i c =
+      _mm_loadu_si128((const __m128i *)(ref_ptr + 2 * ref_stride));
+  const __m128i d =
+      _mm_loadu_si128((const __m128i *)(ref_ptr + 3 * ref_stride));
+
+  r[0] = _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 0x1);
+  r[1] = _mm256_insertf128_si256(_mm256_castsi128_si256(c), d, 0x1);
+
+  highbd_sad16x2_core_avx2(s, r, sad_acc);
 }
 
 #if CONFIG_SUBBLK_REF_EXT
@@ -550,6 +597,23 @@ static AOM_FORCE_INLINE void sad32x2(const uint16_t *src_ptr, int src_stride,
   ref_ptr += ref_stride << 1;
 }
 
+static AOM_FORCE_INLINE void sad32x4_4d(__m256i *s, const uint16_t *ref_ptr,
+                                        int ref_stride, __m256i *sad_acc) {
+  __m256i r[4];
+  int row_sections = 0;
+
+  while (row_sections < 2) {
+    r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);
+    r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 16));
+    r[2] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride));
+    r[3] = _mm256_loadu_si256((const __m256i *)(ref_ptr + ref_stride + 16));
+
+    highbd_sad16x4_core_avx2(s + 4 * row_sections, r, sad_acc);
+    row_sections += 1;
+    ref_ptr += ref_stride << 1;
+  }
+}
+
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad32xN_avx2(
     int N, const uint16_t *src, int src_stride, const uint16_t *ref,
     int ref_stride) {
@@ -612,6 +676,21 @@ static AOM_FORCE_INLINE void sad64x2(const uint16_t *src_ptr, int src_stride,
   }
 }
 
+static AOM_FORCE_INLINE void sad64x2_4d(__m256i *s, const uint16_t *ref_ptr,
+                                        int ref_stride, __m256i *sad_acc) {
+  __m256i r[4];
+  int i;
+  for (i = 0; i < 2; i++) {
+    r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);
+    r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 16));
+    r[2] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 32));
+    r[3] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 48));
+
+    highbd_sad16x4_core_avx2(s + 4 * i, r, sad_acc);
+    ref_ptr += ref_stride;
+  }
+}
+
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad64xN_avx2(
     int N, const uint16_t *src, int src_stride, const uint16_t *ref,
     int ref_stride) {
@@ -661,6 +740,25 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad64xN_avx2(
 
 MAKE_SAD_WX1(128);
 MAKE_SAD_WX1(256);
+
+#define MAKE_SAD_WX1_4D(w)                                        \
+  static AOM_FORCE_INLINE void sad##w##x1_4d(                     \
+      __m256i *s, const uint16_t *ref_ptr, __m256i *sad_acc) {    \
+    assert(w % 64 == 0);                                          \
+    __m256i r[4];                                                 \
+    int i;                                                        \
+    for (i = 0; i < w / 64; i++) {                                \
+      r[0] = _mm256_loadu_si256((const __m256i *)ref_ptr);        \
+      r[1] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 16)); \
+      r[2] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 32)); \
+      r[3] = _mm256_loadu_si256((const __m256i *)(ref_ptr + 48)); \
+      highbd_sad16x4_core_avx2(s + i * 4, r, sad_acc);            \
+      ref_ptr += 64;                                              \
+    }                                                             \
+  }
+
+MAKE_SAD_WX1_4D(128);
+MAKE_SAD_WX1_4D(256);
 
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad128xN_avx2(
     int N, const uint16_t *src, int src_stride, const uint16_t *ref,
@@ -1109,24 +1207,31 @@ static AOM_FORCE_INLINE void init_sad(__m256i *s) {
   s[3] = _mm256_setzero_si256();
 }
 
-static AOM_FORCE_INLINE void aom_highbd_sad16xNx4d_avx2(
+static AOM_FORCE_INLINE void aom_highbd_sad8xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
   __m256i sad_vec[4];
-  const int shift_for_4_rows = 2;
+  __m256i s[2];
   int i, j;
 
   init_sad(sad_vec);
 
-  for (i = 0; i < 4; ++i) {
-    const uint16_t *srcp = src;
-    const uint16_t *refp = ref_array[i];
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j += 4) {
+    const __m128i a = _mm_loadu_si128((const __m128i *)(src16));
+    const __m128i b = _mm_loadu_si128((const __m128i *)(src16 + src_stride));
+    const __m128i c =
+        _mm_loadu_si128((const __m128i *)(src16 + 2 * src_stride));
+    const __m128i d =
+        _mm_loadu_si128((const __m128i *)(src16 + 3 * src_stride));
 
-    for (j = 0; j < N; j += 4) {
-      sad16x4(srcp, src_stride, refp, ref_stride, 0, &sad_vec[i]);
-      srcp += src_stride << shift_for_4_rows;
-      refp += ref_stride << shift_for_4_rows;
+    s[0] = _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 0x1);
+    s[1] = _mm256_insertf128_si256(_mm256_castsi128_si256(c), d, 0x1);
+
+    for (i = 0; i < 4; ++i) {
+      sad16x2_4d(s, ref_array[i] + j * ref_stride, ref_stride, &sad_vec[i]);
     }
+    src16 += 4 * src_stride;
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
@@ -1152,24 +1257,55 @@ static AOM_FORCE_INLINE void aom_highbd_sad16xNx4d_2rows_avx2(
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
 
+static AOM_FORCE_INLINE void aom_highbd_sad16xNx4d_avx2(
+    int N, const uint16_t *src, int src_stride,
+    const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
+  __m256i sad_vec[4];
+  __m256i s[4];
+  int i, j;
+
+  init_sad(sad_vec);
+
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j += 4) {
+    s[0] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[1] = _mm256_loadu_si256((const __m256i *)(src16 + src_stride));
+    s[2] = _mm256_loadu_si256((const __m256i *)(src16 + 2 * src_stride));
+    s[3] = _mm256_loadu_si256((const __m256i *)(src16 + 3 * src_stride));
+    for (i = 0; i < 4; ++i) {
+      sad16x4_4d(s, ref_array[i] + j * ref_stride, ref_stride, &sad_vec[i]);
+    }
+    src16 += 4 * src_stride;
+  }
+  get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
+}
+
 static AOM_FORCE_INLINE void aom_highbd_sad32xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
   __m256i sad_vec[4];
-  const int shift_for_4_rows = 2;
-  int i, r;
+  __m256i s[8];
+  int i, j;
 
   init_sad(sad_vec);
 
-  for (i = 0; i < 4; ++i) {
-    const uint16_t *srcp = src;
-    const uint16_t *refp = ref_array[i];
-
-    for (r = 0; r < N; r += 4) {
-      sad32x4(srcp, src_stride, refp, ref_stride, 0, &sad_vec[i]);
-      srcp += src_stride << shift_for_4_rows;
-      refp += ref_stride << shift_for_4_rows;
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j += 4) {
+    s[0] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[1] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    src16 += src_stride;
+    s[2] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[3] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    src16 += src_stride;
+    s[4] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[5] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    src16 += src_stride;
+    s[6] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[7] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    for (i = 0; i < 4; ++i) {
+      sad32x4_4d(s, ref_array[i] + j * ref_stride, ref_stride, &sad_vec[i]);
     }
+    src16 += src_stride;
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
@@ -1199,20 +1335,26 @@ static AOM_FORCE_INLINE void aom_highbd_sad64xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
   __m256i sad_vec[4];
-  const int shift_for_rows = 1;
-  int i, r;
+  __m256i s[8];
+  int i, j;
 
   init_sad(sad_vec);
 
-  for (i = 0; i < 4; ++i) {
-    const uint16_t *srcp = src;
-    const uint16_t *refp = ref_array[i];
-
-    for (r = 0; r < N; r += 2) {
-      sad64x2(srcp, src_stride, refp, ref_stride, NULL, &sad_vec[i]);
-      srcp += src_stride << shift_for_rows;
-      refp += ref_stride << shift_for_rows;
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j += 2) {
+    s[0] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[1] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    s[2] = _mm256_loadu_si256((const __m256i *)(src16 + 32));
+    s[3] = _mm256_loadu_si256((const __m256i *)(src16 + 48));
+    src16 += src_stride;
+    s[4] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[5] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    s[6] = _mm256_loadu_si256((const __m256i *)(src16 + 32));
+    s[7] = _mm256_loadu_si256((const __m256i *)(src16 + 48));
+    for (i = 0; i < 4; ++i) {
+      sad64x2_4d(s, ref_array[i] + j * ref_stride, ref_stride, &sad_vec[i]);
     }
+    src16 += src_stride;
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
@@ -1221,19 +1363,25 @@ static AOM_FORCE_INLINE void aom_highbd_sad128xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
   __m256i sad_vec[4];
-  int i, r;
+  __m256i s[8];
+  int i, j;
 
   init_sad(sad_vec);
 
-  for (i = 0; i < 4; ++i) {
-    const uint16_t *srcp = src;
-    const uint16_t *refp = ref_array[i];
-
-    for (r = 0; r < N; r++) {
-      sad128x1(srcp, refp, NULL, &sad_vec[i]);
-      srcp += src_stride;
-      refp += ref_stride;
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j++) {
+    s[0] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[1] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    s[2] = _mm256_loadu_si256((const __m256i *)(src16 + 32));
+    s[3] = _mm256_loadu_si256((const __m256i *)(src16 + 48));
+    s[4] = _mm256_loadu_si256((const __m256i *)(src16 + 64));
+    s[5] = _mm256_loadu_si256((const __m256i *)(src16 + 80));
+    s[6] = _mm256_loadu_si256((const __m256i *)(src16 + 96));
+    s[7] = _mm256_loadu_si256((const __m256i *)(src16 + 112));
+    for (i = 0; i < 4; ++i) {
+      sad128x1_4d(s, ref_array[i] + j * ref_stride, &sad_vec[i]);
     }
+    src16 += src_stride;
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
@@ -1242,19 +1390,33 @@ static AOM_FORCE_INLINE void aom_highbd_sad256xNx4d_avx2(
     int N, const uint16_t *src, int src_stride,
     const uint16_t *const ref_array[], int ref_stride, uint32_t *sad_array) {
   __m256i sad_vec[4];
-  int i, r;
+  __m256i s[16];
+  int i, j;
 
   init_sad(sad_vec);
 
-  for (i = 0; i < 4; ++i) {
-    const uint16_t *srcp = src;
-    const uint16_t *refp = ref_array[i];
-
-    for (r = 0; r < N; r++) {
-      sad256x1(srcp, refp, NULL, &sad_vec[i]);
-      srcp += src_stride;
-      refp += ref_stride;
+  const uint16_t *src16 = src;
+  for (j = 0; j < N; j++) {
+    s[0] = _mm256_loadu_si256((const __m256i *)(src16));
+    s[1] = _mm256_loadu_si256((const __m256i *)(src16 + 16));
+    s[2] = _mm256_loadu_si256((const __m256i *)(src16 + 32));
+    s[3] = _mm256_loadu_si256((const __m256i *)(src16 + 48));
+    s[4] = _mm256_loadu_si256((const __m256i *)(src16 + 64));
+    s[5] = _mm256_loadu_si256((const __m256i *)(src16 + 80));
+    s[6] = _mm256_loadu_si256((const __m256i *)(src16 + 96));
+    s[7] = _mm256_loadu_si256((const __m256i *)(src16 + 112));
+    s[8] = _mm256_loadu_si256((const __m256i *)(src16 + 128));
+    s[9] = _mm256_loadu_si256((const __m256i *)(src16 + 144));
+    s[10] = _mm256_loadu_si256((const __m256i *)(src16 + 160));
+    s[11] = _mm256_loadu_si256((const __m256i *)(src16 + 176));
+    s[12] = _mm256_loadu_si256((const __m256i *)(src16 + 192));
+    s[13] = _mm256_loadu_si256((const __m256i *)(src16 + 208));
+    s[14] = _mm256_loadu_si256((const __m256i *)(src16 + 224));
+    s[15] = _mm256_loadu_si256((const __m256i *)(src16 + 240));
+    for (i = 0; i < 4; ++i) {
+      sad256x1_4d(s, ref_array[i] + j * ref_stride, &sad_vec[i]);
     }
+    src16 += src_stride;
   }
   get_4d_sad_from_mm256_epi32(sad_vec, sad_array);
 }
@@ -1291,6 +1453,12 @@ static AOM_FORCE_INLINE void aom_highbd_sad256xNx4d_avx2(
     sad_array[3] <<= 1;                                                        \
   }
 
+highbd_sadMxNx4d_avx2(8, 4);
+highbd_sadMxNx4d_avx2(8, 8);
+highbd_sadMxNx4d_avx2(8, 16);
+highbd_sadMxNx4d_avx2(8, 32);
+highbd_sadMxNx4d_avx2(8, 64);
+
 highbd_sadMxNx4d_avx2(16, 4);
 highbd_sadMxNx4d_avx2(16, 8);
 highbd_sadMxNx4d_avx2(16, 16);
@@ -1316,6 +1484,11 @@ highbd_sadMxNx4d_avx2(128, 256);
 
 highbd_sadMxNx4d_avx2(256, 128);
 highbd_sadMxNx4d_avx2(256, 256);
+
+highbd_sad_skip_MxNx4d_avx2(8, 8);
+highbd_sad_skip_MxNx4d_avx2(8, 16);
+highbd_sad_skip_MxNx4d_avx2(8, 32);
+highbd_sad_skip_MxNx4d_avx2(8, 64);
 
 highbd_sad_skip_MxNx4d_2rows_avx2(16, 4);
 highbd_sad_skip_MxNx4d_avx2(16, 8);
