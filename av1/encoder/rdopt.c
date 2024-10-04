@@ -2781,7 +2781,8 @@ static int64_t motion_mode_rd(
           rd_stats->rate +=
               mode_costs->bawp_flg_cost[0][mbmi->bawp_flag[0] == 1];
 #endif  // CONFIG_EXPLICIT_BAWP
-        if (mbmi->bawp_flag[0]) {
+        if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+            mbmi->bawp_flag[0]) {
           rd_stats->rate +=
               mode_costs->bawp_flg_cost[1][mbmi->bawp_flag[1] == 1];
         }
@@ -5442,6 +5443,10 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_EXPLICIT_BAWP
               for (int bawp_flag_uv = 0; bawp_flag_uv <= AOMMIN(1, bawp_flag);
                    bawp_flag_uv++) {
+                if (bawp_flag_uv && !xd->is_chroma_ref) {
+                  mbmi->bawp_flag[1] = 0;
+                  continue;
+                }
                 mbmi->bawp_flag[1] = bawp_flag_uv;
 #else
             int bawp_eanbled = cm->features.enable_bawp &&

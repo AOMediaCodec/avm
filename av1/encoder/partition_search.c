@@ -1620,7 +1620,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
         update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] == 1, 2);
 #endif  // CONFIG_EXPLICIT_BAWP
-        if (mbmi->bawp_flag[0]) {
+        if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+            mbmi->bawp_flag[0]) {
           update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
         }
 #if CONFIG_ENTROPY_STATS
