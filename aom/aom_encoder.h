@@ -475,6 +475,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_warp_delta;
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  /*!\brief enable explicit warp models
+   *
+   */
+  unsigned int enable_six_param_warp_delta;
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
   /*!\brief enable warp extension
    *
    */

@@ -1404,10 +1404,10 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
   cts_each_dim[0] = 2;
-  cts_each_dim[1] = WARP_DELTA_NUM_SYMBOLS;
+  cts_each_dim[1] = WARP_DELTA_NUMSYMBOLS_LOW;
   optimize_cdf_table(&fc.warp_delta_param[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob default_warp_delta_param_cdf"
-                     "[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)]",
+                     "[2][CDF_SIZE(WARP_DELTA_NUMSYMBOLS_LOW)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP

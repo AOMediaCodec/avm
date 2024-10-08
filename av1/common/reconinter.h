@@ -318,11 +318,46 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
                            const struct buf_2d *ref_buf,
                            InterpFilter interp_filter);
 
+// Get the step size and maximum coded index of the warp block
+static INLINE void get_warp_model_steps(const MB_MODE_INFO *mbmi,
+                                        int *step_size, int *max_coded_index) {
+#if CONFIG_WARP_PRECISION
+  int step_size_log2 = mbmi->warp_precision_idx == 0 ? 11 : 10;
+  *step_size = 1 << step_size_log2;
+  *max_coded_index = mbmi->warp_precision_idx == 0 ? 7 : 14;
+#else
+  (void)mbmi;
+  *step_size = (1 << WARP_DELTA_STEP_BITS);
+  *max_coded_index = WARP_DELTA_CODED_MAX;
+#endif  // CONFIG_WARP_PRECISION
+}
+
+#if CONFIG_SIX_PARAM_WARP_DELTA
+// Get the default value of the six_param_flag
+static INLINE int get_default_six_param_flag(const AV1_COMMON *const cm,
+                                             const MB_MODE_INFO *mbmi) {
+  return (cm->seq_params.enable_six_param_warp_delta && mbmi->warp_ref_idx == 0)
+             ? 1
+             : 0;
+}
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
+  // Warp delta parameters are signalled in following two cases
+  // Case0: sequence level enable_six_param_warp_delta is enabled AND
+  // (mbmi->warp_ref_idx == 0), in this case 6-parameter delta is signaled.
+  // Case1: (mbmi->warp_ref_idx == 1), in this case 4-parameter delta is
+  // signaled.
+
+  int allow_delta_for_this_warp_ref_idx =
+#if CONFIG_SIX_PARAM_WARP_DELTA
+      get_default_six_param_flag(cm, mbmi) ||  // 6-parameter
+#endif                                         // CONFIG_SIX_PARAM_WARP_DELTA
+      (mbmi->warp_ref_idx == 1);               // 4-parameter
+
   return (mbmi->mode != WARPMV && cm->features.allow_warpmv_mode &&
-          mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
+          mbmi->motion_mode == WARP_DELTA && allow_delta_for_this_warp_ref_idx);
 }
 
 // Map the index to weighting factor for compound weighted prediction

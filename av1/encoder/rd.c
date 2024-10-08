@@ -761,6 +761,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
+#if CONFIG_WARP_PRECISION
+    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warp_precision_idx_cost[i],
+                               fc->warp_precision_idx_cdf[i], NULL);
+    }
+#endif  // CONFIG_WARP_PRECISION
+
     for (i = 0; i < 3; i++) {
       for (j = 0; j < WARP_REF_CONTEXTS; j++) {
         av1_cost_tokens_from_cdf(mode_costs->warp_ref_idx_cost[i][j],
@@ -781,6 +788,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->warp_delta_param_cost[i],
                                fc->warp_delta_param_cdf[i], NULL);
     }
+
+#if CONFIG_WARP_PRECISION
+    av1_cost_tokens_from_cdf(mode_costs->warp_param_sign_cost,
+                             fc->warp_param_sign_cdf, NULL);
+    for (i = 0; i < 2; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warp_delta_param_high_cost[i],
+                               fc->warp_delta_param_high_cdf[i], NULL);
+    }
+#endif  // CONFIG_WARP_PRECISION
+
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
     for (i = 0; i < WARP_EXTEND_CTX; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warp_extend_cost[i],

@@ -1120,6 +1120,14 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
   mbmi->warpmv_with_mvd_flag = 0;
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  mbmi->six_param_warp_model_flag = 0;
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
+#if CONFIG_WARP_PRECISION
+  mbmi->warp_precision_idx = 0;
+#endif  // CONFIG_WARP_PRECISION
+
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
   av1_rd_pick_palette_intra_sby(

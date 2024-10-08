@@ -660,6 +660,9 @@ typedef struct {
 typedef struct {
   // Bitmask of which motion modes are enabled at the sequence level
   int seq_enabled_motion_modes;
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  int enable_six_param_warp_delta;
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
 } MotionModeCfg;
 
 typedef struct {
@@ -1590,7 +1593,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int warp_delta[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-  unsigned int warp_delta_param[2][WARP_DELTA_NUM_SYMBOLS];
+  unsigned int warp_delta_param[2][WARP_DELTA_NUMSYMBOLS_LOW];
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int warp_extend[WARP_EXTEND_CTX][2];
 #else

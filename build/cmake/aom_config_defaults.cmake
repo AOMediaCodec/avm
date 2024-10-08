@@ -477,6 +477,9 @@ set_aom_config_var(
   "Align deblocking filter boundaries with AVM partitioning scheme.")
 
 set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
+set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")
+set_aom_config_var(CONFIG_SIX_PARAM_WARP_DELTA 1
+                   "Enable six parameter warp models.")
 #
 # Variables in this section control optional features of the build system.
 #

@@ -6608,6 +6608,9 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 #if CONFIG_AFFINE_REFINEMENT
     seq_params->enable_affine_refine = 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
+#if CONFIG_SIX_PARAM_WARP_DELTA
+    seq_params->enable_six_param_warp_delta = 0;
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
   } else {
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
@@ -6617,6 +6620,11 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
         seq_enabled_motion_modes |= (1 << motion_mode);
       }
     }
+
+#if CONFIG_SIX_PARAM_WARP_DELTA
+    seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
     seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);

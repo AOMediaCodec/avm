@@ -646,18 +646,31 @@ static void write_wedge_mode(aom_writer *w, FRAME_CONTEXT *ec_ctx,
 }
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-static void write_warp_delta_param(const MACROBLOCKD *xd, int index, int value,
-                                   aom_writer *w) {
+static void write_warp_delta_param(const MACROBLOCKD *xd, int index,
+                                   int coded_value, aom_writer *w
+#if CONFIG_WARP_PRECISION
+                                   ,
+                                   int max_coded_index
+#endif  // CONFIG_WARP_PRECISION
+) {
   assert(2 <= index && index <= 5);
   int index_type = (index == 2 || index == 5) ? 0 : 1;
-  int coded_value = (value / WARP_DELTA_STEP) + WARP_DELTA_CODED_MAX;
-  assert(0 <= coded_value && coded_value < WARP_DELTA_NUM_SYMBOLS);
-  // Check that the value will round-trip properly
-  assert((coded_value - WARP_DELTA_CODED_MAX) * WARP_DELTA_STEP == value);
-
-  aom_write_symbol(w, coded_value,
+  int coded_value_low_max = (WARP_DELTA_NUMSYMBOLS_LOW - 1);
+  aom_write_symbol(w,
+#if CONFIG_WARP_PRECISION
+                   coded_value >= coded_value_low_max ? coded_value_low_max :
+#endif  // CONFIG_WARP_PRECISION
+                                                      coded_value,
                    xd->tile_ctx->warp_delta_param_cdf[index_type],
-                   WARP_DELTA_NUM_SYMBOLS);
+                   WARP_DELTA_NUMSYMBOLS_LOW);
+#if CONFIG_WARP_PRECISION
+  if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
+      coded_value >= coded_value_low_max) {
+    aom_write_symbol(w, coded_value - 7,
+                     xd->tile_ctx->warp_delta_param_high_cdf[index_type],
+                     WARP_DELTA_NUMSYMBOLS_HIGH);
+  }
+#endif  // CONFIG_WARP_PRECISION
 }
 
 static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -678,10 +691,48 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   // Such models can still be signalled, but are effectively useless
   // as we'll just fall back to translational motion
   assert(!params->invalid);
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  assert(mbmi->six_param_warp_model_flag ==
+         get_default_six_param_flag(cm, mbmi));
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
 
-  // TODO(rachelbarker): Allow signaling warp type?
-  write_warp_delta_param(xd, 2, params->wmmat[2] - base_params.wmmat[2], w);
-  write_warp_delta_param(xd, 3, params->wmmat[3] - base_params.wmmat[3], w);
+#if CONFIG_WARP_PRECISION
+  aom_write_symbol(
+      w, mbmi->warp_precision_idx,
+      xd->tile_ctx->warp_precision_idx_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
+      NUM_WARP_PRECISION_MODES);
+#endif  // CONFIG_WARP_PRECISION
+
+  int32_t coded_delta_param[6] = { 0, 0, 0, 0, 0, 0 };
+  int step_size = 0;
+  int max_coded_index = 0;
+  get_warp_model_steps(mbmi, &step_size, &max_coded_index);
+
+  for (uint8_t index = 2; index < (
+#if CONFIG_SIX_PARAM_WARP_DELTA
+                                      mbmi->six_param_warp_model_flag ? 6 :
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+                                                                      4);
+       index++) {
+    int32_t value = params->wmmat[index] - base_params.wmmat[index];
+#if CONFIG_WARP_PRECISION
+    coded_delta_param[index] = (value / step_size);
+    assert(coded_delta_param[index] * step_size == value);
+    write_warp_delta_param(xd, index, abs(coded_delta_param[index]), w,
+                           max_coded_index);
+    // Code sign
+    if (coded_delta_param[index]) {
+      aom_write_symbol(w, coded_delta_param[index] < 0,
+                       xd->tile_ctx->warp_param_sign_cdf, 2);
+    }
+#else
+    coded_delta_param[index] = (value / step_size) + max_coded_index;
+    // Check that the value will round-trip properly
+    assert((coded_delta_param[index] - max_coded_index) * step_size == value);
+
+    write_warp_delta_param(xd, index, coded_delta_param[index], w);
+#endif  // CONFIG_WARP_PRECISION
+  }
 }
 
 static AOM_INLINE void write_motion_mode(
@@ -5577,6 +5628,11 @@ static AOM_INLINE void write_sequence_header(
           (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
       aom_wb_write_bit(wb, enabled);
     }
+
+#if CONFIG_SIX_PARAM_WARP_DELTA
+    aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 

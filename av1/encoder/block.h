@@ -1202,9 +1202,21 @@ typedef struct {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
   //! warp_delta_param_cost
-  int warp_delta_param_cost[2][WARP_DELTA_NUM_SYMBOLS];
+  int warp_delta_param_cost[2][WARP_DELTA_NUMSYMBOLS_LOW];
+#if CONFIG_WARP_PRECISION
+  //! warp_delta_param_cost
+  int warp_delta_param_high_cost[2][WARP_DELTA_NUMSYMBOLS_HIGH];
+  //! warp_delta_param_sign_cost
+  int warp_param_sign_cost[2];
+#endif  // CONFIG_WARP_PRECISION
   //! warp_ref_idx_cost
   int warp_ref_idx_cost[3][WARP_REF_CONTEXTS][2];
+
+#if CONFIG_WARP_PRECISION
+  //! warp_precision_idx_cost
+  int warp_precision_idx_cost[BLOCK_SIZES_ALL][NUM_WARP_PRECISION_MODES];
+#endif  // CONFIG_WARP_PRECISION
+
   //! warpmv_with_mvd_flag_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int warpmv_with_mvd_flag_cost[2];

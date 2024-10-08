@@ -5196,7 +5196,7 @@ int av1_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 static INLINE unsigned int compute_motion_cost(
     MACROBLOCKD *xd, const AV1_COMMON *const cm,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, BLOCK_SIZE bsize,
-    const MV *this_mv) {
+    const MV *this_mv, int compute_mvcost) {
   unsigned int mse;
   unsigned int sse;
   const int mi_row = xd->mi_row;
@@ -5220,7 +5220,9 @@ static INLINE unsigned int compute_motion_cost(
   const aom_variance_fn_ptr_t *vfp = ms_params->var_params.vfp;
 
   mse = vfp->vf(dst, dst_stride, src, src_stride, &sse);
-  mse += mv_err_cost(*this_mv, &ms_params->mv_cost_params);
+  if (compute_mvcost) {
+    mse += mv_err_cost(*this_mv, &ms_params->mv_cost_params);
+  }
   return mse;
 }
 
@@ -5349,7 +5351,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   // Calculate the center position's error
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
-  bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+  bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv, 1);
 
   // MV search
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
@@ -5390,7 +5392,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                  this_mv, &mbmi->wm_params[0], mi_row,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                  mi_col)) {
-          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
+          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {
             best_idx = idx;
@@ -5532,7 +5534,159 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
+#if CONFIG_WARP_PRECISION
+#define MAX_WARP_DELTA_ITERS_EXT 14
+#endif  // CONFIG_WARP_PRECISION
 #define MAX_WARP_DELTA_ITERS 8
+// This function is used to search the translational MV part of the warp model
+// and only invoked when delta parameters are signaled for warp-delta mode.
+static void refine_translational_mv(
+    const AV1_COMMON *const cm, MACROBLOCKD *xd,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
+    WarpedMotionParams *params, WarpedMotionParams *base_params,
+    WarpedMotionParams *best_wm_params, MV *best_mv,
+#if CONFIG_WARP_PRECISION
+    int warp_precision_idx_rate,
+#endif  // CONFIG_WARP_PRECISION
+    const ModeCosts *mode_costs, int step_size, int max_coded_index,
+    int num_neighbors, int num_mv_iterations, uint64_t *best_rd) {
+  static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
+                                   { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } };
+
+  const int mv_shift =
+      (MV_PRECISION_ONE_EIGHTH_PEL - ms_params->mv_cost_params.pb_mv_precision);
+  const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
+  const int error_per_bit = ms_params->mv_cost_params.mv_costs->errorperbit;
+
+  // Load non-translational part of the warp model
+  // This part will not be changed in the following loop,
+  // and the shear part has already been calculated (and is known to
+  // be valid), which saves us a lot of recalculation.
+
+  // Cost up the non-translational part of the model. Again, this will
+  // not change between iterations of the following loop
+  int rate =
+#if CONFIG_WARP_PRECISION
+      warp_precision_idx_rate +
+#endif  // CONFIG_WARP_PRECISION
+      av1_cost_model_param(mbmi, mode_costs, step_size, max_coded_index,
+                           base_params);
+
+  for (int iterations = 0; iterations < num_mv_iterations; iterations++) {
+    int best_idx = -1;
+    for (int idx = 0; idx < num_neighbors; ++idx) {
+      MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
+                     best_mv->col + neighbors[idx].col * (1 << mv_shift) };
+      if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
+        // Update model and costs according to the motion vector which
+        // is being tried out this iteration
+        av1_set_warp_translation(xd->mi_row, xd->mi_col,
+                                 mbmi->sb_type[PLANE_TYPE_Y], this_mv, params);
+
+        unsigned int this_sse = compute_motion_cost(
+            xd, cm, ms_params, mbmi->sb_type[PLANE_TYPE_Y], &this_mv, 1);
+        uint64_t this_rd =
+            this_sse + (int)ROUND_POWER_OF_TWO_64(
+                           (int64_t)rate * error_per_bit,
+                           RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
+                               PIXEL_TRANSFORM_ERROR_SCALE);
+
+        if (this_rd < *best_rd) {
+          best_idx = idx;
+          *best_wm_params = *params;
+          *best_rd = this_rd;
+        }
+      }
+    }
+
+    if (best_idx >= 0) {
+      // Commit to this motion vector
+      best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
+      best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
+    } else {
+      // Skip rest of the iterations if the center is the best one
+      return;
+    }
+  }  // (int iterations = 0; iterations < 2; iterations++) {
+}
+
+#if CONFIG_WARP_PRECISION
+
+// During searching of the warp-model in the encoder, a circular buffer is
+// maintained to store previously searched warp models. Later on during the
+// warp-model search, if there is any valid model is found from the buffer,
+// refinement is done around that model.
+
+// This function initialize the buffer to all models are invalid.
+void reset_warp_stats_buffer(warp_mode_info_array *warp_stats) {
+  warp_stats->model_count = 0;
+  warp_stats->model_start_idx = 0;
+  for (int k = 0; k < WARP_STATS_BUFFER_SIZE; k++) {
+    warp_stats->warp_param_info[k].is_valid = 0;
+  }
+}
+
+// At the end of the warp parameter search (end of the function
+// av1_pick_warp_delta) the best warp model is inserted to the end of the
+// buffer.
+void update_warp_stats_buffer(const warp_mode_info *const this_warp_stats,
+                              warp_mode_info_array *warp_stats) {
+  warp_mode_info *queue = warp_stats->warp_param_info;
+  const int start_idx = warp_stats->model_start_idx;
+  const int count = warp_stats->model_count;
+
+  // append new stats at end of the buffer, and update the count and start_idx
+  // accordingly.
+  const int idx = (start_idx + count) % WARP_STATS_BUFFER_SIZE;
+  queue[idx] = *this_warp_stats;
+
+  if (count < WARP_STATS_BUFFER_SIZE) {
+    ++warp_stats->model_count;
+  } else {
+    ++warp_stats->model_start_idx;
+  }
+}
+
+// At the beginning of the search, encoder check if there is any valid model
+// found in the buffer. If the valid model is found return 1; otherwise return
+// 0. If the valid model is found, this function output the cand_best_model.
+static int get_valid_model_from_warp_stats_buffer(
+    warp_mode_info_array *prev_best_models, MB_MODE_INFO *mbmi,
+    warp_mode_info *cand_best_model) {
+  if (!prev_best_models) return 0;
+
+  warp_mode_info *queue = prev_best_models->warp_param_info;
+  const int start_idx = prev_best_models->model_start_idx;
+  const int count = prev_best_models->model_count;
+
+  // Search the buffer to find the valid model
+  for (int idx_bank = 0; idx_bank < count; ++idx_bank) {
+    const int idx = (start_idx + count - 1 - idx_bank) % WARP_STATS_BUFFER_SIZE;
+    MB_MODE_INFO *ref_mbmi = &queue[idx].mbmi_stats;
+    int is_same_model_type =
+        (ref_mbmi->warp_ref_idx == mbmi->warp_ref_idx)
+#if CONFIG_SIX_PARAM_WARP_DELTA
+        &&
+        (ref_mbmi->six_param_warp_model_flag == mbmi->six_param_warp_model_flag)
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+        ;
+
+    if (mbmi->warp_precision_idx) {
+      is_same_model_type &=
+          ((mbmi->ref_mv_idx[0] == ref_mbmi->ref_mv_idx[0]) &&
+           (ref_mbmi->warp_precision_idx == (mbmi->warp_precision_idx - 1)));
+    }
+
+    if (is_same_model_type && queue[idx].is_valid) {
+      *cand_best_model = queue[idx];
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+#endif  // CONFIG_WARP_PRECISION
 
 // Returns 1 if able to select a good model, 0 if not
 // TODO(rachelbarker):
@@ -5541,15 +5695,22 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 // refinement. Need to revisit this function in phase 2 and revisit whether
 // there is a good way to do something similar.
 int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
-                        MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT *mbmi_ext,
+                        MB_MODE_INFO *mbmi,
                         const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                         const ModeCosts *mode_costs,
+#if CONFIG_WARP_PRECISION
+                        warp_mode_info_array *prev_best_models,
+#endif  // CONFIG_WARP_PRECISION
                         WARP_CANDIDATE *warp_param_stack) {
   WarpedMotionParams *params = &mbmi->wm_params[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
 
+#if CONFIG_WARP_PRECISION
+  bool skip_mv_search = 0;
+  int enable_fast_model_search = prev_best_models && mbmi->warp_precision_idx;
+#endif  // CONFIG_WARP_PRECISION
   // Note(rachelbarker): Technically we can refine MVs for the AMVDNEWMV mode
   // too, but it requires more complex logic for less payoff compared to
   // refinement for NEWMV. So we don't do that currently.
@@ -5580,21 +5741,112 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   uint64_t best_rd, inc_rd, dec_rd;
   int valid;
 
-  static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
-                                   { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } };
-  static const int num_neighbors = 8;
-
-  const int mv_shift =
-      (MV_PRECISION_ONE_EIGHTH_PEL - ms_params->mv_cost_params.pb_mv_precision);
+  int num_neighbors = 8;
+  int num_mv_iterations = 1;
   const int error_per_bit = ms_params->mv_cost_params.mv_costs->errorperbit;
+
+  int step_size = 0;
+  int max_coded_index = 0;
+  get_warp_model_steps(mbmi, &step_size, &max_coded_index);
+  const int max_warp_delta_value = step_size * max_coded_index;
+  WarpedMotionParams start_params = base_params;
+
+#if CONFIG_WARP_PRECISION
+  WarpedMotionParams prev_wm_params;
+  if (enable_fast_model_search) {
+    warp_mode_info *prev_best_model = NULL;
+
+    warp_mode_info cand_best_model;
+    if (get_valid_model_from_warp_stats_buffer(prev_best_models, mbmi,
+                                               &cand_best_model)) {
+      prev_best_model = &cand_best_model;
+    }
+
+    if (prev_best_model && prev_best_model->is_valid) {
+      prev_wm_params = prev_best_model->prev_wm_params;
+
+      for (int param_index = 2;
+           param_index < (
+#if CONFIG_SIX_PARAM_WARP_DELTA
+                             mbmi->six_param_warp_model_flag ? 6 :
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+                                                             4);
+           param_index++) {
+        int actual_delta =
+            prev_wm_params.wmmat[param_index] - base_params.wmmat[param_index];
+        int round_offset = step_size >> 1;
+        int truncated_delta =
+            ((abs(actual_delta) + round_offset) / step_size) * step_size;
+        if (truncated_delta > max_warp_delta_value)
+          truncated_delta = max_warp_delta_value;
+        truncated_delta = actual_delta < 0 ? -truncated_delta : truncated_delta;
+        prev_wm_params.wmmat[param_index] =
+            truncated_delta + base_params.wmmat[param_index];
+      }
+#if CONFIG_SIX_PARAM_WARP_DELTA
+      if (!mbmi->six_param_warp_model_flag) {
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+        prev_wm_params.wmmat[4] = -prev_wm_params.wmmat[3];
+        prev_wm_params.wmmat[5] = prev_wm_params.wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+      }
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+      start_params = prev_wm_params;
+
+      if (can_refine_mv && mbmi->warp_precision_idx) {
+        int_mv first_pass_start_mv = prev_best_model->mbmi_stats.mv[0];
+#if CONFIG_C071_SUBBLK_WARPMV
+        if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+          lower_mv_precision(&first_pass_start_mv.as_mv, mbmi->pb_mv_precision);
+        if (av1_is_subpelmv_in_range(mv_limits, first_pass_start_mv.as_mv)) {
+          mbmi->mv[0] = first_pass_start_mv;
+          best_mv->row = first_pass_start_mv.as_mv.row;
+          best_mv->col = first_pass_start_mv.as_mv.col;
+          center_mv = first_pass_start_mv;
+          skip_mv_search = 1;  // Don't search MV if MV is already found
+        }
+      }
+
+    } else {
+      enable_fast_model_search = 0;
+    }
+  }
+#endif  // CONFIG_WARP_PRECISION
+
+  int number_of_iterations =
+#if CONFIG_WARP_PRECISION
+      (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW) ? MAX_WARP_DELTA_ITERS_EXT
+                                                     :
+#endif
+                                                     MAX_WARP_DELTA_ITERS;
+
+#if CONFIG_WARP_PRECISION
+  if (enable_fast_model_search) {
+    number_of_iterations = 2;
+  }
+#endif  // CONFIG_WARP_PRECISION
 
   // Set up initial model by copying global motion model
   // and adjusting for the chosen motion vector
-  params->wmtype = ROTZOOM;
-  params->wmmat[2] = base_params.wmmat[2];
-  params->wmmat[3] = base_params.wmmat[3];
-  params->wmmat[4] = -params->wmmat[3];
-  params->wmmat[5] = params->wmmat[2];
+  params->wmtype =
+#if CONFIG_SIX_PARAM_WARP_DELTA
+      mbmi->six_param_warp_model_flag ? AFFINE :
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+                                      ROTZOOM;
+  params->wmmat[2] = start_params.wmmat[2];
+  params->wmmat[3] = start_params.wmmat[3];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  if (mbmi->six_param_warp_model_flag) {
+    params->wmmat[4] = start_params.wmmat[4];
+    params->wmmat[5] = start_params.wmmat[5];
+  } else {
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+    params->wmmat[4] = -params->wmmat[3];
+    params->wmmat[5] = params->wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  }
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
   av1_reduce_warp_model(params);
 #if CONFIG_EXT_WARP_FILTER
   av1_get_shear_params(params);
@@ -5608,12 +5860,24 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   }
 #endif  // CONFIG_EXT_WARP_FILTER
 
+#if CONFIG_WARP_PRECISION
+  const int warp_precision_idx_rate =
+      mode_costs
+          ->warp_precision_idx_cost[mbmi->sb_type[xd->tree_type == CHROMA_PART]]
+                                   [mbmi->warp_precision_idx];
+#endif  // CONFIG_WARP_PRECISION
+
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
 
   // Calculate initial error
   best_wm_params = *params;
-  rate = av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
-  sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+  rate =
+#if CONFIG_WARP_PRECISION
+      warp_precision_idx_rate +
+#endif  // CONFIG_WARP_PRECISION
+      av1_cost_model_param(mbmi, mode_costs, step_size, max_coded_index,
+                           &base_params);
+  sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv, can_refine_mv);
   best_rd = sse + (int)ROUND_POWER_OF_TWO_64((int64_t)rate * error_per_bit,
                                              RDDIV_BITS + AV1_PROB_COST_SHIFT -
                                                  RD_EPB_SHIFT +
@@ -5621,66 +5885,48 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
   // Refine model, by making a few passes through the available
   // parameters and trying to increase/decrease them
-  const int step_size = (1 << WARP_DELTA_STEP_BITS);
 
-  for (int iter = 0; iter < MAX_WARP_DELTA_ITERS; iter++) {
+  for (int iter = 0; iter < number_of_iterations; iter++) {
     int center_best_so_far = 1;
 
-    if (can_refine_mv) {
-      int best_idx = -1;
-
-      // Load non-translational part of the warp model
-      // This part will not be changed in the following loop,
-      // and the shear part has already been calculated (and is known to
-      // be valid), which saves us a lot of recalculation.
+    if (can_refine_mv
+#if CONFIG_WARP_PRECISION
+        && !skip_mv_search
+#endif  // CONFIG_WARP_PRECISION
+    ) {
       *params = best_wm_params;
-
-      // Cost up the non-translational part of the model. Again, this will
-      // not change between iterations of the following loop
-      rate = av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
-
-      for (int idx = 0; idx < num_neighbors; ++idx) {
-        MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
-                       best_mv->col + neighbors[idx].col * (1 << mv_shift) };
-        if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
-          // Update model and costs according to the motion vector which
-          // is being tried out this iteration
-          av1_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
-
-          unsigned int this_sse =
-              compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
-          uint64_t this_rd =
-              this_sse + (int)ROUND_POWER_OF_TWO_64(
-                             (int64_t)rate * error_per_bit,
-                             RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
-                                 PIXEL_TRANSFORM_ERROR_SCALE);
-
-          if (this_rd < best_rd) {
-            best_idx = idx;
-            best_wm_params = *params;
-            best_rd = this_rd;
-          }
-        }
-      }
-
-      if (best_idx >= 0) {
-        // Commit to this motion vector
-        best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
-        best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
-        center_mv.as_mv = *best_mv;
-      }
+      refine_translational_mv(cm, xd, ms_params, mbmi, params, &base_params,
+                              &best_wm_params, best_mv,
+#if CONFIG_WARP_PRECISION
+                              warp_precision_idx_rate,
+#endif  // CONFIG_WARP_PRECISION
+                              mode_costs, step_size, max_coded_index,
+                              num_neighbors, num_mv_iterations, &best_rd);
+      center_mv.as_mv = *best_mv;
     }
 
-    for (int param_index = 2; param_index < 4; param_index++) {
+    for (int param_index = 2;
+         param_index < (
+#if CONFIG_SIX_PARAM_WARP_DELTA
+                           mbmi->six_param_warp_model_flag ? 6 :
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+                                                           4);
+         param_index++) {
       // Try increasing the parameter
       *params = best_wm_params;
       params->wmmat[param_index] += step_size;
       delta = params->wmmat[param_index] - base_params.wmmat[param_index];
-      if (abs(delta) > WARP_DELTA_MAX) {
+      if (abs(delta) > max_warp_delta_value) {
         inc_rd = UINT64_MAX;
       } else {
-        params->wmmat[4] = -params->wmmat[3];
-        params->wmmat[5] = params->wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+        if (!mbmi->six_param_warp_model_flag) {
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+          params->wmmat[4] = -params->wmmat[3];
+          params->wmmat[5] = params->wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+        }
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
 #if CONFIG_EXT_WARP_FILTER
         valid =
             av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
@@ -5692,8 +5938,14 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
-          rate = av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
-          sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+          rate =
+#if CONFIG_WARP_PRECISION
+              warp_precision_idx_rate +
+#endif  // CONFIG_WARP_PRECISION
+              av1_cost_model_param(mbmi, mode_costs, step_size, max_coded_index,
+                                   &base_params);
+          sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv,
+                                    can_refine_mv);
           inc_rd = sse + (int)ROUND_POWER_OF_TWO_64(
                              (int64_t)rate * error_per_bit,
                              RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
@@ -5708,11 +5960,17 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       *params = best_wm_params;
       params->wmmat[param_index] -= step_size;
       delta = params->wmmat[param_index] - base_params.wmmat[param_index];
-      if (abs(delta) > WARP_DELTA_MAX) {
+      if (abs(delta) > max_warp_delta_value) {
         dec_rd = UINT64_MAX;
       } else {
-        params->wmmat[4] = -params->wmmat[3];
-        params->wmmat[5] = params->wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+        if (!mbmi->six_param_warp_model_flag) {
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+          params->wmmat[4] = -params->wmmat[3];
+          params->wmmat[5] = params->wmmat[2];
+#if CONFIG_SIX_PARAM_WARP_DELTA
+        }
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
 #if CONFIG_EXT_WARP_FILTER
         valid =
             av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
@@ -5724,8 +5982,14 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
-          rate = av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
-          sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+          rate =
+#if CONFIG_WARP_PRECISION
+              warp_precision_idx_rate +
+#endif  // CONFIG_WARP_PRECISION
+              av1_cost_model_param(mbmi, mode_costs, step_size, max_coded_index,
+                                   &base_params);
+          sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv,
+                                    can_refine_mv);
           dec_rd = sse + (int)ROUND_POWER_OF_TWO_64(
                              (int64_t)rate * error_per_bit,
                              RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
@@ -5764,6 +6028,17 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       break;
     }
   }
+
+#if CONFIG_WARP_PRECISION
+  if (prev_best_models) {
+    warp_mode_info this_warp_stats;
+    this_warp_stats.is_valid = 1;
+    this_warp_stats.step_size = step_size;
+    this_warp_stats.prev_wm_params = best_wm_params;
+    this_warp_stats.mbmi_stats = *mbmi;
+    update_warp_stats_buffer(&this_warp_stats, prev_best_models);
+  }
+#endif  // CONFIG_WARP_PRECISION
 
   mbmi->wm_params[0] = best_wm_params;
 
@@ -5822,7 +6097,7 @@ int av1_refine_mv_for_base_param_warp_model(
   // Calculate initial error
   best_wm_params = *params;
 
-  sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+  sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv, can_refine_mv);
   best_rd = sse;
 
   // First iteration always scans all neighbors
@@ -5845,8 +6120,8 @@ int av1_refine_mv_for_base_param_warp_model(
         av1_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
         if (!av1_get_shear_params(params)) continue;
 
-        unsigned int this_sse =
-            compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
+        unsigned int this_sse = compute_motion_cost(xd, cm, ms_params, bsize,
+                                                    &this_mv, can_refine_mv);
         uint64_t this_rd = this_sse;
 
         if (this_rd < best_rd) {
@@ -5900,7 +6175,7 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
   // warp model, and stored it into mbmi->wm_params, but we have not yet
   // actually built and evaluated the resulting prediction
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
-  bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+  bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv, 1);
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -5924,7 +6199,7 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
         if (!av1_extend_warp_model(neighbor_is_above, bsize, &this_mv, mi_row,
                                    mi_col, neighbor_params,
                                    &mbmi->wm_params[0])) {
-          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
+          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {
             best_idx = idx;

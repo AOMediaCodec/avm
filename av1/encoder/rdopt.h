@@ -109,6 +109,10 @@ int av1_cost_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                         const MB_MODE_INFO_EXT *mbmi_ext,
                         const ModeCosts *mode_costs);
 
+int av1_cost_model_param(const MB_MODE_INFO *mbmi, const ModeCosts *mode_costs,
+                         int step_size, int max_coded_index,
+                         WarpedMotionParams *base_params);
+
 // TODO(any): The defs below could potentially be moved to rdopt_utils.h instead
 // because they are not the main rdopt functions.
 /*!\cond */

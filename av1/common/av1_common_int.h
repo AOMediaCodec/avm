@@ -589,6 +589,10 @@ typedef struct SequenceHeader {
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
                                  // sequence
 
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  int enable_six_param_warp_delta;  // enables/disables six parameter warp delta
+#endif                              // CONFIG_SIX_PARAM_WARP_DELTA
+
   uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame

@@ -553,6 +553,13 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_warp_delta = ARG_DEF(NULL, "enable-warp-delta", 1,
                                "Enable explicit warp models "
                                "(0: false, 1: true (default))"),
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  .enable_six_param_warp_delta =
+      ARG_DEF(NULL, "enable-six-param-warp-delta", 1,
+              "Enable explicit six parameter warp models "
+              "(0: false, 1: true (default))"),
+
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
   .enable_warp_extend = ARG_DEF(NULL, "enable-warp-extend", 1,
                                 "Enable warp extension "
                                 "(0: false, 1: true (default))"),

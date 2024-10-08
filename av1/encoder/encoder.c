@@ -433,6 +433,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_D071_IMP_MSK_BLD
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
+#if CONFIG_SIX_PARAM_WARP_DELTA
+  seq->enable_six_param_warp_delta =
+      oxcf->motion_mode_cfg.enable_six_param_warp_delta;
+#endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
   seq->enable_uneven_4way_partitions =

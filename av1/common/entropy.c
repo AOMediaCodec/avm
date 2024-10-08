@@ -248,7 +248,15 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[2], 2);
   RESET_CDF_COUNTER(fc->warpmv_with_mvd_flag_cdf, 2);
-  RESET_CDF_COUNTER(fc->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
+#if CONFIG_WARP_PRECISION
+  RESET_CDF_COUNTER(fc->warp_precision_idx_cdf, NUM_WARP_PRECISION_MODES);
+#endif  // CONFIG_WARP_PRECISION
+
+  RESET_CDF_COUNTER(fc->warp_delta_param_cdf, WARP_DELTA_NUMSYMBOLS_LOW);
+#if CONFIG_WARP_PRECISION
+  RESET_CDF_COUNTER(fc->warp_delta_param_high_cdf, WARP_DELTA_NUMSYMBOLS_HIGH);
+  RESET_CDF_COUNTER(fc->warp_param_sign_cdf, 2);
+#endif  // CONFIG_WARP_PRECISION
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
