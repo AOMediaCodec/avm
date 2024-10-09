@@ -548,13 +548,15 @@ class AV1Convolve2DHighbdTest
     const int width = GetParam().Block().Width();
     const int height = GetParam().Block().Height();
     const int bit_depth = GetParam().BitDepth();
-    const InterpFilterParams *filter_params_x;
-    const InterpFilterParams *filter_params_y;
+    const InterpFilterParams *filter_params_x =
+        av1_get_interp_filter_params_with_block_size(h_f, width);
+    const InterpFilterParams *filter_params_y =
+        av1_get_interp_filter_params_with_block_size(v_f, height);
 
     const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     ConvolveParams conv_params1 =
-        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, bit_depth);
     aom_usec_timer timer;
     aom_usec_timer_start(&timer);
     for (int i = 0; i < num_iters; ++i) {
@@ -567,7 +569,7 @@ class AV1Convolve2DHighbdTest
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     ConvolveParams conv_params2 =
-        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, bit_depth);
     aom_usec_timer_start(&timer);
     for (int i = 0; i < num_iters; ++i) {
       GetParam().TestFunction()(input, width, test, kOutputStride, width,
@@ -577,8 +579,8 @@ class AV1Convolve2DHighbdTest
     aom_usec_timer_mark(&timer);
     const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
 
-    printf("%d - %d %3dx%-3d: ref: %d mod: %d (%3.2f)\n", h_f, v_f, width,
-           height, time1, time2, (double)time1 / time2);
+    printf("%d - %d %3dx%-3d bd: %d ref: %d mod: %d (%3.2f)\n", h_f, v_f, width,
+           height, bit_depth, time1, time2, (double)time1 / time2);
     AssertOutputBufferEq(reference, test, width, height);
   }
 };
