@@ -583,6 +583,10 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   );
   xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+  if (xd->tree_type != CHROMA_PART) {
+    xd->mi[0]->mi_row_start = mi_row;
+    xd->mi[0]->mi_col_start = mi_col;
+  }
 #if CONFIG_RD_DEBUG
   xd->mi[0]->mi_row = mi_row;
   xd->mi[0]->mi_col = mi_col;

@@ -5480,82 +5480,63 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   // scan the nearest above rows
   if (up_available) {
     const int mi_row_offset = -1;
-    const MB_MODE_INFO *above_mbmi = xd->mi[mi_row_offset * mi_stride];
-    uint8_t above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
+    MB_MODE_INFO *above_mbmi = xd->mi[mi_row_offset * mi_stride];
+    uint8_t above_block_width;
+    const int above_mc_offset_start = above_mbmi->mi_col_start - mi_col;
 
-    if (xd->width <= above_block_width) {
-      const int col_offset = -mi_col % above_block_width;
+    if (above_mc_offset_start < 0) do_top_left = 0;
 
-      if (col_offset < 0) do_top_left = 0;
-      if (col_offset + above_block_width > xd->width) do_top_right = 0;
+    for (i = above_mc_offset_start;
+         i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
+      above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
+      above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
+      mi_step = AOMMIN(xd->width, above_block_width);
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
         if (above_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, col_offset, 1);
+          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
           pts += 2;
           pts_inref += 2;
-          if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+          if (++np >= LEAST_SQUARES_SAMPLES_MAX)
             return LEAST_SQUARES_SAMPLES_MAX;
-          }
         }
       }
 #else
       if (above_mbmi->ref_frame[0] == ref_frame &&
           above_mbmi->ref_frame[1] == NONE_FRAME) {
-        record_samples(above_mbmi, pts, pts_inref, 0, -1, col_offset, 1);
+        record_samples(above_mbmi, pts, pts_inref, 0, -1, i, 1);
         pts += 2;
         pts_inref += 2;
-        if (++np >= LEAST_SQUARES_SAMPLES_MAX) return LEAST_SQUARES_SAMPLES_MAX;
+        if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+          return LEAST_SQUARES_SAMPLES_MAX;
+        }
       }
-#endif        // CONFIG_COMPOUND_WARP_SAMPLES
-    } else {  // xd->width > above_block_width
-      for (i = 0; i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col);
-           i += mi_step) {
-        above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
-        above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
-        mi_step = AOMMIN(xd->width, above_block_width);
-#if CONFIG_COMPOUND_WARP_SAMPLES
-        for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
-          if (above_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX)
-              return LEAST_SQUARES_SAMPLES_MAX;
-          }
-        }
-#else
-        if (above_mbmi->ref_frame[0] == ref_frame &&
-            above_mbmi->ref_frame[1] == NONE_FRAME) {
-          record_samples(above_mbmi, pts, pts_inref, 0, -1, i, 1);
-          pts += 2;
-          pts_inref += 2;
-          if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-            return LEAST_SQUARES_SAMPLES_MAX;
-          }
-        }
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
-      }
     }
-  }
-  assert(np <= LEAST_SQUARES_SAMPLES_MAX);
 
-  // scan the nearest left columns
+    do_top_right = (i == xd->width) && (i < cm->mi_params.mi_cols - mi_col);
+  }
+
+  // Scan the nearest left columns
   if (left_available) {
     const int mi_col_offset = -1;
-    const MB_MODE_INFO *left_mbmi = xd->mi[mi_col_offset];
-    uint8_t left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
+    MB_MODE_INFO *left_mbmi = xd->mi[mi_col_offset];
+    uint8_t left_block_height;
+    const int left_mr_offset_start = left_mbmi->mi_row_start - mi_row;
 
-    if (xd->height <= left_block_height) {
-      const int row_offset = -mi_row % left_block_height;
+    if (left_mr_offset_start < 0) do_top_left = 0;
 
-      if (row_offset < 0) do_top_left = 0;
+    for (i = left_mr_offset_start;
+         i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row); i += mi_step) {
+      left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
+      left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
+      mi_step = AOMMIN(xd->height, left_block_height);
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
         if (left_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(left_mbmi, ref, pts, pts_inref, row_offset, 1, 0, -1);
+          record_samples(left_mbmi, ref, pts, pts_inref, i, 1, 0, -1);
           pts += 2;
           pts_inref += 2;
           if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
@@ -5566,41 +5547,14 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #else
       if (left_mbmi->ref_frame[0] == ref_frame &&
           left_mbmi->ref_frame[1] == NONE_FRAME) {
-        record_samples(left_mbmi, pts, pts_inref, row_offset, 1, 0, -1);
+        record_samples(left_mbmi, pts, pts_inref, i, 1, 0, -1);
         pts += 2;
         pts_inref += 2;
-        if (++np >= LEAST_SQUARES_SAMPLES_MAX) return LEAST_SQUARES_SAMPLES_MAX;
+        if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+          return LEAST_SQUARES_SAMPLES_MAX;
+        }
       }
-#endif        // CONFIG_COMPOUND_WARP_SAMPLES
-    } else {  // xd->height > left_block_height
-      for (i = 0; i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row);
-           i += mi_step) {
-        left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
-        left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
-        mi_step = AOMMIN(xd->height, left_block_height);
-#if CONFIG_COMPOUND_WARP_SAMPLES
-        for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
-          if (left_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(left_mbmi, ref, pts, pts_inref, i, 1, 0, -1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-              return LEAST_SQUARES_SAMPLES_MAX;
-            }
-          }
-        }
-#else
-        if (left_mbmi->ref_frame[0] == ref_frame &&
-            left_mbmi->ref_frame[1] == NONE_FRAME) {
-          record_samples(left_mbmi, pts, pts_inref, i, 1, 0, -1);
-          pts += 2;
-          pts_inref += 2;
-          if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-            return LEAST_SQUARES_SAMPLES_MAX;
-          }
-        }
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
-      }
     }
   }
   assert(np <= LEAST_SQUARES_SAMPLES_MAX);

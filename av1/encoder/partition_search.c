@@ -799,6 +799,10 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
 
   // Setup segment ID.
   mbmi = xd->mi[0];
+  if (xd->tree_type != CHROMA_PART) {
+    mbmi->mi_row_start = mi_row;
+    mbmi->mi_col_start = mi_col;
+  }
   mbmi->segment_id = 0;
   if (seg->enabled) {
     if (seg->enabled && !cpi->vaq_refresh) {
