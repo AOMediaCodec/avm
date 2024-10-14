@@ -369,6 +369,7 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
+  sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
   sf->tx_sf.tx_type_search.skip_stx_search = 0;
   sf->tx_sf.tx_type_search.skip_cctx_search = 0;
@@ -885,6 +886,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
   tx_sf->refine_fast_tx_search_results = 1;
+  tx_sf->prune_tx_rd_eval_sec_tx_sse = false;
 #if CONFIG_EXT_RECUR_PARTITIONS
   tx_sf->use_largest_tx_size_for_small_bsize = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

@@ -95,7 +95,8 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
                      TxfmParam *txfm_param, QUANT_PARAM *qparam);
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse);
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse,
+               int64_t *sec_tx_sse);
 
 void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
                                     CctxType cctx_type);

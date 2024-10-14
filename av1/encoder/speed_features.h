@@ -908,6 +908,10 @@ typedef struct TX_SPEED_FEATURES {
   // Refine TX type after fast TX search.
   int refine_fast_tx_search_results;
 
+  // Prune RD evaluation of secondary transform using the SSE of secondary
+  // transform output.
+  bool prune_tx_rd_eval_sec_tx_sse;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   // On inter frames, use the largest txfm size for block_sizes smaller than
   // or equal to BLOCK_16X16.

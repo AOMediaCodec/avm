@@ -476,16 +476,18 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
     // transform, in order to obtain the quantized coefficients of the second
     // channel.
     if (plane != AOM_PLANE_V) {
-      av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0);
+      av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0,
+                NULL);
     }
     if (plane == AOM_PLANE_U) {
       av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize,
-                txfm_param, 0);
+                txfm_param, 0, NULL);
       forward_cross_chroma_transform(x, block, txfm_param->tx_size,
                                      txfm_param->cctx_type);
     }
   } else {
-    av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0);
+    av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0,
+              NULL);
   }
   const uint8_t fsc_mode =
       (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && plane == PLANE_TYPE_Y) ||
@@ -503,7 +505,8 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
 }
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse) {
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse,
+               int64_t *sec_tx_sse) {
   struct macroblock_plane *const p = &x->plane[plane];
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
@@ -552,7 +555,7 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   (void)intra_mode;
   (void)filter;
   (void)is_depth0;
-  av1_fwd_stxfm(coeff, txfm_param);
+  av1_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
 }
 
 // Facade function for forward cross chroma component transform

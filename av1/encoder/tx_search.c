@@ -2541,6 +2541,21 @@ static INLINE void predict_dc_only_block(
   }
 }
 
+// Prune the RD evaluation of secondary transform using the partial rd computed
+// based on minimum distortion after secondary transform
+static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
+                                   int64_t block_sse, int64_t best_rd,
+                                   int rdmult,
+                                   bool prune_tx_rd_eval_sec_tx_sse) {
+  if (!prune_tx_rd_eval_sec_tx_sse) return false;
+  if (sec_tx_sse_to_be_coded == INT64_MAX) return false;
+  if (RDCOST(rdmult, 0, AOMMAX((block_sse - sec_tx_sse_to_be_coded), 0)) >
+      best_rd) {
+    return true;
+  }
+  return false;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2875,12 +2890,20 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (plane == 0) xd->tx_type_map[tx_type_map_idx] = tx_type;
         RD_STATS this_rd_stats;
         av1_invalid_rd_stats(&this_rd_stats);
-
+        int64_t sec_tx_sse_to_be_coded = INT64_MAX;
+        int64_t *const sec_tx_sse_ptr =
+            cpi->sf.tx_sf.prune_tx_rd_eval_sec_tx_sse ? &sec_tx_sse_to_be_coded
+                                                      : NULL;
         if (!dc_only_blk)
           av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-                    1);
+                    1, sec_tx_sse_ptr);
         else
           av1_xform_dc_only(x, plane, block, &txfm_param, per_px_mean);
+        if (prune_sec_txfm_rd_eval(sec_tx_sse_to_be_coded, block_sse, best_rd,
+                                   x->rdmult,
+                                   cpi->sf.tx_sf.prune_tx_rd_eval_sec_tx_sse)) {
+          continue;
+        }
         *coeffs_available = 1;
 
         skip_trellis_based_on_satd[txfm_param.tx_type] =
@@ -3184,9 +3207,9 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
 
   if (!uv_coeffs_available) {
     av1_xform(x, AOM_PLANE_U, block, blk_row, blk_col, plane_bsize, &txfm_param,
-              0);
+              0, NULL);
     av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize, &txfm_param,
-              0);
+              0, NULL);
     if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
       av1_setup_qmatrix(&cm->quant_params, xd, AOM_PLANE_U, tx_size, tx_type,
                         &quant_param);

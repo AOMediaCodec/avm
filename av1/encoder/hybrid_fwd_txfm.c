@@ -495,7 +495,8 @@ void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
   }
 }
 
-void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
+void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
+                   int64_t *sec_tx_sse) {
   const TX_TYPE stx_type = txfm_param->sec_tx_type;
 
   const int width = tx_size_wide[txfm_param->tx_size] <= 32
@@ -586,6 +587,28 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     const int st_size_class = sb_size;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
     fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
+    if (sec_tx_sse != NULL) {
+#if CONFIG_E124_IST_REDUCE_METHOD4
+      const int reduced_height = (st_size_class == 0)   ? IST_4x4_HEIGHT
+                                 : (st_size_class == 1) ? IST_8x8_HEIGHT_RED
+                                                        : IST_8x8_HEIGHT;
+#else
+      const int reduced_height =
+          (sb_size == 4) ? IST_4x4_HEIGHT : IST_8x8_HEIGHT;
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
+      // SIMD implementation of aom_sum_squares_i32() only supports if n value
+      // is multiple of 16. Hence, the n value is ensured to be at least 16
+      // since the remaining elements of buf1[] are initialized with zero.
+      uint64_t sec_tx_coeff_energy =
+          aom_sum_squares_i32(buf1, ALIGN_POWER_OF_TWO(reduced_height, 4));
+      const int bd_shift = 2 * (txfm_param->bd - 8);
+      const int rounding = bd_shift > 0 ? 1 << (bd_shift - 1) : 0;
+      sec_tx_coeff_energy = (sec_tx_coeff_energy + rounding) >> bd_shift;
+      const int tx_shift =
+          (MAX_TX_SCALE - av1_get_tx_scale(txfm_param->tx_size)) * 2;
+      sec_tx_coeff_energy = RIGHT_SIGNED_SHIFT(sec_tx_coeff_energy, tx_shift);
+      *sec_tx_sse = sec_tx_coeff_energy;
+    }
     memset(coeff, 0, width * height * sizeof(tran_low_t));
     tmp = buf1;
 #if CONFIG_E194_FLEX_SECTX
