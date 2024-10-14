@@ -1091,6 +1091,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
   }
 
+  if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
+
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
     mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||

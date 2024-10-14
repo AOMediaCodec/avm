@@ -6922,7 +6922,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[0] = 0;
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
-#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+      // Section 6.8.2: It is a requirement of bitstream conformance that when
+      // show_existing_frame is used to show a previous frame, that the value
+      // of showable_frame for the previous frame was equal to 1.
+      if (seq_params->enable_frame_output_order &&
+          frame_to_show->frame_type == KEY_FRAME &&
+          !frame_to_show->showable_frame && frame_to_show->frame_output_done) {
+        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "Buffer does not contain a showable frame");
+      }
+#else
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame, that the value
       // of showable_frame for the previous frame was equal to 1.
@@ -6983,9 +6993,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // See if this frame can be used as show_existing_frame in future
       cm->showable_frame = aom_rb_read_bit(rb);
     }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    if (seq_params->enable_frame_output_order &&
+        current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "showable_frame should be equal to 0"
+                         "when enable_frame_output_order is enabled and frame "
+                         "type is KEY_FRAME.");
+    }
+#endif
     cm->cur_frame->showable_frame = cm->showable_frame;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    cm->cur_frame->frame_output_done = 0;
+    if (cm->seq_params.enable_frame_output_order)
+      cm->cur_frame->frame_output_done = 0;
+    else
+      cm->cur_frame->frame_output_done = 1;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     features->error_resilient_mode =
         frame_is_sframe(cm) ||

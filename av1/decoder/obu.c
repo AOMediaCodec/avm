@@ -266,6 +266,15 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params);
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  if (!seq_params->order_hint_info.enable_order_hint &&
+      seq_params->enable_frame_output_order) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "enable_frame_output_order cannot be enabled"
+                       "when enable_order_hint is disabled.");
+  }
+#endif
+
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

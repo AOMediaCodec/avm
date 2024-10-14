@@ -65,7 +65,11 @@ struct aom_codec_alg_priv {
   AVxWorker *frame_worker;
 
   aom_image_t image_with_grain;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  aom_codec_frame_buffer_t grain_image_frame_buffers[REF_FRAMES + 1];
+#else
   aom_codec_frame_buffer_t grain_image_frame_buffers[MAX_NUM_SPATIAL_LAYERS];
+#endif
   size_t num_grain_image_frame_buffers;
   int need_resync;  // wait for key/intra-only frame
   // BufferPool that holds all reference frames. Shared by all the FrameWorkers.
@@ -740,11 +744,12 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   AVxWorker *const worker = ctx->frame_worker;
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
   struct AV1Decoder *pbi = frame_worker_data->pbi;
-  unsigned int display_order = 0;
+  int display_order = -1;
   int target_idx = -1;
   for (int idx = 0; idx < REF_FRAMES; idx++) {
     if (is_frame_eligible_for_output(pbi->common.ref_frame_map[idx]) &&
-        pbi->common.ref_frame_map[idx]->display_order_hint > display_order) {
+        ((int)pbi->common.ref_frame_map[idx]->display_order_hint >
+         display_order)) {
       display_order = pbi->common.ref_frame_map[idx]->display_order_hint;
       target_idx = idx;
     }
@@ -762,6 +767,9 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
     av1_write_show_existing_frame_obu((uint8_t *const)data_start, target_idx);
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
+    ctx->is_annexb = 0;
+    pbi->common.seq_params.decoder_model_info_present_flag = 0;
+    pbi->common.seq_params.frame_id_numbers_present_flag = 0;
     res = decode_one(ctx, &data_start, 3, user_priv);
   }
   return res;
@@ -809,7 +817,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
-    // When enable_frame_order_output == 1, output any frames in the buffer
+    // When enable_frame_output_order == 1, output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
