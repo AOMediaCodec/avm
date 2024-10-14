@@ -2707,10 +2707,12 @@ int wienerns_to_pcwiener_tap_config_translator(
 
 static inline const int16_t *get_matching_filter(
     const int16_t *frame_filter_dictionary, int dict_stride, int filter_index,
-    int c_id, int num_classes) {
+    int c_id, int num_classes, int nopcw) {
+  (void)nopcw;
   (void)c_id;
   (void)num_classes;
-  assert(filter_index >= 0 && filter_index < num_dictionary_slots(num_classes));
+  assert(filter_index >= 0 &&
+         filter_index < num_dictionary_slots(num_classes, nopcw));
   assert(is_match_allowed(filter_index, c_id, num_classes));
   return frame_filter_dictionary + filter_index * dict_stride;
 }
@@ -2719,7 +2721,7 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
                             const int16_t *frame_filter_dictionary,
                             int dict_stride, const int *match_indices,
                             const WienernsFilterParameters *nsfilter_params,
-                            int class_id) {
+                            int class_id, int nopcw) {
   const int num_feat = nsfilter_params->ncoeffs;
 
   int c_id_begin = 0;
@@ -2733,10 +2735,10 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
 
     int filter_index =
         get_first_match_index(match_indices[c_id], filter->num_classes);
-    assert(filter_index < num_dictionary_slots(filter->num_classes));
+    assert(filter_index < num_dictionary_slots(filter->num_classes, nopcw));
     const int16_t *matching_filter =
         get_matching_filter(frame_filter_dictionary, dict_stride, filter_index,
-                            c_id, filter->num_classes);
+                            c_id, filter->num_classes, nopcw);
     for (int i = 0; i < num_feat; ++i) {
       wienerns_filter[i] = matching_filter[i];
     }
@@ -2746,7 +2748,7 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
 void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
-    int16_t *frame_filter_dictionary, int dict_stride) {
+    int16_t *frame_filter_dictionary, int dict_stride, int nopcw) {
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
@@ -2763,14 +2765,14 @@ void fill_first_slot_of_bank_with_filter_match(
   for (int c_id = 0; c_id < c_id_begin; ++c_id) {
     // Allow previous class filters to be used in predicting the next class.
     add_filter_to_dictionary(reference, c_id, nsfilter_params,
-                             frame_filter_dictionary, dict_stride);
+                             frame_filter_dictionary, dict_stride, nopcw);
   }
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     assert(bank->bank_size_for_class[c_id] == 0);
     fill_filter_with_match(&tmp_filter, frame_filter_dictionary, dict_stride,
-                           match_indices, nsfilter_params, c_id);
+                           match_indices, nsfilter_params, c_id, nopcw);
     add_filter_to_dictionary(reference, c_id, nsfilter_params,
-                             frame_filter_dictionary, dict_stride);
+                             frame_filter_dictionary, dict_stride, nopcw);
   }
   av1_add_to_wienerns_bank(bank, &tmp_filter, class_id);
 }

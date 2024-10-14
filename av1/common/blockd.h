@@ -1864,8 +1864,16 @@ static const int num_frame_first_predictor_bits[WIENERNS_MAX_CLASSES + 1] = {
   6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
 };
 
-static inline int num_dictionary_slots(int num_classes) {
-  return 1 << num_frame_first_predictor_bits[num_classes];
+static const int num_frame_first_predictor_bits_nopcw[WIENERNS_MAX_CLASSES +
+                                                      1] = { 4, 4, 4, 4, 4, 4,
+                                                             4, 4, 4, 4, 4, 4,
+                                                             4, 4, 4, 4, 4 };
+
+static inline int num_dictionary_slots(int num_classes, int nopcw) {
+  if (nopcw)
+    return 1 << num_frame_first_predictor_bits_nopcw[num_classes];
+  else
+    return 1 << num_frame_first_predictor_bits[num_classes];
 }
 
 static inline int prev_filters_begin(int num_classes) {
@@ -1887,11 +1895,11 @@ static inline int is_match_allowed(int filter_index, int class_id,
   return 1;
 }
 
-static inline int max_num_base_filters(int num_classes) {
-  return num_dictionary_slots(num_classes) - num_classes;
+static inline int max_num_base_filters(int num_classes, int nopcw) {
+  return num_dictionary_slots(num_classes, nopcw) - num_classes;
 }
 
-int max_dictionary_size();
+int max_dictionary_size(int nopcw);
 #else
 #define WIENERNS_MAX_CLASSES 1
 #define NUM_WIENERNS_CLASS_INIT_LUMA 1

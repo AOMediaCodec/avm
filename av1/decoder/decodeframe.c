@@ -2958,7 +2958,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           }
 #endif  // CONFIG_TEMP_LR
           if (cm->frame_filter_dictionary == NULL) {
-            allocate_frame_filter_dictionary(cm);
+            const int nopcw =
+                disable_pcwiener_filters_in_framefilters(&cm->seq_params);
+            allocate_frame_filter_dictionary(cm, nopcw);
             translate_pcwiener_filters_to_wienerns(cm);
           }
           if (rsi->frame_filters_on) {
@@ -3203,10 +3205,11 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   WienerNonsepInfoBank bank = { 0 };
   bank.filter[0].num_classes = num_classes;
+  const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     fill_first_slot_of_bank_with_filter_match(
         &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
-        base_qindex, c_id, frame_filter_dictionary, dict_stride);
+        base_qindex, c_id, frame_filter_dictionary, dict_stride, nopcw);
     if (skip_filter_read_for_class[c_id]) {
       copy_nsfilter_taps_for_class(
           &rsi->frame_filters, av1_constref_from_wienerns_bank(&bank, 0, c_id),

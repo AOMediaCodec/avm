@@ -2806,13 +2806,16 @@ static BestMatchResults find_best_match_for_class(
   int64_t all_zeros_score = 0;  // debug
   int best_filter_index = ILLEGAL_MATCH;
   const int zero_filter_index = 0;
-  const int max_filter_index = num_dictionary_slots(filter->num_classes);
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
+  const int max_filter_index = num_dictionary_slots(filter->num_classes, nopcw);
   for (int filter_index = 0; filter_index < max_filter_index; ++filter_index) {
     if (!is_match_allowed(filter_index, class_id, filter->num_classes))
       continue;
     filter->match_indices[class_id] = filter_index;
     fill_filter_with_match(&tmp_filter, frame_filter_dictionary, dict_stride,
-                           filter->match_indices, nsfilter_params, class_id);
+                           filter->match_indices, nsfilter_params, class_id,
+                           nopcw);
     av1_upd_to_wienerns_bank(bank, bank_ref, &tmp_filter, class_id);
     bank->bank_size_for_class[class_id] = 1;
     const int64_t score =
@@ -2840,6 +2843,8 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                        int16_t *frame_filter_dictionary,
                                        int dict_stride) {
   assert(rsc->plane == AOM_PLANE_Y);
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
@@ -2851,7 +2856,7 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
         find_best_match_for_class(rsc, filter, c_id, frame_filter_dictionary,
                                   dict_stride, nsfilter_params, &tmp_bank);
     add_filter_to_dictionary(filter, c_id, nsfilter_params,
-                             frame_filter_dictionary, dict_stride);
+                             frame_filter_dictionary, dict_stride, nopcw);
   }
 
   int use_one_match_indices[WIENERNS_MAX_CLASSES] = { 0 };
@@ -2868,7 +2873,7 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
     filter->match_indices[c_id] = best_match_indices[c_id];
     // Debug.
     fill_filter_with_match(&tmp_filter, frame_filter_dictionary, dict_stride,
-                           filter->match_indices, nsfilter_params, c_id);
+                           filter->match_indices, nsfilter_params, c_id, nopcw);
     av1_upd_to_wienerns_bank(&tmp_bank, /*bank_ref=*/0, &tmp_filter, c_id);
     tmp_bank.bank_size_for_class[c_id] = 1;
     const int64_t taps_score =
@@ -2888,8 +2893,10 @@ static void initialize_bank_with_best_frame_filter_match(
   assert(rsc->cm->translated_pcwiener_filters != NULL);
   assert(rsc->cm->translation_done);
   // TODO: Lose the allocation.
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
   int16_t *frame_filter_dictionary =
-      aom_calloc(max_dictionary_size(), sizeof(*frame_filter_dictionary));
+      aom_calloc(max_dictionary_size(nopcw), sizeof(*frame_filter_dictionary));
   set_frame_filter_dictionary(rsc->cm, filter->num_classes,
                               frame_filter_dictionary, dict_stride);
   find_best_match_for_filter(rsc, filter, base_qindex, frame_filter_dictionary,
@@ -2898,7 +2905,7 @@ static void initialize_bank_with_best_frame_filter_match(
                           rsc->plane != AOM_PLANE_Y);
   fill_first_slot_of_bank_with_filter_match(
       bank, filter, filter->match_indices, base_qindex, ALL_WIENERNS_CLASSES,
-      frame_filter_dictionary, dict_stride);
+      frame_filter_dictionary, dict_stride, nopcw);
   aom_free(frame_filter_dictionary);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3937,8 +3944,10 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     assert(rsc->cm->translated_pcwiener_filters != NULL);
     assert(rsc->cm->translation_done);
     int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
-    int16_t *frame_filter_dictionary =
-        aom_calloc(max_dictionary_size(), sizeof(*frame_filter_dictionary));
+    const int nopcw =
+        disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
+    int16_t *frame_filter_dictionary = aom_calloc(
+        max_dictionary_size(nopcw), sizeof(*frame_filter_dictionary));
     set_frame_filter_dictionary(
         rsc->cm, rsc->frame_filter_dictionary.filter->num_classes,
         frame_filter_dictionary, dict_stride);
@@ -3947,7 +3956,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     fill_first_slot_of_bank_with_filter_match(
         &rsc->wienerns_bank, rsc->frame_filter_dictionary.filter,
         rsc->frame_filter_dictionary.filter->match_indices, base_qindex,
-        ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride);
+        ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride, nopcw);
     aom_free(frame_filter_dictionary);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

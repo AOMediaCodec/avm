@@ -433,14 +433,15 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 
-int max_dictionary_size() {
-  const int max_num_predictors = num_dictionary_slots(WIENERNS_MAX_CLASSES);
+int max_dictionary_size(int nopcw) {
+  const int max_num_predictors =
+      num_dictionary_slots(WIENERNS_MAX_CLASSES, nopcw);
   return max_num_predictors * NUM_PC_WIENER_TAPS_LUMA;
 }
 
-void allocate_frame_filter_dictionary(AV1_COMMON *cm) {
-  cm->frame_filter_dictionary =
-      aom_calloc(max_dictionary_size(), sizeof(*cm->frame_filter_dictionary));
+void allocate_frame_filter_dictionary(AV1_COMMON *cm, int nopcw) {
+  cm->frame_filter_dictionary = aom_calloc(
+      max_dictionary_size(nopcw), sizeof(*cm->frame_filter_dictionary));
   cm->translated_pcwiener_filters =
       aom_calloc(NUM_PC_WIENER_FILTERS * NUM_PC_WIENER_TAPS_LUMA,
                  sizeof(*cm->translated_pcwiener_filters));
@@ -509,9 +510,11 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
 }
 
 static inline int num_sampled_pc_wiener_filters(int num_ref_filters,
-                                                int num_classes) {
-  return AOMMIN(AOMMAX(max_num_base_filters(num_classes) - num_ref_filters, 0),
-                NUM_PC_WIENER_FILTERS);
+                                                int num_classes, int nopcw) {
+  if (nopcw) return 0;
+  return AOMMIN(
+      AOMMAX(max_num_base_filters(num_classes, 0) - num_ref_filters, 0),
+      NUM_PC_WIENER_FILTERS);
 }
 
 void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
@@ -527,9 +530,10 @@ void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
 
+  const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   memset(frame_filter_dictionary, 0,
-         max_dictionary_size() * sizeof(*frame_filter_dictionary));
-  const int max_predictors = num_dictionary_slots(num_classes);
+         max_dictionary_size(nopcw) * sizeof(*frame_filter_dictionary));
+  const int max_predictors = num_dictionary_slots(num_classes, nopcw);
 
   // Filters prior to ref_filter_offset are all zeros via calloc. --------------
   const int ref_filter_offset = reference_filters_begin(num_classes);
@@ -538,7 +542,7 @@ void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   // Copy available reference filters to the dictionary. -----------------------
   int num_ref_filters = 0;
 #if CONFIG_TEMP_LR
-  const int allowed_num_base_filters = max_num_base_filters(num_classes);
+  const int allowed_num_base_filters = max_num_base_filters(num_classes, nopcw);
   assert(allowed_num_base_filters < max_predictors);
   //  const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
   //                                 ? 0
@@ -573,7 +577,8 @@ void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
 
   // Sample from the pc-wiener filters for the remaining allowed slots. --------
   const int num_pc_wiener_filters =
-      num_sampled_pc_wiener_filters(num_ref_filters, num_classes);
+      num_sampled_pc_wiener_filters(num_ref_filters, num_classes, nopcw);
+  if (num_pc_wiener_filters == 0) return;
   assert(num_pc_wiener_filters >= 0 &&
          num_pc_wiener_filters <= NUM_PC_WIENER_FILTERS);
 
@@ -613,13 +618,14 @@ void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
 
 void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
                               const WienernsFilterParameters *nsfilter_params,
-                              int16_t *frame_filter_dictionary,
-                              int dict_stride) {
+                              int16_t *frame_filter_dictionary, int dict_stride,
+                              int nopcw) {
+  (void)nopcw;
   assert(frame_filter_dictionary != NULL);
   assert(dict_stride > 0);
   if (class_id == filter->num_classes - 1) return;
   const int filter_index = prev_filters_begin(filter->num_classes) + class_id;
-  assert(filter_index < num_dictionary_slots(filter->num_classes));
+  assert(filter_index < num_dictionary_slots(filter->num_classes, nopcw));
   int16_t *match_filter = frame_filter_dictionary + filter_index * dict_stride;
   const int16_t *wienerns_filter = const_nsfilter_taps(filter, class_id);
   const int num_feat = nsfilter_params->ncoeffs;

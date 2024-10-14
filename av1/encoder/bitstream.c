@@ -4013,7 +4013,9 @@ static AOM_INLINE void encode_restoration_mode(
           }
 #endif  // CONFIG_TEMP_LR
           if (cm->frame_filter_dictionary == NULL) {
-            allocate_frame_filter_dictionary(cm);
+            const int nopcw =
+                disable_pcwiener_filters_in_framefilters(&cm->seq_params);
+            allocate_frame_filter_dictionary(cm, nopcw);
             translate_pcwiener_filters_to_wienerns(cm);
           }
           if (rsi->frame_filters_on) {
@@ -4248,9 +4250,10 @@ static AOM_INLINE void write_wienerns_framefilters(
   // needed to handle asserts in copy_nsfilter_taps_for_class
   bank.filter[0].num_classes = num_classes;
 
+  const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   fill_first_slot_of_bank_with_filter_match(
       &bank, &rsi->frame_filters, rsi->frame_filters.match_indices, base_qindex,
-      ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride);
+      ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride, nopcw);
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     skip_filter_write_for_class[c_id] = check_and_write_exact_match(
         &rsi->frame_filters, av1_constref_from_wienerns_bank(&bank, 0, c_id),

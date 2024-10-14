@@ -214,11 +214,11 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
                             const int16_t *frame_filter_dictionary,
                             int dict_stride, const int *match_indices,
                             const WienernsFilterParameters *nsfilter_params,
-                            int class_id);
+                            int class_id, int nopcw);
 void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
-    int16_t *frame_filter_dictionary, int dict_stride);
+    int16_t *frame_filter_dictionary, int dict_stride, int nopcw);
 
 #define ILLEGAL_MATCH -1
 
