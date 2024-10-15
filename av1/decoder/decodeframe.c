@@ -6137,7 +6137,12 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present &&
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+      (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+       cm->showable_frame)) {
+#else
       (cm->show_frame || cm->showable_frame)) {
+#endif
     av1_read_film_grain_params(cm, rb);
   } else {
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
@@ -6926,12 +6931,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      // Section 6.8.2: It is a requirement of bitstream conformance that when
-      // show_existing_frame is used to show a previous frame, that the value
-      // of showable_frame for the previous frame was equal to 1.
-      if (seq_params->enable_frame_output_order &&
-          frame_to_show->frame_type == KEY_FRAME &&
-          !frame_to_show->showable_frame && frame_to_show->frame_output_done) {
+      // It is a requirement of bitstream conformance that when
+      // show_existing_frame is used to show a previous frame with
+      // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
+      // frame is output via the show_existing_frame mechanism at most once.
+      if ((seq_params->enable_frame_output_order &&
+           frame_to_show->frame_type == KEY_FRAME &&
+           !frame_to_show->showable_frame &&
+           frame_to_show->frame_output_done) ||
+          (!seq_params->enable_frame_output_order &&
+           !frame_to_show->showable_frame)) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
@@ -6944,10 +6953,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            "Buffer does not contain a showable frame");
       }
 #endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      // Section 6.8.2: It is a requirement of bitstream conformance that when
-      // show_existing_frame is used to show a previous frame with
-      // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
-      // frame is output via the show_existing_frame mechanism at most once.
       if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 
       cm->film_grain_params = frame_to_show->film_grain_params;
