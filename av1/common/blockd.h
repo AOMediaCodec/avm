@@ -1895,6 +1895,7 @@ static inline int max_num_base_filters(int num_classes, int nopcw) {
   return num_dictionary_slots(num_classes, nopcw) - num_classes;
 }
 
+// Maximum number of filter-taps in LR non-separable filtering.
 static inline int max_num_dictionary_taps() {
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
   const int max_num_taps = 18;  // Accounting for cross-chroma.
@@ -1908,8 +1909,12 @@ int max_dictionary_size(int nopcw);
 
 #define NUM_MATCH_GROUPS 3
 
+// Fills the number of filters allowed for three groups.
+// Group-0: All zeros filter and any filters for classes 0 -> num_classes - 1.
+// Group-1: Reference frame-filters from reference frames.
+// Group-2: Pc-wiener filters (for luma only.)
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
-                      int *group_counts);
+                      int *group_counts, int nopcw);
 
 static inline int most_probable_group(int c_id, const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);

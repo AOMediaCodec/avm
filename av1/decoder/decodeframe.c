@@ -3265,11 +3265,11 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
 static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
-                               aom_reader *rb) {
+                               aom_reader *rb, int nopcw) {
   assert(NUM_MATCH_GROUPS == 3);
   int group_counts[NUM_MATCH_GROUPS];
   set_group_counts(plane, wienerns_info->num_classes,
-                   wienerns_info->num_ref_filters, group_counts);
+                   wienerns_info->num_ref_filters, group_counts, nopcw);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     const int pred_group =
         predict_group(c_id, wienerns_info->match_indices, group_counts);
@@ -3358,7 +3358,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
 #endif  // CONFIG_TEMP_LR
-  read_match_indices(plane, &rsi->frame_filters, rb);
+  read_match_indices(plane, &rsi->frame_filters, rb, nopcw);
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
@@ -3372,8 +3372,6 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     fill_first_slot_of_bank_with_filter_match(
         plane, &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
-        base_qindex, c_id, frame_filter_dictionary, dict_stride);
-        &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
         base_qindex, c_id, frame_filter_dictionary, dict_stride, nopcw);
     if (skip_filter_read_for_class[c_id]) {
       copy_nsfilter_taps_for_class(

@@ -2997,6 +2997,8 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                        int dict_stride) {
   is_frame_filters_enabled(rsc->plane);
   const int is_uv = rsc->plane > 0;
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
   WienerNonsepInfoBank tmp_bank;
@@ -3038,6 +3040,8 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
 static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank, int reset_dict) {
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
   const int base_qindex = rsc->cm->quant_params.base_qindex;
   int dict_stride = rsc->cm->frame_filter_dictionary_stride;
   assert(rsc->cm->frame_filter_dictionary != NULL);
@@ -3056,7 +3060,7 @@ static void initialize_bank_with_best_frame_filter_match(
                           rsc->plane != AOM_PLANE_Y);
   fill_first_slot_of_bank_with_filter_match(
       rsc->plane, bank, filter, filter->match_indices, base_qindex,
-      ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride);
+      ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride, nopcw);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -4101,11 +4105,13 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     rsc->frame_filter_bank.filter->num_ref_filters = *rsc->cm->num_ref_filters;
 
     // Initialize bank for first call.
+    const int nopcw =
+        disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
     const int base_qindex = rsc->cm->quant_params.base_qindex;
     fill_first_slot_of_bank_with_filter_match(
         rsc->plane, &rsc->wienerns_bank, rsc->frame_filter_bank.filter,
         rsc->frame_filter_bank.filter->match_indices, base_qindex,
-        ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride);
+        ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride, nopcw);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -4550,10 +4556,10 @@ static void weighted_sum_all_stats(const RestSearchCtxt *rsc,
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
 int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
-                             const int *match_indices) {
+                             const int *match_indices, int nopcw) {
   assert(NUM_MATCH_GROUPS == 3);
   int group_counts[NUM_MATCH_GROUPS];
-  set_group_counts(plane, num_classes, num_ref_frames, group_counts);
+  set_group_counts(plane, num_classes, num_ref_frames, group_counts, nopcw);
   int total_bits = 0;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     const int pred_group = predict_group(c_id, match_indices, group_counts);
@@ -4586,14 +4592,16 @@ static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
       count_wienerns_bits_set(rsc->plane, &rsc->x->mode_costs, filter, bank,
                               nsfilter_params, ALL_WIENERNS_CLASSES);
   assert(filter->num_ref_filters == *rsc->cm->num_ref_filters);
+  const int nopcw =
+      disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
-  bits +=
-      count_match_indices_bits(rsc->plane, filter->num_classes,
-                               filter->num_ref_filters, filter->match_indices) *
-      (1 << AV1_PROB_COST_SHIFT);
+  bits += count_match_indices_bits(rsc->plane, filter->num_classes,
+                                   filter->num_ref_filters,
+                                   filter->match_indices, nopcw) *
+          (1 << AV1_PROB_COST_SHIFT);
 #else
-  bits += count_match_indices_bits(filter->num_classes) *
+  bits += count_match_indices_bits(filter->num_classes, nopcw) *
           (1 << AV1_PROB_COST_SHIFT);
 #endif
 

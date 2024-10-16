@@ -308,7 +308,7 @@ static INLINE int decode_first_match(int encoded_match_index) {
 }
 
 #if !CONFIG_COMBINE_PC_NS_WIENER_ADD
-static INLINE int count_match_indices_bits(int num_classes) {
+static INLINE int count_match_indices_bits(int num_classes, int nopcw) {
   assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
   int total_bits = 0;
 

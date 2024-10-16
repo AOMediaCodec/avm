@@ -209,7 +209,7 @@ set_aom_config_var(
 
 set_aom_config_var(
   CONFIG_COMBINE_PC_NS_WIENER_ADD 1 NUMBER
-  "AV2 pixel-classified, frame-level, nonsep Wiener filter experiment flag")
+  "Frame-level, nonsep Wiener filter for chroma experiment flag")
 
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1

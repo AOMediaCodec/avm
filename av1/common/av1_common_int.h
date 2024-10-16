@@ -1935,8 +1935,8 @@ void free_frame_filter_dictionary(AV1_COMMON *cm);
 // filters of the next class.
 void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
                               const WienernsFilterParameters *nsfilter_params,
-                              int16_t *frame_filter_dictionary,
-                              int dict_stride, int nopcw);
+                              int16_t *frame_filter_dictionary, int dict_stride,
+                              int nopcw);
 int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
                                 int num_classes,
                                 int16_t *frame_filter_dictionary,

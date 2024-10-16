@@ -529,21 +529,22 @@ static inline int num_sampled_pc_wiener_filters(int plane, int num_ref_filters,
                                                 int num_classes, int nopcw) {
   if (plane != AOM_PLANE_Y) return 0;
   if (nopcw) return 0;
-  return AOMMIN(AOMMAX(max_num_base_filters(num_classes, 0) - num_ref_filters, 0),
-                NUM_PC_WIENER_FILTERS);
+  return AOMMIN(
+      AOMMAX(max_num_base_filters(num_classes, 0) - num_ref_filters, 0),
+      NUM_PC_WIENER_FILTERS);
 }
 
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
-                      int *group_counts) {
-  int total_slots = num_dictionary_slots(num_classes);
+                      int *group_counts, int nopcw) {
+  int total_slots = num_dictionary_slots(num_classes, nopcw);
   group_counts[0] = num_classes;
   total_slots -= group_counts[0];
   assert(total_slots >= 0);
-  group_counts[1] = num_ref_frames;  // AOMMIN(num_ref_filters, total_slots);
+  group_counts[1] = num_ref_frames;
   total_slots -= group_counts[1];
   assert(total_slots >= 0);
   group_counts[2] =
-      num_sampled_pc_wiener_filters(plane, num_ref_frames, num_classes);
+      num_sampled_pc_wiener_filters(plane, num_ref_frames, num_classes, nopcw);
 }
 
 int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
@@ -572,7 +573,8 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   // Copy available reference filters to the dictionary. -----------------------
   int num_ref_filters = 0;
 #if CONFIG_TEMP_LR
-  const int min_pc_wiener = plane == AOM_PLANE_Y ? 16 : 0;
+  const int min_pc_wiener = plane == AOM_PLANE_Y ? (nopcw ? 0 : 16) : 0;
+  assert(min_pc_wiener <= NUM_PC_WIENER_FILTERS);
   const int allowed_num_base_filters =
       max_num_base_filters(num_classes, nopcw) - min_pc_wiener;
   assert(allowed_num_base_filters > 0);
@@ -627,7 +629,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
                                  40, 55, 48, 8,  5,  51, 9,  46, 56, 60, 15,
                                  2,  13, 14, 57, 29, 3,  20, 39, 10 };
   const int num_pc_wiener_filters =
-      num_sampled_pc_wiener_filters(plane, num_ref_filters, num_classes);
+      num_sampled_pc_wiener_filters(plane, num_ref_filters, num_classes, nopcw);
   assert(num_pc_wiener_filters >= 0 &&
          num_pc_wiener_filters <= NUM_PC_WIENER_FILTERS);
 
