@@ -545,6 +545,17 @@ enum {
  */
 #define kSMSMaxStartMVs 1
 
+struct ResidualStats {
+  int q_coeff_max;
+  int q_coeff_nonz;
+  double psnr;
+  int satdq;
+  int satd;
+
+  int sse;
+  int var;
+};
+
 /*! \brief Contains data for simple motion
  */
 typedef struct SimpleMotionData {
@@ -572,6 +583,9 @@ typedef struct SimpleMotionData {
 
   int ref_frame; /*!< ref frame used */
   int rdmult;    /*!< rd_mult for the block */
+
+  int residual_stats_valid;
+  struct ResidualStats residual_stats;
 } SimpleMotionData;
 
 /*!\cond */

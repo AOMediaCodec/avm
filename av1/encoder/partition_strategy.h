@@ -197,7 +197,13 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
-                                   int mi_row, int mi_col, BLOCK_SIZE bsize);
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                   ThreadData *td
+#if CONFIG_ML_PART_SPLIT
+                                   ,
+                                   int need_residual_stats
+#endif  // CONFIG_ML_PART_SPLIT
+);
 void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs);
 
 static AOM_INLINE void av1_add_mode_search_context_to_cache(

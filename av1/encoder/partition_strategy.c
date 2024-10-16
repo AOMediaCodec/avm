@@ -1778,10 +1778,23 @@ void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
   cur_block->prev_partition = partition;
 }
 
+#if CONFIG_ML_PART_SPLIT
+static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
+                                                   ThreadData *td,
+                                                   MACROBLOCK *x,
+                                                   BLOCK_SIZE bsize);
+#endif  // CONFIG_ML_PART_SPLIT
+
 // Performs a simple motion search and store the result in sms_data.
 static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              MACROBLOCK *x, SimpleMotionData *sms_data,
-                             int mi_row, int mi_col, BLOCK_SIZE bsize) {
+                             int mi_row, int mi_col, BLOCK_SIZE bsize,
+                             ThreadData *td
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             int need_residual_stats
+#endif  // CONFIG_ML_PART_SPLIT
+) {
   const AV1_COMMON *const cm = &cpi->common;
   const int ref_frame = get_closest_pastcur_ref_index(cm);
   assert(ref_frame >= 0);
@@ -1807,6 +1820,10 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   mbmi->refinemv_flag = 0;
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->warpmv_with_mvd_flag = 0;
+  mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
+  mbmi->chroma_ref_info.bsize_base = bsize;
+  mbmi->chroma_ref_info.is_chroma_ref = 1;
+
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
@@ -1828,6 +1845,15 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                                    ref_frame, start_mv_full, 1, 1, sms_data);
       sms_data->var = cpi->fn_ptr[bsize].vf(src_buf, src_stride, dst_buf,
                                             dst_stride, &sms_data->sse);
+#if CONFIG_ML_PART_SPLIT
+      if (need_residual_stats) {
+        sms_data->residual_stats = compute_residual_stats(cpi, td, x, bsize);
+        sms_data->residual_stats_valid = 1;
+
+        assert(sms_data->var == sms_data->residual_stats.var);
+        assert(sms_data->sse == sms_data->residual_stats.sse);
+      }
+#endif  // CONFIG_ML_PART_SPLIT
       sms_data->dist = 16 * sms_data->sse;
       sms_data->rate = 0;
       sms_data->rdcost = RDCOST(x->rdmult, sms_data->rate, sms_data->dist);
@@ -1933,15 +1959,29 @@ static INLINE void add_start_mv_to_partition(
 // mi_col with block size bsize.
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
-                                   int mi_row, int mi_col, BLOCK_SIZE bsize) {
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                   ThreadData *td
+#if CONFIG_ML_PART_SPLIT
+                                   ,
+                                   int need_residual_stats
+#endif  // CONFIG_ML_PART_SPLIT
+) {
   const AV1_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
   SimpleMotionData *cur_block =
       av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
-  const int valid = cur_block->valid;
-  if (!valid) {
-    compute_sms_data(cpi, tile, x, cur_block, mi_row, mi_col, bsize);
+  if (!cur_block->valid
+#if CONFIG_ML_PART_SPLIT
+      || (need_residual_stats && !cur_block->residual_stats_valid)
+#endif  // CONFIG_ML_PART_SPLIT
+  ) {
+    compute_sms_data(cpi, tile, x, cur_block, mi_row, mi_col, bsize, td
+#if CONFIG_ML_PART_SPLIT
+                     ,
+                     need_residual_stats
+#endif  // CONFIG_ML_PART_SPLIT
+    );
     for (PARTITION_TYPE partition = PARTITION_NONE;
          partition < EXT_PARTITION_TYPES; partition++) {
       add_start_mv_to_partition(sms_bufs, mi_row, mi_col, bsize, sb_size,
@@ -1988,30 +2028,55 @@ void av1_gather_erp_rect_features(
       clip_rate(part_search_state->partition_cost[PARTITION_VERT]);
 
   const SimpleMotionData *blk_none = av1_get_sms_data(
-      cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize);
+      cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize, NULL
+#if CONFIG_ML_PART_SPLIT
+      ,
+      0
+#endif  // CONFIG_ML_PART_SPLIT
+  );
 
   const BLOCK_SIZE h_size = get_partition_subsize(bsize, PARTITION_HORZ);
   const SimpleMotionData *blk_h1 =
       h_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][0][0],
-                             mi_pos_rect[HORZ][0][1], h_size)
+                             mi_pos_rect[HORZ][0][1], h_size, NULL
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             0
+#endif  // CONFIG_ML_PART_SPLIT
+                             )
           : NULL;
   const SimpleMotionData *blk_h2 =
       h_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][1][0],
-                             mi_pos_rect[HORZ][1][1], h_size)
+                             mi_pos_rect[HORZ][1][1], h_size, NULL
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             0
+#endif  // CONFIG_ML_PART_SPLIT
+                             )
           : NULL;
 
   const BLOCK_SIZE v_size = get_partition_subsize(bsize, PARTITION_VERT);
   const SimpleMotionData *blk_v1 =
       v_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][0][0],
-                             mi_pos_rect[VERT][0][1], v_size)
+                             mi_pos_rect[VERT][0][1], v_size, NULL
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             0
+#endif  // CONFIG_ML_PART_SPLIT
+                             )
           : NULL;
   const SimpleMotionData *blk_v2 =
       v_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][1][0],
-                             mi_pos_rect[VERT][1][1], v_size)
+                             mi_pos_rect[VERT][1][1], v_size, NULL
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             0
+#endif  // CONFIG_ML_PART_SPLIT
+                             )
           : NULL;
 
   // Results of SMS on the subblocks
@@ -2426,14 +2491,6 @@ static float angle_rad(MV mv) {
   return (float)(mag == 0 ? 0 : asin(mv.row / mag));
 }
 
-struct ResidualStats {
-  int q_coeff_max;
-  int q_coeff_nonz;
-  float psnr;
-  int satdq;
-  int satd;
-};
-
 // Computes residual stats on a transformed and quantized residual of the
 // block. This is used as ML features for prediction. The information computed
 // is NNZ (Number of Non-Zero coefficients of the transformed and quantized
@@ -2449,10 +2506,17 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   const int block = 0;
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
+
   struct ResidualStats ret;
   memset(&ret, 0, sizeof(struct ResidualStats));
 
   av1_subtract_plane(x, bsize, plane);
+
+  const uint16_t *src = x->plane[0].src.buf;
+  const uint16_t *dst = xd->plane[0].dst.buf;
+  const int src_stride = x->plane[0].src.stride;
+  const int dst_stride = xd->plane[0].dst.stride;
+  ret.var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, &ret.sse);
 
   const int num_blk = mi_size_wide[bsize] * mi_size_high[bsize];
   struct aom_internal_error_info error;
@@ -2519,46 +2583,18 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   return ret;
 }
 
-static struct ResidualStats compute_motion_data(AV1_COMP *const cpi,
-                                                ThreadData *td, MACROBLOCK *x,
-                                                SimpleMotionData *sms,
-                                                int mi_row, int mi_col,
-                                                BLOCK_SIZE bsize) {
-  struct ResidualStats ret;
-  memset(&ret, 0, sizeof(struct ResidualStats));
-  const AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *xd = &x->e_mbd;
-  assert(sms->ref_frame >= 0);
-  if (mi_col >= cm->mi_params.mi_cols || mi_row >= cm->mi_params.mi_rows) {
-    return ret;
-  }
-  set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
-  mbmi->ref_frame[0] = sms->ref_frame;
-  mbmi->ref_frame[1] = NONE_FRAME;
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->interp_fltr = EIGHTTAP_REGULAR;
-  mbmi->mv[0].as_mv = sms->submv;
-  mbmi->mode = NEWMV;
-  mbmi->refinemv_flag = 0;
-
-  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
-
-  return compute_residual_stats(cpi, td, x, bsize);
-}
-
 static void blk_features(float *out_features, int o_psnr, int o_log_mag,
                          int o_satdq, int o_satd, SimpleMotionData *sms,
-                         struct ResidualStats *stats, int blk_area) {
-  out_features[o_psnr + 0] = stats->psnr - 35;
-  out_features[o_psnr + 1] = ((float)stats->q_coeff_max) / 1024;
-  out_features[o_psnr + 2] = ((float)stats->q_coeff_nonz) / blk_area;
+                         int blk_area) {
+  assert(sms->residual_stats_valid);
+  out_features[o_psnr + 0] = sms->residual_stats.psnr - 35;
+  out_features[o_psnr + 1] = ((float)sms->residual_stats.q_coeff_max) / 1024;
+  out_features[o_psnr + 2] =
+      ((float)sms->residual_stats.q_coeff_nonz) / blk_area;
   out_features[o_log_mag + 0] = log_mag(sms->submv);
   out_features[o_log_mag + 1] = angle_rad(sms->submv);
-  out_features[o_satdq] = logf(1.0f + stats->satdq);
-  out_features[o_satd] = logf(1.0f + stats->satd);
+  out_features[o_satdq] = logf(1.0f + sms->residual_stats.satdq);
+  out_features[o_satd] = logf(1.0f + sms->residual_stats.satd);
 }
 
 static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
@@ -2570,9 +2606,7 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (cpi->common.current_frame.frame_type != INTER_FRAME) return;
 
   SimpleMotionData *blk_none =
-      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize);
-  struct ResidualStats stats_none =
-      compute_motion_data(cpi, td, x, blk_none, mi_row, mi_col, bsize);
+      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, 1);
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
       get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
@@ -2585,21 +2619,14 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
     int w_sub_mi = mi_size_wide[subsize_sq];
     int h_sub_mi = mi_size_high[subsize_sq];
     SimpleMotionData *blk_sq_0 =
-        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize_sq);
-    struct ResidualStats stats_sq_0 =
-        compute_motion_data(cpi, td, x, blk_sq_0, mi_row, mi_col, subsize_sq);
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize_sq, td, 1);
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq);
-    struct ResidualStats stats_sq_1 = compute_motion_data(
-        cpi, td, x, blk_sq_1, mi_row, mi_col + w_sub_mi, subsize_sq);
+        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, 1);
     SimpleMotionData *blk_sq_2 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq);
-    struct ResidualStats stats_sq_2 = compute_motion_data(
-        cpi, td, x, blk_sq_2, mi_row + h_sub_mi, mi_col, subsize_sq);
-    SimpleMotionData *blk_sq_3 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col + w_sub_mi, subsize_sq);
-    struct ResidualStats stats_sq_3 = compute_motion_data(
-        cpi, td, x, blk_sq_3, mi_row + h_sub_mi, mi_col + w_sub_mi, subsize_sq);
+        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, 1);
+    SimpleMotionData *blk_sq_3 =
+        av1_get_sms_data(cpi, tile_info, x, mi_row + h_sub_mi,
+                         mi_col + w_sub_mi, subsize_sq, td, 1);
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];
@@ -2607,24 +2634,19 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
 
       blk_features(out_features, FEATURE_INTER_FULL_PSNR,
                    FEATURE_INTER_FULL_LOG_MAG, FEATURE_INTER_FULL_LOG_SATDQ,
-                   FEATURE_INTER_FULL_LOG_SATD, blk_none, &stats_none,
-                   blk_area);
+                   FEATURE_INTER_FULL_LOG_SATD, blk_none, blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_0_PSNR,
                    FEATURE_INTER_SQ_0_LOG_MAG, FEATURE_INTER_SQ_0_LOG_SATDQ,
-                   FEATURE_INTER_SQ_0_LOG_SATD, blk_sq_0, &stats_sq_0,
-                   blk_area);
+                   FEATURE_INTER_SQ_0_LOG_SATD, blk_sq_0, blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_1_PSNR,
                    FEATURE_INTER_SQ_1_LOG_MAG, FEATURE_INTER_SQ_1_LOG_SATDQ,
-                   FEATURE_INTER_SQ_1_LOG_SATD, blk_sq_1, &stats_sq_1,
-                   blk_area);
+                   FEATURE_INTER_SQ_1_LOG_SATD, blk_sq_1, blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_2_PSNR,
                    FEATURE_INTER_SQ_2_LOG_MAG, FEATURE_INTER_SQ_2_LOG_SATDQ,
-                   FEATURE_INTER_SQ_2_LOG_SATD, blk_sq_2, &stats_sq_2,
-                   blk_area);
+                   FEATURE_INTER_SQ_2_LOG_SATD, blk_sq_2, blk_area);
       blk_features(out_features, FEATURE_INTER_SQ_3_PSNR,
                    FEATURE_INTER_SQ_3_LOG_MAG, FEATURE_INTER_SQ_3_LOG_SATDQ,
-                   FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, &stats_sq_3,
-                   blk_area);
+                   FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, blk_area);
     }
   }
 
