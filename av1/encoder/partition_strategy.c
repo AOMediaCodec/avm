@@ -1779,10 +1779,9 @@ void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
 }
 
 #if CONFIG_ML_PART_SPLIT
-static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
-                                                   ThreadData *td,
-                                                   MACROBLOCK *x,
-                                                   BLOCK_SIZE bsize);
+static void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td,
+                                   MACROBLOCK *x, BLOCK_SIZE bsize,
+                                   ResidualStats *out);
 #endif  // CONFIG_ML_PART_SPLIT
 
 // Performs a simple motion search and store the result in sms_data.
@@ -1792,7 +1791,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              ThreadData *td
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             int need_residual_stats
+                             bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -1847,8 +1846,8 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                                             dst_stride, &sms_data->sse);
 #if CONFIG_ML_PART_SPLIT
       if (need_residual_stats) {
-        sms_data->residual_stats = compute_residual_stats(cpi, td, x, bsize);
-        sms_data->residual_stats_valid = 1;
+        compute_residual_stats(cpi, td, x, bsize, &sms_data->residual_stats);
+        sms_data->residual_stats_valid = true;
 
         assert(sms_data->var == sms_data->residual_stats.var);
         assert(sms_data->sse == sms_data->residual_stats.sse);
@@ -1963,7 +1962,7 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ThreadData *td
 #if CONFIG_ML_PART_SPLIT
                                    ,
-                                   int need_residual_stats
+                                   bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -2031,7 +2030,7 @@ void av1_gather_erp_rect_features(
       cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize, NULL
 #if CONFIG_ML_PART_SPLIT
       ,
-      0
+      false
 #endif  // CONFIG_ML_PART_SPLIT
   );
 
@@ -2042,7 +2041,7 @@ void av1_gather_erp_rect_features(
                              mi_pos_rect[HORZ][0][1], h_size, NULL
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             0
+                             false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
@@ -2052,7 +2051,7 @@ void av1_gather_erp_rect_features(
                              mi_pos_rect[HORZ][1][1], h_size, NULL
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             0
+                             false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
@@ -2064,7 +2063,7 @@ void av1_gather_erp_rect_features(
                              mi_pos_rect[VERT][0][1], v_size, NULL
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             0
+                             false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
@@ -2074,7 +2073,7 @@ void av1_gather_erp_rect_features(
                              mi_pos_rect[VERT][1][1], v_size, NULL
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             0
+                             false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
@@ -2495,10 +2494,9 @@ static float angle_rad(MV mv) {
 // block. This is used as ML features for prediction. The information computed
 // is NNZ (Number of Non-Zero coefficients of the transformed and quantized
 // residual), MAX_COEFF, PSNR.
-static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
-                                                   ThreadData *td,
-                                                   MACROBLOCK *x,
-                                                   BLOCK_SIZE bsize) {
+static void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td,
+                                   MACROBLOCK *x, BLOCK_SIZE bsize,
+                                   ResidualStats *out) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
@@ -2507,8 +2505,7 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
 
-  struct ResidualStats ret;
-  memset(&ret, 0, sizeof(struct ResidualStats));
+  memset(out, 0, sizeof(ResidualStats));
 
   av1_subtract_plane(x, bsize, plane);
 
@@ -2516,7 +2513,7 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   const uint16_t *dst = xd->plane[0].dst.buf;
   const int src_stride = x->plane[0].src.stride;
   const int dst_stride = xd->plane[0].dst.stride;
-  ret.var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, &ret.sse);
+  out->var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, &out->sse);
 
   const int num_blk = mi_size_wide[bsize] * mi_size_high[bsize];
   struct aom_internal_error_info error;
@@ -2546,10 +2543,10 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   const int n_coeffs = av1_get_max_eob(txfm_param.tx_size);
   for (int i = 0; i < n_coeffs; i++) {
     int abs_qcoeff = abs(qcoeff[i]);
-    ret.satd += abs(coeff[i]);
-    ret.satdq += abs_qcoeff;
-    ret.q_coeff_max = AOMMAX(ret.q_coeff_max, abs_qcoeff);
-    ret.q_coeff_nonz += qcoeff[i] != 0;
+    out->satd += abs(coeff[i]);
+    out->satdq += abs_qcoeff;
+    out->q_coeff_max = AOMMAX(out->q_coeff_max, abs_qcoeff);
+    out->q_coeff_nonz += qcoeff[i] != 0;
   }
 
   if (p->eobs[block]) {
@@ -2567,7 +2564,7 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   }
   double mse =
       ((double)sse) / (block_size_high[bsize] * block_size_wide[bsize]);
-  ret.psnr = (float)(sse == 0 ? 70 : AOMMIN(70, 20 * log10(255 / sqrt(mse))));
+  out->psnr = (float)(sse == 0 ? 70 : AOMMIN(70, 20 * log10(255 / sqrt(mse))));
 
   // TODO: figure out the way to do it w/o allocations
   p->coeff = NULL;
@@ -2579,8 +2576,6 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   p->bobs = NULL;
   aom_free(p->txb_entropy_ctx);
   p->txb_entropy_ctx = NULL;
-
-  return ret;
 }
 
 static void blk_features(float *out_features, int o_psnr, int o_log_mag,
@@ -2606,7 +2601,7 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (cpi->common.current_frame.frame_type != INTER_FRAME) return;
 
   SimpleMotionData *blk_none =
-      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, 1);
+      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, true);
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
       get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
@@ -2618,15 +2613,15 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (subsize_sq != BLOCK_INVALID) {
     int w_sub_mi = mi_size_wide[subsize_sq];
     int h_sub_mi = mi_size_high[subsize_sq];
-    SimpleMotionData *blk_sq_0 =
-        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize_sq, td, 1);
+    SimpleMotionData *blk_sq_0 = av1_get_sms_data(cpi, tile_info, x, mi_row,
+                                                  mi_col, subsize_sq, td, true);
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, 1);
+        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, true);
     SimpleMotionData *blk_sq_2 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, 1);
+        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, true);
     SimpleMotionData *blk_sq_3 =
         av1_get_sms_data(cpi, tile_info, x, mi_row + h_sub_mi,
-                         mi_col + w_sub_mi, subsize_sq, td, 1);
+                         mi_col + w_sub_mi, subsize_sq, td, true);
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];
