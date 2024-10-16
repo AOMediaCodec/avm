@@ -2507,7 +2507,6 @@ static struct ResidualStats compute_residual_stats(AV1_COMP *const cpi,
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
 
-
   struct ResidualStats ret;
   memset(&ret, 0, sizeof(struct ResidualStats));
 
