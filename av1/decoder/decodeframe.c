@@ -3264,6 +3264,7 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
+// Decodes match indices.
 static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
                                aom_reader *rb, int nopcw) {
   assert(NUM_MATCH_GROUPS == 3);
@@ -3271,27 +3272,32 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
   set_group_counts(plane, wienerns_info->num_classes,
                    wienerns_info->num_ref_filters, group_counts, nopcw);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    // Read group-id.
     const int pred_group =
         predict_group(c_id, wienerns_info->match_indices, group_counts);
     int group = 0;
     int group_bit = aom_read_bit(rb, ACCT_INFO("match"));
     if (group_bit == 0) {
+      // group-id matches prediction.
       group = pred_group;
     } else {
       int zero_group = -1;
       for (int i = 0; i < NUM_MATCH_GROUPS; ++i) {
         if (i == pred_group) continue;
         if (group_counts[i] == 0) {
+          // There is a group-id with zero count.
           zero_group = i;
           break;
         }
       }
       if (zero_group != -1) {
+        // group-id is the remaining non-zero group.
         group = 3 - (pred_group + zero_group);
       } else {
         const int convert_larger[] = { 2, 2, 1 };
         const int convert_smaller[] = { 1, 0, 0 };
         group_bit = aom_read_bit(rb, ACCT_INFO("match"));
+        // Infer group-id around pred_group.
         if (group_bit) {
           group = convert_larger[pred_group];
         } else {
@@ -3299,6 +3305,7 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
         }
       }
     }
+    // Decode match index with known group-id.
     const int ref = predict_within_group(
         group, c_id, wienerns_info->match_indices, group_counts);
     const int base = get_group_base(group, group_counts);
