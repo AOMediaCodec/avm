@@ -1895,18 +1895,22 @@ static inline int max_num_base_filters(int num_classes, int nopcw) {
   return num_dictionary_slots(num_classes, nopcw) - num_classes;
 }
 
+static inline int max_num_dictionary_taps() {
+#if CONFIG_COMBINE_PC_NS_WIENER_ADD
+  const int max_num_taps = 18;  // Accounting for cross-chroma.
+#else
+  const int max_num_taps = 12;
+#endif
+  return max_num_taps;
+}
+
 int max_dictionary_size(int nopcw);
 
 #define NUM_MATCH_GROUPS 3
 
-// Fills the number of filters allowed for three groups.
-// Group-0: All zeros filter and any filters for classes 0 -> num_classes - 1.
-// Group-1: Reference frame-filters from reference frames.
-// Group-2: Pc-wiener filters (for luma only.)
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
-                      int *group_counts, int nopcw);
+                      int *group_counts);
 
-// Given the class-id returns a group-id guess based on group counts.
 static inline int most_probable_group(int c_id, const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
   const int group_count_0 = c_id + 1;
@@ -1924,7 +1928,6 @@ static inline int most_probable_group(int c_id, const int *group_counts) {
   }
 }
 
-// Returns the group id of a match index.
 static inline int index_to_group(int match_index, const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
   if (match_index < group_counts[0]) {
@@ -1935,8 +1938,6 @@ static inline int index_to_group(int match_index, const int *group_counts) {
   return 2;
 }
 
-// Given the class-id and the match indices of previous class filters returns a
-// group-id prediction.
 static inline int predict_group(int c_id, const int *match_indices,
                                 const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
@@ -1955,7 +1956,6 @@ static inline int predict_group(int c_id, const int *match_indices,
     return 2;
 }
 
-// Returns the total number of filters with group-id less than group.
 static inline int get_group_base(int group, const int *group_counts) {
   if (group == 0) return 0;
   int base = 0;
@@ -1965,9 +1965,6 @@ static inline int get_group_base(int group, const int *group_counts) {
   return base;
 }
 
-// Returns a match index prediction given that the filter has a known group-id.
-// The prediction is useful as a reference when encoding/decoding the match
-// index via *_primitive_refsubexpfin().
 static inline int predict_within_group(int group, int c_id,
                                        const int *match_indices,
                                        const int *group_counts) {
@@ -1993,7 +1990,7 @@ static inline void print_match_indices(int plane, int num_classes,
   }
   printf(" (%3d)\n", num_ref_filters);
 }
-#endif  // NDEBUG
+#endif
 
 #else
 #define WIENERNS_MAX_CLASSES 1

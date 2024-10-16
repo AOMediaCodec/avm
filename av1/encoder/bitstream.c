@@ -4108,10 +4108,7 @@ static AOM_INLINE void encode_restoration_mode(
             if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                      ->rst_info[p]
                      .frame_filters_on) {
-              // Frame filters are on but no ref for plane p. Must be using
-              // filters from alternate plane.
               const int alternate_plane = alternate_ref_plane(p);
-              (void)alternate_plane;
               assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                          ->rst_info[alternate_plane]
                          .frame_filters_on);
@@ -4120,7 +4117,7 @@ static AOM_INLINE void encode_restoration_mode(
             assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                        ->rst_info[p]
                        .frame_filters_on);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
           }
 #endif  // CONFIG_TEMP_LR
         }
@@ -4312,15 +4309,13 @@ static int check_and_write_exact_match(
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
-// Encodes match indices to be decoded via read_match_indices(). See comments
-// therein.
 static inline void write_match_indices(int plane,
                                        const WienerNonsepInfo *wienerns_info,
-                                       aom_writer *wb, int nopcw) {
+                                       aom_writer *wb) {
   assert(NUM_MATCH_GROUPS == 3);
   int group_counts[NUM_MATCH_GROUPS];
   set_group_counts(plane, wienerns_info->num_classes,
-                   wienerns_info->num_ref_filters, group_counts, nopcw);
+                   wienerns_info->num_ref_filters, group_counts);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     const int pred_group =
         predict_group(c_id, wienerns_info->match_indices, group_counts);
@@ -4356,22 +4351,22 @@ static inline void write_match_indices(int plane,
 
 #else
 static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
-                                       aom_writer *wb, int nopcw) {
+                                       aom_writer *wb) {
   int total_bits = 0;
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int num_bits = 0;
     int encoded_match =
         encode_first_match(wienerns_info->match_indices[c_id], &num_bits,
-                           wienerns_info->num_classes, nopcw);
+                           wienerns_info->num_classes);
     aom_write_literal(wb, encoded_match, num_bits);
     total_bits += num_bits;
   }
-  int count_bits = count_match_indices_bits(wienerns_info->num_classes, nopcw);
+  int count_bits = count_match_indices_bits(wienerns_info->num_classes);
   (void)count_bits;
   (void)total_bits;
   assert(total_bits == count_bits);
 }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
 
 static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
                                                    MACROBLOCKD *xd, int plane,
@@ -4402,19 +4397,14 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
 #if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
 #endif  // CONFIG_TEMP_LR
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
-  write_match_indices(plane, &rsi->frame_filters, wb, nopcw);
-#else
-  write_match_indices(&rsi->frame_filters, wb, nopcw);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+  write_match_indices(plane, &rsi->frame_filters, wb);
   WienerNonsepInfoBank bank = { 0 };
   // needed to handle asserts in copy_nsfilter_taps_for_class
   bank.filter[0].num_classes = num_classes;
 
   fill_first_slot_of_bank_with_filter_match(
       plane, &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
-      base_qindex, ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride,
-      nopcw);
+      base_qindex, ALL_WIENERNS_CLASSES, frame_filter_dictionary, dict_stride, nopcw);
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     skip_filter_write_for_class[c_id] = check_and_write_exact_match(
         &rsi->frame_filters, av1_constref_from_wienerns_bank(&bank, 0, c_id),

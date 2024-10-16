@@ -3056,7 +3056,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
               tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                             ->rst_info[alternate_plane];
             }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
             av1_copy_rst_frame_filters(rsi, &tmp_rsi);
             rsi->frame_filters_initialized = 1;
 
@@ -3264,40 +3264,34 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
-// Decodes match indices.
 static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
-                               aom_reader *rb, int nopcw) {
+                               aom_reader *rb) {
   assert(NUM_MATCH_GROUPS == 3);
   int group_counts[NUM_MATCH_GROUPS];
   set_group_counts(plane, wienerns_info->num_classes,
-                   wienerns_info->num_ref_filters, group_counts, nopcw);
+                   wienerns_info->num_ref_filters, group_counts);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
-    // Read group-id.
     const int pred_group =
         predict_group(c_id, wienerns_info->match_indices, group_counts);
     int group = 0;
     int group_bit = aom_read_bit(rb, ACCT_INFO("match"));
     if (group_bit == 0) {
-      // group-id matches prediction.
       group = pred_group;
     } else {
       int zero_group = -1;
       for (int i = 0; i < NUM_MATCH_GROUPS; ++i) {
         if (i == pred_group) continue;
         if (group_counts[i] == 0) {
-          // There is a group-id with zero count.
           zero_group = i;
           break;
         }
       }
       if (zero_group != -1) {
-        // group-id is the remaining non-zero group.
         group = 3 - (pred_group + zero_group);
       } else {
         const int convert_larger[] = { 2, 2, 1 };
         const int convert_smaller[] = { 1, 0, 0 };
         group_bit = aom_read_bit(rb, ACCT_INFO("match"));
-        // Infer group-id around pred_group.
         if (group_bit) {
           group = convert_larger[pred_group];
         } else {
@@ -3305,7 +3299,6 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
         }
       }
     }
-    // Decode match index with known group-id.
     const int ref = predict_within_group(
         group, c_id, wienerns_info->match_indices, group_counts);
     const int base = get_group_base(group, group_counts);
@@ -3321,8 +3314,8 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
 }
 #else
 
-static void read_match_indices(WienerNonsepInfo *wienerns_info, aom_reader *rb,
-                               int nopcw) {
+static void read_match_indices(WienerNonsepInfo *wienerns_info,
+                               aom_reader *rb) {
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int decoded_match = aom_read_literal(
         rb, first_match_bits(wienerns_info->num_classes, nopcw),
@@ -3365,11 +3358,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
 #endif  // CONFIG_TEMP_LR
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
-  read_match_indices(plane, &rsi->frame_filters, rb, nopcw);
-#else
-  read_match_indices(&rsi->frame_filters, rb, nopcw);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+  read_match_indices(plane, &rsi->frame_filters, rb);
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
@@ -3383,6 +3372,8 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     fill_first_slot_of_bank_with_filter_match(
         plane, &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
+        base_qindex, c_id, frame_filter_dictionary, dict_stride);
+        &bank, &rsi->frame_filters, rsi->frame_filters.match_indices,
         base_qindex, c_id, frame_filter_dictionary, dict_stride, nopcw);
     if (skip_filter_read_for_class[c_id]) {
       copy_nsfilter_taps_for_class(

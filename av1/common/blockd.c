@@ -436,7 +436,7 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
 int max_dictionary_size(int nopcw) {
   const int max_num_predictors =
       num_dictionary_slots(WIENERNS_MAX_CLASSES, nopcw);
-  return max_num_predictors * MAX_NUM_DICTIONARY_TAPS;
+  return max_num_predictors * max_num_dictionary_taps();
 }
 
 void allocate_frame_filter_dictionary(AV1_COMMON *cm) {
@@ -452,10 +452,10 @@ void allocate_frame_filter_dictionary(AV1_COMMON *cm) {
   cm->frame_filter_dictionary =
       aom_calloc(max_dictionary_size(0), sizeof(*cm->frame_filter_dictionary));
   cm->translated_pcwiener_filters =
-      aom_calloc(NUM_PC_WIENER_FILTERS * MAX_NUM_DICTIONARY_TAPS,
+      aom_calloc(NUM_PC_WIENER_FILTERS * NUM_PC_WIENER_TAPS_LUMA,
                  sizeof(*cm->translated_pcwiener_filters));
   cm->translation_done = 0;
-  cm->frame_filter_dictionary_stride = MAX_NUM_DICTIONARY_TAPS;
+  cm->frame_filter_dictionary_stride = max_num_dictionary_taps();
   cm->num_ref_filters = aom_calloc(1, sizeof(*cm->num_ref_filters));
 }
 
@@ -481,7 +481,7 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
-  assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
+  assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
 
   /* Assuming the pc-wiener tap configuration is the same as the
@@ -511,11 +511,11 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
     const int dict_index = pc_wiener_cnt;
 
     assert(cm->translated_pcwiener_filters != NULL);
-    for (int i = 0; i < AOMMIN(num_feat, NUM_PC_WIENER_TAPS_LUMA - 1); ++i) {
+    for (int i = 0; i < num_feat; ++i) {
       const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
           pcwiener_filter[i], precision_diff);  // Assuming no translation
       // pcwiener_filter[tap_translator[i]], precision_diff); // deprecated
-      cm->translated_pcwiener_filters[dict_index * MAX_NUM_DICTIONARY_TAPS +
+      cm->translated_pcwiener_filters[dict_index * NUM_PC_WIENER_TAPS_LUMA +
                                       i] =
           clip_to_wienerns_range(scaled_tap,
                                  wienerns_coeffs[i][WIENERNS_MIN_ID],
@@ -529,23 +529,21 @@ static inline int num_sampled_pc_wiener_filters(int plane, int num_ref_filters,
                                                 int num_classes, int nopcw) {
   if (plane != AOM_PLANE_Y) return 0;
   if (nopcw) return 0;
-  return AOMMIN(
-      AOMMAX(max_num_base_filters(num_classes, 0) - num_ref_filters, 0),
-      NUM_PC_WIENER_FILTERS);
+  return AOMMIN(AOMMAX(max_num_base_filters(num_classes, 0) - num_ref_filters, 0),
+                NUM_PC_WIENER_FILTERS);
 }
 
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
-                      int *group_counts, int nopcw) {
-  int total_slots = num_dictionary_slots(num_classes, nopcw);
-  (void)total_slots;
+                      int *group_counts) {
+  int total_slots = num_dictionary_slots(num_classes);
   group_counts[0] = num_classes;
   total_slots -= group_counts[0];
   assert(total_slots >= 0);
-  group_counts[1] = num_ref_frames;
+  group_counts[1] = num_ref_frames;  // AOMMIN(num_ref_filters, total_slots);
   total_slots -= group_counts[1];
   assert(total_slots >= 0);
   group_counts[2] =
-      num_sampled_pc_wiener_filters(plane, num_ref_frames, num_classes, nopcw);
+      num_sampled_pc_wiener_filters(plane, num_ref_frames, num_classes);
 }
 
 int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
@@ -559,7 +557,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
 
-  assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
+  assert(nsfilter_params->ncoeffs <= max_num_dictionary_taps());
   const int num_feat = nsfilter_params->ncoeffs;
 
   const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
@@ -574,8 +572,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   // Copy available reference filters to the dictionary. -----------------------
   int num_ref_filters = 0;
 #if CONFIG_TEMP_LR
-  const int min_pc_wiener = plane == AOM_PLANE_Y ? (nopcw ? 0 : 16) : 0;
-  assert(min_pc_wiener <= NUM_PC_WIENER_FILTERS);
+  const int min_pc_wiener = plane == AOM_PLANE_Y ? 16 : 0;
   const int allowed_num_base_filters =
       max_num_base_filters(num_classes, nopcw) - min_pc_wiener;
   assert(allowed_num_base_filters > 0);
@@ -598,7 +595,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
       num_planes_to_check = 2;
       planes_to_check[1] = (plane == AOM_PLANE_U) ? AOM_PLANE_V : AOM_PLANE_U;
     }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
     for (int chk = 0; chk < num_planes_to_check; ++chk) {
       const int p = planes_to_check[chk];
       RestorationInfo rsi = ref_frame_buf->rst_info[p];
@@ -630,7 +627,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
                                  40, 55, 48, 8,  5,  51, 9,  46, 56, 60, 15,
                                  2,  13, 14, 57, 29, 3,  20, 39, 10 };
   const int num_pc_wiener_filters =
-      num_sampled_pc_wiener_filters(plane, num_ref_filters, num_classes, nopcw);
+      num_sampled_pc_wiener_filters(plane, num_ref_filters, num_classes);
   assert(num_pc_wiener_filters >= 0 &&
          num_pc_wiener_filters <= NUM_PC_WIENER_FILTERS);
 
@@ -645,7 +642,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
 
     const int16_t *pcwiener_filter = cm->translated_pcwiener_filters +
-                                     filter_index * MAX_NUM_DICTIONARY_TAPS;
+                                     filter_index * NUM_PC_WIENER_TAPS_LUMA;
 
     const int dict_index = ref_filter_offset + num_ref_filters + pc_wiener_cnt;
     assert(dict_index < max_predictors);
@@ -654,7 +651,8 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
 
     int16_t *match_filter = frame_filter_dictionary + dict_index * dict_stride;
-    for (int i = 0; i < num_feat; ++i) {
+    const int num_taps = AOMMIN(num_feat, NUM_PC_WIENER_TAPS_LUMA);
+    for (int i = 0; i < num_taps; ++i) {
       match_filter[i] = pcwiener_filter[i];
     }
   }

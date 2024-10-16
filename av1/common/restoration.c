@@ -1528,7 +1528,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
     assert(0);
     return;
   }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
   (void)tmpbuf;
   (void)bit_depth;
   const int set_index =
@@ -1821,7 +1821,7 @@ void apply_wienerns_class_id_highbd(
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
 #if !CONFIG_COMBINE_PC_NS_WIENER_ADD
     assert(wienerns_info->num_classes == 1);
-#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
+#endif
 
     for (int r = 0; r < height; r += block_size) {
       const int h = AOMMIN(block_size, height - r);
@@ -2950,7 +2950,7 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
 void fill_first_slot_of_bank_with_filter_match(
     int plane, WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
-    int16_t *frame_filter_dictionary, int dict_stride, int nopcw) {
+    int16_t *frame_filter_dictionary, int dict_stride) {
   const int is_uv = plane > 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
