@@ -1678,6 +1678,7 @@ typedef struct AV1Common {
   int frame_filter_dictionary_stride; /*!< Stride for the dictionary buffer. */
   int16_t *translated_pcwiener_filters; /*!< pcw filters in wienerns format. */
   int translation_done; /*!< Whether format translation has been done. */
+  int *num_ref_filters; /*!< Number of available reference filters. */
   /**@}*/
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -1924,7 +1925,8 @@ typedef struct AV1Common {
 
 /*!\cond */
 #if CONFIG_COMBINE_PC_NS_WIENER
-#define PRINT_FILTER 0
+#define PRINT_LR_COSTS 0
+#define PRINT_FRAME_FILTER 0
 void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm);
 void allocate_frame_filter_dictionary(AV1_COMMON *cm, int nopcw);
 void free_frame_filter_dictionary(AV1_COMMON *cm);
@@ -1933,11 +1935,12 @@ void free_frame_filter_dictionary(AV1_COMMON *cm);
 // filters of the next class.
 void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
                               const WienernsFilterParameters *nsfilter_params,
-                              int16_t *frame_filter_dictionary, int dict_stride,
-                              int nopcw);
-void set_frame_filter_dictionary(const AV1_COMMON *cm, int num_classes,
-                                 int16_t *frame_filter_dictionary,
-                                 int dict_stride);
+                              int16_t *frame_filter_dictionary,
+                              int dict_stride, int nopcw);
+int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
+                                int num_classes,
+                                int16_t *frame_filter_dictionary,
+                                int dict_stride);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #define ILLEGAL_TXK_SKIP_VALUE 255

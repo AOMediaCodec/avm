@@ -136,6 +136,11 @@ static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
   return num_equal == (c_id_end - c_id_begin) ? 0 : -1;
 }
 
+#if CONFIG_COMBINE_PC_NS_WIENER_ADD
+int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
+                             const int *match_indices);
+#endif
+
 static INLINE int wienerns_info_diff(
     const WienerNonsepInfo *info1, const WienerNonsepInfo *info2,
     const WienernsFilterParameters *nsfilter_params) {

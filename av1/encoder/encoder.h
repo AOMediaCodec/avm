@@ -2246,7 +2246,7 @@ typedef struct {
 
   /*!
    * Holds the number of valid reference frames in past and future directions
-   * w.r.t. the current frame. num_ref_frames[i] stores the total number of
+   * w.r.t. the current frame. num_ref_filters[i] stores the total number of
    * valid reference frames in 'i' direction.
    */
   int num_ref_frames[MAX_DIRECTIONS];

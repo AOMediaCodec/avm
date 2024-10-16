@@ -234,6 +234,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->frame_filter_dictionary_stride = 0;
   cm->frame_filter_dictionary = NULL;
   cm->translated_pcwiener_filters = NULL;
+  cm->num_ref_filters = NULL;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   av1_loop_filter_init(cm);

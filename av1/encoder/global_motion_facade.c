@@ -297,7 +297,7 @@ static int disable_gm_search_based_on_stats(const AV1_COMP *const cpi) {
 }
 
 // Populates valid reference frames in past/future directions in
-// 'reference_frames' and their count in 'num_ref_frames'.
+// 'reference_frames' and their count in 'num_ref_filters'.
 static AOM_INLINE void update_valid_ref_frames_for_gm(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
     FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME],

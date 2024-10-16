@@ -1098,6 +1098,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->frame_filter_dictionary_stride = 0;
   cm->frame_filter_dictionary = NULL;
   cm->translated_pcwiener_filters = NULL;
+  cm->num_ref_filters = NULL;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   CHECK_MEM_ERROR(cm, cm->fc,
@@ -3290,10 +3291,12 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
 
 #if CONFIG_TEMP_LR
-    cm->rst_info[0].frame_filters_on = 0;
-    cm->rst_info[0].temporal_pred_flag = 0;
-    cm->cur_frame->rst_info[0].frame_filters_on = 0;
-    cm->cur_frame->rst_info[0].temporal_pred_flag = 0;
+    for (int p = 0; p < num_planes; ++p) {
+      cm->rst_info[p].frame_filters_on = 0;
+      cm->rst_info[p].temporal_pred_flag = 0;
+      cm->cur_frame->rst_info[p].frame_filters_on = 0;
+      cm->cur_frame->rst_info[p].temporal_pred_flag = 0;
+    }
 #endif  // CONFIG_TEMP_LR
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -3431,7 +3434,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   SequenceHeader *const seq_params = &cm->seq_params;
 
 #if CONFIG_TEMP_LR
-  cm->cur_frame->rst_info[AOM_PLANE_Y].frame_filters_on = 0;
+  const int num_planes = av1_num_planes(cm);
+  for (int p = 0; p < num_planes; ++p) {
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
+  }
 #endif  // CONFIG_TEMP_LR
 
   // Special case code to reduce pulsing when key frames are forced at a
