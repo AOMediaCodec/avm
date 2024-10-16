@@ -98,7 +98,8 @@ macro(fix_experiment_configs)
   endif()
 
   if(CONFIG_COMBINE_PC_NS_WIENER_ADD)
-    change_config_and_warn(CONFIG_COMBINE_PC_NS_WIENER 1 CONFIG_COMBINE_PC_NS_WIENER_ADD)
+    change_config_and_warn(CONFIG_COMBINE_PC_NS_WIENER 1
+            CONFIG_COMBINE_PC_NS_WIENER_ADD)
     change_config_and_warn(CONFIG_TEMP_LR 1 CONFIG_COMBINE_PC_NS_WIENER_ADD)
   endif()
 
