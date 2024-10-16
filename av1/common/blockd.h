@@ -1916,6 +1916,7 @@ int max_dictionary_size(int nopcw);
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
                       int *group_counts, int nopcw);
 
+// Given the class-id returns a group-id guess based on group counts.
 static inline int most_probable_group(int c_id, const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
   const int group_count_0 = c_id + 1;
@@ -1933,6 +1934,7 @@ static inline int most_probable_group(int c_id, const int *group_counts) {
   }
 }
 
+// Returns the group id of a match index.
 static inline int index_to_group(int match_index, const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
   if (match_index < group_counts[0]) {
@@ -1943,6 +1945,8 @@ static inline int index_to_group(int match_index, const int *group_counts) {
   return 2;
 }
 
+// Given the class-id and the match indices of previous class filters returns a
+// group-id prediction.
 static inline int predict_group(int c_id, const int *match_indices,
                                 const int *group_counts) {
   assert(NUM_MATCH_GROUPS == 3);
@@ -1961,6 +1965,7 @@ static inline int predict_group(int c_id, const int *match_indices,
     return 2;
 }
 
+// Returns the total number of filters with group-id less than group.
 static inline int get_group_base(int group, const int *group_counts) {
   if (group == 0) return 0;
   int base = 0;
@@ -1970,6 +1975,9 @@ static inline int get_group_base(int group, const int *group_counts) {
   return base;
 }
 
+// Returns a match index prediction given that the filter has a known group-id.
+// The prediction is useful as a reference when encoding/decoding the match
+// index via *_primitive_refsubexpfin().
 static inline int predict_within_group(int group, int c_id,
                                        const int *match_indices,
                                        const int *group_counts) {

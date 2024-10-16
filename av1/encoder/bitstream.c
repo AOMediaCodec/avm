@@ -4108,6 +4108,8 @@ static AOM_INLINE void encode_restoration_mode(
             if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                      ->rst_info[p]
                      .frame_filters_on) {
+              // Frame filters are on but no ref for plane p. Must be using
+              // filters from alternate plane.
               const int alternate_plane = alternate_ref_plane(p);
               assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                          ->rst_info[alternate_plane]
@@ -4309,6 +4311,8 @@ static int check_and_write_exact_match(
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
+// Encodes match indices to be decoded via read_match_indices(). See comments
+// therein.
 static inline void write_match_indices(int plane,
                                        const WienerNonsepInfo *wienerns_info,
                                        aom_writer *wb, int nopcw) {

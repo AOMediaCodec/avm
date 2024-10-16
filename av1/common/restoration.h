@@ -247,6 +247,8 @@ static inline int is_frame_filters_enabled(int plane) {
 #endif
 }
 
+// Returns the alternate plane whose reference-frame-filters can be used to
+// augment those for plane.
 static inline int alternate_ref_plane(int plane) {
   switch (plane) {
     case AOM_PLANE_Y: return -1;
