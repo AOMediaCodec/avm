@@ -75,8 +75,7 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
 
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (cm->frame_filter_dictionary == NULL) {
-    const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
-    allocate_frame_filter_dictionary(cm, nopcw);
+    allocate_frame_filter_dictionary(cm);
     translate_pcwiener_filters_to_wienerns(cm);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

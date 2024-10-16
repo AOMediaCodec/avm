@@ -2950,7 +2950,7 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
 void fill_first_slot_of_bank_with_filter_match(
     int plane, WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
     const int *match_indices, int base_qindex, int class_id,
-    int16_t *frame_filter_dictionary, int dict_stride) {
+    int16_t *frame_filter_dictionary, int dict_stride, int nopcw) {
   const int is_uv = plane > 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
