@@ -1957,11 +1957,10 @@ static INLINE void add_start_mv_to_partition(
 // mi_col with block size bsize.
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
-                                   int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                   ThreadData *td
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize
 #if CONFIG_ML_PART_SPLIT
                                    ,
-                                   bool need_residual_stats
+                                   ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -2026,10 +2025,10 @@ void av1_gather_erp_rect_features(
       clip_rate(part_search_state->partition_cost[PARTITION_VERT]);
 
   const SimpleMotionData *blk_none = av1_get_sms_data(
-      cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize, NULL
+      cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize
 #if CONFIG_ML_PART_SPLIT
       ,
-      false
+      NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
   );
 
@@ -2037,20 +2036,20 @@ void av1_gather_erp_rect_features(
   const SimpleMotionData *blk_h1 =
       h_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][0][0],
-                             mi_pos_rect[HORZ][0][1], h_size, NULL
+                             mi_pos_rect[HORZ][0][1], h_size
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             false
+                             NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
   const SimpleMotionData *blk_h2 =
       h_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][1][0],
-                             mi_pos_rect[HORZ][1][1], h_size, NULL
+                             mi_pos_rect[HORZ][1][1], h_size
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             false
+                             NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
@@ -2059,20 +2058,20 @@ void av1_gather_erp_rect_features(
   const SimpleMotionData *blk_v1 =
       v_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][0][0],
-                             mi_pos_rect[VERT][0][1], v_size, NULL
+                             mi_pos_rect[VERT][0][1], v_size
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             false
+                             NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
   const SimpleMotionData *blk_v2 =
       v_size != BLOCK_INVALID
           ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][1][0],
-                             mi_pos_rect[VERT][1][1], v_size, NULL
+                             mi_pos_rect[VERT][1][1], v_size
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             false
+                             NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
                              )
           : NULL;
