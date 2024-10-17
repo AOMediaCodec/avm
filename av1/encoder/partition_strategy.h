@@ -201,7 +201,7 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ThreadData *td
 #if CONFIG_ML_PART_SPLIT
                                    ,
-                                   int need_residual_stats
+                                   bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
 );
 void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs);
