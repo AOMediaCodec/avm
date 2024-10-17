@@ -552,8 +552,8 @@ typedef struct {
   int satdq;
   int satd;
 
-  int sse;
-  int var;
+  unsigned int sse;
+  unsigned int var;
 } ResidualStats;
 
 /*! \brief Contains data for simple motion
