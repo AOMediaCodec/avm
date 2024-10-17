@@ -548,7 +548,7 @@ enum {
 typedef struct {
   int q_coeff_max;
   int q_coeff_nonz;
-  double psnr;
+  float psnr;
   int satdq;
   int satd;
 
