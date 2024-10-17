@@ -1787,11 +1787,10 @@ static void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td,
 // Performs a simple motion search and store the result in sms_data.
 static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              MACROBLOCK *x, SimpleMotionData *sms_data,
-                             int mi_row, int mi_col, BLOCK_SIZE bsize,
-                             ThreadData *td
+                             int mi_row, int mi_col, BLOCK_SIZE bsize
 #if CONFIG_ML_PART_SPLIT
                              ,
-                             bool need_residual_stats
+                             ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -1975,10 +1974,10 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
       || (need_residual_stats && !cur_block->residual_stats_valid)
 #endif  // CONFIG_ML_PART_SPLIT
   ) {
-    compute_sms_data(cpi, tile, x, cur_block, mi_row, mi_col, bsize, td
+    compute_sms_data(cpi, tile, x, cur_block, mi_row, mi_col, bsize
 #if CONFIG_ML_PART_SPLIT
                      ,
-                     need_residual_stats
+                     td, need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
     );
     for (PARTITION_TYPE partition = PARTITION_NONE;
