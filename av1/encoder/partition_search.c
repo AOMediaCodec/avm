@@ -9050,7 +9050,7 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
   if (template_tree && template_tree->partition != PARTITION_INVALID &&
 #if CONFIG_EXTENDED_SDP
-      template_tree->region_type == cur_region_type &&
+      template_tree->region_type == pc_tree->region_type &&
 #endif  // CONFIG_EXTENDED_SDP
       pc_tree->partitioning != template_tree->partition) {
     assert(0);
