@@ -851,7 +851,7 @@ typedef struct {
   bool enable_flex_mvres;
 
   // Indicates if joint adaptive downsampling filter should be enabled.
-  int enable_cfl_ds_filter;
+  int select_cfl_ds_filter;
 
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;

@@ -2176,11 +2176,11 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           if ((h >= *above_lines && w >= *left_lines + width) ||
               (h >= *above_lines + height && w >= *left_lines))
             continue;
-          if (cm->seq_params.enable_cfl_ds_filter == 1) {
+          if (cm->seq_params.cfl_ds_filter_index == 1) {
             output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 2 * input[w] +
                                 input[w + 1] + input[bot + AOMMAX(-1, -w)] +
                                 2 * input[bot] + input[bot + 1];
-          } else if (cm->seq_params.enable_cfl_ds_filter == 2) {
+          } else if (cm->seq_params.cfl_ds_filter_index == 2) {
             const int top = h != 0 ? w - input_stride : w;
             output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 4 * input[w] +
                                 input[w + 1] + input[top] + input[bot];
@@ -2197,7 +2197,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     } else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
-          const int filter_type = cm->seq_params.enable_cfl_ds_filter;
+          const int filter_type = cm->seq_params.cfl_ds_filter_index;
           if (filter_type == 1) {
             output_q3[i >> 1] =
                 (input[AOMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
@@ -2318,7 +2318,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
 #endif
       cfl_store_tx(xd, blk_row, blk_col, luma_tx_size,
-                   cm->seq_params.enable_cfl_ds_filter);
+                   cm->seq_params.cfl_ds_filter_index);
     }
     CFL_CTX *const cfl = &xd->cfl;
 

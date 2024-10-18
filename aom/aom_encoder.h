@@ -390,7 +390,7 @@ typedef struct cfg_options {
   /*!\brief enable downsample filter options for CFL
    *
    */
-  unsigned int enable_cfl_ds_filter;
+  unsigned int select_cfl_ds_filter;
 
   /*!\brief enable joint MVD coding
    *

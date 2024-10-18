@@ -114,7 +114,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 
     GET_PARAMS(enable_flex_mvres);
 
-    GET_PARAMS(enable_cfl_ds_filter);
+    GET_PARAMS(select_cfl_ds_filter);
     GET_PARAMS(enable_joint_mvd);
 #if CONFIG_REFINEMV
     GET_PARAMS(enable_refinemv);

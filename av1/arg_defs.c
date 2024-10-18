@@ -452,10 +452,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                "Enable flexible MV resolution"
                                "(0: false, 1: true (default))"),
 
-  .enable_cfl_ds_filter =
-      ARG_DEF(NULL, "enable-adaptive-ds", 1,
-              "Enable adaptive down-sampling filter"
-              "(0: false, 1: filter1, 2: filter 2, 3: filter 3"),
+  .select_cfl_ds_filter =
+      ARG_DEF(NULL, "select-adaptive-ds", 1,
+              "Select adaptive down-sampling filter"
+              "(0: filter 0, 1: filter 1, 2: filter 2, 3: adaptive (default)"),
 
   .enable_joint_mvd = ARG_DEF(NULL, "enable-joint-mvd", 1,
                               "Enable joint MVD coding"

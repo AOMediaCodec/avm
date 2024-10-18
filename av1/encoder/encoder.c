@@ -456,7 +456,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
-  seq->enable_cfl_ds_filter = tool_cfg->enable_cfl_ds_filter;
+  seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
@@ -1830,14 +1830,18 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
   if (subsampling_x == 0 && subsampling_y == 0) {
-    cm->seq_params.enable_cfl_ds_filter =
+    cm->seq_params.cfl_ds_filter_index =
         0;  // For 4:4:4 chroma format, downsampling filter is not used. There
             // is a redundant that the filter index is still signalled for
             // 4:4:4. Should we remove the index signalling for 4:4:4 with this
             // MR?
     return;
   }
-
+  if (cpi->oxcf.tool_cfg.select_cfl_ds_filter < 3) {
+    cm->seq_params.cfl_ds_filter_index =
+        cpi->oxcf.tool_cfg.select_cfl_ds_filter;
+    return;
+  }
   const int blk_w = 16;
   const int blk_h = 16;
 
@@ -1899,7 +1903,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];
-      cm->seq_params.enable_cfl_ds_filter = i;
+      cm->seq_params.cfl_ds_filter_index = i;
     }
   }
 }

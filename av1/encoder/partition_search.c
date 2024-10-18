@@ -665,7 +665,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
       is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type[xd->tree_type == CHROMA_PART],
-                    mbmi->tx_size, cm->seq_params.enable_cfl_ds_filter);
+                    mbmi->tx_size, cm->seq_params.cfl_ds_filter_index);
   }
   if (xd->tree_type == LUMA_PART) {
     const CommonModeInfoParams *const mi_params = &cm->mi_params;

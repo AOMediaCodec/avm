@@ -5083,9 +5083,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
 #if CONFIG_IMPROVED_DS_CC_WIENER
-      cm->seq_params.enable_cfl_ds_filter
+      cm->seq_params.cfl_ds_filter_index
 #else
-      cm->seq_params.enable_cfl_ds_filter == 1
+      cm->seq_params.cfl_ds_filter_index == 1
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );

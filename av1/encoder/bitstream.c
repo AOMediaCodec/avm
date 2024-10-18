@@ -5424,7 +5424,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 
-  aom_wb_write_literal(wb, seq_params->enable_cfl_ds_filter, 2);
+  aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
 
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #if CONFIG_EXT_RECUR_PARTITIONS

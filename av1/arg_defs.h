@@ -173,7 +173,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_ibp;
   arg_def_t enable_adaptive_mvd;
   arg_def_t enable_flex_mvres;
-  arg_def_t enable_cfl_ds_filter;
+#if CONFIG_IMPROVED_CFL
+  arg_def_t select_cfl_ds_filter;
+#endif  // CONFIG_IMPROVED_CFL
   arg_def_t enable_joint_mvd;
 #if CONFIG_REFINEMV
   arg_def_t enable_refinemv;
