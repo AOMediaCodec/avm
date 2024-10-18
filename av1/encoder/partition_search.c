@@ -3914,7 +3914,11 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   }
 
   // Partition types forced by speed_features.
-  if (template_tree) {
+  if (template_tree
+#if CONFIG_EXTENDED_SDP
+      && template_tree->region_type == cur_region_type
+#endif  // CONFIG_EXTENDED_SDP
+  ) {
     return template_tree->partition;
   }
 
@@ -9045,6 +9049,9 @@ BEGIN_PARTITION_SEARCH:
   }
 #if CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
   if (template_tree && template_tree->partition != PARTITION_INVALID &&
+#if CONFIG_EXTENDED_SDP
+      template_tree->region_type == cur_region_type &&
+#endif  // CONFIG_EXTENDED_SDP
       pc_tree->partitioning != template_tree->partition) {
     assert(0);
     printf("Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d\n",
