@@ -2487,6 +2487,46 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                        block_size_wide[test_subsize],
                        block_size_high[test_subsize]);
   }
+  // Check that chroma ref block isn't completely outside the boundary.
+  if ((xd->tree_type == CHROMA_PART) &&
+      have_nz_chroma_ref_offset(bsize, partition, pd_u->subsampling_x,
+                                pd_u->subsampling_y)) {
+    int chroma_ref_row_offset = 0;
+    int chroma_ref_col_offset = 0;
+    switch (partition) {
+      case PARTITION_NONE: break;
+      case PARTITION_HORZ:
+        chroma_ref_row_offset = mi_size_high[bsize] / 2;
+        break;
+      case PARTITION_VERT:
+        chroma_ref_col_offset = mi_size_wide[bsize] / 2;
+        break;
+      case PARTITION_HORZ_3:
+        chroma_ref_row_offset = 3 * mi_size_high[bsize] / 4;
+        break;
+      case PARTITION_VERT_3:
+        chroma_ref_col_offset = 3 * mi_size_wide[bsize] / 4;
+        break;
+      case PARTITION_HORZ_4A:
+      case PARTITION_HORZ_4B:
+        chroma_ref_row_offset = 7 * mi_size_high[bsize] / 8;
+        break;
+      case PARTITION_VERT_4A:
+      case PARTITION_VERT_4B:
+        chroma_ref_col_offset = 7 * mi_size_wide[bsize] / 8;
+        break;
+      case PARTITION_SPLIT:
+      default: assert(0);
+    }
+    if (mi_row + chroma_ref_row_offset >= cm->mi_params.mi_rows ||
+        mi_col + chroma_ref_col_offset >= cm->mi_params.mi_cols) {
+      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                         "Invalid partitioning %d at location [%d, %d]: chroma "
+                         "info not coded.",
+                         partition, mi_row << MI_SIZE_LOG2,
+                         mi_col << MI_SIZE_LOG2);
+    }
+  }
 #else
   if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
       BLOCK_INVALID) {

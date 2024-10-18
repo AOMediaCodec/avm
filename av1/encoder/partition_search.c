@@ -3972,12 +3972,24 @@ static AOM_INLINE void init_allowed_partitions(
       part_search_state->is_block_splittable &&
       part_cfg->enable_rect_partitions &&
       is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
-      is_horz_size_valid;
+      is_horz_size_valid
+#if CONFIG_CB1TO4_SPLIT
+      // TODO(urvang): This and other similar conditions should be for
+      // SHARED_PART only.
+      && IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ, ss_x, ss_y),
+                 blk_params->has_rows)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
   part_search_state->partition_rect_allowed[VERT] =
       part_search_state->is_block_splittable &&
       part_cfg->enable_rect_partitions &&
       is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
-      is_vert_size_valid;
+      is_vert_size_valid
+#if CONFIG_CB1TO4_SPLIT
+      && IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT, ss_x, ss_y),
+                 blk_params->has_cols)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
 
   const int ext_partition_allowed =
       part_search_state->is_block_splittable &&

@@ -3102,6 +3102,24 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
       is_implied = false;
       tmp_implied_partition = PARTITION_INVALID;
     }
+#if CONFIG_CB1TO4_SPLIT
+    if (tree_type == SHARED_PART) {
+      // Make sure that chroma ref block is not completely outside frame
+      // boundary, to ensure that coding of chroma ref block is not skipped.
+      if ((tmp_implied_partition == PARTITION_HORZ) &&
+          have_nz_chroma_ref_offset(bsize, PARTITION_HORZ, ss_x, ss_y) &&
+          !has_rows) {
+        is_implied = false;
+        tmp_implied_partition = PARTITION_INVALID;
+      }
+      if ((tmp_implied_partition == PARTITION_VERT) &&
+          have_nz_chroma_ref_offset(bsize, PARTITION_VERT, ss_x, ss_y) &&
+          !has_cols) {
+        is_implied = false;
+        tmp_implied_partition = PARTITION_INVALID;
+      }
+    }
+#endif  // CONFIG_CB1TO4_SPLIT
   }
   assert(IMPLIES(is_implied && implied_partition,
                  tmp_implied_partition == PARTITION_HORZ ||
