@@ -522,9 +522,12 @@ typedef struct SequenceHeader {
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
 #if CONFIG_LF_SUB_PU
-  uint8_t enable_lf_sub_pu;          // To turn on/off sub-block deblocking
-#endif                               // CONFIG_LF_SUB_PU
-  uint8_t enable_refmvbank;          // To turn on/off Ref MV Bank
+  uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
+#endif                       // CONFIG_LF_SUB_PU
+  uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  uint8_t enable_tiles_cdfs_avg;     // To turn on/off tiles cdfs average
+#endif                               // CONFIG_TILE_CDFS_AVG_TO_FRAME
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
                                      // enum where:
@@ -4270,6 +4273,29 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 
   return (allowed_motion_modes & enabled_motion_modes);
 }
+
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+#define MAX_NUM_TILES_FOR_CDFS_AVG_LOG2 3
+
+static INLINE int compute_tiles_max_log2(int total_tiles) {
+  int bits = 0;
+  while (total_tiles) {
+    ++bits;
+    total_tiles >>= 1;
+  }
+
+  return bits - 1;
+}
+
+static INLINE int av1_compute_allowed_tiles_log2(const AV1_COMMON *const cm) {
+  const CommonTileParams *const tiles = &cm->tiles;
+  const int tiles_rows_log2 = compute_tiles_max_log2(tiles->rows);
+  const int tiles_cols_log2 = compute_tiles_max_log2(tiles->cols);
+  const int total_tiles_log2 = tiles_rows_log2 + tiles_cols_log2;
+  return AOMMIN(total_tiles_log2, MAX_NUM_TILES_FOR_CDFS_AVG_LOG2);
+}
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

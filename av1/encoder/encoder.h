@@ -902,6 +902,10 @@ typedef struct {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  // Indicates if tiles cdfs average should be enabled.
+  bool enable_tiles_cdfs_avg;
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
 #if CONFIG_AFFINE_REFINEMENT

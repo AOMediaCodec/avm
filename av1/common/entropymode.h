@@ -804,6 +804,13 @@ static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
 #endif  // CONFIG_C076_INTER_MOD_CTX
 }
 
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
+                                    FRAME_CONTEXT *ctx_tr,
+                                    int total_tiles_log2);
+void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr, int total_tiles_log2);
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
   NEAR_NEARMV_OPTFLOW, NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW,      -1,
   NEW_NEWMV_OPTFLOW,   JOINT_NEWMV_OPTFLOW, JOINT_AMVDNEWMV_OPTFLOW,

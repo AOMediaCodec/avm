@@ -4151,13 +4151,17 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
 
   pbi->context_update_tile_id = 0;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
-    // tile to use for cdf update
-    pbi->context_update_tile_id =
-        aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols);
-    if (pbi->context_update_tile_id >= cm->tiles.rows * cm->tiles.cols) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid context_update_tile_id");
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+    if (!cm->seq_params.enable_tiles_cdfs_avg) {
+      // tile to use for cdf update
+      pbi->context_update_tile_id =
+          aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols);
+      if (pbi->context_update_tile_id >= cm->tiles.rows * cm->tiles.cols) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Invalid context_update_tile_id");
+      }
     }
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
     // tile size magnitude
     pbi->tile_size_bytes = aom_rb_read_literal(rb, 2) + 1;
   }
@@ -6389,6 +6393,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
                                          SequenceHeader *seq_params) {
   // printf("print sps\n");
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  seq_params->enable_tiles_cdfs_avg = aom_rb_read_bit(rb);
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
@@ -8177,6 +8184,26 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   }
 }
 
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  const CommonTileParams *const tiles = &cm->tiles;
+  const int total_tiles = tiles->rows * tiles->cols;
+  if (total_tiles == 1) {
+    *cm->fc = pbi->tile_data[0].tctx;
+  } else {
+    const int total_tiles_log2 = av1_compute_allowed_tiles_log2(cm);
+    const int used_tiles = (1 << total_tiles_log2);
+    *cm->fc = pbi->tile_data[0].tctx;
+    av1_shift_cdf_symbols(cm->fc, total_tiles_log2);
+    for (int tile_idx = 1; tile_idx < used_tiles; ++tile_idx) {
+      av1_cumulative_avg_cdf_symbols(cm->fc, &pbi->tile_data[tile_idx].tctx,
+                                     total_tiles_log2);
+    }
+  }
+}
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
                                     const uint8_t **p_data_end, int start_tile,
@@ -8361,8 +8388,17 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
   if (!pbi->dcb.corrupted) {
     if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
-      assert(pbi->context_update_tile_id < pbi->allocated_tiles);
-      *cm->fc = pbi->tile_data[pbi->context_update_tile_id].tctx;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+      if (cm->seq_params.enable_tiles_cdfs_avg &&
+          cm->tiles.rows * cm->tiles.cols > 1) {
+        decoder_avg_tiles_cdfs(pbi);
+      } else {
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+        assert(pbi->context_update_tile_id < pbi->allocated_tiles);
+        *cm->fc = pbi->tile_data[pbi->context_update_tile_id].tctx;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+      }
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
       av1_reset_cdf_symbol_counters(cm->fc);
     }
   } else {

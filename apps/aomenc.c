@@ -464,6 +464,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.max_drl_refbvs,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   &g_av1_codec_arg_defs.enable_refmvbank,
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  &g_av1_codec_arg_defs.enable_tiles_cdfs_avg,
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   &g_av1_codec_arg_defs.enable_opfl_refine,
 #if CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_affine_refine,
@@ -721,6 +724,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_reduced_reference_set = 0;
   config->reduced_tx_type_set = 0;
   config->enable_refmvbank = 1;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  config->enable_tiles_cdfs_avg = 1;
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   config->enable_parity_hiding = 1;
 #if CONFIG_MRSSE
   config->enable_mrsse = 0;
@@ -1637,6 +1643,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_MRSSE
           "MRSSE (%d), "
 #endif  // CONFIG_MRSSE
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+          "TilesCDFsAvg (%d), "
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
           "IntraBC (%d)\n",
           encoder_cfg->enable_palette, encoder_cfg->enable_parity_hiding,
 #if CONFIG_IBC_SR_EXT
@@ -1645,6 +1654,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_MRSSE
           encoder_cfg->enable_mrsse,
 #endif  // CONFIG_MRSSE
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+          encoder_cfg->enable_tiles_cdfs_avg,
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
           encoder_cfg->enable_intrabc);
 
   fprintf(stdout, "\n\n");

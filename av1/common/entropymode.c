@@ -8119,6 +8119,767 @@ static void set_default_lf_deltas(struct loopfilter *lf) {
   lf->mode_ref_delta_update = 0;
 }
 
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+static AOM_INLINE void cumulative_avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left,
+                                                 aom_cdf_prob *cdf_ptr_tr,
+                                                 int num_cdfs, int cdf_stride,
+                                                 int nsymbs,
+                                                 int total_tiles_log2) {
+  for (int i = 0; i < num_cdfs; i++) {
+    for (int j = 0; j <= nsymbs; j++) {
+      const int index = i * cdf_stride + j;
+      cdf_ptr_left[index] =
+          cdf_ptr_left[index] + (cdf_ptr_tr[index] >> total_tiles_log2);
+      assert(cdf_ptr_left[index] >= 0 && cdf_ptr_left[index] < CDF_PROB_TOP);
+    }
+  }
+}
+
+#define CUMULATIVE_AVERAGE_CDF(cname_left, cname_tr, nsymbs) \
+  CUMULATIVE_AVG_CDF_STRIDE(cname_left, cname_tr, nsymbs, CDF_SIZE(nsymbs))
+#define CUMULATIVE_AVG_CDF_STRIDE(cname_left, cname_tr, nsymbs, cdf_stride)   \
+  do {                                                                        \
+    aom_cdf_prob *cdf_ptr_left = (aom_cdf_prob *)cname_left;                  \
+    aom_cdf_prob *cdf_ptr_tr = (aom_cdf_prob *)cname_tr;                      \
+    int array_size = (int)sizeof(cname_left) / sizeof(aom_cdf_prob);          \
+    int num_cdfs = array_size / cdf_stride;                                   \
+    cumulative_avg_cdf_symbol(cdf_ptr_left, cdf_ptr_tr, num_cdfs, cdf_stride, \
+                              nsymbs, total_tiles_log2);                      \
+  } while (0)
+
+static void cumulative_avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr,
+                               int total_tiles_log2) {
+#if !CONFIG_VQ_MVD_CODING
+  CUMULATIVE_AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
+#else
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    int num_mv_class = get_default_num_shell_class(prec);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_class_cdf[prec],
+                           nmv_tr->joint_shell_class_cdf[prec], num_mv_class);
+  }
+  CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_low_class_cdf,
+                         nmv_tr->shell_offset_low_class_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
+                         nmv_tr->shell_offset_class2_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_other_class_cdf,
+                         nmv_tr->shell_offset_other_class_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(nmv_left->col_mv_greter_flags_cdf,
+                         nmv_tr->col_mv_greter_flags_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf,
+                         2);
+
+#endif  // !CONFIG_VQ_MVD_CODING
+  CUMULATIVE_AVERAGE_CDF(nmv_left->amvd_joints_cdf, nmv_tr->amvd_joints_cdf,
+                         MV_JOINTS);
+  for (int i = 0; i < 2; i++) {
+#if !CONFIG_VQ_MVD_CODING
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].classes_cdf,
+                           nmv_tr->comps[i].classes_cdf, MV_CLASSES);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].amvd_classes_cdf,
+                           nmv_tr->comps[i].amvd_classes_cdf, MV_CLASSES);
+#else
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].amvd_indices_cdf,
+                           nmv_tr->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
+#endif  // !CONFIG_VQ_MVD_CODING
+
+#if !CONFIG_VQ_MVD_CODING
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
+                           nmv_tr->comps[i].class0_fp_cdf, 2);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf,
+                           2);
+#endif  //! CONFIG_VQ_MVD_CODING
+
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].sign_cdf,
+                           nmv_tr->comps[i].sign_cdf, 2);
+
+#if !CONFIG_VQ_MVD_CODING
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_hp_cdf,
+                           nmv_tr->comps[i].class0_hp_cdf, 2);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].hp_cdf, nmv_tr->comps[i].hp_cdf,
+                           2);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_cdf,
+                           nmv_tr->comps[i].class0_cdf, CLASS0_SIZE);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].bits_cdf,
+                           nmv_tr->comps[i].bits_cdf, 2);
+#endif  // !CONFIG_VQ_MVD_CODING
+  }
+}
+
+// This function facilitates the averaging of CDFs from different tiles.
+void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
+                                    FRAME_CONTEXT *ctx_tr,
+                                    int total_tiles_log2) {
+  CUMULATIVE_AVERAGE_CDF(ctx_left->txb_skip_cdf, ctx_tr->txb_skip_cdf, 2);
+#if CONFIG_CONTEXT_DERIVATION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->v_txb_skip_cdf, ctx_tr->v_txb_skip_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_extra_cdf, ctx_tr->eob_extra_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);
+#if CONFIG_CONTEXT_DERIVATION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf16, ctx_tr->eob_flag_cdf16,
+                         EOB_MAX_SYMS - 6);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf32, ctx_tr->eob_flag_cdf32,
+                         EOB_MAX_SYMS - 5);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf64, ctx_tr->eob_flag_cdf64,
+                         EOB_MAX_SYMS - 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf128, ctx_tr->eob_flag_cdf128,
+                         EOB_MAX_SYMS - 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
+                         EOB_MAX_SYMS - 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
+                         EOB_MAX_SYMS - 1);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
+                         EOB_MAX_SYMS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_eob_cdf,
+                         ctx_tr->coeff_base_eob_cdf, 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_bob_cdf,
+                         ctx_tr->coeff_base_bob_cdf, 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_cdf, ctx_tr->coeff_base_lf_cdf,
+                         LF_BASE_SYMBOLS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_eob_cdf,
+                         ctx_tr->coeff_base_lf_eob_cdf, LF_BASE_SYMBOLS - 1);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_cdf, ctx_tr->coeff_br_lf_cdf,
+                         BR_CDF_SIZE);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_cdf, ctx_tr->coeff_base_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->idtx_sign_cdf, ctx_tr->idtx_sign_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_cdf_idtx,
+                         ctx_tr->coeff_base_cdf_idtx, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_cdf_idtx, ctx_tr->coeff_br_cdf_idtx,
+                         BR_CDF_SIZE);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf,
+                         BR_CDF_SIZE);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_single_mode_cdf,
+                         ctx_tr->inter_single_mode_cdf, INTER_SINGLE_MODES);
+#if CONFIG_CHROMA_CODING
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_uv_cdf, ctx_tr->coeff_base_uv_cdf,
+                         4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_uv_cdf, ctx_tr->coeff_br_uv_cdf,
+                         BR_CDF_SIZE);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_eob_uv_cdf,
+                         ctx_tr->coeff_base_eob_uv_cdf, 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_uv_cdf,
+                         ctx_tr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
+                         ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf,
+                         ctx_tr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif  // CONFIG_CHROMA_CODING
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_warp_mode_cdf,
+                         ctx_tr->inter_warp_mode_cdf, 2);
+
+#if CONFIG_REFINEMV
+  CUMULATIVE_AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
+                         REFINEMV_NUM_MODES);
+#endif  // CONFIG_REFINEMV
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
+                         ctx_tr->inter_compound_mode_cdf,
+                         INTER_COMPOUND_REF_TYPES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cwp_idx_cdf, ctx_tr->cwp_idx_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->jmvd_scale_mode_cdf,
+                         ctx_tr->jmvd_scale_mode_cdf,
+                         JOINT_NEWMV_SCALE_FACTOR_CNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->jmvd_amvd_scale_mode_cdf,
+                         ctx_tr->jmvd_amvd_scale_mode_cdf,
+                         JOINT_AMVD_SCALE_FACTOR_CNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->compound_type_cdf, ctx_tr->compound_type_cdf,
+                         MASKED_COMPOUND_TYPES);
+#if CONFIG_WEDGE_MOD_EXT
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_dir_cdf,
+                         ctx_tr->wedge_angle_dir_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_0_cdf, ctx_tr->wedge_angle_0_cdf,
+                         H_WEDGE_ANGLES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_1_cdf, ctx_tr->wedge_angle_1_cdf,
+                         H_WEDGE_ANGLES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_dist_cdf, ctx_tr->wedge_dist_cdf,
+                         NUM_WEDGE_DIST);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_dist_cdf2, ctx_tr->wedge_dist_cdf2,
+                         NUM_WEDGE_DIST - 1);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_idx_cdf, ctx_tr->wedge_idx_cdf, 16);
+#endif
+  CUMULATIVE_AVERAGE_CDF(ctx_left->interintra_cdf, ctx_tr->interintra_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_interintra_cdf,
+                         ctx_tr->wedge_interintra_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->interintra_mode_cdf,
+                         ctx_tr->interintra_mode_cdf, INTERINTRA_MODES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warp_delta_param_cdf,
+                         ctx_tr->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warped_causal_warpmv_cdf,
+                         ctx_tr->warped_causal_warpmv_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warp_ref_idx_cdf, ctx_tr->warp_ref_idx_cdf,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warpmv_with_mvd_flag_cdf,
+                         ctx_tr->warpmv_with_mvd_flag_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warp_extend_cdf, ctx_tr->warp_extend_cdf, 2);
+
+#if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  CUMULATIVE_AVERAGE_CDF(ctx_left->bawp_cdf, ctx_tr->bawp_cdf, 2);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->bawp_cdf, ctx_tr->bawp_cdf, 2);
+#endif  // CONFIG_BAWP_CHROMA
+#if CONFIG_EXPLICIT_BAWP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->explicit_bawp_cdf, ctx_tr->explicit_bawp_cdf,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->explicit_bawp_scale_cdf,
+                         ctx_tr->explicit_bawp_scale_cdf,
+                         EXPLICIT_BAWP_SCALE_CNT);
+#endif  // CONFIG_EXPLICIT_BAWP
+#endif
+  CUMULATIVE_AVERAGE_CDF(ctx_left->tip_cdf, ctx_tr->tip_cdf, 2);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->tip_pred_mode_cdf, ctx_tr->tip_pred_mode_cdf,
+                         TIP_PRED_MODES);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_LINE_COPY
+  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
+                         ctx_tr->identity_row_cdf_y, 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
+                         ctx_tr->identity_row_cdf_uv, 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_direction_cdf,
+                         ctx_tr->palette_direction_cdf, 2);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
+                         ctx_tr->identity_row_cdf_y, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
+                         ctx_tr->identity_row_cdf_uv, 2);
+#endif  // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_cdf, ctx_tr->cfl_cdf, 2);
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_size_cdf,
+                         ctx_tr->palette_y_size_cdf, PALETTE_SIZES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_uv_size_cdf,
+                         ctx_tr->palette_uv_size_cdf, PALETTE_SIZES);
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_color_index_cdf,
+                         ctx_tr->palette_y_color_index_cdf, PALETTE_COLORS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_uv_color_index_cdf,
+                         ctx_tr->palette_uv_color_index_cdf, PALETTE_COLORS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_mode_cdf,
+                         ctx_tr->palette_y_mode_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->palette_uv_mode_cdf,
+                         ctx_tr->palette_uv_mode_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->comp_inter_cdf, ctx_tr->comp_inter_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->single_ref_cdf, ctx_tr->single_ref_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->comp_ref0_cdf, ctx_tr->comp_ref0_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->comp_ref1_cdf, ctx_tr->comp_ref1_cdf, 2);
+#if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  CUMULATIVE_AVERAGE_CDF(ctx_left->txfm_do_partition_cdf,
+                         ctx_tr->txfm_do_partition_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->txfm_4way_partition_type_cdf,
+                         ctx_tr->txfm_4way_partition_type_cdf,
+                         TX_PARTITION_TYPE_NUM);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf,
+                         ctx_tr->inter_4way_txfm_partition_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_2way_txfm_partition_cdf,
+                         ctx_tr->inter_2way_txfm_partition_cdf, 2);
+#endif  // CONFIG_TX_PARTITION_CTX
+#else   // CONFIG_NEW_TX_PARTITION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->txfm_partition_cdf,
+                         ctx_tr->txfm_partition_cdf, 2);
+#endif  // CONFIG_NEW_TX_PARTITION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->comp_group_idx_cdf,
+                         ctx_tr->comp_group_idx_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+  cumulative_avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, total_tiles_log2);
+  cumulative_avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, total_tiles_log2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
+#if CONFIG_IBC_BV_IMPROVEMENT
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf,
+                         ctx_tr->intrabc_drl_idx_cdf, 2);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  CUMULATIVE_AVERAGE_CDF(ctx_left->morph_pred_cdf, ctx_tr->morph_pred_cdf, 2);
+#endif  // CONFIG_MORPH_PRED
+  CUMULATIVE_AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf,
+                         MAX_SEGMENTS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
+                         ctx_tr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->filter_intra_mode_cdf,
+                         ctx_tr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
+                         ctx_tr->switchable_flex_restore_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wiener_restore_cdf,
+                         ctx_tr->wiener_restore_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->sgrproj_restore_cdf,
+                         ctx_tr->sgrproj_restore_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_restore_cdf,
+                         ctx_tr->wienerns_restore_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_length_cdf,
+                         ctx_tr->wienerns_length_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_uv_sym_cdf,
+                         ctx_tr->wienerns_uv_sym_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_4part_cdf,
+                         ctx_tr->wienerns_4part_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf,
+                         ctx_tr->pc_wiener_restore_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf,
+                         FSC_MODES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf,
+                         MRL_LINE_NUMBER);
+
+#if CONFIG_LOSSLESS_DPCM
+  CUMULATIVE_AVERAGE_CDF(ctx_left->dpcm_cdf, ctx_tr->dpcm_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->dpcm_vert_horz_cdf,
+                         ctx_tr->dpcm_vert_horz_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->dpcm_uv_cdf, ctx_tr->dpcm_uv_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->dpcm_uv_vert_horz_cdf,
+                         ctx_tr->dpcm_uv_vert_horz_cdf, 2);
+#endif  // CONFIG_LOSSLESS_DPCM
+
+#if CONFIG_ENABLE_MHCCP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf,
+                         MHCCP_MODE_NUM);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
+                         CFL_TYPE_COUNT - 1);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
+                         CFL_TYPE_COUNT);
+#endif  // CONFIG_ENABLE_MHCCP
+#if CONFIG_AIMC
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
+                         INTRA_MODE_SETS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
+                         FIRST_MODE_COUNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
+                         SECOND_MODE_COUNT);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
+#endif  // CONFIG_AIMC
+#if CONFIG_AIMC
+  CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
+                         UV_INTRA_MODES - 1);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
+                         UV_INTRA_MODES);
+#endif  // CONFIG_AIMC
+
+#if CONFIG_EXTENDED_SDP
+  CUMULATIVE_AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf,
+                         REGION_TYPES);
+#endif  // CONFIG_EXTENDED_SDP
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  CUMULATIVE_AVERAGE_CDF(ctx_left->do_split_cdf, ctx_tr->do_split_cdf, 2);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  CUMULATIVE_AVERAGE_CDF(ctx_left->do_square_split_cdf,
+                         ctx_tr->do_square_split_cdf, 2);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  CUMULATIVE_AVERAGE_CDF(ctx_left->rect_type_cdf, ctx_tr->rect_type_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->do_ext_partition_cdf,
+                         ctx_tr->do_ext_partition_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->do_uneven_4way_partition_cdf,
+                         ctx_tr->do_uneven_4way_partition_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->uneven_4way_partition_type_cdf,
+                         ctx_tr->uneven_4way_partition_type_cdf,
+                         NUM_UNEVEN_4WAY_PARTS);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->partition_cdf, ctx_tr->partition_cdf,
+                         EXT_PARTITION_TYPES);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_interp_cdf,
+                         ctx_tr->switchable_interp_cdf, SWITCHABLE_FILTERS);
+#if !CONFIG_AIMC
+  CUMULATIVE_AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
+                         2 * MAX_ANGLE_DELTA + 1);
+#endif  // !CONFIG_AIMC
+
+#if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_4way_txfm_partition_cdf,
+                         ctx_tr->intra_4way_txfm_partition_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_2way_txfm_partition_cdf,
+                         ctx_tr->intra_2way_txfm_partition_cdf, 2);
+#endif  // !CONFIG_TX_PARTITION_CTX
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->tx_size_cdf, ctx_tr->tx_size_cdf,
+                         MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
+  CUMULATIVE_AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf,
+                         DELTA_Q_PROBS + 1);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf,
+                         DELTA_LF_PROBS + 1);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_multi_cdf,
+                         ctx_tr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
+                         ctx_tr->inter_ext_tx_short_side_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
+                         ctx_tr->intra_ext_tx_short_side_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->tx_ext_32_cdf, ctx_tr->tx_ext_32_cdf, 2);
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->intra_ext_tx_cdf, ctx_tr->intra_ext_tx_cdf,
+                         TX_TYPES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_ext_tx_cdf, ctx_tr->inter_ext_tx_cdf,
+                         TX_TYPES);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf,
+                         CFL_JOINT_SIGNS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
+                         CFL_ALPHABET_SIZE);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+#if CONFIG_INTRA_TX_IST_PARSE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
+                         ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#else
+  CUMULATIVE_AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf,
+                         IST_DIR_SIZE);
+#endif  // CONFIG_INTRA_TX_IST_PARSE
+#endif  // CONFIG_IST_SET_FLAG
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->pb_mv_mpp_flag_cdf,
+                         ctx_tr->pb_mv_mpp_flag_cdf, 2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->pb_mv_precision_cdf,
+                         ctx_tr->pb_mv_precision_cdf, FLEX_MV_COSTS_SIZE);
+
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf,
+                         4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf,
+                         CCTX_TYPES);
+}
+
+static AOM_INLINE void shift_cdf_symbol(aom_cdf_prob *cdf_ptr, int num_cdfs,
+                                        int cdf_stride, int nsymbs,
+                                        int total_tiles_log2) {
+  for (int i = 0; i < num_cdfs; i++) {
+    for (int j = 0; j <= nsymbs; j++) {
+      const int index = i * cdf_stride + j;
+      cdf_ptr[index] = (cdf_ptr[index] >> total_tiles_log2);
+      assert(cdf_ptr[index] >= 0 && cdf_ptr[index] < CDF_PROB_TOP);
+    }
+  }
+}
+
+#define SHIFT_CDF(cname_cdf, nsymbs) \
+  SHIFT_CDF_STRIDE(cname_cdf, nsymbs, CDF_SIZE(nsymbs))
+#define SHIFT_CDF_STRIDE(cname_cdf, nsymbs, cdf_stride)                        \
+  do {                                                                         \
+    aom_cdf_prob *cdf_ptr = (aom_cdf_prob *)cname_cdf;                         \
+    int array_size = (int)sizeof(cname_cdf) / sizeof(aom_cdf_prob);            \
+    int num_cdfs = array_size / cdf_stride;                                    \
+    shift_cdf_symbol(cdf_ptr, num_cdfs, cdf_stride, nsymbs, total_tiles_log2); \
+  } while (0)
+
+static void shift_nmv(nmv_context *nmv_ptr, int total_tiles_log2) {
+#if !CONFIG_VQ_MVD_CODING
+  SHIFT_CDF(nmv_ptr->joints_cdf, 4);
+#else
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    int num_mv_class = get_default_num_shell_class(prec);
+    SHIFT_CDF(nmv_ptr->joint_shell_class_cdf[prec], num_mv_class);
+  }
+  SHIFT_CDF(nmv_ptr->shell_offset_low_class_cdf, 2);
+  SHIFT_CDF(nmv_ptr->shell_offset_class2_cdf, 2);
+  SHIFT_CDF(nmv_ptr->shell_offset_other_class_cdf, 2);
+  SHIFT_CDF(nmv_ptr->col_mv_greter_flags_cdf, 2);
+  SHIFT_CDF(nmv_ptr->col_mv_index_cdf, 2);
+
+#endif  // !CONFIG_VQ_MVD_CODING
+  SHIFT_CDF(nmv_ptr->amvd_joints_cdf, MV_JOINTS);
+  for (int i = 0; i < 2; i++) {
+#if !CONFIG_VQ_MVD_CODING
+    SHIFT_CDF(nmv_ptr->comps[i].classes_cdf, MV_CLASSES);
+    SHIFT_CDF(nmv_ptr->comps[i].amvd_classes_cdf, MV_CLASSES);
+#else
+    SHIFT_CDF(nmv_ptr->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
+#endif  // !CONFIG_VQ_MVD_CODING
+
+#if !CONFIG_VQ_MVD_CODING
+    SHIFT_CDF(nmv_ptr->comps[i].class0_fp_cdf, 2);
+    SHIFT_CDF(nmv_ptr->comps[i].fp_cdf, 2);
+#endif  //! CONFIG_VQ_MVD_CODING
+
+    SHIFT_CDF(nmv_ptr->comps[i].sign_cdf, 2);
+
+#if !CONFIG_VQ_MVD_CODING
+    SHIFT_CDF(nmv_ptr->comps[i].class0_hp_cdf, 2);
+    SHIFT_CDF(nmv_ptr->comps[i].hp_cdf, 2);
+    SHIFT_CDF(nmv_ptr->comps[i].class0_cdf, CLASS0_SIZE);
+    SHIFT_CDF(nmv_ptr->comps[i].bits_cdf, 2);
+#endif  // !CONFIG_VQ_MVD_CODING
+  }
+}
+
+// This function facilitates the shift of CDFs from number of tiles.
+void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr, int total_tiles_log2) {
+  SHIFT_CDF(ctx_ptr->txb_skip_cdf, 2);
+#if CONFIG_CONTEXT_DERIVATION
+  SHIFT_CDF(ctx_ptr->v_txb_skip_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION
+  SHIFT_CDF(ctx_ptr->eob_extra_cdf, 2);
+  SHIFT_CDF(ctx_ptr->dc_sign_cdf, 2);
+#if CONFIG_CONTEXT_DERIVATION
+  SHIFT_CDF(ctx_ptr->v_dc_sign_cdf, 2);
+  SHIFT_CDF(ctx_ptr->v_ac_sign_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf16, EOB_MAX_SYMS - 6);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf32, EOB_MAX_SYMS - 5);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf64, EOB_MAX_SYMS - 4);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf128, EOB_MAX_SYMS - 3);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf256, EOB_MAX_SYMS - 2);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf512, EOB_MAX_SYMS - 1);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf1024, EOB_MAX_SYMS);
+  SHIFT_CDF(ctx_ptr->coeff_base_eob_cdf, 3);
+  SHIFT_CDF(ctx_ptr->coeff_base_bob_cdf, 3);
+  SHIFT_CDF(ctx_ptr->coeff_base_lf_cdf, LF_BASE_SYMBOLS);
+  SHIFT_CDF(ctx_ptr->coeff_base_lf_eob_cdf, LF_BASE_SYMBOLS - 1);
+  SHIFT_CDF(ctx_ptr->coeff_br_lf_cdf, BR_CDF_SIZE);
+  SHIFT_CDF(ctx_ptr->coeff_base_cdf, 4);
+  SHIFT_CDF(ctx_ptr->idtx_sign_cdf, 2);
+  SHIFT_CDF(ctx_ptr->coeff_base_cdf_idtx, 4);
+  SHIFT_CDF(ctx_ptr->coeff_br_cdf_idtx, BR_CDF_SIZE);
+  SHIFT_CDF(ctx_ptr->coeff_br_cdf, BR_CDF_SIZE);
+  SHIFT_CDF(ctx_ptr->inter_single_mode_cdf, INTER_SINGLE_MODES);
+#if CONFIG_CHROMA_CODING
+  SHIFT_CDF(ctx_ptr->coeff_base_uv_cdf, 4);
+  SHIFT_CDF(ctx_ptr->coeff_br_uv_cdf, BR_CDF_SIZE);
+  SHIFT_CDF(ctx_ptr->coeff_base_eob_uv_cdf, 3);
+  SHIFT_CDF(ctx_ptr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
+  SHIFT_CDF(ctx_ptr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+  SHIFT_CDF(ctx_ptr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif  // CONFIG_CHROMA_CODING
+
+  SHIFT_CDF(ctx_ptr->inter_warp_mode_cdf, 2);
+
+#if CONFIG_REFINEMV
+  SHIFT_CDF(ctx_ptr->refinemv_flag_cdf, REFINEMV_NUM_MODES);
+#endif  // CONFIG_REFINEMV
+
+  SHIFT_CDF(ctx_ptr->drl_cdf, 2);
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+  SHIFT_CDF(ctx_ptr->skip_drl_cdf, 2);
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+  SHIFT_CDF(ctx_ptr->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
+  SHIFT_CDF(ctx_ptr->cwp_idx_cdf, 2);
+  SHIFT_CDF(ctx_ptr->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
+  SHIFT_CDF(ctx_ptr->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
+  SHIFT_CDF(ctx_ptr->compound_type_cdf, MASKED_COMPOUND_TYPES);
+#if CONFIG_WEDGE_MOD_EXT
+  SHIFT_CDF(ctx_ptr->wedge_angle_dir_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wedge_angle_0_cdf, H_WEDGE_ANGLES);
+  SHIFT_CDF(ctx_ptr->wedge_angle_1_cdf, H_WEDGE_ANGLES);
+  SHIFT_CDF(ctx_ptr->wedge_dist_cdf, NUM_WEDGE_DIST);
+  SHIFT_CDF(ctx_ptr->wedge_dist_cdf2, NUM_WEDGE_DIST - 1);
+#else
+  SHIFT_CDF(ctx_ptr->wedge_idx_cdf, 16);
+#endif
+  SHIFT_CDF(ctx_ptr->interintra_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wedge_interintra_cdf, 2);
+  SHIFT_CDF(ctx_ptr->interintra_mode_cdf, INTERINTRA_MODES);
+  SHIFT_CDF(ctx_ptr->obmc_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warped_causal_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warp_delta_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
+
+  SHIFT_CDF(ctx_ptr->warped_causal_warpmv_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warp_ref_idx_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warpmv_with_mvd_flag_cdf, 2);
+  SHIFT_CDF(ctx_ptr->warp_extend_cdf, 2);
+
+#if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  SHIFT_CDF(ctx_ptr->bawp_cdf, 2);
+#else
+  SHIFT_CDF(ctx_ptr->bawp_cdf, 2);
+#endif  // CONFIG_BAWP_CHROMA
+#if CONFIG_EXPLICIT_BAWP
+  SHIFT_CDF(ctx_ptr->explicit_bawp_cdf, 2);
+  SHIFT_CDF(ctx_ptr->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
+#endif  // CONFIG_EXPLICIT_BAWP
+#endif
+  SHIFT_CDF(ctx_ptr->tip_cdf, 2);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  SHIFT_CDF(ctx_ptr->tip_pred_mode_cdf, TIP_PRED_MODES);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_LINE_COPY
+  SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 3);
+  SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 3);
+  SHIFT_CDF(ctx_ptr->palette_direction_cdf, 2);
+#else
+  SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 2);
+  SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 2);
+#endif  // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+  SHIFT_CDF(ctx_ptr->cfl_cdf, 2);
+  SHIFT_CDF(ctx_ptr->palette_y_size_cdf, PALETTE_SIZES);
+  SHIFT_CDF(ctx_ptr->palette_uv_size_cdf, PALETTE_SIZES);
+
+  SHIFT_CDF(ctx_ptr->palette_y_color_index_cdf, PALETTE_COLORS);
+  SHIFT_CDF(ctx_ptr->palette_uv_color_index_cdf, PALETTE_COLORS);
+  SHIFT_CDF(ctx_ptr->palette_y_mode_cdf, 2);
+  SHIFT_CDF(ctx_ptr->palette_uv_mode_cdf, 2);
+  SHIFT_CDF(ctx_ptr->comp_inter_cdf, 2);
+  SHIFT_CDF(ctx_ptr->single_ref_cdf, 2);
+  SHIFT_CDF(ctx_ptr->comp_ref0_cdf, 2);
+  SHIFT_CDF(ctx_ptr->comp_ref1_cdf, 2);
+#if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  SHIFT_CDF(ctx_ptr->txfm_do_partition_cdf, 2);
+  SHIFT_CDF(ctx_ptr->txfm_4way_partition_type_cdf, TX_PARTITION_TYPE_NUM);
+#else
+  SHIFT_CDF(ctx_ptr->inter_4way_txfm_partition_cdf, 4);
+  SHIFT_CDF(ctx_ptr->inter_2way_txfm_partition_cdf, 2);
+#endif  // CONFIG_TX_PARTITION_CTX
+#else   // CONFIG_NEW_TX_PARTITION
+  SHIFT_CDF(ctx_ptr->txfm_partition_cdf, 2);
+#endif  // CONFIG_NEW_TX_PARTITION
+  SHIFT_CDF(ctx_ptr->comp_group_idx_cdf, 2);
+  SHIFT_CDF(ctx_ptr->skip_mode_cdfs, 2);
+  SHIFT_CDF(ctx_ptr->skip_txfm_cdfs, 2);
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+  SHIFT_CDF(ctx_ptr->intra_inter_cdf, 2);
+#else
+  SHIFT_CDF(ctx_ptr->intra_inter_cdf, 2);
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+  shift_nmv(&ctx_ptr->nmvc, total_tiles_log2);
+  shift_nmv(&ctx_ptr->ndvc, total_tiles_log2);
+  SHIFT_CDF(ctx_ptr->intrabc_cdf, 2);
+#if CONFIG_IBC_BV_IMPROVEMENT
+  SHIFT_CDF(ctx_ptr->intrabc_mode_cdf, 2);
+  SHIFT_CDF(ctx_ptr->intrabc_drl_idx_cdf, 2);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  SHIFT_CDF(ctx_ptr->morph_pred_cdf, 2);
+#endif  // CONFIG_MORPH_PRED
+  SHIFT_CDF(ctx_ptr->seg.tree_cdf, MAX_SEGMENTS);
+  SHIFT_CDF(ctx_ptr->seg.pred_cdf, 2);
+  SHIFT_CDF(ctx_ptr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
+  SHIFT_CDF(ctx_ptr->filter_intra_cdfs, 2);
+  SHIFT_CDF(ctx_ptr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
+  SHIFT_CDF(ctx_ptr->switchable_flex_restore_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wiener_restore_cdf, 2);
+  SHIFT_CDF(ctx_ptr->ccso_cdf, 2);
+  SHIFT_CDF(ctx_ptr->sgrproj_restore_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wienerns_restore_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wienerns_length_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wienerns_uv_sym_cdf, 2);
+  SHIFT_CDF(ctx_ptr->wienerns_4part_cdf, 4);
+  SHIFT_CDF(ctx_ptr->pc_wiener_restore_cdf, 2);
+  SHIFT_CDF(ctx_ptr->merged_param_cdf, 2);
+  SHIFT_CDF(ctx_ptr->fsc_mode_cdf, FSC_MODES);
+  SHIFT_CDF(ctx_ptr->mrl_index_cdf, MRL_LINE_NUMBER);
+
+#if CONFIG_LOSSLESS_DPCM
+  SHIFT_CDF(ctx_ptr->dpcm_cdf, 2);
+  SHIFT_CDF(ctx_ptr->dpcm_vert_horz_cdf, 2);
+  SHIFT_CDF(ctx_ptr->dpcm_uv_cdf, 2);
+  SHIFT_CDF(ctx_ptr->dpcm_uv_vert_horz_cdf, 2);
+#endif  // CONFIG_LOSSLESS_DPCM
+
+#if CONFIG_ENABLE_MHCCP
+  SHIFT_CDF(ctx_ptr->filter_dir_cdf, MHCCP_MODE_NUM);
+  SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT - 1);
+#else
+  SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT);
+#endif  // CONFIG_ENABLE_MHCCP
+#if CONFIG_AIMC
+  SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
+  SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
+  SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
+#else
+  SHIFT_CDF(ctx_ptr->y_mode_cdf, INTRA_MODES);
+#endif  // CONFIG_AIMC
+#if CONFIG_AIMC
+  SHIFT_CDF(ctx_ptr->uv_mode_cdf, UV_INTRA_MODES - 1);
+#else
+  SHIFT_CDF(ctx_ptr->uv_mode_cdf, UV_INTRA_MODES);
+#endif  // CONFIG_AIMC
+
+#if CONFIG_EXTENDED_SDP
+  SHIFT_CDF(ctx_ptr->region_type_cdf, REGION_TYPES);
+#endif  // CONFIG_EXTENDED_SDP
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SHIFT_CDF(ctx_ptr->do_split_cdf, 2);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SHIFT_CDF(ctx_ptr->do_square_split_cdf, 2);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  SHIFT_CDF(ctx_ptr->rect_type_cdf, 2);
+  SHIFT_CDF(ctx_ptr->do_ext_partition_cdf, 2);
+  SHIFT_CDF(ctx_ptr->do_uneven_4way_partition_cdf, 2);
+  SHIFT_CDF(ctx_ptr->uneven_4way_partition_type_cdf, NUM_UNEVEN_4WAY_PARTS);
+#else
+  SHIFT_CDF(ctx_ptr->partition_cdf, EXT_PARTITION_TYPES);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  SHIFT_CDF(ctx_ptr->switchable_interp_cdf, SWITCHABLE_FILTERS);
+#if !CONFIG_AIMC
+  SHIFT_CDF(ctx_ptr->kf_y_cdf, INTRA_MODES);
+  SHIFT_CDF(ctx_ptr->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
+#endif  // !CONFIG_AIMC
+
+#if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
+  SHIFT_CDF(ctx_ptr->intra_4way_txfm_partition_cdf, 4);
+  SHIFT_CDF(ctx_ptr->intra_2way_txfm_partition_cdf, 2);
+#endif  // !CONFIG_TX_PARTITION_CTX
+#else
+  SHIFT_CDF(ctx_ptr->tx_size_cdf, MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
+  SHIFT_CDF(ctx_ptr->delta_q_cdf, DELTA_Q_PROBS + 1);
+  SHIFT_CDF(ctx_ptr->delta_lf_cdf, DELTA_LF_PROBS + 1);
+  SHIFT_CDF(ctx_ptr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  SHIFT_CDF(ctx_ptr->inter_ext_tx_short_side_cdf, 4);
+  SHIFT_CDF(ctx_ptr->intra_ext_tx_short_side_cdf, 4);
+  SHIFT_CDF(ctx_ptr->tx_ext_32_cdf, 2);
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+  SHIFT_CDF(ctx_ptr->intra_ext_tx_cdf, TX_TYPES);
+  SHIFT_CDF(ctx_ptr->inter_ext_tx_cdf, TX_TYPES);
+  SHIFT_CDF(ctx_ptr->cfl_sign_cdf, CFL_JOINT_SIGNS);
+  SHIFT_CDF(ctx_ptr->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
+  SHIFT_CDF(ctx_ptr->stx_cdf, STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+#if CONFIG_INTRA_TX_IST_PARSE
+  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#else
+  SHIFT_CDF(ctx_ptr->stx_set_cdf, IST_DIR_SIZE);
+#endif  // CONFIG_INTRA_TX_IST_PARSE
+#endif  // CONFIG_IST_SET_FLAG
+
+  SHIFT_CDF(ctx_ptr->pb_mv_mpp_flag_cdf, 2);
+  SHIFT_CDF(ctx_ptr->pb_mv_precision_cdf, FLEX_MV_COSTS_SIZE);
+
+  SHIFT_CDF(ctx_ptr->coeff_base_ph_cdf, 4);
+  SHIFT_CDF(ctx_ptr->coeff_br_ph_cdf, 4);
+  SHIFT_CDF(ctx_ptr->cctx_type_cdf, CCTX_TYPES);
+}
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
 void av1_setup_frame_contexts(AV1_COMMON *cm) {
   // Store the frame context into a special slot (not associated with any
   // reference buffer), so that we can set up cm->pre_fc correctly later

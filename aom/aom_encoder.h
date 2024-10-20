@@ -596,6 +596,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_refmvbank;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  /*!\brief enable the average of tiles' cdfs
+   *
+   */
+  unsigned int enable_tiles_cdfs_avg;
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   /*!\brief enable parity hiding for coefficients coding
    *
    */

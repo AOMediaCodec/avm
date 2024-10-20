@@ -355,6 +355,9 @@ set_aom_config_var(CONFIG_TMVP_IMPROVE 1
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
 
+set_aom_config_var(CONFIG_TILE_CDFS_AVG_TO_FRAME 1
+                   "Average the CDFs from tiles for frame CDF")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 

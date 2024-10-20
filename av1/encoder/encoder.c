@@ -501,6 +501,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+  seq->enable_tiles_cdfs_avg = tool_cfg->enable_tiles_cdfs_avg;
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
@@ -3203,6 +3206,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
   if (tip_direct_output_rdcost < normal_coding_rdcost) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+    cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 #if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp == 0) {
       const int avg_u_ac_delta_q =
@@ -3774,6 +3780,26 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+void encoder_avg_tiles_cdfs(AV1_COMP *const cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonTileParams *const tiles = &cm->tiles;
+  const int total_tiles = tiles->rows * tiles->cols;
+  if (total_tiles == 1) {
+    *cm->fc = cpi->tile_data[0].tctx;
+  } else {
+    const int total_tiles_log2 = av1_compute_allowed_tiles_log2(cm);
+    const int used_tiles = (1 << total_tiles_log2);
+    *cm->fc = cpi->tile_data[0].tctx;
+    av1_shift_cdf_symbols(cm->fc, total_tiles_log2);
+    for (int tile_idx = 1; tile_idx < used_tiles; ++tile_idx) {
+      av1_cumulative_avg_cdf_symbols(cm->fc, &cpi->tile_data[tile_idx].tctx,
+                                     total_tiles_log2);
+    }
+  }
+}
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
  *
@@ -4091,7 +4117,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENTROPY_STATS
 
   if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
-    *cm->fc = cpi->tile_data[largest_tile_id].tctx;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+    if (cm->seq_params.enable_tiles_cdfs_avg &&
+        cm->tiles.rows * cm->tiles.cols > 1) {
+      encoder_avg_tiles_cdfs(cpi);
+    } else {
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+      *cm->fc = cpi->tile_data[largest_tile_id].tctx;
+#if CONFIG_TILE_CDFS_AVG_TO_FRAME
+    }
+#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
     av1_reset_cdf_symbol_counters(cm->fc);
   }
   if (!cm->tiles.large_scale) {
