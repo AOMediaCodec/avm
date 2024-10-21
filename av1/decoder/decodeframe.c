@@ -2488,7 +2488,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                        block_size_high[test_subsize]);
   }
   // Check that chroma ref block isn't completely outside the boundary.
-  if ((xd->tree_type == CHROMA_PART) &&
+  if ((xd->tree_type == SHARED_PART) &&
       have_nz_chroma_ref_offset(bsize, partition, pd_u->subsampling_x,
                                 pd_u->subsampling_y)) {
     int chroma_ref_row_offset = 0;
