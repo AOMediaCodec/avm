@@ -3926,9 +3926,9 @@ static AOM_INLINE void encode_restoration_mode(
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_COMBINE_PC_NS_WIENER
-    cm->cur_frame->rst_info[p].frame_filters_on = 0;
     rsi->frame_filters_initialized = 0;
 #if CONFIG_TEMP_LR
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
 #endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

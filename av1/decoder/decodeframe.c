@@ -2941,8 +2941,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_COMBINE_PC_NS_WIENER
     rsi->frame_filters_on = 0;
-    cm->cur_frame->rst_info[p].frame_filters_on = 0;
 #if CONFIG_TEMP_LR
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
     rsi->temporal_pred_flag = 0;
 #endif  // CONFIG_TEMP_LR
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
