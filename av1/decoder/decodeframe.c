@@ -2488,7 +2488,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                        block_size_high[test_subsize]);
   }
   // Check that chroma ref block isn't completely outside the boundary.
-  if ((xd->tree_type == SHARED_PART) &&
+  if ((xd->tree_type == SHARED_PART) && !cm->seq_params.monochrome &&
+      xd->is_chroma_ref &&
       have_nz_chroma_ref_offset(bsize, partition, pd_u->subsampling_x,
                                 pd_u->subsampling_y)) {
     int chroma_ref_row_offset = 0;
@@ -2502,10 +2503,25 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         chroma_ref_col_offset = mi_size_wide[bsize] / 2;
         break;
       case PARTITION_HORZ_3:
-        chroma_ref_row_offset = 3 * mi_size_high[bsize] / 4;
+        if (bsize == BLOCK_8X32) {
+          // Special case: 3 subblocks are chroma refs:
+          // 1st subblock of size 8x8,
+          // 3rd subblock of size 4x16 (covering 2nd and 3rd luma subblocks) and
+          // 4th subblock of size 8x8.
+          // So, we only need to check if 3rd subblock is completely outside
+          // the boundary.
+          chroma_ref_col_offset = mi_size_wide[bsize] / 2;
+        } else {
+          chroma_ref_row_offset = 3 * mi_size_high[bsize] / 4;
+        }
         break;
       case PARTITION_VERT_3:
-        chroma_ref_col_offset = 3 * mi_size_wide[bsize] / 4;
+        if (bsize == BLOCK_32X8) {
+          // Special case (similar to HORZ_3 above).
+          chroma_ref_row_offset = mi_size_high[bsize] / 2;
+        } else {
+          chroma_ref_col_offset = 3 * mi_size_wide[bsize] / 4;
+        }
         break;
       case PARTITION_HORZ_4A:
       case PARTITION_HORZ_4B:
