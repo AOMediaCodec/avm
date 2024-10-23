@@ -9027,6 +9027,23 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXTENDED_SDP
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+#if CONFIG_EXTENDED_SDP
+  if (frame_is_intra_only(cm)) pc_tree->extended_sdp_allowed_flag = 0;
+  if (!frame_is_intra_only(cm) &&
+      pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
+      cm->seq_params.enable_sdp && pc_tree->extended_sdp_allowed_flag &&
+      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ)) {
+    search_intra_region_partitioning(
+        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
+        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
+        &part_search_state,
+#if CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
+        &level_banks,
+#endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
+        multi_pass_mode, ext_recur_depth, parent_partition);
+  }
+#endif  // CONFIG_EXTENDED_SDP
+
   if (bsize == cm->sb_size && !part_search_state.found_best_partition
 #if CONFIG_EXTENDED_SDP
       && ((!frame_is_intra_only(cm) &&
@@ -9065,23 +9082,6 @@ BEGIN_PARTITION_SEARCH:
            mi_row, mi_col, block_size_wide[bsize], block_size_high[bsize]);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
-
-#if CONFIG_EXTENDED_SDP
-  if (frame_is_intra_only(cm)) pc_tree->extended_sdp_allowed_flag = 0;
-  if (!frame_is_intra_only(cm) &&
-      pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      cm->seq_params.enable_sdp && pc_tree->extended_sdp_allowed_flag &&
-      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ)) {
-    search_intra_region_partitioning(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-        &part_search_state,
-#if CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
-        &level_banks,
-#endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
-        multi_pass_mode, ext_recur_depth, parent_partition);
-  }
-#endif  // CONFIG_EXTENDED_SDP
 
   // Store the final rd cost
   *rd_cost = best_rdc;
