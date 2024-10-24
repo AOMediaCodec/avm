@@ -9066,10 +9066,15 @@ BEGIN_PARTITION_SEARCH:
   if (!frame_is_intra_only(cm) &&
       pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
       cm->seq_params.enable_sdp && pc_tree->extended_sdp_allowed_flag &&
-      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ)) {
+      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ) &&
+      multi_pass_mode != SB_DRY_PASS) {
+    // Note that we only try intra region partitioning for SB_SINGLE_PASS
+    // (single-pass partition search) or SB_WET_PASS (second pass of 2-pass
+    // partition search). So, template tree never contains any partitions with
+    // intra region. Hence, we pass NULL for `template_tree` argument below.
     search_intra_region_partitioning(
         &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
+        track_ptree_luma ? ptree_luma : NULL, NULL /* template_tree */, &x_ctx,
         &part_search_state,
 #if CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
         &level_banks,
