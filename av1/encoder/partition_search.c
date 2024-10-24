@@ -3916,10 +3916,10 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   // Partition types forced by speed_features.
   if (template_tree
 #if CONFIG_EXTENDED_SDP
-      && template_tree->region_type == cur_region_type &&
-      !is_inter_sdp_chroma(cm, cur_region_type, xd->tree_type)
+      && !is_inter_sdp_chroma(cm, cur_region_type, xd->tree_type)
 #endif  // CONFIG_EXTENDED_SDP
   ) {
+    assert(template_tree->region_type == cur_region_type);
     return template_tree->partition;
   }
 
@@ -8370,6 +8370,12 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            int force_prune_flags[3]
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
+  assert(IMPLIES(
+      template_tree && template_tree->parent,
+      template_tree->parent->region_type == pc_tree->parent->region_type));
+  if (template_tree && (template_tree->region_type != pc_tree->region_type)) {
+    template_tree = NULL;
+  }
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   TileInfo *const tile_info = &tile_data->tile_info;
@@ -9068,8 +9074,8 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
   if (template_tree && template_tree->partition != PARTITION_INVALID &&
 #if CONFIG_EXTENDED_SDP
-      template_tree->region_type == pc_tree->region_type &&
       !is_inter_sdp_chroma(cm, pc_tree->region_type, xd->tree_type) &&
+      pc_tree->region_type == template_tree->region_type &&
 #endif  // CONFIG_EXTENDED_SDP
       pc_tree->partitioning != template_tree->partition) {
     assert(0);
