@@ -198,7 +198,11 @@ struct build_prediction_ctxt {
 };
 
 #if CONFIG_REFINEMV
+#if CONFIG_OPFL_MB
+#define REFINE_MV_MAX_OFFSET 0
+#else
 #define REFINE_MV_MAX_OFFSET 1
+#endif
 #define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
@@ -260,6 +264,12 @@ typedef struct InterPredParams {
 
 #if CONFIG_REFINEMV
   int use_ref_padding;
+#if CONFIG_OPFL_MB
+  int use_damr_padding;
+#endif
+#if CONFIG_OPFL_MB
+  int use_bi_padding;
+#endif
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
 
@@ -646,6 +656,10 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPFL_MB
+    ,
+    int use_sub_pad, MB_MODE_INFO *mi, int pu_height
+#endif
 );
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
@@ -893,6 +907,13 @@ int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1);
 
+#if CONFIG_OPFL_MB
+void av1_get_reference_area_with_padding_single(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
+    const MV mv[2], int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
+    int pu_width, int pu_height, int ref);
+#endif
+
 // Generate the reference area ( bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi,
@@ -1124,7 +1145,12 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
-                         int pu_height);
+                         int pu_height
+#if CONFIG_OPFL_MB
+                         ,
+                         ReferenceArea ref_area[2]
+#endif
+);
 
 // check if padding is required during motion compensation
 // return 1 means reference pixel is outside of the reference range and padding
@@ -1136,10 +1162,19 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    int *x_pad, int *y_pad,
                                    const ReferenceArea *ref_area);
 
+#if CONFIG_OPFL_MB
+int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
+                                      struct buf_2d *const pre_buf,
+                                      MV32 scaled_mv, PadBlock *block,
+                                      int subpel_x_mv, int subpel_y_mv,
+                                      int do_warp, int is_intrabc,
+                                      const ReferenceArea *ref_area);
+#endif
+
 // Derive the sub-pixel related parameters of refinemv non-TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by
-// "subpel_params" Also do padding if required This function is used for both
-// encoder and decoder
+// "subpel_params" Also do padding if required This function is used for
+// both encoder and decoder
 void common_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,

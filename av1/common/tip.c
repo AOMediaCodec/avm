@@ -991,7 +991,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
     apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf, mv,
                         calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
-                        dst_ref0, dst_ref1, best_mv_ref, bw, bh);
+                        dst_ref0, dst_ref1, best_mv_ref, bw, bh
+#if CONFIG_OPFL_MB
+                        ,
+                        ref_area
+#endif
+    );
   }
 
 #endif  // CONFIG_REFINEMV
@@ -1098,7 +1103,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     );
 
 #if CONFIG_REFINEMV
+#if CONFIG_OPFL_MB
+    if (apply_refinemv || do_opfl) {
+#else
     if (apply_refinemv) {
+#endif
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
     }
@@ -1128,7 +1137,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           cm, bw, mbmi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mbmi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-          ref, mc_buf, calc_subpel_params_func, use_4x4);
+          ref, mc_buf, calc_subpel_params_func, use_4x4
+#if CONFIG_OPFL_MB
+          ,
+          0, mbmi, bh
+#endif
+      );
     } else {
       av1_build_one_inter_predictor(dst, dst_stride,
 #if CONFIG_REFINEMV

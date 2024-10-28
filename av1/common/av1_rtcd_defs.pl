@@ -617,8 +617,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
 # WARPED_MOTION / GLOBAL_MOTION functions
 
-add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
-specialize qw/av1_highbd_warp_affine sse4_1 avx2/;
+if (aom_config("CONFIG_OPFL_MB") eq "yes"){
+  add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta, int use_damr_padding, ReferenceArea *ref_area";
+  specialize qw/av1_highbd_warp_affine sse4_1/;
+}
+else{
+  add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
+  specialize qw/av1_highbd_warp_affine sse4_1 avx2/;
+}
 
 if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
   add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params";
