@@ -349,11 +349,15 @@ static void palette_add_to_cache(uint16_t *cache, int *n, uint16_t val) {
 
 int av1_get_palette_cache(const MACROBLOCKD *const xd, int plane,
                           uint16_t *cache) {
-  const int row = -xd->mb_to_top_edge >> 3;
-  // Do not refer to above SB row when on SB boundary.
+  const int row = (plane > 0 ? xd->mi[0]->chroma_ref_info.mi_row_chroma_base
+                             : xd->mi[0]->mi_row_start)
+                  << MI_SIZE_LOG2;
   const MB_MODE_INFO *const above_mi =
-      (row % (1 << MIN_SB_SIZE_LOG2)) ? xd->above_mbmi : NULL;
-  const MB_MODE_INFO *const left_mi = xd->left_mbmi;
+      (row % (1 << MIN_SB_SIZE_LOG2))
+          ? (plane > 0 ? xd->chroma_above_mbmi : xd->above_mbmi)
+          : NULL;
+  const MB_MODE_INFO *const left_mi =
+      plane > 0 ? xd->chroma_left_mbmi : xd->left_mbmi;
   int above_n = 0, left_n = 0;
   if (above_mi) above_n = above_mi->palette_mode_info.palette_size[plane != 0];
   if (left_mi) left_n = left_mi->palette_mode_info.palette_size[plane != 0];
