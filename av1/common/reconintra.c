@@ -1953,9 +1953,16 @@ void av1_predict_intra_block(
   const int have_left =
       col_off || (ss_x ? xd->chroma_left_available : xd->left_available);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_row = plane ? xd->mi[0]->chroma_ref_info.mi_row_chroma_base
+                           : -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = plane ? xd->mi[0]->chroma_ref_info.mi_col_chroma_base
+                           : -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];
+  const BLOCK_SIZE init_bsize = bsize;
+  // force 4x4 chroma component block size.
+  if (ss_x || ss_y) {
+    bsize = mbmi->chroma_ref_info.bsize_base;
+  }
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
@@ -1973,12 +1980,6 @@ void av1_predict_intra_block(
       mi_col + ((col_off + txw) << ss_x) < xd->tile.mi_col_end;
   const int bottom_available =
       (yd > 0) && (mi_row + ((row_off + txh) << ss_y) < xd->tile.mi_row_end);
-
-  const BLOCK_SIZE init_bsize = bsize;
-  // force 4x4 chroma component block size.
-  if (ss_x || ss_y) {
-    bsize = mbmi->chroma_ref_info.bsize_base;
-  }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   int px_top_right = 0;
