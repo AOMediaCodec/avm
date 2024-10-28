@@ -284,7 +284,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int i = 0; i < width; ++i) output_q3[i] = input[i] << 3;
     }
     if (col_start >= cm->width) {
-      assert(width <= MI_SIZE);
       const uint16_t mid = (1 << xd->bd) >> 1;
       for (int j = 0; j < width >> sub_x; ++j) {
         output_q3[j] = mid;
@@ -344,7 +343,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         output_q3[j] = input[j * input_stride] << 3;
     }
     if (row_start >= cm->height) {
-      assert(height <= MI_SIZE);
       const uint16_t mid = (1 << xd->bd) >> 1;
       for (int j = 0; j < height >> sub_y; ++j) {
         output_q3[j] = mid;
