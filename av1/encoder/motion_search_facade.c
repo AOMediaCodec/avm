@@ -1613,6 +1613,31 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
 
+#if CONFIG_IBC_SR_EXT
+  mbmi->use_intrabc[0] = 0;
+  mbmi->use_intrabc[1] = 0;
+#endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
+
+  mbmi->cwp_idx = CWP_EQUAL;
+  mbmi->mode = NEWMV;
+
+#if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  for (int plane = 0; plane < 2; ++plane) {
+    mbmi->bawp_flag[plane] = 0;
+  }
+#else
+  mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
+#endif
+
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
