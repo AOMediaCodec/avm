@@ -1847,32 +1847,46 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
   const int angle = -d * am_params->rot_angle;
   cos_angle = unit_offset;
   sin_angle = angle * (1 << (WARPEDMODEL_PREC_BITS - AFFINE_PREC_BITS));
-  wm->wmmat[2] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(scale_x * cos_angle,
-                                                       WARPEDMODEL_PREC_BITS);
-  wm->wmmat[5] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(scale_y * cos_angle,
-                                                       WARPEDMODEL_PREC_BITS);
+  wm->wmmat[2] = (int32_t)clamp64(
+      ROUND_POWER_OF_TWO_SIGNED_64(scale_x * cos_angle, WARPEDMODEL_PREC_BITS),
+      INT32_MIN, INT32_MAX);
+  wm->wmmat[5] = (int32_t)clamp64(
+      ROUND_POWER_OF_TWO_SIGNED_64(scale_y * cos_angle, WARPEDMODEL_PREC_BITS),
+      INT32_MIN, INT32_MAX);
   if (d > 0) {
     // Parameters of A^-1
-    wm->wmmat[3] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(-scale_x * sin_angle,
-                                                         WARPEDMODEL_PREC_BITS);
-    wm->wmmat[4] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(scale_y * sin_angle,
-                                                         WARPEDMODEL_PREC_BITS);
+    wm->wmmat[3] =
+        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_x * sin_angle,
+                                                      WARPEDMODEL_PREC_BITS),
+                         INT32_MIN, INT32_MAX);
+    wm->wmmat[4] =
+        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_y * sin_angle,
+                                                      WARPEDMODEL_PREC_BITS),
+                         INT32_MIN, INT32_MAX);
     int64_t tmp_tx = (int64_t)wm->wmmat[2] * (int64_t)am_params->tran_x -
                      (int64_t)wm->wmmat[3] * (int64_t)am_params->tran_y;
     int64_t tmp_ty = (int64_t)wm->wmmat[4] * (int64_t)am_params->tran_x +
                      (int64_t)wm->wmmat[5] * (int64_t)am_params->tran_y;
-    wm->wmmat[0] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(-d * tmp_tx,
-                                                         WARPEDMODEL_PREC_BITS);
-    wm->wmmat[1] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(-d * tmp_ty,
-                                                         WARPEDMODEL_PREC_BITS);
+    wm->wmmat[0] = (int32_t)clamp64(
+        ROUND_POWER_OF_TWO_SIGNED_64(tmp_tx * (-d), WARPEDMODEL_PREC_BITS),
+        INT32_MIN, INT32_MAX);
+    wm->wmmat[1] = (int32_t)clamp64(
+        ROUND_POWER_OF_TWO_SIGNED_64(tmp_ty * (-d), WARPEDMODEL_PREC_BITS),
+        INT32_MIN, INT32_MAX);
   } else {
     // Parameters of A
-    wm->wmmat[3] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(-scale_y * sin_angle,
-                                                         WARPEDMODEL_PREC_BITS);
-    wm->wmmat[4] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(scale_x * sin_angle,
-                                                         WARPEDMODEL_PREC_BITS);
-    wm->wmmat[0] = -d * am_params->tran_x;
-    wm->wmmat[1] = -d * am_params->tran_y;
+    wm->wmmat[3] =
+        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_y * sin_angle,
+                                                      WARPEDMODEL_PREC_BITS),
+                         INT32_MIN, INT32_MAX);
+    wm->wmmat[4] =
+        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_x * sin_angle,
+                                                      WARPEDMODEL_PREC_BITS),
+                         INT32_MIN, INT32_MAX);
+    wm->wmmat[0] = (int32_t)clamp64((int64_t)am_params->tran_x * (-d),
+                                    INT32_MIN, INT32_MAX);
+    wm->wmmat[1] = (int32_t)clamp64((int64_t)am_params->tran_y * (-d),
+                                    INT32_MIN, INT32_MAX);
   }
   wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - unit_offset);
