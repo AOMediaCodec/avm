@@ -179,24 +179,28 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
           const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
 #if CONFIG_AFFINE_REFINEMENT_SB
-          const int32_t dst_x =
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
-          const int32_t dst_y =
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
-              xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
+          const int64_t dst_x =
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
+          const int64_t dst_y =
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
+              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
 #else
-          const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
-                                mi->wm_params[idx].wmmat[3] * src_y +
-                                mi->wm_params[idx].wmmat[0];
-          const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
-                                mi->wm_params[idx].wmmat[5] * src_y +
-                                mi->wm_params[idx].wmmat[1];
+          const int64_t dst_x = (int64_t)mi->wm_params[idx].wmmat[2] * src_x +
+                                (int64_t)mi->wm_params[idx].wmmat[3] * src_y +
+                                (int64_t)mi->wm_params[idx].wmmat[0];
+          const int64_t dst_y = (int64_t)mi->wm_params[idx].wmmat[4] * src_x +
+                                (int64_t)mi->wm_params[idx].wmmat[5] * src_y +
+                                (int64_t)mi->wm_params[idx].wmmat[1];
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-          const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
-          const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
+          const int32_t submv_x_hp = (int32_t)clamp64(
+              dst_x - ((int64_t)src_x << WARPEDMODEL_PREC_BITS), INT32_MIN,
+              INT32_MAX);
+          const int32_t submv_y_hp = (int32_t)clamp64(
+              dst_y - ((int64_t)src_y << WARPEDMODEL_PREC_BITS), INT32_MIN,
+              INT32_MAX);
           const int mv_offset_y =
               ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
           const int mv_offset_x =
@@ -424,24 +428,26 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
             const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
             const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
 #if CONFIG_AFFINE_REFINEMENT_SB
-            const int32_t dst_x =
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
-            const int32_t dst_y =
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
-                xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
+            const int64_t dst_x =
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
+            const int64_t dst_y =
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
+                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
 #else
-            const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
-                                  mi->wm_params[idx].wmmat[3] * src_y +
-                                  mi->wm_params[idx].wmmat[0];
-            const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
-                                  mi->wm_params[idx].wmmat[5] * src_y +
-                                  mi->wm_params[idx].wmmat[1];
+            const int64_t dst_x = (int64_t)mi->wm_params[idx].wmmat[2] * src_x +
+                                  (int64_t)mi->wm_params[idx].wmmat[3] * src_y +
+                                  (int64_t)mi->wm_params[idx].wmmat[0];
+            const int64_t dst_y = (int64_t)mi->wm_params[idx].wmmat[4] * src_x +
+                                  (int64_t)mi->wm_params[idx].wmmat[5] * src_y +
+                                  (int64_t)mi->wm_params[idx].wmmat[1];
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-            const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
-            const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
+            const int32_t submv_x_hp = (int32_t)clamp64(
+                dst_x - (src_x << WARPEDMODEL_PREC_BITS), INT32_MIN, INT32_MAX);
+            const int32_t submv_y_hp = (int32_t)clamp64(
+                dst_y - (src_y << WARPEDMODEL_PREC_BITS), INT32_MIN, INT32_MAX);
             const int mv_offset_y = ROUND_POWER_OF_TWO_SIGNED(
                 submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
             const int mv_offset_x = ROUND_POWER_OF_TWO_SIGNED(
