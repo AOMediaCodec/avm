@@ -39,7 +39,7 @@ const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
 
 const size_t kMetadataObuSizeT35 = 28;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
-  0x2A, 0x1A, 0x02, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+  0x2A, 0x1A, 0x04, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
   0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
   0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x80
 };
@@ -64,9 +64,17 @@ class MetadataEncodeTest
   virtual void SetUp() {
     InitializeConfig();
     SetMode(GET_PARAM(1));
+    set_cpu_used_ = 5;
+    max_partition_size_ = 16;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video) {
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, max_partition_size_);
+    }
+
     aom_image_t *current_frame = video->img();
     if (current_frame) {
       if (current_frame->metadata) aom_img_remove_metadata(current_frame);
@@ -108,6 +116,9 @@ class MetadataEncodeTest
       const size_t bitstream_size = pkt->data.frame.sz;
       const uint8_t *bitstream =
           static_cast<const uint8_t *>(pkt->data.frame.buf);
+      bool is_keyframe =
+          (pkt->data.frame.flags & AOM_FRAME_IS_KEY) ? true : false;
+
       // look for valid metadatas in bitstream
       bool itut_t35_metadata_found = false;
       if (bitstream_size >= kMetadataObuSizeT35) {
@@ -120,52 +131,65 @@ class MetadataEncodeTest
       }
       ASSERT_EQ(itut_t35_metadata_found, 1u);
 
-      // Testing for HDR MDCV metadata
-      bool hdr_mdcv_metadata_found = false;
-      if (bitstream_size >= kMetadataObuSizeMdcv) {
-        for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeMdcv; ++i) {
-          if (memcmp(bitstream + i, kMetadataObuMdcv, kMetadataObuSizeMdcv) ==
-              0) {
-            hdr_mdcv_metadata_found = true;
+      if (is_keyframe) {
+        // Testing for HDR MDCV metadata
+        bool hdr_mdcv_metadata_found = false;
+        if (bitstream_size >= kMetadataObuSizeMdcv) {
+          for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeMdcv; ++i) {
+            if (memcmp(bitstream + i, kMetadataObuMdcv, kMetadataObuSizeMdcv) ==
+                0) {
+              hdr_mdcv_metadata_found = true;
+            }
           }
         }
-      }
-      ASSERT_TRUE(hdr_mdcv_metadata_found);
+        ASSERT_TRUE(hdr_mdcv_metadata_found);
 
-      // Testing for HDR CLL metadata
-      bool hdr_cll_metadata_found = false;
-      if (bitstream_size >= kMetadataObuSizeCll) {
-        for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeCll; ++i) {
-          if (memcmp(bitstream + i, kMetadataObuCll, kMetadataObuSizeCll) ==
-              0) {
-            hdr_cll_metadata_found = true;
+        // Testing for HDR CLL metadata
+        bool hdr_cll_metadata_found = false;
+        if (bitstream_size >= kMetadataObuSizeCll) {
+          for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeCll; ++i) {
+            if (memcmp(bitstream + i, kMetadataObuCll, kMetadataObuSizeCll) ==
+                0) {
+              hdr_cll_metadata_found = true;
+            }
           }
         }
+        ASSERT_TRUE(hdr_cll_metadata_found);
       }
-      ASSERT_TRUE(hdr_cll_metadata_found);
     }
   }
 
   virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t /*pts*/) {
+                                     aom_codec_pts_t pts) {
     ASSERT_TRUE(img.metadata != nullptr);
+    unsigned n_meta = pts == 0 ? 3 : 1;
 
-    ASSERT_EQ(img.metadata->sz, 3u);
+    ASSERT_EQ(img.metadata->sz, n_meta);
 
-    for (size_t i = 0; i < img.metadata->sz - 1; ++i) {
-      ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[i]->sz);
+    ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[0]->sz);
+    EXPECT_EQ(
+        memcmp(kMetadataPayloadT35, img.metadata->metadata_array[0]->payload,
+               kMetadataPayloadSizeT35),
+        0);
+
+    if (n_meta == 3) {
+      // Check keyframe-only metadata
+      ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[1]->sz);
       EXPECT_EQ(
-          memcmp(kMetadataPayloadT35, img.metadata->metadata_array[i]->payload,
+          memcmp(kMetadataPayloadT35, img.metadata->metadata_array[1]->payload,
                  kMetadataPayloadSizeT35),
           0);
-    }
 
-    ASSERT_EQ(kMetadataPayloadSizeCll, img.metadata->metadata_array[2]->sz);
-    EXPECT_EQ(
-        memcmp(kMetadataPayloadCll, img.metadata->metadata_array[2]->payload,
-               kMetadataPayloadSizeCll),
-        0);
+      ASSERT_EQ(kMetadataPayloadSizeCll, img.metadata->metadata_array[2]->sz);
+      EXPECT_EQ(
+          memcmp(kMetadataPayloadCll, img.metadata->metadata_array[2]->payload,
+                 kMetadataPayloadSizeCll),
+          0);
+    }
   }
+
+  int set_cpu_used_;
+  int max_partition_size_;
 };
 
 TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
@@ -187,8 +211,6 @@ TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
   cfg_.kf_mode = AOM_KF_AUTO;
   cfg_.g_lag_in_frames = 1;
   cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
-  // Enable dropped frames.
-  cfg_.rc_dropframe_thresh = 1;
   // Disable error_resilience mode.
   cfg_.g_error_resilient = 0;
   // Run at low bitrate.
