@@ -55,6 +55,11 @@ typedef struct NonsepFilterConfig {
   const int (*config2)[3];
   int strict_bounds;
   int subtract_center;
+
+  // Symmetry can be derived from the config but convenient to have
+  // explicitly specified
+  int symmetric;   // whether config is symmetric
+  int symmetric2;  // whether config2 is symmetric
 } NonsepFilterConfig;
 
 // Nonseparable convolution.

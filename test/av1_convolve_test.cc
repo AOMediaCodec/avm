@@ -1214,7 +1214,9 @@ class AV1ConvolveNonSep2DHighbdTest
     NonsepConfig_,
     NULL,
     0,
-    0
+    0,
+    1,
+    1
   };
 
   const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
@@ -1224,7 +1226,9 @@ class AV1ConvolveNonSep2DHighbdTest
     wienerns_wout_subtract_center_config_uv_from_uv_,
     NULL,
     0,
-    0
+    0,
+    1,
+    1
   };
 
   // Configuration for UnitSumFilterConfig_ wiener nonseparable 7x7 filters for
@@ -1253,6 +1257,8 @@ class AV1ConvolveNonSep2DHighbdTest
                                                     WienerNonsepConfig_,
                                                     NULL,
                                                     0,
+                                                    1,
+                                                    1,
                                                     1 };
 
   // Config used for filtering of chroma when CONFIG_WIENER_NONSEP=1.
@@ -1263,6 +1269,8 @@ class AV1ConvolveNonSep2DHighbdTest
     WienerNonsepConfigChroma_,
     NULL,
     0,
+    1,
+    1,
     1
   };
 
@@ -1511,7 +1519,9 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     wienerns_config_uv_from_uv,                // config
     wienerns_config_uv_from_y,                 // config2
     0,                                         // strict_bounds
-    1                                          // subtract_center
+    1,                                         // subtract_center
+    1,                                         // symmetry config
+    0,                                         // symmetry config2
   };
 
   const NonsepFilterConfig DualFilterWithoutCenterConfig_ = {
@@ -1525,7 +1535,9 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     wienerns_wout_subtract_center_config_uv_from_uv,             // config
     wienerns_wout_subtract_center_config_uv_from_y,              // config2
     0,  // strict_bounds
-    0   // subtract_center
+    0,  // subtract_center
+    1,  // symmetry config
+    0,  // symmetry config2
   };
 };
 
