@@ -5205,7 +5205,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_PC_WIENER && plane == AOM_PLANE_Y) {
             rsc.classification_is_buffered = 1;  // Buffer is set.
           }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+#endif    // CONFIG_COMBINE_PC_NS_WIENER
+          /*
+          printf("[Frame %d][%d]: unit_size %d rtype %d framefilters %d: cost
+          %f\n", cm->current_frame.order_hint, plane, unit_size, r,
+          rsc.frame_filters_on, cost);
+                 */
           const int found_best = cost < best_cost;
           if (found_best) {
             best_cost = cost;
@@ -5252,6 +5257,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     av1_reset_restoration_struct(cm, rsi, plane > 0);
     int ru_num = rest_tiles_in_plane(cm, plane > 0);
     adjust_frame_rtype(&cm->rst_info[plane], ru_num, &rsc, &cpi->oxcf.tool_cfg);
+    /*
+    printf("[Frame %d][%d]: unit_size %d best_frame_filters_state %d(%d)\n",
+           cm->current_frame.order_hint, plane, best_unit_size,
+           best_frame_filters_state, rsc.best_num_filter_classes);
+           */
   }
 
   aom_free(rusi);

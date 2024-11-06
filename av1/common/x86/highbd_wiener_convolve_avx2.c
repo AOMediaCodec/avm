@@ -644,11 +644,11 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_7tap_avx2(
 }
 
 static const int config_13tap_avx2[25][3] = {
-  { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
-  { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
-  { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
-  { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
-  { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
+  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 0, 0, 12 },
 };
 
 // AVX2 intrinsic to convolve a block of pixels with origin-symmetric,
@@ -669,9 +669,9 @@ static const int config_13tap_avx2[25][3] = {
 // src_rf0 = f0 f1 f2 f3 f4 f5 f6 f7
 // src_rg0 = g0 g1 g2 g3 g4 g5 g6 g7
 // The output for a pixel located at d3 position is calculated as below.
-// Filtered_d3 = (a3+g3)*fc0 + (b2+f4)*fc1 + (b3+f3)*fc2 + (b4+f5)*fc3 +
-//        (c1+e5)*fc4 + (c2+e4)*fc5 + (c3+e3)*fc6 + (c4+e2)*fc7 + (c5+e1)*fc8 +
-//        (d0+d6)*fc9 + (d1+d5)*fc10 + (d2+d4)*fc11 + d3*fc.
+// Filtered_d3 = (a3+g3)*fc10 + (b2+f4)*fc6 + (b3+f3)*fc2 + (b4+f5)*fc7 +
+//        (c1+e5)*fc8 + (c2+e4)*fc4 + (c3+e3)*fc0 + (c4+e2)*fc5 + (c5+e1)*fc9 +
+//        (d0+d6)*fc11 + (d1+d5)*fc3 + (d2+d4)*fc1 + d3*fc.
 // The source registers are unpacked such that the output corresponding
 // to 2 rows will be produced in a single register (i.e., processing 2 rows
 // simultaneously).
@@ -685,8 +685,36 @@ static const int config_13tap_avx2[25][3] = {
 // Here, out_f0_0 contains partial output of rows 1 and 2 corresponding to fc0.
 static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
-    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
+  /*
+  Note the original SIMD code here was designed for the configuration below,
+  but is being changed to the one in config_13tap_avx2 above to align
+  pc_wiener and wienerns configurations. However a permute of the coefficients
+  is now necessary before the rest of the code can be used.
+  { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
+  { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
+  { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
+  { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
+  { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
+  */
+  // Begin permute
+  int16_t filter[WIENERNS_TAPS_MAX];
+  filter[6] = filter_[0];
+  filter[11] = filter_[1];
+  filter[2] = filter_[2];
+  filter[10] = filter_[3];
+  filter[5] = filter_[4];
+  filter[7] = filter_[5];
+  filter[1] = filter_[6];
+  filter[3] = filter_[7];
+  filter[4] = filter_[8];
+  filter[8] = filter_[9];
+  filter[0] = filter_[10];
+  filter[9] = filter_[11];
+  filter[12] = filter_[12];
+  // End permute
+
   // Derive singleton_tap.
   // TODO(rachelbarker): Set up the singleton tap fully in
   // adjust_filter_and_config, so that we don't have to modify it here
@@ -1833,11 +1861,11 @@ void av1_convolve_symmetric_subtract_center_highbd_12tap_avx2(
 // restoration. DIAMOND shape with 13/12-tap or 6-tap filter is used for
 // convolution.
 static const int config_12tap_avx2[24][3] = {
-  { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
-  { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
-  { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
-  { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
-  { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },
+  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
 };
 
 static const int config_6tap_avx2[12][3] = {

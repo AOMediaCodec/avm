@@ -217,9 +217,12 @@ static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index);
+
+// TODO(any): This function is deprecated and can be removed
 int wienerns_to_pcwiener_tap_config_translator(
     const NonsepFilterConfig *nsfilter_config, int *tap_translator,
     int max_num_taps);
+
 void fill_filter_with_match(WienerNonsepInfo *filter,
                             const int16_t *frame_filter_dictionary,
                             int dict_stride, const int *match_indices,

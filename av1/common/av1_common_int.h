@@ -4293,6 +4293,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 // depending on whether pcwiener is enabled at sequence level.
 static INLINE int disable_pcwiener_filters_in_framefilters(
     const SequenceHeader *seq) {
+  (void)seq;
   return ((seq->lr_tools_disable_mask[AOM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER

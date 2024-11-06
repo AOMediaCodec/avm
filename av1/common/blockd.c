@@ -480,11 +480,14 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
 
-  int tap_translator[WIENERNS_TAPS_MAX];
-  const int num_taps = wienerns_to_pcwiener_tap_config_translator(
-      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_TAPS_MAX);
-  (void)num_taps;
-  assert(num_taps == num_feat);
+  /* Assuming the pc-wiener tap configuration is the same as the
+   * simd tap configuration, the translation below can be deprecated.
+   * int tap_translator[WIENERNS_TAPS_MAX];
+   * const int num_taps = wienerns_to_pcwiener_tap_config_translator(
+   *     &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_TAPS_MAX);
+   * (void)num_taps;
+   * assert(num_taps == num_feat);
+   */
   const int set_index =
       0;  // get_filter_set_index(base_qindex + qindex_offset);
 
@@ -506,7 +509,8 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
     assert(cm->translated_pcwiener_filters != NULL);
     for (int i = 0; i < num_feat; ++i) {
       const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
-          pcwiener_filter[tap_translator[i]], precision_diff);
+          pcwiener_filter[i], precision_diff);  // Assuming no translation
+      // pcwiener_filter[tap_translator[i]], precision_diff); // deprecated
       cm->translated_pcwiener_filters[dict_index * NUM_PC_WIENER_TAPS_LUMA +
                                       i] =
           clip_to_wienerns_range(scaled_tap,
