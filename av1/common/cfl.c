@@ -968,14 +968,14 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
           A[2][count] = (i >= left_lines && j + 1 >= above_lines)
                             ? (l[i + (j)*ref_stride] >> 3)
                             : (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
         } else {
           A[1][count] = (l[(i - 1) + j * ref_stride] >> 3);  // W 1, -1
 #if !CONFIG_E149_MHCCP_4PARA
           A[2][count] = (i + 1 >= left_lines && j >= above_lines)
                             ? (l[(i) + j * ref_stride] >> 3)
                             : (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
         }
 #if CONFIG_E149_MHCCP_4PARA
         A[2][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
@@ -983,7 +983,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 #else
         A[3][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
         A[4][count] = mid;
-#endif
+#endif  // CONFIG_E149_MHCCP_4PARA
         YCb[count] = c[i + j * ref_stride];
         ++count;
       }
@@ -1328,22 +1328,22 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
 #if !CONFIG_E149_MHCCP_4PARA
       uint16_t b = (j + 1 >= height ? input[i] : input[i + CFL_BUF_LINE * 2]) >>
                    3;  // below
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
       uint16_t c =
           (i - 1 < 0 && !have_left ? input[i] : input[i - 1]) >> 3;  // left
 #if !CONFIG_E149_MHCCP_4PARA
       uint16_t d = (i + 1 >= width ? input[i] : input[i + 1]) >> 3;  // right
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
       if (dir == 0) {
         vector[1] = a;
 #if !CONFIG_E149_MHCCP_4PARA
         vector[2] = b;
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
       } else {
         vector[1] = c;
 #if !CONFIG_E149_MHCCP_4PARA
         vector[2] = d;
-#endif
+#endif  // !CONFIG_E149_MHCCP_4PARA
       }
 #if CONFIG_E149_MHCCP_4PARA
       vector[2] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
@@ -1351,7 +1351,7 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
 #else
       vector[3] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
       vector[4] = mid;
-#endif
+#endif  // CONFIG_E149_MHCCP_4PARA
       dst[i] = clip_pixel_highbd(convolve(alpha_q3, vector, MHCCP_NUM_PARAMS),
                                  bit_depth);
     }
