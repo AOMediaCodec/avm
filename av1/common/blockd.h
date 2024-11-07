@@ -3450,14 +3450,11 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
 static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
                                     int blk_col, TX_SIZE tx_size,
                                     TX_TYPE tx_type) {
-  const int stride = xd->tx_type_map_stride;
-  xd->tx_type_map[blk_row * stride + blk_col] = tx_type;
-
   const int txw = tx_size_wide_unit[tx_size];
   const int txh = tx_size_high_unit[tx_size];
-
   // This covers all the 16x16 units copy inside a 64 or 32 level transform.
   const int tx_unit = tx_size_wide_unit[TX_16X16];
+  const int stride = xd->tx_type_map_stride;
   for (int idy = 0; idy < txh; idy += tx_unit) {
     for (int idx = 0; idx < txw; idx += tx_unit) {
       xd->tx_type_map[(blk_row + idy) * stride + blk_col + idx] = tx_type;
