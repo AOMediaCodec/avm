@@ -3455,17 +3455,12 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
 
   const int txw = tx_size_wide_unit[tx_size];
   const int txh = tx_size_high_unit[tx_size];
-  // The 16x16 unit is due to the constraint from tx_64x64 which sets the
-  // maximum tx size for chroma as 32x32. Coupled with 4x1 transform block
-  // size, the constraint takes effect in 32x16 / 16x32 size too. To solve
-  // the intricacy, cover all the 16x16 units inside a 64 level transform.
-  if (txw == tx_size_wide_unit[TX_64X64] ||
-      txh == tx_size_high_unit[TX_64X64]) {
-    const int tx_unit = tx_size_wide_unit[TX_16X16];
-    for (int idy = 0; idy < txh; idy += tx_unit) {
-      for (int idx = 0; idx < txw; idx += tx_unit) {
-        xd->tx_type_map[(blk_row + idy) * stride + blk_col + idx] = tx_type;
-      }
+
+  // This covers all the 16x16 units copy inside a 64 or 32 level transform.
+  const int tx_unit = tx_size_wide_unit[TX_16X16];
+  for (int idy = 0; idy < txh; idy += tx_unit) {
+    for (int idx = 0; idx < txw; idx += tx_unit) {
+      xd->tx_type_map[(blk_row + idy) * stride + blk_col + idx] = tx_type;
     }
   }
 }
