@@ -119,20 +119,6 @@ typedef struct PartitionBlkParams {
   int has_rows;
   int has_cols;
 
-  // Indicates that more than 7/8th of the rows / cols of this block are within
-  // the frame. Used by HORZ/VERT_4A/4B partitions, to ensure that we have
-  // enough rows / cols available if chroma block covers multiple luma blocks.
-  int has_7_8th_rows;
-  int has_7_8th_cols;
-
-#if CONFIG_CB1TO4_SPLIT
-  // Indicates that more than 3/4th of the rows / cols of this block are within
-  // the frame. Used by HORZ/VERT_3 partitions, to ensure that we have enough
-  // rows / cols available if chroma block covers multiple luma blocks.
-  int has_3_4th_rows;
-  int has_3_4th_cols;
-#endif  // CONFIG_CB1TO4_SPLIT
-
   // Block size of current partition.
   BLOCK_SIZE bsize;
 
@@ -165,8 +151,8 @@ typedef struct PartitionSearchState {
   int tmp_partition_cost[PARTITION_TYPES];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-  // Pointer to partition cost buffer
-  const int *partition_cost;
+  // Partition costs for each type of partition.
+  int partition_cost[ALL_PARTITION_TYPES];
 
 #if CONFIG_EXTENDED_SDP
   // Pointer to region type cost buffer

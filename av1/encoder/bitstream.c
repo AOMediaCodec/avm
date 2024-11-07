@@ -3547,6 +3547,17 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     assert(p == derived_partition);
     return;
   }
+
+  bool partition_allowed[ALL_PARTITION_TYPES];
+  init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
+                                        mi_row, mi_col, ssx, ssy, bsize,
+                                        &ptree->chroma_ref_info);
+  const PARTITION_TYPE single_allowed_partition =
+      only_allowed_partition(partition_allowed);
+  if (single_allowed_partition != PARTITION_INVALID) {
+    assert(p == single_allowed_partition);
+    return;
+  }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_PARTITION_CONTEXT_REDUCE
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
@@ -3560,54 +3571,67 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   const bool do_split = p != PARTITION_NONE;
-  aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
+  bool implied_do_split;
+  if (is_do_split_implied(partition_allowed, &implied_do_split)) {
+    assert(do_split == implied_do_split);
+  } else {
+    aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
+  }
   if (!do_split) {
     return;
   }
+
   const bool do_square_split = p == PARTITION_SPLIT;
-  if (is_square_split_eligible(bsize, cm->sb_size)) {
+  if (partition_allowed[PARTITION_SPLIT]) {
     const int square_split_ctx =
         square_split_context(xd, mi_row, mi_col, bsize);
     aom_write_symbol(w, do_square_split,
                      ec_ctx->do_square_split_cdf[plane][square_split_ctx], 2);
   }
   if (do_square_split) {
-    assert(p == PARTITION_SPLIT);
     return;
   }
-  RECT_PART_TYPE rect_type = get_rect_part_type(p);
-  if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
+
+  RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
+  if (rect_type == RECT_INVALID) {
+    rect_type = only_allowed_rect_type(partition_allowed);
+  }
+  if (rect_type == RECT_INVALID) {
+    rect_type = get_rect_part_type(p);
     aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][rect_type_ctx],
                      NUM_RECT_PARTS);
+  } else {
+    assert(rect_type == get_rect_part_type(p));
   }
-  const bool ext_partition_allowed =
-      cm->seq_params.enable_ext_partitions &&
-      is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
-  if (ext_partition_allowed) {
-    const bool do_ext_partition = (p >= PARTITION_HORZ_3);
+
+  bool do_ext_partition = (p >= PARTITION_HORZ_3);
+  bool implied_do_ext;
+  if (is_do_ext_partition_implied(partition_allowed, rect_type,
+                                  &implied_do_ext)) {
+    assert(do_ext_partition == implied_do_ext);
+  } else {
     aom_write_symbol(w, do_ext_partition,
                      ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx], 2);
-    if (do_ext_partition) {
-      const bool uneven_4way_partition_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
-          cm->seq_params.enable_uneven_4way_partitions &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-          is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
-      if (uneven_4way_partition_allowed) {
-        const bool do_uneven_4way_partition = (p >= PARTITION_HORZ_4A);
-        aom_write_symbol(
-            w, do_uneven_4way_partition,
-            ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2);
-        if (do_uneven_4way_partition) {
-          const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
-              (p == PARTITION_HORZ_4A || p == PARTITION_VERT_4A) ? UNEVEN_4A
-                                                                 : UNEVEN_4B;
-          aom_write_symbol(
-              w, uneven_4way_type,
-              ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
-              NUM_UNEVEN_4WAY_PARTS);
-        }
-      }
+  }
+  if (do_ext_partition) {
+    const bool do_uneven_4way_partition = (p >= PARTITION_HORZ_4A);
+    bool implied_do_uneven_4way;
+    if (is_do_uneven_4way_partition_implied(partition_allowed, rect_type,
+                                            &implied_do_uneven_4way)) {
+      assert(do_uneven_4way_partition == implied_do_uneven_4way);
+    } else {
+      aom_write_symbol(
+          w, do_uneven_4way_partition,
+          ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2);
+    }
+    if (do_uneven_4way_partition) {
+      const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
+          (p == PARTITION_HORZ_4A || p == PARTITION_VERT_4A) ? UNEVEN_4A
+                                                             : UNEVEN_4B;
+      aom_write_symbol(
+          w, uneven_4way_type,
+          ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
+          NUM_UNEVEN_4WAY_PARTS);
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS

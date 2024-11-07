@@ -2764,26 +2764,16 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
-#if CONFIG_PARTITION_CONTEXT_REDUCE
-                                          int mi_col, BLOCK_SIZE bsize,
-                                          int ctx_mode) {
-#else
-                                          int mi_col, BLOCK_SIZE bsize) {
-#endif
-  const int plane = xd->tree_type == CHROMA_PART;
-  const PARTITION_CONTEXT *above_ctx =
-      xd->above_partition_context[plane] + mi_col;
-  const PARTITION_CONTEXT *left_ctx =
-      xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  assert(bsize < BLOCK_SIZES);
-  const int bsl_w = mi_size_wide_log2[bsize];
-  const int bsl_h = mi_size_high_log2[bsize];
 
-  const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
-  const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
-  int ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
+static INLINE int partition_plane_context_helper(int raw_context,
+                                                 BLOCK_SIZE bsize
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+                                                 ,
+                                                 int ctx_mode
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
+) {
+  int ctx = raw_context + bsize * PARTITION_PLOFFSET;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
 #if CONFIG_RECT_CTX
   const int bsize_rect_map[BLOCK_SIZES] = {
@@ -2815,7 +2805,7 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     15,  // BLOCK_16X64,
     16,  // BLOCK_64X16,
   };
-#endif
+#endif  // CONFIG_RECT_CTX
   const int bsize_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
     0,   // BLOCK_4X8,
@@ -2846,15 +2836,44 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     24,  // BLOCK_64X16,
   };
   if (ctx_mode == 1)  // all part ctx except rect mode
-    ctx = (left * 2 + above) + bsize_map[bsize] * PARTITION_PLOFFSET;
+    ctx = raw_context + bsize_map[bsize] * PARTITION_PLOFFSET;
 #if CONFIG_RECT_CTX
   if (ctx_mode == 0)  // part ctx only for rect mode
-    ctx = (left * 2 + above) + bsize_rect_map[bsize] * PARTITION_PLOFFSET;
-#endif
-#endif
+    ctx = raw_context + bsize_rect_map[bsize] * PARTITION_PLOFFSET;
+#endif  // CONFIG_RECT_CTX
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
   assert(ctx >= 0);
   assert(ctx < PARTITION_CONTEXTS);
   return ctx;
+}
+
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
+                                          int mi_col, BLOCK_SIZE bsize
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+                                          ,
+                                          int ctx_mode
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
+) {
+  const int plane = xd->tree_type == CHROMA_PART;
+  const PARTITION_CONTEXT *above_ctx =
+      xd->above_partition_context[plane] + mi_col;
+  const PARTITION_CONTEXT *left_ctx =
+      xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  assert(bsize < BLOCK_SIZES);
+  const int bsl_w = mi_size_wide_log2[bsize];
+  const int bsl_h = mi_size_high_log2[bsize];
+
+  const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
+  const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+  return partition_plane_context_helper(left * 2 + above, bsize
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+                                        ,
+                                        ctx_mode
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
+  );
 #else
   // Minimum partition point is 8x8. Offset the bsl accordingly.
   const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
@@ -3339,6 +3358,316 @@ static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
 
   // No forced partitions
   return PARTITION_INVALID;
+}
+
+static AOM_INLINE void get_chroma_ref_offsets(BLOCK_SIZE bsize,
+                                              PARTITION_TYPE partition,
+                                              int *chroma_ref_row_offset,
+                                              int *chroma_ref_col_offset) {
+  *chroma_ref_row_offset = 0;
+  *chroma_ref_col_offset = 0;
+  switch (partition) {
+    case PARTITION_NONE: break;
+    case PARTITION_HORZ:
+      *chroma_ref_row_offset = mi_size_high[bsize] / 2;
+      break;
+    case PARTITION_VERT:
+      *chroma_ref_col_offset = mi_size_wide[bsize] / 2;
+      break;
+    case PARTITION_HORZ_3:
+      if (bsize == BLOCK_8X32) {
+        // Special case: 3 subblocks are chroma refs:
+        // 1st subblock of size 8x8,
+        // 3rd subblock of size 4x16 (covering 2nd and 3rd luma subblocks) and
+        // 4th subblock of size 8x8.
+        // So, we only need to check if 3rd subblock is completely outside
+        // the boundary.
+        *chroma_ref_col_offset = mi_size_wide[bsize] / 2;
+      } else {
+        *chroma_ref_row_offset = 3 * mi_size_high[bsize] / 4;
+      }
+      break;
+    case PARTITION_VERT_3:
+      if (bsize == BLOCK_32X8) {
+        // Special case (similar to HORZ_3 above).
+        *chroma_ref_row_offset = mi_size_high[bsize] / 2;
+      } else {
+        *chroma_ref_col_offset = 3 * mi_size_wide[bsize] / 4;
+      }
+      break;
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+      *chroma_ref_row_offset = 7 * mi_size_high[bsize] / 8;
+      break;
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+      *chroma_ref_col_offset = 7 * mi_size_wide[bsize] / 8;
+      break;
+    case PARTITION_SPLIT:
+    default: assert(0);
+  }
+}
+
+static AOM_INLINE bool is_chroma_ref_within_boundary(
+    const AV1_COMMON *const cm, TREE_TYPE tree_type, bool is_chroma_ref,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, PARTITION_TYPE partition,
+    int subsampling_x, int subsampling_y) {
+  if ((tree_type != SHARED_PART) || cm->seq_params.monochrome ||
+      !is_chroma_ref ||
+      !have_nz_chroma_ref_offset(bsize, partition, subsampling_x,
+                                 subsampling_y)) {
+    return true;
+  }
+  int chroma_ref_row_offset;
+  int chroma_ref_col_offset;
+  get_chroma_ref_offsets(bsize, partition, &chroma_ref_row_offset,
+                         &chroma_ref_col_offset);
+  return (mi_row + chroma_ref_row_offset < cm->mi_params.mi_rows &&
+          mi_col + chroma_ref_col_offset < cm->mi_params.mi_cols);
+}
+
+// Initialize allowed partition types for the coding block.
+static AOM_INLINE void init_allowed_partitions_for_signaling(
+    bool *partition_allowed, const AV1_COMMON *const cm, TREE_TYPE tree_type,
+    int mi_row, int mi_col, int ss_x, int ss_y, BLOCK_SIZE bsize,
+    const CHROMA_REF_INFO *chroma_ref_info) {
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
+  const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
+  const bool is_chroma_ref =
+      chroma_ref_info ? chroma_ref_info->is_chroma_ref : true;
+
+  const int is_horz_size_valid =
+      is_partition_valid(bsize, PARTITION_HORZ) &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info);
+
+  const int is_vert_size_valid =
+      is_partition_valid(bsize, PARTITION_VERT) &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info);
+
+  const bool is_block_splittable = is_partition_point(bsize);
+  partition_allowed[PARTITION_NONE] =
+      (tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
+      (has_rows && has_cols);
+
+  partition_allowed[PARTITION_HORZ] =
+      is_block_splittable && is_horz_size_valid
+#if CONFIG_CB1TO4_SPLIT
+      &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_HORZ, ss_x, ss_y)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
+  partition_allowed[PARTITION_VERT] =
+      is_block_splittable && is_vert_size_valid
+#if CONFIG_CB1TO4_SPLIT
+      &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_VERT, ss_x, ss_y)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
+
+  const bool ext_partition_allowed =
+      is_block_splittable && cm->seq_params.enable_ext_partitions;
+
+  partition_allowed[PARTITION_HORZ_3] =
+      ext_partition_allowed &&
+      is_ext_partition_allowed(bsize, HORZ, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+#if CONFIG_CB1TO4_SPLIT
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_HORZ_3, ss_x, ss_y)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
+
+  partition_allowed[PARTITION_VERT_3] =
+      ext_partition_allowed &&
+      is_ext_partition_allowed(bsize, VERT, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+#if CONFIG_CB1TO4_SPLIT
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_VERT_3, ss_x, ss_y)
+#endif  // CONFIG_CB1TO4_SPLIT
+      ;
+
+  const bool uneven_4way_partition_allowed =
+      ext_partition_allowed && cm->seq_params.enable_uneven_4way_partitions;
+  partition_allowed[PARTITION_HORZ_4A] =
+      uneven_4way_partition_allowed &&
+      is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_HORZ_4A, ss_x,
+                                    ss_y);
+
+  partition_allowed[PARTITION_HORZ_4B] =
+      uneven_4way_partition_allowed &&
+      is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_HORZ_4B, ss_x,
+                                    ss_y);
+
+  partition_allowed[PARTITION_VERT_4A] =
+      uneven_4way_partition_allowed &&
+      is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_VERT_4A, ss_x,
+                                    ss_y);
+
+  partition_allowed[PARTITION_VERT_4B] =
+      uneven_4way_partition_allowed &&
+      is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
+      get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
+                                    mi_col, bsize, PARTITION_VERT_4B, ss_x,
+                                    ss_y);
+
+  assert(partition_allowed[PARTITION_HORZ_4A] ==
+         partition_allowed[PARTITION_HORZ_4B]);
+  assert(partition_allowed[PARTITION_VERT_4A] ==
+         partition_allowed[PARTITION_VERT_4B]);
+
+  partition_allowed[PARTITION_SPLIT] =
+      is_square_split_eligible(bsize, cm->sb_size);
+}
+
+// Returns true if only one partition type is allowed and sets
+// `implied_partition` accordingly. Otherwise returns false.
+static AOM_INLINE PARTITION_TYPE
+only_allowed_partition(const bool *partition_allowed) {
+  int num_allowed_partition_types = 0;
+  PARTITION_TYPE last_allowed_partition = PARTITION_INVALID;
+  for (int p = PARTITION_NONE; p < ALL_PARTITION_TYPES; ++p) {
+    if (partition_allowed[p]) {
+      last_allowed_partition = p;
+      ++num_allowed_partition_types;
+      if (num_allowed_partition_types > 1) {
+        return PARTITION_INVALID;
+      }
+    }
+  }
+  assert(num_allowed_partition_types == 1);
+  return last_allowed_partition;
+}
+
+static AOM_INLINE bool is_do_split_implied(const bool *partition_allowed,
+                                           bool *implied_do_split) {
+  const bool none_allowed = partition_allowed[PARTITION_NONE];
+  if (!none_allowed) {
+    *implied_do_split = true;
+    return true;
+  }
+
+  // We have already checked before that more than one partition is allowed.
+  // So, as PARTITION_NONE is allowed, there must be 1 other non-none partition
+  // that is allowed.
+  // Hence do_split is NOT implied.
+  assert(only_allowed_partition(partition_allowed) == PARTITION_INVALID);
+#ifndef NDEBUG
+  bool non_none_allowed = false;
+  for (int p = PARTITION_NONE + 1; p < ALL_PARTITION_TYPES; ++p) {
+    if (partition_allowed[p]) {
+      non_none_allowed = true;
+      break;
+    }
+  }
+  assert(non_none_allowed);
+#endif  // NDEBUG
+  return false;
+}
+
+static AOM_INLINE RECT_PART_TYPE
+only_allowed_rect_type(const bool *partition_allowed) {
+  const bool horz_allowed = partition_allowed[PARTITION_HORZ] ||
+                            partition_allowed[PARTITION_HORZ_3] ||
+                            partition_allowed[PARTITION_HORZ_4A] ||
+                            partition_allowed[PARTITION_HORZ_4B];
+  const bool vert_allowed = partition_allowed[PARTITION_VERT] ||
+                            partition_allowed[PARTITION_VERT_3] ||
+                            partition_allowed[PARTITION_VERT_4A] ||
+                            partition_allowed[PARTITION_VERT_4B];
+  assert(horz_allowed || vert_allowed);
+  if (horz_allowed && vert_allowed) return RECT_INVALID;
+  if (horz_allowed) {
+    assert(!vert_allowed);
+    return HORZ;
+  }
+  assert(vert_allowed);
+  assert(!horz_allowed);
+  return VERT;
+}
+
+static AOM_INLINE bool is_do_ext_partition_implied(
+    const bool *partition_allowed, const RECT_PART_TYPE rect_type,
+    bool *implied_do_ext) {
+  bool non_ext_allowed;
+  bool ext_allowed;
+  if (rect_type == HORZ) {
+    non_ext_allowed = partition_allowed[PARTITION_HORZ];
+    ext_allowed = partition_allowed[PARTITION_HORZ_3] ||
+                  partition_allowed[PARTITION_HORZ_4A] ||
+                  partition_allowed[PARTITION_HORZ_4B];
+  } else {
+    assert(rect_type == VERT);
+    non_ext_allowed = partition_allowed[PARTITION_VERT];
+    ext_allowed = partition_allowed[PARTITION_VERT_3] ||
+                  partition_allowed[PARTITION_VERT_4A] ||
+                  partition_allowed[PARTITION_VERT_4B];
+  }
+  if (non_ext_allowed && ext_allowed) return false;
+  if (non_ext_allowed) {
+    assert(!ext_allowed);
+    *implied_do_ext = false;
+    return true;
+  }
+  assert(ext_allowed);
+  assert(!non_ext_allowed);
+  *implied_do_ext = true;
+  return true;
+}
+
+static AOM_INLINE bool is_do_uneven_4way_partition_implied(
+    const bool *partition_allowed, const RECT_PART_TYPE rect_type,
+    bool *implied_do_uneven_4way) {
+  bool part_3_allowed;
+  bool part_uneven_4way_allowed;
+  if (rect_type == HORZ) {
+    part_3_allowed = partition_allowed[PARTITION_HORZ_3];
+    part_uneven_4way_allowed = partition_allowed[PARTITION_HORZ_4A] ||
+                               partition_allowed[PARTITION_HORZ_4B];
+  } else {
+    assert(rect_type == VERT);
+    part_3_allowed = partition_allowed[PARTITION_VERT_3];
+    part_uneven_4way_allowed = partition_allowed[PARTITION_VERT_4A] ||
+                               partition_allowed[PARTITION_VERT_4B];
+  }
+  if (part_3_allowed && part_uneven_4way_allowed) return false;
+  if (part_3_allowed) {
+    assert(!part_uneven_4way_allowed);
+    *implied_do_uneven_4way = false;
+    return true;
+  }
+  assert(part_uneven_4way_allowed);
+  assert(!part_3_allowed);
+  *implied_do_uneven_4way = true;
+  return true;
 }
 #else
 // Return the number of sub-blocks whose width and height are

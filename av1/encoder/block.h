@@ -884,9 +884,6 @@ typedef struct {
   int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                                      [PARTITION_CONTEXTS]
                                      [NUM_UNEVEN_4WAY_PARTS];
-  //! Cost for coding the partition.
-  int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
-                    [ALL_PARTITION_TYPES];
 #else
   //! Cost for coding the partition.
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]

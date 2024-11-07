@@ -2231,13 +2231,31 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
     return derived_partition;
   }
 
-  const bool do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
-                                        ACCT_INFO("do_split"));
+  bool partition_allowed[ALL_PARTITION_TYPES];
+  init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
+                                        mi_row, mi_col, ssx, ssy, bsize,
+                                        &ptree->chroma_ref_info);
+  const PARTITION_TYPE single_allowed_partition =
+      only_allowed_partition(partition_allowed);
+  if (single_allowed_partition != PARTITION_INVALID) {
+    return single_allowed_partition;
+  }
+
+  bool do_split;
+  bool implied_do_split;
+  if (is_do_split_implied(partition_allowed, &implied_do_split)) {
+    do_split = implied_do_split;
+  } else {
+    do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+                               ACCT_INFO("do_split"));
+  }
   if (!do_split) {
     return PARTITION_NONE;
   }
-  const int square_split_ctx = square_split_context(xd, mi_row, mi_col, bsize);
-  if (is_square_split_eligible(bsize, cm->sb_size)) {
+
+  if (partition_allowed[PARTITION_SPLIT]) {
+    const int square_split_ctx =
+        square_split_context(xd, mi_row, mi_col, bsize);
     const bool do_square_split =
         aom_read_symbol(r, ec_ctx->do_square_split_cdf[plane][square_split_ctx],
                         2, ACCT_INFO("do_square_split"));
@@ -2248,6 +2266,9 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
+    rect_type = only_allowed_rect_type(partition_allowed);
+  }
+  if (rect_type == RECT_INVALID) {
     rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][rect_type_ctx],
                                 NUM_RECT_PARTS, ACCT_INFO("rect_type"));
   }
@@ -2256,29 +2277,29 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   bool do_uneven_4way_partition = false;
   UNEVEN_4WAY_PART_TYPE uneven_4way_partition_type = UNEVEN_4A;
 
-  const bool ext_partition_allowed =
-      cm->seq_params.enable_ext_partitions &&
-      is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
-  if (ext_partition_allowed) {
+  bool implied_do_ext;
+  if (is_do_ext_partition_implied(partition_allowed, rect_type,
+                                  &implied_do_ext)) {
+    do_ext_partition = implied_do_ext;
+  } else {
     do_ext_partition =
         aom_read_symbol(r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx],
                         2, ACCT_INFO("do_ext_partition"));
-    if (do_ext_partition) {
-      const bool uneven_4way_partition_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
-          cm->seq_params.enable_uneven_4way_partitions &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-          is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
-      if (uneven_4way_partition_allowed) {
-        do_uneven_4way_partition = aom_read_symbol(
-            r, ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2,
-            ACCT_INFO("do_uneven_4way_partition"));
-        if (do_uneven_4way_partition) {
-          uneven_4way_partition_type = aom_read_symbol(
-              r, ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
-              NUM_UNEVEN_4WAY_PARTS, ACCT_INFO("uneven_4way_partition_type"));
-        }
-      }
+  }
+  if (do_ext_partition) {
+    bool implied_do_uneven_4way;
+    if (is_do_uneven_4way_partition_implied(partition_allowed, rect_type,
+                                            &implied_do_uneven_4way)) {
+      do_uneven_4way_partition = implied_do_uneven_4way;
+    } else {
+      do_uneven_4way_partition = aom_read_symbol(
+          r, ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2,
+          ACCT_INFO("do_uneven_4way_partition"));
+    }
+    if (do_uneven_4way_partition) {
+      uneven_4way_partition_type = aom_read_symbol(
+          r, ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
+          NUM_UNEVEN_4WAY_PARTS, ACCT_INFO("uneven_4way_partition_type"));
     }
   }
   return rect_part_table[do_ext_partition][do_uneven_4way_partition]
@@ -2536,60 +2557,14 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                        block_size_high[test_subsize]);
   }
   // Check that chroma ref block isn't completely outside the boundary.
-  if ((xd->tree_type == SHARED_PART) && !cm->seq_params.monochrome &&
-      ptree->chroma_ref_info.is_chroma_ref &&
-      have_nz_chroma_ref_offset(bsize, partition, pd_u->subsampling_x,
-                                pd_u->subsampling_y)) {
-    int chroma_ref_row_offset = 0;
-    int chroma_ref_col_offset = 0;
-    switch (partition) {
-      case PARTITION_NONE: break;
-      case PARTITION_HORZ:
-        chroma_ref_row_offset = mi_size_high[bsize] / 2;
-        break;
-      case PARTITION_VERT:
-        chroma_ref_col_offset = mi_size_wide[bsize] / 2;
-        break;
-      case PARTITION_HORZ_3:
-        if (bsize == BLOCK_8X32) {
-          // Special case: 3 subblocks are chroma refs:
-          // 1st subblock of size 8x8,
-          // 3rd subblock of size 4x16 (covering 2nd and 3rd luma subblocks) and
-          // 4th subblock of size 8x8.
-          // So, we only need to check if 3rd subblock is completely outside
-          // the boundary.
-          chroma_ref_col_offset = mi_size_wide[bsize] / 2;
-        } else {
-          chroma_ref_row_offset = 3 * mi_size_high[bsize] / 4;
-        }
-        break;
-      case PARTITION_VERT_3:
-        if (bsize == BLOCK_32X8) {
-          // Special case (similar to HORZ_3 above).
-          chroma_ref_row_offset = mi_size_high[bsize] / 2;
-        } else {
-          chroma_ref_col_offset = 3 * mi_size_wide[bsize] / 4;
-        }
-        break;
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-        chroma_ref_row_offset = 7 * mi_size_high[bsize] / 8;
-        break;
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-        chroma_ref_col_offset = 7 * mi_size_wide[bsize] / 8;
-        break;
-      case PARTITION_SPLIT:
-      default: assert(0);
-    }
-    if (mi_row + chroma_ref_row_offset >= cm->mi_params.mi_rows ||
-        mi_col + chroma_ref_col_offset >= cm->mi_params.mi_cols) {
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid partitioning %d at location [%d, %d]: chroma "
-                         "info not coded.",
-                         partition, mi_row << MI_SIZE_LOG2,
-                         mi_col << MI_SIZE_LOG2);
-    }
+  if (!is_chroma_ref_within_boundary(
+          cm, xd->tree_type, ptree->chroma_ref_info.is_chroma_ref, mi_row,
+          mi_col, bsize, partition, pd_u->subsampling_x, pd_u->subsampling_y)) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid partitioning %d at location [%d, %d]: chroma "
+                       "info not coded.",
+                       partition, mi_row << MI_SIZE_LOG2,
+                       mi_col << MI_SIZE_LOG2);
   }
 #else
   if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
