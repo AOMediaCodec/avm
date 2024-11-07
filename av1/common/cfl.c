@@ -1328,7 +1328,7 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
 #if !CONFIG_E149_MHCCP_4PARA
       uint16_t b = (j + 1 >= height ? input[i] : input[i + CFL_BUF_LINE * 2]) >>
                    3;  // below
-#endif  // !CONFIG_E149_MHCCP_4PARA
+#endif                 // !CONFIG_E149_MHCCP_4PARA
       uint16_t c =
           (i - 1 < 0 && !have_left ? input[i] : input[i - 1]) >> 3;  // left
 #if !CONFIG_E149_MHCCP_4PARA
