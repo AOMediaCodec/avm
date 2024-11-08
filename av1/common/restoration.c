@@ -69,7 +69,6 @@ const int wienerns_config_y[][3] = {
   { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
   { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
 };
-#define wienerns_simd_config_y pcwiener_tap_config_luma
 
 const int wienerns_config_uv_from_uv[][3] = {
   { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
@@ -127,6 +126,25 @@ const WienernsFilterParameters wienerns_filter_uv = AOM_MAKE_WIENERNS_CONFIG2(
     WIENERNS_PREC_BITS_UV, wienerns_config_uv_from_uv,
     wienerns_config_uv_from_y, wienerns_coeff_uv, 1, 0);
 
+// NOTE: All the wienerns_simd_config_... configurations are what the SIMD code
+// supports. All the wienerns_simd_subtract_center_config_... configurations
+// are the corresponding subtract center versions.
+const int wienerns_simd_config_y[][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 0, 0, 12 }
+};
+
+const int wienerns_simd_subtract_center_config_y[][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
+};
+
 // Configs for the first set of filters for the case without subtract center.
 // Add a tap at (0, 0).
 const int wienerns_simd_config_uv_from_uv[][3] = {
@@ -141,6 +159,18 @@ const int wienerns_simd_config_uv_from_y[][3] = {
   { 1, 0, 7 },    { -1, 0, 8 },  { 0, 1, 9 },   { 0, -1, 10 }, { 1, 1, 11 },
   { -1, -1, 12 }, { -1, 1, 13 }, { 1, -1, 14 }, { 2, 0, 15 },  { -2, 0, 16 },
   { 0, 2, 17 },   { 0, -2, 18 }, { 0, 0, 19 },
+};
+
+const int wienerns_simd_subtract_center_config_uv_from_uv[][3] = {
+  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+};
+
+const int wienerns_simd_subtract_center_config_uv_from_y[][3] = {
+  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
+  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
+  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
 };
 
 // The 's' values are calculated based on original 'r' and 'e' values in the
@@ -1300,10 +1330,17 @@ void apply_pc_wiener_highbd(
   assert(!is_uv);
   const int pc_filter_num_taps =
       sizeof(pcwiener_tap_config_luma) / sizeof(pcwiener_tap_config_luma[0]);
+  const int(*pcwiener_tap_config)[3] = pcwiener_tap_config_luma;
+  // If pcwiener_tap_config_luma is same as wienerns_simd_config_y
+  // set the config in pcfilter_config below to wienerns_simd_config_y
+  // so that the SIMD code finds the right SIMD code for that config.
+  if (!memcmp(pcwiener_tap_config_luma, wienerns_simd_config_y,
+              sizeof(wienerns_simd_config_y)))
+    pcwiener_tap_config = wienerns_simd_config_y;
   const NonsepFilterConfig pcfilter_config = { PC_WIENER_PREC_FILTER,
                                                pc_filter_num_taps,
                                                0,
-                                               pcwiener_tap_config_luma,
+                                               pcwiener_tap_config,
                                                NULL,
                                                0,
                                                0,
@@ -1568,7 +1605,11 @@ static bool adjust_filter_to_non_subtract_center(
 
   int adjusted_num_pixels;
   if (is_uv) {
-    if (!memcmp(nsfilter_config, &wienerns_filter_uv.nsfilter_config,
+    if (!memcmp(nsfilter_config->config,
+                wienerns_simd_subtract_center_config_uv_from_uv,
+                sizeof(wienerns_filter_uv.nsfilter_config)) &&
+        !memcmp(nsfilter_config->config2,
+                wienerns_simd_subtract_center_config_uv_from_y,
                 sizeof(wienerns_filter_uv.nsfilter_config))) {
       adjusted_config->config = wienerns_simd_config_uv_from_uv;
       adjusted_config->config2 = wienerns_simd_config_uv_from_y;
@@ -1578,7 +1619,7 @@ static bool adjust_filter_to_non_subtract_center(
       return false;
     }
   } else {
-    if (!memcmp(nsfilter_config, &wienerns_filter_y.nsfilter_config,
+    if (!memcmp(nsfilter_config->config, wienerns_simd_subtract_center_config_y,
                 sizeof(wienerns_filter_y.nsfilter_config))) {
       adjusted_config->config = wienerns_simd_config_y;
       adjusted_num_pixels =
@@ -1640,7 +1681,9 @@ static bool adjust_filter_to_non_subtract_center(
   return true;
 }
 
+// clang-format off
 // TODO(any): This function is deprecated and can be removed.
+/*
 // Adjust wienerns config and filters to use the non-subtract-center path.
 // This normalizes the filter layout to match what is expected by the SIMD
 // code, which hard-codes subtract_center == 0 and a specific coefficient order
@@ -1754,6 +1797,8 @@ bool adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
 
   return true;
 }
+*/
+// clang-format on
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
 void apply_wienerns_class_id_highbd(
@@ -2810,6 +2855,8 @@ void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 #if CONFIG_COMBINE_PC_NS_WIENER
 // TODO(any): This function is deprecated and can be removed
 // Fills tap translator to account for the config diffs.
+// clang-format off
+/*
 int wienerns_to_pcwiener_tap_config_translator(
     const NonsepFilterConfig *nsfilter_config, int *tap_translator,
     int max_num_taps) {
@@ -2832,6 +2879,8 @@ int wienerns_to_pcwiener_tap_config_translator(
   }
   return num_sym_taps;
 }
+*/
+// clang-format on
 
 static inline const int16_t *get_matching_filter(
     const int16_t *frame_filter_dictionary, int dict_stride, int filter_index,

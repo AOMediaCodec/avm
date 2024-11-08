@@ -192,11 +192,11 @@ typedef struct {
 extern const WienernsFilterParameters wienerns_filter_y;
 extern const WienernsFilterParameters wienerns_filter_uv;
 
-/*
 extern const int wienerns_simd_config_y[][3];
 extern const int wienerns_simd_config_uv_from_uv[][3];
 extern const int wienerns_simd_config_uv_from_y[][3];
 
+/*
 extern const int wienerns_simd_subtract_center_config_y[][3];
 extern const int wienerns_simd_subtract_center_config_uv_from_uv[][3];
 extern const int wienerns_simd_subtract_center_config_uv_from_y[][3];
