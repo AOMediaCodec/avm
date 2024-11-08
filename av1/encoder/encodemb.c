@@ -822,8 +822,22 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
     }
     const int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
-    // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
-    // when eob of U is 0.
+    // Since eob can be updated here:
+    // (1) Secondary tx type is disabled when eob doesn't allow it.
+    // (2) make sure cctx_type is always CCTX_NONE when eob of U is 0.
+    // See similar logic in `search_tx_type` and `search_cctx_type`.
+    const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+    const TX_TYPE stx = get_secondary_tx_type(tx_type);
+    if (p->eobs[block] == 1 && plane == PLANE_TYPE_Y && !is_inter) {
+      if (tx_type != DCT_DCT || (stx && primary_tx_type)) {
+        update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+        tx_type = DCT_DCT;
+      }
+    }
+    if (p->eobs[block] <= 3 && plane == PLANE_TYPE_Y && is_inter && stx) {
+      update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
+      tx_type = primary_tx_type;
+    }
     if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U &&
         (p->eobs[block] == 0 || skip_cctx)) {
       // In dry run, cctx type will not be referenced by neighboring blocks, so

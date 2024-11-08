@@ -626,15 +626,9 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 #endif  // CONFIG_INTER_DDT
                   &txfm_param);
   assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
-
-  MB_MODE_INFO *const mbmi = xd->mi[0];
-  PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
-  const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
-  if (!is_inter_block(xd->mi[0], xd->tree_type))
-    assert(((intra_mode >= PAETH_PRED || filter) && txfm_param.sec_tx_type) ==
-           0);
-  (void)intra_mode;
-  (void)filter;
+  assert(
+      IMPLIES(txfm_param.sec_tx_type,
+              block_signals_sec_tx_type(xd, tx_size, txfm_param.tx_type, eob)));
 
   // Work buffer for secondary transform
   DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_TX_SQUARE]);
@@ -643,6 +637,7 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   av1_inv_stxfm(temp_dqcoeff, &txfm_param);
 
 #if CONFIG_LOSSLESS_DPCM
+  MB_MODE_INFO *const mbmi = xd->mi[0];
   if (xd->lossless[mbmi->segment_id]) {
     PREDICTION_MODE cur_pred_mode =
         (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
