@@ -552,7 +552,9 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   (void)intra_mode;
   (void)filter;
   (void)is_depth0;
-  av1_fwd_stxfm(coeff, txfm_param);
+  if (block_signals_sec_tx_type(xd, txfm_param->tx_size, txfm_param->tx_type,
+                                txfm_param->eob))
+    av1_fwd_stxfm(coeff, txfm_param);
 }
 
 // Facade function for forward cross chroma component transform

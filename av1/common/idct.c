@@ -619,6 +619,10 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 
   assert(eob <= av1_get_max_eob(tx_size));
 
+  TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+  if (!block_signals_sec_tx_type(xd, tx_size, primary_tx_type, eob))
+    tx_type = primary_tx_type;
+
   TxfmParam txfm_param;
   init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set,
 #if CONFIG_INTER_DDT
