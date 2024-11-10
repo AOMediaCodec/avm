@@ -406,6 +406,11 @@ set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_INTER 1
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_DCT_ONLY 0
                    "Debug for IST mode non-zero depth.")
 
+#IST set reduction (non-normative)
+set_aom_config_var(CONFIG_IST_REDUCTION 1
+                   "Use 4 sets for IST encoder search.")
+
+
 set_aom_config_var(CONFIG_TMVP_IMPROVE 1
                    "Enable to improve TMVP candidate selection in DRL list")
 set_aom_config_var(CONFIG_COMPOUND_4XN 1

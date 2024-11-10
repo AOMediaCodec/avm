@@ -717,7 +717,12 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
     // per set) Set 0 ~ IST_DIR_SIZE-1 for DCT_DCT, and Set IST_DIR_SIZE ~
     // IST_SET_SIZE-1 for ADST_ADST
     if (txfm_param->sec_tx_type == 0 &&
-        (txfm_param->sec_tx_set == 0 || txfm_param->sec_tx_set == IST_DIR_SIZE))
+#if CONFIG_IST_REDUCTION
+        txfm_param->sec_tx_set_idx == 0
+#else
+        (txfm_param->sec_tx_set == 0 || txfm_param->sec_tx_set == IST_DIR_SIZE)
+#endif  // CONFIG_IST_REDUCTION
+        )
 #else
     if (txfm_param->sec_tx_type == 0)
 #endif  // CONFIG_IST_ANY_SET
@@ -839,6 +844,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   txfm_param->tx_type = get_primary_tx_type(tx_type);
 #if CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_set = 0;
+#if CONFIG_IST_REDUCTION
+  txfm_param->sec_tx_set_idx = 0;
+#endif // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
@@ -856,6 +864,17 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART])) {
 #if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+#if CONFIG_IST_REDUCTION
+    uint8_t intra_stx_mode = stx_transpose_mapping[txfm_param->intra_mode];
+    uint8_t stx_id;
+    if (txfm_param->tx_type == ADST_ADST) {
+      stx_id = txfm_param->sec_tx_set - IST_DIR_SIZE;
+    } else {
+      stx_id = txfm_param->sec_tx_set;
+    }
+    uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+    txfm_param->sec_tx_set_idx = stx_idx;
+#endif // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }

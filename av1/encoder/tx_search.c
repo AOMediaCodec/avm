@@ -2912,15 +2912,37 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
+#if CONFIG_IST_REDUCTION
+    if (max_set_id == IST_DIR_SIZE) {
+    max_set_id = IST_REDUCE_SET_SIZE;
+    // if (txw <= 4 || txh <= 4){
+    //   max_set_id = 1;
+    // }
+    }
+    for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
+      txfm_param.sec_tx_set_idx = set_idx;
+      uint8_t set_id = set_idx;
+      if (!is_inter_block(mbmi, xd->tree_type)) {
+      const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
+      int intra_stx_mode = stx_transpose_mapping[mode];
+      assert(set_idx < IST_REDUCE_SET_SIZE);
+      set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+      }
+#else
     // Iterate through all possible secondary tx sets for given primary tx type
     for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_ANY_SET
 
       const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
 
       for (int stx = 0; stx < max_stx; ++stx) {
         // Skip repeated evaluation of no secondary transform.
+#if CONFIG_IST_REDUCTION
+        if (set_idx && !stx) continue;
+#else
         if (set_id && !stx) continue;
+#endif
 
 #if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = primary_tx_type;

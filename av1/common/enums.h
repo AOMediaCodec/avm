@@ -28,6 +28,11 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+
+#if CONFIG_IST_REDUCTION
+#define IST_REDUCE_SET_SIZE 4
+#endif
+
 #define BAWP_BUGFIX 1
 #define ADJUST_SUPER_RES_Q 1
 

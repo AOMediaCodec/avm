@@ -431,6 +431,9 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   txfm_param->tx_type = get_primary_tx_type(tx_type);
 #if CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_set = 0;
+#if CONFIG_IST_REDUCTION
+  txfm_param->sec_tx_set_idx = 0;
+#endif // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
@@ -447,6 +450,17 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
 #if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+#if CONFIG_IST_REDUCTION
+    uint8_t intra_stx_mode = stx_transpose_mapping[txfm_param->intra_mode];
+    uint8_t stx_id;
+    if (txfm_param->tx_type == ADST_ADST) {
+      stx_id = txfm_param->sec_tx_set - IST_DIR_SIZE;
+    } else {
+      stx_id = txfm_param->sec_tx_set;
+    }
+    uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+    txfm_param->sec_tx_set_idx = stx_idx;
+#endif // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   }
   txfm_param->tx_size = tx_size;
