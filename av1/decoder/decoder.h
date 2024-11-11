@@ -313,6 +313,9 @@ typedef struct AV1Decoder {
 #endif
   int sequence_header_ready;
   int sequence_header_changed;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  int flush_remaining_frames;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if CONFIG_INSPECTION
   // Inspection callback at the end of each frame.
   aom_inspect_cb inspect_cb;

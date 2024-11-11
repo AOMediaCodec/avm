@@ -579,6 +579,11 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    } else if (pbi->flush_remaining_frames) {
+      output_frame_buffers(pbi, -1);
+      pbi->flush_remaining_frames = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
                 !cm->seq_params.enable_frame_output_order) &&
                (cm->show_existing_frame || cm->show_frame)) {

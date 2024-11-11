@@ -287,6 +287,14 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
       pbi->sequence_header_changed = 1;
   }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  pbi->flush_remaining_frames = 0;
+  if (pbi->sequence_header_changed &&
+      cm->seq_params.enable_frame_output_order) {
+    pbi->flush_remaining_frames = 1;
+  }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
