@@ -578,21 +578,19 @@ static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
 
 */
 
-/* Provide 15 sets of quantization matrices for chroma and luma
-   and each TX size. Matrices for different TX sizes are in fact
-   upsampled from the 8x8, 8x4, and 4x8 sizes, but explicitly
-   defined here for convenience. Intra and inter matrix sets are the
-   same but changing DEFAULT_QM_INTER_OFFSET from zero allows
-   for different matrices for inter and intra blocks in the same
-   frame.
-   Matrices for different QM levels have been rescaled in the
-   frequency domain according to different nominal viewing
-   distances. Matrices for QM level 15 are omitted because they are
-   not used.
- */
 
+/* Provide 15 sets of base quantization matrices for chroma and luma
+    and each TX size. Matrices for different TX sizes are in fact
+    scaled from the 8x8, 8x4, and 4x8 sizes using indexing,
+    Intra and inter matrix sets are the ame but changing 
+    DEFAULT_QM_INTER_OFFSET from zero allows for different matrices 
+    for inter and intra blocks in the same frame.
+    Matrices for different QM levels have been rescaled in the
+    frequency domain according to different nominal viewing
+    distances. Matrices for QM level 15 are omitted because they are
+    not used.
+*/
 /* clang-format off */
-
 static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
     {
         {
