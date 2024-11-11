@@ -5496,7 +5496,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
          i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
       above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
       above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
-      mi_step = AOMMIN(xd->width, above_block_width);
+      mi_step = above_block_width;
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
@@ -5537,7 +5537,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
          i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row); i += mi_step) {
       left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
       left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
-      mi_step = AOMMIN(xd->height, left_block_height);
+      mi_step = left_block_height;
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
