@@ -294,7 +294,7 @@ static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
 static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
 static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
 
-
+// Upsamples base matrix using indexing according to input and output dimensions.
 static void upsample(const int input_w, const int input_h, const int output_w, const int output_h,
               const qm_val_t* input, qm_val_t* output) {
   assert(input_w >= output_w && input_h >= output_h);
@@ -310,6 +310,7 @@ static void upsample(const int input_w, const int input_h, const int output_w, c
   }
 }
 
+// Downsamples base matrix using indexing according to input and output dimensions
 static void downsample(const int inw, const int inh, const int outw,
                        const int outh, const int offsetw, const int offseth,
                        const qm_val_t *input, qm_val_t *output) {
@@ -324,6 +325,8 @@ static void downsample(const int inw, const int inh, const int outw,
   }
 }
 
+// Given output tx size and QM level, output the correctly scaled matrix based
+// on the source matrices.
 void scale_tx(const int txsize, const int level,
               const int plane, qm_val_t *output) {
   int height = tx_size_high[txsize];
@@ -345,6 +348,7 @@ void scale_tx(const int txsize, const int level,
   }
 }
 
+// Inverts the iwt matrix to get the wt matrix.
 void calc_wt_matrix(const int txsize, const qm_val_t *iwt_matrix,
                     qm_val_t *wt_matrix) {
   const int size = tx_size_2d[txsize];
@@ -382,6 +386,7 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes) {
         } else {
           assert(current + size <= QM_TOTAL_SIZE);
 #if CONFIG_QM_SIMPLIFY
+          // Generate the iwt and wt matrices from the base matrices.
           int plane = (c >= 1);
           scale_tx(t, q, plane, &iwt_matrix_ref[q][c >= 1][current]);
           calc_wt_matrix(t, &iwt_matrix_ref[q][c >= 1][current], &wt_matrix_ref[q][c >= 1][current]);
