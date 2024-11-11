@@ -412,6 +412,8 @@ set_aom_config_var(
   CONFIG_FRAME_HEADER_SIGNAL_OPT 1
   "Enable the signaling optimization for certain frame header syntax elements")
 
+set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 

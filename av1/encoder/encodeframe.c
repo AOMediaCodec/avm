@@ -1311,6 +1311,34 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
+#if CONFIG_TIP_LD
+#define TIP_LD_FRAME_DECISION_THRESHOLD 1
+// This is an encoder-only function:
+// Based on the statistics of the number of blocks coded in TIP mode in
+// previous frames, a decision is made whether TIP mode should be enabled.
+static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int cur_order_hint = cm->current_frame.display_order_hint;
+  if (cm->has_both_sides_refs) return 1;
+  if (cur_order_hint < INTER_REFS_PER_FRAME) return 1;
+
+  if (cur_order_hint >= INTER_REFS_PER_FRAME) {
+    const int mvs_rows = cm->mi_params.mi_rows;
+    const int mvs_cols = cm->mi_params.mi_cols;
+    const int mvs_total = mvs_rows * mvs_cols;
+
+    for (int index = 0; index < INTER_REFS_PER_FRAME; ++index) {
+      const int percent = (cpi->tip_mode_count[index] * 100) / mvs_total;
+      if (percent >= TIP_LD_FRAME_DECISION_THRESHOLD) {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+#endif  // CONFIG_TIP_LD
+
 static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
   AV1_COMMON *const cm = &cpi->common;
@@ -1319,17 +1347,27 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   cm->tip_interp_filter = MULTITAP_SHARP;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
-  if (cm->seq_params.enable_tip) {
+  if (cm->seq_params.enable_tip
+#if CONFIG_TIP_LD
+      && could_tip_mode_be_selected(cpi)
+#endif  // CONFIG_TIP_LD
+  ) {
     if (cm->features.allow_ref_frame_mvs &&
-        cm->seq_params.order_hint_info.enable_order_hint && cm->has_bwd_ref) {
+        cm->seq_params.order_hint_info.enable_order_hint &&
+#if CONFIG_TIP_LD
+        (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)
+#else
+        cm->has_both_sides_refs
+#endif  // CONFIG_TIP_LD
+    ) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, av1_enc_setup_tip_frame_time);
 #endif
       av1_setup_tip_motion_field(cm, 1);
       if (cm->features.tip_frame_mode) {
-#if CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         cm->features.use_optflow_tip = 1;
-#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av1_enc_calc_subpel_params);
       }
@@ -1351,6 +1389,13 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
     av1_fill_tpl_mvs_sample_gap(cm);
   }
 #endif  // CONFIG_TMVP_MEM_OPT
+
+#if CONFIG_TIP_LD
+  const int cur_order_hint = cm->current_frame.display_order_hint;
+  if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
+    cpi->tip_mode_count[cur_order_hint] = 0;
+  }
+#endif  // CONFIG_TIP_LD
 }
 
 static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {

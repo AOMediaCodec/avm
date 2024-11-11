@@ -2544,7 +2544,7 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
   if (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
-      !is_tip_ref_frame(rf[0]) && !cm->has_bwd_ref) {
+      !is_tip_ref_frame(rf[0]) && !cm->has_both_sides_refs) {
     const int cur_to_ref_offset = abs(compute_cur_to_ref_dist(cm, rf[0]));
     if (cur_to_ref_offset <= 2) return 1;
   }
@@ -5198,7 +5198,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
   }
 
-  cm->has_bwd_ref = cm->ref_frames_info.num_future_refs ? 1 : 0;
+  cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
+                            (cm->ref_frames_info.num_past_refs > 0);
 
 #if CONFIG_TMVP_MEM_OPT
   (void)ref_buf;
@@ -5281,10 +5282,21 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   int checked_count = 0;
 
   if (cm->seq_params.enable_tip) {
+#if CONFIG_TIP_LD
+    if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
+      if (cm->has_both_sides_refs) {
+        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
+      } else if (cm->ref_frames_info.num_past_refs >= 2) {
+        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
+      }
+#else
     if (cur_frame_sort_idx >= 0 &&
         cur_frame_sort_idx < cm->ref_frames_info.num_total_refs - 1) {
       cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
       cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
+#endif  // CONFIG_TIP_LD
       int start_frame, target_frame;
       int side;
       if (rf_topo_stack_idx[cm->tip_ref.ref_frame[0]] >

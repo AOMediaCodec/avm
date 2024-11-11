@@ -3245,6 +3245,16 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
+#if CONFIG_TIP_LD
+    const int cur_order_hint = cm->current_frame.display_order_hint;
+    if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
+      const int mvs_rows = cm->mi_params.mi_rows;
+      const int mvs_cols = cm->mi_params.mi_cols;
+      cpi->tip_mode_count[cur_order_hint] = mvs_rows * mvs_cols;
+    }
+#endif  // CONFIG_TIP_LD
+
 #if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp == 0) {
       const int avg_u_ac_delta_q =
@@ -3267,6 +3277,31 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
           avg_base_qindex;
     }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
+
+#if CONFIG_TIP_LD
+    cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+    set_primary_ref_frame(cpi);
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+      // use the default frame context values
+      *cm->fc = *cm->default_frame_context;
+    } else {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+      *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
+                    ->frame_context;
+#else
+      *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+    }
+    if (!cm->fc->initialized)
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Uninitialized entropy context.");
+#else
+    av1_setup_past_independence(cm);
+#endif  // CONFIG_TIP_LD
+    if (!cm->tiles.large_scale) {
+      cm->cur_frame->frame_context = *cm->fc;
+    }
+
     const int num_planes = av1_num_planes(cm);
     av1_copy_tip_frame_tmvp_mvs(cm);
 #if CONFIG_TIP_DIRECT_FRAME_MV
@@ -3312,10 +3347,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
     cpi->gm_info.search_done = 0;
-    av1_setup_past_independence(cm);
-    if (!cm->tiles.large_scale) {
-      cm->cur_frame->frame_context = *cm->fc;
-    }
 
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
@@ -3327,7 +3358,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     if (rate != NULL) {
       *rate = tip_as_output_rate;
     }
-    cm->features.tip_frame_mode = TIP_FRAME_AS_REF;
   }
 #if CONFIG_TIP_DIRECT_FRAME_MV
   else {

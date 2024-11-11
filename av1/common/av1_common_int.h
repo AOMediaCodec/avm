@@ -1877,9 +1877,9 @@ typedef struct AV1Common {
 #endif
 
   /*!
-   * Flag to indicate if current frame has backward ref frame
+   * Flag to indicate if current frame has forward and backward ref frames
    */
-  int has_bwd_ref;
+  int has_both_sides_refs;
   /*!
    * TIP reference frame
    */

@@ -4514,7 +4514,11 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
                                                     int plane,
                                                     int tip_ref_frame) {
   if (tip_ref_frame) {
+#if CONFIG_TIP_LD
+    return (plane == 0 && cm->has_both_sides_refs);
+#else
     return (plane == 0);
+#endif  // CONFIG_TIP_LD
   } else {
     int apply_sub_block_refinemv =
         mi->refinemv_flag && (!build_for_obmc) &&
@@ -4970,7 +4974,14 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_COMPOUND_4XN
                               has_second_ref(mi)) ||
                           tip_ref_frame;
-  if (tip_ref_frame) mi->comp_refine_type = COMP_REFINE_SUBBLK2P;
+  if (tip_ref_frame) {
+#if CONFIG_TIP_LD
+    mi->comp_refine_type =
+        cm->has_both_sides_refs ? COMP_REFINE_SUBBLK2P : COMP_REFINE_NONE;
+#else
+    mi->comp_refine_type = COMP_REFINE_SUBBLK2P;
+#endif  // CONFIG_TIP_LD
+  }
   const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
   assert(IMPLIES(is_intrabc, !is_compound));
   struct macroblockd_plane *const pd = &xd->plane[plane];

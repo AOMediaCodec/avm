@@ -76,6 +76,47 @@ static void tip_find_closest_bi_dir_ref_frames(AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_TIP_LD
+static void tip_find_two_closest_past_ref_frames(AV1_COMMON *cm,
+                                                 int ref_order_hints[2],
+                                                 MV_REFERENCE_FRAME rf[2]) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm)) return;
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_order_hint = cm->current_frame.display_order_hint;
+#else
+  const int cur_order_hint = cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  // Identify two nearest past references.
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
+    if (buf == NULL) continue;
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_order_hint = buf->display_order_hint;
+#else
+    const int ref_order_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_to_cur_dist =
+        get_relative_dist(order_hint_info, ref_order_hint, cur_order_hint);
+    if (ref_to_cur_dist < 0) {
+      if (rf[0] == NONE_FRAME ||
+          get_relative_dist(order_hint_info, ref_order_hint,
+                            ref_order_hints[0]) > 0) {
+        ref_order_hints[0] = ref_order_hint;
+        rf[0] = i;
+      } else if (rf[1] == NONE_FRAME ||
+                 get_relative_dist(order_hint_info, ref_order_hint,
+                                   ref_order_hints[1]) > 0) {
+        ref_order_hints[1] = ref_order_hint;
+        rf[1] = i;
+      }
+    }
+  }
+}
+#endif  // CONFIG_TIP_LD
+
 static AOM_INLINE int tip_find_reference_frame(AV1_COMMON *cm, int start_frame,
                                                int target_frame_order) {
   const RefCntBuffer *const start_frame_buf =
@@ -201,7 +242,16 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
 void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm) {
   int nearest_ref_order_hints[2] = { -1, INT_MAX };
   MV_REFERENCE_FRAME nearest_rf[2] = { NONE_FRAME, NONE_FRAME };
+#if CONFIG_TIP_LD
+  if (cm->has_both_sides_refs) {
+    tip_find_closest_bi_dir_ref_frames(cm, nearest_ref_order_hints, nearest_rf);
+  } else if (cm->ref_frames_info.num_past_refs >= 2) {
+    tip_find_two_closest_past_ref_frames(cm, nearest_ref_order_hints,
+                                         nearest_rf);
+  }
+#else
   tip_find_closest_bi_dir_ref_frames(cm, nearest_ref_order_hints, nearest_rf);
+#endif  // CONFIG_TIP_LD
   if (nearest_rf[0] != NONE_FRAME && nearest_rf[1] != NONE_FRAME) {
     cm->tip_ref.ref_frame[0] = nearest_rf[0];
     cm->tip_ref.ref_frame[1] = nearest_rf[1];
@@ -613,8 +663,19 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
       const int cur_to_ref1_offset = get_relative_dist(
           order_hint_info, cur_order_hint, ref1_frame_order_hint);
 
+#if CONFIG_TIP_LD
+      int ref_frames_offset = 0;
+      if (cm->has_both_sides_refs) {
+        ref_frames_offset = get_relative_dist(
+            order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
+      } else {
+        ref_frames_offset = get_relative_dist(
+            order_hint_info, ref0_frame_order_hint, ref1_frame_order_hint);
+      }
+#else
       const int ref_frames_offset = get_relative_dist(
           order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
+#endif  // CONFIG_TIP_LD
       tip_ref->ref_frame_buffer[0] = ref0_frame_buf;
       tip_ref->ref_frame_buffer[1] = ref1_frame_buf;
       tip_ref->ref_scale_factor[0] =
@@ -651,6 +712,11 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold) {
     av1_fill_tpl_mvs_sample_gap(cm);
 #endif  // CONFIG_TMVP_MEM_OPT
     tip_motion_field_within_frame(cm);
+
+#if CONFIG_OPTFLOW_ON_TIP && CONFIG_TIP_LD
+    cm->features.use_optflow_tip =
+        cm->features.tip_frame_mode && cm->has_both_sides_refs;
+#endif  // CONFIG_OPTFLOW_ON_TIP && CONFIG_TIP_LD
   }
 }
 
@@ -1042,7 +1108,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   uint16_t dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
   uint16_t dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
 #endif  // CONFIG_SUBBLK_REF_EXT
+#if CONFIG_TIP_LD
+  const int apply_refinemv = (plane == 0 && cm->has_both_sides_refs);
+#else
   int apply_refinemv = (plane == 0);
+#endif  // CONFIG_TIP_LD
   ReferenceArea ref_area[2];
   if (apply_refinemv) {
     MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));

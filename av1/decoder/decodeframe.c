@@ -7175,6 +7175,67 @@ static INLINE void read_screen_content_params(AV1_COMMON *const cm,
   }
 }
 
+static void set_primary_ref_frame_and_ctx(AV1_COMMON *const cm) {
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  CurrentFrame *const current_frame = &cm->current_frame;
+  FeatureFlags *const features = &cm->features;
+
+  if (!seq_params->reduced_still_picture_hdr) {
+    features->derived_primary_ref_frame = choose_primary_ref_frame(cm);
+
+    if (features->primary_ref_frame == PRIMARY_REF_NONE) {
+      features->primary_ref_frame = features->derived_primary_ref_frame;
+    }
+  }
+
+  // For primary_ref_frame and derived_primary_ref_frame, if one of them is
+  // PRIMARY_REF_NONE, the other one is also PRIMARY_REF_NONE.
+  if (features->derived_primary_ref_frame == PRIMARY_REF_NONE ||
+      features->primary_ref_frame == PRIMARY_REF_NONE) {
+    features->primary_ref_frame = PRIMARY_REF_NONE;
+    features->derived_primary_ref_frame = PRIMARY_REF_NONE;
+  }
+  assert(IMPLIES(features->derived_primary_ref_frame == PRIMARY_REF_NONE,
+                 features->primary_ref_frame == PRIMARY_REF_NONE));
+  assert(IMPLIES(features->primary_ref_frame == PRIMARY_REF_NONE,
+                 features->derived_primary_ref_frame == PRIMARY_REF_NONE));
+
+  if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
+      features->primary_ref_frame != PRIMARY_REF_NONE) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Invalid primary_ref_frame");
+  }
+
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    // use the default frame context values
+    av1_setup_past_independence(cm);
+  } else {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
+                  ->frame_context;
+#else
+    *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+  }
+
+  if (!cm->fc->initialized) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Uninitialized entropy context.");
+  }
+
+  if (current_frame->frame_type != KEY_FRAME) {
+    cm->prev_frame =
+        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame);
+    if (features->derived_primary_ref_frame != PRIMARY_REF_NONE &&
+        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame) ==
+            NULL) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Reference frame containing this frame's initial "
+                         "frame context is unavailable.");
+    }
+  }
+}
+
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
 static int read_uncompressed_header(AV1Decoder *pbi,
@@ -7907,9 +7968,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         features->use_optflow_tip = 1;
-#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         if (features->tip_frame_mode >= TIP_FRAME_MODES) {
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP mode.");
@@ -7953,8 +8014,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
           cm->tip_interp_filter =
               aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
         }
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
       }
@@ -8024,10 +8085,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                 aom_rb_read_bit(rb) ? REFINE_ALL : REFINE_NONE;
           }
 #else
-        features->opfl_refine_type = aom_rb_read_literal(rb, 2);
-        if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Invalid frame level optical flow refine type");
+          features->opfl_refine_type = aom_rb_read_literal(rb, 2);
+          if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
+            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                               "Invalid frame level optical flow refine type");
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         } else {
           features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
@@ -8099,7 +8160,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_TIP_DIRECT_FRAME_MV
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
 #else
-YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+  YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
   tip_frame_buf->bit_depth = seq_params->bit_depth;
   tip_frame_buf->color_primaries = seq_params->color_primaries;
@@ -8127,10 +8188,10 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
-  cm->cdef_info.cdef_bits = 0;
-  cm->cdef_info.cdef_strengths[0] = 0;
-  cm->cdef_info.nb_cdef_strengths = 1;
-  cm->cdef_info.cdef_uv_strengths[0] = 0;
+    cm->cdef_info.cdef_bits = 0;
+    cm->cdef_info.cdef_strengths[0] = 0;
+    cm->cdef_info.nb_cdef_strengths = 1;
+    cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
@@ -8162,10 +8223,10 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
 #else
-  cm->quant_params.base_qindex = aom_rb_read_literal(
-      rb,
-      cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
-  cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+    cm->quant_params.base_qindex = aom_rb_read_literal(
+        rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                   : QINDEX_BITS);
+    cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -8177,10 +8238,6 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
-    av1_setup_past_independence(cm);
-    if (!cm->tiles.large_scale) {
-      cm->cur_frame->frame_context = *cm->fc;
-    }
     // TIP frame will be output for displaying
     // No futher processing needed
     return 0;
@@ -8217,42 +8274,7 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   xd->bd = (int)seq_params->bit_depth;
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-  if (!seq_params->reduced_still_picture_hdr) {
-    features->derived_primary_ref_frame = choose_primary_ref_frame(cm);
-
-    if (!signal_primary_ref_frame)
-      features->primary_ref_frame = features->derived_primary_ref_frame;
-  }
-
-  // For primary_ref_frame and derived_primary_ref_frame, if one of them is
-  // PRIMARY_REF_NONE, the other one is also PRIMARY_REF_NONE.
-  if (features->derived_primary_ref_frame == PRIMARY_REF_NONE ||
-      features->primary_ref_frame == PRIMARY_REF_NONE) {
-    features->primary_ref_frame = PRIMARY_REF_NONE;
-    features->derived_primary_ref_frame = PRIMARY_REF_NONE;
-  }
-  assert(IMPLIES(features->derived_primary_ref_frame == PRIMARY_REF_NONE,
-                 features->primary_ref_frame == PRIMARY_REF_NONE));
-  assert(IMPLIES(features->primary_ref_frame == PRIMARY_REF_NONE,
-                 features->derived_primary_ref_frame == PRIMARY_REF_NONE));
-
-  if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
-      features->primary_ref_frame != PRIMARY_REF_NONE) {
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                       "Invalid primary_ref_frame");
-  }
-
-  if (current_frame->frame_type != KEY_FRAME) {
-    cm->prev_frame =
-        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame);
-    if (features->derived_primary_ref_frame != PRIMARY_REF_NONE &&
-        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame) ==
-            NULL) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Reference frame containing this frame's initial "
-                         "frame context is unavailable.");
-    }
-  }
+  set_primary_ref_frame_and_ctx(cm);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   CommonContexts *const above_contexts = &cm->above_contexts;
@@ -8266,10 +8288,6 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
       aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate context buffers");
     }
-  }
-
-  if (features->primary_ref_frame == PRIMARY_REF_NONE) {
-    av1_setup_past_independence(cm);
   }
 
   setup_segmentation(cm, rb);
@@ -8317,9 +8335,9 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
-  cm->cdef_info.cdef_bits = 0;
-  cm->cdef_info.cdef_strengths[0] = 0;
-  cm->cdef_info.cdef_uv_strengths[0] = 0;
+    cm->cdef_info.cdef_bits = 0;
+    cm->cdef_info.cdef_strengths[0] = 0;
+    cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   }
   if (features->all_lossless || !seq_params->enable_restoration) {
@@ -8433,7 +8451,13 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
-  if (cm->features.allow_ref_frame_mvs && cm->has_bwd_ref) {
+  if (cm->features.allow_ref_frame_mvs &&
+#if CONFIG_TIP_LD
+      (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)
+#else
+      cm->has_both_sides_refs
+#endif  // CONFIG_TIP_LD
+  ) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
 #if !CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
@@ -8460,7 +8484,11 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
+#if CONFIG_TIP_LD
+    set_primary_ref_frame_and_ctx(cm);
+#else
     av1_setup_past_independence(cm);
+#endif  // CONFIG_TIP_LD
     if (!cm->tiles.large_scale) {
       cm->cur_frame->frame_context = *cm->fc;
     }
@@ -8560,20 +8588,6 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
-    // use the default frame context values
-    *cm->fc = *cm->default_frame_context;
-  } else {
-#if CONFIG_PRIMARY_REF_FRAME_OPT
-    *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
-                  ->frame_context;
-#else
-    *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
-  }
-  if (!cm->fc->initialized)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "Uninitialized entropy context.");
 
   pbi->dcb.corrupted = 0;
   return uncomp_hdr_size;

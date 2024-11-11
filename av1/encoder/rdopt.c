@@ -10752,12 +10752,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               ? INTRA_FRAME
               : ((rf == cm->ref_frames_info.num_total_refs) ? TIP_FRAME : rf);
       if (is_tip_ref_frame(ref_frame) &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-          (!is_tip_allowed_bsize(mbmi) ||
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-          (!is_tip_allowed_bsize(bsize) ||
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-           !is_tip_mode(this_mode) || !cm->features.tip_frame_mode))
+          (!is_tip_allowed(cm, xd) || !is_tip_mode(this_mode)))
         continue;
 
       if (this_mode < INTRA_MODE_END && ref_frame != INTRA_FRAME) continue;
