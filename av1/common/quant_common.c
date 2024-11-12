@@ -298,7 +298,7 @@ static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
 static void upsample(const int input_w, const int input_h, const int output_w,
                      const int output_h, const qm_val_t *input,
                      qm_val_t *output) {
-  assert(input_w >= output_w && input_h >= output_h);
+  assert(input_w <= output_w && input_h <= output_h);
   int stride_h = output_h / input_h;
   int stride_w = output_w / input_w;
 
@@ -313,16 +313,17 @@ static void upsample(const int input_w, const int input_h, const int output_w,
 
 // Downsamples base matrix using indexing according to input and output
 // dimensions
-static void downsample(const int inw, const int inh, const int outw,
-                       const int outh, const int offsetw, const int offseth,
+static void downsample(const int input_w, const int input_h, const int output_w,
+                       const int output_h, const int offsetw, const int offseth,
                        const qm_val_t *input, qm_val_t *output) {
-  const int stride_w = inw / outw;
-  const int stride_h = inh / outh;
+  assert(input_w >= output_w && input_h >= output_h);
+  const int stride_w = input_w / output_w;
+  const int stride_h = input_h / output_h;
 
-  for (int j = 0; j < outh; ++j) {
-    for (int i = 0; i < outw; ++i) {
-      output[j * outw + i] =
-          input[((j * stride_h + offseth) * inw) + (i * stride_w + offsetw)];
+  for (int j = 0; j < output_h; ++j) {
+    for (int i = 0; i < output_w; ++i) {
+      output[j * output_w + i] = input[((j * stride_h + offseth) * input_w) +
+                                       (i * stride_w + offsetw)];
     }
   }
 }
