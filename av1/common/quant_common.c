@@ -284,7 +284,6 @@ const qm_val_t *av1_get_qmatrix(const CommonQuantParams *quant_params,
    2 * (4 * 8 + 8 * 16 + 16 * 32 + 4 * 16 + 8 * 32))
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-
 #if CONFIG_QM_SIMPLIFY
 // We only use wt_matrix_ref[q] and iwt_matrix_ref[q]
 // for q = 0, ..., NUM_QM_LEVELS - 2.
@@ -294,9 +293,11 @@ static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
 static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
 static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
 
-// Upsamples base matrix using indexing according to input and output dimensions.
-static void upsample(const int input_w, const int input_h, const int output_w, const int output_h,
-              const qm_val_t* input, qm_val_t* output) {
+// Upsamples base matrix using indexing according to input and output
+// dimensions.
+static void upsample(const int input_w, const int input_h, const int output_w,
+                     const int output_h, const qm_val_t *input,
+                     qm_val_t *output) {
   assert(input_w >= output_w && input_h >= output_h);
   int stride_h = output_h / input_h;
   int stride_w = output_w / input_w;
@@ -310,7 +311,8 @@ static void upsample(const int input_w, const int input_h, const int output_w, c
   }
 }
 
-// Downsamples base matrix using indexing according to input and output dimensions
+// Downsamples base matrix using indexing according to input and output
+// dimensions
 static void downsample(const int inw, const int inh, const int outw,
                        const int outh, const int offsetw, const int offseth,
                        const qm_val_t *input, qm_val_t *output) {
@@ -327,24 +329,25 @@ static void downsample(const int inw, const int inh, const int outw,
 
 // Given output tx size and QM level, output the correctly scaled matrix based
 // on the source matrices.
-void scale_tx(const int txsize, const int level,
-              const int plane, qm_val_t *output) {
+void scale_tx(const int txsize, const int level, const int plane,
+              qm_val_t *output) {
   int height = tx_size_high[txsize];
   int width = tx_size_wide[txsize];
-  if(width == 4 && height == 4){
+  if (width == 4 && height == 4) {
     // TX4X4 is the only case using downsampling
-    downsample(8, 8, 4, 4, 0, 0, source_8x8_iwt_base_matrix[level][plane], output);
+    downsample(8, 8, 4, 4, 0, 0, source_8x8_iwt_base_matrix[level][plane],
+               output);
   } else if (width == height) {
     // source_8x8_iwt_base_matrix
-    upsample(8, 8, width, height,
-             source_8x8_iwt_base_matrix[level][plane], output);
+    upsample(8, 8, width, height, source_8x8_iwt_base_matrix[level][plane],
+             output);
   } else if (width < height) {
     upsample(4, 8, width, height, source_4x8_iwt_base_matrix[level][plane],
              output);
   } else {
     /*height > width*/
-    upsample(8, 4, width, height,
-             source_8x4_iwt_base_matrix[level][plane], output);
+    upsample(8, 4, width, height, source_8x4_iwt_base_matrix[level][plane],
+             output);
   }
 }
 
@@ -389,8 +392,9 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes) {
           // Generate the iwt and wt matrices from the base matrices.
           int plane = (c >= 1);
           scale_tx(t, q, plane, &iwt_matrix_ref[q][c >= 1][current]);
-          calc_wt_matrix(t, &iwt_matrix_ref[q][c >= 1][current], &wt_matrix_ref[q][c >= 1][current]);
-#endif // CONFIG_QM_SIMPLIFY
+          calc_wt_matrix(t, &iwt_matrix_ref[q][c >= 1][current],
+                         &wt_matrix_ref[q][c >= 1][current]);
+#endif  // CONFIG_QM_SIMPLIFY
 
           quant_params->gqmatrix[q][c][t] = &wt_matrix_ref[q][c >= 1][current];
           quant_params->giqmatrix[q][c][t] =
@@ -405,7 +409,7 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes) {
 #if CONFIG_QM_SIMPLIFY
 
 /*
-  Base matrices for QM levels 0-13 can be generated from a parametric 
+  Base matrices for QM levels 0-13 can be generated from a parametric
   equation. With the parameters below.
   QM indices 14 and 15 use the original AV1 8x8 matrices as a base due
   to those being a step functions.
@@ -443,9 +447,8 @@ void generate_base_matrix(const int outw, const int outh, const int* para,
                        const int* para_fp, qm_val_t* output) {
   for (int y = 0; y < outh; ++y) {
     for (int x = 0; x < outw; ++x) {
-      // The model is fitted in 32x32 domain so 8x8 idx has to be multiplied by 4.
-      int y_idx_in_model = y * 4;
-      int x_idx_in_model = x * 4;
+      // The model is fitted in 32x32 domain so 8x8 idx has to be multiplied
+by 4. int y_idx_in_model = y * 4; int x_idx_in_model = x * 4;
 
       int val = (para[0] * x_idx_in_model * x_idx_in_model * y_idx_in_model *
                      y_idx_in_model >>
@@ -583,12 +586,11 @@ static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
 
 */
 
-
 /* Provide 15 sets of base quantization matrices for chroma and luma
     and each TX size. Matrices for different TX sizes are in fact
     scaled from the 8x8, 8x4, and 4x8 sizes using indexing,
-    Intra and inter matrix sets are the ame but changing 
-    DEFAULT_QM_INTER_OFFSET from zero allows for different matrices 
+    Intra and inter matrix sets are the ame but changing
+    DEFAULT_QM_INTER_OFFSET from zero allows for different matrices
     for inter and intra blocks in the same frame.
     Matrices for different QM levels have been rescaled in the
     frequency domain according to different nominal viewing
