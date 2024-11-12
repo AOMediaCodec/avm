@@ -28,6 +28,9 @@
 #include <stdio.h>
 
 #include "av1/common/enums.h"
+#if CONFIG_DQ
+#include "av1/common/quant_common.h"
+#endif
 #include "config/aom_config.h"
 
 #include "av1/encoder/encoder.h"
@@ -629,11 +632,16 @@ int main(int argc, const char **argv) {
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = PARTITION_CONTEXTS;
   cts_each_dim[2] = 2;
+  // Account for unused partition contexts.
+  int do_split_reduce = 40;
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+  do_split_reduce += 60;
+#endif
   optimize_cdf_table(
       &fc.do_split[0][0][0], probsfile, 3, cts_each_dim,
       "static aom_cdf_prob default_do_split_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
-      0, &total_count, 40, mem_wanted,
+      0, &total_count, do_split_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = SQUARE_SPLIT_CONTEXTS;
@@ -658,34 +666,47 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
+  int do_ext_partition_reduce = 264;
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+  do_ext_partition_reduce += 64;
+#endif
   optimize_cdf_table(&fc.do_ext_partition[0][0][0][0], probsfile, 4,
                      cts_each_dim,
                      "static aom_cdf_prob default_do_ext_partition_cdf"
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 264, mem_wanted,
+                     0, &total_count, do_ext_partition_reduce, mem_wanted,
                      "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
-  optimize_cdf_table(&fc.do_uneven_4way_partition[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
-                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-                     "CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 320, mem_wanted,
-                     "Partitions");  // minus unused context entries
+  int do_uneven_4way_partition_reduce = 320;
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+  do_uneven_4way_partition_reduce += 24;
+#endif
+  optimize_cdf_table(
+      &fc.do_uneven_4way_partition[0][0][0][0], probsfile, 4, cts_each_dim,
+      "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+      "CONTEXTS][CDF_SIZE(2)]",
+      0, &total_count, do_uneven_4way_partition_reduce, mem_wanted,
+      "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = NUM_UNEVEN_4WAY_PARTS;
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+  int do_uneven_4way_partition_type_reduce = 320;
+#else
+  do_uneven_4way_partition_reduce += 24;
+#endif
   optimize_cdf_table(
       &fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
       "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
       "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
       "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
-      0, &total_count, 320, mem_wanted,
+      0, &total_count, do_uneven_4way_partition_type_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
 #else
   /* block partition */
@@ -2193,24 +2214,28 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = LF_SIG_COEF_CONTEXTS_UV;
   cts_each_dim[2] = DQ_CTXS;
   cts_each_dim[3] = LF_BASE_SYMBOLS;
+  int dq_minus_entries_uv =
+      (TCQ_DIS_CHR ? LF_SIG_COEF_CONTEXTS_UV : 0) * (LF_BASE_SYMBOLS - 1);
   optimize_cdf_table(
       &fc.coeff_base_lf_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs"
       "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(LF_BASE_"
       "SYMBOLS)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
+      1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 
   // HF Base, BR
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = SIG_COEF_CONTEXTS_UV;
   cts_each_dim[2] = DQ_CTXS;
   cts_each_dim[3] = NUM_BASE_LEVELS + 2;
+  dq_minus_entries_uv =
+      (TCQ_DIS_CHR ? SIG_COEF_CONTEXTS_UV : 0) * (NUM_BASE_LEVELS + 2 - 1);
   optimize_cdf_table(
       &fc.coeff_base_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs"
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(NUM_BASE_"
       "LEVELS + 2)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
+      1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_SIG_COEF_CONTEXTS_UV;
@@ -2300,12 +2325,14 @@ int main(int argc, const char **argv) {
   cts_each_dim[2] = LF_SIG_COEF_CONTEXTS;
   cts_each_dim[3] = DQ_CTXS;
   cts_each_dim[4] = LF_BASE_SYMBOLS;
+  int dq_minus_entries_lf = (TCQ_DIS_1D ? LF_SIG_COEF_CONTEXTS_1D : 0) *
+                            TX_SIZES * (LF_BASE_SYMBOLS - 1);
   optimize_cdf_table(
       &fc.coeff_base_lf_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs"
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS][DQ_CTXS]"
       "[CDF_SIZE(LF_BASE_SYMBOLS)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
+      1, &total_count, dq_minus_entries_lf, mem_wanted, "Coefficients");
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -2405,12 +2432,14 @@ int main(int argc, const char **argv) {
   cts_each_dim[2] = SIG_COEF_CONTEXTS;
   cts_each_dim[3] = DQ_CTXS;
   cts_each_dim[4] = NUM_BASE_LEVELS + 2;
+  int dq_minus_entries_def =
+      (TCQ_DIS_1D ? 5 : 0) * TX_SIZES * (NUM_BASE_LEVELS + 2 - 1);
   optimize_cdf_table(
       &fc.coeff_base_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_cdfs"
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][DQ_CTXS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
+      1, &total_count, dq_minus_entries_def, mem_wanted, "Coefficients");
 #elif CONFIG_CHROMA_CODING
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
