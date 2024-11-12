@@ -28,6 +28,8 @@ extern "C" {
 #define DQENABLE 0      // Determine whether to enable based on tx_size
 #define NEWQINDEX 1     // QP shift
 #define QINDEX_INCR 2   // tunable QP index increment
+#define QINDEX_INCR_8_BITS 2     // tunable QP index increment
+#define QINDEX_INCR_10_BITS 4     // tunable QP index increment
 #define NEWHR 1         // 1:parity is determined by (base + LR)
 #define TCQ_DIS_CHR 1   // 1:disable TCQ for chroma blocks
 #define TCQ_DIS_1D 1    // [WIP] 1:disable TCQ for 1D scan blocks
@@ -114,13 +116,29 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
 
 #if CONFIG_DQ
+static INLINE int get_new_qindex(int qindex,
+                                 aom_bit_depth_t bit_depth) {
+    switch (bit_depth) {
+      case AOM_BITS_8:
+        return clamp(qindex + QINDEX_INCR_8_BITS, 1, MAXQ_8_BITS);
+      case AOM_BITS_10:
+        return clamp(qindex + QINDEX_INCR_10_BITS, 1, MAXQ_10_BITS);
+      case AOM_BITS_12:
+        return clamp(qindex + QINDEX_INCR, 1, MAXQ);
+      default:
+        assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
+      return qindex; // fall back to no change on qindex
+    }
+  }
+
+
 static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
                                            int base_dc_delta_q,
                                            aom_bit_depth_t bit_depth,
                                            int use_tcq_offset) {
   if (use_tcq_offset && qindex != 0) {
 #if NEWQINDEX
-    qindex += QINDEX_INCR;
+    qindex = get_new_qindex(qindex, bit_depth);
 #endif
   }
   return av1_dc_quant_QTX(qindex, delta, base_dc_delta_q, bit_depth);
@@ -131,7 +149,7 @@ static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
                                            int use_tcq_offset) {
   if (use_tcq_offset && qindex != 0) {
 #if NEWQINDEX
-    qindex += QINDEX_INCR;
+    qindex = get_new_qindex(qindex, bit_depth);
 #endif
   }
   return av1_ac_quant_QTX(qindex, delta, bit_depth);
