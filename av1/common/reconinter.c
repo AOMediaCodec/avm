@@ -1132,7 +1132,7 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
   // Remaining bit shifts (may be used in the next stage of multiplcation)
   int rem = AOMMAX(0, msb_a + msb_b - shift + 1 - max_bd);
   if (rem_shift) *rem_shift += rem;
-  if (msb_a + msb_b + 1 <= max_bd)
+  if (msb_a + msb_b + 2 < max_bd)
     return ROUND_POWER_OF_TWO_SIGNED_64(a * b, shift);
 
   // To determine s1/s2/s3 in ((a>>s1)*(b>>s2))>>s3, consider the equation
