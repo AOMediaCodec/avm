@@ -417,6 +417,113 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
   }
 }
 
+void ccso_filter_block_hbd_with_buf_bo_only_avx2(
+    const uint16_t *src_y, uint16_t *dts_yuv, const uint8_t *src_cls0,
+    const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,
+    const int ccso_stride, const int x, const int y, const int pic_width,
+    const int pic_height, const int8_t *filter_offset, const int blk_size,
+    const int y_uv_hscale, const int y_uv_vscale, const int max_val,
+    const uint8_t shift_bits, const uint8_t ccso_bo_only) {
+  (void)ccso_bo_only;
+  (void)src_cls0;
+  (void)src_cls1;
+  (void)ccso_stride;
+
+  __m256i all0 = _mm256_set1_epi16(0);
+  __m256i allmax = _mm256_set1_epi16(((short)max_val));
+  __m128i shufsub =
+      _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 13, 12, 9, 8, 5, 4, 1, 0);
+  //__m256i masksub1 = _mm256_set_m128i(shufsub, shufsub);
+  __m256i masksub1 =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(shufsub), (shufsub), 0x1);
+  __m256i masksub2 = _mm256_set_epi32(0, 0, 0, 0, 5, 4, 1, 0);
+
+  int y_offset;
+  int x_offset, x_remainder;
+  if (y + blk_size >= pic_height)
+    y_offset = pic_height - y;
+  else
+    y_offset = blk_size;
+
+  if (x + blk_size >= pic_width) {
+    x_offset = ((pic_width - x) >> 4) << 4;
+    x_remainder = pic_width - x - x_offset;
+  } else {
+    x_offset = blk_size;
+    x_remainder = 0;
+  }
+  for (int yOff = 0; yOff < y_offset; yOff++) {
+    uint16_t *dst_rec2 = dts_yuv + x + yOff * dst_stride;
+
+    const uint16_t *src_rec2 =
+        src_y + ((yOff << y_uv_vscale) * src_y_stride + (x << y_uv_hscale));
+
+    // int stride = src_y_stride[yOff] << y_uv_vscale;
+    for (int xOff = 0; xOff < x_offset; xOff += 16) {
+      // uint16_t* rec_tmp = &src_rec2[xOff << y_uv_hscale];
+      __m256i rec_curlo = _mm256_loadu_si256(
+          (const __m256i *)(src_rec2 + (xOff << y_uv_hscale)));
+      __m256i rec_cur_final;
+
+      if (y_uv_hscale > 0) {
+        __m256i rec_curhi = _mm256_loadu_si256(
+            (const __m256i *)(src_rec2 + (xOff << y_uv_hscale) + 16));
+        rec_curlo = _mm256_shuffle_epi8(rec_curlo, masksub1);
+        rec_curhi = _mm256_shuffle_epi8(rec_curhi, masksub1);
+        rec_curlo = _mm256_permutevar8x32_epi32(rec_curlo, masksub2);
+        rec_curhi = _mm256_permutevar8x32_epi32(rec_curhi, masksub2);
+        //__m256i rec_cur = _mm256_setr_m128i(_mm256_castsi256_si128(rec_curlo),
+        //                                    _mm256_castsi256_si128(rec_curhi));
+        __m256i rec_cur = _mm256_insertf128_si256(
+            rec_curlo, _mm256_castsi256_si128(rec_curhi), 0x1);
+        rec_cur_final = rec_cur;
+      } else {
+        rec_cur_final = rec_curlo;
+      }
+      __m256i dst_rec = _mm256_loadu_si256((const __m256i *)(dst_rec2 + xOff));
+
+      // const int band_num = src_y[x_pos] >> shift_bits;
+      __m256i num_band = _mm256_srli_epi16(rec_cur_final, shift_bits);
+      __m256i lut_idx_ext = all0;
+
+      // const int lut_idx_ext = (band_num << 4) + (src_cls[0] << 2) +
+      // src_cls[1];
+      num_band = _mm256_slli_epi16(num_band, 4);
+      lut_idx_ext = _mm256_add_epi16(lut_idx_ext, num_band);
+
+      DECLARE_ALIGNED(32, uint16_t, offset_idx[16]);
+      int16_t offset_array[16];
+      _mm256_store_si256((__m256i *)offset_idx, lut_idx_ext);
+      for (int i = 0; i < 16; i++) {
+        offset_array[i] = (int16_t)(filter_offset[offset_idx[i]]);
+      }
+      __m256i offset = _mm256_loadu_si256((const __m256i *)offset_array);
+
+      // uint16_t val = clamp(offset_val + dst_rec2[xOff], 0, (1 <<
+      // cm->seq_params.bit_depth) - 1);
+      __m256i recon = _mm256_add_epi16(offset, dst_rec);
+      recon = _mm256_min_epi16(recon, allmax);
+      recon = _mm256_max_epi16(recon, all0);
+
+      // dst_rec2[xOff] = val;
+      _mm256_storeu_si256((__m256i *)(dst_rec2 + xOff), recon);
+    }
+    for (int xOff = x_offset; xOff < x_offset + x_remainder; xOff++) {
+      // cal_filter_support(rec_luma_idx, &src_y[((src_y_stride[yOff] <<
+      // y_uv_vscale) + ((x + xOff) << y_uv_hscale)) + pad_stride],
+      // quant_step_size, inv_quant_step, rec_idx);
+      const int band_num = src_y[((yOff << y_uv_vscale) * src_y_stride +
+                                  ((x + xOff) << y_uv_hscale))] >>
+                           shift_bits;
+      int offset_val = filter_offset[(band_num << 4)];
+      // dts_yuv[dst_stride[yOff] + x + xOff] = clamp(offset_val +
+      // dts_yuv[dst_stride[yOff] + x + xOff], 0, max_val);
+      dts_yuv[yOff * dst_stride + x + xOff] =
+          clamp(offset_val + dts_yuv[yOff * dst_stride + x + xOff], 0, max_val);
+    }
+  }
+}
+
 void ccso_filter_block_hbd_with_buf_avx2(
     const uint16_t *src_y, uint16_t *dts_yuv, const uint8_t *src_cls0,
     const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,

@@ -1754,10 +1754,11 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_ENTROPY_PARA
   cts_each_dim[0] = 3;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.default_ccso_cnts[0][0], probsfile, 2, cts_each_dim,
+  cts_each_dim[1] = CCSO_CONTEXT;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.default_ccso_cnts[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob "
-                     "default_ccso_cdf[3][2]",
+                     "default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
 #else
   cts_each_dim[0] = 2;

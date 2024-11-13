@@ -30,6 +30,11 @@ static const int edge_clf_to_edge_interval[2] = { 3, 2 };
 extern "C" {
 #endif
 
+#if CONFIG_CCSO_IMPROVE
+void av1_copy_ccso_filters(CcsoInfo *to, CcsoInfo *from, int plane,
+                           bool frame_level, bool block_level, int sb_count);
+#endif  // CONFIG_CCSO_IMPROVE
+
 void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd);
 
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
@@ -43,7 +48,12 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
 typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
-                                 const uint8_t thr, const uint8_t filter_sup,
+#if CONFIG_CCSO_IMPROVE
+                                 const uint16_t thr,
+#else
+                                 const uint8_t thr,
+#endif  // CONFIG_CCSO_IMPROVE
+                                 const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf);
 

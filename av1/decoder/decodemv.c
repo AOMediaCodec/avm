@@ -14,6 +14,7 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/cdef.h"
+#include "av1/common/ccso.h"
 #include "av1/common/cdef_block.h"
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
@@ -100,38 +101,106 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
-
+#if CONFIG_CCSO_IMPROVE
+  int blk_idc;
+#endif
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
+#if CONFIG_CCSO_IMPROVE
+    const int log2_filter_unit_size = CCSO_BLK_SIZE + 1;
+    const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[0].subsampling_x) +
+                           (1 << log2_filter_unit_size >> 2) - 1) /
+                          (1 << log2_filter_unit_size >> 2);
+    int sb_idx =
+        (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
+
+    if (!cm->ccso_info.sb_reuse_ccso[0]) {
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 0);
+      blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[0][ccso_ctx], 2,
+                                ACCT_INFO("blk_idc"));
+    } else {
+      CcsoInfo *ref_frame_ccso_info =
+          &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[0])->ccso_info;
+      blk_idc = ref_frame_ccso_info->sb_filter_control[0][sb_idx];
+    }
+#else
     const int blk_idc =
         aom_read_symbol(r, xd->tile_ctx->ccso_cdf[0], 2, ACCT_INFO("blk_idc"));
+#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_y = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_y = blk_idc;
+#if CONFIG_CCSO_IMPROVE
+    cm->cur_frame->ccso_info.sb_filter_control[0][sb_idx] = blk_idc;
+#endif  // CONFIG_CCSO_IMPROVE
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[1]) {
+#if CONFIG_CCSO_IMPROVE
+    const int log2_filter_unit_size = CCSO_BLK_SIZE;
+    const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[1].subsampling_x) +
+                           (1 << log2_filter_unit_size >> 2) - 1) /
+                          (1 << log2_filter_unit_size >> 2);
+    int sb_idx =
+        (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
+
+    if (!cm->ccso_info.sb_reuse_ccso[1]) {
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 1);
+      blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1][ccso_ctx], 2,
+                                ACCT_INFO("blk_idc"));
+    } else {
+      CcsoInfo *ref_frame_ccso_info =
+          &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[1])->ccso_info;
+      blk_idc = ref_frame_ccso_info->sb_filter_control[1][sb_idx];
+    }
+#else
     const int blk_idc =
         aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1], 2, ACCT_INFO("blk_idc"));
+#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_u = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_u = blk_idc;
+#if CONFIG_CCSO_IMPROVE
+    cm->cur_frame->ccso_info.sb_filter_control[1][sb_idx] = blk_idc;
+#endif  // CONFIG_CCSO_IMPROVE
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[2]) {
+#if CONFIG_CCSO_IMPROVE
+    const int log2_filter_unit_size = CCSO_BLK_SIZE;
+    const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[2].subsampling_x) +
+                           (1 << log2_filter_unit_size >> 2) - 1) /
+                          (1 << log2_filter_unit_size >> 2);
+    int sb_idx =
+        (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
+
+    if (!cm->ccso_info.sb_reuse_ccso[2]) {
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 2);
+      blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2][ccso_ctx], 2,
+                                ACCT_INFO("blk_idc"));
+    } else {
+      CcsoInfo *ref_frame_ccso_info =
+          &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[2])->ccso_info;
+      blk_idc = ref_frame_ccso_info->sb_filter_control[2][sb_idx];
+    }
+#else
     const int blk_idc =
         aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2], 2, ACCT_INFO("blk_idc"));
+#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_v = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_v = blk_idc;
+#if CONFIG_CCSO_IMPROVE
+    cm->cur_frame->ccso_info.sb_filter_control[2][sb_idx] = blk_idc;
+#endif  // CONFIG_CCSO_IMPROVE
   }
 }
 
@@ -1894,6 +1963,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
+#if CONFIG_CCSO_IMPROVE
+  mbmi->mi_row = xd->mi_row;
+  mbmi->mi_col = xd->mi_col;
+#endif
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -4228,7 +4301,10 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
-
+#if CONFIG_CCSO_IMPROVE
+  mbmi->mi_row = xd->mi_row;
+  mbmi->mi_col = xd->mi_col;
+#endif
 #if CONFIG_SKIP_TXFM_OPT
   if (!mbmi->skip_mode) {
     inter_block = read_is_inter_block(cm, xd, mbmi->segment_id, r);

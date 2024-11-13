@@ -446,6 +446,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ccso;
+
 #if CONFIG_LF_SUB_PU
   /*!\brief enable loop filter on sub-block
    *

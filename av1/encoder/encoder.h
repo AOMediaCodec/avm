@@ -1626,9 +1626,9 @@ typedef struct FRAME_COUNTS {
 
   unsigned int switchable_flex_restore_cnts[MAX_LR_FLEX_SWITCHABLE_BITS]
                                            [MAX_MB_PLANE][2];  // placeholder
-
-  unsigned int default_ccso_cnts[3][2];
-
+#if CONFIG_CCSO_IMPROVE
+  unsigned int default_ccso_cnts[3][CCSO_CONTEXT][2];
+#endif
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
 #if CONFIG_INTRA_TX_IST_PARSE

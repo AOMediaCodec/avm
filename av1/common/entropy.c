@@ -340,9 +340,17 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   RESET_CDF_COUNTER(fc->switchable_flex_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
+#if CONFIG_CCSO_IMPROVE
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    for (int ctx = 0; ctx < CCSO_CONTEXT; ctx++) {
+      RESET_CDF_COUNTER(fc->ccso_cdf[plane][ctx], 2);
+    }
+  }
+#else
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     RESET_CDF_COUNTER(fc->ccso_cdf[plane], 2);
   }
+#endif  // CONFIG_CCSO_IMPROVE
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);

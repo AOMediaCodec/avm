@@ -7312,11 +7312,28 @@ static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_ENTROPY_PARA
+#if CONFIG_CCSO_IMPROVE
+static const aom_cdf_prob default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)] = {
+  { { AOM_CDF2(24690), 37 },
+    { AOM_CDF2(17161), 37 },
+    { AOM_CDF2(10618), 37 },
+    { AOM_CDF2(7830), 37 } },
+  { { AOM_CDF2(26090), 37 },
+    { AOM_CDF2(18122), 37 },
+    { AOM_CDF2(12248), 37 },
+    { AOM_CDF2(8523), 37 } },
+  { { AOM_CDF2(27240), 37 },
+    { AOM_CDF2(18679), 37 },
+    { AOM_CDF2(10831), 37 },
+    { AOM_CDF2(7846), 37 } }
+};
+#else
 static const aom_cdf_prob default_ccso_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(12979), 37 },
   { AOM_CDF2(16118), 37 },
   { AOM_CDF2(15153), 37 },
 };
+#endif  // CONFIG_CCSO_IMPROVE
 #else
 static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif  // CONFIG_ENTROPY_PARA

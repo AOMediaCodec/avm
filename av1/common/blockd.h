@@ -666,11 +666,15 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_RD_DEBUG
   /*! \brief RD info used for debugging */
   RD_STATS rd_stats;
+#endif
+
+#if CONFIG_RD_DEBUG || CONFIG_CCSO_IMPROVE
   /*! \brief The current row in unit of 4x4 blocks for debugging */
   int mi_row;
   /*! \brief The current col in unit of 4x4 blocks for debugging */
   int mi_col;
 #endif
+
 #if CONFIG_INSPECTION
   /*! \brief Whether we are skipping the current rows or columns. */
   int16_t tx_skip[TXK_TYPE_BUF_LEN];

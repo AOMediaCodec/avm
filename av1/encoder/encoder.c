@@ -1557,7 +1557,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if CONFIG_OPTFLOW_ON_TIP
   free_optflow_bufs(cm);
 #endif  // CONFIG_OPTFLOW_ON_TIP
-
   av1_remove_common(cm);
   av1_free_ref_frame_buffers(cm->buffer_pool);
 
@@ -2371,7 +2370,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         }
       }
     }
-    ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv);
+    ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv
+#if CONFIG_ENTROPY_STATS
+                ,
+                &cpi->td
+#endif
+    );
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
     aom_free(ext_rec_y);
   }
@@ -3212,6 +3216,11 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
   if (tip_direct_output_rdcost < normal_coding_rdcost) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+#if CONFIG_CCSO_IMPROVE
+    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+    }
+#endif  // CONFIG_CCSO_IMPROVE
 #if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp == 0) {
       const int avg_u_ac_delta_q =

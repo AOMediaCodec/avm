@@ -311,6 +311,7 @@ set_aom_config_var(CONFIG_BANK_IMPROVE 1
                    "Enable to improve refmv bank and warp parameter bank")
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
+set_aom_config_var(CONFIG_CCSO_IMPROVE 1 "Enable CCSO improvements")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

@@ -24,7 +24,13 @@ extern "C" {
 
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
-                 uint16_t *org_uv[3]);
+                 uint16_t *org_uv[3]
+#if CONFIG_ENTROPY_STATS
+                 ,
+                 ThreadData *td
+#endif
+);
+
 
 #ifdef __cplusplus
 }  // extern "C"

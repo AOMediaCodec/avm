@@ -224,6 +224,38 @@ typedef struct FrameHash {
   int is_present;
 } FrameHash;
 
+#if CONFIG_CCSO_IMPROVE
+/** ccso info */
+typedef struct {
+  bool reuse_ccso[CCSO_NUM_COMPONENTS];
+  bool sb_reuse_ccso[CCSO_NUM_COMPONENTS];
+  /** ccso band offset only option */
+  uint8_t ccso_bo_only[CCSO_NUM_COMPONENTS];
+#if CONFIG_D143_CCSO_FM_FLAG
+  /** ccso frame flag */
+  bool ccso_frame_flag;
+#endif  // CONFIG_D143_CCSO_FM_FLAG
+  /** ccso enable */
+  bool ccso_enable[CCSO_NUM_COMPONENTS];
+  /** ccso filter offset */
+  int8_t filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16];
+  /** ccso log2 of max bands */
+  int max_band_log2[CCSO_NUM_COMPONENTS];
+  /** quant index */
+  uint8_t quant_idx[CCSO_NUM_COMPONENTS];
+  uint8_t scale_idx[CCSO_NUM_COMPONENTS];
+  /** extended filter support */
+  uint8_t ext_filter_support[CCSO_NUM_COMPONENTS];
+  bool *sb_filter_control[3];
+  /** edge classifier index */
+  uint8_t edge_clf[CCSO_NUM_COMPONENTS];
+  uint8_t ccso_ref_idx[CCSO_NUM_COMPONENTS];
+
+  unsigned int
+      reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
+                                            // speedup
+} CcsoInfo;
+#endif  // CONFIG_CCSO_IMPROVE
 typedef struct RefCntBuffer {
   // For a RefCntBuffer, the following are reference-holding variables:
   // - cm->ref_frame_map[]
@@ -307,6 +339,9 @@ typedef struct RefCntBuffer {
 
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
+#if CONFIG_CCSO_IMPROVE
+  CcsoInfo ccso_info;
+#endif  // CONFIG_CCSO_IMPROVE
 } RefCntBuffer;
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
@@ -372,6 +407,7 @@ enum {
   REFINE_ALL = 2,
 } UENUM1BYTE(OPTFLOW_REFINE_TYPE);
 
+#if !CONFIG_CCSO_IMPROVE
 /** ccso info */
 typedef struct {
   /** ccso band offset only option */
@@ -393,6 +429,7 @@ typedef struct {
   /** edge classifier index */
   uint8_t edge_clf[CCSO_NUM_COMPONENTS];
 } CcsoInfo;
+#endif  //! CONFIG_CCSO_IMPROVE
 
 /*!\cond */
 
@@ -2064,6 +2101,30 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     buf->avg_row[1] = -1;
 #endif  // CONFIG_TMVP_MEM_OPT
   }
+
+#if CONFIG_CCSO_IMPROVE
+  if (buf->ccso_info.sb_filter_control[0] == NULL) {
+    for (int pli = 0; pli < 3; pli++) {
+      const int log2_filter_unit_size =
+          pli > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
+      const int ccso_nvfb =
+          ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +
+           (1 << log2_filter_unit_size >> 2) - 1) /
+          (1 << log2_filter_unit_size >> 2);
+      const int ccso_nhfb =
+          ((cm->mi_params.mi_cols >> (pli ? cm->seq_params.subsampling_x : 0)) +
+           (1 << log2_filter_unit_size >> 2) - 1) /
+          (1 << log2_filter_unit_size >> 2);
+      const int sb_count = ccso_nvfb * ccso_nhfb;
+      CHECK_MEM_ERROR(
+          cm, buf->ccso_info.sb_filter_control[pli],
+          (bool *)aom_memalign(
+              32, sizeof(*buf->ccso_info.sb_filter_control[pli]) * sb_count));
+      memset(buf->ccso_info.sb_filter_control[pli], 0,
+             sizeof(*buf->ccso_info.sb_filter_control[pli]) * sb_count);
+    }
+  }
+#endif  // CONFIG_CCSO_IMPROVE
 
   const int is_tpl_mvs_mem_size_too_small = (cm->tpl_mvs_mem_size < mem_size);
   int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_too_small;
