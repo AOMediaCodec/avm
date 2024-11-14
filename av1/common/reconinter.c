@@ -1838,60 +1838,62 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
                            const MV *const mv) {
   wm->invalid = 1;
 
-  const int unit_offset = 1 << WARPEDMODEL_PREC_BITS;
+  const int64_t unit_offset = 1 << WARPEDMODEL_PREC_BITS;
   int64_t cos_angle = unit_offset;
   int64_t sin_angle = 0;
   const int64_t scale_x = unit_offset - d * am_params->scale_alpha;
   const int64_t scale_y = unit_offset - d * am_params->scale_beta;
 
-  const int angle = -d * am_params->rot_angle;
+  const int64_t angle = -d * am_params->rot_angle;
   cos_angle = unit_offset;
   sin_angle = angle * (1 << (WARPEDMODEL_PREC_BITS - AFFINE_PREC_BITS));
+  const int64_t diag_min = unit_offset - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1;
+  const int64_t diag_max = unit_offset + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1;
+  const int64_t ndiag_min = -WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1;
+  const int64_t ndiag_max = WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1;
   wm->wmmat[2] = (int32_t)clamp64(
       ROUND_POWER_OF_TWO_SIGNED_64(scale_x * cos_angle, WARPEDMODEL_PREC_BITS),
-      INT32_MIN, INT32_MAX);
+      diag_min, diag_max);
   wm->wmmat[5] = (int32_t)clamp64(
       ROUND_POWER_OF_TWO_SIGNED_64(scale_y * cos_angle, WARPEDMODEL_PREC_BITS),
-      INT32_MIN, INT32_MAX);
+      diag_min, diag_max);
   if (d > 0) {
     // Parameters of A^-1
     wm->wmmat[3] =
         (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_x * sin_angle,
                                                       WARPEDMODEL_PREC_BITS),
-                         INT32_MIN, INT32_MAX);
+                         ndiag_min, ndiag_max);
     wm->wmmat[4] =
         (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_y * sin_angle,
                                                       WARPEDMODEL_PREC_BITS),
-                         INT32_MIN, INT32_MAX);
+                         ndiag_min, ndiag_max);
     int64_t tmp_tx = (int64_t)wm->wmmat[2] * (int64_t)am_params->tran_x -
                      (int64_t)wm->wmmat[3] * (int64_t)am_params->tran_y;
     int64_t tmp_ty = (int64_t)wm->wmmat[4] * (int64_t)am_params->tran_x +
                      (int64_t)wm->wmmat[5] * (int64_t)am_params->tran_y;
     wm->wmmat[0] = (int32_t)clamp64(
         ROUND_POWER_OF_TWO_SIGNED_64(tmp_tx * (-d), WARPEDMODEL_PREC_BITS),
-        INT32_MIN, INT32_MAX);
+        -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - unit_offset);
     wm->wmmat[1] = (int32_t)clamp64(
         ROUND_POWER_OF_TWO_SIGNED_64(tmp_ty * (-d), WARPEDMODEL_PREC_BITS),
-        INT32_MIN, INT32_MAX);
+        -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - unit_offset);
   } else {
     // Parameters of A
     wm->wmmat[3] =
         (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_y * sin_angle,
                                                       WARPEDMODEL_PREC_BITS),
-                         INT32_MIN, INT32_MAX);
+                         ndiag_min, ndiag_max);
     wm->wmmat[4] =
         (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_x * sin_angle,
                                                       WARPEDMODEL_PREC_BITS),
-                         INT32_MIN, INT32_MAX);
+                         ndiag_min, ndiag_max);
     wm->wmmat[0] = (int32_t)clamp64((int64_t)am_params->tran_x * (-d),
-                                    INT32_MIN, INT32_MAX);
+                                    -WARPEDMODEL_TRANS_CLAMP,
+                                    WARPEDMODEL_TRANS_CLAMP - unit_offset);
     wm->wmmat[1] = (int32_t)clamp64((int64_t)am_params->tran_y * (-d),
-                                    INT32_MIN, INT32_MAX);
+                                    -WARPEDMODEL_TRANS_CLAMP,
+                                    WARPEDMODEL_TRANS_CLAMP - unit_offset);
   }
-  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - unit_offset);
-  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
-                       WARPEDMODEL_TRANS_CLAMP - unit_offset);
   wm->wmmat[6] = wm->wmmat[7] = 0;
 
   av1_reduce_warp_model(wm);
