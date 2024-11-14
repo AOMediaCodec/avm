@@ -1079,10 +1079,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   }
 
   const bool compute_ds_filter =
-      ((cpi->common.current_frame.frame_type == KEY_FRAME &&
-        cpi->common.show_frame) ||
-       cpi->common.current_frame.frame_type == S_FRAME) &&
-      !cpi->common.show_existing_frame;
+      cpi->common.current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf;
   if (compute_ds_filter) {
     av1_set_downsample_filter_options(cpi);
   }
