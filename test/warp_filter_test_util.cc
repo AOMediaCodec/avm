@@ -76,8 +76,13 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
             (1 << WARPEDMODEL_PREC_BITS),
         INT16_MIN, INT16_MAX));
 
+#if CONFIG_RELAX_AFFINE_CONSTRAINTS
+    if ((4 * abs(*alpha) + 7 * abs(*beta) >= (3 << WARPEDMODEL_PREC_BITS)) ||
+        (4 * abs(*gamma) + 4 * abs(*delta) >= (3 << WARPEDMODEL_PREC_BITS)))
+#else
     if ((4 * abs(*alpha) + 7 * abs(*beta) >= (1 << WARPEDMODEL_PREC_BITS)) ||
         (4 * abs(*gamma) + 4 * abs(*delta) >= (1 << WARPEDMODEL_PREC_BITS)))
+#endif
       continue;
 
     *alpha = ROUND_POWER_OF_TWO_SIGNED(*alpha, WARP_PARAM_REDUCE_BITS) *

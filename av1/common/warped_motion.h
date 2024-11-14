@@ -138,7 +138,11 @@ static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
   }
 }
 
+#if CONFIG_RELAX_AFFINE_CONSTRAINTS
+extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 7 + 1][8];
+#else
 extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
+#endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
 
 DECLARE_ALIGNED(8, extern const int8_t,
                 av1_filter_8bit[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8]);

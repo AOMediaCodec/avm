@@ -168,6 +168,8 @@ set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
+set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
+                   "AV2 relax affine constraints")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
                    "AV2 new transform partitions experiment flag.")
 set_aom_config_var(

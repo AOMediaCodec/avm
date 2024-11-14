@@ -383,10 +383,17 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
       int32_t sy4 = y4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
 
       // Add in all the constant terms, including rounding and offset
+#if CONFIG_RELAX_AFFINE_CONSTRAINTS
+      sx4 += alpha * (-4) + beta * (-4) + (1 << (WARPEDDIFF_PREC_BITS - 1)) +
+             ((WARPEDPIXEL_PREC_SHIFTS * 3) << WARPEDDIFF_PREC_BITS);
+      sy4 += gamma * (-4) + delta * (-4) + (1 << (WARPEDDIFF_PREC_BITS - 1)) +
+             ((WARPEDPIXEL_PREC_SHIFTS * 3) << WARPEDDIFF_PREC_BITS);
+#else
       sx4 += alpha * (-4) + beta * (-4) + (1 << (WARPEDDIFF_PREC_BITS - 1)) +
              (WARPEDPIXEL_PREC_SHIFTS << WARPEDDIFF_PREC_BITS);
       sy4 += gamma * (-4) + delta * (-4) + (1 << (WARPEDDIFF_PREC_BITS - 1)) +
              (WARPEDPIXEL_PREC_SHIFTS << WARPEDDIFF_PREC_BITS);
+#endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
 
       sx4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
       sy4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
