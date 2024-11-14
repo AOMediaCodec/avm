@@ -3097,7 +3097,6 @@ static int compute_quantized_wienerns_filter(
         assert(rui->wiener_class_id_restrict == -1);
         int64_t real_errq =
             calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-
         // Found filter is worse than no filtering.
         if (real_errq > real_sse) break;
         int64_t bits = count_wienerns_bits_set(

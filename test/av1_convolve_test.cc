@@ -1188,30 +1188,12 @@ class AV1ConvolveNonSep2DHighbdTest
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;
 
-  // Configuration for nonseparable 7x7 filters for DIAMOND shape.
-  // Format is offset (i) row and (ii) column from center pixel
-  // and the (iii) filter-tap index that multiplies the pixel at
-  // the respective offset.
-  const int NonsepConfig_[25][3] = {
-    { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-    { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-    { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
-    { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
-    { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 0, 0, 12 }
-  };
-
-  const int wienerns_wout_subtract_center_config_uv_from_uv_[13][3] = {
-    { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 1, 1, 2 },
-    { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 }, { 2, 0, 4 },  { -2, 0, 4 },
-    { 0, 2, 5 },   { 0, -2, 5 }, { 0, 0, 6 },
-  };
-
   // Filters use all unique taps.
   const NonsepFilterConfig UnconstrainedSumFilterConfig_ = {
     kMaxPrecisionBeforeOverflow,
     2 * kNumSymmetricTaps + 1,
     0,
-    NonsepConfig_,
+    wienerns_simd_config_y,
     NULL,
     0,
     0,
@@ -1223,7 +1205,7 @@ class AV1ConvolveNonSep2DHighbdTest
     kMaxPrecisionBeforeOverflow,
     2 * kNumSymmetricTapsChroma + 1,
     0,
-    wienerns_wout_subtract_center_config_uv_from_uv_,
+    wienerns_simd_config_uv_from_uvonly,
     NULL,
     0,
     0,
@@ -1231,42 +1213,26 @@ class AV1ConvolveNonSep2DHighbdTest
     1
   };
 
-  // Configuration for UnitSumFilterConfig_ wiener nonseparable 7x7 filters for
-  // DIAMOND shape. Format is offset (i) row and (ii) column from center pixel
-  // and the (iii) filter-tap index that multiplies the pixel at the respective
-  // offset.
-  const int WienerNonsepConfig_[25][3] = {
-    { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-    { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-    { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
-    { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
-    { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
-  };
-
-  const int WienerNonsepConfigChroma_[12][3] = {
-    { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
-    { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
-    { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
-  };
-
   // Filters use only the first (2 * kNumSymmetricTaps) taps. Center tap is
   // constrained.
-  const NonsepFilterConfig UnitSumFilterConfig_ = { kMaxPrecisionBeforeOverflow,
-                                                    2 * kNumSymmetricTaps,
-                                                    0,
-                                                    WienerNonsepConfig_,
-                                                    NULL,
-                                                    0,
-                                                    1,
-                                                    1,
-                                                    1 };
+  const NonsepFilterConfig UnitSumFilterConfig_ = {
+    kMaxPrecisionBeforeOverflow,
+    2 * kNumSymmetricTaps,
+    0,
+    wienerns_simd_subtract_center_config_y,
+    NULL,
+    0,
+    1,
+    1,
+    1
+  };
 
   // Config used for filtering of chroma when CONFIG_WIENER_NONSEP=1.
   const NonsepFilterConfig UnitSumFilterConfigChroma_ = {
     kMaxPrecisionBeforeOverflow,
     2 * kNumSymmetricTapsChroma,
     0,
-    WienerNonsepConfigChroma_,
+    wienerns_simd_subtract_center_config_uv_from_uv,
     NULL,
     0,
     1,
@@ -1315,7 +1281,7 @@ typedef void (*highbd_convolve_nonsep_dual_2d_func)(
     int block_row_begin, int block_row_end, int block_col_begin,
     int block_col_end);
 
-class AV1ConvolveNon_Sep_dual2DHighbdTest
+class AV1ConvolveNonSep_dual2DHighbdTest
     : public AV1ConvolveTest<highbd_convolve_nonsep_dual_2d_func> {
  public:
   void RunTest(int is_subtract_center) {
@@ -1484,75 +1450,49 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
         width, height, c_time_per_pixel, opt_time_per_pixel, scaling);
   }
 
-  const int wienerns_config_uv_from_uv[12][3] = {
-    { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
-    { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
-    { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
-  };
-
-  const int wienerns_config_uv_from_y[12][3] = {
-    { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
-    { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
-    { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
-  };
-
-  const int wienerns_wout_subtract_center_config_uv_from_uv[13][3] = {
-    { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 1, 1, 2 },
-    { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 }, { 2, 0, 4 },  { -2, 0, 4 },
-    { 0, 2, 5 },   { 0, -2, 5 }, { 0, 0, 6 },
-  };
-
-  // Adjust the beginning tap to account for the above change and add a tap at
-  // (0, 0).
-  const int wienerns_wout_subtract_center_config_uv_from_y[13][3] = {
-    { 1, 0, 7 },    { -1, 0, 8 },  { 0, 1, 9 },   { 0, -1, 10 }, { 1, 1, 11 },
-    { -1, -1, 12 }, { -1, 1, 13 }, { 1, -1, 14 }, { 2, 0, 15 },  { -2, 0, 16 },
-    { 0, 2, 17 },   { 0, -2, 18 }, { 0, 0, 19 },
-  };
-
   const NonsepFilterConfig DualFilterWithCenterConfig_ = {
     kMaxPrecisionBeforeOverflow,  // prec_bits;
-    sizeof(wienerns_config_uv_from_uv) /
-        sizeof(wienerns_config_uv_from_uv[0]),  // num_pixels;
-    sizeof(wienerns_config_uv_from_y) /
-        sizeof(wienerns_config_uv_from_y[0]),  // num_pixels2
-    wienerns_config_uv_from_uv,                // config
-    wienerns_config_uv_from_y,                 // config2
-    0,                                         // strict_bounds
-    1,                                         // subtract_center
-    1,                                         // symmetry config
-    0,                                         // symmetry config2
+    sizeof(wienerns_simd_subtract_center_config_uv_from_uv) /
+        sizeof(
+            wienerns_simd_subtract_center_config_uv_from_uv[0]),  // num_pixels;
+    sizeof(wienerns_simd_subtract_center_config_uv_from_y) /
+        sizeof(
+            wienerns_simd_subtract_center_config_uv_from_y[0]),  // num_pixels2
+    wienerns_simd_subtract_center_config_uv_from_uv,             // config
+    wienerns_simd_subtract_center_config_uv_from_y,              // config2
+    0,  // strict_bounds
+    1,  // subtract_center
+    1,  // symmetry config
+    0,  // symmetry config2
   };
 
   const NonsepFilterConfig DualFilterWithoutCenterConfig_ = {
     kMaxPrecisionBeforeOverflow,  // prec_bits;
-    sizeof(wienerns_wout_subtract_center_config_uv_from_uv) /
-        sizeof(
-            wienerns_wout_subtract_center_config_uv_from_uv[0]),  // num_pixels;
-    sizeof(wienerns_wout_subtract_center_config_uv_from_y) /
-        sizeof(
-            wienerns_wout_subtract_center_config_uv_from_y[0]),  // num_pixels2
-    wienerns_wout_subtract_center_config_uv_from_uv,             // config
-    wienerns_wout_subtract_center_config_uv_from_y,              // config2
-    0,  // strict_bounds
-    0,  // subtract_center
-    1,  // symmetry config
-    0,  // symmetry config2
+    sizeof(wienerns_simd_config_uv_from_uv) /
+        sizeof(wienerns_simd_config_uv_from_uv[0]),  // num_pixels;
+    sizeof(wienerns_simd_config_uv_from_y) /
+        sizeof(wienerns_simd_config_uv_from_y[0]),  // num_pixels2
+    wienerns_simd_config_uv_from_uv,                // config
+    wienerns_simd_config_uv_from_y,                 // config2
+    0,                                              // strict_bounds
+    0,                                              // subtract_center
+    1,                                              // symmetry config
+    0,                                              // symmetry config2
   };
 };
 
-TEST_P(AV1ConvolveNon_Sep_dual2DHighbdTest, RunTest) { RunTest(1); }
-TEST_P(AV1ConvolveNon_Sep_dual2DHighbdTest, DISABLED_Speed) { RunSpeedTest(1); }
+TEST_P(AV1ConvolveNonSep_dual2DHighbdTest, RunTest) { RunTest(1); }
+TEST_P(AV1ConvolveNonSep_dual2DHighbdTest, DISABLED_Speed) { RunSpeedTest(1); }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1ConvolveNon_Sep_dual2DHighbdTest,
+    AVX2, AV1ConvolveNonSep_dual2DHighbdTest,
     BuildHighbdParams(av1_convolve_symmetric_dual_subtract_center_highbd_avx2));
 #endif  // HAVE_AVX2
 
 /* Dual with subtract center off unit-test*/
 class AV1ConvolveDualWithoutsubtract2DHighbdTest
-    : public AV1ConvolveNon_Sep_dual2DHighbdTest {};
+    : public AV1ConvolveNonSep_dual2DHighbdTest {};
 
 TEST_P(AV1ConvolveDualWithoutsubtract2DHighbdTest, RunTest) { RunTest(0); }
 TEST_P(AV1ConvolveDualWithoutsubtract2DHighbdTest, DISABLED_Speed) {
