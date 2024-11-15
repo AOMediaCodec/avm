@@ -3947,8 +3947,9 @@ static AOM_INLINE void init_allowed_partitions(
   const bool has_cols = blk_params->has_cols;
   const bool ss_x = part_search_state->ss_x;
   const bool ss_y = part_search_state->ss_y;
+  const bool allow_rect = part_cfg->enable_rect_partitions || !(blk_params->has_rows && blk_params->has_cols);
 
-  part_search_state->do_rectangular_split = part_cfg->enable_rect_partitions;
+  part_search_state->do_rectangular_split = allow_rect;
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
@@ -3970,7 +3971,7 @@ static AOM_INLINE void init_allowed_partitions(
        is_bsize_geq(blk_params->bsize, blk_params->min_partition_size));
   part_search_state->partition_rect_allowed[HORZ] =
       part_search_state->is_block_splittable &&
-      part_cfg->enable_rect_partitions &&
+      allow_rect &&
       is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
       is_horz_size_valid
 #if CONFIG_CB1TO4_SPLIT
@@ -3982,7 +3983,7 @@ static AOM_INLINE void init_allowed_partitions(
       ;
   part_search_state->partition_rect_allowed[VERT] =
       part_search_state->is_block_splittable &&
-      part_cfg->enable_rect_partitions &&
+      allow_rect &&
       is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
       is_vert_size_valid
 #if CONFIG_CB1TO4_SPLIT
