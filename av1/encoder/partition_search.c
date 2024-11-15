@@ -3938,8 +3938,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const CHROMA_REF_INFO *chroma_ref_info, TREE_TYPE tree_type,
-    int override_allow_rect) {
+    const CHROMA_REF_INFO *chroma_ref_info, TREE_TYPE tree_type) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row;
   const int mi_col = blk_params->mi_col;
@@ -3948,10 +3947,8 @@ static AOM_INLINE void init_allowed_partitions(
   const bool has_cols = blk_params->has_cols;
   const bool ss_x = part_search_state->ss_x;
   const bool ss_y = part_search_state->ss_y;
-  const bool allow_rectangular_split =
-      part_cfg->enable_rect_partitions || override_allow_rect;
 
-  part_search_state->do_rectangular_split = allow_rectangular_split;
+  part_search_state->do_rectangular_split = part_cfg->enable_rect_partitions;
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
@@ -3972,7 +3969,8 @@ static AOM_INLINE void init_allowed_partitions(
       (has_rows && has_cols &&
        is_bsize_geq(blk_params->bsize, blk_params->min_partition_size));
   part_search_state->partition_rect_allowed[HORZ] =
-      part_search_state->is_block_splittable && allow_rectangular_split &&
+      part_search_state->is_block_splittable &&
+      part_cfg->enable_rect_partitions &&
       is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
       is_horz_size_valid
 #if CONFIG_CB1TO4_SPLIT
@@ -3983,7 +3981,8 @@ static AOM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_CB1TO4_SPLIT
       ;
   part_search_state->partition_rect_allowed[VERT] =
-      part_search_state->is_block_splittable && allow_rectangular_split &&
+      part_search_state->is_block_splittable &&
+      part_cfg->enable_rect_partitions &&
       is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
       is_vert_size_valid
 #if CONFIG_CB1TO4_SPLIT
@@ -4227,7 +4226,7 @@ static void init_partition_search_state_params(
       &pc_tree->chroma_ref_info);
 
   init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, tree_type, 0);
+                          &pc_tree->chroma_ref_info, tree_type);
 
   if (max_recursion_depth == 0) {
     part_search_state->prune_rect_part[HORZ] =
@@ -4244,8 +4243,7 @@ static void init_partition_search_state_params(
       blk_params->bsize_at_least_8x8 &&
       (tree_type != CHROMA_PART || bsize > BLOCK_8X8);
   part_search_state->do_rectangular_split =
-      (cpi->oxcf.part_cfg.enable_rect_partitions ||
-       x->must_find_valid_partition) &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
       (tree_type != CHROMA_PART || bsize > BLOCK_8X8);
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
@@ -4268,15 +4266,11 @@ static void init_partition_search_state_params(
       blk_params->has_rows && blk_params->has_cols;
   part_search_state->partition_rect_allowed[HORZ] =
       blk_params->has_cols && blk_params->bsize_at_least_8x8 &&
-      no_sub_16_chroma_part &&
-      (cpi->oxcf.part_cfg.enable_rect_partitions ||
-       x->must_find_valid_partition) &&
+      no_sub_16_chroma_part && cpi->oxcf.part_cfg.enable_rect_partitions &&
       is_horz_size_valid;
   part_search_state->partition_rect_allowed[VERT] =
       blk_params->has_rows && blk_params->bsize_at_least_8x8 &&
-      no_sub_16_chroma_part &&
-      (cpi->oxcf.part_cfg.enable_rect_partitions ||
-       x->must_find_valid_partition) &&
+      no_sub_16_chroma_part && cpi->oxcf.part_cfg.enable_rect_partitions &&
       is_vert_size_valid;
 
   // Reset the flag indicating whether a partition leading to a rdcost lower
@@ -4340,8 +4334,7 @@ static AOM_INLINE void reset_part_limitations(
           get_partition_subsize(blk_params.bsize, PARTITION_HORZ),
           part_search_state->ss_x, part_search_state->ss_y) != BLOCK_INVALID &&
       (blk_params.width > blk_params.min_partition_size_1d) &&
-      (cpi->oxcf.part_cfg.enable_rect_partitions ||
-       x->must_find_valid_partition);
+      cpi->oxcf.part_cfg.enable_rect_partitions;
   part_search_state->partition_rect_allowed[VERT] =
       blk_params.has_rows &&
       is_partition_valid(blk_params.bsize, PARTITION_VERT) &&
@@ -4349,8 +4342,7 @@ static AOM_INLINE void reset_part_limitations(
           get_partition_subsize(blk_params.bsize, PARTITION_VERT),
           part_search_state->ss_x, part_search_state->ss_y) != BLOCK_INVALID &&
       (blk_params.width > blk_params.min_partition_size_1d) &&
-      (cpi->oxcf.part_cfg.enable_rect_partitions ||
-       x->must_find_valid_partition);
+      cpi->oxcf.part_cfg.enable_rect_partitions;
   part_search_state->terminate_partition_search = 0;
 }
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
@@ -4662,8 +4654,7 @@ static void rectangular_partition_search(
 
   // Loop over rectangular partition types.
   for (RECT_PART_TYPE i = HORZ; i < NUM_RECT_PARTS; i++) {
-    assert(IMPLIES(!(cpi->oxcf.part_cfg.enable_rect_partitions ||
-                     x->must_find_valid_partition),
+    assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                    !part_search_state->partition_rect_allowed[i]));
 
     // Check if the HORZ / VERT partition search is to be performed.
@@ -8632,7 +8623,7 @@ BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg,
-                            &pc_tree->chroma_ref_info, xd->tree_type, 1);
+                            &pc_tree->chroma_ref_info, xd->tree_type);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -8864,8 +8855,7 @@ BEGIN_PARTITION_SEARCH:
         cpi, &x->plane[0].src, bsize, xd->bd);
   }
 
-  assert(IMPLIES(!(cpi->oxcf.part_cfg.enable_rect_partitions ||
-                   x->must_find_valid_partition),
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 #if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXTENDED_SDP
@@ -8920,8 +8910,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ_4
-  assert(IMPLIES(!(cpi->oxcf.part_cfg.enable_rect_partitions ||
-                   x->must_find_valid_partition),
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part4_search_allowed[HORZ4]));
   if (!part_search_state.terminate_partition_search &&
       part4_search_allowed[HORZ4] && blk_params.has_rows &&
@@ -8941,8 +8930,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT_4
-  assert(IMPLIES(!(cpi->oxcf.part_cfg.enable_rect_partitions ||
-                   x->must_find_valid_partition),
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part4_search_allowed[VERT4]));
   if (!part_search_state.terminate_partition_search &&
       part4_search_allowed[VERT4] && blk_params.has_cols &&
