@@ -107,7 +107,8 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
 #if CONFIG_CCSO_IMPROVE
-    const int log2_filter_unit_size = CCSO_BLK_SIZE + 1;
+    const int log2_filter_unit_size =
+        CCSO_BLK_SIZE + xd->plane[1].subsampling_x;
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[0].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -115,7 +116,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[0]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 0);
+      const int ccso_ctx = av1_get_ccso_context(xd, 0);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[0][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -134,6 +135,14 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_y = blk_idc;
 #if CONFIG_CCSO_IMPROVE
     cm->cur_frame->ccso_info.sb_filter_control[0][sb_idx] = blk_idc;
+  } else if (cm->ccso_info.ccso_enable[0] &&
+             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
+        ->ccso_blk_y =
+        mi_params
+            ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
+                           (mi_col & ~blk_size_x)]
+            ->ccso_blk_y;
 #endif  // CONFIG_CCSO_IMPROVE
   }
 
@@ -148,7 +157,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[1]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 1);
+      const int ccso_ctx = av1_get_ccso_context(xd, 1);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -167,6 +176,14 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_u = blk_idc;
 #if CONFIG_CCSO_IMPROVE
     cm->cur_frame->ccso_info.sb_filter_control[1][sb_idx] = blk_idc;
+  } else if (cm->ccso_info.ccso_enable[1] &&
+             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
+        ->ccso_blk_u =
+        mi_params
+            ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
+                           (mi_col & ~blk_size_x)]
+            ->ccso_blk_u;
 #endif  // CONFIG_CCSO_IMPROVE
   }
 
@@ -181,7 +198,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[2]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 2);
+      const int ccso_ctx = av1_get_ccso_context(xd, 2);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -200,6 +217,14 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_v = blk_idc;
 #if CONFIG_CCSO_IMPROVE
     cm->cur_frame->ccso_info.sb_filter_control[2][sb_idx] = blk_idc;
+  } else if (cm->ccso_info.ccso_enable[2] &&
+             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
+        ->ccso_blk_v =
+        mi_params
+            ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
+                           (mi_col & ~blk_size_x)]
+            ->ccso_blk_v;
 #endif  // CONFIG_CCSO_IMPROVE
   }
 }
@@ -1963,10 +1988,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
-#if CONFIG_CCSO_IMPROVE
-  mbmi->mi_row = xd->mi_row;
-  mbmi->mi_col = xd->mi_col;
-#endif
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -4301,10 +4322,6 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
-#if CONFIG_CCSO_IMPROVE
-  mbmi->mi_row = xd->mi_row;
-  mbmi->mi_col = xd->mi_col;
-#endif
 #if CONFIG_SKIP_TXFM_OPT
   if (!mbmi->skip_mode) {
     inter_block = read_is_inter_block(cm, xd, mbmi->segment_id, r);

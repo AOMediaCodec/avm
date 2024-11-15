@@ -1397,6 +1397,14 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_zero(rdc->obmc_used);
   av1_zero(rdc->warped_used);
 
+#if CONFIG_CCSO_IMPROVE
+  for (i = 0; i < CCSO_NUM_COMPONENTS; ++i) {
+    cm->ccso_info.reuse_ccso[i] = 0;
+    cm->ccso_info.sb_reuse_ccso[i] = 0;
+    cm->ccso_info.ccso_ref_idx[i] = UINT8_MAX;
+  }
+#endif  // CONFIG_CCSO_IMPROVE
+
   // Reset the flag.
   cpi->intrabc_used = 0;
   // Need to disable intrabc when superres is selected

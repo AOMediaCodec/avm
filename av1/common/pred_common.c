@@ -427,44 +427,59 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
 }
 
 #if CONFIG_CCSO_IMPROVE
-int av1_get_ccso_context(AV1_COMMON *cm, const MACROBLOCKD *xd, int plane) {
+bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
+                                     const MB_MODE_INFO *const mbmi) {
+  const TileInfo *const tile = &xd->tile;
+  const int blk_size_y =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
+
+  return (((mbmi->mi_row_start & ~blk_size_y) >= tile->mi_row_start) &&
+          ((mbmi->mi_col_start & ~blk_size_x) >= tile->mi_col_start) &&
+          ((mbmi->mi_row_start & ~blk_size_y) < tile->mi_row_end) &&
+          ((mbmi->mi_col_start & ~blk_size_x) < tile->mi_col_end));
+}
+
+int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
   const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
-  const int log2_blk_size_y =
-      CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2;
-  const int log2_blk_size_x =
-      CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2;
-  const int blk_size_y = (1 << log2_blk_size_y) - 1;
-  const int blk_size_x = (1 << log2_blk_size_x) - 1;
 
-  if (neighbor0 && neighbor1) {
-    int neighbor0_sb_y = neighbor0->mi_row & ~blk_size_y;
-    int neighbor0_sb_x = neighbor0->mi_col & ~blk_size_x;
-    int neighbor1_sb_y = neighbor1->mi_row & ~blk_size_y;
-    int neighbor1_sb_x = neighbor1->mi_col & ~blk_size_x;
+  bool neighbor0_ccso_available = 0;
+  bool neighbor1_ccso_available = 0;
 
-    const MB_MODE_INFO *const neighbor0_sb =
-        cm->mi_params.mi_grid_base[neighbor0_sb_y * cm->mi_params.mi_stride +
-                                   neighbor0_sb_x];
-    const MB_MODE_INFO *const neighbor1_sb =
-        cm->mi_params.mi_grid_base[neighbor1_sb_y * cm->mi_params.mi_stride +
-                                   neighbor1_sb_x];
+  if (neighbor0) {
+    neighbor0_ccso_available = av1_check_ccso_mbmi_inside_tile(xd, neighbor0);
+  }
 
+  if (neighbor1) {
+    neighbor1_ccso_available = av1_check_ccso_mbmi_inside_tile(xd, neighbor1);
+  }
+
+  const int blk_size_y =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
+
+  if (neighbor0_ccso_available && neighbor1_ccso_available) {
     int is_neighbor0_ccso = 0;
     int is_neighbor1_ccso = 0;
 
     if (plane == 0) {
-      is_neighbor0_ccso = neighbor0_sb->ccso_blk_y;
-      is_neighbor1_ccso = neighbor1_sb->ccso_blk_y;
+      is_neighbor0_ccso = neighbor0->ccso_blk_y;
+      is_neighbor1_ccso = neighbor1->ccso_blk_y;
     } else if (plane == 1) {
-      is_neighbor0_ccso = neighbor0_sb->ccso_blk_u;
-      is_neighbor1_ccso = neighbor1_sb->ccso_blk_u;
+      is_neighbor0_ccso = neighbor0->ccso_blk_u;
+      is_neighbor1_ccso = neighbor1->ccso_blk_u;
     } else if (plane == 2) {
-      is_neighbor0_ccso = neighbor0_sb->ccso_blk_v;
-      is_neighbor1_ccso = neighbor1_sb->ccso_blk_v;
+      is_neighbor0_ccso = neighbor0->ccso_blk_v;
+      is_neighbor1_ccso = neighbor1->ccso_blk_v;
     }
 
-    if (neighbor0_sb_y != neighbor1_sb_y) {
+    if ((neighbor0->mi_row_start & ~blk_size_y) !=
+            (neighbor1->mi_row_start & ~blk_size_y) ||
+        (neighbor0->mi_col_start & ~blk_size_x) !=
+            (neighbor1->mi_col_start & ~blk_size_x)) {
       // neighbor0 and neighbor1 belong to different superblocks
       return is_neighbor0_ccso && is_neighbor1_ccso
                  ? 3
@@ -473,24 +488,20 @@ int av1_get_ccso_context(AV1_COMMON *cm, const MACROBLOCKD *xd, int plane) {
       // neighbor0 and neighbor1 belong to the same superblock
       return is_neighbor0_ccso ? 2 : 0;
     }
-  } else if (neighbor0 || neighbor1) {
-    const MB_MODE_INFO *const neighbor = neighbor0 ? neighbor0 : neighbor1;
-    int neighbor_sb_y = neighbor->mi_row & ~blk_size_y;
-    int neighbor_sb_x = neighbor->mi_col & ~blk_size_x;
-
-    const MB_MODE_INFO *const neighbor_sb =
-        cm->mi_params.mi_grid_base[neighbor_sb_y * cm->mi_params.mi_stride +
-                                   neighbor_sb_x];
+  } else if (neighbor0_ccso_available || neighbor1_ccso_available) {
+    const MB_MODE_INFO *const neighbor =
+        neighbor0_ccso_available ? neighbor0 : neighbor1;
 
     int is_neighbor_ccso = 0;
 
     if (plane == 0) {
-      is_neighbor_ccso = neighbor_sb->ccso_blk_y;
+      is_neighbor_ccso = neighbor->ccso_blk_y;
     } else if (plane == 1) {
-      is_neighbor_ccso = neighbor_sb->ccso_blk_u;
+      is_neighbor_ccso = neighbor->ccso_blk_u;
     } else if (plane == 2) {
-      is_neighbor_ccso = neighbor_sb->ccso_blk_v;
+      is_neighbor_ccso = neighbor->ccso_blk_v;
     }
+
     return is_neighbor_ccso ? 2 : 0;
   } else {
     return 0;

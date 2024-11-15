@@ -661,14 +661,12 @@ typedef struct MB_MODE_INFO {
   uint8_t ccso_blk_u : 2;
   /*! \brief Whether to use cross-component sample offset for the V plane. */
   uint8_t ccso_blk_v : 2;
-  /**@}*/
-
 #if CONFIG_RD_DEBUG
   /*! \brief RD info used for debugging */
   RD_STATS rd_stats;
 #endif
 
-#if CONFIG_RD_DEBUG || CONFIG_CCSO_IMPROVE
+#if CONFIG_RD_DEBUG
   /*! \brief The current row in unit of 4x4 blocks for debugging */
   int mi_row;
   /*! \brief The current col in unit of 4x4 blocks for debugging */

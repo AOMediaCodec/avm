@@ -284,7 +284,8 @@ TEST_P(CCSODeriveSrcTest, RandomValues) {
 typedef uint64_t (*CCSO_Dist_Block)(const uint16_t *org, const int org_stride,
                                     const uint16_t *rec16, const int rec_stride,
                                     const int x, const int y,
-                                    const int log2_filter_unit_size,
+                                    const int log2_filter_unit_size_y,
+                                    const int log2_filter_unit_size_x,
                                     const int height, const int width);
 
 typedef libaom_test::FuncParam<CCSO_Dist_Block> TestFuncsCCSO_Dist_Block;
@@ -296,22 +297,26 @@ class CCSODistBlockTest : public CCSOFilterTest<CCSO_Dist_Block> {
     org_stride_ = src_y_stride_;
     rec16_ = dst_ref_;
     rec_stride_ = src_y_stride_;
-    log2_filter_unit_size_ = 1 - y_uv_hscale_ + 7;
+    log2_filter_unit_size_y_ = 1 - y_uv_hscale_ + 7;
+    log2_filter_unit_size_x_ = 1 - y_uv_hscale_ + 7;
     height_ = pic_height_;
     width_ = pic_width_;
     uint64_t ref = params_.ref_func(org_, org_stride_, rec16_, rec_stride_, 0,
-                                    0, log2_filter_unit_size_, height_, width_);
+                                    0, log2_filter_unit_size_y_,
+                                    log2_filter_unit_size_x_, height_, width_);
     uint64_t tst;
     ASM_REGISTER_STATE_CHECK(
         tst = params_.tst_func(org_, org_stride_, rec16_, rec_stride_, 0, 0,
-                               log2_filter_unit_size_, height_, width_));
+                               log2_filter_unit_size_y_,
+                               log2_filter_unit_size_x_, height_, width_));
     ASSERT_EQ(ref, tst);
   }
   uint16_t *org_;
   int org_stride_;
   uint16_t *rec16_;
   int rec_stride_;
-  int log2_filter_unit_size_;
+  int log2_filter_unit_size_y_;
+  int log2_filter_unit_size_x_;
   int height_;
   int width_;
 };

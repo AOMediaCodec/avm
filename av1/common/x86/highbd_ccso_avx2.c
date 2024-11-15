@@ -712,21 +712,23 @@ static INLINE int SquareDifference(__m256i a, __m256i b) {
 uint64_t compute_distortion_block_avx2(
     const uint16_t *org, const int org_stride, const uint16_t *rec16,
     const int rec_stride, const int x, const int y,
-    const int log2_filter_unit_size, const int height, const int width) {
-  const int blk_size = 1 << log2_filter_unit_size;
+    const int log2_filter_unit_size_y, const int log2_filter_unit_size_x,
+    const int height, const int width) {
+  const int blk_size_y = 1 << log2_filter_unit_size_y;
+  const int blk_size_x = 1 << log2_filter_unit_size_x;
   int y_offset;
   int x_offset, x_remainder;
-  if (y + blk_size >= height) {
+  if (y + blk_size_y >= height) {
     y_offset = height - y;
   } else {
-    y_offset = blk_size;
+    y_offset = blk_size_y;
   }
 
-  if (x + blk_size >= width) {
+  if (x + blk_size_x >= width) {
     x_offset = ((width - x) >> 4) << 4;
     x_remainder = width - x - x_offset;
   } else {
-    x_offset = blk_size;
+    x_offset = blk_size_x;
     x_remainder = 0;
   }
   uint64_t sum = 0;

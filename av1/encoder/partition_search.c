@@ -931,7 +931,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   mbmi->partition = partition;
   mbmi->chroma_ref_info = ctx->chroma_ref_info;
 
-#if CONFIG_RD_DEBUG || CONFIG_CCSO_IMPROVE
+#if CONFIG_RD_DEBUG
   mbmi->mi_row = mi_row;
   mbmi->mi_col = mi_col;
 #endif

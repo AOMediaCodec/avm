@@ -2105,16 +2105,21 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 #if CONFIG_CCSO_IMPROVE
   if (buf->ccso_info.sb_filter_control[0] == NULL) {
     for (int pli = 0; pli < 3; pli++) {
-      const int log2_filter_unit_size =
-          pli > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
+      const int log2_filter_unit_size_y =
+          pli > 0 ? CCSO_BLK_SIZE
+                  : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;
+      const int log2_filter_unit_size_x =
+          pli > 0 ? CCSO_BLK_SIZE
+                  : CCSO_BLK_SIZE + cm->seq_params.subsampling_x;
+
       const int ccso_nvfb =
           ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +
-           (1 << log2_filter_unit_size >> 2) - 1) /
-          (1 << log2_filter_unit_size >> 2);
+           (1 << log2_filter_unit_size_y >> 2) - 1) /
+          (1 << log2_filter_unit_size_y >> 2);
       const int ccso_nhfb =
           ((cm->mi_params.mi_cols >> (pli ? cm->seq_params.subsampling_x : 0)) +
-           (1 << log2_filter_unit_size >> 2) - 1) /
-          (1 << log2_filter_unit_size >> 2);
+           (1 << log2_filter_unit_size_x >> 2) - 1) /
+          (1 << log2_filter_unit_size_x >> 2);
       const int sb_count = ccso_nvfb * ccso_nhfb;
       CHECK_MEM_ERROR(
           cm, buf->ccso_info.sb_filter_control[pli],
@@ -2307,6 +2312,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->left_available = (mi_col > tile->mi_col_start);
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
+
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {

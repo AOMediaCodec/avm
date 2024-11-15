@@ -1825,7 +1825,7 @@ static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
       cm->ccso_info.ccso_enable[0]) {
 #if CONFIG_CCSO_IMPROVE
     if (!cm->ccso_info.sb_reuse_ccso[0]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 0);
+      const int ccso_ctx = av1_get_ccso_context(xd, 0);
       aom_write_symbol(w, mbmi->ccso_blk_y == 0 ? 0 : 1,
                        xd->tile_ctx->ccso_cdf[0][ccso_ctx], 2);
     }
@@ -1840,7 +1840,7 @@ static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
       cm->ccso_info.ccso_enable[1]) {
 #if CONFIG_CCSO_IMPROVE
     if (!cm->ccso_info.sb_reuse_ccso[1]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 1);
+      const int ccso_ctx = av1_get_ccso_context(xd, 1);
       aom_write_symbol(w, mbmi->ccso_blk_u == 0 ? 0 : 1,
                        xd->tile_ctx->ccso_cdf[1][ccso_ctx], 2);
     }
@@ -1855,7 +1855,7 @@ static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
       cm->ccso_info.ccso_enable[2]) {
 #if CONFIG_CCSO_IMPROVE
     if (!cm->ccso_info.sb_reuse_ccso[2]) {
-      const int ccso_ctx = av1_get_ccso_context(cm, xd, 2);
+      const int ccso_ctx = av1_get_ccso_context(xd, 2);
       aom_write_symbol(w, mbmi->ccso_blk_v == 0 ? 0 : 1,
                        xd->tile_ctx->ccso_cdf[2][ccso_ctx], 2);
     }

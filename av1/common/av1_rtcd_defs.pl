@@ -599,7 +599,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   add_proto qw/uint64_t compute_distortion_block/, "const uint16_t *org, const int org_stride,
                       const uint16_t *rec16, const int rec_stride, const int x, const int y,
-                      const int log2_filter_unit_size, const int height,
+                      const int log2_filter_unit_size_y, const int log2_filter_unit_size_x, const int height,
                       const int width";
   specialize qw/compute_distortion_block avx2/;
 

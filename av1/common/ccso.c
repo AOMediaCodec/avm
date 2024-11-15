@@ -46,8 +46,13 @@ void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd) {
 /* Derive the quantized index, later it can be used for retriving offset values
  * from the look-up table */
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
-                        const uint8_t quant_step_size, const int inv_quant_step,
-                        const int *rec_idx, const int edge_clf) {
+#if CONFIG_CCSO_IMPROVE
+                        const int quant_step_size,
+#else
+                        const uint8_t quant_step_size,
+#endif
+                        const int inv_quant_step, const int *rec_idx,
+                        const int edge_clf) {
   if (edge_clf == 0) {
     for (int i = 0; i < 2; i++) {
       int d = rec_y[rec_idx[i]] - rec_y[0];
