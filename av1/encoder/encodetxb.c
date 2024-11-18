@@ -1056,11 +1056,13 @@ static void write_high_range(aom_writer *w, int enable_tcq, int level, int lf
   int max = lf ? COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS
                : COEFF_BASE_RANGE + NUM_BASE_LEVELS;
   max -= enable_tcq ? 1 : 0;
-  int hr = level - max - 1;
-  if (enable_tcq && level > max) {
-    hr = get_high_range(level, lf);
-  }
   if (level > max) {
+    int hr = 0;
+    if (enable_tcq) {
+      hr = get_high_range(level, lf);
+    } else {
+      hr = level - max - 1;
+    }
 #if CONFIG_COEFF_HR_ADAPTIVE
     int hr_level_avg = *hr_avg;
     write_adaptive_hr(w, hr, hr_level_avg);
