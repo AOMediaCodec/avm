@@ -389,9 +389,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   uint64_t(*mse[2])[TOTAL_STRENGTHS];
   mse[0] = aom_malloc(sizeof(**mse) * nvfb * nhfb);
   mse[1] = aom_malloc(sizeof(**mse) * nvfb * nhfb);
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
   uint64_t unfiltered_mse = 0;
-#endif
 
   int bsize[3];
   int mi_wide_l2[3];
@@ -529,11 +527,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
           const uint64_t curr_mse = compute_cdef_dist_fn(
               ref_buffer[pli], ref_stride[pli], tmp_dst, dlist, cdef_count,
               bsize[pli], coeff_shift, row, col);
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
           if (gi == 0) {
             unfiltered_mse += curr_mse;
           }
-#endif
           if (pli < 2)
             mse[pli][sb_count][gi] = curr_mse;
           else
@@ -549,9 +545,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   int nb_strength_bits = 0;
   uint64_t best_rd = UINT64_MAX;
   CdefInfo *const cdef_info = &cm->cdef_info;
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
   int best_cdef_on = 0;
-#endif
   for (int i = 0; i <= 3; i++) {
     int best_lev0[CDEF_MAX_STRENGTHS];
     int best_lev1[CDEF_MAX_STRENGTHS] = { 0 };
@@ -568,16 +562,10 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
 #if CONFIG_FIX_CDEF_SYNTAX
     /* check if cdef is on for the current frame, and assign total bits
      * accordingly. */
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
     const int cdef_on_bits =
         sb_count * i +
         nb_strengths * CDEF_STRENGTH_BITS * (num_planes > 1 ? 2 : 1) + 1 + 2 +
         2;
-#else
-    const int cdef_on_bits =
-        sb_count * i +
-        nb_strengths * CDEF_STRENGTH_BITS * (num_planes > 1 ? 2 : 1) + 1;
-#endif
     const int cdef_off_bit = 1;
     const int is_cdef_on = (i || best_lev0[0] || best_lev1[0]);
     const int total_bits = is_cdef_on ? cdef_on_bits : cdef_off_bit;
@@ -589,9 +577,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     const uint64_t dist = tot_mse * 16;
     const uint64_t rd = RDCOST(rdmult, rate_cost, dist);
     if (rd < best_rd) {
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
       best_cdef_on = is_cdef_on;
-#endif
       best_rd = rd;
       nb_strength_bits = i;
       memcpy(cdef_info->cdef_strengths, best_lev0,
@@ -603,7 +589,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     }
   }
 
-#if CONFIG_CDEF_FRAME_FLAG_DECISION_IMPROVE
   if (best_cdef_on) {
     const uint64_t unfiltered_rd =
         RDCOST(rdmult, av1_cost_literal(1), unfiltered_mse * 16);
@@ -616,7 +601,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       cm->cdef_info.cdef_uv_strengths[0] = 0;
     }
   }
-#endif
 
   cdef_info->cdef_bits = nb_strength_bits;
   cdef_info->nb_cdef_strengths = 1 << nb_strength_bits;
