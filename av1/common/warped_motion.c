@@ -24,17 +24,17 @@
 #include "av1/common/mvref_common.h"
 
 #if CONFIG_RELAX_AFFINE_CONSTRAINTS
-// For warping, we really use a 6-tap filter, but we do blocks of 8 pixels
-// at a time. The zoom/rotation/shear in the model are applied to the
-// "fractional" position of each pixel, which therefore varies within
-// [-1, 2) * WARPEDPIXEL_PREC_SHIFTS.
-// We need an extra 2 taps to fit this in, for a total of 8 taps.
-#else
 // For warping, we use 8/6/4/2-tap filters, but we do blocks of 8 pixels
 // at a time. The zoom/rotation/shear in the model are applied to the
 // "fractional" position of each pixel, which therefore varies within
 // [-3, 4) * WARPEDPIXEL_PREC_SHIFTS.
 // We need an extra 2-6 taps to fit this in, for a total of 8 taps.
+#else
+// For warping, we really use a 6-tap filter, but we do blocks of 8 pixels
+// at a time. The zoom/rotation/shear in the model are applied to the
+// "fractional" position of each pixel, which therefore varies within
+// [-1, 2) * WARPEDPIXEL_PREC_SHIFTS.
+// We need an extra 2 taps to fit this in, for a total of 8 taps.
 #endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
 /* clang-format off */
 #if CONFIG_RELAX_AFFINE_CONSTRAINTS
