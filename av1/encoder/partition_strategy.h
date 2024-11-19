@@ -193,7 +193,8 @@ void av1_prune_ab_partitions(
 #if CONFIG_EXT_RECUR_PARTITIONS
 SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
-                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                         int8_t region_type);
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    int mi_row, int mi_col, BLOCK_SIZE bsize
@@ -202,8 +203,10 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ,
                                    ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
-);
-void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs);
+                                   ,
+                                   int8_t region_type);
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs,
+                              int8_t region_type);
 
 static AOM_INLINE void av1_add_mode_search_context_to_cache(
     SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
@@ -236,7 +239,7 @@ static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
-                              PARTITION_TYPE partition);
+                              PARTITION_TYPE partition, int8_t region_type);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for
@@ -303,7 +306,8 @@ static INLINE void init_simple_motion_search_mvs(
 }
 
 PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
-                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                      int8_t region_type);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {

@@ -1369,13 +1369,15 @@ void av1_prune_partitions_before_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!*partition_none_allowed) {
       av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
-                               PARTITION_HORZ);
+                               PARTITION_HORZ, (int8_t)pc_tree->region_type);
       const int mi_step = block_size_high[bsize] / 2;
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                               cm->sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT,
+                               (int8_t)pc_tree->region_type);
       av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
-                               cm->sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT,
+                               (int8_t)pc_tree->region_type);
     }
     (void)pc_tree;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1709,72 +1711,129 @@ static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
   return idx;
 }
 
-#define MAKE_SMS_ARR_SWITCH_CASE(width, height) \
-  case BLOCK_##width##X##height: {              \
-    return sms_bufs->b_##width##x##height;      \
+#define MAKE_SMS_ARR_SWITCH_CASE(width, height, sdp_flag) \
+  case BLOCK_##width##X##height: {                        \
+    return sms_bufs->b_##width##x##height##_##sdp_flag;   \
   }
 
 // Returns the buffer in SimpleMotionDataBufs that correspond to bsize.
 static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
-                                            BLOCK_SIZE bsize) {
-  switch (bsize) {
-    // Square blocks
-    MAKE_SMS_ARR_SWITCH_CASE(256, 256);
-    MAKE_SMS_ARR_SWITCH_CASE(128, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 4);
+                                            BLOCK_SIZE bsize,
+                                            int8_t region_type) {
+  if (region_type == 1) {
+    switch (bsize) {
+      // Square blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 1);
 
-    // 1:2 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(128, 256);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 8);
+      // 1:2 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 1);
 
-    // 2:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(256, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(128, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 4);
+      // 2:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 1);
 
-    // 1:4 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(16, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 16);
+      // 1:4 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 1);
 
-    // 4:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 4);
+      // 4:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 1);
 
-    // 1:8 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(8, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 32);
+      // 1:8 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 1);
 
-    // 8:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 4);
+      // 8:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 1);
 
-    // 16:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 4);
+      // 16:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 1);
 
-    // 1:16 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(4, 64);
+      // 1:16 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 1);
 
-    default: assert(0 && "Invalid bsize"); return NULL;
+      default: assert(0 && "Invalid bsize"); return NULL;
+    }
+  } else {  // region_type = 0
+    switch (bsize) {
+      // Square blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 0);
+
+      // 1:2 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 0);
+
+      // 2:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 0);
+
+      // 1:4 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 0);
+
+      // 4:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 0);
+
+      // 1:8 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 0);
+
+      // 8:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 0);
+
+      // 16:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 0);
+
+      // 1:16 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 0);
+
+      default: assert(0 && "Invalid bsize"); return NULL;
+    }
   }
 }
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
-void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs) {
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs,
+                              int8_t region_type) {
   for (BLOCK_SIZE bsize = BLOCK_4X4; bsize < BLOCK_SIZES_ALL; bsize++) {
-    SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+    SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize, region_type);
     const int mi_wide = mi_size_wide[bsize];
     const int mi_high = mi_size_high[bsize];
     const int sms_wide = get_sms_count_from_length(mi_wide);
@@ -1788,7 +1847,8 @@ void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs) {
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs
 SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
-                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                         int8_t region_type) {
   assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
   assert(bsize < BLOCK_SIZES_ALL);
   const int mi_in_sb = mi_size_high[sb_size];
@@ -1801,15 +1861,15 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
   const int idx_col_in_sb = get_sms_arr_1d_idx(mi_wide, mi_col_in_sb);
   if (idx_col_in_sb == -1) return NULL;
   const int arr_stride = get_sms_count_from_length(mi_wide);
-  SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+  SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize, region_type);
   return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
 }
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
-                              PARTITION_TYPE partition) {
-  SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+                              PARTITION_TYPE partition, int8_t region_type) {
+  SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   cur_block->has_prev_partition = 1;
   cur_block->prev_partition = partition;
 }
@@ -1990,7 +2050,7 @@ static INLINE void add_start_mv_to_partition(
     const int sub_col =
         mi_col + step_multiplier[partition][idx][1] * eighth_step_w / 4;
     SimpleMotionData *subblock = av1_get_sms_data_entry(
-        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size);
+        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size, 1);
     add_start_mv_to_block(subblock, start_mv);
   }
 }
@@ -2004,12 +2064,14 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ,
                                    ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
-) {
+                                   ,
+                                   int8_t region_type) {
+  assert(region_type == 1);
   const AV1_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
-  SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   if (!cur_block->valid
 #if CONFIG_ML_PART_SPLIT
       || (need_residual_stats && !cur_block->residual_stats_valid)
@@ -2031,10 +2093,11 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
 }
 
 PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
-                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                      int8_t region_type) {
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
-  const SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  const SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   if (cur_block && cur_block->has_prev_partition) {
     return cur_block->prev_partition;
   } else {
@@ -2072,7 +2135,8 @@ void av1_gather_erp_rect_features(
       ,
       NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-  );
+      ,
+      1);
 
   const BLOCK_SIZE h_size = get_partition_subsize(bsize, PARTITION_HORZ);
   const SimpleMotionData *blk_h1 =
@@ -2083,7 +2147,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
   const SimpleMotionData *blk_h2 =
       h_size != BLOCK_INVALID
@@ -2093,7 +2158,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
 
   const BLOCK_SIZE v_size = get_partition_subsize(bsize, PARTITION_VERT);
@@ -2105,7 +2171,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
   const SimpleMotionData *blk_v2 =
       v_size != BLOCK_INVALID
@@ -2115,7 +2182,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
 
   // Results of SMS on the subblocks
@@ -2646,7 +2714,7 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (cpi->common.current_frame.frame_type != INTER_FRAME) return;
 
   SimpleMotionData *blk_none =
-      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, true);
+      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, true, 1);
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
       get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
@@ -2658,15 +2726,16 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (subsize_sq != BLOCK_INVALID) {
     int w_sub_mi = mi_size_wide[subsize_sq];
     int h_sub_mi = mi_size_high[subsize_sq];
-    SimpleMotionData *blk_sq_0 = av1_get_sms_data(cpi, tile_info, x, mi_row,
-                                                  mi_col, subsize_sq, td, true);
+
+    SimpleMotionData *blk_sq_0 = av1_get_sms_data(
+        cpi, tile_info, x, mi_row, mi_col, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, true);
+        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_2 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, true);
+        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_3 =
         av1_get_sms_data(cpi, tile_info, x, mi_row + h_sub_mi,
-                         mi_col + w_sub_mi, subsize_sq, td, true);
+                         mi_col + w_sub_mi, subsize_sq, td, true, 1);
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];

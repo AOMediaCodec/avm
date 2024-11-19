@@ -438,9 +438,10 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
                          SIMPLE_MOTION_DATA_TREE *sms_node, int mi_row,
-                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
-  SimpleMotionData *sms_data =
-      av1_get_sms_data_entry(data_buf, mi_row, mi_col, bsize, sb_size);
+                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                         int8_t sdp_flag) {
+  SimpleMotionData *sms_data = av1_get_sms_data_entry(data_buf, mi_row, mi_col,
+                                                      bsize, sb_size, sdp_flag);
   sms_data->old_sms = sms_node;
   if (bsize >= BLOCK_8X8) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -452,8 +453,8 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
       const int sub_mi_row = mi_row + (r_idx >> 1) * h_mi / 2;
       SIMPLE_MOTION_DATA_TREE *sub_tree = sms_node->split[r_idx];
 
-      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize,
-                   sb_size);
+      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize, sb_size,
+                   sdp_flag);
     }
   }
 }
@@ -505,8 +506,10 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *data_bufs = x->sms_bufs;
   av1_init_sms_data_bufs(data_bufs);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size);
-
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+               0);
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+               1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));

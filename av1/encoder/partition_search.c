@@ -4230,7 +4230,8 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
       && !is_inter_sdp_chroma(cm, cur_region_type, xd->tree_type)
 #endif  // CONFIG_EXTENDED_SDP
   ) {
-    return av1_get_prev_partition(x, mi_row, mi_col, bsize, cm->sb_size);
+    return av1_get_prev_partition(x, mi_row, mi_col, bsize, cm->sb_size,
+                                  (int8_t)cur_region_type);
   }
   return PARTITION_INVALID;
 }
@@ -5815,8 +5816,8 @@ static void none_partition_search(
   }
 #endif
 #if CONFIG_EXT_RECUR_PARTITIONS
-  SimpleMotionData *sms_data =
-      av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size);
+  SimpleMotionData *sms_data = av1_get_sms_data_entry(
+      x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)cur_region_type);
   av1_set_best_mode_cache(x, sms_data->mode_cache);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -8750,7 +8751,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   {
     SimpleMotionData *sms_data =
-        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size);
+        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               (int8_t)pc_tree->region_type);
     sms_tree = sms_data->old_sms;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -9288,6 +9290,15 @@ BEGIN_PARTITION_SEARCH:
         &level_banks,
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
         multi_pass_mode, ext_recur_depth, parent_partition);
+
+    if (part_search_state.found_best_partition) {
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)pc_tree->region_type);
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)(1 - pc_tree->region_type));
+    }
   }
 #endif  // CONFIG_EXTENDED_SDP
 
@@ -9304,8 +9315,10 @@ BEGIN_PARTITION_SEARCH:
     av1_invalid_rd_stats(&pc_tree->rd_cost);
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
-                             pc_tree->partitioning);
+    if (xd->tree_type != CHROMA_PART)
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)pc_tree->region_type);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 

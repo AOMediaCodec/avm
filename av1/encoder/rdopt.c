@@ -10576,8 +10576,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       if (subsize != BLOCK_INVALID) {
         for (int r = 0; r <= mi_size_high[bsize] / 2; ++r) {
-          const PARTITION_TYPE prev_part = av1_get_prev_partition(
-              x, xd->mi_row + r, xd->mi_col, subsize, cm->sb_size);
+          const PARTITION_TYPE prev_part =
+              av1_get_prev_partition(x, xd->mi_row + r, xd->mi_col, subsize,
+                                     cm->sb_size, (int8_t)mbmi->region_type);
           if (prev_part != PARTITION_INVALID) {
             prune_ref_frames = true;
             break;
@@ -10588,8 +10589,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       subsize = get_partition_subsize(bsize, PARTITION_VERT);
       if (subsize != BLOCK_INVALID) {
         for (int c = 0; c <= mi_size_wide[bsize] / 2; ++c) {
-          const PARTITION_TYPE prev_part = av1_get_prev_partition(
-              x, xd->mi_row, xd->mi_col + c, subsize, cm->sb_size);
+          const PARTITION_TYPE prev_part =
+              av1_get_prev_partition(x, xd->mi_row, xd->mi_col + c, subsize,
+                                     cm->sb_size, (int8_t)mbmi->region_type);
           if (prev_part != PARTITION_INVALID) {
             prune_ref_frames = true;
             break;
@@ -10615,7 +10617,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
           const PARTITION_TYPE prev_part = av1_get_prev_partition(
               x, mi_pos_rect[rect_type][sub_idx][0],
-              mi_pos_rect[rect_type][sub_idx][1], subsize, cm->sb_size);
+              mi_pos_rect[rect_type][sub_idx][1], subsize, cm->sb_size,
+              (int8_t)mbmi->region_type);
           if (prev_part != PARTITION_INVALID) {
             prune_ref_frames = true;
             break;
