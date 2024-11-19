@@ -4654,9 +4654,6 @@ static void rectangular_partition_search(
 
   // Loop over rectangular partition types.
   for (RECT_PART_TYPE i = HORZ; i < NUM_RECT_PARTS; i++) {
-    // assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
-    //                !part_search_state->partition_rect_allowed[i]));
-
     // Check if the HORZ / VERT partition search is to be performed.
     if (!is_rect_part_allowed(cpi, part_search_state, active_edge_type, i,
                               mi_pos_rect[i][0][i]))
@@ -8855,8 +8852,6 @@ BEGIN_PARTITION_SEARCH:
         cpi, &x->plane[0].src, bsize, xd->bd);
   }
 
-  // assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
-  //                !part_search_state.do_rectangular_split));
 #if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXTENDED_SDP
   if (search_none_after_rect && !search_none_after_split &&
@@ -8910,8 +8905,6 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ_4
-  // assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
-  //               !part4_search_allowed[HORZ4]));
   if (!part_search_state.terminate_partition_search &&
       part4_search_allowed[HORZ4] && blk_params.has_rows &&
       (part_search_state.do_rectangular_split ||
@@ -8930,8 +8923,6 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT_4
-  // assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
-  //               !part4_search_allowed[VERT4]));
   if (!part_search_state.terminate_partition_search &&
       part4_search_allowed[VERT4] && blk_params.has_cols &&
       (part_search_state.do_rectangular_split ||
