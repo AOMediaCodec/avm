@@ -300,10 +300,18 @@ if (aom_config("CONFIG_IDIF") eq "yes") {
 }
 
 if (aom_config("CONFIG_IBP_WEIGHT") eq "yes") {
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
-      "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
-      "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+  if (aom_config("CONFIG_IBP_WEIGHT") eq "yes") {
+    add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
+        "const uint16_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+    add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
+        "const uint16_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+  }
+  else {
+    add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
+        "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+    add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
+        "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+  }
 }
 else {
   add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
