@@ -1283,7 +1283,11 @@ enum {
 
 #define DIR_MODES_0_90 17
 #define IBP_WEIGHT_SHIFT 8
+#if CONFIG_FIX_IBP_DC
+#define IBP_WEIGHT_MAX 256
+#else
 #define IBP_WEIGHT_MAX 255
+#endif
 
 /*!\enum Warp projection type
  * \brief This enumeration defines various warp projection type supported

@@ -416,6 +416,7 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_IBP_WEIGHT 1 "Reduce IBP weights memory.")
+set_aom_config_var(CONFIG_FIX_IBP_DC 1 "Simplify prediction of IBP DC mode.")
 set_aom_config_var(CONFIG_WEDGE_TMVP 1
                    "Improvements to tmvp MV storing for wedge mode.")
 set_aom_config_var(
