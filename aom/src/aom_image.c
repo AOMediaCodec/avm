@@ -434,13 +434,22 @@ static void highbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
     case AOM_IMG_FMT_I44416: break;
     default: fatal("Unsupported image conversion"); break;
   }
-  for (plane = 0; plane < 3; plane++) {
+  for (plane = 0; plane < (dst->monochrome ? 1 : 3); plane++) {
     int w = src->d_w;
     int h = src->d_h;
     int x, y;
     if (plane) {
       w = (w + src->x_chroma_shift) >> src->x_chroma_shift;
       h = (h + src->y_chroma_shift) >> src->y_chroma_shift;
+      if (src->monochrome) {
+        // Fill destination UV planes with a plain value.
+        for (y = 0; y < h; y++) {
+          uint16_t *p_dst =
+              (uint16_t *)(dst->planes[plane] + y * dst->stride[plane]);
+          for (x = 0; x < w; x++) *p_dst++ = offset;
+        }
+        continue;
+      }
     }
     for (y = 0; y < h; y++) {
       const uint16_t *p_src =
@@ -474,13 +483,22 @@ static void lowbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
     case AOM_IMG_FMT_I444: break;
     default: fatal("Unsupported image conversion"); break;
   }
-  for (plane = 0; plane < 3; plane++) {
+  for (plane = 0; plane < (dst->monochrome ? 1 : 3); plane++) {
     int w = src->d_w;
     int h = src->d_h;
     int x, y;
     if (plane) {
       w = (w + src->x_chroma_shift) >> src->x_chroma_shift;
       h = (h + src->y_chroma_shift) >> src->y_chroma_shift;
+      if (src->monochrome) {
+        // Fill destination UV planes with a plain value.
+        for (y = 0; y < h; y++) {
+          uint16_t *p_dst =
+              (uint16_t *)(dst->planes[plane] + y * dst->stride[plane]);
+          for (x = 0; x < w; x++) *p_dst++ = offset;
+        }
+        continue;
+      }
     }
     for (y = 0; y < h; y++) {
       const uint8_t *p_src = src->planes[plane] + y * src->stride[plane];
