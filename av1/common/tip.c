@@ -1238,6 +1238,17 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int comp_bh = bh >> ss_y;
 #endif  // CONFIG_IMPROVE_REFINED_MV
 
+#if CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
+  const int has_both_sides_refs = cm->has_both_sides_refs;
+#endif  // CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
+#if CONFIG_TIP_ENHANCEMENT
+  const int tip_wtd_index = cm->tip_global_wtd_index;
+  const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+  const int is_compound = tip_weight != TIP_SINGLE_WTD;
+#else
+  const int is_compound = 1;
+#endif  // CONFIG_TIP_ENHANCEMENT
+
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
 #if CONFIG_SUBBLK_REF_EXT
@@ -1259,11 +1270,18 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
       dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
                        (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
 #endif  // CONFIG_SUBBLK_REF_EXT
+
 #if CONFIG_TIP_LD
-  const int apply_refinemv = (plane == 0 && cm->has_both_sides_refs);
+  const int apply_refinemv = (cm->seq_params.enable_refinemv && plane == 0 &&
+                              has_both_sides_refs && is_compound
+#if CONFIG_TIP_ENHANCEMENT
+                              && tip_weight == TIP_EQUAL_WTD
+#endif  // CONFIG_TIP_ENHANCEMENT
+  );
 #else
   int apply_refinemv = (plane == 0);
 #endif  // CONFIG_TIP_LD
+
   ReferenceArea ref_area[2];
 #if CONFIG_IMPROVE_REFINED_MV
   const int do_ref_area_pad =
@@ -1309,11 +1327,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_REFINEMV
 
   int dst_stride = dst_buf->stride;
-  if (plane == 0 && (cm->features.use_optflow_tip
+  if (plane == 0 &&
+#if CONFIG_TIP_ENHANCEMENT
+      is_any_mv_refinement_allowed(cm) && is_compound &&
+      tip_weight == TIP_EQUAL_WTD &&
+#endif  // CONFIG_TIP_ENHANCEMENT
+      (cm->features.use_optflow_tip
 #if CONFIG_REFINEMV
-                     || apply_refinemv
+       || apply_refinemv
 #endif  // CONFIG_REFINEMV
-                     )) {
+       )) {
     if (bw != 8 || bh != 8) {
       for (int h = 0; h < bh; h += 8) {
         for (int w = 0; w < bw; w += 8) {
@@ -1356,10 +1379,14 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = cm->features.enable_imp_msk_bld;
+  uint8_t use_bacp =
+#if CONFIG_TIP_ENHANCEMENT
+      is_compound && tip_weight == TIP_EQUAL_WTD &&
+#endif  // CONFIG_TIP_ENHANCEMENT
+      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-  for (int ref = 0; ref < 2; ++ref) {
+  for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
     struct buf_2d *const pred_buf = &xd->plane[plane].pre[ref];
 
@@ -1373,7 +1400,13 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
     );
 
-    inter_pred_params.comp_mode = UNIFORM_COMP;
+#if CONFIG_TIP_ENHANCEMENT
+    if (is_compound) {
+#endif  // CONFIG_TIP_ENHANCEMENT
+      inter_pred_params.comp_mode = UNIFORM_COMP;
+#if CONFIG_TIP_ENHANCEMENT
+    }
+#endif  // CONFIG_TIP_ENHANCEMENT
 
 #if CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.border_data.enable_bacp = use_bacp;
@@ -1382,11 +1415,21 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     inter_pred_params.sb_type = BLOCK_8X8;
     assert(bw == 8 &&
            bh == 8);  // Currently BACP is supported only for 8x8 block
-    inter_pred_params.mask_comp.type = COMPOUND_AVERAGE;
+#if CONFIG_TIP_ENHANCEMENT
+    if (is_compound) {
+#endif  // CONFIG_TIP_ENHANCEMENT
+      inter_pred_params.mask_comp.type = COMPOUND_AVERAGE;
+#if CONFIG_TIP_ENHANCEMENT
+    }
+#endif  // CONFIG_TIP_ENHANCEMENT
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-    inter_pred_params.conv_params =
-        get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
+    inter_pred_params.conv_params = get_conv_params_no_round(
+        ref, plane, tmp_conv_dst, MAX_SB_SIZE, is_compound, bd);
+
+#if CONFIG_TIP_ENHANCEMENT
+    set_tip_interp_weight_factor(cm, ref, &inter_pred_params);
+#endif  // CONFIG_TIP_ENHANCEMENT
 
 #if CONFIG_IMPROVE_REFINED_MV
     if (do_ref_area_pad) {

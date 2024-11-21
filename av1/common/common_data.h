@@ -287,6 +287,12 @@ static const int8_t cwp_weighting_factor[2][MAX_CWP_NUM] = {
   { 8, 12, 4, 20, -4 },
 };
 
+#if CONFIG_TIP_ENHANCEMENT
+// Supported weighting factor for TIP
+static const int8_t tip_weighting_factors[MAX_TIP_WTD_NUM] = { 8,  12, 16, 18,
+                                                               20, 4,  6,  -4 };
+#endif  // CONFIG_TIP_ENHANCEMENT
+
 #if CONFIG_VQ_MVD_CODING
 // Supported set of MVD values in unit of 1/8 pel for AMVD mode
 static const int16_t amvd_index_to_mvd[MAX_AMVD_INDEX + 1] = { 0,  2,  4,

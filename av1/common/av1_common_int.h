@@ -1838,6 +1838,11 @@ typedef struct AV1Common {
   InterpFilter tip_interp_filter;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
+#if CONFIG_TIP_ENHANCEMENT
+  //! Index for TIP weighted prediction parameters.
+  int8_t tip_global_wtd_index;
+#endif  // CONFIG_TIP_ENHANCEMENT
+
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.

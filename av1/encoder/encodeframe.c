@@ -23,6 +23,9 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/binary_codes_writer.h"
+#if CONFIG_TIP_ENHANCEMENT
+#include "aom_dsp/psnr.h"
+#endif  // CONFIG_TIP_ENHANCEMENT
 #include "aom_ports/mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/system_state.h"
@@ -1417,7 +1420,7 @@ static AOM_INLINE void set_default_interp_skip_flags(
 }
 
 #if CONFIG_TIP_LD
-#define TIP_LD_FRAME_DECISION_THRESHOLD 1
+#define TIP_COUNT_THRESHOLD 6
 // This is an encoder-only function:
 // Based on the statistics of the number of blocks coded in TIP mode in
 // previous frames, a decision is made whether TIP mode should be enabled.
@@ -1434,7 +1437,7 @@ static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
 
     for (int index = 0; index < INTER_REFS_PER_FRAME; ++index) {
       const int percent = (cpi->tip_mode_count[index] * 100) / mvs_total;
-      if (percent >= TIP_LD_FRAME_DECISION_THRESHOLD) {
+      if (percent >= TIP_COUNT_THRESHOLD) {
         return 1;
       }
     }
@@ -1444,13 +1447,67 @@ static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
 }
 #endif  // CONFIG_TIP_LD
 
-static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
+#if CONFIG_TIP_ENHANCEMENT
+static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
+  AV1_COMMON *const cm = &cpi->common;
+  if (cm->features.tip_frame_mode) {
+    if (is_unequal_weighted_tip_allowed(cm)) {
+      int64_t best_sse = INT64_MAX;
+      int8_t best_wtd_index = 0;
+      YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+      for (int8_t wtd_index = 0; wtd_index < MAX_TIP_WTD_NUM; wtd_index++) {
+        cm->tip_global_wtd_index = wtd_index;
+        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+                            av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                            ,
+                            0 /* copy_refined_mvs */
+#endif                        // CONFIG_IMPROVE_REFINED_MV
+        );
+
+        int64_t this_sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
+        this_sse +=
+            aom_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
+                           tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
+                           cpi->source->uv_width, cpi->source->uv_height);
+        this_sse +=
+            aom_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
+                           tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
+                           cpi->source->uv_width, cpi->source->uv_height);
+        if (this_sse < best_sse) {
+          best_wtd_index = wtd_index;
+          best_sse = this_sse;
+        }
+      }
+      cm->tip_global_wtd_index = best_wtd_index;
+    } else {
+      cm->tip_global_wtd_index = 0;
+    }
+
+    av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+                        av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                        ,
+                        0 /* copy_refined_mvs */
+#endif                    // CONFIG_IMPROVE_REFINED_MV
+    );
+  }
+}
+#endif  // CONFIG_TIP_ENHANCEMENT
+
+static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
+#if !CONFIG_TIP_ENHANCEMENT
+  ThreadData *const td = &cpi->td;
+#endif  // !CONFIG_TIP_ENHANCEMENT
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_TIP_DIRECT_FRAME_MV
   cm->tip_global_motion.as_int = 0;
   cm->tip_interp_filter = MULTITAP_SHARP;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
+#if CONFIG_TIP_ENHANCEMENT
+  cm->tip_global_wtd_index = 0;
+#endif  // CONFIG_TIP_ENHANCEMENT
 
   if (cm->seq_params.enable_tip
 #if CONFIG_TIP_LD
@@ -1473,13 +1530,17 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #if CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         cm->features.use_optflow_tip = 1;
 #endif  // CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
+#if CONFIG_TIP_ENHANCEMENT
+        decide_tip_setting_and_setup_tip_frame(cpi);
+#else
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av1_enc_calc_subpel_params
 #if CONFIG_IMPROVE_REFINED_MV
                             ,
                             0 /* copy_refined_mvs */
-#endif                        // CONFIG_IMPROVE_REFINED_MV
+#endif  // CONFIG_IMPROVE_REFINED_MV
         );
+#endif  // CONFIG_TIP_ENHANCEMENT
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, av1_enc_setup_tip_frame_time);

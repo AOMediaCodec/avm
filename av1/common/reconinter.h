@@ -1163,6 +1163,49 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
+#if CONFIG_TIP_ENHANCEMENT
+// check if any mv refinement mode is allowed at frame level
+static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
+  if (!cm->has_both_sides_refs) return 0;
+
+  if (!cm->seq_params.enable_opfl_refine &&
+      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+    return 0;
+
+  const int tip_wtd_index = cm->tip_global_wtd_index;
+  const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+  if (tip_weight != TIP_EQUAL_WTD) return 0;
+
+  return 1;
+}
+
+// check if any mv refinement mode is allowed at frame level
+static INLINE int is_unequal_weighted_tip_allowed(const AV1_COMMON *const cm) {
+  if (!cm->has_both_sides_refs) return 1;
+
+  if (!cm->seq_params.enable_opfl_refine &&
+      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+    return 1;
+
+  return 0;
+}
+
+// set the weighting factor of TIP frame
+static INLINE void set_tip_interp_weight_factor(
+    const AV1_COMMON *const cm, const int ref_index,
+    InterPredParams *const inter_pred_params) {
+  if (ref_index == 1 && inter_pred_params->conv_params.do_average == 1 &&
+      !is_any_mv_refinement_allowed(cm)) {
+    const int tip_wtd_index = cm->tip_global_wtd_index;
+    const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+    assert(tip_wtd_index >= 0 && tip_wtd_index < MAX_TIP_WTD_NUM);
+    inter_pred_params->conv_params.fwd_offset = tip_weight;
+    inter_pred_params->conv_params.bck_offset =
+        (1 << DIST_PRECISION_BITS) - tip_weight;
+  }
+}
+#endif  // CONFIG_TIP_ENHANCEMENT
+
 // check if the refinemv mode is allowed for a given block for TIP mode
 static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {

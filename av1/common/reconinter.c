@@ -5025,7 +5025,18 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
                                                     int plane,
 #endif  // !CONFIG_IMPROVE_REFINED_MV
                                                     int tip_ref_frame) {
+  if (!cm->seq_params.enable_refinemv) return 0;
+
   if (tip_ref_frame) {
+#if CONFIG_TIP_ENHANCEMENT
+    const int tip_wtd_index = cm->tip_global_wtd_index;
+    const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+    return (
+#if !CONFIG_IMPROVE_REFINED_MV
+        plane == 0 &&
+#endif  // !CONFIG_IMPROVE_REFINED_MV
+        cm->has_both_sides_refs && tip_weight == TIP_EQUAL_WTD);
+#else
 #if CONFIG_TIP_LD
     return (
 #if !CONFIG_IMPROVE_REFINED_MV
@@ -5034,11 +5045,12 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
         cm->has_both_sides_refs);
 #else
 #if CONFIG_IMPROVE_REFINED_MV
-    return 1;
+      return 1;
 #else
       return (plane == 0);
 #endif  // CONFIG_IMPROVE_REFINED_MV
 #endif  // CONFIG_TIP_LD
+#endif  // CONFIG_TIP_ENHANCEMENT
   } else {
     int apply_sub_block_refinemv =
         mi->refinemv_flag &&
@@ -5078,7 +5090,16 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int plane,
                                                     int tip_ref_frame) {
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
+      cm->features.opfl_refine_type == REFINE_NONE)
+    return 0;
+
   if (tip_ref_frame) {
+#if CONFIG_TIP_ENHANCEMENT
+    const int tip_wtd_index = cm->tip_global_wtd_index;
+    const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+    if (tip_weight != TIP_EQUAL_WTD) return 0;
+#endif  // CONFIG_TIP_ENHANCEMENT
     return (opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
                                       xd,
@@ -5560,17 +5581,34 @@ static void build_inter_predictors_8x8_and_bigger(
       plane && has_second_ref(mi) &&
       is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART]);
 #endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
+  const int has_both_sides_refs = cm->has_both_sides_refs;
+#endif  // CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
+#if CONFIG_TIP_ENHANCEMENT
+  const int tip_wtd_index = cm->tip_global_wtd_index;
+  const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+#endif  // CONFIG_TIP_ENHANCEMENT
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int is_compound = (
 #if CONFIG_COMPOUND_4XN
                               !singleref_for_compound &&
 #endif  // CONFIG_COMPOUND_4XN
                               has_second_ref(mi)) ||
-                          tip_ref_frame;
+#if CONFIG_TIP_ENHANCEMENT
+                          (tip_ref_frame && tip_weight != TIP_SINGLE_WTD)
+#else
+                          tip_ref_frame
+#endif  // CONFIG_TIP_ENHANCEMENT
+      ;
   if (tip_ref_frame) {
 #if CONFIG_TIP_LD
-    mi->comp_refine_type =
-        cm->has_both_sides_refs ? COMP_REFINE_SUBBLK2P : COMP_REFINE_NONE;
+    mi->comp_refine_type = cm->seq_params.enable_affine_refine &&
+                                   has_both_sides_refs
+#if CONFIG_TIP_ENHANCEMENT
+                                   && tip_weight == TIP_EQUAL_WTD
+#endif  // CONFIG_TIP_ENHANCEMENT
+                               ? COMP_REFINE_SUBBLK2P
+                               : COMP_REFINE_NONE;
 #else
     mi->comp_refine_type = COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_TIP_LD
@@ -5955,7 +5993,11 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = tip_ref_frame ? cm->features.enable_imp_msk_bld
+  uint8_t use_bacp = tip_ref_frame ?
+#if CONFIG_TIP_ENHANCEMENT
+                                   is_compound && tip_weight == TIP_EQUAL_WTD &&
+#endif  // CONFIG_TIP_ENHANCEMENT
+                                       cm->features.enable_imp_msk_bld
                                    : use_border_aware_compound(cm, mi) &&
                                          mi->cwp_idx == CWP_EQUAL &&
                                          cm->features.enable_imp_msk_bld;
@@ -6163,6 +6205,13 @@ static void build_inter_predictors_8x8_and_bigger(
       continue;
     }
 #endif  // CONFIG_BAWP
+
+#if CONFIG_TIP_ENHANCEMENT
+    if (tip_ref_frame) {
+      set_tip_interp_weight_factor(cm, ref, &inter_pred_params);
+    }
+#endif  // CONFIG_TIP_ENHANCEMENT
+
 #if CONFIG_IMPROVE_REFINED_MV
     const MV mv_1_16th_pel = (tip_ref_frame && plane)
                                  ? mv_refined[ref].as_mv

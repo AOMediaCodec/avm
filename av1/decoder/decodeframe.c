@@ -8137,6 +8137,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->tip_global_motion.as_int = 0;
       cm->tip_interp_filter = MULTITAP_SHARP;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
+#if CONFIG_TIP_ENHANCEMENT
+      cm->tip_global_wtd_index = 0;
+      cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
+                                (cm->ref_frames_info.num_past_refs > 0);
+#endif  // CONFIG_TIP_ENHANCEMENT
       if (cm->seq_params.enable_tip
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
           && features->allow_ref_frame_mvs &&
@@ -8173,6 +8178,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           features->allow_tip_hole_fill = false;
         }
+#if CONFIG_TIP_ENHANCEMENT
+        if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
+          cm->tip_global_wtd_index = aom_rb_read_literal(rb, 3);
+        }
+#endif  // CONFIG_TIP_ENHANCEMENT
 #if CONFIG_LF_SUB_PU
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
