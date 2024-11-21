@@ -242,10 +242,22 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
     int rate;
     int bw, bh;
     const struct macroblock_plane *const p = &x->plane[plane];
+#if CONFIG_RESIDUE_PAD
+    const AV1_COMMON *const cm = &cpi->common;
+    const int block_width = block_size_wide[plane_bsize];
+    const int block_height = block_size_high[plane_bsize];
+    get_visible_dimensions(xd, plane, 0, 0, block_width, block_height,
+                           cm->width, cm->height, &bw, &bh);
+    sse = pixel_dist_visible_only(cpi, x, p->src.buf, p->src.stride,
+                                  pd->dst.buf, pd->dst.stride, plane_bsize,
+                                  block_height, block_width, bh, bw);
+#else
     get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL,
                        &bw, &bh);
 
     sse = calculate_sse(xd, p, pd, bw, bh);
+#endif  // CONFIG_RESIDUE_PAD
+
     model_rd_with_curvfit(cpi, x, plane_bsize, plane, sse, bw * bh, &rate,
                           &dist);
 

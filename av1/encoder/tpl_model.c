@@ -79,6 +79,22 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   av1_fwd_txfm(src_diff, coeff, bw, &txfm_param);
 }
 
+#if CONFIG_RESIDUE_PAD
+static AOM_INLINE void tpl_subtract_block(
+    const MACROBLOCKD *xd, int rows, int cols, int16_t *diff,
+    ptrdiff_t diff_stride, const uint8_t *src8, ptrdiff_t src_stride,
+    const uint8_t *pred8, ptrdiff_t pred_stride) {
+  assert(rows >= 4 && cols >= 4);
+  if (is_cur_buf_hbd(xd)) {
+    aom_highbd_subtract_block(rows, cols, diff, diff_stride, src8, src_stride,
+                              pred8, pred_stride, xd->bd);
+    return;
+  }
+  aom_subtract_block(rows, cols, diff, diff_stride, src8, src_stride, pred8,
+                     pred_stride);
+}
+#endif  // CONFIG_RESIDUE_PAD
+
 static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
                                             int16_t *src_diff, int diff_stride,
                                             const uint8_t *src, int src_stride,
@@ -88,8 +104,13 @@ static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
   const MACROBLOCKD *xd = &x->e_mbd;
   const int pix_num = bw * bh;
 
+#if CONFIG_RESIDUE_PAD
+  tpl_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
+                     dst_stride);
+#else
   av1_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
                      dst_stride);
+#endif  // CONFIG_RESIDUE_PAD
   tpl_fwd_txfm(src_diff, bw, coeff, tx_size, xd->bd, is_cur_buf_hbd(xd));
   return aom_satd(coeff, pix_num);
 }
@@ -116,8 +137,14 @@ static AOM_INLINE void txfm_quant_rdcost(
     int *rate_cost, int64_t *recon_error, int64_t *sse) {
   const MACROBLOCKD *xd = &x->e_mbd;
   uint16_t eob;
+#if CONFIG_RESIDUE_PAD
+  tpl_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
+                     dst_stride);
+#else
   av1_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
                      dst_stride);
+#endif  // CONFIG_RESIDUE_PAD
+
   tpl_fwd_txfm(src_diff, diff_stride, coeff, tx_size, xd->bd,
                is_cur_buf_hbd(xd));
 

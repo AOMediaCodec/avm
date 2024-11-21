@@ -322,6 +322,74 @@ static AOM_INLINE void get_txb_dimensions(const MACROBLOCKD *xd, int plane,
   if (width) *width = txb_width;
 }
 
+#if CONFIG_RESIDUE_PAD
+static AOM_INLINE int get_visible_dimensions(const MACROBLOCKD *xd, int plane,
+                                             int blk_col, int blk_row, int cols,
+                                             int rows, int frame_width,
+                                             int frame_height,
+                                             int *visible_cols,
+                                             int *visible_rows) {
+  const struct macroblockd_plane *const pd = &xd->plane[plane];
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  const int luma_bw = xd->plane[0].width;
+  const int luma_bh = xd->plane[0].height;
+
+  const int col_start = (luma_bw == 4) && ss_x ? xd->mi_col - 1 : xd->mi_col;
+  const int row_start = (luma_bh == 4) && ss_y ? xd->mi_row - 1 : xd->mi_row;
+  const int x = (col_start << MI_SIZE_LOG2) >> ss_x;
+  const int y = (row_start << MI_SIZE_LOG2) >> ss_y;
+
+  const int mi_x = x + (blk_col << MI_SIZE_LOG2);
+  const int mi_y = y + (blk_row << MI_SIZE_LOG2);
+  const int plane_frame_width = frame_width >> ss_x;
+  const int plane_frame_height = frame_height >> ss_y;
+  int valid_cols, valid_rows;
+
+  if (mi_x + cols <= plane_frame_width) {
+    valid_cols = cols;
+  } else {
+    valid_cols = clamp(plane_frame_width - mi_x, 0, cols);
+  }
+
+  if (mi_y + rows <= plane_frame_height) {
+    valid_rows = rows;
+  } else {
+    valid_rows = clamp(plane_frame_height - mi_y, 0, rows);
+  }
+
+  if (visible_cols != NULL && visible_rows != NULL) {
+    *visible_cols = valid_cols;
+    *visible_rows = valid_rows;
+  }
+  return (valid_cols < cols || valid_rows < rows);
+}
+
+static AOM_INLINE unsigned pixel_dist_visible_only(
+    const AV1_COMP *const cpi, const MACROBLOCK *x, const uint8_t *src,
+    const int src_stride, const uint8_t *dst, const int dst_stride,
+    const BLOCK_SIZE tx_bsize, int txb_rows, int txb_cols, int visible_rows,
+    int visible_cols) {
+  unsigned sse;
+
+  if (txb_rows == visible_rows && txb_cols == visible_cols) {
+    cpi->fn_ptr[tx_bsize].vf(src, src_stride, dst, dst_stride, &sse);
+    return sse;
+  }
+
+  const MACROBLOCKD *xd = &x->e_mbd;
+  if (is_cur_buf_hbd(xd)) {
+    uint64_t sse64 = aom_highbd_sse_odd_size(src, src_stride, dst, dst_stride,
+                                             visible_cols, visible_rows);
+    return (unsigned int)ROUND_POWER_OF_TWO(sse64, (xd->bd - 8) * 2);
+  }
+
+  sse = aom_sse_odd_size(src, src_stride, dst, dst_stride, visible_cols,
+                         visible_rows);
+  return sse;
+}
+#endif  // CONFIG_RESIDUE_PAD
+
 static AOM_INLINE int bsize_to_num_blk(BLOCK_SIZE bsize) {
   int num_blk = 1 << (num_pels_log2_lookup[bsize] - 2 * MI_SIZE_LOG2);
   return num_blk;
