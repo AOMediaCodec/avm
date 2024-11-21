@@ -269,6 +269,8 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 }
 
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+// Returns the starting mi location of chroma reference block for the current
+// mbmi, by setting `chroma_mi_row_start` and `chroma_mi_col_start`.
 static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
                                       TREE_TYPE tree_type,
                                       int *chroma_mi_row_start,
@@ -283,6 +285,7 @@ static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
   }
 }
 
+// Returns true if we are at the transform boundary.
 static bool is_tu_edge_helper(TX_SIZE tx_size, EDGE_DIR edge_dir,
                               int relative_row, int relative_col) {
   assert(tx_size != TX_INVALID);
@@ -621,6 +624,12 @@ static AOM_INLINE void check_sub_pu_edge(
 }
 #endif  // CONFIG_LF_SUB_PU
 
+// Returns pointer to appropriate 'mi' with 'mi_grid_base', which contains
+// information about current coding block and given current 'x'/'y' location,
+// 'plane', 'region_type' etc. The `mi_row` and `mi_col` corresponding to
+// 'x'/'y' location are also set.
+// Note that, this function is required because, for chroma plane in particular,
+// the actual 'mi' location maybe at an offset from the mi_row/mi_col.
 MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
                                int scale_vert, uint32_t x, uint32_t y,
                                int plane, int *mi_row, int *mi_col) {
