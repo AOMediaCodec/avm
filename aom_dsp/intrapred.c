@@ -594,16 +594,13 @@ static INLINE void highbd_ibp_dc_predictor(uint16_t *dst, ptrdiff_t stride,
   uint16_t *orig_dst = dst;
   int len_h = bh >> 2;
   int len_w = bw >> 2;
-#if CONFIG_FIX_IBP_DC
   int row_start = 0;
   int col_start = 0;
+#if CONFIG_FIX_IBP_DC
   if (bw >= bh)
     row_start = len_h;
   else
     col_start = len_w;
-#else
-  int row_start = 0;
-  int col_start = 0;
 #endif  // CONFIG_FIX_IBP_DC
   uint8_t weights_index = size_to_weights_index[bh >> 3];
   const uint8_t *weights = ibp_weights[weights_index];
@@ -616,11 +613,7 @@ static INLINE void highbd_ibp_dc_predictor(uint16_t *dst, ptrdiff_t stride,
     }
     dst += stride;
   }
-#if CONFIG_FIX_IBP_DC
   dst = orig_dst + row_start * stride;
-#else
-  dst = orig_dst;
-#endif  // CONFIG_FIX_IBP_DC
   weights_index = size_to_weights_index[bw >> 3];
   weights = ibp_weights[weights_index];
   for (r = row_start; r < bh; r++) {
@@ -683,16 +676,13 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
   const uint8_t *weights = ibp_weights[weights_index];
   int len_w = bw >> 2;
   int len_h = bh >> 2;
-#if CONFIG_FIX_IBP_DC
   int row_start = 0;
   int col_start = 0;
+#if CONFIG_FIX_IBP_DC
   if (bw >= bh)
     row_start = len_h;
   else
     col_start = len_w;
-#else
-  int row_start = 0;
-  int col_start = 0;
 #endif  // CONFIG_FIX_IBP_DC
   for (r = 0; r < len_h; r++) {
     for (c = col_start; c < bw; c++) {
@@ -703,11 +693,7 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
     }
     dst += stride;
   }
-#if CONFIG_FIX_IBP_DC
   dst = orig_dst + row_start * stride;
-#else
-  dst = orig_dst;
-#endif  // CONFIG_FIX_IBP_DC
   weights_index = size_to_weights_index[bw >> 3];
   weights = ibp_weights[weights_index];
   for (r = row_start; r < bh; r++) {
