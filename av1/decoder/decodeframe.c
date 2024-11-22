@@ -2503,7 +2503,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   }
   // Check that chroma ref block isn't completely outside the boundary.
   if ((xd->tree_type == SHARED_PART) && !cm->seq_params.monochrome &&
-      xd->is_chroma_ref &&
+      ptree->chroma_ref_info.is_chroma_ref &&
       have_nz_chroma_ref_offset(bsize, partition, pd_u->subsampling_x,
                                 pd_u->subsampling_y)) {
     int chroma_ref_row_offset = 0;
