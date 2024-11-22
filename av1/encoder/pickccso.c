@@ -1004,6 +1004,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
           : cm->ref_frames_info.num_total_refs;
 
   cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+  memset(cm->cur_frame->ccso_info.sb_filter_control[plane], 0,
+         sizeof(*cm->cur_frame->ccso_info.sb_filter_control[plane]) * sb_count);
 
   if (!is_intra_frame) {
     frame_bits += 2;
@@ -1136,7 +1138,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   }
 
                   bool check_sb_reuse =
-                      check_ccso && (ref_frame_ccso_info != NULL);
+                      check_ccso && (ref_frame_ccso_info != NULL) &&
+                      (sb_count == ref_frame_ccso_info->sb_count[plane]);
 
                   for (int sb_reuse_idx = 0; sb_reuse_idx <= check_sb_reuse;
                        ++sb_reuse_idx) {
@@ -1409,8 +1412,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   cm->ccso_info.sb_reuse_ccso[plane] = false;
   cm->ccso_info.reuse_ccso[plane] = false;
+  cm->cur_frame->ccso_info.sb_count[plane] = sb_count;
 #endif  // CONFIG_CCSO_IMPROVE
-
   if (cm->ccso_info.ccso_enable[plane]) {
 #if CONFIG_CCSO_IMPROVE
     cm->cur_frame->ccso_info.ccso_enable[plane] = 1;

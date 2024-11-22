@@ -1399,6 +1399,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
 #if CONFIG_CCSO_IMPROVE
   for (i = 0; i < CCSO_NUM_COMPONENTS; ++i) {
+    cm->ccso_info.ccso_frame_flag = 0;
     cm->ccso_info.reuse_ccso[i] = 0;
     cm->ccso_info.sb_reuse_ccso[i] = 0;
     cm->ccso_info.ccso_ref_idx[i] = UINT8_MAX;

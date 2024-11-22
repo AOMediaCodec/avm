@@ -250,7 +250,7 @@ typedef struct {
   /** edge classifier index */
   uint8_t edge_clf[CCSO_NUM_COMPONENTS];
   uint8_t ccso_ref_idx[CCSO_NUM_COMPONENTS];
-
+  int sb_count[CCSO_NUM_COMPONENTS];  // only used in encoder-side
   unsigned int
       reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
                                             // speedup
