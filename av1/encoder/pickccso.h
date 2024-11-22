@@ -31,7 +31,6 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 #endif
 );
 
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
