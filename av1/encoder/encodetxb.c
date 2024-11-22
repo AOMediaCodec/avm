@@ -1048,9 +1048,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
 
 #if DEBUG_EXTQUANT
-  fprintf(cm->fEncCoeffLog, "ptx_type=%d, stx_set=%d, stx_type=%d, eob=%d\n",
-          get_primary_tx_type(tx_type), get_secondary_tx_set(tx_type),
-          get_secondary_tx_type(tx_type), eob);
+  fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
 #endif
 
 #if !CONFIG_CONTEXT_DERIVATION
@@ -3872,11 +3870,11 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const tran_low_t abs_dqc = abs(dqcoeff[ci]);
     int rate_low = 0;
     const int rate = get_two_coeff_cost_simple(
-        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl, tx_class,
+        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl,
 #if CONFIG_COEFF_HR_ADAPTIVE
-        levels, &rate_low, limits, *hr_level_avg, &hr_level);
+        tx_class, levels, &rate_low, limits, *hr_level_avg, &hr_level);
 #else
-        levels, &rate_low, limits);
+        tx_class, levels, &rate_low, limits);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
 
     if (abs_dqc < abs_tqc) {

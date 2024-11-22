@@ -1309,6 +1309,7 @@ static const int16_t
     ist_4x4_kernel[IST_SET_SIZE][STX_TYPES -
                                  1][IST_4x4_HEIGHT][IST_4x4_WIDTH] = {
       {
+          //  0
           {
               { 101, -45, -53, -6, -14, -3, -3, 19, 22, -2, 3, 8, 2, -5, -7,
                 -3 },
@@ -2036,7 +2037,7 @@ static const int16_t
               { 2, 10, 15, -18, -44, -31, 8, 67, 54, -10, 7, 59, 32, 23, 10,
                 -1 },
           },
-      }
+      },
     };
 
 // IST 8x8 kernel
