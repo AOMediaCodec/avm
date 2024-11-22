@@ -1782,13 +1782,8 @@ typedef struct AV1Common {
  * Weights for IBP of directional modes.
  */
 #if CONFIG_IBP_WEIGHT
-#if CONFIG_FIX_IBP_DC
   IbpWeightsType ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
                                         [DIR_MODES_0_90];
-#else
-  uint8_t ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
-                                 [DIR_MODES_0_90];
-#endif  // CONFIG_FIX_IBP_DC
 #else
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
 #endif  // CONFIG_IBP_WEIGHT
@@ -3847,13 +3842,8 @@ static const int16_t second_dr_intra_derivative[90] = {
 // Generate the weights per pixel position for IBP
 #if CONFIG_IBP_WEIGHT
 static void av1_dr_prediction_z1_info(
-#if CONFIG_FIX_IBP_DC
-    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
-#else
-    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
-#endif  // CONFIG_FIX_IBP_DC
-    ,
-    int dy, int mode_idx) {
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int dy,
+    int mode_idx) {
   int32_t r, c, y;
   for (r = 0; r < IBP_WEIGHT_SIZE; ++r) {
     y = dy;
@@ -3959,12 +3949,8 @@ static const uint8_t angle_to_mode_index[90] = {
 // Generate weights for IBP of one directional mode
 static INLINE void init_ibp_info_per_mode(
 #if CONFIG_IBP_WEIGHT
-#if CONFIG_FIX_IBP_DC
-    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
-#else
-    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
-#endif  // CONFIG_FIX_IBP_DC
-    int mode, int delta
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode,
+    int delta
 #else
     uint8_t *weights[TX_SIZES_ALL][DIR_MODES_0_90], int block_idx, int mode,
     int delta, int txw, int txh, int txw_log2, int txh_log2
@@ -3991,12 +3977,7 @@ static INLINE void init_ibp_info_per_mode(
 // Generate weights for IBP of directional modes
 static INLINE void init_ibp_info(
 #if CONFIG_IBP_WEIGHT
-#if CONFIG_FIX_IBP_DC
-    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
-#else
-    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
-#endif  // CONFIG_FIX_IBP_DC
-) {
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]) {
   for (int r = 0; r < IBP_WEIGHT_SIZE; ++r) {
     for (int c = 0; c < IBP_WEIGHT_SIZE; ++c) {
       for (int m = 0; m < DIR_MODES_0_90; ++m) {
