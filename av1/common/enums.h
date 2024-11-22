@@ -1285,9 +1285,10 @@ enum {
 #define IBP_WEIGHT_SHIFT 8
 #if CONFIG_FIX_IBP_DC
 #define IBP_WEIGHT_MAX 256
+typedef uint16_t IbpWeightsType;
 #else
 #define IBP_WEIGHT_MAX 255
-#endif
+#endif  // CONFIG_FIX_IBP_DC
 
 /*!\enum Warp projection type
  * \brief This enumeration defines various warp projection type supported

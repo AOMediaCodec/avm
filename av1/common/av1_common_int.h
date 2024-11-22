@@ -1783,11 +1783,12 @@ typedef struct AV1Common {
  */
 #if CONFIG_IBP_WEIGHT
 #if CONFIG_FIX_IBP_DC
-  uint16_t
+  IbpWeightsType ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                                        [DIR_MODES_0_90];
 #else
-  uint8_t
+  uint8_t ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                                 [DIR_MODES_0_90];
 #endif  // CONFIG_FIX_IBP_DC
-      ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE][DIR_MODES_0_90];
 #else
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
 #endif  // CONFIG_IBP_WEIGHT
@@ -3847,11 +3848,11 @@ static const int16_t second_dr_intra_derivative[90] = {
 #if CONFIG_IBP_WEIGHT
 static void av1_dr_prediction_z1_info(
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
-    uint8_t
+    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #endif  // CONFIG_FIX_IBP_DC
-        weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    ,
     int dy, int mode_idx) {
   int32_t r, c, y;
   for (r = 0; r < IBP_WEIGHT_SIZE; ++r) {
@@ -3959,11 +3960,10 @@ static const uint8_t angle_to_mode_index[90] = {
 static INLINE void init_ibp_info_per_mode(
 #if CONFIG_IBP_WEIGHT
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
 #else
-    uint8_t
+    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
 #endif  // CONFIG_FIX_IBP_DC
-        weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
     int mode, int delta
 #else
     uint8_t *weights[TX_SIZES_ALL][DIR_MODES_0_90], int block_idx, int mode,
@@ -3992,11 +3992,11 @@ static INLINE void init_ibp_info_per_mode(
 static INLINE void init_ibp_info(
 #if CONFIG_IBP_WEIGHT
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
-    uint8_t
+    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #endif  // CONFIG_FIX_IBP_DC
-        weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]) {
+) {
   for (int r = 0; r < IBP_WEIGHT_SIZE; ++r) {
     for (int c = 0; c < IBP_WEIGHT_SIZE; ++c) {
       for (int m = 0; m < DIR_MODES_0_90; ++m) {

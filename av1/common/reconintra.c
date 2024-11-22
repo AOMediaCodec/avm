@@ -1419,11 +1419,11 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
 void av1_highbd_ibp_dr_prediction_z1_c(
     const
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
-    uint8_t
+    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #endif  // CONFIG_FIX_IBP_DC
-        weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    ,
     int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
     ptrdiff_t second_stride, int bw, int bh) {
   const int col_shift = bw >> (IBP_WEIGHT_SIZE_LOG2 + 1);
@@ -1446,11 +1446,11 @@ void av1_highbd_ibp_dr_prediction_z1_c(
 void av1_highbd_ibp_dr_prediction_z3_c(
     const
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
-    uint8_t
+    uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #endif  // CONFIG_FIX_IBP_DC
-        weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    ,
     int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
     ptrdiff_t second_stride, int bw, int bh) {
   const int col_shift = bw >> (IBP_WEIGHT_SIZE_LOG2 + 1);
@@ -1520,11 +1520,10 @@ static void build_intra_predictors_high(
 #if CONFIG_IBP_WEIGHT
     const
 #if CONFIG_FIX_IBP_DC
-    uint16_t
+    IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
-    uint8_t
+    uint8_t ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #endif  // CONFIG_FIX_IBP_DC
-        ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
 #else
     uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
 #endif  // CONFIG_IBP_WEIGHT

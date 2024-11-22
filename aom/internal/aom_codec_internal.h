@@ -349,11 +349,12 @@ struct aom_codec_priv {
   aom_codec_flags_t init_flags;
 #if CONFIG_IBP_WEIGHT
 #if CONFIG_FIX_IBP_DC
-  uint16_t
+  IbpWeightsType ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                                        [DIR_MODES_0_90];
 #else
-  uint8_t
+  uint8_t ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                                 [DIR_MODES_0_90];
 #endif  // CONFIG_FIX_IBP_DC
-      ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE][DIR_MODES_0_90];
 #else
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
 #endif  // CONFIG_IBP_WEIGHT
