@@ -24,30 +24,32 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/pickccso.h"
 
-uint8_t final_band_log2;
-int8_t best_filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16] = { { 0 } };
-int8_t final_filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16] = { { 0 } };
-bool best_filter_enabled[CCSO_NUM_COMPONENTS];
-bool final_filter_enabled[CCSO_NUM_COMPONENTS];
-uint8_t final_ext_filter_support[CCSO_NUM_COMPONENTS];
-uint8_t final_quant_idx[CCSO_NUM_COMPONENTS];
-uint8_t final_ccso_bo_only[CCSO_NUM_COMPONENTS];
+typedef struct {
+  uint8_t final_band_log2;
+  int8_t best_filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16];
+  int8_t final_filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16];
+  bool best_filter_enabled[CCSO_NUM_COMPONENTS];
+  bool final_filter_enabled[CCSO_NUM_COMPONENTS];
+  uint8_t final_ext_filter_support[CCSO_NUM_COMPONENTS];
+  uint8_t final_quant_idx[CCSO_NUM_COMPONENTS];
+  uint8_t final_ccso_bo_only[CCSO_NUM_COMPONENTS];
 
-int chroma_error[CCSO_BAND_NUM * 16] = { 0 };
-int chroma_count[CCSO_BAND_NUM * 16] = { 0 };
-int *total_class_err[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
-int *total_class_cnt[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
-int *total_class_err_bo[CCSO_BAND_NUM];
-int *total_class_cnt_bo[CCSO_BAND_NUM];
-int ccso_stride;
-int ccso_stride_ext;
-bool *filter_control;
-bool *best_filter_control;
-bool *final_filter_control;
-uint64_t unfiltered_dist_frame = 0;
-uint64_t filtered_dist_frame = 0;
-uint64_t *unfiltered_dist_block;
-uint64_t *training_dist_block;
+  int chroma_error[CCSO_BAND_NUM * 16];
+  int chroma_count[CCSO_BAND_NUM * 16];
+  int *total_class_err[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
+  int *total_class_cnt[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
+  int *total_class_err_bo[CCSO_BAND_NUM];
+  int *total_class_cnt_bo[CCSO_BAND_NUM];
+  int ccso_stride;
+  int ccso_stride_ext;
+  bool *filter_control;
+  bool *best_filter_control;
+  bool *final_filter_control;
+  uint64_t unfiltered_dist_frame;
+  uint64_t filtered_dist_frame;
+  uint64_t *unfiltered_dist_block;
+  uint64_t *training_dist_block;
+} CcsoCtx;
 
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
 const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
@@ -80,10 +82,11 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 }
 
 /* Derive CCSO filter support information */
-void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
-                          const uint16_t *src_y, const uint8_t qstep,
-                          const uint8_t filter_sup, uint8_t *src_cls0,
-                          uint8_t *src_cls1, int edge_clf) {
+static void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
+                                 const uint16_t *src_y, const uint8_t qstep,
+                                 const uint8_t filter_sup, uint8_t *src_cls0,
+                                 uint8_t *src_cls1, int edge_clf,
+                                 int ccso_stride, int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -109,10 +112,11 @@ void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
 
 /* Compute the aggregated residual between original and reconstructed sample for
  * each entry of the LUT */
-void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
-                                const uint16_t *src_y, const uint16_t *ref,
-                                const uint16_t *dst, uint8_t *src_cls0,
-                                uint8_t *src_cls1, const uint8_t shift_bits) {
+static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
+                                       const int plane, const uint16_t *src_y,
+                                       const uint16_t *ref, const uint16_t *dst,
+                                       uint8_t *src_cls0, uint8_t *src_cls1,
+                                       const uint8_t shift_bits) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -122,9 +126,9 @@ void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
   uint8_t cur_src_cls1;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
-  const int scaled_ext_stride = (ccso_stride_ext << y_uv_vscale);
-  const int scaled_stride = (ccso_stride << y_uv_vscale);
-  src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+  const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
+  const int scaled_stride = (ctx->ccso_stride << y_uv_vscale);
+  src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       fb_idx++;
@@ -136,34 +140,35 @@ void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
           cur_src_cls0 = src_cls0[x_pos << y_uv_hscale];
           cur_src_cls1 = src_cls1[x_pos << y_uv_hscale];
           const int band_num = src_y[x_pos << y_uv_hscale] >> shift_bits;
-          total_class_err[cur_src_cls0][cur_src_cls1][band_num][fb_idx - 1] +=
-              ref[x_pos] - dst[x_pos];
-          total_class_cnt[cur_src_cls0][cur_src_cls1][band_num][fb_idx - 1]++;
+          ctx->total_class_err[cur_src_cls0][cur_src_cls1][band_num]
+                              [fb_idx - 1] += ref[x_pos] - dst[x_pos];
+          ctx->total_class_cnt[cur_src_cls0][cur_src_cls1][band_num]
+                              [fb_idx - 1]++;
         }
-        ref += ccso_stride;
-        dst += ccso_stride;
+        ref += ctx->ccso_stride;
+        dst += ctx->ccso_stride;
         src_y += scaled_ext_stride;
         src_cls0 += scaled_stride;
         src_cls1 += scaled_stride;
       }
-      ref -= ccso_stride * y_end;
-      dst -= ccso_stride * y_end;
+      ref -= ctx->ccso_stride * y_end;
+      dst -= ctx->ccso_stride * y_end;
       src_y -= scaled_ext_stride * y_end;
       src_cls0 -= scaled_stride * y_end;
       src_cls1 -= scaled_stride * y_end;
     }
-    ref += (ccso_stride << blk_log2);
-    dst += (ccso_stride << blk_log2);
-    src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
-    src_cls0 += (ccso_stride << (blk_log2 + y_uv_vscale));
-    src_cls1 += (ccso_stride << (blk_log2 + y_uv_vscale));
+    ref += (ctx->ccso_stride << blk_log2);
+    dst += (ctx->ccso_stride << blk_log2);
+    src_y += (ctx->ccso_stride_ext << (blk_log2 + y_uv_vscale));
+    src_cls0 += (ctx->ccso_stride << (blk_log2 + y_uv_vscale));
+    src_cls1 += (ctx->ccso_stride << (blk_log2 + y_uv_vscale));
   }
 }
 
-void ccso_pre_compute_class_err_bo(MACROBLOCKD *xd, const int plane,
-                                   const uint16_t *src_y, const uint16_t *ref,
-                                   const uint16_t *dst,
-                                   const uint8_t shift_bits) {
+// pre compute classes for band offset only option
+static void ccso_pre_compute_class_err_bo(
+    CcsoCtx *ctx, MACROBLOCKD *xd, const int plane, const uint16_t *src_y,
+    const uint16_t *ref, const uint16_t *dst, const uint8_t shift_bits) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -171,8 +176,8 @@ void ccso_pre_compute_class_err_bo(MACROBLOCKD *xd, const int plane,
   int fb_idx = 0;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
-  const int scaled_ext_stride = (ccso_stride_ext << y_uv_vscale);
-  src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+  const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
+  src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       fb_idx++;
@@ -182,20 +187,21 @@ void ccso_pre_compute_class_err_bo(MACROBLOCKD *xd, const int plane,
         for (int x_start = 0; x_start < x_end; x_start++) {
           const int x_pos = x + x_start;
           const int band_num = src_y[x_pos << y_uv_hscale] >> shift_bits;
-          total_class_err_bo[band_num][fb_idx - 1] += ref[x_pos] - dst[x_pos];
-          total_class_cnt_bo[band_num][fb_idx - 1]++;
+          ctx->total_class_err_bo[band_num][fb_idx - 1] +=
+              ref[x_pos] - dst[x_pos];
+          ctx->total_class_cnt_bo[band_num][fb_idx - 1]++;
         }
-        ref += ccso_stride;
-        dst += ccso_stride;
+        ref += ctx->ccso_stride;
+        dst += ctx->ccso_stride;
         src_y += scaled_ext_stride;
       }
-      ref -= ccso_stride * y_end;
-      dst -= ccso_stride * y_end;
+      ref -= ctx->ccso_stride * y_end;
+      dst -= ctx->ccso_stride * y_end;
       src_y -= scaled_ext_stride * y_end;
     }
-    ref += (ccso_stride << blk_log2);
-    dst += (ccso_stride << blk_log2);
-    src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
+    ref += (ctx->ccso_stride << blk_log2);
+    dst += (ctx->ccso_stride << blk_log2);
+    src_y += (ctx->ccso_stride_ext << (blk_log2 + y_uv_vscale));
   }
 }
 
@@ -243,8 +249,8 @@ void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                           const uint16_t *src_y, uint16_t *dst_yuv,
                           const int dst_stride, const int8_t *filter_offset,
                           uint8_t *src_cls0, uint8_t *src_cls1,
-                          const uint8_t shift_bits,
-                          const uint8_t ccso_bo_only) {
+                          const uint8_t shift_bits, const uint8_t ccso_bo_only,
+                          int ccso_stride, int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
@@ -275,12 +281,11 @@ void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 }
 
 /* Apply CCSO on chroma component at encoder (high bit-depth) */
-void ccso_try_chroma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
-                            const uint16_t *src_y, uint16_t *dst_yuv,
-                            const int dst_stride, const int8_t *filter_offset,
-                            uint8_t *src_cls0, uint8_t *src_cls1,
-                            const uint8_t shift_bits,
-                            const uint8_t ccso_bo_only) {
+static void ccso_try_chroma_filter(
+    AV1_COMMON *cm, MACROBLOCKD *xd, const int plane, const uint16_t *src_y,
+    uint16_t *dst_yuv, const int dst_stride, const int8_t *filter_offset,
+    uint8_t *src_cls0, uint8_t *src_cls1, const uint8_t shift_bits,
+    const uint8_t ccso_bo_only, int ccso_stride, int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -361,11 +366,11 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
 }
 
 /* Derive block level on/off for CCSO */
-void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
-                   const uint64_t *unfiltered_dist,
-                   const uint64_t *training_dist, bool *m_filter_control,
-                   uint64_t *cur_total_dist, int *cur_total_rate,
-                   bool *filter_enable) {
+static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
+                          const uint64_t *unfiltered_dist,
+                          const uint64_t *training_dist, bool *m_filter_control,
+                          uint64_t *cur_total_dist, int *cur_total_rate,
+                          bool *filter_enable) {
   aom_cdf_prob ccso_cdf[CDF_SIZE(2)];
   static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
   av1_copy(ccso_cdf, default_ccso_cdf);
@@ -419,135 +424,14 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   *filter_enable = cur_filter_enabled;
 }
 
-/* Compute the aggregated residual between original and reconstructed sample
- * for each entry of the LUT */
-void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
-                         const int plane, const uint16_t *org_chroma,
-                         const uint16_t *rec_uv_16,
-                         const uint8_t quant_step_size,
-                         const uint8_t ext_filter_support, const int shift_bits,
-                         int edge_clf) {
-  const int log2_filter_unit_size =
-      plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-  const int pic_height_c = xd->plane[plane].dst.height;
-  const int pic_width_c = xd->plane[plane].dst.width;
-  int sb_idx = 0;
-  int rec_luma_idx[2];
-  const int inv_quant_step = quant_step_size * -1;
-  int rec_idx[2];
-#if CONFIG_CCSO_FT_SHAPE
-  // Input sample locations for CCSO
-  // 4 2 0 3 5
-  // 6 1 x 1 6
-  // 5 3 0 2 4
-  if (ext_filter_support == 0) {
-    rec_idx[0] = -1 * ccso_stride_ext;
-    rec_idx[1] = 1 * ccso_stride_ext;
-  } else if (ext_filter_support == 1) {
-    rec_idx[0] = -1;
-    rec_idx[1] = 1;
-  } else if (ext_filter_support == 4) {
-    rec_idx[0] = -ccso_stride_ext - 2;
-    rec_idx[1] = ccso_stride_ext + 2;
-  } else if (ext_filter_support == 5) {
-    rec_idx[0] = ccso_stride_ext - 2;
-    rec_idx[1] = -ccso_stride_ext + 2;
-  } else if (ext_filter_support == 2) {
-    rec_idx[0] = -1 * ccso_stride_ext - 1;
-    rec_idx[1] = 1 * ccso_stride_ext + 1;
-  } else if (ext_filter_support == 3) {
-    rec_idx[0] = -1 * ccso_stride_ext + 1;
-    rec_idx[1] = 1 * ccso_stride_ext - 1;
-  } else if (ext_filter_support == 6) {
-    rec_idx[0] = 2;
-    rec_idx[1] = -2;
-  } else {
-    printf("wrong ccso filter shape\n");
-  }
-#else
-  if (ext_filter_support == 0) {
-    rec_idx[0] = -1 * ccso_stride_ext;
-    rec_idx[1] = 1 * ccso_stride_ext;
-  } else if (ext_filter_support == 1) {
-    rec_idx[0] = -1 * ccso_stride_ext - 1;
-    rec_idx[1] = 1 * ccso_stride_ext + 1;
-  } else if (ext_filter_support == 2) {
-    rec_idx[0] = 0 * ccso_stride_ext - 1;
-    rec_idx[1] = 0 * ccso_stride_ext + 1;
-  } else if (ext_filter_support == 3) {
-    rec_idx[0] = 1 * ccso_stride_ext - 1;
-    rec_idx[1] = -1 * ccso_stride_ext + 1;
-  } else if (ext_filter_support == 4) {
-    rec_idx[0] = 0 * ccso_stride_ext - 3;
-    rec_idx[1] = 0 * ccso_stride_ext + 3;
-  } else {  // if(ext_filter_support == 5) {
-    rec_idx[0] = 0 * ccso_stride_ext - 5;
-    rec_idx[1] = 0 * ccso_stride_ext + 5;
-  }
-#endif
-  int ccso_stride_idx[1 << (CCSO_BLK_SIZE + 1)];
-  int ccso_stride_ext_idx[1 << (CCSO_BLK_SIZE + 1)];
-  for (int i = 0; i < (1 << (CCSO_BLK_SIZE + 1)); i++) {
-    ccso_stride_idx[i] = ccso_stride * i;
-    ccso_stride_ext_idx[i] = ccso_stride_ext * i;
-  }
-  const int pad_stride =
-      CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-  const int y_uv_hori_scale = xd->plane[plane].subsampling_x;
-  const int y_uv_vert_scale = xd->plane[plane].subsampling_y;
-  for (int y = 0; y < pic_height_c; y += (1 << log2_filter_unit_size)) {
-    for (int x = 0; x < pic_width_c; x += (1 << log2_filter_unit_size)) {
-      const bool skip_filtering = (filter_control[sb_idx]) ? false : true;
-      sb_idx++;
-      if (skip_filtering) continue;
-      int y_offset;
-      int x_offset;
-      if (y + (1 << log2_filter_unit_size) >= pic_height_c)
-        y_offset = pic_height_c - y;
-      else
-        y_offset = (1 << log2_filter_unit_size);
-
-      if (x + (1 << log2_filter_unit_size) >= pic_width_c)
-        x_offset = pic_width_c - x;
-      else
-        x_offset = (1 << log2_filter_unit_size);
-
-      for (int y_off = 0; y_off < y_offset; y_off++) {
-        for (int x_off = 0; x_off < x_offset; x_off++) {
-          const int band_num =
-              ext_rec_luma[((ccso_stride_ext_idx[y_off] << y_uv_vert_scale) +
-                            ((x + x_off) << y_uv_hori_scale)) +
-                           pad_stride] >>
-              shift_bits;
-          cal_filter_support(
-              rec_luma_idx,
-              &ext_rec_luma[((ccso_stride_ext_idx[y_off] << y_uv_vert_scale) +
-                             ((x + x_off) << y_uv_hori_scale)) +
-                            pad_stride],
-              quant_step_size, inv_quant_step, rec_idx, edge_clf);
-          chroma_error[(band_num << 4) + (rec_luma_idx[0] << 2) +
-                       rec_luma_idx[1]] +=
-              org_chroma[ccso_stride_idx[y_off] + x + x_off] -
-              rec_uv_16[ccso_stride_idx[y_off] + x + x_off];
-          chroma_count[(band_num << 4) + (rec_luma_idx[0] << 2) +
-                       rec_luma_idx[1]]++;
-        }
-      }
-    }
-    ext_rec_luma +=
-        (ccso_stride_ext << (log2_filter_unit_size + y_uv_vert_scale));
-    rec_uv_16 += (ccso_stride << log2_filter_unit_size);
-    org_chroma += (ccso_stride << log2_filter_unit_size);
-  }
-}
-
 /* Compute the residual for each entry of the LUT using CCSO enabled filter
  * blocks
  */
-void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
-                            const int max_band_log2,
-                            const int max_edge_interval,
-                            const uint8_t ccso_bo_only) {
+static void ccso_compute_class_err(CcsoCtx *ctx, AV1_COMMON *cm,
+                                   const int plane, MACROBLOCKD *xd,
+                                   const int max_band_log2,
+                                   const int max_edge_interval,
+                                   const uint8_t ccso_bo_only) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int nvfb = ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
@@ -558,24 +442,26 @@ void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                    (1 << blk_log2 >> MI_SIZE_LOG2);
   const int fb_count = nvfb * nhfb;
   for (int fb_idx = 0; fb_idx < fb_count; fb_idx++) {
-    if (!filter_control[fb_idx]) continue;
+    if (!ctx->filter_control[fb_idx]) continue;
     if (ccso_bo_only) {
       int d0 = 0;
       int d1 = 0;
       for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
         const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
-        chroma_error[lut_idx_ext] += total_class_err_bo[band_num][fb_idx];
-        chroma_count[lut_idx_ext] += total_class_cnt_bo[band_num][fb_idx];
+        ctx->chroma_error[lut_idx_ext] +=
+            ctx->total_class_err_bo[band_num][fb_idx];
+        ctx->chroma_count[lut_idx_ext] +=
+            ctx->total_class_cnt_bo[band_num][fb_idx];
       }
     } else {
       for (int d0 = 0; d0 < max_edge_interval; d0++) {
         for (int d1 = 0; d1 < max_edge_interval; d1++) {
           for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
             const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
-            chroma_error[lut_idx_ext] +=
-                total_class_err[d0][d1][band_num][fb_idx];
-            chroma_count[lut_idx_ext] +=
-                total_class_cnt[d0][d1][band_num][fb_idx];
+            ctx->chroma_error[lut_idx_ext] +=
+                ctx->total_class_err[d0][d1][band_num][fb_idx];
+            ctx->chroma_count[lut_idx_ext] +=
+                ctx->total_class_cnt[d0][d1][band_num][fb_idx];
           }
         }
       }
@@ -607,9 +493,12 @@ static INLINE int count_lut_bits(int8_t *temp_filter_offset,
 }
 
 /* Derive the offset value in the look-up table */
-void derive_lut_offset(int8_t *temp_filter_offset, const int max_band_log2,
-                       const int max_edge_interval,
-                       const uint8_t ccso_bo_only) {
+static void derive_lut_offset(int8_t *temp_filter_offset,
+                              const int max_band_log2,
+                              const int max_edge_interval,
+                              const uint8_t ccso_bo_only,
+                              const int chroma_count[CCSO_BAND_NUM * 16],
+                              const int chroma_error[CCSO_BAND_NUM * 16]) {
   float temp_offset = 0;
   int num_edge_offset_intervals = ccso_bo_only ? 1 : max_edge_interval;
   for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
@@ -644,9 +533,10 @@ void derive_lut_offset(int8_t *temp_filter_offset, const int max_band_log2,
 }
 
 /* Derive the look-up table for a color component */
-void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
-                        const uint16_t *org_uv, const uint16_t *ext_rec_y,
-                        const uint16_t *rec_uv, int rdmult) {
+static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
+                               MACROBLOCKD *xd, const uint16_t *org_uv,
+                               const uint16_t *ext_rec_y,
+                               const uint16_t *rec_uv, int rdmult) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int log2_filter_unit_size =
       plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
@@ -663,40 +553,49 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   const int pic_height_c = xd->plane[plane].dst.height;
   const int pic_width_c = xd->plane[plane].dst.width;
   uint16_t *temp_rec_uv_buf;
-  unfiltered_dist_frame = 0;
-  unfiltered_dist_block = aom_malloc(sizeof(*unfiltered_dist_block) * sb_count);
-  memset(unfiltered_dist_block, 0, sizeof(*unfiltered_dist_block) * sb_count);
-  training_dist_block = aom_malloc(sizeof(*training_dist_block) * sb_count);
-  memset(training_dist_block, 0, sizeof(*training_dist_block) * sb_count);
-  filter_control = aom_malloc(sizeof(*filter_control) * sb_count);
-  memset(filter_control, 0, sizeof(*filter_control) * sb_count);
-  best_filter_control = aom_malloc(sizeof(*best_filter_control) * sb_count);
-  memset(best_filter_control, 0, sizeof(*best_filter_control) * sb_count);
-  final_filter_control = aom_malloc(sizeof(*final_filter_control) * sb_count);
-  memset(final_filter_control, 0, sizeof(*final_filter_control) * sb_count);
+  ctx->unfiltered_dist_frame = 0;
+  ctx->unfiltered_dist_block =
+      aom_malloc(sizeof(*ctx->unfiltered_dist_block) * sb_count);
+  memset(ctx->unfiltered_dist_block, 0,
+         sizeof(*ctx->unfiltered_dist_block) * sb_count);
+  ctx->training_dist_block =
+      aom_malloc(sizeof(*ctx->training_dist_block) * sb_count);
+  memset(ctx->training_dist_block, 0,
+         sizeof(*ctx->training_dist_block) * sb_count);
+  ctx->filter_control = aom_malloc(sizeof(*ctx->filter_control) * sb_count);
+  memset(ctx->filter_control, 0, sizeof(*ctx->filter_control) * sb_count);
+  ctx->best_filter_control =
+      aom_malloc(sizeof(*ctx->best_filter_control) * sb_count);
+  memset(ctx->best_filter_control, 0,
+         sizeof(*ctx->best_filter_control) * sb_count);
+  ctx->final_filter_control =
+      aom_malloc(sizeof(*ctx->final_filter_control) * sb_count);
+  memset(ctx->final_filter_control, 0,
+         sizeof(*ctx->final_filter_control) * sb_count);
   temp_rec_uv_buf = aom_malloc(sizeof(*temp_rec_uv_buf) *
-                               xd->plane[0].dst.height * ccso_stride);
+                               xd->plane[0].dst.height * ctx->ccso_stride);
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
       for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-        total_class_err[d0][d1][band_num] =
-            aom_malloc(sizeof(*total_class_err[d0][d1][band_num]) * sb_count);
-        total_class_cnt[d0][d1][band_num] =
-            aom_malloc(sizeof(*total_class_cnt[d0][d1][band_num]) * sb_count);
+        ctx->total_class_err[d0][d1][band_num] = aom_malloc(
+            sizeof(*ctx->total_class_err[d0][d1][band_num]) * sb_count);
+        ctx->total_class_cnt[d0][d1][band_num] = aom_malloc(
+            sizeof(*ctx->total_class_cnt[d0][d1][band_num]) * sb_count);
       }
     }
   }
   for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-    total_class_err_bo[band_num] =
-        aom_malloc(sizeof(*total_class_err_bo[band_num]) * sb_count);
-    total_class_cnt_bo[band_num] =
-        aom_malloc(sizeof(*total_class_cnt_bo[band_num]) * sb_count);
+    ctx->total_class_err_bo[band_num] =
+        aom_malloc(sizeof(*ctx->total_class_err_bo[band_num]) * sb_count);
+    ctx->total_class_cnt_bo[band_num] =
+        aom_malloc(sizeof(*ctx->total_class_cnt_bo[band_num]) * sb_count);
   }
-  compute_distortion(org_uv, ccso_stride, rec_uv, ccso_stride,
+  compute_distortion(org_uv, ctx->ccso_stride, rec_uv, ctx->ccso_stride,
                      log2_filter_unit_size, pic_height_c, pic_width_c,
-                     unfiltered_dist_block, ccso_nhfb, &unfiltered_dist_frame);
+                     ctx->unfiltered_dist_block, ccso_nhfb,
+                     &ctx->unfiltered_dist_frame);
   const double best_unfiltered_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, 1, unfiltered_dist_frame, cm->seq_params.bit_depth);
+      rdmult, 1, ctx->unfiltered_dist_frame, cm->seq_params.bit_depth);
   double best_filtered_cost;
   double final_filtered_cost = DBL_MAX;
   uint8_t best_edge_classifier = 0;
@@ -752,7 +651,8 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
           if (!ccso_bo_only) {
             ccso_derive_src_info(xd, plane, ext_rec_y, quant_sz[quant_idx],
                                  ext_filter_support, src_cls0, src_cls1,
-                                 edge_clf);
+                                 edge_clf, ctx->ccso_stride,
+                                 ctx->ccso_stride_ext);
           }
           int num_band_iter = total_band_log2_plus1;
           if (ccso_bo_only) {
@@ -770,71 +670,75 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
             int control_idx = 0;
             for (int y = 0; y < ccso_nvfb; y++) {
               for (int x = 0; x < ccso_nhfb; x++) {
-                filter_control[control_idx] = 1;
+                ctx->filter_control[control_idx] = 1;
                 control_idx++;
               }
             }
             if (ccso_bo_only) {
               for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-                memset(total_class_err_bo[band_num], 0,
-                       sizeof(*total_class_err_bo[band_num]) * sb_count);
-                memset(total_class_cnt_bo[band_num], 0,
-                       sizeof(*total_class_cnt_bo[band_num]) * sb_count);
+                memset(ctx->total_class_err_bo[band_num], 0,
+                       sizeof(*ctx->total_class_err_bo[band_num]) * sb_count);
+                memset(ctx->total_class_cnt_bo[band_num], 0,
+                       sizeof(*ctx->total_class_cnt_bo[band_num]) * sb_count);
               }
-              ccso_pre_compute_class_err_bo(xd, plane, ext_rec_y, org_uv,
+              ccso_pre_compute_class_err_bo(ctx, xd, plane, ext_rec_y, org_uv,
                                             rec_uv, shift_bits);
             } else {
               for (int d0 = 0; d0 < max_edge_interval; d0++) {
                 for (int d1 = 0; d1 < max_edge_interval; d1++) {
                   for (int band_num = 0; band_num < max_band; band_num++) {
-                    memset(
-                        total_class_err[d0][d1][band_num], 0,
-                        sizeof(*total_class_err[d0][d1][band_num]) * sb_count);
-                    memset(
-                        total_class_cnt[d0][d1][band_num], 0,
-                        sizeof(*total_class_cnt[d0][d1][band_num]) * sb_count);
+                    memset(ctx->total_class_err[d0][d1][band_num], 0,
+                           sizeof(*ctx->total_class_err[d0][d1][band_num]) *
+                               sb_count);
+                    memset(ctx->total_class_cnt[d0][d1][band_num], 0,
+                           sizeof(*ctx->total_class_cnt[d0][d1][band_num]) *
+                               sb_count);
                   }
                 }
               }
-              ccso_pre_compute_class_err(xd, plane, ext_rec_y, org_uv, rec_uv,
-                                         src_cls0, src_cls1, shift_bits);
+              ccso_pre_compute_class_err(ctx, xd, plane, ext_rec_y, org_uv,
+                                         rec_uv, src_cls0, src_cls1,
+                                         shift_bits);
             }
             int training_iter_count = 0;
             while (keep_training) {
               improvement = false;
               if (ccso_enable) {
-                memset(chroma_error, 0, sizeof(chroma_error));
-                memset(chroma_count, 0, sizeof(chroma_count));
+                memset(ctx->chroma_error, 0, sizeof(ctx->chroma_error));
+                memset(ctx->chroma_count, 0, sizeof(ctx->chroma_count));
                 memset(filter_offset, 0, sizeof(filter_offset));
                 memcpy(temp_rec_uv_buf, rec_uv,
                        sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
-                           ccso_stride);
-                ccso_compute_class_err(cm, plane, xd, max_band_log2,
+                           ctx->ccso_stride);
+                ccso_compute_class_err(ctx, cm, plane, xd, max_band_log2,
                                        max_edge_interval, ccso_bo_only);
                 derive_lut_offset(filter_offset, max_band_log2,
-                                  max_edge_interval, ccso_bo_only);
+                                  max_edge_interval, ccso_bo_only,
+                                  ctx->chroma_count, ctx->chroma_error);
               }
               memcpy(temp_rec_uv_buf, rec_uv,
                      sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
-                         ccso_stride);
+                         ctx->ccso_stride);
               if (plane > 0)
-                ccso_try_chroma_filter(cm, xd, plane, ext_rec_y,
-                                       temp_rec_uv_buf, ccso_stride,
-                                       filter_offset, src_cls0, src_cls1,
-                                       shift_bits, ccso_bo_only);
+                ccso_try_chroma_filter(
+                    cm, xd, plane, ext_rec_y, temp_rec_uv_buf, ctx->ccso_stride,
+                    filter_offset, src_cls0, src_cls1, shift_bits, ccso_bo_only,
+                    ctx->ccso_stride, ctx->ccso_stride_ext);
               else
                 ccso_try_luma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
-                                     ccso_stride, filter_offset, src_cls0,
-                                     src_cls1, shift_bits, ccso_bo_only);
-              filtered_dist_frame = 0;
-              compute_distortion(org_uv, ccso_stride, temp_rec_uv_buf,
-                                 ccso_stride, log2_filter_unit_size,
-                                 pic_height_c, pic_width_c, training_dist_block,
-                                 ccso_nhfb, &filtered_dist_frame);
+                                     ctx->ccso_stride, filter_offset, src_cls0,
+                                     src_cls1, shift_bits, ccso_bo_only,
+                                     ctx->ccso_stride, ctx->ccso_stride_ext);
+              ctx->filtered_dist_frame = 0;
+              compute_distortion(org_uv, ctx->ccso_stride, temp_rec_uv_buf,
+                                 ctx->ccso_stride, log2_filter_unit_size,
+                                 pic_height_c, pic_width_c,
+                                 ctx->training_dist_block, ccso_nhfb,
+                                 &ctx->filtered_dist_frame);
               uint64_t cur_total_dist = 0;
               int cur_total_rate = 0;
-              derive_blk_md(cm, xd, plane, unfiltered_dist_block,
-                            training_dist_block, filter_control,
+              derive_blk_md(cm, xd, plane, ctx->unfiltered_dist_block,
+                            ctx->training_dist_block, ctx->filter_control,
                             &cur_total_dist, &cur_total_rate, &ccso_enable);
               if (ccso_enable) {
                 const int lut_bits =
@@ -857,12 +761,12 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                 }
                 if (cur_total_cost < best_filtered_cost) {
                   best_filtered_cost = cur_total_cost;
-                  best_filter_enabled[plane] = ccso_enable;
-                  memcpy(best_filter_offset[plane], filter_offset,
+                  ctx->best_filter_enabled[plane] = ccso_enable;
+                  memcpy(ctx->best_filter_offset[plane], filter_offset,
                          sizeof(filter_offset));
                   best_edge_classifier = edge_clf;
-                  memcpy(best_filter_control, filter_control,
-                         sizeof(*filter_control) * sb_count);
+                  memcpy(ctx->best_filter_control, ctx->filter_control,
+                         sizeof(*ctx->filter_control) * sb_count);
                 }
               }
               training_iter_count++;
@@ -873,16 +777,18 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
 
             if (best_filtered_cost < final_filtered_cost) {
               final_filtered_cost = best_filtered_cost;
-              final_filter_enabled[plane] = best_filter_enabled[plane];
-              final_quant_idx[plane] = quant_idx;
-              final_ext_filter_support[plane] = ext_filter_support;
-              final_ccso_bo_only[plane] = ccso_bo_only;
-              memcpy(final_filter_offset[plane], best_filter_offset[plane],
-                     sizeof(best_filter_offset[plane]));
-              final_band_log2 = max_band_log2;
+              ctx->final_filter_enabled[plane] =
+                  ctx->best_filter_enabled[plane];
+              ctx->final_quant_idx[plane] = quant_idx;
+              ctx->final_ext_filter_support[plane] = ext_filter_support;
+              ctx->final_ccso_bo_only[plane] = ccso_bo_only;
+              memcpy(ctx->final_filter_offset[plane],
+                     ctx->best_filter_offset[plane],
+                     sizeof(ctx->best_filter_offset[plane]));
+              ctx->final_band_log2 = max_band_log2;
               final_edge_classifier = best_edge_classifier;
-              memcpy(final_filter_control, best_filter_control,
-                     sizeof(*best_filter_control) * sb_count);
+              memcpy(ctx->final_filter_control, ctx->best_filter_control,
+                     sizeof(*ctx->best_filter_control) * sb_count);
             }
           }
         }
@@ -891,7 +797,8 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   }
 
   if (best_unfiltered_cost < final_filtered_cost) {
-    memset(final_filter_control, 0, sizeof(*final_filter_control) * sb_count);
+    memset(ctx->final_filter_control, 0,
+           sizeof(*ctx->final_filter_control) * sb_count);
     cm->ccso_info.ccso_enable[plane] = false;
   } else {
     cm->ccso_info.ccso_enable[plane] = true;
@@ -907,7 +814,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                              (1 << CCSO_BLK_SIZE >>
                               (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
                                  x_sb]
-              ->ccso_blk_y = final_filter_control[y_sb * ccso_nhfb + x_sb];
+              ->ccso_blk_y = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
         } else if (plane == AOM_PLANE_U) {
           mi_params
               ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
@@ -916,7 +823,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                              (1 << CCSO_BLK_SIZE >>
                               (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
                                  x_sb]
-              ->ccso_blk_u = final_filter_control[y_sb * ccso_nhfb + x_sb];
+              ->ccso_blk_u = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
         } else {
           mi_params
               ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
@@ -925,37 +832,38 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                              (1 << CCSO_BLK_SIZE >>
                               (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
                                  x_sb]
-              ->ccso_blk_v = final_filter_control[y_sb * ccso_nhfb + x_sb];
+              ->ccso_blk_v = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
         }
       }
     }
-    memcpy(cm->ccso_info.filter_offset[plane], final_filter_offset[plane],
-           sizeof(final_filter_offset[plane]));
-    cm->ccso_info.quant_idx[plane] = final_quant_idx[plane];
-    cm->ccso_info.ext_filter_support[plane] = final_ext_filter_support[plane];
-    cm->ccso_info.ccso_bo_only[plane] = final_ccso_bo_only[plane];
-    cm->ccso_info.max_band_log2[plane] = final_band_log2;
+    memcpy(cm->ccso_info.filter_offset[plane], ctx->final_filter_offset[plane],
+           sizeof(ctx->final_filter_offset[plane]));
+    cm->ccso_info.quant_idx[plane] = ctx->final_quant_idx[plane];
+    cm->ccso_info.ext_filter_support[plane] =
+        ctx->final_ext_filter_support[plane];
+    cm->ccso_info.ccso_bo_only[plane] = ctx->final_ccso_bo_only[plane];
+    cm->ccso_info.max_band_log2[plane] = ctx->final_band_log2;
     cm->ccso_info.edge_clf[plane] = final_edge_classifier;
   }
-  aom_free(unfiltered_dist_block);
-  aom_free(training_dist_block);
-  aom_free(filter_control);
-  aom_free(final_filter_control);
+  aom_free(ctx->unfiltered_dist_block);
+  aom_free(ctx->training_dist_block);
+  aom_free(ctx->filter_control);
+  aom_free(ctx->final_filter_control);
   aom_free(temp_rec_uv_buf);
-  aom_free(best_filter_control);
+  aom_free(ctx->best_filter_control);
   aom_free(src_cls0);
   aom_free(src_cls1);
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
       for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-        aom_free(total_class_err[d0][d1][band_num]);
-        aom_free(total_class_cnt[d0][d1][band_num]);
+        aom_free(ctx->total_class_err[d0][d1][band_num]);
+        aom_free(ctx->total_class_cnt[d0][d1][band_num]);
       }
     }
   }
   for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-    aom_free(total_class_err_bo[band_num]);
-    aom_free(total_class_cnt_bo[band_num]);
+    aom_free(ctx->total_class_err_bo[band_num]);
+    aom_free(ctx->total_class_cnt_bo[band_num]);
   }
 }
 
@@ -972,21 +880,23 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
-  ccso_stride = xd->plane[0].dst.width;
-  ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-  derive_ccso_filter(cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
+  CcsoCtx *const ctx = aom_calloc(1, sizeof(CcsoCtx));
+  ctx->ccso_stride = xd->plane[0].dst.width;
+  ctx->ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+  derive_ccso_filter(ctx, cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
                      rec_uv[AOM_PLANE_Y], rdmult);
 #if CONFIG_D143_CCSO_FM_FLAG
   cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
 #endif  // CONFIG_D143_CCSO_FM_FLAG
   if (num_planes > 1) {
-    derive_ccso_filter(cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
+    derive_ccso_filter(ctx, cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
                        rec_uv[AOM_PLANE_U], rdmult);
-    derive_ccso_filter(cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
+    derive_ccso_filter(ctx, cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
                        rec_uv[AOM_PLANE_V], rdmult);
 #if CONFIG_D143_CCSO_FM_FLAG
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[1];
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[2];
 #endif  // CONFIG_D143_CCSO_FM_FLAG
   }
+  aom_free(ctx);
 }
