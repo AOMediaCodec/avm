@@ -224,6 +224,7 @@ static void ccso_pre_compute_class_err_bo(
   }
 }
 
+// Apply ccso filter when Band Offset Only option is true.
 void ccso_filter_block_hbd_with_buf_bo_only_c(
     const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0,
     const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,

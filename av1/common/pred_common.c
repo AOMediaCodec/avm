@@ -427,6 +427,9 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
 }
 
 #if CONFIG_CCSO_IMPROVE
+// This funtion is to check if the 1st mbmi of the current ccso unit is inside
+// the current tile. The 1st mbmi is used to signal the ccso block control flag
+// for the current ccso unit.
 bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *const mbmi) {
   const TileInfo *const tile = &xd->tile;
@@ -441,6 +444,15 @@ bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
           ((mbmi->mi_col_start & ~blk_size_x) < tile->mi_col_end));
 }
 
+// This function is the derive the neighboring context of ccso_cdf. -- means
+// neighbouring ccso unit or ccso flag is not available. 0 -
+// neighbor0_ccso_false/neighbor1_ccso_false, neighbor0_ccso_false/--,
+// --/neighbor1_ccso_false, --/-- 1 - neighbor0_ccso_true/neighbor0_ccso_false,
+// neighbor0_ccso_false/neighbor1_ccso_true 2 - neighbor0_ccso_true/--,
+// --/neighbor1_ccso_true, neighbor0_ccso_true/neighbor1_ccso_true &&
+// neighbor0_ccso_unit==neighbor1_ccso_unit 3 -
+// neighbor0_ccso_true/neighbor1_ccso_true &&
+// neighbor0_ccso_unit!=neighbor1_ccso_unit
 int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
   const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];

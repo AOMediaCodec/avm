@@ -436,6 +436,8 @@ void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 
 #if CONFIG_CCSO_IMPROVE
+// This function is to copy ccso filter parameters between frames when
+// ccso_reuse is true.
 void av1_copy_ccso_filters(CcsoInfo *to, CcsoInfo *from, int plane,
                            bool frame_level, bool block_level, int sb_count) {
   if (frame_level) {
