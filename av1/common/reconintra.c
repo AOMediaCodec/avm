@@ -2232,8 +2232,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                 input[w + 1] + input[top] + input[bot];
           } else {
             output_q3[w >> 1] =
-                (input[w] + input[w + 1] + input[bot] + input[bot + 1] + 2)
-                << 1;
+                (input[w] + input[w + 1] + input[bot] + input[bot + 1]) << 1;
           }
         }
         output_q3 += output_stride;
