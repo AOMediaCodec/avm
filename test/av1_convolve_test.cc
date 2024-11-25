@@ -1074,8 +1074,8 @@ class AV1ConvolveNonSep2DHighbdTest
                  kOutputStride, bit_depth, 0, height, 0, width, rtype);
     // Extreme value test
     const uint16_t *extreme_input = FirstRandomInput16Extreme(GetParam());
-    int16_t Extream_Tap_[kNumSymmetricTaps + 1];
-    RandomizeExtreamFilterTap(Extream_Tap_, kNumSymmetricTaps + 1,
+    int16_t Extream_Tap_[kMaxNumSymmetricTaps + 1];
+    RandomizeExtreamFilterTap(Extream_Tap_, kMaxNumSymmetricTaps + 1,
                               kMaxPrecisionBeforeOverflow);
     BitMatchTest(extreme_input, input_stride, width, height, Extream_Tap_,
                  reference, test, kOutputStride, bit_depth, 0, height, 0, width,
@@ -1148,12 +1148,13 @@ class AV1ConvolveNonSep2DHighbdTest
   }
 
   // Generates NonsepFilterConfig compliant origin symmetric filter tap values.
-  // The first (2 * kNumSymmetricTaps) are for the CONFIG_WIENER_NONSEP use case
-  // where the center tap is constrained so that filter sums to one. The last
-  // added tap at (2 * kNumSymmetricTaps) is unconstrained and intended for
-  // CONFIG_PC_WIENER use case.
+  // The first (2 * kMaxNumSymmetricTaps) are for the CONFIG_WIENER_NONSEP use
+  // case where the center tap is constrained so that filter sums to one. The
+  // last added tap at (2 * kMaxNumSymmetricTaps) is unconstrained and intended
+  // for CONFIG_PC_WIENER use case.
   void SetFilterTaps() {
-    Randomize(FilterTaps_, kNumSymmetricTaps + 1, kMaxPrecisionBeforeOverflow);
+    Randomize(FilterTaps_, kMaxNumSymmetricTaps + 1,
+              kMaxPrecisionBeforeOverflow);
   }
 
   // Fills the array p with signed integers.
@@ -1182,8 +1183,8 @@ class AV1ConvolveNonSep2DHighbdTest
 
   libaom_test::ACMRandom rnd_;
   static constexpr int kMaxPrecisionBeforeOverflow = 12;
-  static constexpr int kNumSymmetricTaps = 12;
-  static constexpr int kNumSymmetricTapsChroma = 6;
+  static constexpr int kMaxNumSymmetricTaps = 18;
+  static constexpr int kMaxNumSymmetricTapsChroma = 12;
   static constexpr int kMaxTapOffset = 3;  // Filters are 7x7.
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;
@@ -1191,7 +1192,7 @@ class AV1ConvolveNonSep2DHighbdTest
   // Filters use all unique taps.
   const NonsepFilterConfig UnconstrainedSumFilterConfig_ = {
     kMaxPrecisionBeforeOverflow,
-    2 * kNumSymmetricTaps + 1,
+    sizeof(wienerns_simd_config_y) / sizeof(wienerns_simd_config_y[0]),
     0,
     wienerns_simd_config_y,
     NULL,
@@ -1203,7 +1204,8 @@ class AV1ConvolveNonSep2DHighbdTest
 
   const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
     kMaxPrecisionBeforeOverflow,
-    2 * kNumSymmetricTapsChroma + 1,
+    sizeof(wienerns_simd_config_uv_from_uvonly) /
+        sizeof(wienerns_simd_config_uv_from_uvonly[0]),
     0,
     wienerns_simd_config_uv_from_uvonly,
     NULL,
@@ -1213,13 +1215,11 @@ class AV1ConvolveNonSep2DHighbdTest
     1
   };
 
-  // Filters use only the first (2 * kNumSymmetricTaps) taps. Center tap is
-  // constrained.
   const NonsepFilterConfig UnitSumFilterConfig_ = {
     kMaxPrecisionBeforeOverflow,
-    2 * kNumSymmetricTaps,
+    sizeof(wienerns_simd_config_y) / sizeof(wienerns_simd_config_y[0]) - 1,
     0,
-    wienerns_simd_subtract_center_config_y,
+    wienerns_simd_config_y,
     NULL,
     0,
     1,
@@ -1230,9 +1230,11 @@ class AV1ConvolveNonSep2DHighbdTest
   // Config used for filtering of chroma when CONFIG_WIENER_NONSEP=1.
   const NonsepFilterConfig UnitSumFilterConfigChroma_ = {
     kMaxPrecisionBeforeOverflow,
-    2 * kNumSymmetricTapsChroma,
+    sizeof(wienerns_simd_config_uv_from_uv) /
+            sizeof(wienerns_simd_config_uv_from_uv[0]) -
+        1,
     0,
-    wienerns_simd_subtract_center_config_uv_from_uv,
+    wienerns_simd_config_uv_from_uv,
     NULL,
     0,
     1,
@@ -1240,7 +1242,7 @@ class AV1ConvolveNonSep2DHighbdTest
     1
   };
 
-  int16_t FilterTaps_[kNumSymmetricTaps + 1];
+  int16_t FilterTaps_[kMaxNumSymmetricTaps + 1];
 };
 
 TEST_P(AV1ConvolveNonSep2DHighbdTest, RunTest) { RunTest(RESTORE_PC_WIENER); }
@@ -1452,18 +1454,18 @@ class AV1ConvolveNonSep_dual2DHighbdTest
 
   const NonsepFilterConfig DualFilterWithCenterConfig_ = {
     kMaxPrecisionBeforeOverflow,  // prec_bits;
-    sizeof(wienerns_simd_subtract_center_config_uv_from_uv) /
-        sizeof(
-            wienerns_simd_subtract_center_config_uv_from_uv[0]),  // num_pixels;
-    sizeof(wienerns_simd_subtract_center_config_uv_from_y) /
-        sizeof(
-            wienerns_simd_subtract_center_config_uv_from_y[0]),  // num_pixels2
-    wienerns_simd_subtract_center_config_uv_from_uv,             // config
-    wienerns_simd_subtract_center_config_uv_from_y,              // config2
-    0,  // strict_bounds
-    1,  // subtract_center
-    1,  // symmetry config
-    0,  // symmetry config2
+    sizeof(wienerns_simd_config_uv_from_uv) /
+            sizeof(wienerns_simd_config_uv_from_uv[0]) -
+        1,  // num_pixels;
+    sizeof(wienerns_simd_config_uv_from_y) /
+            sizeof(wienerns_simd_config_uv_from_y[0]) -
+        1,                            // num_pixels2
+    wienerns_simd_config_uv_from_uv,  // config
+    wienerns_simd_config_uv_from_y,   // config2
+    0,                                // strict_bounds
+    1,                                // subtract_center
+    1,                                // symmetry config
+    0,                                // symmetry config2
   };
 
   const NonsepFilterConfig DualFilterWithoutCenterConfig_ = {

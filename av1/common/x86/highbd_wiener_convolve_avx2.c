@@ -1868,19 +1868,16 @@ void av1_convolve_symmetric_subtract_center_highbd_avx2(
   // Dispatch to the appropriate SIMD function for the selected filter shape
   // and block size. If none are applicable, fall back to C
   if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
-      (filter_config->config ==
-           wienerns_simd_subtract_center_config_uv_from_uv ||
-       !memcmp(wienerns_simd_subtract_center_config_uv_from_uv,
-               filter_config->config,
+      (filter_config->config == wienerns_simd_config_uv_from_uv ||
+       !memcmp(wienerns_simd_config_uv_from_uv, filter_config->config,
                filter_config->num_pixels * 3 *
                    sizeof(filter_config->config[0][0])))) {
     av1_convolve_symmetric_subtract_center_highbd_6tap_avx2(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_col_begin);
   } else if (num_rows == 4 && num_cols == 4 && num_sym_taps == 12 &&
-             (filter_config->config == wienerns_simd_subtract_center_config_y ||
-              !memcmp(wienerns_simd_subtract_center_config_y,
-                      filter_config->config,
+             (filter_config->config == wienerns_simd_config_y ||
+              !memcmp(wienerns_simd_config_y, filter_config->config,
                       filter_config->num_pixels * 3 *
                           sizeof(filter_config->config[0][0])))) {
     av1_convolve_symmetric_subtract_center_highbd_12tap_avx2(
@@ -2185,16 +2182,12 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
   // and block size. If none are applicable, fall back to C
   if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
       num_taps_dual == 12 &&
-      (filter_config->config ==
-           wienerns_simd_subtract_center_config_uv_from_uv ||
-       !memcmp(wienerns_simd_subtract_center_config_uv_from_uv,
-               filter_config->config,
+      (filter_config->config == wienerns_simd_config_uv_from_uv ||
+       !memcmp(wienerns_simd_config_uv_from_uv, filter_config->config,
                filter_config->num_pixels * 3 *
                    sizeof(filter_config->config[0][0]))) &&
-      (filter_config->config ==
-           wienerns_simd_subtract_center_config_uv_from_y ||
-       !memcmp(wienerns_simd_subtract_center_config_uv_from_y,
-               filter_config->config2,
+      (filter_config->config == wienerns_simd_config_uv_from_y ||
+       !memcmp(wienerns_simd_config_uv_from_y, filter_config->config2,
                filter_config->num_pixels2 * 3 *
                    sizeof(filter_config->config2[0][0])))) {
     av1_convolve_symmetric_dual_subtract_center_highbd_6plus12tap_avx2(

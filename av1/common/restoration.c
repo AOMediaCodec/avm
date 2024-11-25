@@ -26,15 +26,6 @@
 
 #include "aom_ports/mem.h"
 
-// Origin-symmetric taps first then the last singleton tap.
-const int pcwiener_tap_config_luma[2 * NUM_PC_WIENER_TAPS_LUMA - 1][3] = {
-  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
-  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
-  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 0, 0, 12 }
-};
-
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p)-6, (m) * (1 << ((p)-6)), k }
 
@@ -59,29 +50,38 @@ const int pcwiener_tap_config_luma[2 * NUM_PC_WIENER_TAPS_LUMA - 1][3] = {
         sizeof(coeff) / sizeof(coeff[0]), (coeff)                          \
   }
 
+// Make subtract-center config from non-subtract-center config
+// Assumes that the non-subtract center config only has the origin added at
+// the end
+#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, sym) \
+  {                                                           \
+    { (prec), sizeof(config) / sizeof(config[0]) - 1,         \
+      0,      (config),                                       \
+      NULL,   0,                                              \
+      1,      sym,                                            \
+      sym },                                                  \
+        sizeof(coeff) / sizeof(coeff[0]), (coeff)             \
+  }
+
+// Make subtract-center config from non-subtract-center config
+// Assumes that the non-subtract center config has the origin added at
+// the end
+#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, sym, sym2) \
+  {                                                                           \
+    { (prec),                                                                 \
+      sizeof(config) / sizeof(config[0]) - 1,                                 \
+      sizeof(config2) / sizeof(config2[0]) - 1,                               \
+      (config),                                                               \
+      (config2),                                                              \
+      0,                                                                      \
+      1,                                                                      \
+      sym,                                                                    \
+      sym2 },                                                                 \
+        sizeof(coeff) / sizeof(coeff[0]), (coeff)                             \
+  }
 ///////////////////////////////////////////////////////////////////////////
 // First filter configuration
 ///////////////////////////////////////////////////////////////////////////
-const int wienerns_config_y[][3] = {
-  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
-  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
-  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
-};
-
-const int wienerns_config_uv_from_uv[][3] = {
-  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
-  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
-  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
-};
-
-const int wienerns_config_uv_from_y[][3] = {
-  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
-  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
-  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
-};
-
 #define WIENERNS_PREC_BITS_Y 7
 const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
@@ -120,12 +120,6 @@ const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 0),
 };
 
-const WienernsFilterParameters wienerns_filter_y = AOM_MAKE_WIENERNS_CONFIG(
-    WIENERNS_PREC_BITS_Y, wienerns_config_y, wienerns_coeff_y, 1);
-const WienernsFilterParameters wienerns_filter_uv = AOM_MAKE_WIENERNS_CONFIG2(
-    WIENERNS_PREC_BITS_UV, wienerns_config_uv_from_uv,
-    wienerns_config_uv_from_y, wienerns_coeff_uv, 1, 0);
-
 // NOTE: All the wienerns_simd_config_... configurations are what the SIMD code
 // supports and are unconstrained in the center tap.
 // All the wienerns_simd_subtract_center_config_... configurations
@@ -136,14 +130,6 @@ const int wienerns_simd_config_y[][3] = {
   { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
   { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
   { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 0, 0, 12 }
-};
-
-const int wienerns_simd_subtract_center_config_y[][3] = {
-  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
-  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
-  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
 };
 
 // Configs for the first set of filters for the case without subtract center.
@@ -169,17 +155,21 @@ const int wienerns_simd_config_uv_from_y[][3] = {
   { 0, 2, 16 },   { 0, -2, 17 }, { 0, 0, 19 },
 };
 
-const int wienerns_simd_subtract_center_config_uv_from_uv[][3] = {
-  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
-  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
-  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
-};
+// pcwiener_tap_config_luma does not need to be defined since it is the
+// same as wienerns_simd_config_y.
+#define pcwiener_tap_config_luma wienerns_simd_config_y
 
-const int wienerns_simd_subtract_center_config_uv_from_y[][3] = {
-  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
-  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
-  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
-};
+// Note: if using the SIMD (non-subtract-center) configs use:
+// AOM_MAKE_WIENERNS_SC_CONFIG and AOM_MAKE_WIENERNS_SC_CONFIG2
+// to generate non-subtract center configs. Otherwise, if using
+// subtract-center configs, you should use AOM_MAKE_WIENERNS_CONFIG
+// and AOM_MAKE_WIENERNS_CONFIG2 respectively.
+const WienernsFilterParameters wienerns_filter_y = AOM_MAKE_WIENERNS_SC_CONFIG(
+    WIENERNS_PREC_BITS_Y, wienerns_simd_config_y, wienerns_coeff_y, 1);
+const WienernsFilterParameters wienerns_filter_uv =
+    AOM_MAKE_WIENERNS_SC_CONFIG2(
+        WIENERNS_PREC_BITS_UV, wienerns_simd_config_uv_from_uv,
+        wienerns_simd_config_uv_from_y, wienerns_coeff_uv, 1, 0);
 
 // The 's' values are calculated based on original 'r' and 'e' values in the
 // spec using GenSgrprojVtable().
@@ -1613,12 +1603,14 @@ static bool adjust_filter_to_non_subtract_center(
 
   int adjusted_num_pixels;
   if (is_uv) {
-    if (!memcmp(nsfilter_config->config, wienerns_simd_config_uv_from_uv,
-                nsfilter_config->num_pixels * 3 *
-                    sizeof(**nsfilter_config->config)) &&
-        !memcmp(nsfilter_config->config2, wienerns_simd_config_uv_from_y,
-                nsfilter_config->num_pixels2 * 3 *
-                    sizeof(**nsfilter_config->config2))) {
+    if ((nsfilter_config->config == wienerns_simd_config_uv_from_uv &&
+         nsfilter_config->config2 == wienerns_simd_config_uv_from_y) ||
+        (!memcmp(nsfilter_config->config, wienerns_simd_config_uv_from_uv,
+                 nsfilter_config->num_pixels * 3 *
+                     sizeof(**nsfilter_config->config)) &&
+         !memcmp(nsfilter_config->config2, wienerns_simd_config_uv_from_y,
+                 nsfilter_config->num_pixels2 * 3 *
+                     sizeof(**nsfilter_config->config2)))) {
       adjusted_config->config = wienerns_simd_config_uv_from_uv;
       adjusted_config->config2 = wienerns_simd_config_uv_from_y;
       adjusted_num_pixels = sizeof(wienerns_simd_config_uv_from_uv) /
@@ -1627,9 +1619,10 @@ static bool adjust_filter_to_non_subtract_center(
       return false;
     }
   } else {
-    if (!memcmp(nsfilter_config->config, wienerns_simd_config_y,
-                nsfilter_config->num_pixels * 3 *
-                    sizeof(**nsfilter_config->config))) {
+    if ((nsfilter_config->config == wienerns_simd_config_y) ||
+        (!memcmp(nsfilter_config->config, wienerns_simd_config_y,
+                 nsfilter_config->num_pixels * 3 *
+                     sizeof(**nsfilter_config->config)))) {
       adjusted_config->config = wienerns_simd_config_y;
       adjusted_num_pixels =
           sizeof(wienerns_simd_config_y) / sizeof(wienerns_simd_config_y[0]);
