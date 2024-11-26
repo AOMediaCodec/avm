@@ -2888,7 +2888,7 @@ static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank) {
   const int base_qindex = rsc->cm->quant_params.base_qindex;
-  int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
+  int dict_stride = NUM_DICTIONARY_TAPS_LUMA;
   assert(rsc->cm->frame_filter_dictionary != NULL);
   assert(rsc->cm->translated_pcwiener_filters != NULL);
   assert(rsc->cm->translation_done);
@@ -3942,7 +3942,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     assert(rsc->cm->frame_filter_dictionary != NULL);
     assert(rsc->cm->translated_pcwiener_filters != NULL);
     assert(rsc->cm->translation_done);
-    int dict_stride = NUM_PC_WIENER_TAPS_LUMA;
+    int dict_stride = NUM_DICTIONARY_TAPS_LUMA;
     const int nopcw =
         disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
     int16_t *frame_filter_dictionary = aom_calloc(
