@@ -118,7 +118,12 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 // Derive multi parameters for MHCCP
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir);
+                                 int ref_height, int dir
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                 ,
+                                 int is_top_sb_boundary
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+);
 #if CONFIG_E125_MHCCP_SIMPLIFY
 // Apply the back substitution process to generate the MHCCP parameters
 void gauss_back_substitute(int64_t *x,
