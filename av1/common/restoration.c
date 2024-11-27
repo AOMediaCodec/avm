@@ -1328,17 +1328,10 @@ void apply_pc_wiener_highbd(
   assert(!is_uv);
   const int pc_filter_num_taps =
       sizeof(pcwiener_tap_config_luma) / sizeof(pcwiener_tap_config_luma[0]);
-  const int(*pcwiener_tap_config)[3] = pcwiener_tap_config_luma;
-  // If pcwiener_tap_config_luma is same as wienerns_simd_config_y
-  // set the config in pcfilter_config below to wienerns_simd_config_y
-  // so that the SIMD code finds the right SIMD code for that config.
-  if (!memcmp(pcwiener_tap_config_luma, wienerns_simd_config_y,
-              sizeof(wienerns_simd_config_y)))
-    pcwiener_tap_config = wienerns_simd_config_y;
   const NonsepFilterConfig pcfilter_config = { PC_WIENER_PREC_FILTER,
                                                pc_filter_num_taps,
                                                0,
-                                               pcwiener_tap_config,
+                                               pcwiener_tap_config_luma,
                                                NULL,
                                                0,
                                                0,
