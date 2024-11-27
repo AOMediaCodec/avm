@@ -2811,7 +2811,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
-
     // Iterate through all possible secondary tx sets for given primary tx type
     for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
 #endif  // CONFIG_IST_ANY_SET
@@ -2822,11 +2821,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         // Skip repeated evaluation of no secondary transform.
         if (set_id && !stx) continue;
 
-        TX_TYPE tx_type = primary_tx_type;
 #if CONFIG_IST_ANY_SET
+        TX_TYPE tx_type = primary_tx_type;
         if (eob_found) skip_stx = true;
         uint16_t stx_set = 0;
 #else   // CONFIG_IST_ANY_SET
+      TX_TYPE tx_type = primary_tx_type;
       skip_stx |= eob_found;
 #endif  // CONFIG_IST_ANY_SET
 

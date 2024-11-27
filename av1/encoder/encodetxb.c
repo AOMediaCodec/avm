@@ -1036,6 +1036,8 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
           blk_row, blk_col, plane, tx_size);
 #endif
 
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
   if ((plane == AOM_PLANE_Y) &&
@@ -1044,8 +1046,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
            : (eob != 1 && cm->seq_params.enable_ist))) {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
-
-  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
@@ -1804,12 +1804,11 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
 #endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_INTRA_TX_IST_PARSE
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
+#if CONFIG_INTRA_TX_IST_PARSE
   return x->mode_costs.most_probable_stx_set_flag_cost
       [most_probable_stx_mapping[intra_mode][stx_set_flag]];
 #else
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
@@ -5218,12 +5217,11 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
 #endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_INTRA_TX_IST_PARSE
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
+#if CONFIG_INTRA_TX_IST_PARSE
   update_cdf(fc->most_probable_stx_set_cdf,
              most_probable_stx_mapping[intra_mode][stx_set_flag], IST_DIR_SIZE);
 #else
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);

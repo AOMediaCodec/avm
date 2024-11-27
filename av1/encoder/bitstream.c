@@ -1641,12 +1641,11 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
 #endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_INTRA_TX_IST_PARSE
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
+#if CONFIG_INTRA_TX_IST_PARSE
   aom_write_symbol(w, most_probable_stx_mapping[intra_mode][stx_set_flag],
                    ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE);
 #else
-  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   aom_write_symbol(w, stx_set_flag, ec_ctx->stx_set_cdf[stx_set_ctx],
