@@ -554,7 +554,7 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       }
       fprintf(stderr, "\n");
     }
-#endif
+#endif  // STX_COEFF_DEBUG
     if (transpose) {
       scan_order_in = (sb_size == 4)
                           ? stx_scan_orders_transpose_4x4[log2width - 2]
@@ -604,6 +604,6 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       }
       fprintf(stderr, "\n");
     }
-#endif
+#endif  // STX_COEFF_DEBUG
   }
 }

@@ -778,7 +778,7 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       }
       fprintf(stderr, "\n");
     }
-#endif
+#endif  // STX_COEFF_DEBUG
 #if CONFIG_IST_SET_FLAG
     mode_t = txfm_param->sec_tx_set;
     assert(mode_t < IST_SET_SIZE);
@@ -840,6 +840,6 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       }
       fprintf(stderr, "\n");
     }
-#endif
+#endif  // STX_COEFF_DEBUG
   }
 }

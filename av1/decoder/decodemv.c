@@ -1595,7 +1595,7 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
               inter_block ? 12 : mbmi->mode, sb_size, tx_size_wide[tx_size],
               tx_size_high[tx_size], *eob, get_primary_tx_type(*tx_type),
               stx_flag, get_secondary_tx_set(*tx_type));
-#endif
+#endif  // STX_SYNTAX_DEBUG
     }
   } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1617,7 +1617,7 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
               inter_block ? 12 : mbmi->mode, sb_size, tx_size_wide[tx_size],
               tx_size_high[tx_size], *eob, get_primary_tx_type(*tx_type),
               stx_flag, get_secondary_tx_set(*tx_type));
-#endif
+#endif  // STX_SYNTAX_DEBUG
     }
   }
 }
