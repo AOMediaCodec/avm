@@ -335,9 +335,10 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     int chroma_mi_col_start;
     get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
                               &chroma_mi_col_start);
-    *tu_edge =
-        is_tu_edge_helper(tx_size, edge_dir, mi_row - chroma_mi_row_start,
-                          mi_col - chroma_mi_col_start);
+    *tu_edge = is_tu_edge_helper(
+        tx_size, edge_dir,
+        (mi_row - chroma_mi_row_start) >> plane_ptr->subsampling_y,
+        (mi_col - chroma_mi_col_start) >> plane_ptr->subsampling_x);
 #else
     tx_size = av1_get_max_uv_txsize(bsize_base, plane_ptr->subsampling_x,
                                     plane_ptr->subsampling_y);
@@ -685,7 +686,6 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
             cm->mi_params.mi_grid_base +
             bottom_mi_row * cm->mi_params.mi_stride + right_mi_col;
         assert(bottom_right_mi[0]->chroma_ref_info.is_chroma_ref);
-        assert(bottom_right_mi[0]->region_type == MIXED_INTER_INTRA_REGION);
         return bottom_right_mi;
       }
     }
