@@ -2371,6 +2371,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       }
     }
     ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv
+#if CONFIG_CCSO_IMPROVE
+                ,
+                cpi->error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                 ,
                 &cpi->td

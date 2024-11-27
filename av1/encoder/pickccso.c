@@ -869,6 +869,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                                MACROBLOCKD *xd, const uint16_t *org_uv,
                                const uint16_t *ext_rec_y,
                                const uint16_t *rec_uv, int rdmult
+#if CONFIG_CCSO_IMPROVE
+                               ,
+                               bool error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                                ,
                                ThreadData *td
@@ -1002,7 +1006,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   CcsoInfo *ref_frame_ccso_info = NULL;
 
   const int num_ref_frames =
-      (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
+      (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
+       error_resilient_frame_seen)
           ? 0
           : cm->ref_frames_info.num_total_refs;
 
@@ -1655,6 +1660,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
                  uint16_t *org_uv[3]
+#if CONFIG_CCSO_IMPROVE
+                 ,
+                 bool error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                  ,
                  ThreadData *td
@@ -1689,6 +1698,10 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   ctx->ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
   derive_ccso_filter(ctx, cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
                      rec_uv[AOM_PLANE_Y], rdmult
+#if CONFIG_CCSO_IMPROVE
+                     ,
+                     error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                      ,
                      td
@@ -1704,6 +1717,10 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 #endif  // CONFIG_CCSO_IMPROVE
     derive_ccso_filter(ctx, cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
                        rec_uv[AOM_PLANE_U], rdmult
+#if CONFIG_CCSO_IMPROVE
+                       ,
+                       error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
@@ -1711,6 +1728,10 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
     );
     derive_ccso_filter(ctx, cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
                        rec_uv[AOM_PLANE_V], rdmult
+#if CONFIG_CCSO_IMPROVE
+                       ,
+                       error_resilient_frame_seen
+#endif
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
