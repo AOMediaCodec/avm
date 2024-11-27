@@ -103,7 +103,12 @@ static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
                                                 int num_cdfs, int cdf_stride,
                                                 int nsymbs) {
   for (int i = 0; i < num_cdfs; i++) {
+#if CONFIG_ADAPTATION_RATE_IMPROVE
+    cdf_ptr[i * cdf_stride + nsymbs] =
+        (cdf_ptr[i * cdf_stride + nsymbs] * 3) >> 2;
+#else
     cdf_ptr[i * cdf_stride + nsymbs] = 0;
+#endif
   }
 }
 

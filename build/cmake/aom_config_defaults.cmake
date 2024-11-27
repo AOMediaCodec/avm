@@ -447,6 +447,8 @@ set_aom_config_var(
   "Enables directional storage and adaptive sampling for TMVP MVs.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
+set_aom_config_var(CONFIG_ADAPTATION_RATE_IMPROVE 1
+                   "Enables adaptation rate improvement with CDF propagation.")
 
 set_aom_config_var(
   CONFIG_ALIGN_DEBLOCK_ERP_SDP 1
