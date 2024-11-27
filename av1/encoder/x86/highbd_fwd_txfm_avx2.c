@@ -3706,25 +3706,25 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size) {
   assert(stx_idx < 4);
-#if CONFIG_IST_REDUCE_METHOD4
+#if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
 #else
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
-#endif  // CONFIG_IST_REDUCE_METHOD4
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   int *out = dst;
   int shift = 7;
   int offset = 1 << (shift - 1);
   int *srcPtr = src;
-#if CONFIG_IST_REDUCE_METHOD4
+#if CONFIG_E124_IST_REDUCE_METHOD4
   const int ist_height = (size == 0)   ? IST_4x4_HEIGHT
                          : (size == 1) ? IST_8x8_HEIGHT_RED
                                        : IST_8x8_HEIGHT;
   if (size == 0) {
 #else
   if (size == 4) {
-#endif  // CONFIG_IST_REDUCE_METHOD4
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
     assert(IST_4x4_WIDTH == 16);
     const __m256i offset_vec = _mm256_set1_epi32(offset);
     __m256i kernel_t[16];
@@ -3738,7 +3738,7 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
     sum = _mm256_srai_epi32(_mm256_add_epi32(sum, offset_vec), 7);
     _mm256_storeu_si256((__m256i *)out, sum);
   } else {
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
     int reduced_width = IST_8x8_WIDTH;
     __m256i src_t[8];
     for (int t = 0; t < (reduced_width >> 3); t++)
@@ -3761,16 +3761,16 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
     const __m256i src_6 = _mm256_loadu_si256((__m256i *)(srcPtr + 48));
     // s56 s57 s58 s59 s60 s61 s62 s63
     const __m256i src_7 = _mm256_loadu_si256((__m256i *)(srcPtr + 56));
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
 
-#if CONFIG_IST_REDUCE_METHOD4
+#if CONFIG_E124_IST_REDUCE_METHOD4
     for (int j = 0; j < ist_height; j++) {
 #else
     for (int j = 0; j < IST_8x8_HEIGHT; j++) {
-#endif  // CONFIG_IST_REDUCE_METHOD4
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
       const int16_t *kernel_tmp = kernel;
 
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
       __m256i ker_t;
       __m256i sum_t;
       __m256i sum_32x8 = _mm256_setzero_si256();
@@ -3818,7 +3818,7 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
 
       // s0 s1 s2 s3 s4 s5 s6 s7
       const __m256i sum_32x8 = _mm256_add_epi32(sum_4, sum_5);
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
       // s0 s1 s2 s3
       const __m128i sum_32x4 =
           _mm_add_epi32(_mm256_castsi256_si128(sum_32x8),
@@ -3830,16 +3830,16 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
       const __m128i sum_32x1 =
           _mm_add_epi32(sum_32x2, _mm_srli_si128(sum_32x2, 4));
       int coef = _mm_cvtsi128_si32(sum_32x1);
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
       *out++ = ROUND_POWER_OF_TWO_SIGNED(coef, shift);
 #else
       *out++ = (coef + offset) >> shift;
-#endif  // CONFIG_FLEX_SECTX
-#if CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
+#endif  // CONFIG_E194_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
       kernel += reduced_width;
 #else
       kernel += (size * size);
-#endif  // CONFIG_FLEX_SECTX || CONFIG_IST_REDUCE_METHOD4
+#endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     }
   }
 }

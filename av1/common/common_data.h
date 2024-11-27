@@ -1087,13 +1087,13 @@ static const int16_t stx_scan_orders_transpose_4x4[TX_SIZES][IST_4x4_WIDTH] = {
 
 // Scan order of primary transform coefficients for 8x8 IST when transpose
 // mapping is used
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
 static const int16_t
     stx_scan_orders_transpose_8x8[TX_SIZES][IST_8x8_WIDTH_MAX] = {
 #else
 static const int16_t
     stx_scan_orders_transpose_8x8[TX_SIZES][IST_8x8_WIDTH] = {
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
       // TX_4XN
       { 0 },
       // TX_8XN
@@ -1137,13 +1137,13 @@ static const int16_t stx_scan_orders_4x4[TX_SIZES][IST_4x4_WIDTH] = {
 };
 
 // Scan order of primary transform coefficients for 8x8 IST
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
 static const int16_t
     stx_scan_orders_8x8[TX_SIZES][IST_8x8_WIDTH_MAX] = {
 #else
 static const int16_t
     stx_scan_orders_8x8[TX_SIZES][IST_8x8_WIDTH] = {
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
       // TX_4XN
       { 0 },
       // TX_8XN
@@ -1171,7 +1171,7 @@ static const int16_t
         134, 103, 135, 166, 197, 228, 229, 198, 167, 199, 230, 231 },
     };
 
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
 static const int16_t
     coeff8x8_mapping[IST_SET_SIZE * (STX_TYPES - 1)][IST_8x8_WIDTH] = {
       { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
@@ -1301,7 +1301,7 @@ static const int16_t
         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 51 },
     };
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
 
 #if CONFIG_IST_ANY_SET
 // IST 4x4 kernel
@@ -2044,13 +2044,13 @@ static const int16_t
 static const int16_t
     ist_8x8_kernel
         [IST_SET_SIZE][STX_TYPES - 1]
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
         [IST_8x8_HEIGHT_MAX]
 #else
         [IST_8x8_HEIGHT]
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
         [IST_8x8_WIDTH] = { {
-#if CONFIG_FLEX_SECTX
+#if CONFIG_E194_FLEX_SECTX
                                 {
                                     { 109, -40, -43, -10, -12, -7, -4, 15,
                                       18,  -2,  -2,  4,   7,   2,  -2, -1,
@@ -20944,7 +20944,7 @@ static const int16_t
                                       -7, -3, 23,  -16, 4,  5,   -7,  -7,
                                       13, -4, 0,   2,   -2, 1,   2,   0 },
                                 },
-#endif  // CONFIG_FLEX_SECTX
+#endif  // CONFIG_E194_FLEX_SECTX
                             } };
 #else   // CONFIG_IST_ANY_SET
 // IST 4x4 kernel

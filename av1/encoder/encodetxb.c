@@ -1800,9 +1800,9 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
                                TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-#if !CONFIG_IST_REDUCE_METHOD1
+#if !CONFIG_E124_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-#endif  // !CONFIG_IST_REDUCE_METHOD1
+#endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
 #if CONFIG_INTRA_TX_IST_PARSE
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
@@ -5214,9 +5214,9 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
                                   TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-#if !CONFIG_IST_REDUCE_METHOD1
+#if !CONFIG_E124_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-#endif  // !CONFIG_IST_REDUCE_METHOD1
+#endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
 #if CONFIG_INTRA_TX_IST_PARSE
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);

@@ -417,10 +417,10 @@ set_aom_config_var(CONFIG_ML_PART_SPLIT 1
 set_aom_config_var(
   CONFIG_INTRA_TX_IST_PARSE 1
   "Parsing dependency removal for intra tx type and IST set signaling.")
-set_aom_config_var(CONFIG_FLEX_SECTX 1
+set_aom_config_var(CONFIG_E194_FLEX_SECTX 1
                    "Secondary transforms with flexible support regions for 8x8")
-set_aom_config_var(CONFIG_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")
-set_aom_config_var(CONFIG_IST_REDUCE_METHOD4 1
+set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")
+set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD4 1
                    "AV2 remove worst-case multiplications.")
 set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
