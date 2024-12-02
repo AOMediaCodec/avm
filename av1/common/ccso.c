@@ -75,7 +75,7 @@ void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
 }
 
 /* Derive sample locations for CCSO */
-void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
+void derive_ccso_sample_pos(AV1_COMMON *cm, int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support) {
 #if CONFIG_CCSO_FT_SHAPE
   // Input sample locations for CCSO
@@ -104,7 +104,12 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
     rec_idx[0] = 2;
     rec_idx[1] = -2;
   } else {
-    printf("wrong ccso filter shape\n");
+    if (cm != NULL) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "wrong ccso filter shape");
+    } else {
+      printf("wrong ccso filter shape\n");  // unit test case
+    }
   }
 #else
   // Input sample locations for CCSO
@@ -196,7 +201,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+  derive_ccso_sample_pos(cm, src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -250,7 +255,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+  derive_ccso_sample_pos(cm, src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -305,7 +310,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+  derive_ccso_sample_pos(cm, src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -363,7 +368,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+  derive_ccso_sample_pos(cm, src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;

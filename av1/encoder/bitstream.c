@@ -4735,8 +4735,8 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
           aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3);
-        } else {
-          assert(cm->ccso_info.ccso_ref_idx[plane] == UINT8_MAX);
+          assert(cm->ccso_info.ccso_ref_idx[plane] <
+                 cm->ref_frames_info.num_total_refs);
         }
 
         if (!cm->ccso_info.reuse_ccso[plane]) {

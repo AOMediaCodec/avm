@@ -91,6 +91,30 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 }
 
+// This function is to copy the block level ccso control flag when the
+// block size is larger than 128x128 chroma, e.g. 256x256 superblock with 444
+// chroma subsampling.
+static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
+                      int blk_idc) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  const int log2_w = CCSO_BLK_SIZE + xd->plane[1].subsampling_x;
+  const int log2_h = CCSO_BLK_SIZE + xd->plane[1].subsampling_y;
+  const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
+  const int f_h = 1 << log2_h >> MI_SIZE_LOG2;
+  const int ccso_nhfb = (mi_params->mi_cols + f_w - 1) / f_w;
+  for (int row = mi_row; row < mi_row + bh; row += f_h) {
+    for (int col = mi_col; col < mi_col + bw; col += f_w) {
+      int sb_idx = (row / f_h) * ccso_nhfb + (col / f_w);
+      cm->cur_frame->ccso_info.sb_filter_control[pli][sb_idx] = blk_idc;
+    }
+  }
+}
+
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
   if (is_global_intrabc_allowed(cm)) return;
@@ -134,7 +158,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_y = blk_idc;
 #if CONFIG_CCSO_IMPROVE
-    cm->cur_frame->ccso_info.sb_filter_control[0][sb_idx] = blk_idc;
+    span_ccso(cm, xd, 0, blk_idc);
   } else if (cm->ccso_info.ccso_enable[0] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
@@ -175,7 +199,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_u = blk_idc;
 #if CONFIG_CCSO_IMPROVE
-    cm->cur_frame->ccso_info.sb_filter_control[1][sb_idx] = blk_idc;
+    span_ccso(cm, xd, 1, blk_idc);
   } else if (cm->ccso_info.ccso_enable[1] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
@@ -216,7 +240,7 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_v = blk_idc;
 #if CONFIG_CCSO_IMPROVE
-    cm->cur_frame->ccso_info.sb_filter_control[2][sb_idx] = blk_idc;
+    span_ccso(cm, xd, 2, blk_idc);
   } else if (cm->ccso_info.ccso_enable[2] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]

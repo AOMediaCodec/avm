@@ -3719,6 +3719,10 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
 #if CONFIG_CCSO_IMPROVE
       CcsoInfo *ref_frame_ccso_info = NULL;
+      cm->cur_frame->ccso_info.subsampling_y[plane] =
+          plane ? cm->seq_params.subsampling_y : 0;
+      cm->cur_frame->ccso_info.subsampling_x[plane] =
+          plane ? cm->seq_params.subsampling_x : 0;
 #endif  // CONFIG_CCSO_IMPROVE
       cm->ccso_info.ccso_enable[plane] = aom_rb_read_literal(rb, 1);
       if (cm->ccso_info.ccso_enable[plane]) {
@@ -3735,8 +3739,12 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
           cm->ccso_info.ccso_ref_idx[plane] = aom_rb_read_literal(rb, 3);
-        } else {
-          cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
+          if (cm->ccso_info.ccso_ref_idx[plane] >=
+              cm->ref_frames_info.num_total_refs) {
+            aom_internal_error(
+                &cm->error, AOM_CODEC_ERROR,
+                "Invalid ccso_ref_idx: ccso_ref_idx >= num_total_refs");
+          }
         }
 
         if (!cm->ccso_info.reuse_ccso[plane]) {
@@ -3791,6 +3799,25 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
           ref_frame_ccso_info =
               &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
                    ->ccso_info;
+          if (!ref_frame_ccso_info->ccso_enable[plane]) {
+            aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                               "Invalid ccso_ref_idx: ref frame ccso disabled");
+          }
+
+          if ((cm->mi_params.mi_rows !=
+               get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
+                   ->mi_rows) ||
+              (cm->mi_params.mi_cols !=
+               get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
+                   ->mi_cols) ||
+              (plane && ((cm->seq_params.subsampling_y !=
+                          ref_frame_ccso_info->subsampling_y[plane]) ||
+                         (cm->seq_params.subsampling_x !=
+                          ref_frame_ccso_info->subsampling_x[plane])))) {
+            aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                               "Invalid ccso_reuse");
+          }
+
           av1_copy_ccso_filters(&cm->cur_frame->ccso_info, ref_frame_ccso_info,
                                 plane, 1, 0, 0);
           av1_copy_ccso_filters(&cm->ccso_info, ref_frame_ccso_info, plane, 1,

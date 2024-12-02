@@ -46,7 +46,7 @@ void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
                         const int inv_quant_step, const int *rec_idx,
                         const int edge_clf);
 
-void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
+void derive_ccso_sample_pos(AV1_COMMON *cm, int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support);
 
 /* Apply CCSO on one color component */

@@ -250,7 +250,8 @@ typedef struct {
   /** edge classifier index */
   uint8_t edge_clf[CCSO_NUM_COMPONENTS];
   uint8_t ccso_ref_idx[CCSO_NUM_COMPONENTS];
-  int sb_count[CCSO_NUM_COMPONENTS];  // only used in encoder-side
+  int subsampling_x[CCSO_NUM_COMPONENTS];  // used at encoder side only
+  int subsampling_y[CCSO_NUM_COMPONENTS];  // used at encoder side only
   unsigned int
       reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
                                             // speedup
@@ -2103,8 +2104,14 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
   }
 
 #if CONFIG_CCSO_IMPROVE
-  if (buf->ccso_info.sb_filter_control[0] == NULL) {
+  if (buf->ccso_info.sb_filter_control[0] == NULL ||
+      buf_rows != mi_params->mi_rows || buf_cols != mi_params->mi_cols ||
+      buf->buf.subsampling_x != cm->seq_params.subsampling_x ||
+      buf->buf.subsampling_y != cm->seq_params.subsampling_y) {
     for (int pli = 0; pli < 3; pli++) {
+      if (buf->ccso_info.sb_filter_control[pli]) {
+        aom_free(buf->ccso_info.sb_filter_control[pli]);
+      }
       const int log2_filter_unit_size_y =
           pli > 0 ? CCSO_BLK_SIZE
                   : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;

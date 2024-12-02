@@ -75,7 +75,7 @@ class CCSOFilterTest : public FunctionEquivalenceTest<F> {
     dst_stride_ = this->rng_(kMaxWidth + 1 - 32) + 32;
 
     filter_sup_ = this->rng_(6);
-    derive_ccso_sample_pos(src_loc_, src_y_stride_, filter_sup_);
+    derive_ccso_sample_pos(NULL, src_loc_, src_y_stride_, filter_sup_);
 
     const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
     thr_ = quant_sz[this->rng_(4)];

@@ -97,8 +97,8 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 }
 
 /* Derive CCSO filter support information */
-static void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
-                                 const uint16_t *src_y,
+static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
+                                 const int plane, const uint16_t *src_y,
 #if CONFIG_CCSO_IMPROVE
                                  const uint16_t qstep,
 #else
@@ -113,7 +113,7 @@ static void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   const int neg_qstep = qstep * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_stride_ext, filter_sup);
+  derive_ccso_sample_pos(cm, src_loc, ccso_stride_ext, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
@@ -1003,6 +1003,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   const int is_intra_frame = frame_is_intra_only(cm);
   int check_ccso = 0;
 
+  RefCntBuffer *ref_frame = NULL;
   CcsoInfo *ref_frame_ccso_info = NULL;
 
   const int num_ref_frames =
@@ -1040,7 +1041,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
             const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 
             if (!ccso_bo_only) {
-              ccso_derive_src_info(xd, plane, ext_rec_y,
+              ccso_derive_src_info(cm, xd, plane, ext_rec_y,
 #if CONFIG_CCSO_IMPROVE
                                    quant_sz[scale_idx][quant_idx],
 #else
@@ -1118,8 +1119,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   if (reuse_ccso_idx > 0 && ref_idx == 0) continue;
 
                   if (ref_idx > 0) {
-                    RefCntBuffer *ref_frame =
-                        get_ref_frame_buf(cm, ref_idx - 1);
+                    ref_frame = get_ref_frame_buf(cm, ref_idx - 1);
                     CcsoInfo *ccso_tmp = &ref_frame->ccso_info;
                     if (!ccso_tmp->ccso_enable[plane]) {
                       continue;
@@ -1160,7 +1160,12 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
                   bool check_sb_reuse =
                       check_ccso && (ref_frame_ccso_info != NULL) &&
-                      (sb_count == ref_frame_ccso_info->sb_count[plane]);
+                      (mi_params->mi_rows == ref_frame->mi_rows) &&
+                      (mi_params->mi_cols == ref_frame->mi_cols) &&
+                      (xd->plane[plane].subsampling_y ==
+                       ref_frame_ccso_info->subsampling_y[plane]) &&
+                      (xd->plane[plane].subsampling_x ==
+                       ref_frame_ccso_info->subsampling_x[plane]);
 
                   for (int sb_reuse_idx = 0; sb_reuse_idx <= check_sb_reuse;
                        ++sb_reuse_idx) {
@@ -1435,14 +1440,14 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
     assert(get_ref_frame_buf(cm, final_ref_idx) != NULL);
     ref_frame_ccso_info = &get_ref_frame_buf(cm, final_ref_idx)->ccso_info;
     cm->ccso_info.ccso_ref_idx[plane] = final_ref_idx;
-  } else {
-    ref_frame_ccso_info = NULL;
-    cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
   }
 
   cm->ccso_info.sb_reuse_ccso[plane] = false;
   cm->ccso_info.reuse_ccso[plane] = false;
-  cm->cur_frame->ccso_info.sb_count[plane] = sb_count;
+  cm->cur_frame->ccso_info.subsampling_y[plane] =
+      xd->plane[plane].subsampling_y;
+  cm->cur_frame->ccso_info.subsampling_x[plane] =
+      xd->plane[plane].subsampling_x;
 #endif  // CONFIG_CCSO_IMPROVE
   if (cm->ccso_info.ccso_enable[plane]) {
 #if CONFIG_CCSO_IMPROVE
@@ -1450,77 +1455,94 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
     cm->cur_frame->ccso_info.reuse_root_ref[plane] =
         cm->current_frame.display_order_hint;
     cm->ccso_info.sb_reuse_ccso[plane] = ctx->final_sb_reuse_ccso[plane];
+    const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+    const int bw = mi_size_wide[bsize];
+    const int bh = mi_size_high[bsize];
+    const int log2_w = CCSO_BLK_SIZE + xd->plane[1].subsampling_x;
+    const int log2_h = CCSO_BLK_SIZE + xd->plane[1].subsampling_y;
+    const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
+    const int f_h = 1 << log2_h >> MI_SIZE_LOG2;
+    const int step_h = (bh + f_h - 1) / f_h;
+    const int step_w = (bw + f_w - 1) / f_w;
+
     if (!cm->ccso_info.sb_reuse_ccso[plane]) {
 #endif  // CONFIG_CCSO_IMPROVE
-      for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
-        for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
+      for (int y_sb = 0; y_sb < ccso_nvfb; y_sb += step_h) {
+        for (int x_sb = 0; x_sb < ccso_nhfb; x_sb += step_w) {
 #if CONFIG_CCSO_IMPROVE
-          cm->cur_frame->ccso_info
-              .sb_filter_control[plane][y_sb * ccso_nhfb + x_sb] =
-              ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+          for (int row = y_sb; row < y_sb + step_h; row++) {
+            for (int col = x_sb; col < x_sb + step_w; col++) {
+              int sb_idx = row * ccso_nhfb + col;
+              cm->cur_frame->ccso_info.sb_filter_control[plane][sb_idx] =
+                  ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif  // CONFIG_CCSO_IMPROVE
-          if (plane == AOM_PLANE_Y) {
-            mi_params
-                ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                                   y_sb * mi_params->mi_stride +
-                               (1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                                   x_sb]
-                ->ccso_blk_y =
-                ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
-          } else if (plane == AOM_PLANE_U) {
-            mi_params
-                ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                                   y_sb * mi_params->mi_stride +
-                               (1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                                   x_sb]
-                ->ccso_blk_u =
-                ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
-          } else {
-            mi_params
-                ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
-                                   y_sb * mi_params->mi_stride +
-                               (1 << CCSO_BLK_SIZE >>
-                                (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
-                                   x_sb]
-                ->ccso_blk_v =
-                ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
-          }
-#if CONFIG_CCSO_IMPROVE
-          const int ccso_mib_size_y =
-              (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y -
-                     MI_SIZE_LOG2));
-          const int ccso_mib_size_x =
-              (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x -
-                     MI_SIZE_LOG2));
-
-          int mi_row = (1 << CCSO_BLK_SIZE >>
-                        (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                       y_sb;
-          int mi_col = (1 << CCSO_BLK_SIZE >>
-                        (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                       x_sb;
-          for (int j = 0;
-               j < AOMMIN(ccso_mib_size_y, cm->mi_params.mi_rows - mi_row);
-               j++) {
-            for (int k = 0;
-                 k < AOMMIN(ccso_mib_size_x, cm->mi_params.mi_cols - mi_col);
-                 k++) {
-              const int grid_idx =
-                  get_mi_grid_idx(mi_params, mi_row + j, mi_col + k);
               if (plane == AOM_PLANE_Y) {
-                mi_params->mi_grid_base[grid_idx]->ccso_blk_y =
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                             col]
+                    ->ccso_blk_y =
                     ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               } else if (plane == AOM_PLANE_U) {
-                mi_params->mi_grid_base[grid_idx]->ccso_blk_u =
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                             col]
+                    ->ccso_blk_u =
                     ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               } else {
-                mi_params->mi_grid_base[grid_idx]->ccso_blk_v =
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
+                             col]
+                    ->ccso_blk_v =
                     ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+              }
+#if CONFIG_CCSO_IMPROVE
+              const int ccso_mib_size_y =
+                  (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y -
+                         MI_SIZE_LOG2));
+              const int ccso_mib_size_x =
+                  (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x -
+                         MI_SIZE_LOG2));
+
+              int mi_row = (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                           row;
+              int mi_col = (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                           col;
+              for (int j = 0;
+                   j < AOMMIN(ccso_mib_size_y, cm->mi_params.mi_rows - mi_row);
+                   j++) {
+                for (int k = 0; k < AOMMIN(ccso_mib_size_x,
+                                           cm->mi_params.mi_cols - mi_col);
+                     k++) {
+                  const int grid_idx =
+                      get_mi_grid_idx(mi_params, mi_row + j, mi_col + k);
+                  if (plane == AOM_PLANE_Y) {
+                    mi_params->mi_grid_base[grid_idx]->ccso_blk_y =
+                        ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                  } else if (plane == AOM_PLANE_U) {
+                    mi_params->mi_grid_base[grid_idx]->ccso_blk_u =
+                        ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                  } else {
+                    mi_params->mi_grid_base[grid_idx]->ccso_blk_v =
+                        ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                  }
+                }
               }
             }
           }
