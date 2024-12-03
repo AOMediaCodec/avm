@@ -15,7 +15,7 @@ ParaKit is built on top of the AV2 reference software (AVM), so the  requirement
 - For the compilation of AVM software, it is recommended to install a recent version of `cmake` (e.g., version 3.29 and after).
 - For setting up necessary Python packages, it is required to install `Homebrew` (e.g., version 4.3.3 and after).
 
-ParaKit's training is data-driven, so it requires collecting data from AVM coded bitstreams. For this purpose, a separate branch (`research-v8.0.0-parakit`) in AVM is created as a reference implementation that allows developers to collect data for a selection of contexts.
+ParaKit's training is data-driven, so it requires collecting data from AVM coded bitstreams. For this purpose, a sample implementation under the `CONFIG_PARAKIT_COLLECT_DATA` macro (disabled by default) is provided to allow developers to collect data for a selection of contexts.
 [Section 5](#5-data-collection-guidelines-for-modifying-avm) below provides some instructions on how to modify the ParaKit-AVM codebase to collect data for the context(s) of interest.
 
 After making necessary modifications to the AVM for data collection, ParaKit has the following two requirements to be able to run training:
@@ -28,11 +28,10 @@ After making necessary modifications to the AVM for data collection, ParaKit has
 ---
 
 ## 2. Installation
-<b>Step 1:</b> clone AVM, change directory and switch to `research-v8.0.0-parakit` branch.
+<b>Step 1:</b> clone AVM and change the directory.
 ```
-git clone <repository URL> ParaKit-AVM
+git clone https://github.pie.apple.com/AMT/AV2-development.git ParaKit-AVM
 cd ParaKit-AVM
-git checkout research-v8.0.0-parakit
 ```
 
 <b>Step 2:</b> change directory to `ParaKit` and run the setup.sh script, which creates a python virtual environment `venv` and installs necessary python packages within `venv`.
@@ -45,13 +44,13 @@ source setup.sh
 ```
 source setup_decoder.sh
 ```
-Note that `setup_decoder.sh` script is provided for convenience. The user can always copy a valid `aomdec` binary compiled from the modified AVM codebase (e.g., `research-v8.0.0-parakit` branch ).
+Note that `setup_decoder.sh` script is provided for convenience. The user can always copy a valid `aomdec` binary compiled from the AVM codebase by enabling the `CONFIG_PARAKIT_COLLECT_DATA` macro.
 
 Also, make sure that `aomdec` binary under `binaries/` is executable, if not, run the following command.
 ```
 sudo chmod +x ./binaries/aomdec
 ```
-<b>Important note:</b> The sample AVM implementation in `research-v8.0.0-parakit` branch can collect data only for `eob_flag_cdf16` and `eob_flag_cdf32` contexts. To support other contexts, the developer needs to replace the binary compiled with the necessary changes to AVM. Please refer to [Section 5](#5-data-collection-guidelines-for-modifying-avm) for more details on modifying the AVM codebase.
+<b>Important note:</b> The sample AVM implementation under the `CONFIG_PARAKIT_COLLECT_DATA` macro can collect data only for `eob_flag_cdf16` and `eob_flag_cdf32` contexts. To support other contexts, the developer needs to replace the binary compiled with the necessary changes to AVM. Please refer to [Section 5](#5-data-collection-guidelines-for-modifying-avm) for more details on modifying the AVM codebase.
 
 <b>Installation complete:</b> After the steps above, we are ready to use ParaKit and train for `eob_flag_cdf16` and `eob_flag_cdf32` contexts. You may now run the unit test as the next step.
 
@@ -59,7 +58,7 @@ sudo chmod +x ./binaries/aomdec
 ```
 python run_unit_test.py
 ```
-The unit test uses the two sample bitstreams under `unit_test/bitstreams` compatible with `research-v8.0.0-parakit`, as discussed in [Section 1](#1-requirements).
+The unit test uses the two sample bitstreams under `unit_test/bitstreams` compatible with the AVM version, tag research-v8.0.0. Developers will need to switch to `research-v8.0.0-parakit` branch or replace the bitstreams with the compatible ones to reproduce this step.
 
 ## 3. Usage: running training via ParaKit
 <b>Step 1:</b> replace `aomdec` under `binaries/` with a new decoder binary (based on to collect data for desired contexts). The `setup_decoder.sh` script can be used to compile new binaries from modified AVM. Make sure that `aomdec` is executable (see Step 3 in [Section 2](#2-installation)).
@@ -108,12 +107,9 @@ The csv data files obtained from `aomdec` are in `Stat_context_name_*.csv` forma
 ---
 
 ## 5. Data collection: guidelines for modifying AVM
-The data collection requires some modifications to AVM decoder implementation. For this purpose, `research-v8.0.0-parakit` branch is created as a reference implementation based on AVM.
+The data collection requires some modifications to AVM decoder implementation. For this purpose, a sample implementation is provided under the `CONFIG_PARAKIT_COLLECT_DATA` macro (disabled by default) as a reference, where the basic data collection module is implemented in `aom_read_symbol_probdata` function by extending the existing `aom_read_symbol` function in AVM. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts. 
 
-In the `research-v8.0.0-parakit` branch, the basic data collection module is implemented in `aom_read_symbol_probdata` function by extending the existing `aom_read_symbol` function in AVM. All the changes related to data collection are implemented under the `CONFIG_PARAKIT_COLLECT_DATA` macro. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts.
-
-The `research-v8.0.0-parakit` branch implements the necessary changes on top `research-v8.0.0` tag to collect data specifically for `eob_flag_cdf16` and `eob_flag_cdf32` context groups.
-Developers can extend this to add support for new (or any other) contexts on by following the changes under `CONFIG_PARAKIT_COLLECT_DATA` macro and instructions in the comments by searching the text `@ParaKit` on their local AVM version.
+The current implementation in AVM only supports data collection from `eob_flag_cdf16` and `eob_flag_cdf32` context groups. Developers can extend this to add support for new (or any other) contexts on by following the changes under `CONFIG_PARAKIT_COLLECT_DATA` macro and instructions in the comments by searching the text `@ParaKit` on their local AVM version.
 
 ---
 
