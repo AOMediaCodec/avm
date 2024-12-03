@@ -2458,7 +2458,12 @@ static void update_partition_stats(MACROBLOCKD *const xd,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                    PARTITION_TYPE partition, const int mi_row,
                                    const int mi_col, BLOCK_SIZE bsize,
-                                   const int ctx, BLOCK_SIZE sb_size) {
+                                   const int ctx, BLOCK_SIZE sb_size
+#if CONFIG_EXT_RECUR_PARTITIONS
+                                   ,
+                                   int enable_uneven_4way_partitions
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+) {
 #if !CONFIG_EXT_RECUR_PARTITIONS
   (void)sb_size;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
@@ -2525,6 +2530,9 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                do_ext_partition, 2);
     if (do_ext_partition) {
       const bool uneven_4way_partition_allowed =
+#if CONFIG_EXT_RECUR_PARTITIONS
+          enable_uneven_4way_partitions &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
           is_uneven_4way_partition_allowed(bsize, rect_type, tree_type);
       if (uneven_4way_partition_allowed) {
         const bool do_uneven_4way_partition = (partition >= PARTITION_HORZ_4A);
@@ -2699,7 +2707,12 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                            disable_ext_part, ptree_luma,
                            &pc_tree->chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-                           partition, mi_row, mi_col, bsize, ctx, cm->sb_size);
+                           partition, mi_row, mi_col, bsize, ctx, cm->sb_size
+#if CONFIG_EXT_RECUR_PARTITIONS
+                           ,
+                           cm->seq_params.enable_uneven_4way_partitions
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    );
 
   PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -4073,6 +4086,9 @@ static AOM_INLINE void init_allowed_partitions(
   const int uneven_4way_partition_allowed =
       part_search_state->is_block_splittable &&
       part_cfg->enable_ext_partitions &&
+#if CONFIG_EXT_RECUR_PARTITIONS
+      part_cfg->enable_uneven_4way_partitions &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       is_uneven_4way_partition_allowed_at_bsize(bsize, tree_type);
   part_search_state->partition_4a_allowed[HORZ] =
       uneven_4way_partition_allowed &&

@@ -288,10 +288,17 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_rect_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!\brief enable uneven 4 way partition type
+   *
+   */
+  unsigned int enable_uneven_4way_partitions;
+#else
   /*!\brief enable 1:4/4:1 partition type
    *
    */
   unsigned int enable_1to4_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable ml-based speed-up for partition search
    *
    */

@@ -619,6 +619,11 @@ typedef struct SequenceHeader {
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
 #endif                            // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  uint8_t enable_uneven_4way_partitions;  // enable uneven 4way partition
+#else
+  uint8_t enable_1to4_partitions;  // enable 1:4 and 4:1 partition
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   bool enable_global_motion;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION

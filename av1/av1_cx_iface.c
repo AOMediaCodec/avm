@@ -121,7 +121,13 @@ struct av1_extracfg {
 #endif                         // CONFIG_EXT_RECUR_PARTITIONS
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
-  int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions for sequence
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int enable_uneven_4way_partitions;  // enable 1:2:4:1 and 1:4:2:1 partitions
+                                      // for sequence
+#else
+  int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions
+                               // for sequence
+#endif                                      // CONFIG_EXT_RECUR_PARTITIONS
   int disable_ml_transform_speed_features;  // disable all ml transform speedups
   int enable_sdp;   // enable semi-decoupled partitioning
   int enable_mrls;  // enable multiple reference line selection
@@ -448,7 +454,7 @@ static struct av1_extracfg default_extra_cfg = {
   2,  // use ml model for erp pruning
   1,  // enable extended partitions
 #else
-  0,    // disable ML based partition speed up features
+  0,                           // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -490,7 +496,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_EXT_RECUR_PARTITIONS
   256,  // max_partition_size
 #else
-  128,  // max_partition_size
+  128,                         // max_partition_size
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   1,    // enable intra edge filter
   1,    // frame order hint
@@ -523,7 +529,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  1,    // enable overlay
+  1,                           // enable overlay
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,    // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
@@ -966,7 +972,11 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  cfg->enable_uneven_4way_partitions = extra_cfg->enable_uneven_4way_partitions;
+#else
   cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
   cfg->enable_sdp = extra_cfg->enable_sdp;
@@ -1079,7 +1089,11 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
   extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
   extra_cfg->enable_ab_partitions = cfg->enable_ab_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  extra_cfg->enable_uneven_4way_partitions = cfg->enable_uneven_4way_partitions;
+#else
   extra_cfg->enable_1to4_partitions = cfg->enable_1to4_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->disable_ml_transform_speed_features =
       cfg->disable_ml_transform_speed_features;
   extra_cfg->disable_ml_partition_speed_features =
@@ -1661,7 +1675,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->disable_ml_partition_speed_features;
   part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   part_cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  part_cfg->enable_uneven_4way_partitions =
+      extra_cfg->enable_uneven_4way_partitions;
+#else
   part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->enable_sdp = extra_cfg->enable_sdp;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
@@ -2204,6 +2223,15 @@ static aom_codec_err_t ctrl_set_enable_ab_partitions(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static aom_codec_err_t ctrl_set_enable_uneven_4way_partitions(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_uneven_4way_partitions =
+      CAST(AV1E_SET_ENABLE_1TO4_PARTITIONS, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#else
 static aom_codec_err_t ctrl_set_enable_1to4_partitions(
     aom_codec_alg_priv_t *ctx, va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2211,6 +2239,7 @@ static aom_codec_err_t ctrl_set_enable_1to4_partitions(
       CAST(AV1E_SET_ENABLE_1TO4_PARTITIONS, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static aom_codec_err_t ctrl_set_min_partition_size(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
@@ -3806,10 +3835,18 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ab_partitions,
                               argv, err_string)) {
     extra_cfg.enable_ab_partitions = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else if (arg_match_helper(
+                 &arg, &g_av1_codec_arg_defs.enable_uneven_4way_partitions,
+                 argv, err_string)) {
+    extra_cfg.enable_uneven_4way_partitions =
+        arg_parse_int_helper(&arg, err_string);
+#else
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_1to4_partitions,
                               argv, err_string)) {
     extra_cfg.enable_1to4_partitions = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   } else if (arg_match_helper(
                  &arg,
                  &g_av1_codec_arg_defs.disable_ml_partition_speed_features,
@@ -4197,7 +4234,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV1E_SET_ENABLE_AB_PARTITIONS, ctrl_set_enable_ab_partitions },
+#if CONFIG_EXT_RECUR_PARTITIONS
+  { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_uneven_4way_partitions },
+#else
   { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_1to4_partitions },
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   { AV1E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
   { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV1E_SET_ENABLE_CHROMA_DELTAQ, ctrl_set_enable_chroma_deltaq },

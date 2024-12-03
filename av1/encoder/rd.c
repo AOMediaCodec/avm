@@ -185,6 +185,9 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                                  [do_ext_partition];
             if (do_ext_partition) {
               const bool uneven_4way_partition_allowed =
+#if CONFIG_EXT_RECUR_PARTITIONS
+                  cm->seq_params.enable_uneven_4way_partitions &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
                   is_uneven_4way_partition_allowed(bsize, rect_type, tree_type);
               if (uneven_4way_partition_allowed) {
                 const bool do_uneven_4way_partition =

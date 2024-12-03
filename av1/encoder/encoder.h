@@ -223,10 +223,17 @@ typedef struct {
    * Flag to indicate if AB partitions should be enabled.
    */
   bool enable_ab_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!
+   * Flag to indicate if 1:2:4:1 / 1:4:2:1 partitions should be enabled.
+   */
+  bool enable_uneven_4way_partitions;
+#else
   /*!
    * Flag to indicate if 1:4 / 4:1 partitions should be enabled.
    */
   bool enable_1to4_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * Flag to indicate if semi-decoupled partitioning should be enabled.
    */

@@ -3531,6 +3531,9 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                      ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx], 2);
     if (do_ext_partition) {
       const bool uneven_4way_partition_allowed =
+#if CONFIG_EXT_RECUR_PARTITIONS
+          cm->seq_params.enable_uneven_4way_partitions &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
           is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
       if (uneven_4way_partition_allowed) {
         const bool do_uneven_4way_partition = (p >= PARTITION_HORZ_4A);
@@ -5579,6 +5582,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
+  if (seq_params->enable_ext_partitions)
+    aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {

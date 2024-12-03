@@ -2227,6 +2227,9 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                         2, ACCT_INFO("do_ext_partition"));
     if (do_ext_partition) {
       const bool uneven_4way_partition_allowed =
+#if CONFIG_EXT_RECUR_PARTITIONS
+          cm->seq_params.enable_uneven_4way_partitions &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
           is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
       if (uneven_4way_partition_allowed) {
         do_uneven_4way_partition = aom_read_symbol(
@@ -6682,6 +6685,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
+  if (seq_params->enable_ext_partitions)
+    seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
+  else
+    seq_params->enable_uneven_4way_partitions = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {

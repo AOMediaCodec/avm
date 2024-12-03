@@ -435,6 +435,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
+  seq->enable_uneven_4way_partitions =
+      oxcf->part_cfg.enable_uneven_4way_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;

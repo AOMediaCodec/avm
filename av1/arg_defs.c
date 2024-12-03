@@ -381,8 +381,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(0: off, 1: prune rect, "
               "2: prune split (default), 3: prune rect + split)."),
   .enable_ext_partitions = ARG_DEF(NULL, "enable-ext-partitions", 1,
-                                   "Enable extended partitions"
-                                   "(0: off (default), 1: on)."),
+                                   "Enable extended partitions "
+                                   "(0: false, 1: true (default))."),
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
@@ -390,9 +390,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_ab_partitions =
       ARG_DEF(NULL, "enable-ab-partitions", 1,
               "Enable ab partitions (0: false, 1: true (default))"),
-  .enable_1to4_partitions = ARG_DEF(NULL, "enable-1to4-partitions", 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+  .enable_uneven_4way_partitions =
+      ARG_DEF(NULL, "enable-uneven-4way-partitions", 1,
+              "Enable 1:2:4:1 and 1:4:2:1 partitions "
+              "(0: false, 1: true (default))"),
+#else
+  .enable_1to4_partitions = ARG_DEF(NULL, "enable_1to4_partitions", 1,
                                     "Enable 1:4 and 4:1 partitions "
                                     "(0: false, 1: true (default))"),
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   .disable_ml_transform_speed_features =
       ARG_DEF(NULL, "disable-ml-transform-speed-features", 1,
               "Disable ML transform speed features "

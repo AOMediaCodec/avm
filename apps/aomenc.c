@@ -338,7 +338,11 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_restoration,
   &g_av1_codec_arg_defs.enable_rect_partitions,
   &g_av1_codec_arg_defs.enable_ab_partitions,
+#if CONFIG_EXT_RECUR_PARTITIONS
+  &g_av1_codec_arg_defs.enable_uneven_4way_partitions,
+#else
   &g_av1_codec_arg_defs.enable_1to4_partitions,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   &g_av1_codec_arg_defs.min_partition_size,
   &g_av1_codec_arg_defs.max_partition_size,
   &g_av1_codec_arg_defs.enable_chroma_deltaq,
@@ -631,7 +635,11 @@ static void init_config(cfg_options_t *config) {
   config->min_partition_size = 4;
   config->enable_ab_partitions = 1;
   config->enable_rect_partitions = 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  config->enable_uneven_4way_partitions = 1;
+#else
   config->enable_1to4_partitions = 1;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->disable_ml_transform_speed_features = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
   config->disable_ml_partition_speed_features = 1;
@@ -1503,10 +1511,17 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, " , DRL Reorder (%d)", encoder_cfg->enable_drl_reorder);
 #endif  // CONFIG_DRL_REORDER_CONTROL
   fprintf(stdout, "\n");
-
+#if CONFIG_EXT_RECUR_PARTITIONS
+  fprintf(
+      stdout,
+      "Tool setting (Partition)       : H-Type (%d), 1:2:4:1/1:4:2:1 (%d)\n",
+      encoder_cfg->enable_ext_partitions,
+      encoder_cfg->enable_uneven_4way_partitions);
+#else
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
       encoder_cfg->enable_ab_partitions, encoder_cfg->enable_1to4_partitions);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   fprintf(stdout, "Disable ml tx speed features   : %d\n",
           encoder_cfg->disable_ml_transform_speed_features);
   fprintf(stdout, "                               : SDP (%d)\n",

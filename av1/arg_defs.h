@@ -151,7 +151,11 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   arg_def_t enable_rect_partitions;
   arg_def_t enable_ab_partitions;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  arg_def_t enable_uneven_4way_partitions;
+#else
   arg_def_t enable_1to4_partitions;
+#endif
   arg_def_t disable_ml_transform_speed_features;
   arg_def_t enable_sdp;
   arg_def_t enable_mrls;

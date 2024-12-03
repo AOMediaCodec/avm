@@ -80,7 +80,11 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(min_partition_size);
     GET_PARAMS(enable_ab_partitions);
     GET_PARAMS(enable_rect_partitions);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    GET_PARAMS(enable_uneven_4way_partitions);
+#else
     GET_PARAMS(enable_1to4_partitions);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(disable_ml_partition_speed_features);
     GET_PARAMS(disable_ml_transform_speed_features);
 #if CONFIG_EXT_RECUR_PARTITIONS
