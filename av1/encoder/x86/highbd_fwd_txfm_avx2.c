@@ -2067,8 +2067,7 @@ void av1_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *coeff, int stride,
       fwd_txfm_transpose_16x16_avx2(out, in);
       write_buffer_16x16(in, coeff);
       break;
-    case V_FLIPADST:
-      load_buffer_16x16(input, in, stride, 1, 0, shift[0]);
+    case V_FLIPADST: load_buffer_16x16(input, in, stride, 1, 0, shift[0]);
 #if CONFIG_INTER_DDT
       if (use_ddt && REPLACE_ADST16)
         fddt16_avx2(in, out, av1_fwd_cos_bit_col[txw_idx][txh_idx], width_div8,
