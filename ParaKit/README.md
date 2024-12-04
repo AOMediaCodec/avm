@@ -80,6 +80,9 @@ This step will run the whole training pipeline that:
 
 <b>Step 5:</b> use the generated tables from the `Context-Table_*.h` file under `results/` by copying them into the AVM codebase for testing.
 
+<b>Rerunning instructions:</b> To be able to run the training on a new dataset or to rerun, it is recommended to delete (or move) the existing data and bistream files. Specifically, developers should delete or move `.csv` files under the `results/data/` folder and the files under `bitstreams/` for a new round of training. 
+Note that the training software expects `bitstreams/` and `results/data/` directories to be present under `ParaKit/`. So, only the csv and bitstreams files under folders should be deleted or moved.
+
 ---
 
 ## 4. Details of configuring parameters.yaml

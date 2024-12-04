@@ -17,7 +17,7 @@ if [ ! -f binaries/aomdec ]; then
 
     # check Makefile
     if [ ! -f binaries/build/Makefile ]; then
-        cmake -S ../ -B ./binaries/build -DCONFIG_PARAKIT_COLLECT_DATA=1 -DCONFIG_ML_PART_SPLIT=0
+        cmake -S ../ -B ./binaries/build -DCONFIG_PARAKIT_COLLECT_DATA=1 -DCONFIG_ML_PART_SPLIT=0 -DCONFIG_MULTITHREAD=0
     else
         echo "Makefile exists: building aomdec..."
     fi
