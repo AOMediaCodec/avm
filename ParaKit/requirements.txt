@@ -1,5 +1,5 @@
-numpy==1.24.4
-pandas==1.2.4
+numpy==1.26.4
+pandas==1.5.3
 pandas-stubs==2.2.2.240603
 python-dateutil==2.8.2
 pytz==2024.1
