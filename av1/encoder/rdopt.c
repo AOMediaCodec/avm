@@ -1038,10 +1038,13 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
                                          int_mv *cur_mv, int *rate_mv) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  MvSubpelPrecision cur_mv_precision = mbmi->pb_mv_precision;
   int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #if BUGFIX_AMVD_AMVR
   if (is_adaptive_mvd) {
-    set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
+    cur_mv_precision = mbmi->max_mv_precision <= MV_PRECISION_QTR_PEL
+                           ? mbmi->max_mv_precision
+                           : MV_PRECISION_QTR_PEL;
   }
 #endif
   int match_idx = -1;
@@ -1052,7 +1055,7 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
       NEW_NEWMV_STATS st = args->new_newmv_stats[i];
       if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
           st.ref_mv_idx_type == av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx) &&
-          st.mv_precision == mbmi->pb_mv_precision) {
+          st.mv_precision == cur_mv_precision) {
         match_idx = i;
         break;
       }
@@ -1097,7 +1100,7 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
       JOINT_NEWMV_STATS st = args->joint_newmv_stats[i];
       if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
           st.ref_mv_idx_type == av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx) &&
-          st.mv_precision == mbmi->pb_mv_precision &&
+          st.mv_precision == cur_mv_precision &&
           st.joint_newmv_scale_idx == mbmi->jmvd_scale_mode &&
           st.cwp_idx == mbmi->cwp_idx) {
         match_idx = i;
@@ -1134,10 +1137,15 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
     int is_new_new_mv_optflow = (mbmi->mode == NEW_NEWMV_OPTFLOW);
     for (int i = ref_mv_idx; i <= (ref_mv_idx + is_new_new_mv_optflow); ++i) {
       const int_mv ref_mv = av1_get_ref_mv(x, i);
-      *rate_mv += av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
-                                  mbmi->pb_mv_precision, &x->mv_costs,
-                                  MV_COST_WEIGHT, is_adaptive_mvd);
+      *rate_mv +=
+          av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv, cur_mv_precision,
+                          &x->mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
     }
+#if BUGFIX_AMVD_AMVR
+    if (is_adaptive_mvd) {
+      set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
+    }
+#endif
     return 1;
   }
   return 0;
