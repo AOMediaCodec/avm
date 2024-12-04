@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 
 echo "--- Installing ParaKit ---"
 if [ ! -d venv ]; then
@@ -11,11 +10,11 @@ if [ ! -d venv ]; then
     python3 -m venv venv
     source venv/bin/activate
     # update pip
-    pip install --upgrade pip
+    python3 -m pip install --upgrade pip
     # install required packages
-    pip install -r requirements.txt
+    python3 -m pip install -r requirements.txt
     # install package locally
-    pip install -e .
+    python3 -m pip install -e .
 else
     echo "venv exists: activating"
     source venv/bin/activate
