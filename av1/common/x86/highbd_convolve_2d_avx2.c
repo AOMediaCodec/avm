@@ -427,7 +427,9 @@ static INLINE void av1_highbd_convolve_2d_sr_specialized_avx2(
   // into an unsigned 16-bit intermediate array.
   assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
 
-  __m256i s[8], coeffs_y[4], coeffs_x[4];
+  __m256i s[8];
+  __m256i coeffs_y[4] = { 0 };
+  __m256i coeffs_x[4] = { 0 };
 
   const __m256i round_const_x = _mm256_set1_epi32(
       ((1 << conv_params->round_0) >> 1) + (1 << (bd + FILTER_BITS - 1)));
