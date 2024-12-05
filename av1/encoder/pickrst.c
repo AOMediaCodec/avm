@@ -4401,11 +4401,6 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_filters_initialized = 0;
   rsi->num_filter_classes = rsc->num_filter_classes;
   rsi->frame_filters = rsc->frame_filter_bank.filter[0];
-  if (is_frame_filters_enabled(rsc->plane)) {
-    for (int c_id = 0; c_id < rsi->frame_filters.num_classes; ++c_id) {
-      assert(rsc->frame_filter_bank.bank_size_for_class[c_id] == 1);
-    }
-  }
 #if CONFIG_TEMP_LR
   rsi->frame_filters = rsc->frame_filters;
   if (is_frame_filters_enabled(rsc->plane)) {
