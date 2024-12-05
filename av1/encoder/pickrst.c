@@ -1290,9 +1290,8 @@ static AOM_INLINE void search_pc_wiener_visitor(
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int pcwiener_disabled =
       rsc->plane > 0 ||
-      (rsc->cm->seq_params.lr_tools_disable_mask[rsc->plane] &
-       (1 << RESTORE_PC_WIENER))
-      ;
+      (rsc->cm->seq_params.lr_tools_disable_mask[AOM_PLANE_Y] &
+       (1 << RESTORE_PC_WIENER));
   rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
