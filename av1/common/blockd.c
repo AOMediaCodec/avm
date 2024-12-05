@@ -537,6 +537,7 @@ static inline int num_sampled_pc_wiener_filters(int plane, int num_ref_filters,
 void set_group_counts(int plane, int num_classes, int num_ref_frames,
                       int *group_counts, int nopcw) {
   int total_slots = num_dictionary_slots(num_classes, nopcw);
+  (void)total_slots;
   group_counts[0] = num_classes;
   total_slots -= group_counts[0];
   assert(total_slots >= 0);
