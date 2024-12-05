@@ -4111,6 +4111,7 @@ static AOM_INLINE void encode_restoration_mode(
               // Frame filters are on but no ref for plane p. Must be using
               // filters from alternate plane.
               const int alternate_plane = alternate_ref_plane(p);
+              (void)alternate_plane;
               assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                          ->rst_info[alternate_plane]
                          .frame_filters_on);
