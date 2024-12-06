@@ -645,7 +645,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
 
     const int16_t *pcwiener_filter = cm->translated_pcwiener_filters +
-                                     filter_index * NUM_PC_WIENER_TAPS_LUMA;
+                                     filter_index * MAX_NUM_DICTIONARY_TAPS;
 
     const int dict_index = ref_filter_offset + num_ref_filters + pc_wiener_cnt;
     assert(dict_index < max_predictors);
@@ -654,7 +654,6 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
 
     int16_t *match_filter = frame_filter_dictionary + dict_index * dict_stride;
-    const int num_taps = AOMMIN(num_feat, NUM_PC_WIENER_TAPS_LUMA);
     for (int i = 0; i < num_taps; ++i) {
       match_filter[i] = pcwiener_filter[i];
     }
