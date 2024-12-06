@@ -1332,44 +1332,28 @@ typedef struct PcWienerSubClassifiers {
 } PcWienerSubClassifiers;
 
 static const PcWienerSubClassifiers subclass0 = {
-  .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_0,
-  .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_0,
-  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_0,
-  .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_0,
-  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_0,
-  .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_0,
-  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_0,
-  .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_0
+  pc_wiener_sub_classify_to_64_0, pc_wiener_sub_classify_to_16_0,
+  pc_wiener_sub_classify_to_12_0, pc_wiener_sub_classify_to_8_0,
+  pc_wiener_sub_classify_to_6_0,  pc_wiener_sub_classify_to_4_0,
+  pc_wiener_sub_classify_to_3_0,  pc_wiener_sub_classify_to_2_0
 };
 static const PcWienerSubClassifiers subclass1 = {
-  .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_1,
-  .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_1,
-  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_1,
-  .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_1,
-  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_1,
-  .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_1,
-  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_1,
-  .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_1
+  pc_wiener_sub_classify_to_64_1, pc_wiener_sub_classify_to_16_1,
+  pc_wiener_sub_classify_to_12_1, pc_wiener_sub_classify_to_8_1,
+  pc_wiener_sub_classify_to_6_1,  pc_wiener_sub_classify_to_4_1,
+  pc_wiener_sub_classify_to_3_1,  pc_wiener_sub_classify_to_2_1
 };
 static const PcWienerSubClassifiers subclass2 = {
-  .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_2,
-  .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_2,
-  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_2,
-  .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_2,
-  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_2,
-  .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_2,
-  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_2,
-  .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_2
+  pc_wiener_sub_classify_to_64_2, pc_wiener_sub_classify_to_16_2,
+  pc_wiener_sub_classify_to_12_2, pc_wiener_sub_classify_to_8_2,
+  pc_wiener_sub_classify_to_6_2,  pc_wiener_sub_classify_to_4_2,
+  pc_wiener_sub_classify_to_3_2,  pc_wiener_sub_classify_to_2_2
 };
 static const PcWienerSubClassifiers subclass3 = {
-  .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_3,
-  .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_3,
-  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_3,
-  .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_3,
-  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_3,
-  .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_3,
-  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_3,
-  .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_3
+  pc_wiener_sub_classify_to_64_3, pc_wiener_sub_classify_to_16_3,
+  pc_wiener_sub_classify_to_12_3, pc_wiener_sub_classify_to_8_3,
+  pc_wiener_sub_classify_to_6_3,  pc_wiener_sub_classify_to_4_3,
+  pc_wiener_sub_classify_to_3_3,  pc_wiener_sub_classify_to_2_3
 };
 
 static AOM_INLINE const PcWienerSubClassifiers *get_sub_classifiers(

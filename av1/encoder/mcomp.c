@@ -728,16 +728,18 @@ static INLINE int get_intrabc_mv_cost_with_precision(
 ) {
 #if CONFIG_VQ_MVD_CODING
   if (dv_costs) {
-    return (int)ROUND_POWER_OF_TWO_64(
-        (int64_t)get_vq_mvd_cost(diff,
 #if CONFIG_IBC_SUBPEL_PRECISION
-                                 precision,
-#else
-                                 MV_PRECISION_ONE_PEL,
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-                                 NULL, 0, 1, dv_costs) *
+    return (int)ROUND_POWER_OF_TWO_64(
+        (int64_t)get_vq_mvd_cost(diff, precision, NULL, 0, 1, dv_costs) *
             weight,
         round_bits);
+#else
+    return (int)ROUND_POWER_OF_TWO_64(
+        (int64_t)get_vq_mvd_cost(diff, MV_PRECISION_ONE_PEL, NULL, 0, 1,
+                                 dv_costs) *
+            weight,
+        round_bits);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
   }
 #else
 
