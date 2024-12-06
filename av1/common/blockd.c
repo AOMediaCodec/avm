@@ -654,7 +654,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
 
     int16_t *match_filter = frame_filter_dictionary + dict_index * dict_stride;
-    for (int i = 0; i < num_taps; ++i) {
+    for (int i = 0; i < num_feat; ++i) {
       match_filter[i] = pcwiener_filter[i];
     }
   }
