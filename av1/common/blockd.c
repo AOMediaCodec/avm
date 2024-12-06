@@ -481,7 +481,7 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
-  assert(nsfilter_params->ncoeffs <= NUM_DICTIONARY_TAPS_LUMA);
+  assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
   const int num_feat = nsfilter_params->ncoeffs;
 
   /* Assuming the pc-wiener tap configuration is the same as the
@@ -515,7 +515,7 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
       const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
           pcwiener_filter[i], precision_diff);  // Assuming no translation
       // pcwiener_filter[tap_translator[i]], precision_diff); // deprecated
-      cm->translated_pcwiener_filters[dict_index * NUM_DICTIONARY_TAPS_LUMA +
+      cm->translated_pcwiener_filters[dict_index * MAX_NUM_DICTIONARY_TAPS +
                                       i] =
           clip_to_wienerns_range(scaled_tap,
                                  wienerns_coeffs[i][WIENERNS_MIN_ID],
