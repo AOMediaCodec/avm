@@ -84,7 +84,8 @@ extern "C" {
 #define NUM_PC_WIENER_TAPS_LUMA 13
 #include "av1/common/pc_wiener_filters.h"
 
-#define NUM_DICTIONARY_TAPS_LUMA 18  // Max #taps for translated filters
+// Maximum number of filter-taps in LR non-separable filtering.
+#define MAX_NUM_DICTIONARY_TAPS 18
 
 #define RESTORATION_UNITPELS_HORZ_MAX \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_HORZ + 16)
