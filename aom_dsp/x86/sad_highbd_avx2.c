@@ -589,12 +589,8 @@ static AOM_FORCE_INLINE void sad32x2(const uint16_t *src_ptr, int src_stride,
         r[2], _mm256_loadu_si256((const __m256i *)(sec_ptr + 32)));
     r[3] = _mm256_avg_epu16(
         r[3], _mm256_loadu_si256((const __m256i *)(sec_ptr + 48)));
-    sec_ptr += 32 << 1;
   }
   highbd_sad16x4_core_avx2(s, r, sad_acc);
-
-  src_ptr += src_stride << 1;
-  ref_ptr += ref_stride << 1;
 }
 
 static AOM_FORCE_INLINE void sad32x4_4d(__m256i *s, const uint16_t *ref_ptr,
