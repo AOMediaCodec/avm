@@ -1307,7 +1307,7 @@ static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
   }
 #if CONFIG_E125_MHCCP_SIMPLIFY
-  return (int16_t)sum;
+  return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
 #else
   return (int16_t)((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS);
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
