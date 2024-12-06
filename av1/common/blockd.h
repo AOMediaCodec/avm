@@ -1895,16 +1895,6 @@ static inline int max_num_base_filters(int num_classes, int nopcw) {
   return num_dictionary_slots(num_classes, nopcw) - num_classes;
 }
 
-// Maximum number of filter-taps in LR non-separable filtering.
-static inline int max_num_dictionary_taps() {
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
-  const int max_num_taps = 18;  // Accounting for cross-chroma.
-#else
-  const int max_num_taps = 12;
-#endif
-  return max_num_taps;
-}
-
 int max_dictionary_size(int nopcw);
 
 #define NUM_MATCH_GROUPS 3

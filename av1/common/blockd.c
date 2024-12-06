@@ -436,7 +436,7 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
 int max_dictionary_size(int nopcw) {
   const int max_num_predictors =
       num_dictionary_slots(WIENERNS_MAX_CLASSES, nopcw);
-  return max_num_predictors * max_num_dictionary_taps();
+  return max_num_predictors * MAX_NUM_DICTIONARY_TAPS;
 }
 
 void allocate_frame_filter_dictionary(AV1_COMMON *cm) {
@@ -452,10 +452,10 @@ void allocate_frame_filter_dictionary(AV1_COMMON *cm) {
   cm->frame_filter_dictionary =
       aom_calloc(max_dictionary_size(0), sizeof(*cm->frame_filter_dictionary));
   cm->translated_pcwiener_filters =
-      aom_calloc(NUM_PC_WIENER_FILTERS * NUM_PC_WIENER_TAPS_LUMA,
+      aom_calloc(NUM_PC_WIENER_FILTERS * MAX_NUM_DICTIONARY_TAPS,
                  sizeof(*cm->translated_pcwiener_filters));
   cm->translation_done = 0;
-  cm->frame_filter_dictionary_stride = max_num_dictionary_taps();
+  cm->frame_filter_dictionary_stride = MAX_NUM_DICTIONARY_TAPS;
   cm->num_ref_filters = aom_calloc(1, sizeof(*cm->num_ref_filters));
 }
 
@@ -481,7 +481,7 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
-  assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
+  assert(nsfilter_params->ncoeffs <= NUM_DICTIONARY_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
 
   /* Assuming the pc-wiener tap configuration is the same as the
@@ -511,11 +511,11 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
     const int dict_index = pc_wiener_cnt;
 
     assert(cm->translated_pcwiener_filters != NULL);
-    for (int i = 0; i < num_feat; ++i) {
+    for (int i = 0; i < AOMMIN(num_feat, NUM_PC_WIENER_TAPS_LUMA - 1); ++i) {
       const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
           pcwiener_filter[i], precision_diff);  // Assuming no translation
       // pcwiener_filter[tap_translator[i]], precision_diff); // deprecated
-      cm->translated_pcwiener_filters[dict_index * NUM_PC_WIENER_TAPS_LUMA +
+      cm->translated_pcwiener_filters[dict_index * NUM_DICTIONARY_TAPS_LUMA +
                                       i] =
           clip_to_wienerns_range(scaled_tap,
                                  wienerns_coeffs[i][WIENERNS_MIN_ID],
@@ -559,7 +559,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
 
-  assert(nsfilter_params->ncoeffs <= max_num_dictionary_taps());
+  assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
   const int num_feat = nsfilter_params->ncoeffs;
 
   const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
