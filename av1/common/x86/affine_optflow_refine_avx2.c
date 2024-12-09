@@ -2564,19 +2564,41 @@ int av1_opfl_mv_refinement_nxn_avx2(const int16_t *pdiff, int pstride,
                                     const int16_t *gx, const int16_t *gy,
                                     int gstride, int bw, int bh, int n, int d0,
                                     int d1, int grad_prec_bits,
-                                    int mv_prec_bits, int *vx0, int *vy0,
-                                    int *vx1, int *vy1) {
+                                    int mv_prec_bits,
+#if CONFIG_RESIDUE_PAD
+                                    int mi_x, int mi_y, int mi_cols,
+                                    int mi_rows, int build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
+                                    int *vx0, int *vy0, int *vx1, int *vy1) {
   int n_blocks = 0;
   // Invoke SSE4_1 implementation for blocks with width < 16 and for other block
   // sizes use AVX2 by processing two 8x8 blocks parallelly.
   if (bw < 16) {
     n_blocks = av1_opfl_mv_refinement_nxn_sse4_1(
         pdiff, pstride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
-        mv_prec_bits, vx0, vy0, vx1, vy1);
+        mv_prec_bits,
+#if CONFIG_RESIDUE_PAD
+        mi_x, mi_y, mi_cols, mi_rows, build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
+        vx0, vy0, vx1, vy1);
   } else {
     assert(n == 8 && bw % n == 0 && bh % n == 0);
     for (int i = 0; i < bh; i += n) {
       for (int j = 0; j < bw; j += 16) {
+#if CONFIG_RESIDUE_PAD
+        if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
+                                build_for_decode)) {
+          const int num_blocks = 2;
+          for (int idx = 0; idx < num_blocks; idx++) {
+            *(vx0 + n_blocks + idx) = 0;
+            *(vy0 + n_blocks + idx) = 0;
+            *(vx1 + n_blocks + idx) = 0;
+            *(vy1 + n_blocks + idx) = 0;
+          }
+          n_blocks += 2;
+          continue;
+        }
+#endif  // CONFIG_RESIDUE_PAD
         opfl_mv_refinement_16x8_avx2(
             pdiff + (i * pstride + j), pstride, gx + (i * gstride + j),
             gy + (i * gstride + j), gstride, d0, d1, grad_prec_bits,

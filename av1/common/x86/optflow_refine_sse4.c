@@ -734,12 +734,30 @@ int av1_opfl_mv_refinement_nxn_sse4_1(const int16_t *pdiff, int pstride,
                                       const int16_t *gx, const int16_t *gy,
                                       int gstride, int bw, int bh, int n,
                                       int d0, int d1, int grad_prec_bits,
-                                      int mv_prec_bits, int *vx0, int *vy0,
-                                      int *vx1, int *vy1) {
+                                      int mv_prec_bits,
+#if CONFIG_RESIDUE_PAD
+                                      int mi_x, int mi_y, int mi_cols,
+                                      int mi_rows, int build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
+                                      int *vx0, int *vy0, int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
   for (int i = 0; i < bh; i += n) {
     for (int j = 0; j < bw; j += 8) {
+#if CONFIG_RESIDUE_PAD
+      if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
+                              build_for_decode)) {
+        const int num_blocks = (n == 4) ? 2 : 1;
+        for (int idx = 0; idx < num_blocks; idx++) {
+          *(vx0 + n_blocks + idx) = 0;
+          *(vy0 + n_blocks + idx) = 0;
+          *(vx1 + n_blocks + idx) = 0;
+          *(vy1 + n_blocks + idx) = 0;
+        }
+        n_blocks += num_blocks;
+        continue;
+      }
+#endif  // CONFIG_RESIDUE_PAD
       opfl_mv_refinement_sse4_1(pdiff + (i * pstride + j), pstride,
                                 gx + (i * gstride + j), gy + (i * gstride + j),
                                 gstride, n, n, d0, d1, grad_prec_bits,

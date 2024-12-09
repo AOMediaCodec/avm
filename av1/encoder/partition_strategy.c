@@ -2505,7 +2505,12 @@ static void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td,
 
   memset(out, 0, sizeof(ResidualStats));
 
-  av1_subtract_plane(x, bsize, plane);
+  av1_subtract_plane(x, bsize, plane
+#if CONFIG_RESIDUE_PAD
+                     ,
+                     cm->width, cm->height
+#endif  // CONFIG_RESIDUE_PAD
+  );
 
   const uint16_t *src = x->plane[0].src.buf;
   const uint16_t *dst = xd->plane[0].dst.buf;

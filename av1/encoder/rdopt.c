@@ -3321,7 +3321,12 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
 
-    av1_subtract_plane(x, plane_bsize, plane);
+    av1_subtract_plane(x, plane_bsize, plane
+#if CONFIG_RESIDUE_PAD
+                       ,
+                       cm->width, cm->height
+#endif  // CONFIG_RESIDUE_PAD
+    );
     int64_t sse = aom_sum_squares_2d_i16(p->src_diff, bw, bw, bh) << 4;
 
 #if CONFIG_SKIP_MODE_SSE_BUG_FIX
@@ -8468,7 +8473,12 @@ static AOM_INLINE void refine_winner_mode_tx(
         if (mbmi->motion_mode == OBMC_CAUSAL)
           av1_build_obmc_inter_predictors_sb(cm, xd);
 
-        av1_subtract_plane(x, bsize, 0);
+        av1_subtract_plane(x, bsize, 0
+#if CONFIG_RESIDUE_PAD
+                           ,
+                           cm->width, cm->height
+#endif  // CONFIG_RESIDUE_PAD
+        );
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av1_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,

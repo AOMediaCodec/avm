@@ -510,8 +510,12 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-                                int build_for_obmc, int bw, int bh, int mi_x,
-                                int mi_y, uint16_t **mc_buf,
+                                int build_for_obmc,
+#if CONFIG_RESIDUE_PAD
+                                int build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
+                                int bw, int bh, int mi_x, int mi_y,
+                                uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
 // Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
@@ -545,9 +549,12 @@ void av1_opfl_build_inter_predictor(
 // Generate refined MVs using optflow refinement
 void av1_get_optflow_based_mv(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
-    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
-    CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
-    int16_t *gx1, int16_t *gy1,
+    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
+#if CONFIG_RESIDUE_PAD
+    int build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
+    uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
+    int16_t *gx0, int16_t *gy0, int16_t *gx1, int16_t *gy1,
 #if CONFIG_AFFINE_REFINEMENT
     WarpedMotionParams *wms, int *use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -567,6 +574,9 @@ void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     int *vxy_bufs, const int vxy_size, InterPredParams *inter_pred_params,
     MACROBLOCKD *xd, int mi_x, int mi_y,
+#if CONFIG_RESIDUE_PAD
+    int build_for_decode,
+#endif  // CONFIG_RESIDUE_PAD
 #if CONFIG_AFFINE_REFINEMENT
     const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
@@ -1455,6 +1465,14 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col);
 #endif  // CONFIG_MORPH_PRED
+
+#if CONFIG_RESIDUE_PAD
+static AOM_INLINE bool is_subblock_outside(int x, int y, int mi_cols,
+                                           int mi_rows, int build_for_decode) {
+  if (!build_for_decode) return 0;
+  return (x >= mi_cols * MI_SIZE || y >= mi_rows * MI_SIZE);
+}
+#endif  // CONFIG_RESIDUE_PAD
 
 #ifdef __cplusplus
 }  // extern "C"

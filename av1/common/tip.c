@@ -930,16 +930,19 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     }
     // Refine MV using optical flow. The final output MV will be in 1/16
     // precision.
-    av1_get_optflow_based_mv(cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x,
-                             mi_y, mc_buf, calc_subpel_params_func, gx0, gy0,
-                             gx1, gy1,
+    av1_get_optflow_based_mv(
+        cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y,
+#if CONFIG_RESIDUE_PAD
+        0 /* build_for_decode */,
+#endif  // CONFIG_RESIDUE_PAD
+        mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
-                             use_affine_opfl ? wms : NULL, &use_affine_opfl,
+        use_affine_opfl ? wms : NULL, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                             vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
+        vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
 #if CONFIG_REFINEMV
-                             ,
-                             best_mv_ref, bw, bh
+        ,
+        best_mv_ref, bw, bh
 #endif  // CONFIG_REFINEMV
     );
   }
@@ -987,6 +990,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, vxy_bufs, 4, &inter_pred_params,
           xd, mi_x, mi_y,
+#if CONFIG_RESIDUE_PAD
+          0 /* build_for_decode */,
+#endif  // CONFIG_RESIDUE_PAD
 #if CONFIG_AFFINE_REFINEMENT
           cm, bw, mbmi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mbmi->mv[ref], use_affine_opfl,

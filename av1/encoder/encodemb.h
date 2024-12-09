@@ -152,14 +152,26 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int16_t *diff, ptrdiff_t diff_stride,
                         const uint16_t *src, ptrdiff_t src_stride,
-                        const uint16_t *pred, ptrdiff_t pred_stride);
+                        const uint16_t *pred, ptrdiff_t pred_stride
+#if CONFIG_RESIDUE_PAD
+                        ,
+                        int plane, int blk_col, int blk_row, int frame_width,
+                        int frame_height, TX_TYPE tx_type
+#endif  // CONFIG_RESIDUE_PAD
+);
 
 #if CONFIG_LOSSLESS_DPCM
 void av1_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
                              const uint16_t *src, ptrdiff_t src_stride,
                              const uint16_t *pred, ptrdiff_t pred_stride,
-                             int plane);
+                             int plane
+#if CONFIG_RESIDUE_PAD
+                             ,
+                             int blk_col, int blk_row, int frame_width,
+                             int frame_height, TX_TYPE tx_type
+#endif  // CONFIG_RESIDUE_PAD
+);
 
 void av1_subtract_block_vert(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
@@ -173,9 +185,19 @@ void av1_subtract_block_horz(const MACROBLOCKD *xd, int rows, int cols,
 #endif
 
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
-                      int blk_col, int blk_row, TX_SIZE tx_size);
+                      int blk_col, int blk_row, TX_SIZE tx_size
+#if CONFIG_RESIDUE_PAD
+                      ,
+                      int frame_width, int frame_height, TX_TYPE tx_type
+#endif  // CONFIG_RESIDUE_PAD
+);
 
-void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane);
+void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane
+#if CONFIG_RESIDUE_PAD
+                        ,
+                        int frame_width, int frame_height
+#endif  // CONFIG_RESIDUE_PAD
+);
 
 static INLINE void av1_set_txb_context(MACROBLOCK *x, int plane, int block,
                                        TX_SIZE tx_size, ENTROPY_CONTEXT *a,

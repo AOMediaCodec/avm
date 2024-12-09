@@ -402,8 +402,12 @@ int opfl_refine_fullpel_mv_one_sided(
   // The SIMD version performs refinement for every 4x8 or 8x8 region. It is
   // only applicable when n == 8 in optical flow based MV search
   if (n == 8)
-    av1_opfl_mv_refinement_nxn(tmp1, bw, gx0, gy0, bw, n, n, n, 1, 0,
-                               grad_prec_bits, bits, &vx0, &vy0, &vx1, &vy1);
+    av1_opfl_mv_refinement_nxn(
+        tmp1, bw, gx0, gy0, bw, n, n, n, 1, 0, grad_prec_bits, bits,
+#if CONFIG_RESIDUE_PAD
+        0, 0, cm->mi_params.mi_cols, cm->mi_params.mi_rows, 0,
+#endif  // CONFIG_RESIDUE_PAD
+        &vx0, &vy0, &vx1, &vy1);
   else
     av1_opfl_mv_refinement(tmp1, bw, gx0, gy0, bw, n, n, 1, 0, grad_prec_bits,
                            bits, &vx0, &vy0, &vx1, &vy1);
