@@ -1105,22 +1105,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
 #endif
 
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-  if (!cm->fEncTxfmLog) {
-    if (oxcf->txfmblk_enclogfile != NULL) {
-      cm->fEncTxfmLog = fopen(oxcf->txfmblk_enclogfile, "w");
-    } else {
-      // assign a default log file name
-      cm->fEncTxfmLog = fopen("av2_tcq_enc.log", "w");
-    }
-    fprintf(
-        stdout,
-        "[AV2ENC-DEBUG] created a brand new logging file for TCQ Encoder\n");
-    fprintf(cm->fEncTxfmLog,
-            "[AV2ENC-DEBUG] initial line in encoder log file\n");
-  }
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
   cpi->compressor_stage = stage;
@@ -1613,11 +1597,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     fclose(cpi->common.fEncCoeffLog);
   }
 #endif
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-  if (cpi->common.fEncTxfmLog != NULL) {
-    fclose(cpi->common.fEncTxfmLog);
-  }
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
   aom_free(cpi->subgop_config_str);
   aom_free(cpi->subgop_config_path);

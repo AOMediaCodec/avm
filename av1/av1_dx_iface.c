@@ -596,22 +596,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
 #else
   frame_worker_data->pbi = av1_decoder_create(ctx->buffer_pool);
 #endif
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-  if (!frame_worker_data->pbi->common.fDecTxfmLog) {
-    if (ctx->cfg.txfm_declog != NULL)
-      frame_worker_data->pbi->common.fDecTxfmLog =
-          fopen(ctx->cfg.txfm_declog, "w");
-    else
-      frame_worker_data->pbi->common.fDecTxfmLog =
-          fopen("av2_tcq_dec.log", "w");
-
-    fprintf(
-        stdout,
-        "[AV2DEC-DEBUG] created a brand new logging file for TCQ Decoder\n");
-    fprintf(frame_worker_data->pbi->common.fDecTxfmLog,
-            "[AV2DEC-DEBUG] initial line in decoder log file\n");
-  }
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
   if (frame_worker_data->pbi == NULL) {
     set_error_detail(ctx, "Failed to allocate frame_worker_data");

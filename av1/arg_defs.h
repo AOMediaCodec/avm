@@ -319,10 +319,6 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_REFRESH_FLAG
   arg_def_t enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-  arg_def_t txfmblk_enclogfile;
-  arg_def_t txfmblk_declogfile;
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

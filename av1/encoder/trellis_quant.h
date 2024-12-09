@@ -154,12 +154,7 @@ static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
 int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   int block, TX_SIZE tx_size, TX_TYPE tx_type,
                   CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                  int *rate_cost, int sharpness
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-                  ,
-                  int blk_row, int blk_col, BLOCK_SIZE bsize, RUN_TYPE dry_run
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-);
+                  int *rate_cost, int sharpness);
 
 #ifdef __cplusplus
 }

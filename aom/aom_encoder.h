@@ -1222,18 +1222,6 @@ typedef struct aom_codec_enc_cfg {
    */
   cfg_options_t encoder_cfg;
 
-#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-  /*!\brief log file for per-transform block information
-   *
-   */
-  const char *txfmblk_enclogfile;
-
-  /*!\brief decoder log file for per-transform block information
-   *
-   */
-  const char *txfmblk_declogfile;
-#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
-
 } aom_codec_enc_cfg_t; /**< alias for struct aom_codec_enc_cfg */
 
 /*!\brief Initialize an encoder instance
