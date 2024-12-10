@@ -1276,7 +1276,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
   bool skip_search = !is_frame_filters_enabled(rsc->plane);
 #else
   bool skip_search = rsc->plane != AOM_PLANE_Y;
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   if (skip_search) {
     rsc->bits += bits_none;
     rsc->sse += rusi->sse[RESTORE_NONE];
@@ -2528,7 +2528,7 @@ static int64_t count_wienerns_bits_set(
 static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank, int reset_dict);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
 static int64_t finer_tile_search_wienerns(
     const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
@@ -2624,7 +2624,7 @@ static int64_t finer_tile_search_wienerns(
     copy_nsfilter_taps(&rui->wienerns_info, &best);
     *cur_bank_ptr = *ref_bank_ptr;
   }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_REPLACE
 
   const int refine_iters = rsc->lpf_sf->wienerns_refine_iters;
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
@@ -2659,7 +2659,7 @@ static int64_t finer_tile_search_wienerns(
                 rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
             reset_dict = 0;
           }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
           const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
                                         ? ALL_WIENERNS_CLASSES
                                         : c_id;
@@ -2679,7 +2679,7 @@ static int64_t finer_tile_search_wienerns(
               ref_bank_ptr = cur_bank_ptr;
               cur_bank_ptr = tmp_ptr;
             }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
           }
         }
         copy_nsfilter_taps_for_class(&curr, &best, c_id);
@@ -2734,7 +2734,7 @@ static int64_t finer_tile_search_wienerns(
               rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
           reset_dict = 0;
         }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
         const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
                                       ? ALL_WIENERNS_CLASSES
                                       : c_id;
@@ -2753,7 +2753,7 @@ static int64_t finer_tile_search_wienerns(
             ref_bank_ptr = cur_bank_ptr;
             cur_bank_ptr = tmp_ptr;
           }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
         }
@@ -2769,9 +2769,9 @@ static int64_t finer_tile_search_wienerns(
     if (rsc->frame_filters_on) {
 #if FINER_UPDATE_BANK
       *cur_bank_ptr = *ref_bank_ptr;
-#endif
+#endif  // FINER_UPDATE_BANK
     }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   }
 
   // Try reduced filters by forcing trailing coeffs to 0
@@ -2803,7 +2803,7 @@ static int64_t finer_tile_search_wienerns(
               rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
           reset_dict = 0;
         }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
         const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
                                       ? ALL_WIENERNS_CLASSES
                                       : c_id;
@@ -2822,7 +2822,7 @@ static int64_t finer_tile_search_wienerns(
             ref_bank_ptr = cur_bank_ptr;
             cur_bank_ptr = tmp_ptr;
           }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
         }
@@ -2886,7 +2886,7 @@ static int64_t finer_tile_search_wienerns(
                 rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
             reset_dict = 0;
           }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
           const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
                                         ? ALL_WIENERNS_CLASSES
                                         : c_id;
@@ -2906,7 +2906,7 @@ static int64_t finer_tile_search_wienerns(
               ref_bank_ptr = cur_bank_ptr;
               cur_bank_ptr = tmp_ptr;
             }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD && FINER_UPDATE_BANK
           }
         }
         copy_nsfilter_taps_for_class(&curr, &best, c_id);
@@ -4574,7 +4574,7 @@ int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
   }
   return total_bits;
 }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
 static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
                                            const WienerNonsepInfoBank *bank,
@@ -4597,7 +4597,7 @@ static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
 #else
   bits += count_match_indices_bits(filter->num_classes, nopcw) *
           (1 << AV1_PROB_COST_SHIFT);
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
   *filter_bits = bits;
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, 0,
@@ -5071,7 +5071,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       if (!rsi.frame_filters_on) continue;
 #else
       continue;
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
     }
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
@@ -5345,7 +5345,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
             continue;
 #if !CONFIG_COMBINE_PC_NS_WIENER_ADD
           if (plane != AOM_PLANE_Y && r == RESTORE_PC_WIENER) continue;
-#endif
+#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
 
           gather_stats_rest_type(&rsc, r);
 
@@ -5399,7 +5399,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_PC_WIENER && is_frame_filters_enabled(plane)) {
 #else
           if (r == RESTORE_PC_WIENER && plane == AOM_PLANE_Y) {
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
             rsc.classification_is_buffered = 1;  // Buffer is set.
           }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -5412,7 +5412,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           const int found_best = cost < best_cost && !invalid_result;
 #else
           const int found_best = cost < best_cost;
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
           if (found_best) {
             best_cost = cost;
             best_rtype = real_r;

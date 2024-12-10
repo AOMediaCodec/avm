@@ -3056,7 +3056,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
               tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                             ->rst_info[alternate_plane];
             }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
             av1_copy_rst_frame_filters(rsi, &tmp_rsi);
             rsi->frame_filters_initialized = 1;
 
@@ -3321,8 +3321,8 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
 }
 #else
 
-static void read_match_indices(WienerNonsepInfo *wienerns_info,
-                               aom_reader *rb) {
+static void read_match_indices(WienerNonsepInfo *wienerns_info, aom_reader *rb,
+                               int nopcw) {
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int decoded_match = aom_read_literal(
         rb, first_match_bits(wienerns_info->num_classes, nopcw),
@@ -3334,7 +3334,7 @@ static void read_match_indices(WienerNonsepInfo *wienerns_info,
                                  wienerns_info->num_classes, nopcw));
   }
 }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -3365,7 +3365,11 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
 #endif  // CONFIG_TEMP_LR
+#if CONFIG_COMBINE_PC_NS_WIENER_ADD
   read_match_indices(plane, &rsi->frame_filters, rb, nopcw);
+#else
+  read_match_indices(&rsi->frame_filters, rb, nopcw);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));

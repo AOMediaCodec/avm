@@ -139,7 +139,7 @@ static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
 int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
                              const int *match_indices, int nopcw);
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
 static INLINE int wienerns_info_diff(
     const WienerNonsepInfo *info1, const WienerNonsepInfo *info2,
