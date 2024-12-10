@@ -4516,7 +4516,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT
-        1, 1,   1,   1, 1,
+        1, 1,   1,
+#if CONFIG_DIP
+        1,
+#endif
+        1, 1,
 #if CONFIG_AFFINE_REFINEMENT
         1,
 #endif  // CONFIG_AFFINE_REFINEMENT
