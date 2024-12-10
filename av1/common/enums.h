@@ -32,7 +32,7 @@ extern "C" {
 #define ADJUST_SUPER_RES_Q 1
 
 #define WEDGE_2N_COS 1  // 2n cosine table
-#define WEDGE_BIT 4     // weidghting bits
+#define WEDGE_BIT 5     // weidghting bits
 
 #if CONFIG_SUBBLK_REF_EXT
 #define SUBBLK_REF_EXT_LINES 2
