@@ -598,7 +598,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
       num_planes_to_check = 2;
       planes_to_check[1] = (plane == AOM_PLANE_U) ? AOM_PLANE_V : AOM_PLANE_U;
     }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
     for (int chk = 0; chk < num_planes_to_check; ++chk) {
       const int p = planes_to_check[chk];
       RestorationInfo rsi = ref_frame_buf->rst_info[p];

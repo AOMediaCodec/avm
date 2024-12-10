@@ -1528,7 +1528,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
     assert(0);
     return;
   }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   (void)tmpbuf;
   (void)bit_depth;
   const int set_index =
@@ -1821,7 +1821,7 @@ void apply_wienerns_class_id_highbd(
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
 #if !CONFIG_COMBINE_PC_NS_WIENER_ADD
     assert(wienerns_info->num_classes == 1);
-#endif
+#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
 
     for (int r = 0; r < height; r += block_size) {
       const int h = AOMMIN(block_size, height - r);

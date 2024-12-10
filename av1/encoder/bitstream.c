@@ -4120,7 +4120,7 @@ static AOM_INLINE void encode_restoration_mode(
             assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                        ->rst_info[p]
                        .frame_filters_on);
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
           }
 #endif  // CONFIG_TEMP_LR
         }
@@ -4356,22 +4356,22 @@ static inline void write_match_indices(int plane,
 
 #else
 static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
-                                       aom_writer *wb) {
+                                       aom_writer *wb, int nopcw) {
   int total_bits = 0;
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     int num_bits = 0;
     int encoded_match =
         encode_first_match(wienerns_info->match_indices[c_id], &num_bits,
-                           wienerns_info->num_classes);
+                           wienerns_info->num_classes, nopcw);
     aom_write_literal(wb, encoded_match, num_bits);
     total_bits += num_bits;
   }
-  int count_bits = count_match_indices_bits(wienerns_info->num_classes);
+  int count_bits = count_match_indices_bits(wienerns_info->num_classes, nopcw);
   (void)count_bits;
   (void)total_bits;
   assert(total_bits == count_bits);
 }
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 
 static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
                                                    MACROBLOCKD *xd, int plane,
@@ -4402,7 +4402,11 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
 #if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
 #endif  // CONFIG_TEMP_LR
+#if CONFIG_COMBINE_PC_NS_WIENER_ADD
   write_match_indices(plane, &rsi->frame_filters, wb, nopcw);
+#else
+  write_match_indices(&rsi->frame_filters, wb, nopcw);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   WienerNonsepInfoBank bank = { 0 };
   // needed to handle asserts in copy_nsfilter_taps_for_class
   bank.filter[0].num_classes = num_classes;

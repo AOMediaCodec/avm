@@ -1993,7 +1993,7 @@ static inline void print_match_indices(int plane, int num_classes,
   }
   printf(" (%3d)\n", num_ref_filters);
 }
-#endif
+#endif  // NDEBUG
 
 #else
 #define WIENERNS_MAX_CLASSES 1

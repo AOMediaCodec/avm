@@ -244,7 +244,7 @@ static inline int is_frame_filters_enabled(int plane) {
   return 1;
 #else
   return plane == AOM_PLANE_Y;
-#endif
+#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 }
 
 // Returns the alternate plane whose reference-frame-filters can be used to
@@ -319,7 +319,7 @@ static INLINE int count_match_indices_bits(int num_classes, int nopcw) {
   }
   return total_bits;
 }
-#endif
+#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
