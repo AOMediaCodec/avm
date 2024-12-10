@@ -1142,14 +1142,14 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
   // This leads to the following solution
   int msb_diff = abs(msb_a - msb_b);
   // Total required shifts (s1 + s2)
-  int s = msb_a + msb_b - max_bd - rem + 3;
+  int s = msb_a + msb_b - max_bd - rem + 4;
   int diff = AOMMIN(s, msb_diff);
   int s1 = (s - diff) >> 1;
   int s2 = s1;
   if (msb_a >= msb_b)
-    s1 += diff;
+    s1 = s - s2;
   else
-    s2 += diff;
+    s2 = s - s1;
 
   assert(s1 >= 0);
   assert(s2 >= 0);
