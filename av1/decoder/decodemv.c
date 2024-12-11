@@ -2354,8 +2354,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
 
 #if CONFIG_DIP
-  mbmi->use_intra_dip = 0;
-  if (xd->tree_type != CHROMA_PART) read_intra_dip_mode_info(cm, xd, r);
+  if (xd->tree_type != CHROMA_PART) {
+    mbmi->use_intra_dip = 0;
+    read_intra_dip_mode_info(cm, xd, r);
+  }
 #endif
 }
 
@@ -3144,8 +3146,10 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
 
 #if CONFIG_DIP
-  mbmi->use_intra_dip = 0;
-  if (xd->tree_type != CHROMA_PART) read_intra_dip_mode_info(cm, xd, r);
+  if (xd->tree_type != CHROMA_PART) {
+    mbmi->use_intra_dip = 0;
+    read_intra_dip_mode_info(cm, xd, r);
+  }
 #endif
 }
 
