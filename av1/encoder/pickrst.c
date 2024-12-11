@@ -1273,7 +1273,8 @@ static AOM_INLINE void search_pc_wiener_visitor(
   const int64_t bits_none = x->mode_costs.pc_wiener_restore_cost[0];
 
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
-  bool skip_search = !is_frame_filters_enabled(rsc->plane);
+  bool skip_search =
+      !is_frame_filters_enabled(rsc->plane) || rsc->num_filter_classes == 1;
 #else
   bool skip_search = rsc->plane != AOM_PLANE_Y;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
