@@ -191,7 +191,7 @@ static const uint8_t wedge_master_vertical[MASK_MASTER_SIZE] = {
 /* clang-format off */
 #if WEDGE_BLD_SIG
 // rounded cosine and sine look-up tables given by round(32*cos(i))
-#if WEDGE_2N_COS
+#if CONFIG_WEDGE_SIMPL
 static const int8_t wedge_cos_lut[WEDGE_ANGLES] = {
   //  0,  1,  2,  4,  6,
      32, 32, 32, 16, 16,
@@ -233,31 +233,10 @@ static const int8_t wedge_sin_lut[WEDGE_ANGLES] = {
   // 24, 26, 28, 30, 31
      32, 29, 23, 14,  8
 };
-#endif
+#endif  // CONFIG_WEDGE_SIMPL
 
 
-#if WEDGE_BIT == 6
-// rounded sigmoid function look-up talbe given by round(1/(1+exp(-x)))
-static const int8_t pos_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20,
-  21, 21, 21, 21, 22, 22, 22, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 24, 24,
-  25, 25, 25, 25, 25, 25, 26, 26, 26, 26, 26, 26, 26, 27, 27, 27, 27, 27, 27,
-  27, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 29, 29, 29, 29, 29, 29, 29, 29,
-  29, 29, 29, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
-  30, 30, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-  31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32
-};
-
-static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 14, 13, 13, 13, 13, 12, 12, 12, 12,
-  11, 11, 11, 11, 10, 10, 10, 10, 10, 9,  9,  9,  9,  9,  8,  8,  8,  8,  8,
-  7,  7,  7,  7,  7,  7,  6,  6,  6,  6,  6,  6,  6,  5,  5,  5,  5,  5,  5,
-  5,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  3,  3,  3,  3,  3,  3,  3,  3,
-  3,  3,  3,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-  2,  2,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0
-};
-#elif WEDGE_BIT == 5
+#if CONFIG_WEDGE_SIMPL
 // rounded sigmoid function look-up talbe given by round(1/(1+exp(-x)))
 static const int8_t pos_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
   8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9,  10, 10, 10, 10, 10, 10,
@@ -275,39 +254,6 @@ static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
   3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-#elif WEDGE_BIT == 4
-// rounded sigmoid function look-up talbe given by round(1/(1+exp(-x)))
-static const int8_t pos_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-  6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
-};
-
-static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-#elif WEDGE_BIT == 3
-// rounded sigmoid function look-up talbe given by round(1/(1+exp(-x)))
-static const int8_t pos_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
-};
-static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 #else
 // rounded sigmoid function look-up talbe given by round(1/(1+exp(-x)))
@@ -348,7 +294,7 @@ static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE]={
    2,  2,  2,  2,  2,  2,  2,  2,
    1,  1,  1,  1,  1,  1,  1,  0
 };
-#endif
+#endif  // CONFIG_WEDGE_SIMPL
 #else
 static const int8_t wedge_cos_lut[WEDGE_ANGLES] = {
   //  0,  1,  2,  4,  6,
@@ -964,15 +910,15 @@ static AOM_INLINE void init_wedge_master_masks() {
         int d = ((m << 1) - w + 1) * wedge_cos_lut[angle] + y;
 #if WEDGE_BLD_SIG
         const int clamp_d = clamp(d, -127, 127);
-#if WEDGE_BIT
+#if CONFIG_WEDGE_SIMPL
         wedge_master_mask[0][angle][idx] =
-            clamp_d >= 0 ? (pos_dist_2_bld_weight[clamp_d] << (7 - WEDGE_BIT))
-                         : (neg_dist_2_bld_weight[-clamp_d] << (7 - WEDGE_BIT));
+            clamp_d >= 0 ? (pos_dist_2_bld_weight[clamp_d] << (7 - 5))
+                         : (neg_dist_2_bld_weight[-clamp_d] << (7 - 5));
 #else
         wedge_master_mask[0][angle][idx] =
             clamp_d >= 0 ? pos_dist_2_bld_weight[clamp_d]
                          : neg_dist_2_bld_weight[-clamp_d];
-#endif
+#endif  // CONFIG_WEDGE_SIMPL
 #else
         wedge_master_mask[0][angle][idx] = clamp((d + 32), 0, 64);
 #endif

@@ -475,6 +475,8 @@ set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
 set_aom_config_var(
   CONFIG_ALIGN_DEBLOCK_ERP_SDP 1
   "Align deblocking filter boundaries with AVM partitioning scheme.")
+
+set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 #
 # Variables in this section control optional features of the build system.
 #
