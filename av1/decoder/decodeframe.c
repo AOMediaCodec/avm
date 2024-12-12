@@ -979,9 +979,9 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm,
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                              build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                              1 /* build_for_decode */,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                              bw, bh, mi_x, mi_y, dcb->mc_buf,
                              dec_calc_subpel_params_and_extend);
 }

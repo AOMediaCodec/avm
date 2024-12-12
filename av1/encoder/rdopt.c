@@ -3322,10 +3322,10 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
     const int bh = block_size_high[plane_bsize];
 
     av1_subtract_plane(x, plane_bsize, plane
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                        ,
                        cm->width, cm->height
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     );
     int64_t sse = aom_sum_squares_2d_i16(p->src_diff, bw, bw, bh) << 4;
 
@@ -8474,10 +8474,10 @@ static AOM_INLINE void refine_winner_mode_tx(
           av1_build_obmc_inter_predictors_sb(cm, xd);
 
         av1_subtract_plane(x, bsize, 0
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                            ,
                            cm->width, cm->height
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         );
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {

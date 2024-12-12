@@ -175,9 +175,9 @@ void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                              0 /* build_for_obmc */,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                              0 /* build_for_decode */,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                              bw, bh, mi_x, mi_y, NULL /* mc_buf */,
                              av1_enc_calc_subpel_params);
 }

@@ -423,15 +423,15 @@ static AOM_INLINE void fetch_tx_rd_info(int n4,
 // Compute the pixel domain distortion from diff on all visible 4x4s in the
 // transform block.
 static INLINE int64_t pixel_diff_dist(
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     const AV1_COMMON *cm,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     const MACROBLOCK *x, int plane, int blk_row, int blk_col,
     const BLOCK_SIZE plane_bsize, const BLOCK_SIZE tx_bsize,
     unsigned int *block_mse_q8) {
   int visible_rows, visible_cols;
   const MACROBLOCKD *xd = &x->e_mbd;
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   const int txb_cols = block_size_wide[tx_bsize];
   const int txb_rows = block_size_high[tx_bsize];
   get_visible_dimensions(xd, plane, blk_col, blk_row, txb_cols, txb_rows,
@@ -439,7 +439,7 @@ static INLINE int64_t pixel_diff_dist(
 #else
   get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col, tx_bsize, NULL,
                      NULL, &visible_cols, &visible_rows);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   const int diff_stride = block_size_wide[plane_bsize];
   const int16_t *diff = x->plane[plane].src_diff;
 
@@ -451,11 +451,11 @@ static INLINE int64_t pixel_diff_dist(
       *block_mse_q8 =
           (unsigned int)((256 * sse) / (visible_cols * visible_rows));
     else
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
       *block_mse_q8 = 0;
 #else
       *block_mse_q8 = UINT_MAX;
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   }
   return sse;
 }
@@ -508,9 +508,9 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
       av1_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
 
   *dist = pixel_diff_dist(
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
       cm,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       x, 0, 0, 0, bsize, bsize, NULL);
 
   const int64_t mse = *dist / bw / bh;
@@ -1225,11 +1225,11 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                       cpi->oxcf.q_cfg.quant_b_adapt, &quant_param_intra);
       av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, best_tx_type,
                         &quant_param_intra);
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        cm->width, cm->height,
                        get_primary_tx_type(best_tx_type));
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                       &txfm_param_intra, &quant_param_intra);
 #if CONFIG_IMPROVEIDTX
@@ -1347,14 +1347,14 @@ static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
                            int plane, const uint16_t *src, const int src_stride,
                            const uint16_t *dst, const int dst_stride,
                            int blk_row, int blk_col,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                            const BLOCK_SIZE plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                            const BLOCK_SIZE tx_bsize) {
   int txb_rows, txb_cols, visible_rows, visible_cols;
   const MACROBLOCKD *xd = &x->e_mbd;
 
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   const AV1_COMMON *const cm = &cpi->common;
   txb_cols = block_size_wide[tx_bsize];
   txb_rows = block_size_high[tx_bsize];
@@ -1366,7 +1366,7 @@ static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
                      &txb_cols, &txb_rows, &visible_cols, &visible_rows);
   assert(visible_rows > 0);
   assert(visible_cols > 0);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
   unsigned sse = pixel_dist_visible_only(cpi, x, src, src_stride, dst,
                                          dst_stride, tx_bsize, txb_rows,
@@ -1377,9 +1377,9 @@ static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
 
 static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
                                            int plane,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                            BLOCK_SIZE plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                            int block, int blk_row, int blk_col,
                                            TX_SIZE tx_size) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1417,9 +1417,9 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
 
   return 16 * pixel_dist(cpi, x, plane, src, src_stride, recon, MAX_TX_SIZE,
                          blk_row, blk_col,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                          plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                          tx_bsize);
 }
 
@@ -1427,9 +1427,9 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
 // search.
 static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
                                                     MACROBLOCK *x,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                                     BLOCK_SIZE plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                                     int block, int blk_row,
                                                     int blk_col,
                                                     TX_SIZE tx_size) {
@@ -1504,15 +1504,15 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
 
   int64_t dist_c1 = pixel_dist(cpi, x, AOM_PLANE_U, src_c1, p_c1->src.stride,
                                recon_c1, MAX_TX_SIZE, blk_row, blk_col,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                tx_bsize);
   int64_t dist_c2 = pixel_dist(cpi, x, AOM_PLANE_V, src_c2, p_c2->src.stride,
                                recon_c2, MAX_TX_SIZE, blk_row, blk_col,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                tx_bsize);
   aom_free(recon_c1);
   aom_free(recon_c2);
@@ -2709,9 +2709,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     if (best_rd_stats->skip_txfm == 1) return;
   } else {
     block_sse = pixel_diff_dist(
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
         cm,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         x, plane, blk_row, blk_col, plane_bsize, txsize_to_bsize[tx_size],
         &block_mse_q8);
     assert(block_mse_q8 != UINT_MAX);
@@ -2801,10 +2801,10 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   TX_TYPE best_long_side_tx_type = DCT_DCT;
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   const int is_border_block = get_visible_dimensions(
       xd, plane, blk_col, blk_row, txw, txh, cm->width, cm->height, NULL, NULL);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
@@ -2864,11 +2864,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       }
     }
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     if (is_border_block)
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        cm->width, cm->height, primary_tx_type);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     bool skip_idx = false;
     xd->enable_ist =
         (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.enable_inter_ist
@@ -3058,9 +3058,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           this_rd_stats.sse = block_sse;
           this_rd_stats.dist =
               dist_block_px_domain(cpi, x, plane,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                    plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                    block, blk_row, blk_col, tx_size);
         } else if (use_transform_domain_distortion) {
           dist_block_tx_domain(x, plane, block, tx_size, &this_rd_stats.dist,
@@ -3089,9 +3089,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
             const int64_t tx_domain_dist = this_rd_stats.dist;
             this_rd_stats.dist =
                 dist_block_px_domain(cpi, x, plane,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                      plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                      block, blk_row, blk_col, tx_size);
             // For high energy blocks, occasionally, the pixel domain distortion
             // can be artificially low due to clamping at reconstruction stage
@@ -3216,9 +3216,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (calc_pixel_domain_distortion_final && best_eob) {
     best_rd_stats->dist =
         dist_block_px_domain(cpi, x, plane,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                              plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                              block, blk_row, blk_col, tx_size);
     best_rd_stats->sse = block_sse;
   }
@@ -3272,12 +3272,12 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
   TX_TYPE tx_type =
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
                       cpi->common.features.reduced_tx_set_used);
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                      cm->width, cm->height, get_primary_tx_type(tx_type));
   }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   TxfmParam txfm_param;
   av1_setup_xform(cm, x, AOM_PLANE_U, tx_size, tx_type, CCTX_NONE, &txfm_param);
   QUANT_PARAM quant_param;
@@ -3425,9 +3425,9 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
     } else {
       this_rd_stats.dist =
           joint_uv_dist_block_px_domain(cpi, x,
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
                                         plane_bsize,
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
                                         block, blk_row, blk_col, tx_size);
       this_rd_stats.sse = best_rd_stats->sse;
     }
@@ -3536,10 +3536,10 @@ static AOM_INLINE void tx_type_rd(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 #endif  // CONFIG_NEW_TX_PARTITION
 
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   av1_subtract_txb(x, AOM_PLANE_Y, plane_bsize, blk_col, blk_row, tx_size,
                    cpi->common.width, cpi->common.height, DCT_DCT);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   RD_STATS this_rd_stats;
   const int skip_trellis = 0;
   int dummy = 0;
@@ -4337,14 +4337,14 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   if (!is_inter) {
     av1_predict_intra_block_facade(cm, xd, plane, blk_col, blk_row, tx_size);
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
   }
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
   av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size, cm->width,
                    cm->height, DCT_DCT);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
@@ -4692,14 +4692,14 @@ static AOM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
 
     if (!is_inter) {
       av1_predict_intra_block_facade(cm, xd, plane, blk_col, blk_row, tx_size);
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
     }
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                      cm->width, cm->height, DCT_DCT);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     av1_get_entropy_contexts(plane_bsize, pd, args->t_above, args->t_left);
@@ -5110,12 +5110,12 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
       xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
 
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_OFS_PRED_RES_HANDLE
   if (is_inter) {
     for (int plane = 1; plane < MAX_MB_PLANE; ++plane)
       av1_subtract_plane(x, plane_bsize, plane);
   }
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
 
   const int skip_trellis = 0;
   const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
@@ -5340,10 +5340,10 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   // cost and distortion
   av1_subtract_plane(x, bsize, 0
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                      ,
                      cm->width, cm->height
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   );
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       !xd->lossless[mbmi->segment_id]) {

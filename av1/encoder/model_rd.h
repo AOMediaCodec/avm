@@ -296,7 +296,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
     int rate;
     int bw, bh;
     const struct macroblock_plane *const p = &x->plane[plane];
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     const AV1_COMMON *const cm = &cpi->common;
     const int block_width = block_size_wide[plane_bsize];
     const int block_height = block_size_high[plane_bsize];
@@ -306,11 +306,11 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
 #else
     get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL,
                        &bw, &bh);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_MRSSE
     sse = sse_fn[sse_fn_idx](xd, p, pd, bw, bh);
 #else
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     const int shift = xd->bd - 8;
     if (!is_border_block)
       sse = aom_highbd_sse(p->src.buf, p->src.stride, pd->dst.buf,
@@ -322,7 +322,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
     sse = ROUND_POWER_OF_TWO(sse, shift * 2);
 #else
     sse = calculate_sse(xd, p, pd, bw, bh);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #endif  // CONFIG_MRSSE
     model_rd_with_curvfit(cpi, x, plane_bsize, plane, sse, bw * bh, &rate,
                           &dist);

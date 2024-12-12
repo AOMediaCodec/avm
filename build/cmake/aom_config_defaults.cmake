@@ -277,7 +277,7 @@ set_aom_config_var(CONFIG_SEP_COMP_DRL 1
 set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
                    "Reuse the mvs of compound mode from non-opfl path")
 
-set_aom_config_var(CONFIG_RESIDUE_PAD 1
+set_aom_config_var(CONFIG_E191_OFS_PRED_RES_HANDLE 1
                    "Enable outside frame boundary block handling")
 
 set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")

@@ -932,9 +932,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     // precision.
     av1_get_optflow_based_mv(
         cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
         0 /* build_for_decode */,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
         use_affine_opfl ? wms : NULL, &use_affine_opfl,
@@ -990,9 +990,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, vxy_bufs, 4, &inter_pred_params,
           xd, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
           0 /* build_for_decode */,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
           cm, bw, mbmi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mbmi->mv[ref], use_affine_opfl,

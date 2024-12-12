@@ -2201,17 +2201,17 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
                                  const int16_t *gx, const int16_t *gy,
                                  int gstride, int bw, int bh, int n, int d0,
                                  int d1, int grad_prec_bits, int mv_prec_bits,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                  int mi_x, int mi_y, int mi_cols, int mi_rows,
                                  int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
                                  int *vx0, int *vy0, int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
   for (int i = 0; i < bh; i += n) {
     for (int j = 0; j < bw; j += n) {
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
       if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                               build_for_decode)) {
         *(vx0 + n_blocks) = 0;
@@ -2221,7 +2221,7 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
         n_blocks++;
         continue;
       }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_opfl_mv_refinement(pdiff + (i * pstride + j), pstride,
                              gx + (i * gstride + j), gy + (i * gstride + j),
                              gstride, n, n, d0, d1, grad_prec_bits,
@@ -2415,9 +2415,9 @@ void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
 void av1_get_optflow_based_mv(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     int16_t *gx0, int16_t *gy0, int16_t *gx1, int16_t *gy1,
 #if CONFIG_AFFINE_REFINEMENT
@@ -2573,28 +2573,28 @@ void av1_get_optflow_based_mv(
       n_blocks =
           av1_opfl_mv_refinement_nxn(tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1,
                                      grad_prec_bits, target_prec,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                      mi_x, mi_y, cm->mi_params.mi_cols,
                                      cm->mi_params.mi_rows, build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                                      vx0, vy0, vx1, vy1);
     }
   } else {
     n_blocks = av1_opfl_mv_refinement_nxn(
         tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
         mi_x, mi_y, cm->mi_params.mi_cols, cm->mi_params.mi_rows,
         build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         vx0, vy0, vx1, vy1);
   }
 #else
   n_blocks = av1_opfl_mv_refinement_nxn(tmp1, bw, gx0, gy0, bw, bw, bh, n, d0,
                                         d1, grad_prec_bits, target_prec,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                         mi_x, mi_y, cm->mi_params.mi_cols,
                                         cm->mi_params.mi_rows, build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                                         vx0, vy0, vx1, vy1);
 #endif  // CONFIG_AFFINE_REFINEMENT
 
@@ -2770,9 +2770,9 @@ void make_inter_pred_of_nxn(
     uint16_t *dst, int dst_stride, int_mv *const mv_refined, int *vxy_bufs,
     const int vxy_size, InterPredParams *inter_pred_params, MACROBLOCKD *xd,
     int mi_x, int mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
     const AV1_COMMON *cm, int pu_width, int plane,
     CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
@@ -2853,7 +2853,7 @@ void make_inter_pred_of_nxn(
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
       if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
@@ -2864,7 +2864,7 @@ void make_inter_pred_of_nxn(
         inter_pred_params->pix_col += sub_bw;
         continue;
       }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT_SB
       // Identify warped parameter to used for this nxn subblock
       sb_idx = (j / affine_sub_bh) * wms_stride + (i / affine_sub_bw);
@@ -3109,9 +3109,9 @@ void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     int *vxy_bufs, const int vxy_size, InterPredParams *inter_pred_params,
     MACROBLOCKD *xd, int mi_x, int mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
     const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
@@ -3126,9 +3126,9 @@ void av1_opfl_rebuild_inter_predictor(
 
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, vxy_bufs, vxy_size,
                          inter_pred_params, xd, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                          build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
                          cm, pu_width, plane, comp_refine_type, wms, mv,
                          use_affine_opfl,
@@ -4426,9 +4426,9 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
 static void build_inter_predictors_8x8_and_bigger_refinemv(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     int build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf, MV mi_mv[2],
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
@@ -4598,9 +4598,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       }
       av1_get_optflow_based_mv(
           cm, xd, plane, mi, mv_refined_sb, bw, bh, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
           build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
           mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
           use_affine_opfl ? wms : NULL, &use_affine_opfl,
@@ -4713,9 +4713,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined_sb, xd->opfl_vxy_bufs,
           N_OF_OFFSETS, &inter_pred_params, xd, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
           build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
           cm, pu_width, mi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mi->mv[ref], use_affine_opfl,
@@ -4741,9 +4741,9 @@ static void build_inter_predictors_8x8_and_bigger(
     const BUFFER_SET *dst_orig,
 #endif  // CONFIG_BAWP
     int build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf, MV mi_mv[2],
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
     int pu_width, int pu_height,
@@ -4831,14 +4831,14 @@ static void build_inter_predictors_8x8_and_bigger(
     assert(bh % refinemv_sb_size_height == 0);
     for (int h = 0; h < bh; h += refinemv_sb_size_height) {
       for (int w = 0; w < bw; w += refinemv_sb_size_width) {
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
         const int x = mi_x + w * (1 << pd->subsampling_x);
         const int y = mi_y + h * (1 << pd->subsampling_y);
         if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
         }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         uint16_t *dst_buf = dst + h * dst_stride + w;
         xd->tmp_conv_dst = tmp_conv_dst + h * MAX_SB_SIZE + w;
 
@@ -4880,9 +4880,9 @@ static void build_inter_predictors_8x8_and_bigger(
         // sub-block
         build_inter_predictors_8x8_and_bigger_refinemv(
             cm, xd, plane, mi, build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
             build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
             refinemv_sb_size_width, refinemv_sb_size_height,
             mi_x + w * (1 << pd->subsampling_x),
             mi_y + h * (1 << pd->subsampling_y), mc_buf, mi_mv,
@@ -5048,9 +5048,9 @@ static void build_inter_predictors_8x8_and_bigger(
       }
       av1_get_optflow_based_mv(
           cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
           build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
           mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
           wms, &use_affine_opfl,
@@ -5198,9 +5198,9 @@ static void build_inter_predictors_8x8_and_bigger(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, xd->opfl_vxy_bufs, N_OF_OFFSETS,
           &inter_pred_params, xd, mi_x, mi_y,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
           build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
           cm, bw, mi->comp_refine_type, wms, &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -5239,9 +5239,9 @@ static void build_inter_predictors_8x8_and_bigger_facade(
     const BUFFER_SET *dst_orig,
 #endif  // CONFIG_BAWP
     int build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func
 #if CONFIG_REFINEMV
@@ -5279,12 +5279,12 @@ static void build_inter_predictors_8x8_and_bigger_facade(
         MV tip_mv[2];
         int_mv tip_mv_tmp[2];
 
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
         if (is_subblock_outside(pixel_col, pixel_row, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
         }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
         get_tip_mv(cm, &mi->mv[0].as_mv, tpl_col, tpl_row, tip_mv_tmp);
 
@@ -5300,9 +5300,9 @@ static void build_inter_predictors_8x8_and_bigger_facade(
             dst_orig,
 #endif
             build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
             build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
             unit_blk_size, unit_blk_size, pixel_col, pixel_row, mc_buf, tip_mv,
             calc_subpel_params_func, dst_buf->buf, dst_stride, bw, bh,
 #if CONFIG_REFINEMV
@@ -5320,9 +5320,9 @@ static void build_inter_predictors_8x8_and_bigger_facade(
                                           dst_orig,
 #endif
                                           build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                           build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                                           bw, bh, mi_x, mi_y, mc_buf, mv,
                                           calc_subpel_params_func, dst,
                                           dst_stride, bw, bh,
@@ -5342,9 +5342,9 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                                 int build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                 int build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                                 int bw, int bh, int mi_x, int mi_y,
                                 uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
@@ -5375,9 +5375,9 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                                  dst_orig,
 #endif
                                                  build_for_obmc,
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                                  build_for_decode,
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
                                                  bw, bh, mi_x, mi_y, mc_buf,
                                                  calc_subpel_params_func
 #if CONFIG_REFINEMV
