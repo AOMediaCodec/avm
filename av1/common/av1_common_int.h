@@ -539,8 +539,7 @@ typedef struct SequenceHeader {
                                        // 1 - force to integer
                                        // 2 - adaptive
 #if CONFIG_DQ
-  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 4st, 2: 8st, 3: 4st (frame), 4:
-                       // 8st (frame)
+  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 8st, 2: 8st (frame)
 #endif
   uint8_t enable_sdp;   // enables/disables semi-decoupled partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection

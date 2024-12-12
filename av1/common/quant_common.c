@@ -127,14 +127,6 @@ int tcq_next_state(const int curState, const int absLevel, const int limits) {
       case 7: nextState = !(tcq_parity(absLevel, limits)) ? 3 : 7; break;
       default: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 4; break;
     }
-  } else if (tcq_mode == TCQ_4ST) {
-    switch (state) {
-      case 0: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 2; break;
-      case 1: nextState = !(tcq_parity(absLevel, limits)) ? 2 : 0; break;
-      case 2: nextState = !(tcq_parity(absLevel, limits)) ? 1 : 3; break;
-      case 3: nextState = !(tcq_parity(absLevel, limits)) ? 3 : 1; break;
-      default: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 2; break;
-    }
   } else {  // TCQ_DISABLE
     nextState = 0;
   }

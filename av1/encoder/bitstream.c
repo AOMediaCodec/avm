@@ -5809,9 +5809,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   int enable_tcq = seq_params->enable_tcq;
   aom_wb_write_bit(wb, enable_tcq != 0);
   if (enable_tcq) {
-    aom_wb_write_literal(wb, enable_tcq - 1, 2);
+    aom_wb_write_literal(wb, enable_tcq - 1, 1);
   }
-  if (enable_tcq == TCQ_DISABLE || enable_tcq >= TCQ_4ST_FR) {
+  if (enable_tcq == TCQ_DISABLE || enable_tcq >= TCQ_8ST_FR) {
     // Signal whether parity hiding is used if TCQ is
     // disabled, or enabled/disabled at frame level.
     aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
@@ -6547,7 +6547,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   // Basic frame-level strategy: enable for keyframes only.
   // This can be extended in other ways (e.g., include alt-ref).
   int enable_tcq = seq_params->enable_tcq;
-  if (enable_tcq >= TCQ_4ST_FR) {
+  if (enable_tcq >= TCQ_8ST_FR) {
     aom_wb_write_bit(wb, features->tcq_mode != 0);
   }
 #endif

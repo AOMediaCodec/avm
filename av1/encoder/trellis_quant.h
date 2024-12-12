@@ -64,8 +64,6 @@ typedef struct tcq_coeff_ctx_t {
 } tcq_coeff_ctx_t;
 
 typedef struct tcq_param_t {
-  int n_states;
-  int n_states_log2;
   int plane;
   TX_SIZE tx_size;
   TX_CLASS tx_class;
@@ -145,11 +143,6 @@ static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
   return coeff_lps[base_range] + get_golomb_cost_tcq(level, 0);
 #endif
 }
-
-// int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
-//                   int block, TX_SIZE tx_size, TX_TYPE tx_type,
-//                   CctxType cctx_type, const TXB_CTX *const txb_ctx,
-//                   int *rate_cost, int sharpness);
 
 int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   int block, TX_SIZE tx_size, TX_TYPE tx_type,

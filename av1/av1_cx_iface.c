@@ -4550,7 +4550,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // monochrome
     0,            // full_still_picture_hdr
 #if CONFIG_DQ
-    1,  // enable_tcq
+    2,  // enable_tcq
 #endif
     0,                           // save_as_annexb
     0,                           // tile_width_count

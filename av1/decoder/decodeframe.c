@@ -6828,14 +6828,14 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_tcq = 0;
   int enable_tcq = aom_rb_read_bit(rb);
   if (enable_tcq) {
-    enable_tcq += aom_rb_read_literal(rb, 2);
+    enable_tcq += aom_rb_read_literal(rb, 1);
     seq_params->enable_tcq = enable_tcq;
   }
 #else
   seq_params->enable_tcq = 1;
 #endif
   if (seq_params->enable_tcq == TCQ_DISABLE ||
-      seq_params->enable_tcq >= TCQ_4ST_FR) {
+      seq_params->enable_tcq >= TCQ_8ST_FR) {
     seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
   } else {
     seq_params->enable_parity_hiding = 0;
@@ -8351,9 +8351,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_DQ
   // Decode frame-level TCQ flag, if applicable.
   int enable_tcq = seq_params->enable_tcq;
-  if (enable_tcq >= TCQ_4ST_FR) {
-    int use_tcq = aom_rb_read_bit(rb);
-    features->tcq_mode = use_tcq ? enable_tcq - 2 : 0;
+  if (enable_tcq >= TCQ_8ST_FR) {
+    features->tcq_mode = aom_rb_read_bit(rb);
   } else {
     features->tcq_mode = seq_params->enable_tcq;
   }

@@ -33,6 +33,9 @@ extern "C" {
 #define NEWHR 1                // 1:parity is determined by (base + LR)
 #define TCQ_DIS_CHR 1          // 1:disable TCQ for chroma blocks
 #define TCQ_DIS_1D 1           // [WIP] 1:disable TCQ for 1D scan blocks
+#define TCQ_N_STATES_LOG 3     // only 8-states version is supported
+#define TCQ_N_STATES (1 << TCQ_N_STATES_LOG)
+
 #else
 #define TCQ_HDR_FLAG 0
 #define DQENABLE 0   // Determine whether to use DQ by dq_enable()
@@ -69,18 +72,15 @@ struct CommonQuantParams;
 struct macroblockd;
 
 #if CONFIG_DQ
-// TCQ modes: 4/8 state, frame adaptivity
+// TCQ modes: 8 state, frame adaptivity
 enum {
   TCQ_DISABLE = 0,
-  TCQ_4ST = 1,
-  TCQ_8ST = 2,
-  TCQ_4ST_FR = 3,
-  TCQ_8ST_FR = 4
+  TCQ_8ST = 1,
+  TCQ_8ST_FR = 2
 };
 
 static INLINE bool tcq_quant(const int state) {
   // 8-states: A0: state 0/1/4/5, A1: state 2/3/6/7
-  // 4-states: A0: state 0/1, A1: state 2/3
   return state & 2;
 }
 
