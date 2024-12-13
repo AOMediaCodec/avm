@@ -4374,12 +4374,14 @@ static inline void write_match_indices(int plane,
   set_group_counts(plane, wienerns_info->num_classes,
                    wienerns_info->num_ref_filters, group_counts, nopcw);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    int only;
     const int pred_group =
-        predict_group(c_id, wienerns_info->match_indices, group_counts);
+        predict_group(c_id, wienerns_info->match_indices, group_counts, &only);
     const int group =
         index_to_group(wienerns_info->match_indices[c_id], group_counts);
+    assert(IMPLIES(only, group == pred_group));
     if (group == pred_group) {
-      aom_write_bit(wb, 0);
+      if (!only) aom_write_bit(wb, 0);
     } else {
       aom_write_bit(wb, 1);
       const int other_group = 3 - (group + pred_group);

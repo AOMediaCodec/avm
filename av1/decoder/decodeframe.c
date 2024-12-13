@@ -3250,10 +3250,11 @@ static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
                    wienerns_info->num_ref_filters, group_counts, nopcw);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     // Read group-id.
+    int only;
     const int pred_group =
-        predict_group(c_id, wienerns_info->match_indices, group_counts);
+        predict_group(c_id, wienerns_info->match_indices, group_counts, &only);
     int group = 0;
-    int group_bit = aom_read_bit(rb, ACCT_INFO("match"));
+    int group_bit = only ? 0 : aom_read_bit(rb, ACCT_INFO("match"));
     if (group_bit == 0) {
       // group-id matches prediction.
       group = pred_group;

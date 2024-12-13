@@ -1945,21 +1945,32 @@ static inline int index_to_group(int match_index, const int *group_counts) {
 // Given the class-id and the match indices of previous class filters returns a
 // group-id prediction.
 static inline int predict_group(int c_id, const int *match_indices,
-                                const int *group_counts) {
+                                const int *group_counts, int *only) {
   assert(NUM_MATCH_GROUPS == 3);
-  if (c_id == 0) return most_probable_group(c_id, group_counts);
-  int running_group_count[NUM_MATCH_GROUPS] = { 0 };
-  for (int i = 0; i < c_id; ++i) {
-    const int group = index_to_group(match_indices[i], group_counts);
-    ++running_group_count[group];
+  int pred;
+  if (c_id == 0) {
+    pred = most_probable_group(c_id, group_counts);
+  } else {
+    int running_group_count[NUM_MATCH_GROUPS] = { 0 };
+    for (int i = 0; i < c_id; ++i) {
+      const int group = index_to_group(match_indices[i], group_counts);
+      ++running_group_count[group];
+    }
+    if (running_group_count[0] >= running_group_count[1] &&
+        running_group_count[0] >= running_group_count[2])
+      pred = 0;
+    else if (running_group_count[1] >= running_group_count[2])
+      pred = 1;
+    else
+      pred = 2;
   }
-  if (running_group_count[0] >= running_group_count[1] &&
-      running_group_count[0] >= running_group_count[2])
-    return 0;
-  else if (running_group_count[1] >= running_group_count[2])
-    return 1;
-  else
-    return 2;
+  switch (pred) {
+    case 0: *only = group_counts[1] == 0 && group_counts[2] == 0; break;
+    case 1: *only = group_counts[0] == 0 && group_counts[2] == 0; break;
+    case 2: *only = group_counts[0] == 0 && group_counts[1] == 0; break;
+    default: assert(0);
+  }
+  return pred;
 }
 
 // Returns the total number of filters with group-id less than group.

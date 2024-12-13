@@ -4557,9 +4557,11 @@ int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
   set_group_counts(plane, num_classes, num_ref_frames, group_counts, nopcw);
   int total_bits = 0;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    const int pred_group = predict_group(c_id, match_indices, group_counts);
+    int only;
+    const int pred_group =
+        predict_group(c_id, match_indices, group_counts, &only);
     const int group = index_to_group(match_indices[c_id], group_counts);
-    ++total_bits;
+    if (!only) ++total_bits;
     if (group != pred_group) {
       const int other_group = 3 - (group + pred_group);
       if (group_counts[other_group]) ++total_bits;
