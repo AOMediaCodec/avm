@@ -399,16 +399,12 @@ set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
 
 #IST for sub-TU partitions from CWG-E151
-set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_INTRA 1
-                   "Enable IST non zero depth intra TU.")
-set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_INTER 1
-                   "Enable IST non zero depth inter TU.")
-set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_DCT_ONLY 0
-                   "Debug for IST mode non-zero depth.")
+set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
+                   "Enable IST non zero depth TUs from CWG-E151.")
 
 #IST set reduction (non-normative)
 set_aom_config_var(CONFIG_IST_REDUCTION 1
-                   "Use 4 sets for IST encoder search.")
+                   "Non-normatively use 4 sets for IST encoder search from CWG-E142.")
 
 
 set_aom_config_var(CONFIG_TMVP_IMPROVE 1

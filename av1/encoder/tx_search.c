@@ -2886,28 +2886,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
          (is_inter_block(mbmi, xd->tree_type)
               ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
-#if CONFIG_IST_NON_ZERO_DEPTH_INTRA || CONFIG_IST_NON_ZERO_DEPTH_INTER
+#if CONFIG_IST_NON_ZERO_DEPTH
          dc_only_blk || (eob_found) || !xd->enable_ist);
 #else
          dc_only_blk || !is_depth0 || (eob_found) || !xd->enable_ist);
-#endif
-#if CONFIG_IST_NON_ZERO_DEPTH_INTRA || CONFIG_IST_NON_ZERO_DEPTH_INTER
-      bool is_skip_depth = !is_depth0;
-#if CONFIG_IST_NON_ZERO_DEPTH_INTRA
-      if(!is_inter_block(mbmi, xd->tree_type))
-          is_skip_depth = false;
-#endif
-#if CONFIG_IST_NON_ZERO_DEPTH_INTER
-      if(is_inter_block(mbmi, xd->tree_type))
-          is_skip_depth = false;
-#endif
-#if CONFIG_IST_NON_ZERO_DEPTH_DCT_ONLY
-      if(primary_tx_type == ADST_ADST)
-          is_skip_depth = !is_depth0;
-#endif
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
 
-      skip_stx = skip_stx || is_skip_depth;
-#endif
 #if CONFIG_IST_ANY_SET
     int init_set_id = 0;
     int max_set_id =
@@ -2942,7 +2926,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (set_idx && !stx) continue;
 #else
         if (set_id && !stx) continue;
-#endif
+#endif  // CONFIG_IST_REDUCTION
 
 #if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = primary_tx_type;
