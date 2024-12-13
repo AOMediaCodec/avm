@@ -564,7 +564,7 @@ static int is_affine_shear_allowed(int16_t alpha, int16_t beta, int16_t gamma,
 #else
   if ((4 * abs(alpha) + 7 * abs(beta) >= (1 << WARPEDMODEL_PREC_BITS)) ||
       (4 * abs(gamma) + 4 * abs(delta) >= (1 << WARPEDMODEL_PREC_BITS)))
-#endif
+#endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
     return 0;
   else
     return 1;
@@ -850,7 +850,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
           const int offs = ROUND_POWER_OF_TWO(sx, WARPEDDIFF_PREC_BITS) +
                            WARPEDPIXEL_PREC_SHIFTS;
           assert(offs >= 0 && offs <= WARPEDPIXEL_PREC_SHIFTS * 3);
-#endif
+#endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
           const int16_t *coeffs = av1_warped_filter[offs];
           int32_t sum = 1 << offset_bits_horiz;
           for (int m = 0; m < taps; ++m) {
@@ -876,7 +876,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
           const int offs = ROUND_POWER_OF_TWO(sy, WARPEDDIFF_PREC_BITS) +
                            WARPEDPIXEL_PREC_SHIFTS;
           assert(offs >= 0 && offs <= WARPEDPIXEL_PREC_SHIFTS * 3);
-#endif
+#endif  // CONFIG_RELAX_AFFINE_CONSTRAINTS
           const int16_t *coeffs = av1_warped_filter[offs];
 
           int32_t sum = 1 << offset_bits_vert;
