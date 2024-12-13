@@ -322,7 +322,7 @@ static AOM_INLINE void get_txb_dimensions(const MACROBLOCKD *xd, int plane,
   if (width) *width = txb_width;
 }
 
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 static AOM_INLINE int get_visible_dimensions(const MACROBLOCKD *xd, int plane,
                                              int blk_col, int blk_row, int cols,
                                              int rows, int frame_width,
@@ -388,7 +388,7 @@ static AOM_INLINE unsigned pixel_dist_visible_only(
                          visible_rows);
   return sse;
 }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 
 static AOM_INLINE int bsize_to_num_blk(BLOCK_SIZE bsize) {
   int num_blk = 1 << (num_pels_log2_lookup[bsize] - 2 * MI_SIZE_LOG2);

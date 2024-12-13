@@ -34,9 +34,10 @@
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 #include "av1/encoder/rdopt_utils.h"
 
+// Compute the average value of the wxh block.
 static AOM_INLINE int16_t avg_wxh_block_c(int16_t *diff, ptrdiff_t diff_stride,
                                           int w, int h) {
   int32_t sum = 0;
@@ -48,6 +49,7 @@ static AOM_INLINE int16_t avg_wxh_block_c(int16_t *diff, ptrdiff_t diff_stride,
   return (int16_t)(DIVIDE_AND_ROUND_SIGNED(sum, w * h));
 }
 
+// Compute the row average value of the wxh block.
 static AOM_INLINE void avg_wxh_block_horiz_c(int16_t *diff,
                                              ptrdiff_t diff_stride, int w,
                                              int h, int16_t *out) {
@@ -60,6 +62,7 @@ static AOM_INLINE void avg_wxh_block_horiz_c(int16_t *diff,
   }
 }
 
+// Compute the column average value of the wxh block.
 static AOM_INLINE void avg_wxh_block_vert_c(int16_t *diff,
                                             ptrdiff_t diff_stride, int w, int h,
                                             int16_t *out) {
@@ -72,6 +75,8 @@ static AOM_INLINE void avg_wxh_block_vert_c(int16_t *diff,
   }
 }
 
+// Fill the outside-frame part's residues with values derived from the in-frame
+// part's residues.
 static AOM_INLINE void fill_residue_outside_frame(
     int16_t *diff, ptrdiff_t diff_stride, int tx_cols, int tx_rows,
     int visible_tx_cols, int visible_tx_rows, TX_TYPE tx_type) {
@@ -136,32 +141,32 @@ static AOM_INLINE void fill_residue_outside_frame(
     }
   }
 }
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int16_t *diff, ptrdiff_t diff_stride,
                         const uint8_t *src8, ptrdiff_t src_stride,
                         const uint8_t *pred8, ptrdiff_t pred_stride
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                         ,
                         int plane, int blk_col, int blk_row, int frame_width,
                         int frame_height, TX_TYPE tx_type
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 ) {
   assert(rows >= 4 && cols >= 4);
   if (is_cur_buf_hbd(xd)) {
     aom_highbd_subtract_block(rows, cols, diff, diff_stride, src8, src_stride,
                               pred8, pred_stride, xd->bd);
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     return;
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   }
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   else {
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     aom_subtract_block(rows, cols, diff, diff_stride, src8, src_stride, pred8,
                        pred_stride);
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   }
 
   int visible_cols, visible_rows;
@@ -171,15 +176,15 @@ void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
   if (is_border_block)
     fill_residue_outside_frame(diff, diff_stride, cols, rows, visible_cols,
                                visible_rows, tx_type);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 }
 
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                       ,
                       int frame_width, int frame_height, TX_TYPE tx_type
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 ) {
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblock_plane *const p = &x->plane[plane];
@@ -195,18 +200,18 @@ void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
       &p->src_diff[(blk_row * diff_stride + blk_col) << MI_SIZE_LOG2];
   av1_subtract_block(xd, tx1d_height, tx1d_width, src_diff, diff_stride, src,
                      src_stride, dst, dst_stride
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                      ,
                      plane, blk_col, blk_row, frame_width, frame_height, tx_type
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   );
 }
 
 void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                         ,
                         int frame_width, int frame_height
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 ) {
   struct macroblock_plane *const p = &x->plane[plane];
   const struct macroblockd_plane *const pd = &x->e_mbd.plane[plane];
@@ -217,10 +222,10 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane
 
   av1_subtract_block(xd, bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
                      pd->dst.buf, pd->dst.stride
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                      ,
                      plane, 0, 0, frame_width, frame_height, DCT_DCT
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   );
 }
 
@@ -537,10 +542,10 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       !mbmi->skip_mode) {
     tx_type = av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col, tx_size,
                               cm->features.reduced_tx_set_used);
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                      cm->width, cm->height, tx_type);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;
     const int use_trellis = is_trellis_used(args->enable_optimize_b, dry_run);
@@ -770,10 +775,10 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
 void av1_encode_sby_pass1(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize) {
   encode_block_pass1_args args = { cpi, x };
   av1_subtract_plane(x, bsize, 0
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
                      ,
                      cpi->common.width, cpi->common.height
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
   );
   av1_foreach_transformed_block_in_plane(&x->e_mbd, bsize, 0,
                                          encode_block_pass1, &args);
@@ -829,9 +834,9 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const int step =
         tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
     av1_get_entropy_contexts(plane_bsize, pd, ctx.ta[plane], ctx.tl[plane]);
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     av1_subtract_plane(x, plane_bsize, plane);
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     arg.ta = ctx.ta[plane];
     arg.tl = ctx.tl[plane];
     const BLOCK_SIZE max_unit_bsize =
@@ -912,18 +917,18 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     }
 #endif
   } else {
-#if !CONFIG_RESIDUE_PAD
+#if !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
-#endif  // !CONFIG_RESIDUE_PAD
+#endif  // !CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     const ENTROPY_CONTEXT *a = &args->ta[blk_col];
     const ENTROPY_CONTEXT *l = &args->tl[blk_row];
     tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                               cm->features.reduced_tx_set_used);
-#if CONFIG_RESIDUE_PAD
+#if CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
     TX_TYPE primary_tx_type = is_stat_generation_stage(cpi) ? DCT_DCT : tx_type;
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                      cm->width, cm->height, primary_tx_type);
-#endif  // CONFIG_RESIDUE_PAD
+#endif  // CONFIG_E191_PART2_OFS_PRED_RES_HANDLE
 
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;

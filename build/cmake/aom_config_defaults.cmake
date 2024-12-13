@@ -152,7 +152,7 @@ set_aom_config_var(CONFIG_LARGE_TF_BLOCK 1
 set_aom_config_var(CONFIG_SCC_DETERMINATION 1
                    "Enable the screen content tools determination improvement.")
 # This is an encode-only change.
-set_aom_config_var(CONFIG_RESIDUE_PAD 1
+set_aom_config_var(CONFIG_E191_PART2_OFS_PRED_RES_HANDLE 1
                    "Enable outside frame boundary block handling")
 #
 # Variables in this section control optional features of the build system.
