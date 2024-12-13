@@ -30,7 +30,7 @@ typedef struct txfm_param {
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_IST_REDUCTION
   int sec_tx_set_idx;
-#endif // CONFIG_IST_REDUCTION
+#endif  // CONFIG_IST_REDUCTION
   // for both forward and inverse secondary transforms
   // Secondary transform set used for the current tx block.
   TX_TYPE sec_tx_set;

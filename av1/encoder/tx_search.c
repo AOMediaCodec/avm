@@ -2898,19 +2898,19 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
 #if CONFIG_IST_REDUCTION
     if (max_set_id == IST_DIR_SIZE) {
-    max_set_id = IST_REDUCE_SET_SIZE;
-    // if (txw <= 4 || txh <= 4){
-    //   max_set_id = 1;
-    // }
+      max_set_id = IST_REDUCE_SET_SIZE;
+      // if (txw <= 4 || txh <= 4){
+      //   max_set_id = 1;
+      // }
     }
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;
       uint8_t set_id = set_idx;
       if (!is_inter_block(mbmi, xd->tree_type)) {
-      const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
-      int intra_stx_mode = stx_transpose_mapping[mode];
-      assert(set_idx < IST_REDUCE_SET_SIZE);
-      set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+        const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
+        int intra_stx_mode = stx_transpose_mapping[mode];
+        assert(set_idx < IST_REDUCE_SET_SIZE);
+        set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
       }
 #else
     // Iterate through all possible secondary tx sets for given primary tx type
@@ -2925,7 +2925,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_IST_REDUCTION
         if (set_idx && !stx) continue;
 #else
-        if (set_id && !stx) continue;
+      if (set_id && !stx) continue;
 #endif  // CONFIG_IST_REDUCTION
 
 #if CONFIG_IST_ANY_SET

@@ -433,7 +433,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   txfm_param->sec_tx_set = 0;
 #if CONFIG_IST_REDUCTION
   txfm_param->sec_tx_set_idx = 0;
-#endif // CONFIG_IST_REDUCTION
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
@@ -460,7 +460,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
     }
     uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
     txfm_param->sec_tx_set_idx = stx_idx;
-#endif // CONFIG_IST_REDUCTION
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   }
   txfm_param->tx_size = tx_size;
