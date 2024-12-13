@@ -4213,10 +4213,12 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   }
 
+#if !CONFIG_16_FULL_SEARCH_DMVR
 #if !SINGLE_STEP_SEARCH
   // Search integer-delta values
-  int search_range = 2;
-#endif
+  const int search_range = 2;
+#endif  //! SINGLE_STEP_SEARCH
+#endif  //! CONFIG_16_FULL_SEARCH_DMVR
 
   int switchable_refinemv_flags =
       (mi->ref_frame[0] != TIP_FRAME) && switchable_refinemv_flag(cm, mi);
@@ -4249,8 +4251,39 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   MV refined_mv0, refined_mv1;
   refined_mv0 = center_mvs[0];
   refined_mv1 = center_mvs[1];
-  int et_sad_th = (bw * bh) << 1;
 
+#if CONFIG_16_FULL_SEARCH_DMVR
+  static const MV neighbors[DMVR_SEARCH_NUM_NEIGHBORS] = {
+    { 0, -1 },  { 1, 0 },   { 0, 1 }, { -1, 0 }, { 1, -1 }, { 1, 1 },
+    { -1, -1 }, { -1, 1 },  { 2, 1 }, { 2, 0 },  { 2, -1 }, { -2, 1 },
+    { -2, 0 },  { -2, -1 }, { 0, 2 }, { 0, -2 }
+  };
+  MV best_offset = { 0, 0 };
+  for (int idx = 0; idx < DMVR_SEARCH_NUM_NEIGHBORS; ++idx) {
+    const MV offset = { neighbors[idx].row, neighbors[idx].col };
+
+    refined_mv0.row = center_mvs[0].row + 8 * offset.row;
+    refined_mv0.col = center_mvs[0].col + 8 * offset.col;
+    refined_mv1.row = center_mvs[1].row - 8 * offset.row;
+    refined_mv1.col = center_mvs[1].col - 8 * offset.col;
+
+    const int this_sad = av1_refinemv_build_predictors_and_get_sad(
+        xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func, dst_ref0,
+        dst_ref1, refined_mv0, refined_mv1, inter_pred_params);
+
+    if (this_sad < min_sad) {
+      min_sad = this_sad;
+      best_offset = offset;
+    }
+  }
+
+  best_mv_ref[0].row = center_mvs[0].row + 8 * best_offset.row;
+  best_mv_ref[0].col = center_mvs[0].col + 8 * best_offset.col;
+  best_mv_ref[1].row = center_mvs[1].row - 8 * best_offset.row;
+  best_mv_ref[1].col = center_mvs[1].col - 8 * best_offset.col;
+
+#else
+  int et_sad_th = (bw * bh) << 1;
 #if !SINGLE_STEP_SEARCH
   uint8_t already_searched[5][5];
   for (int i = 0; i < 5; i++) {
@@ -4342,13 +4375,15 @@ best_mv_ref[0].col = center_mvs[0].col + 8 * best_offset.col;
 best_mv_ref[1].row = center_mvs[1].row - 8 * best_offset.row;
 best_mv_ref[1].col = center_mvs[1].col - 8 * best_offset.col;
 
-assert(min_sad <= sad0);
+#endif  // CONFIG_16_FULL_SEARCH_DMVR
 
-assert(IMPLIES(switchable_refinemv_flags,
-               !(best_mv_ref[0].row == center_mvs[0].row &&
-                 best_mv_ref[0].col == center_mvs[0].col &&
-                 best_mv_ref[1].row == center_mvs[1].row &&
-                 best_mv_ref[1].col == center_mvs[1].col)));
+  assert(min_sad <= sad0);
+
+  assert(IMPLIES(switchable_refinemv_flags,
+                 !(best_mv_ref[0].row == center_mvs[0].row &&
+                   best_mv_ref[0].col == center_mvs[0].col &&
+                   best_mv_ref[1].row == center_mvs[1].row &&
+                   best_mv_ref[1].col == center_mvs[1].col)));
 }
 
 // This function consolidates the refinemv enabling check for both TIP ref mode
@@ -4372,7 +4407,7 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
 #if CONFIG_AFFINE_REFINEMENT
     if (apply_sub_block_refinemv && default_refinemv_modes(cm, mi))
 #else
-      if (apply_sub_block_refinemv && default_refinemv_modes(mi))
+    if (apply_sub_block_refinemv && default_refinemv_modes(mi))
 #endif  // CONFIG_AFFINE_REFINEMENT
       apply_sub_block_refinemv &=
           (mi->comp_group_idx == 0 &&
@@ -4430,7 +4465,7 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
 #if CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.interp_fltr = cm->tip_interp_filter;
 #else
-    mbmi.interp_fltr = EIGHTTAP_REGULAR;
+  mbmi.interp_fltr = EIGHTTAP_REGULAR;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi.use_intrabc[0] = 0;
@@ -4499,7 +4534,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_BAWP_CHROMA
   assert(!mi->bawp_flag[0]);
 #else
-    assert(!mi->bawp_flag);
+  assert(!mi->bawp_flag);
 #endif  // CONFIG_BAWP_CHROMA
   assert(!build_for_obmc);
   assert(!is_masked_compound_type(mi->interinter_comp.type));
@@ -4751,7 +4786,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
     if (use_optflow_refinement && (use_affine_opfl || plane == 0)) {
 #else
-      if (use_optflow_refinement && plane == 0) {
+    if (use_optflow_refinement && plane == 0) {
 #endif  // CONFIG_AFFINE_REFINEMENT
       inter_pred_params.interp_filter_params[0] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
@@ -4831,7 +4866,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_BAWP_CHROMA
   assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag[0] == 0));
 #else
-    assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag == 0));
+  assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag == 0));
 #endif  // CONFIG_BAWP_CHROMA
   assert(IMPLIES(mi->refinemv_flag, mi->interp_fltr == MULTITAP_SHARP));
 
@@ -4866,10 +4901,10 @@ static void build_inter_predictors_8x8_and_bigger(
         dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
                          (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
 #else
-      uint16_t
-          dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
-      uint16_t
-          dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+    uint16_t
+        dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+    uint16_t
+        dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
 #endif  // CONFIG_SUBBLK_REF_EXT
 
     ReferenceArea ref_area[2];
@@ -5033,14 +5068,14 @@ static void build_inter_predictors_8x8_and_bigger(
   }
 #endif
 #else
-    WarpedMotionParams wms[2];
-    wms[0] = default_warp_params;
-    wms[1] = default_warp_params;
+  WarpedMotionParams wms[2];
+  wms[0] = default_warp_params;
+  wms[1] = default_warp_params;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
-    if (use_optflow_refinement && plane) {
-      wms[0] = mi->wm_params[0];
-      wms[1] = mi->wm_params[1];
-    }
+  if (use_optflow_refinement && plane) {
+    wms[0] = mi->wm_params[0];
+    wms[1] = mi->wm_params[1];
+  }
 #endif
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -5239,7 +5274,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if AFFINE_CHROMA_REFINE_METHOD > 0
         (mi->comp_refine_type >= COMP_AFFINE_REFINE_START || plane == 0)
 #else
-          mi->comp_refine_type >= COMP_AFFINE_REFINE_START && plane == 0
+        mi->comp_refine_type >= COMP_AFFINE_REFINE_START && plane == 0
 #endif
     ) {
 #else
@@ -5273,7 +5308,7 @@ static void build_inter_predictors_8x8_and_bigger(
     if (mi->bawp_flag[0] > 0 && (plane == 0 || mi->bawp_flag[1]) &&
         !build_for_obmc) {
 #else
-      if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
+    if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
 #endif  // CONFIG_BAWP_CHROMA
       av1_build_one_bawp_inter_predictor(
           dst, dst_stride, &mv, &inter_pred_params, cm, xd, dst_orig, bw, bh,

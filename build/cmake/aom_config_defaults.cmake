@@ -174,6 +174,11 @@ set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
                    "AV2 new transform partitions experiment flag.")
 set_aom_config_var(
+  CONFIG_16_FULL_SEARCH_DMVR
+  1
+  "AV2 remove 2-stage search and early termination in neighbors for DMVR with 16-neighbor full search"
+)
+set_aom_config_var(
   CONFIG_IDIF 1
   "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
