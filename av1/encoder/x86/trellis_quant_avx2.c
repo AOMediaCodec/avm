@@ -72,8 +72,8 @@ static const int8_t kGolombShuf[4][16] = {
 
 void av1_decide_states_avx2(const struct tcq_node_t *prev,
                             const struct tcq_rate_t *rd,
-                            const struct prequant_t *pq,
-                            int limits, int try_eob, int64_t rdmult,
+                            const struct prequant_t *pq, int limits,
+                            int try_eob, int64_t rdmult,
                             struct tcq_node_t *decision) {
   (void)limits;
   assert((rdmult >> 32) == 0);
@@ -582,7 +582,6 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
 
 void av1_calc_lf_ctx_st8_avx2(const struct tcq_lf_ctx_t *lf_ctx, int scan_pos,
                               struct tcq_coeff_ctx_t *coeff_ctx) {
-
   int diag = kScanDiag[scan_pos];
   __m256i zero = _mm256_setzero_si256();
   __m256i nbr_mask = _mm256_lddqu_si256((__m256i *)kNbrMask[diag]);

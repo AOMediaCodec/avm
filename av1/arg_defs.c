@@ -233,8 +233,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .full_still_picture_hdr = ARG_DEF(NULL, "full-still-picture-hdr", 0,
                                     "Use full header for still picture"),
 #if CONFIG_DQ
-  .enable_tcq =
-      ARG_DEF(NULL, "enable-tcq", 1, "Enable trellis coded quantization"),
+  .enable_tcq = ARG_DEF(NULL, "enable-tcq", 1,
+                        "Enable trellis coded quantization"
+                        "(0: off, 1: on for every frame, "
+                        "2: on for key and altref frames (default))"),
 #endif
   .dropframe_thresh =
       ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)"),

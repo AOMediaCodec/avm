@@ -4182,7 +4182,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
 #if CONFIG_DQ
   if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
-    features->tcq_mode = frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
+    features->tcq_mode =
+        frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
   } else {
     features->tcq_mode = cm->seq_params.enable_tcq;
   }

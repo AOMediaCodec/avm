@@ -73,11 +73,7 @@ struct macroblockd;
 
 #if CONFIG_DQ
 // TCQ modes: 8 state, frame adaptivity
-enum {
-  TCQ_DISABLE = 0,
-  TCQ_8ST = 1,
-  TCQ_8ST_FR = 2
-};
+enum { TCQ_DISABLE = 0, TCQ_8ST = 1, TCQ_8ST_FR = 2 };
 
 static INLINE bool tcq_quant(const int state) {
   // 8-states: A0: state 0/1/4/5, A1: state 2/3/6/7
