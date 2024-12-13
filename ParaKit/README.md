@@ -110,9 +110,7 @@ The csv data files obtained from `aomdec` are in `Stat_context_name_*.csv` forma
 ---
 
 ## 5. Data collection: guidelines for modifying AVM
-The data collection requires some modifications to AVM decoder implementation. For this purpose, `research-v7.0.0-parakit` branch is created as a reference implementation based on AVM.
-
-In the `research-v7.0.0-parakit` branch, the basic data collection module is implemented in `aom_read_symbol_probdata` function by extending the existing `aom_read_symbol` function in AVM. All the changes related to data collection are implemented under the `CONFIG_PARAKIT_COLLECT_DATA` macro. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts.
+The data collection requires some modifications to AVM decoder implementation. For this purpose, a sample implementation is provided under the `CONFIG_PARAKIT_COLLECT_DATA` macro (disabled by default) as a reference, where the basic data collection module is implemented in `aom_read_symbol_probdata` function by extending the existing `aom_read_symbol` function in AVM. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts. The macro `CONFIG_PARAKIT_COLLECT_DATA` should be enabled to collect data.
 
 The `research-v7.0.0-parakit` branch implements the necessary changes on top `research-v7.0.0` tag to collect data specifically for `eob_flag_cdf16` and `eob_flag_cdf32` context groups.
 Developers can extend this to add support for new (or any other) contexts on by following the changes under `CONFIG_PARAKIT_COLLECT_DATA` macro and instructions in the comments by searching the text `@ParaKit` on their local AVM version.
