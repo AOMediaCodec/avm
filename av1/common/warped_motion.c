@@ -955,7 +955,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                               ,
                               int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
 #if CONFIG_OPFL_MB
   const int left_lim = use_damr_padding ? ref_area->pad_block.x0 : 0;
@@ -964,7 +964,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   const int top_lim = use_damr_padding ? ref_area->pad_block.y0 : 0;
   const int bottom_lim =
       use_damr_padding ? ref_area->pad_block.y1 - 1 : height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
   int32_t tmp[15 * 8];
   const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
@@ -1018,7 +1018,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
         const int iy = clamp(iy4 + k, top_lim, bottom_lim);
 #else
         const int iy = clamp(iy4 + k, 0, height - 1);
-#endif
+#endif  // CONFIG_OPFL_MB
 
         int sx = sx4 + beta * (k + 4);
         for (int l = -4; l < 4; ++l) {
@@ -1033,7 +1033,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
             const int sample_x = clamp(ix + m, left_lim, right_lim);
 #else
             const int sample_x = clamp(ix + m, 0, width - 1);
-#endif
+#endif  // CONFIG_OPFL_MB
             sum += ref[iy * stride + sample_x] * coeffs[m];
           }
           sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
@@ -1429,7 +1429,7 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
 #if CONFIG_OPFL_MB
                        ,
                        int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
 
 #if CONFIG_ACROSS_SCALE_WARP
@@ -1492,7 +1492,7 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
 #if CONFIG_OPFL_MB
                            ,
                            use_damr_padding, ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
     );
   }
 }
@@ -1509,7 +1509,7 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                     ,
                     int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
   highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
                     p_height, p_stride, subsampling_x, subsampling_y, bd,
@@ -1521,7 +1521,7 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                     ,
                     use_damr_padding, ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
   );
 }
 

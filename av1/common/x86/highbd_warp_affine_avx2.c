@@ -289,7 +289,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                                  ,
                                  int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif// CONFIG_OPFL_MB
 ) {
 #if CONFIG_OPFL_MB
   const int left_lim = use_damr_padding ? ref_area->pad_block.x0 : 0;
@@ -298,7 +298,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
   const int top_lim = use_damr_padding ? ref_area->pad_block.y0 : 0;
   const int bottom_lim =
       use_damr_padding ? ref_area->pad_block.y1 - 1 : height - 1;
-#endif
+#endif// CONFIG_OPFL_MB
   __m256i tmp[15];
   const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
@@ -380,7 +380,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
       if (ix4 <= left_lim - 7) {
 #else
       if (ix4 <= -7) {
-#endif
+#endif// CONFIG_OPFL_MB
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
 #if CONFIG_OPFL_MB
@@ -397,13 +397,13 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           tmp[k + 7] = _mm256_cvtepi16_epi32(_mm_set1_epi16(
               (1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
               ref[iy * stride] * (1 << (FILTER_BITS - reduce_bits_horiz))));
-#endif
+#endif// CONFIG_OPFL_MB
         }
 #if CONFIG_OPFL_MB
       } else if (ix4 >= right_lim + 7) {
 #else
       } else if (ix4 >= width + 6) {
-#endif
+#endif// CONFIG_OPFL_MB
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
 #if CONFIG_OPFL_MB
@@ -421,20 +421,20 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + (width - 1)] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz))));
-#endif
+#endif// CONFIG_OPFL_MB
         }
 #if CONFIG_OPFL_MB
       } else if (((ix4 - 7) < left_lim) || ((ix4 + 8) > right_lim)) {
 #else
       } else if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {
-#endif
+#endif// CONFIG_OPFL_MB
         int32_t tmp1[8];
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
 #if CONFIG_OPFL_MB
           const int iy = clamp(iy4 + k, top_lim, bottom_lim);
 #else
           const int iy = clamp(iy4 + k, 0, height - 1);
-#endif
+#endif// CONFIG_OPFL_MB
 
           sx = sx4 + beta * (k + 4);
           for (int l = -4; l < 4; ++l) {
@@ -448,7 +448,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               const int sample_x = clamp(ix + m, left_lim, right_lim);
 #else
               const int sample_x = clamp(ix + m, 0, width - 1);
-#endif
+#endif// CONFIG_OPFL_MB
               sum += ref[iy * stride + sample_x] * coeffs[m];
             }
             sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
@@ -480,7 +480,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif
+#endif// CONFIG_OPFL_MB
             iy = iy * stride;
 
             __m256i v_refl = _mm256_inserti128_si256(
@@ -531,7 +531,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif
+#endif// CONFIG_OPFL_MB
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);
@@ -663,7 +663,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif
+#endif// CONFIG_OPFL_MB
             iy = iy * stride;
 
             __m256i v_refl = _mm256_inserti128_si256(
@@ -716,7 +716,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif
+#endif// CONFIG_OPFL_MB
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);

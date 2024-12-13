@@ -99,7 +99,7 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 #if CONFIG_OPFL_MB
   inter_pred_params->use_damr_padding = 0;
   inter_pred_params->use_bi_padding = 0;
-#endif
+#endif  // CONFIG_OPFL_MB
   inter_pred_params->ref_area = NULL;
 #endif  // CONFIG_REFINEMV
 
@@ -173,7 +173,7 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
 #if CONFIG_OPFL_MB
         ,
         inter_pred_params->use_damr_padding, inter_pred_params->ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
     );
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
     highbd_inter_predictor(
@@ -2897,7 +2897,7 @@ void make_inter_pred_of_nxn(
 #if CONFIG_OPFL_MB
     ,
     int use_sub_pad, MB_MODE_INFO *mi, int pu_height
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
@@ -2980,7 +2980,7 @@ void make_inter_pred_of_nxn(
         inter_pred_params->use_damr_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
-#endif
+#endif  // CONFIG_OPFL_MB
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
@@ -3252,7 +3252,7 @@ void av1_opfl_rebuild_inter_predictor(
 #if CONFIG_OPFL_MB
     ,
     int use_sub_pad, MB_MODE_INFO *mi, int pu_height
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
   SubpelParams subpel_params;
 
@@ -3273,7 +3273,7 @@ void av1_opfl_rebuild_inter_predictor(
 #if CONFIG_OPFL_MB
                          ,
                          use_sub_pad, mi, pu_height
-#endif
+#endif  // CONFIG_OPFL_MB
   );
 }
 
@@ -4120,7 +4120,7 @@ int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
   }
   return 0;
 };
-#endif
+#endif  // CONFIG_OPFL_MB
 
 // perform padding of the motion compensated block if requires.
 // Padding is performed if the motion compensated block is partially out of the
@@ -4178,7 +4178,7 @@ static void refinemv_extend_mc_border_bi(
     *pre = paded_ref_buf;
   }
 }
-#endif
+#endif  // CONFIG_OPFL_MB
 
 void dec_calc_subpel_params(const MV *const src_mv,
                             InterPredParams *const inter_pred_params,
@@ -4329,7 +4329,7 @@ void common_calc_subpel_params_and_extend(
         &inter_pred_params->ref_area->paded_ref_buf[0], paded_ref_buf_stride,
         pre, src_stride, inter_pred_params->ref_area);
   } else {
-#endif
+#endif  // CONFIG_OPFL_MB
     refinemv_extend_mc_border(
         inter_pred_params->scale_factors, &inter_pred_params->ref_frame_buf,
         scaled_mv, block, subpel_x_mv, subpel_y_mv,
@@ -4338,7 +4338,7 @@ void common_calc_subpel_params_and_extend(
         pre, src_stride, inter_pred_params->ref_area);
 #if CONFIG_OPFL_MB
   }
-#endif
+#endif  // CONFIG_OPFL_MB
 }
 
 static void get_ref_area_info(const MV *const src_mv,
@@ -4419,7 +4419,7 @@ void av1_get_reference_area_with_padding_single(
   get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
                     &subpel_params, &src_stride, ref_area);
 }
-#endif
+#endif  // CONFIG_OPFL_MB
 
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi,
@@ -4509,7 +4509,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 #if CONFIG_OPFL_MB
                          ,
                          ReferenceArea ref_area[2]
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
   // initialize basemv as best MV
   best_mv_ref[0] = mv[0];
@@ -4562,7 +4562,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     inter_pred_params[ref].use_ref_padding = 1;
     inter_pred_params[ref].use_bi_padding = 1;
     inter_pred_params[ref].ref_area = &ref_area[ref];
-#endif
+#endif  // CONFIG_OPFL_MB
   }
 
 #if !CONFIG_16_FULL_SEARCH_DMVR
@@ -4925,7 +4925,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_OPFL_MB
                         ,
                         ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
     );
     if (sb_refined_mv) {
       // store the DMVR refined MV so that chroma can use it
@@ -5117,7 +5117,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
         tip_ref_frame ? (apply_refinemv || use_optflow_refinement) : 1;
 #else
     const int use_ref_padding = tip_ref_frame ? apply_refinemv : 1;
-#endif
+#endif  // CONFIG_OPFL_MB
     if (use_ref_padding) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
@@ -5180,7 +5180,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_OPFL_MB
           ,
           0, mi, pu_height
-#endif
+#endif  // CONFIG_OPFL_MB
       );
       continue;
     }
@@ -5686,7 +5686,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_OPFL_MB
           ,
           1, mi, pu_height
-#endif
+#endif  // CONFIG_OPFL_MB
       );
       continue;
     }

@@ -188,7 +188,7 @@ static INLINE void highbd_warp_horizontal_filter_alpha0_beta0(
     int top_lim, int bottom_lim,
 #else
     int height,
-#endif
+#endif  // CONFIG_OPFL_MB
     int i, const int offset_bits_horiz, const int reduce_bits_horiz) {
   (void)beta;
   (void)alpha;
@@ -206,7 +206,7 @@ static INLINE void highbd_warp_horizontal_filter_alpha0_beta0(
       iy = 0;
     else if (iy > height - 1)
       iy = height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
 
     // Load source pixels
     const __m128i src =
@@ -225,7 +225,7 @@ static INLINE void highbd_warp_horizontal_filter_alpha0(
     int top_lim, int bottom_lim,
 #else
     int height,
-#endif
+#endif  // CONFIG_OPFL_MB
     int i, const int offset_bits_horiz, const int reduce_bits_horiz) {
   (void)alpha;
   int k;
@@ -238,7 +238,7 @@ static INLINE void highbd_warp_horizontal_filter_alpha0(
       iy = 0;
     else if (iy > height - 1)
       iy = height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
     int sx = sx4 + beta * (k + 4);
 
     // Load source pixels
@@ -261,7 +261,7 @@ static INLINE void highbd_warp_horizontal_filter_beta0(
     int top_lim, int bottom_lim,
 #else
     int height,
-#endif
+#endif  // CONFIG_OPFL_MB
     int i, const int offset_bits_horiz, const int reduce_bits_horiz) {
   (void)beta;
   int k;
@@ -277,7 +277,7 @@ static INLINE void highbd_warp_horizontal_filter_beta0(
       iy = 0;
     else if (iy > height - 1)
       iy = height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
 
     // Load source pixels
     const __m128i src =
@@ -308,7 +308,7 @@ static INLINE void highbd_warp_horizontal_filter(
       iy = 0;
     else if (iy > height - 1)
       iy = height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
     int sx = sx4 + beta * (k + 4);
 
     // Load source pixels
@@ -329,7 +329,7 @@ static INLINE void highbd_prepare_warp_horizontal_filter(
     int top_lim, int bottom_lim,
 #else
     int height,
-#endif
+#endif  // CONFIG_OPFL_MB
     int i, const int offset_bits_horiz, const int reduce_bits_horiz) {
   if (alpha == 0 && beta == 0)
     highbd_warp_horizontal_filter_alpha0_beta0(
@@ -338,7 +338,7 @@ static INLINE void highbd_prepare_warp_horizontal_filter(
         top_lim, bottom_lim,
 #else
         height,
-#endif
+#endif  // CONFIG_OPFL_MB
         i, offset_bits_horiz, reduce_bits_horiz);
 
   else if (alpha == 0 && beta != 0)
@@ -348,7 +348,7 @@ static INLINE void highbd_prepare_warp_horizontal_filter(
         top_lim, bottom_lim,
 #else
         height,
-#endif
+#endif  // CONFIG_OPFL_MB
         i, offset_bits_horiz, reduce_bits_horiz);
 
   else if (alpha != 0 && beta == 0)
@@ -358,7 +358,7 @@ static INLINE void highbd_prepare_warp_horizontal_filter(
         top_lim, bottom_lim,
 #else
         height,
-#endif
+#endif  // CONFIG_OPFL_MB
         i, offset_bits_horiz, reduce_bits_horiz);
   else
     highbd_warp_horizontal_filter(ref, tmp, stride, ix4, iy4, sx4, alpha, beta,
@@ -367,7 +367,7 @@ static INLINE void highbd_prepare_warp_horizontal_filter(
                                   top_lim, bottom_lim,
 #else
                                   height,
-#endif
+#endif  // CONFIG_OPFL_MB
                                   i, offset_bits_horiz, reduce_bits_horiz);
 }
 
@@ -381,7 +381,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                                    ,
                                    int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
 ) {
 #if CONFIG_OPFL_MB
   const int left_lim = use_damr_padding ? ref_area->pad_block.x0 : 0;
@@ -390,7 +390,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
   const int top_lim = use_damr_padding ? ref_area->pad_block.y0 : 0;
   const int bottom_lim =
       use_damr_padding ? ref_area->pad_block.y1 - 1 : height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
   __m128i tmp[15];
   int i, j, k;
   const int reduce_bits_horiz = conv_params->round_0;
@@ -480,7 +480,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
       if (ix4 <= left_lim - 7) {
 #else
       if (ix4 <= -7) {
-#endif
+#endif  // CONFIG_OPFL_MB
         for (k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
 #if CONFIG_OPFL_MB
@@ -497,13 +497,13 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
           tmp[k + 7] = _mm_set1_epi16(
               (1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
               ref[iy * stride] * (1 << (FILTER_BITS - reduce_bits_horiz)));
-#endif
+#endif  // CONFIG_OPFL_MB
         }
 #if CONFIG_OPFL_MB
       } else if (ix4 >= right_lim + 7) {
 #else
       } else if (ix4 >= width + 6) {
-#endif
+#endif  // CONFIG_OPFL_MB
         for (k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
 #if CONFIG_OPFL_MB
@@ -521,7 +521,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + (width - 1)] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz)));
-#endif
+#endif  // CONFIG_OPFL_MB
         }
 #if CONFIG_OPFL_MB
       } else if (((ix4 - 7) < left_lim) || ((ix4 + 8) > right_lim)) {
@@ -531,7 +531,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
       } else if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {
         const int out_of_boundary_left = -(ix4 - 6);
         const int out_of_boundary_right = (ix4 + 8) - width;
-#endif
+#endif  // CONFIG_OPFL_MB
 
         for (k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
@@ -542,7 +542,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
             iy = 0;
           else if (iy > height - 1)
             iy = height - 1;
-#endif
+#endif  // CONFIG_OPFL_MB
           int sx = sx4 + beta * (k + 4);
 
           // Load source pixels

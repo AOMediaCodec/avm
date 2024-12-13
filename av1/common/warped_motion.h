@@ -202,9 +202,9 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
 #if CONFIG_OPFL_MB
-                    ,
-                    int use_damr_padding, ReferenceArea *ref_area
-#endif
+                       ,
+                       int use_damr_padding, ReferenceArea *ref_area
+#endif  // CONFIG_OPFL_MB
 );
 
 void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
@@ -230,7 +230,7 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 #if CONFIG_OPFL_MB
                     ,
                     int use_damr_padding, ReferenceArea *ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
 );
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,

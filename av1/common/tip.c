@@ -995,7 +995,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #if CONFIG_OPFL_MB
                         ,
                         ref_area
-#endif
+#endif  // CONFIG_OPFL_MB
     );
   }
 
@@ -1107,7 +1107,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     if (apply_refinemv || do_opfl) {
 #else
     if (apply_refinemv) {
-#endif
+#endif  // CONFIG_OPFL_MB
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
     }
@@ -1141,7 +1141,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #if CONFIG_OPFL_MB
           ,
           0, mbmi, bh
-#endif
+#endif  // CONFIG_OPFL_MB
       );
     } else {
       av1_build_one_inter_predictor(dst, dst_stride,

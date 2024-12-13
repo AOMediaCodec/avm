@@ -215,7 +215,7 @@ static int64_t highbd_warp_error(WarpedMotionParams *wm,
 #if CONFIG_OPFL_MB
                         ,
                         0, NULL
-#endif
+#endif  // CONFIG_OPFL_MB
       );
 
       if (warp_w == WARP_ERROR_BLOCK && warp_h == WARP_ERROR_BLOCK) {

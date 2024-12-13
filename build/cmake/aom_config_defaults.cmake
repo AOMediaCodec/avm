@@ -512,9 +512,6 @@ set_aom_config_var(
   CONFIG_ENHANCED_FRAME_CONTEXT_INIT 1
   "Enables improved frame context initialization with frame averaging.")
 
-set_aom_config_var(CONFIG_OPFL_MB 1
-                   "opfl mb to 17x17.")
-
 set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
                    "Fix precision of inter DDT.")
 set_aom_config_var(
@@ -525,6 +522,9 @@ set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")
 set_aom_config_var(CONFIG_SIX_PARAM_WARP_DELTA 1
                    "Enable six parameter warp models.")
+
+set_aom_config_var(CONFIG_OPFL_MB 1
+                   "Reduce memory bandwith for OFFL/subblk ref/DAMR to 15x15.")
 #
 # Variables in this section control optional features of the build system.
 #

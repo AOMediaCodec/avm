@@ -248,7 +248,12 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
 
               av1_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
                                        out_w, out_h, out_w, sub_x, sub_y, bd,
-                                       &conv_params, alpha, beta, gamma, delta);
+                                       &conv_params, alpha, beta, gamma, delta
+#if CONFIG_OPFL_MB
+                                       ,
+                                       0, NULL
+#endif
+              );
               if (use_no_round) {
                 // TODO(angiebird): Change this to test_impl once we have SIMD
                 // implementation
