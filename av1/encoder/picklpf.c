@@ -283,9 +283,12 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     start_bits = offsets[off_ind] ? DF_PAR_BITS : 0;
     best_bits = offset_best ? DF_PAR_BITS : 0;
   } else if (dir == 0) {
-    start_bits = 0;  // To not bias the first dual search, assumed that dir == 1
-                     // will be run later.
-    best_bits = 0;
+    int hor_q_ind = 1;  // offset for the hor dir
+    int hor_offset = last_frame_offsets[(hor_q_ind + 1) + off_ind];
+    int hor_bits = hor_offset ? DF_PAR_BITS : 0;
+    start_bits = hor_bits + (offsets[off_ind] == hor_offset ? 0 : DF_PAR_BITS);
+    best_bits = hor_bits + (offset_best == hor_offset ? 0 : DF_PAR_BITS);
+
   } else {               // dir == 1
     int vert_q_ind = 0;  // offset for the vert dir
     int vert_offset = last_frame_offsets[vert_q_ind + off_ind];
