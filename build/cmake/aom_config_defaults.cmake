@@ -264,10 +264,17 @@ set_aom_config_var(CONFIG_SAME_REF_COMPOUND 1
 set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
                    "Bug fix on display order hints of key frames")
 set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
-set_aom_config_var(CONFIG_EXPLICIT_BAWP 0
+set_aom_config_var(CONFIG_EXPLICIT_BAWP 1
                    "Explicit signaling for block adaptive weighted prediction")
 set_aom_config_var(CONFIG_BAWP_CHROMA 1
                    "Enable block adaptive weighted prediction for Chroma")
+
+set_aom_config_var(
+  CONFIG_BAWP_FIX_DIVISION_16x16_MC
+  1
+  "Fix BAWP from CWG-E245, only use up to 16 samples from left and above and remove division using 8, 16 , or 32 samples"
+)
+
 set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES_FIX 0 NUMBER
                    "Fix on BAWP across scales prediction")
 set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")

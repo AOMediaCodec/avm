@@ -52,6 +52,9 @@ extern "C" {
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
 #endif                        // CONFIG_D071_IMP_MSK_BLD
 
+#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
+#define BAWP_MAX_REF_NUMB 16
+#endif
 #if CONFIG_PARAKIT_COLLECT_DATA
 // @ParaKit: add enum variables to indiciate context groups
 enum { EOB_FLAG_CDF16, EOB_FLAG_CDF32, MAX_NUM_CTX_GROUPS };
