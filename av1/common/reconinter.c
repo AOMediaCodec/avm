@@ -3250,58 +3250,6 @@ void av1_build_one_inter_predictor(
   }
 }
 
-#if CONFIG_EXPLICIT_BAWP
-#if !CONFIG_BAWP_FIX_DIVISION_16x16_MC
-// Derive the offset value of block adaptive weighted prediction
-// mode. One row from the top boundary and one column from the left boundary
-// are used in the less square error process.
-static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
-                                         uint16_t *recon_left, int rec_stride,
-                                         uint16_t *ref_top, uint16_t *ref_left,
-                                         int ref_stride, int ref, int plane,
-                                         int bw, int bh) {
-  MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_BAWP_CHROMA
-  assert(mbmi->bawp_flag[0] > 1);
-#else
-  assert(mbmi->bawp_flag > 1);
-#endif  // CONFIG_BAWP_CHROMA
-  // only integer position of reference, may need to consider
-  // fractional position of ref samples
-  int count = 0;
-  int sum_x = 0, sum_y = 0;
-
-  if (xd->up_available) {
-    for (int i = 0; i < bw; ++i) {
-      sum_x += ref_top[i];
-      sum_y += recon_top[i];
-    }
-    count += bw;
-  }
-
-  if (xd->left_available) {
-    for (int i = 0; i < bh; ++i) {
-      sum_x += ref_left[0];
-      sum_y += recon_left[0];
-
-      recon_left += rec_stride;
-      ref_left += ref_stride;
-    }
-    count += bh;
-  }
-
-  const int16_t shift = 8;  // maybe a smaller value can be used
-  if (count > 0) {
-    const int beta = derive_linear_parameters_beta(
-        sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
-    mbmi->bawp_beta[plane][ref] = beta;
-  } else {
-    mbmi->bawp_beta[plane][ref] = -(1 << shift);
-  }
-}
-#endif  // !CONFIG_BAWP_FIX_DIVISION_16x16_MC
-#endif  // CONFIG_EXPLICIT_BAWP
-
 #if CONFIG_BAWP
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
 // The below functions are used for scaling X, Y position
@@ -3462,9 +3410,8 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     if (sf->y_scale_fp != REF_NO_SCALE) {
       for (int i = 0; i < bh; i++) {
         int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
-
-        ref_full[i] = ref_left[ref_left_tmp_idx];
-        recon_full[i] = recon_left[0];
+        ref_pad[i] = ref_left[ref_left_tmp_idx];
+        recon_pad[i] = recon_left[0];
 
         recon_left += rec_stride;
       }
@@ -3550,7 +3497,6 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #endif                      // CONFIG_BAWP_FIX_DIVISION_16x16_MC
   const int16_t shift = 8;  // maybe a smaller value can be used
 
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
   if (mbmi->bawp_flag[0] > 1 && plane == 0) {
     if (count > 0) {
       const int beta = derive_linear_parameters_beta(
@@ -3560,7 +3506,6 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
       mbmi->bawp_beta[plane][ref] = -(1 << shift);
     }
   } else {
-#endif  // CONFIG_BAWP_FIX_DIVISION_16x16_MC
     if (count > 0) {
 #if CONFIG_BAWP_CHROMA
       if (plane == 0) {
@@ -3571,9 +3516,9 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
         mbmi->bawp_alpha[plane][ref] = mbmi->bawp_alpha[0][ref];
       }
 #else
-    const int16_t alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx,
-                                                         sum_xy, count, shift);
-    mbmi->bawp_alpha[plane][ref] = (alpha == 0) ? (1 << shift) : alpha;
+      const int16_t alpha = derive_linear_parameters_alpha(
+          sum_x, sum_y, sum_xx, sum_xy, count, shift);
+      mbmi->bawp_alpha[plane][ref] = (alpha == 0) ? (1 << shift) : alpha;
 #endif  // CONFIG_BAWP_CHROMA
       const int beta = derive_linear_parameters_beta(
           sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
@@ -3582,9 +3527,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
       mbmi->bawp_alpha[plane][ref] = 1 << shift;
       mbmi->bawp_beta[plane][ref] = -(1 << shift);
     }
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
   }
-#endif  // CONFIG_BAWP_FIX_DIVISION_16x16_MC
 }
 
 // generate inter prediction of a block coded in bwap mode enabled
@@ -3740,14 +3683,7 @@ void av1_build_one_bawp_inter_predictor(
       const int delta_magtitude = delta_sign * delta_scales;
       if (first_ref_dist > 4) delta_scales = delta_sign * (delta_magtitude + 1);
       mbmi->bawp_alpha[plane][ref] = 256 + (delta_scales * 16);
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
     }
-#else
-      derive_explicit_bawp_offsets(xd, recon_top, recon_left, recon_stride,
-                                   ref_top, ref_left, ref_stride, ref, plane,
-                                   ref_w, ref_h);
-    } else
-#endif  // CONFIG_BAWP_FIX_DIVISION_16x16_MC
 #endif  // CONFIG_EXPLICIT_BAWP
     derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
