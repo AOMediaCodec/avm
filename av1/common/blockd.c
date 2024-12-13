@@ -578,7 +578,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   assert(min_pc_wiener <= NUM_PC_WIENER_FILTERS);
   const int allowed_num_base_filters =
       max_num_base_filters(num_classes, nopcw) - min_pc_wiener;
-  assert(allowed_num_base_filters > 0);
+  assert(allowed_num_base_filters >= 0);
   assert(allowed_num_base_filters < max_predictors);
   const int num_ref_frames =
       (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
