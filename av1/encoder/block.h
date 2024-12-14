@@ -1098,7 +1098,15 @@ typedef struct {
   /*! use_optflow_cost */
   int use_optflow_cost[INTER_MODE_CONTEXTS][2];
   /*! inter_compound_mode_cost */
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+  int inter_compound_mode_is_joint_cost[NUM_CTX_IS_JOINT][NUM_OPTIONS_IS_JOINT];
+  int inter_compound_mode_non_joint_type_cost[NUM_CTX_NON_JOINT_TYPE]
+                                             [NUM_OPTIONS_NON_JOINT_TYPE];
+  int inter_compound_mode_joint_type_cost[NUM_CTX_JOINT_TYPE]
+                                         [NUM_OPTIONS_JOINT_TYPE];
+#else
   int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_REF_TYPES];
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
   /*! inter_compound_mode_same_refs_cost */
   int inter_compound_mode_same_refs_cost[INTER_MODE_CONTEXTS]
                                         [INTER_COMPOUND_SAME_REFS_TYPES];

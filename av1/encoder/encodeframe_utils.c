@@ -1535,9 +1535,23 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+
   AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+  AVERAGE_CDF(ctx_left->inter_compound_mode_is_joint_cdf,
+              ctx_tr->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);
+  AVERAGE_CDF(ctx_left->inter_compound_mode_non_joint_type_cdf,
+              ctx_tr->inter_compound_mode_non_joint_type_cdf,
+              NUM_OPTIONS_NON_JOINT_TYPE);
+  AVERAGE_CDF(ctx_left->inter_compound_mode_joint_type_cdf,
+              ctx_tr->inter_compound_mode_joint_type_cdf,
+              NUM_OPTIONS_JOINT_TYPE);
+#else
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
   AVERAGE_CDF(ctx_left->inter_compound_mode_same_refs_cdf,
               ctx_tr->inter_compound_mode_same_refs_cdf,

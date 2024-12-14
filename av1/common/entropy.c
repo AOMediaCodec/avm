@@ -213,7 +213,17 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+  RESET_CDF_COUNTER(fc->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);
+  RESET_CDF_COUNTER(fc->inter_compound_mode_non_joint_type_cdf,
+                    NUM_OPTIONS_NON_JOINT_TYPE);
+  RESET_CDF_COUNTER(fc->inter_compound_mode_joint_type_cdf,
+                    NUM_OPTIONS_JOINT_TYPE);
+#else   // CONFIG_INTER_COMPOUND_BY_JOINT
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
   RESET_CDF_COUNTER(fc->inter_compound_mode_same_refs_cdf,
                     INTER_COMPOUND_SAME_REFS_TYPES);

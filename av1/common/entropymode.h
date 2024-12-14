@@ -279,8 +279,26 @@ typedef struct frame_contexts {
 
 #if CONFIG_OPT_INTER_MODE_CTX
   aom_cdf_prob use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)];
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+  // The inter_compound_mode_is_joint_cdf is for coding whether the mode is
+  // JOINT_NEWMV or JOINT_AMVDNEWMV
+  aom_cdf_prob inter_compound_mode_is_joint_cdf[NUM_CTX_IS_JOINT]
+                                               [CDF_SIZE(NUM_OPTIONS_IS_JOINT)];
+  // The inter_compound_mode_non_joint_type_cdf is for coding modes NEAR_NEARMV,
+  // NEAR_NEWMV, NEW_NEARMV, GLOBAL_GLOBALMV, NEW_NEWMV
+  aom_cdf_prob
+      inter_compound_mode_non_joint_type_cdf[NUM_CTX_NON_JOINT_TYPE][CDF_SIZE(
+          NUM_OPTIONS_NON_JOINT_TYPE)];
+  // The inter_compound_mode_joint_type_cdf is for coding modes JOINT_NEWMV,
+  // JOINT_AMVDNEWMV.
+  aom_cdf_prob inter_compound_mode_joint_type_cdf[NUM_CTX_JOINT_TYPE][CDF_SIZE(
+      NUM_OPTIONS_JOINT_TYPE)];
+#else
   aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
   aom_cdf_prob inter_compound_mode_same_refs_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
       INTER_COMPOUND_SAME_REFS_TYPES)];
 #else
@@ -919,15 +937,34 @@ static INLINE int opfl_get_comp_idx(int mode) {
 }
 
 #if CONFIG_OPT_INTER_MODE_CTX
+
+#if CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
+
+static const int
+    comp_mode_idx_to_mode_signal_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
+      0, 1, 1, 2, 3,
+    };
+static const int
+    comp_mode_signal_idx_to_mode_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
+      0,
+      1,
+      3,
+      4,
+    };
+
+#else  // CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
+
 static const int
     comp_mode_idx_to_mode_signal_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
       0, 1, 1, 2, 3, 4, 5,
     };
-
 static const int
     comp_mode_signal_idx_to_mode_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
       0, 1, 3, 4, 5, 6,
     };
+
+#endif  // CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
+
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
 // Returns the context for palette color index at row 'r' and column 'c',

@@ -432,6 +432,31 @@ static INLINE int is_ref_frame_same_side(const AV1_COMMON *const cm,
   return is_same_side;
 }
 
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+// check whether the distance of to the two reference frames are the same
+static INLINE int is_ref_frame_same_dist(const AV1_COMMON *const cm,
+                                         const MB_MODE_INFO *mbmi) {
+  int is_same_dist = 0;
+
+  if (has_second_ref(mbmi)) {
+    const int first_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
+    const int sec_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[1]];
+
+    is_same_dist = (first_ref_dist == sec_ref_dist);
+  }
+
+  return is_same_dist;
+}
+
+// obtain context for inter_compound_mode_is_joint
+static INLINE int get_inter_compound_mode_is_joint_context(
+    const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
+  return (is_ref_frame_same_side(cm, mbmi) ||
+          (!is_ref_frame_same_dist(cm, mbmi)));
+}
+
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 void av1_init_comp_mode(InterPredParams *inter_pred_params);
 
 void av1_init_warp_params(InterPredParams *inter_pred_params,

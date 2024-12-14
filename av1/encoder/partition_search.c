@@ -2101,11 +2101,42 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                    signal_mode_idx, INTER_COMPOUND_SAME_REFS_TYPES);
       } else {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+        const bool is_joint =
+            ((comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV)) ||
+             (comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV)));
+        update_cdf(fc->inter_compound_mode_is_joint_cdf
+                       [get_inter_compound_mode_is_joint_context(cm, mbmi)],
+                   is_joint, NUM_OPTIONS_IS_JOINT);
+
+        if (is_joint) {
+          update_cdf(fc->inter_compound_mode_joint_type_cdf[0],
+                     comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV),
+                     NUM_OPTIONS_JOINT_TYPE);
+        } else {
+          update_cdf(fc->inter_compound_mode_non_joint_type_cdf[mode_ctx],
+                     comp_mode_idx, NUM_OPTIONS_NON_JOINT_TYPE);
+        }
+
 #if CONFIG_ENTROPY_STATS
-        ++counts->inter_compound_mode[mode_ctx][comp_mode_idx];
+        ++counts->inter_compound_mode_is_joint
+              [get_inter_compound_mode_is_joint_context(cm, mbmi)][is_joint];
+        ++counts->inter_compound_mode_joint_type[0][comp_mode_idx ==
+                                                    INTER_COMPOUND_OFFSET(
+                                                        JOINT_NEWMV)];
+        ++counts->inter_compound_mode_non_joint_type[mode_ctx][comp_mode_idx];
+#endif  // CONFIG_ENTROPY_STATS
+
+#else
+
+#if CONFIG_ENTROPY_STATS
+      ++counts->inter_compound_mode[mode_ctx][comp_mode_idx];
 #endif
-        update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
-                   INTER_COMPOUND_REF_TYPES);
+      update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
+                 INTER_COMPOUND_REF_TYPES);
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
       }
 #endif  // CONFIG_OPT_INTER_MODE_CTX

@@ -517,8 +517,33 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
                                                            [signal_mode_idx];
     } else {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-      return use_optical_flow_cost +
-             mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+
+      const bool is_joint =
+          ((comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV)) ||
+           (comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV)));
+      int cost_by_inter_by_joint =
+          mode_costs->inter_compound_mode_is_joint_cost
+              [get_inter_compound_mode_is_joint_context(cm, mbmi)][is_joint];
+
+      if (is_joint) {
+        cost_by_inter_by_joint +=
+            mode_costs->inter_compound_mode_joint_type_cost
+                [0][comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV)];
+      } else {
+        cost_by_inter_by_joint +=
+            mode_costs->inter_compound_mode_non_joint_type_cost[mode_context]
+                                                               [comp_mode_idx];
+      }
+
+      return use_optical_flow_cost + cost_by_inter_by_joint;
+
+#else
+    return use_optical_flow_cost +
+           mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
     }
 #endif  // CONFIG_OPT_INTER_MODE_CTX
@@ -10760,6 +10785,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       for (MV_REFERENCE_FRAME second_rf = NONE_FRAME;
            second_rf < cm->ref_frames_info.num_total_refs; ++second_rf) {
         MV_REFERENCE_FRAME second_ref_frame = second_rf;
+
+#if CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
+        if ((ref_frame == second_ref_frame) &&
+            (is_joint_mvd_coding_mode(this_mode)))
+          continue;
+#endif  // CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
+
         if (second_ref_frame != NONE_FRAME && this_mode < COMP_INTER_MODE_START)
           continue;
         if (this_mode >= COMP_INTER_MODE_START &&

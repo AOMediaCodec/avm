@@ -280,15 +280,42 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
   const int comp_mode_idx = opfl_get_comp_idx(mode);
 #if CONFIG_OPT_INTER_MODE_CTX
   if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
+    assert(comp_mode_idx <= INTER_COMPOUND_SAME_REFS_TYPES);
     const int signal_mode_idx = comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
     aom_write_symbol(w, signal_mode_idx,
                      xd->tile_ctx->inter_compound_mode_same_refs_cdf[mode_ctx],
                      INTER_COMPOUND_SAME_REFS_TYPES);
   } else {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-    aom_write_symbol(w, comp_mode_idx,
-                     xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
-                     INTER_COMPOUND_REF_TYPES);
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+
+    const bool is_joint =
+        ((comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV)) ||
+         (comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV)));
+
+    aom_write_symbol(w, is_joint,
+                     xd->tile_ctx->inter_compound_mode_is_joint_cdf
+                         [get_inter_compound_mode_is_joint_context(cm, mbmi)],
+                     NUM_OPTIONS_IS_JOINT);
+
+    if (is_joint) {
+      aom_write_symbol(w, comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV),
+                       xd->tile_ctx->inter_compound_mode_joint_type_cdf[0],
+                       NUM_OPTIONS_JOINT_TYPE);
+    } else {
+      aom_write_symbol(
+          w, comp_mode_idx,
+          xd->tile_ctx->inter_compound_mode_non_joint_type_cdf[mode_ctx],
+          NUM_OPTIONS_NON_JOINT_TYPE);
+    }
+
+#else
+  aom_write_symbol(w, comp_mode_idx,
+                   xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
+                   INTER_COMPOUND_REF_TYPES);
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
   }
 #endif  // CONFIG_OPT_INTER_MODE_CTX

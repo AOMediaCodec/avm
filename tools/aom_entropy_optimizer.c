@@ -1160,6 +1160,36 @@ int main(int argc, const char **argv) {
 
   /* ext_inter experiment */
   /* New compound mode */
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+  cts_each_dim[0] = NUM_CTX_IS_JOINT;
+  cts_each_dim[1] = NUM_OPTIONS_IS_JOINT;
+  optimize_cdf_table(&fc.inter_compound_mode_is_joint[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_compound_mode_cdf_is_joint"
+                     "[NUM_CTX_IS_JOINT][CDF_SIZE("
+                     "NUM_OPTIONS_IS_JOINT)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+  cts_each_dim[0] = NUM_CTX_NON_JOINT_TYPE;
+  cts_each_dim[1] = NUM_OPTIONS_NON_JOINT_TYPE;
+  optimize_cdf_table(&fc.inter_compound_mode_non_joint_type[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_compound_mode_cdf_non_joint_type"
+                     "[NUM_CTX_NON_JOINT_TYPE][CDF_SIZE("
+                     "NUM_OPTIONS_NON_JOINT_TYPE)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+  cts_each_dim[0] = NUM_CTX_JOINT_TYPE;
+  cts_each_dim[1] = NUM_OPTIONS_JOINT_TYPE;
+  optimize_cdf_table(&fc.inter_compound_mode_joint_type[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_compound_mode_cdf_joint_type"
+                     "[NUM_CTX_JOINT_TYPE][CDF_SIZE("
+                     "NUM_OPTIONS_JOINT_TYPE)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = INTER_MODE_CONTEXTS;
   cts_each_dim[1] = INTER_COMPOUND_REF_TYPES;
   optimize_cdf_table(&fc.inter_compound_mode[0][0], probsfile, 2, cts_each_dim,
@@ -1168,6 +1198,7 @@ int main(int argc, const char **argv) {
                      "[INTER_MODE_CONTEXTS][CDF_SIZE("
                      "INTER_COMPOUND_REF_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
 
   /* Compound mode context without considering NEW_NEARMV when two refs are the
    * same */

@@ -944,9 +944,36 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
     mode = comp_mode_signal_idx_to_mode_idx[signal_mode_idx];
   } else {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-    mode = aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
-                           INTER_COMPOUND_REF_TYPES,
-                           ACCT_INFO("inter_compound_mode_cdf"));
+
+#if CONFIG_INTER_COMPOUND_BY_JOINT
+
+    const int is_joint = aom_read_symbol(
+        r,
+        xd->tile_ctx->inter_compound_mode_is_joint_cdf
+            [get_inter_compound_mode_is_joint_context(cm, mbmi)],
+        NUM_OPTIONS_IS_JOINT, ACCT_INFO("inter_compound_mode_is_joint_cdf"));
+    if (is_joint) {
+      const int is_comp_mode_joint_newmv = aom_read_symbol(
+          r, xd->tile_ctx->inter_compound_mode_joint_type_cdf[0],
+          NUM_OPTIONS_JOINT_TYPE,
+          ACCT_INFO("inter_compound_mode_is_joint_cdf"));
+      mode = (is_comp_mode_joint_newmv)
+                 ? INTER_COMPOUND_OFFSET(JOINT_NEWMV)
+                 : INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV);
+
+    } else {
+      mode = aom_read_symbol(
+          r, xd->tile_ctx->inter_compound_mode_non_joint_type_cdf[ctx],
+          NUM_OPTIONS_NON_JOINT_TYPE,
+          ACCT_INFO("inter_compound_mode_non_joint_type_cdf"));
+    }
+
+#else
+  mode = aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
+                         INTER_COMPOUND_REF_TYPES,
+                         ACCT_INFO("inter_compound_mode_cdf"));
+#endif  // CONFIG_INTER_COMPOUND_BY_JOINT
+
 #if CONFIG_OPT_INTER_MODE_CTX
   }
 #endif  // CONFIG_OPT_INTER_MODE_CTX
