@@ -405,8 +405,7 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
 #if CONFIG_DQ
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-  int use_dq =
-      dq_enable(cpi->common.features.tcq_mode, tx_size, plane, tx_class);
+  int use_dq = dq_enable(cpi->common.features.tcq_mode, plane, tx_class);
   if (use_dq) {
     return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
@@ -1057,7 +1056,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 
 #if CONFIG_DQ
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-    int use_dq = dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class);
+    int use_dq = dq_enable(cm->features.tcq_mode, plane, tx_class);
     if (use_dq) {
       // Dropout setting should be disabled when Dependent quantization is
       // enabled.
@@ -1689,7 +1688,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
 #if CONFIG_DQ
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-    int use_dq = dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class);
+    int use_dq = dq_enable(cm->features.tcq_mode, plane, tx_class);
     if (use_dq) {
       // Dropout setting should be disabled when Dependent quantization is
       // enabled.

@@ -306,16 +306,11 @@ static void decide(int64_t rdCost, int64_t distA, int64_t distB, int64_t rdmult,
                    int rateA, int rateB, int rate_zero, tran_low_t absA,
                    tran_low_t absB, int limits, int prev_rate, int prev_state,
                    tcq_node_t *decision_02, tcq_node_t *decision_1) {
-#if NEWHR
   (void)limits;
   int parityA = 0;
   int parityB = 1;
-  assert(parityA == tcq_parity(absA, limits));
-  assert(parityB == tcq_parity(absB, limits));
-#else
-  int parityA = tcq_parity(absA, limits);
-  int parityB = tcq_parity(absB, limits);
-#endif
+  assert(parityA == tcq_parity(absA));
+  assert(parityB == tcq_parity(absB));
   int64_t costA = rdCost + RDCOST(rdmult, rateA, distA);
   int64_t costB = rdCost + RDCOST(rdmult, rateB, distB);
   int64_t cost_zero = rdCost + RDCOST(rdmult, rate_zero, 0);
@@ -361,14 +356,13 @@ static void decide(int64_t rdCost, int64_t distA, int64_t distB, int64_t rdmult,
   }
 }
 
-#if NEWHR
 static void decide_new(int64_t costA, int64_t costB, int64_t cost_zero,
                        int rateA, int rateB, int rate_zero, tran_low_t absA,
                        tran_low_t absB, int limits, int prev_rate,
                        int prev_state, tcq_node_t *decision_02,
                        tcq_node_t *decision_1) {
-  assert(tcq_parity(absA, limits) == 0);
-  assert(tcq_parity(absB, limits) == 1);
+  assert(tcq_parity(absA) == 0);
+  assert(tcq_parity(absB) == 1);
 
   (void)limits;
   int even_bias = 1;
@@ -395,56 +389,6 @@ static void decide_new(int64_t costA, int64_t costB, int64_t cost_zero,
     decision_1->absLevel = absB;
   }
 }
-#else
-static void decide_new(int64_t costA, int64_t costB, int64_t cost_zero,
-                       int rateA, int rateB, int rate_zero, tran_low_t absA,
-                       tran_low_t absB, int limits, int prev_rate,
-                       int prev_state, tcq_node_t *decision_02,
-                       tcq_node_t *decision_1) {
-  int parityA = tcq_parity(absA, limits);
-  int parityB = tcq_parity(absB, limits);
-  rateA += prev_rate;
-  rateB += prev_rate;
-  rate_zero += prev_rate;
-  if (parityA) {
-    if (costA < decision_1->rdCost) {
-      decision_1->rdCost = costA;
-      decision_1->rate = rateA;
-      decision_1->prevId = prev_state;
-      decision_1->absLevel = absA;
-    }
-  } else {
-    if (costA < decision_02->rdCost) {
-      decision_02->rdCost = costA;
-      decision_02->rate = rateA;
-      decision_02->prevId = prev_state;
-      decision_02->absLevel = absA;
-    }
-  }
-
-  if (parityB) {
-    if (costB < decision_1->rdCost) {
-      decision_1->rdCost = costB;
-      decision_1->rate = rateB;
-      decision_1->prevId = prev_state;
-      decision_1->absLevel = absB;
-    }
-  } else {
-    if (costB < decision_02->rdCost) {
-      decision_02->rdCost = costB;
-      decision_02->rate = rateB;
-      decision_02->prevId = prev_state;
-      decision_02->absLevel = absB;
-    }
-  }
-  if (cost_zero - even_bias < decision_02->rdCost) {
-    decision_02->rdCost = cost_zero;
-    decision_02->rate = rate_zero;
-    decision_02->prevId = prev_state;
-    decision_02->absLevel = 0;
-  }
-}
-#endif
 
 static void decide_eob(int64_t costA, int64_t costB, int rateA, int rateB,
                        tran_low_t absA, tran_low_t absB,

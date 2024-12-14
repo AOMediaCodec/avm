@@ -897,7 +897,6 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
 
 static void write_low_range(aom_writer *w, aom_cdf_prob *cdf, int level, int lf,
                             int enable_tcq) {
-#if NEWHR
   if (enable_tcq) {
     int br = get_low_range(level, lf);
     for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
@@ -906,11 +905,7 @@ static void write_low_range(aom_writer *w, aom_cdf_prob *cdf, int level, int lf,
       aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
       if (k < BR_CDF_SIZE - 1) break;
     }
-  } else
-#else
-  (void)enable_tcq;
-#endif
-  {
+  } else {
     const int base_range =
         level - 1 - (lf ? LF_NUM_BASE_LEVELS : NUM_BASE_LEVELS);
     for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
@@ -1333,7 +1328,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_DQ
-    state = tcq_next_state(state, level, limits);
+    state = tcq_next_state(state, level);
 #endif
   }
 
@@ -6474,7 +6469,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         }
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_DQ
-      state = tcq_next_state(state, level, limits);
+      state = tcq_next_state(state, level);
 #endif
     }
 

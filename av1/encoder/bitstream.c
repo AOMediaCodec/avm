@@ -5805,7 +5805,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 
   aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
 
-#if CONFIG_DQ && TCQ_HDR_FLAG
+#if CONFIG_DQ
   int enable_tcq = seq_params->enable_tcq;
   aom_wb_write_bit(wb, enable_tcq != 0);
   if (enable_tcq) {
@@ -6542,7 +6542,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   write_tile_info(cm, saved_wb, wb);
 
-#if CONFIG_DQ && TCQ_HDR_FLAG
+#if CONFIG_DQ
   // Encode adaptive frame-level TCQ flag, if applicable.
   // Basic frame-level strategy: enable for keyframes only.
   // This can be extended in other ways (e.g., include alt-ref).

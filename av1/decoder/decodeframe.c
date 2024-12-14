@@ -6824,16 +6824,12 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->cfl_ds_filter_index = aom_rb_read_literal(rb, 2);
 
 #if CONFIG_DQ
-#if TCQ_HDR_FLAG
   seq_params->enable_tcq = 0;
   int enable_tcq = aom_rb_read_bit(rb);
   if (enable_tcq) {
     enable_tcq += aom_rb_read_literal(rb, 1);
     seq_params->enable_tcq = enable_tcq;
   }
-#else
-  seq_params->enable_tcq = 1;
-#endif
   if (seq_params->enable_tcq == TCQ_DISABLE ||
       seq_params->enable_tcq >= TCQ_8ST_FR) {
     seq_params->enable_parity_hiding = aom_rb_read_bit(rb);

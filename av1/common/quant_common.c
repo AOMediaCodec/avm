@@ -88,15 +88,8 @@ static const uint16_t ac_qlookup_QTX_full[QINDEX_RANGE_8_BITS] = {
 // underflow to 0 in the actual quantization routines.
 
 #if CONFIG_DQ
-int tcq_parity(int absLevel, int limits) {
-#if NEWHR
-  (void)limits;
+int tcq_parity(int absLevel) {
   int par = absLevel & 1;
-#else
-  int cap = limits ? LF_MAX_BASE_BR_RANGE : MAX_BASE_BR_RANGE;
-  const int absLevelCtx = AOMMIN(cap, absLevel);
-  int par = absLevelCtx & 1;
-#endif
   return par;
 }
 
@@ -111,21 +104,21 @@ int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class) {
   return state;
 }
 
-int tcq_next_state(const int curState, const int absLevel, const int limits) {
+int tcq_next_state(const int curState, const int absLevel) {
   int tcq_mode = curState >> 8;
   int state = curState & 255;
   int nextState = 0;
   if (tcq_mode == TCQ_8ST) {
     switch (state) {
-      case 0: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 4; break;
-      case 1: nextState = !(tcq_parity(absLevel, limits)) ? 4 : 0; break;
-      case 2: nextState = !(tcq_parity(absLevel, limits)) ? 1 : 5; break;
-      case 3: nextState = !(tcq_parity(absLevel, limits)) ? 5 : 1; break;
-      case 4: nextState = !(tcq_parity(absLevel, limits)) ? 6 : 2; break;
-      case 5: nextState = !(tcq_parity(absLevel, limits)) ? 2 : 6; break;
-      case 6: nextState = !(tcq_parity(absLevel, limits)) ? 7 : 3; break;
-      case 7: nextState = !(tcq_parity(absLevel, limits)) ? 3 : 7; break;
-      default: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 4; break;
+      case 0: nextState = !(tcq_parity(absLevel)) ? 0 : 4; break;
+      case 1: nextState = !(tcq_parity(absLevel)) ? 4 : 0; break;
+      case 2: nextState = !(tcq_parity(absLevel)) ? 1 : 5; break;
+      case 3: nextState = !(tcq_parity(absLevel)) ? 5 : 1; break;
+      case 4: nextState = !(tcq_parity(absLevel)) ? 6 : 2; break;
+      case 5: nextState = !(tcq_parity(absLevel)) ? 2 : 6; break;
+      case 6: nextState = !(tcq_parity(absLevel)) ? 7 : 3; break;
+      case 7: nextState = !(tcq_parity(absLevel)) ? 3 : 7; break;
+      default: nextState = !(tcq_parity(absLevel)) ? 0 : 4; break;
     }
   } else {  // TCQ_DISABLE
     nextState = 0;

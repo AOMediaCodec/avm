@@ -158,11 +158,7 @@ static INLINE int read_high_range(MACROBLOCKD *xd, aom_reader *r, int tcq_mode,
 #endif
 ) {
   int max_br = lf ? LF_MAX_BASE_BR_RANGE : MAX_BASE_BR_RANGE;
-#if NEWHR
   int use_tcq_hr = tcq_mode && (level >= max_br - 1);
-#else
-  int use_tcq_hr = 0;
-#endif
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = *hr_avg;
   int use_hr = use_tcq_hr || level >= max_br;
@@ -219,13 +215,8 @@ static INLINE void read_coeffs_reverse_2d(
 #if CONFIG_DQ
     ,
     int *state
-#if DQENABLE
-    ,
-    const TX_SIZE tx_size
-#endif
 #endif
 ) {
-
   for (int c = end_si; c >= start_si; --c) {
     const int pos = scan[c];
     int level = 0;
@@ -352,7 +343,7 @@ static INLINE void read_coeffs_reverse_2d(
 #endif  // CONFIG_CHROMA_CODING
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
-    *state = tcq_next_state(*state, level, limits);
+    *state = tcq_next_state(*state, level);
 #endif
   }
 }
@@ -369,10 +360,6 @@ static INLINE void read_coeffs_reverse(
 #if CONFIG_DQ
     ,
     int *state
-#if DQENABLE
-    ,
-    const TX_SIZE tx_size
-#endif
 #endif
 ) {
 
@@ -505,7 +492,7 @@ static INLINE void read_coeffs_reverse(
 #endif  // CONFIG_CHROMA_CODING
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
-    *state = tcq_next_state(*state, level, limits);
+    *state = tcq_next_state(*state, level);
 #endif
   }
 }
@@ -1155,7 +1142,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_CHROMA_CODING
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
-    state = tcq_next_state(state, level, limits);
+    state = tcq_next_state(state, level);
 #endif
   }
 
@@ -1198,10 +1185,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                              ,
                              &state
-#if DQENABLE
-                             ,
-                             tx_size
-#endif
 #endif
       );
       if (enable_parity_hiding) {
@@ -1229,10 +1212,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                             ,
                             &state
-#if DQENABLE
-                            ,
-                            tx_size
-#endif
 #endif
         );
       }
@@ -1246,10 +1225,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                           ,
                           &state
-#if DQENABLE
-                          ,
-                          tx_size
-#endif
 #endif
       );
       if (enable_parity_hiding) {
@@ -1277,10 +1252,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                             ,
                             &state
-#if DQENABLE
-                            ,
-                            tx_size
-#endif
 #endif
         );
       }
@@ -1417,7 +1388,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       cul_level += level;
 #if CONFIG_DQ
       if (!xd->lossless[mbmi->segment_id] &&
-          dq_enable(tcq_mode, tx_size, plane, tx_class)) {
+          dq_enable(tcq_mode, plane, tx_class)) {
         tcoeffs[pos] = sign ? -level : level;
       } else {
         tran_low_t dq_coeff;
@@ -1458,14 +1429,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 #if CONFIG_DQ
-  if (!xd->lossless[mbmi->segment_id] &&
-      dq_enable(tcq_mode, tx_size, plane, tx_class)) {
+  if (!xd->lossless[mbmi->segment_id] && dq_enable(tcq_mode, plane, tx_class)) {
     state = tcq_init_state(tcq_mode, plane, tx_class);
     for (int c = *eob - 1; c >= 0; --c) {
       const int pos = scan[c];
-      const int row = pos >> bwl;
-      const int col = pos - (row << bwl);
-      int limits = get_lf_limits(row, col, tx_class, plane);
       int Qx = tcq_quant(state);
       int level = abs(tcoeffs[pos]);
 
@@ -1490,7 +1457,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         tcoeffs[pos] = clamp(dq_coeff, min_value, max_value);
       }
       // state transition
-      state = tcq_next_state(state, level, limits);
+      state = tcq_next_state(state, level);
     }
   }
 #endif
