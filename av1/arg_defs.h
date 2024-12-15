@@ -213,7 +213,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_filter_intra;
 #if CONFIG_DIP
   arg_def_t enable_intra_dip;
-#endif
+#endif  // CONFIG_DIP
   arg_def_t enable_smooth_intra;
   arg_def_t enable_paeth_intra;
   arg_def_t enable_cfl_intra;

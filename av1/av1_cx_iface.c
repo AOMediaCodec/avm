@@ -191,8 +191,8 @@ struct av1_extracfg {
   int enable_warp_extend;         // enable warp extension for sequence
   int enable_filter_intra;        // enable filter intra for sequence
 #if CONFIG_DIP
-  int enable_intra_dip;  // enable intra DIP (data-driven intra) sequence
-#endif
+  int enable_intra_dip;     // enable intra DIP (data-driven intra) sequence
+#endif                      // CONFIG_DIP
   int enable_smooth_intra;  // enable smooth intra modes for sequence
   int enable_paeth_intra;   // enable Paeth intra mode for sequence
   int enable_cfl_intra;     // enable CFL uv intra mode for sequence
@@ -529,12 +529,12 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_warp_extend at sequence level
   0,  // enable filter intra at sequence level
 #if CONFIG_DIP
-  1,  // enable_intra_dip at sequence level
-#endif
-  1,  // enable smooth intra modes usage for sequence
-  1,  // enable Paeth intra mode usage for sequence
-  1,  // enable CFL uv intra mode usage for sequence
-  1,  // superres
+  1,    // enable_intra_dip at sequence level
+#endif  // CONFIG_DIP
+  1,    // enable smooth intra modes usage for sequence
+  1,    // enable Paeth intra mode usage for sequence
+  1,    // enable CFL uv intra mode usage for sequence
+  1,    // superres
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -1042,7 +1042,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
 #if CONFIG_DIP
   cfg->enable_intra_dip = extra_cfg->enable_intra_dip;
-#endif
+#endif  // CONFIG_DIP
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
@@ -1173,7 +1173,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_filter_intra = cfg->enable_filter_intra;
 #if CONFIG_DIP
   extra_cfg->enable_intra_dip = cfg->enable_intra_dip;
-#endif
+#endif  // CONFIG_DIP
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
   extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
@@ -1749,7 +1749,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
 #if CONFIG_DIP
   intra_mode_cfg->enable_intra_dip = extra_cfg->enable_intra_dip;
-#endif
+#endif  // CONFIG_DIP
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
@@ -2449,7 +2449,7 @@ static aom_codec_err_t ctrl_set_enable_intra_dip(aom_codec_alg_priv_t *ctx,
   extra_cfg.enable_intra_dip = CAST(AV1E_SET_ENABLE_INTRA_DIP, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif
+#endif  // CONFIG_DIP
 
 static aom_codec_err_t ctrl_set_enable_smooth_intra(aom_codec_alg_priv_t *ctx,
                                                     va_list args) {
@@ -4094,7 +4094,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_intra_dip,
                               argv, err_string)) {
     extra_cfg.enable_intra_dip = arg_parse_int_helper(&arg, err_string);
-#endif
+#endif  // CONFIG_DIP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_smooth_intra,
                               argv, err_string)) {
     extra_cfg.enable_smooth_intra = arg_parse_int_helper(&arg, err_string);
@@ -4336,7 +4336,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_FILTER_INTRA, ctrl_set_enable_filter_intra },
 #if CONFIG_DIP
   { AV1E_SET_ENABLE_INTRA_DIP, ctrl_set_enable_intra_dip },
-#endif
+#endif  // CONFIG_DIP
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
   { AV1E_SET_ENABLE_CFL_INTRA, ctrl_set_enable_cfl_intra },
@@ -4519,7 +4519,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1, 1,   1,
 #if CONFIG_DIP
         1,
-#endif
+#endif  // CONFIG_DIP
         1, 1,
 #if CONFIG_AFFINE_REFINEMENT
         1,

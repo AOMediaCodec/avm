@@ -1319,7 +1319,7 @@ static AOM_INLINE void write_intra_dip_mode_info(const AV1_COMMON *cm,
     }
   }
 }
-#endif
+#endif  // CONFIG_DIP
 
 #if !CONFIG_AIMC
 static AOM_INLINE void write_angle_delta(aom_writer *w, int angle_delta,
@@ -2223,7 +2223,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #if CONFIG_DIP
   // Intra ML prediction
   write_intra_dip_mode_info(cm, xd, mbmi, w);
-#endif
+#endif  // CONFIG_DIP
 }
 
 static INLINE int16_t mode_context_analyzer(
@@ -5540,7 +5540,7 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
 #if CONFIG_DIP
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
-#endif
+#endif  // CONFIG_DIP
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {
     // Encode allowed motion modes

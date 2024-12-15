@@ -783,7 +783,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(mode_cdf, mbmi->intra_dip_mode & 15, n_modes);
       }
     }
-#endif
+#endif  // CONFIG_DIP
 #if !CONFIG_AIMC
     if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS

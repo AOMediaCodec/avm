@@ -100,7 +100,7 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
 #if CONFIG_DIP
   av1_copy(cm->fc->intra_dip_cdf, default_intra_dip_cdf[index]);
   av1_copy(cm->fc->intra_dip_mode_n6_cdf, default_intra_dip_mode_n6_cdf);
-#endif
+#endif  // CONFIG_DIP
 }
 
 static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
@@ -357,7 +357,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_DIP
   RESET_CDF_COUNTER(fc->intra_dip_cdf, 2);
   RESET_CDF_COUNTER(fc->intra_dip_mode_n6_cdf, 6);
-#endif
+#endif  // CONFIG_DIP
   RESET_CDF_COUNTER(fc->switchable_flex_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
 #if CONFIG_CCSO_IMPROVE

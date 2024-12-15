@@ -519,7 +519,7 @@ typedef struct MB_MODE_INFO {
   /*! \brief intra_dip prediction mode (0=disable). */
   uint8_t use_intra_dip;
   uint8_t intra_dip_mode;
-#endif
+#endif  // CONFIG_DIP
   /*! \brief Chroma from Luma: Joint sign of alpha Cb and alpha Cr */
   int8_t cfl_alpha_signs;
   /*! \brief Chroma from Luma: Index of the alpha Cb and alpha Cr combination */

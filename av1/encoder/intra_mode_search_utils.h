@@ -285,7 +285,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       }
     }
   }
-#endif
+#endif  // CONFIG_DIP
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode)) {
     if (av1_use_angle_delta(bsize)) {
@@ -461,7 +461,7 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
     }
   }
-#endif
+#endif  // CONFIG_DIP
   this_rd =
       RDCOST(x->rdmult, this_rd_stats.rate + mode_cost, this_rd_stats.dist);
   return this_rd;

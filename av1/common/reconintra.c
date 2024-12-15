@@ -1554,7 +1554,7 @@ static void build_intra_predictors_high(
   const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
 #if CONFIG_DIP
   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
-#endif
+#endif  // CONFIG_DIP
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
@@ -1625,7 +1625,7 @@ static void build_intra_predictors_high(
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
 #if CONFIG_DIP
   if (use_intra_dip) need_left = need_above = need_above_left = 1;
-#endif
+#endif  // CONFIG_DIP
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
   assert(n_left_px >= 0);
@@ -1651,7 +1651,7 @@ static void build_intra_predictors_high(
     if (use_filter_intra) need_bottom = 0;
 #if CONFIG_DIP
     if (use_intra_dip) need_bottom = 1;
-#endif
+#endif  // CONFIG_DIP
     if (is_dr_mode)
       need_bottom =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
@@ -1686,7 +1686,7 @@ static void build_intra_predictors_high(
     if (use_filter_intra) need_right = 0;
 #if CONFIG_DIP
     if (use_intra_dip) need_right = 1;
-#endif
+#endif  // CONFIG_DIP
     if (is_dr_mode)
       need_right =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
@@ -1748,7 +1748,7 @@ static void build_intra_predictors_high(
                                    above_row, left_col, tx_size, xd->bd);
     return;
   }
-#endif
+#endif  // CONFIG_DIP
 
   if (is_dr_mode) {
     int upsample_above = 0;

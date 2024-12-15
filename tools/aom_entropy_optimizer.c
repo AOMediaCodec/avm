@@ -1872,12 +1872,12 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_DIP
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = IML_CTXS;
+  cts_each_dim[1] = DIP_CTXS;
   cts_each_dim[2] = 2;
   optimize_cdf_table(
       &fc.intra_dip[0][0][0], probsfile, 3, cts_each_dim,
       "static const aom_cdf_prob "
-      "default_intra_dip_cdf[TOKEN_CDF_Q_CTXS][IML_CTXS][CDF_SIZE(2)]",
+      "default_intra_dip_cdf[TOKEN_CDF_Q_CTXS][DIP_CTXS][CDF_SIZE(2)]",
       0, &total_count, 0, mem_wanted, "Intra");
   cts_each_dim[0] = 6;
   optimize_cdf_table(&fc.intra_dip_mode_n6[0], probsfile, 1, cts_each_dim,

@@ -23,6 +23,10 @@ extern "C" {
 
 #define INPUT_FEATURES 11
 
+// Resample output from DIP prediction (8x8) to the actual transform
+// block size. This is some by upsampling if dimension is > 8, or
+// downsampling/decimation if dimension is < 8. Resampling is done
+// in the horizontal dimension first followed by vertical.
 static void resample_output(uint16_t *dst, int dst_stride,
                             const uint16_t *above_row, const uint16_t *left_col,
                             uint16_t *ml_output, int bw_log2, int bh_log2,

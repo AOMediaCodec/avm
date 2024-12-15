@@ -707,7 +707,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_DIP
       mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -1395,7 +1395,7 @@ static void read_intra_dip_mode_info(const AV1_COMMON *const cm,
     }
   }
 }
-#endif
+#endif  // CONFIG_DIP
 
 void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                       int blk_col, TX_SIZE tx_size, aom_reader *r,
@@ -2150,7 +2150,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_DIP
     mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
   }
 
 #if !CONFIG_TX_PARTITION_CTX
@@ -2358,7 +2358,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->use_intra_dip = 0;
     read_intra_dip_mode_info(cm, xd, r);
   }
-#endif
+#endif  // CONFIG_DIP
 }
 
 #if !CONFIG_VQ_MVD_CODING
@@ -3150,7 +3150,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     mbmi->use_intra_dip = 0;
     read_intra_dip_mode_info(cm, xd, r);
   }
-#endif
+#endif  // CONFIG_DIP
 }
 
 static INLINE int is_mv_valid(const MV *mv) {
@@ -4434,7 +4434,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED

@@ -17,14 +17,17 @@ extern "C" {
 
 #include "av1/common/av1_common_int.h"
 
+#define INTRA_DIP_MODE_CNT 6
+#define INTRA_DIP_HAS_TRANSPOSE 1
+
 static INLINE int av1_intra_dip_modes(BLOCK_SIZE bsize) {
   (void)bsize;
-  return 6;
+  return INTRA_DIP_MODE_CNT;
 }
 
 static INLINE int av1_intra_dip_has_transpose(BLOCK_SIZE bsize) {
   (void)bsize;
-  return 1;
+  return INTRA_DIP_HAS_TRANSPOSE;
 }
 
 void av1_highbd_intra_dip_predictor(int mode, uint16_t *dst, int dst_stride,

@@ -228,7 +228,7 @@ static INLINE int get_intra_dip_ctx(const MB_MODE_INFO *nbr0,
   int ctx1 = nbr1 ? nbr1->use_intra_dip != 0 : 0;
   return ctx0 + ctx1;
 }
-#endif
+#endif  // CONFIG_DIP
 
 #if DF_RESTRICT_ORIP
 static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,

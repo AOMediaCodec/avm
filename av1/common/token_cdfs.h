@@ -12752,7 +12752,7 @@ static const aom_cdf_prob default_intra_dip_mode_n6_cdf[CDF_SIZE(6)] = {
 };
 
 static const aom_cdf_prob
-    default_intra_dip_cdf[TOKEN_CDF_Q_CTXS][IML_CTXS][CDF_SIZE(2)] = {
+    default_intra_dip_cdf[TOKEN_CDF_Q_CTXS][DIP_CTXS][CDF_SIZE(2)] = {
       { { AOM_CDF2(6048) }, { AOM_CDF2(4529) }, { AOM_CDF2(5181) } },
       { { AOM_CDF2(8596) }, { AOM_CDF2(8006) }, { AOM_CDF2(7168) } },
       { { AOM_CDF2(9008) }, { AOM_CDF2(11031) }, { AOM_CDF2(16384) } },

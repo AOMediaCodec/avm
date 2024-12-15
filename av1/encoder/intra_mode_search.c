@@ -294,7 +294,7 @@ static int rd_pick_intra_dip_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     return 0;
   }
 }
-#endif
+#endif  // CONFIG_DIP
 
 void av1_count_colors_highbd(const uint16_t *src, int stride, int rows,
                              int cols, int bit_depth, int *val_count,
@@ -1309,7 +1309,7 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->filter_intra_mode_info.use_filter_intra = 1;
 #if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
   for (FILTER_INTRA_MODE fi_mode = FILTER_DC_PRED; fi_mode < FILTER_INTRA_MODES;
        ++fi_mode) {
     mbmi->filter_intra_mode_info.filter_intra_mode = fi_mode;
@@ -1474,7 +1474,7 @@ static INLINE void handle_intra_dip_mode(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->use_intra_dip = 0;
   }
 }
-#endif
+#endif  // CONFIG_DIP
 
 int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const AV1_COMP *cpi, MACROBLOCK *x,
@@ -1681,7 +1681,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                             best_rd_so_far);
     }
   }
-#endif
+#endif  // CONFIG_DIP
 
   if (rd_stats_y->rate == INT_MAX) return INT64_MAX;
 
@@ -1975,7 +1975,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
 #endif
 #if CONFIG_DIP
         mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
         mbmi->filter_intra_mode_info.use_filter_intra = 0;
         mbmi->palette_mode_info.palette_size[0] = 0;
         int64_t this_rd;
@@ -2165,7 +2165,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif
+#endif  // CONFIG_DIP
   pmi->palette_size[0] = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -2466,7 +2466,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       best_mbmi = *mbmi;
     }
   }
-#endif
+#endif  // CONFIG_DIP
 
   // No mode is identified with less rd value than best_rd passed to this
   // function. In such cases winner mode processing is not necessary and
