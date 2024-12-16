@@ -3271,17 +3271,24 @@ static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
 // are used in the less square error process.
 
 #if CONFIG_BAWP_FIX_DIVISION_16x16_MC
-static const uint8_t blk_size_log2_bawp[17] = { 0, 1, 1, 2, 2, 2, 2, 3, 3,
-                                                3, 3, 3, 3, 4, 4, 4, 4 };
+// The bellow arrays are used to map the number of BAWP reference samples to a
+// 2^N number for each side (left or above).
+static const uint8_t blk_size_log2_bawp[BAWP_MAX_REF_NUMB + 1] = {
+  0, 0, 0, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4
+};
 static const uint8_t log_to_blk_size[5] = { 0, 2, 4, 8, 16 };
 
+// The below function is used to allocate the number of reference samples for
+// the left and above based on the availablity of the left and above and the
+// total number of available samples. The final number should be 0, 4, 8, 16 or
+// 32 in total.
 static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
                                            int width, int height, int *numb_up,
                                            int *numb_left) {
   // If the number of adjusted number of samples is zero, set the availability
   // to be false
-  bool above_availalbe = width ? above_valid : false;
-  bool left_availalbe = height ? left_valid : false;
+  const bool above_available = width ? above_valid : false;
+  const bool left_available = height ? left_valid : false;
 
   // If both left and above references are availalbe, the numbers of reference
   // samples in each side are calculated based on the clamped width and clamped
@@ -3289,7 +3296,7 @@ static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
 
   *numb_up = -1;
   *numb_left = -1;
-  if (above_availalbe && left_availalbe) {
+  if (above_available && left_available) {
     if (width == 16 && height == 16) {
       *numb_up = 16;
       *numb_left = 16;  // Using 32 samples in total for 16x16
@@ -3306,10 +3313,10 @@ static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
       *numb_up = 0;
       *numb_left = 16;  // (16) 4x16
     }
-  } else if (above_availalbe) {
+  } else if (above_available) {
     *numb_up = width;
     *numb_left = 0;
-  } else if (left_availalbe) {
+  } else if (left_available) {
     *numb_up = 0;
     *numb_left = height;
   } else {
@@ -3340,30 +3347,31 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
 #if CONFIG_BAWP_FIX_DIVISION_16x16_MC
-  int max_numb_each_size = plane ? (BAWP_MAX_REF_NUMB >> 1) : BAWP_MAX_REF_NUMB;
+  const int max_numb_each_size =
+      plane ? (BAWP_MAX_REF_NUMB >> 1) : BAWP_MAX_REF_NUMB;
   // Clamp the bw and bh to use up to 16 samples in the left and above
-  bw = bw > max_numb_each_size ? max_numb_each_size : bw;
-  bh = bh > max_numb_each_size ? max_numb_each_size : bh;
+  bw = AOMMIN(bw, max_numb_each_size);
+  bh = AOMMIN(bh, max_numb_each_size);
 
   // Make the number of samples in each side to 4, 8, or 16 by padding. If the
   // number of sample in a side is smaller than 3, dont use the reference in
-  // this side.
-  int log2_width = bw < 3 ? 0 : blk_size_log2_bawp[bw];
-  int width = log_to_blk_size[log2_width];
+  // this side (set the corresponding elements in blk_size_log2_bawp to zero).
+  const int log2_width = blk_size_log2_bawp[bw];
+  const int width = log_to_blk_size[log2_width];
 
-  int log2_height = bh < 3 ? 0 : blk_size_log2_bawp[bh];
-  int height = log_to_blk_size[log2_height];
+  const int log2_height = blk_size_log2_bawp[bh];
+  const int height = log_to_blk_size[log2_height];
 
   int numb_up = 0, numb_left = 0;
   derive_number_ref_samples_bawp(xd->up_available, xd->left_available, width,
                                  height, &numb_up, &numb_left);
 
-  uint16_t ref_pad[16] = { 0 };
-  uint16_t recon_pad[16] = { 0 };
+  uint16_t ref_pad[BAWP_MAX_REF_NUMB] = { 0 };
+  uint16_t recon_pad[BAWP_MAX_REF_NUMB] = { 0 };
 
   if (numb_up) {
-    int step = (int)width / numb_up;        // = width >> log2(num_up)
-    int start = step == 1 ? 0 : step >> 1;  // int start = step >> 1;
+    int step = (int)width / numb_up;
+    int start = step == 1 ? 0 : step >> 1;
     int delta_w = width - bw;
 
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
