@@ -215,7 +215,7 @@ static INLINE void read_coeffs_reverse_2d(
 #if CONFIG_DQ
     ,
     int *state
-#endif
+#endif  // CONFIG_DQ
 ) {
   for (int c = end_si; c >= start_si; --c) {
     const int pos = scan[c];
@@ -225,7 +225,7 @@ static INLINE void read_coeffs_reverse_2d(
     int limits = get_lf_limits(row, col, 0, plane);
 #if CONFIG_DQ
     int dq = tcq_quant(*state);
-#endif
+#endif  // CONFIG_DQ
 #if CONFIG_CHROMA_CODING
     if (plane > 0) {
       if (limits) {
@@ -235,7 +235,7 @@ static INLINE void read_coeffs_reverse_2d(
                                  base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
                                                [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
@@ -251,7 +251,7 @@ static INLINE void read_coeffs_reverse_2d(
                                  base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
                                             [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  4, ACCT_INFO("level", "base_uv_cdf"));
         if (level > NUM_BASE_LEVELS) {
@@ -268,7 +268,7 @@ static INLINE void read_coeffs_reverse_2d(
                             base_lf_cdf[coeff_ctx]
 #if CONFIG_DQ
                                        [dq]
-#endif
+#endif  // CONFIG_DQ
                             ,
                             LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
         if (level > LF_NUM_BASE_LEVELS) {
@@ -287,7 +287,7 @@ static INLINE void read_coeffs_reverse_2d(
                                  base_cdf[coeff_ctx]
 #if CONFIG_DQ
                                          [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  4, ACCT_INFO("level", "base_cdf"));
         if (level > NUM_BASE_LEVELS) {
@@ -310,7 +310,7 @@ static INLINE void read_coeffs_reverse_2d(
 #else
       level += aom_read_symbol(r, base_lf_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                ACCT_INFO("level", "base_lf_cdf"));
-#endif
+#endif  // CONFIG_DQ
       if (level > LF_NUM_BASE_LEVELS) {
         const int br_ctx = get_br_lf_ctx_2d(levels, pos, bwl);
         aom_cdf_prob *cdf = br_lf_cdf[br_ctx];
@@ -333,7 +333,7 @@ static INLINE void read_coeffs_reverse_2d(
 #else
       level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
                                ACCT_INFO("level", "base_cdf"));
-#endif
+#endif  // CONFIG_DQ
       if (level > NUM_BASE_LEVELS) {
         const int br_ctx = get_br_ctx_2d(levels, pos, bwl);
         aom_cdf_prob *cdf = br_cdf[br_ctx];
@@ -344,7 +344,7 @@ static INLINE void read_coeffs_reverse_2d(
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
     *state = tcq_next_state(*state, level);
-#endif
+#endif  // CONFIG_DQ
   }
 }
 
@@ -360,7 +360,7 @@ static INLINE void read_coeffs_reverse(
 #if CONFIG_DQ
     ,
     int *state
-#endif
+#endif  // CONFIG_DQ
 ) {
 
   for (int c = end_si; c >= start_si; --c) {
@@ -368,7 +368,7 @@ static INLINE void read_coeffs_reverse(
     int level = 0;
 #if CONFIG_DQ
     int dq = tcq_quant(*state);
-#endif
+#endif  // CONFIG_DQ
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
@@ -381,7 +381,7 @@ static INLINE void read_coeffs_reverse(
                                  base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
                                                [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
@@ -397,7 +397,7 @@ static INLINE void read_coeffs_reverse(
                                  base_uv_cdf[coeff_ctx]
 #if CONFIG_DQ
                                             [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  4, ACCT_INFO("level", "base_uv_cdf"));
         if (level > NUM_BASE_LEVELS) {
@@ -415,7 +415,7 @@ static INLINE void read_coeffs_reverse(
                             base_lf_cdf[coeff_ctx]
 #if CONFIG_DQ
                                        [dq]
-#endif
+#endif  // CONFIG_DQ
                             ,
                             LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
 
@@ -435,7 +435,7 @@ static INLINE void read_coeffs_reverse(
                                  base_cdf[coeff_ctx]
 #if CONFIG_DQ
                                          [dq]
-#endif
+#endif  // CONFIG_DQ
                                  ,
                                  4, ACCT_INFO("level", "base_cdf"));
 
@@ -459,7 +459,7 @@ static INLINE void read_coeffs_reverse(
 #else
       level += aom_read_symbol(r, base_lf_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                ACCT_INFO("level", "base_lf_cdf"));
-#endif
+#endif  // CONFIG_DQ
       if (level > LF_NUM_BASE_LEVELS) {
         const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
         aom_cdf_prob *cdf = br_lf_cdf[br_ctx];
@@ -482,7 +482,7 @@ static INLINE void read_coeffs_reverse(
 #else
       level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
                                ACCT_INFO("level", "base_cdf"));
-#endif
+#endif  // CONFIG_DQ
       if (level > NUM_BASE_LEVELS) {
         const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
         aom_cdf_prob *cdf = br_cdf[br_ctx];
@@ -493,7 +493,7 @@ static INLINE void read_coeffs_reverse(
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
     *state = tcq_next_state(*state, level);
-#endif
+#endif  // CONFIG_DQ
   }
 }
 
@@ -1009,7 +1009,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   uint16_t *const max_scan_line = &(eob_data->max_scan_line);
 #if CONFIG_DQ
   int tcq_mode = cm->features.tcq_mode;
-#endif
+#endif  // CONFIG_DQ
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fDecCoeffLog,
@@ -1051,7 +1051,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
 #if CONFIG_DQ
   int state = tcq_init_state(cm->features.tcq_mode, plane, tx_class);
-#endif
+#endif  // CONFIG_DQ
 
   {
     // Read the non-zero coefficient with scan index eob-1
@@ -1143,7 +1143,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     levels[get_padded_idx(pos, bwl)] = level;
 #if CONFIG_DQ
     state = tcq_next_state(state, level);
-#endif
+#endif  // CONFIG_DQ
   }
 
   bool enable_parity_hiding =
@@ -1185,7 +1185,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                              ,
                              &state
-#endif
+#endif  // CONFIG_DQ
       );
       if (enable_parity_hiding) {
         for (int si = *eob - 1; si > 0; --si) {
@@ -1212,7 +1212,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                             ,
                             &state
-#endif
+#endif  // CONFIG_DQ
         );
       }
     } else {
@@ -1225,7 +1225,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                           ,
                           &state
-#endif
+#endif  // CONFIG_DQ
       );
       if (enable_parity_hiding) {
         for (int si = *eob - 1; si > 0; --si) {
@@ -1252,7 +1252,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_DQ
                             ,
                             &state
-#endif
+#endif  // CONFIG_DQ
         );
       }
     }
@@ -1425,7 +1425,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       tcoeffs_copy[pos] = tcoeffs[pos];
       quant_coeffs[pos] = sign ? -level : level;
 #endif  // CONFIG_INSPECTION
-#endif
+#endif  // CONFIG_DQ
     }
   }
 #if CONFIG_DQ
@@ -1460,7 +1460,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       state = tcq_next_state(state, level);
     }
   }
-#endif
+#endif  // CONFIG_DQ
 
 #if DEBUG_EXTQUANT
   for (int c = 0; c < tx_size_wide[tx_size] * tx_size_high[tx_size]; c++) {

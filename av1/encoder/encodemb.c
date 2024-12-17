@@ -410,7 +410,7 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
   } else
-#endif  // #if CONFIG_DQ
+#endif  // CONFIG_DQ
     return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type,
                                 cctx_type, txb_ctx, rate_cost,
                                 cpi->oxcf.algo_cfg.sharpness);
@@ -1064,7 +1064,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       // default if trellis optimization is on for inter frames.)
       INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
     }
-#endif
+#endif  // CONFIG_DQ
 
     // Whether trellis or dropout optimization is required for inter frames.
     const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
@@ -1696,7 +1696,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       // Blocks of intra frames (key frames EXCLUSIVE).
       INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
     }
-#endif
+#endif  // CONFIG_DQ
 
     // Whether trellis or dropout optimization is required for key frames and
     // intra frames.
@@ -2027,7 +2027,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     // Blocks of intra frames (key frames EXCLUSIVE).
     INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
   }
-#endif
+#endif  // CONFIG_DQ
 
   // Whether trellis or dropout optimization is required for key frames and
   // intra frames.

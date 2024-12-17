@@ -284,14 +284,14 @@ static int get_qzbin_factor(int q, int base_y_dc_delta_q,
 #if CONFIG_DQ
                             ,
                             int tcq_mode
-#endif
+#endif  // CONFIG_DQ
 ) {
 #if CONFIG_DQ
   const int quant =
       av1_dc_quant_QTX_tcq(q, 0, base_y_dc_delta_q, bit_depth, tcq_mode);
 #else
   const int quant = av1_dc_quant_QTX(q, 0, base_y_dc_delta_q, bit_depth);
-#endif
+#endif  // CONFIG_DQ
   switch (bit_depth) {
     case AOM_BITS_8:
       return q == 0 ? 64 : (quant < (148 << QUANT_TABLE_BITS) ? 84 : 80);
@@ -314,7 +314,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
 #if CONFIG_DQ
                          ,
                          int tcq_mode
-#endif
+#endif  // CONFIG_DQ
 ) {
   int i, q, quant_QTX;
 
@@ -329,7 +329,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
         get_qzbin_factor(q, base_y_dc_delta_q, bit_depth, tcq_mode);
 #else
     const int qzbin_factor = get_qzbin_factor(q, base_y_dc_delta_q, bit_depth);
-#endif
+#endif  // CONFIG_DQ
     for (i = 0; i < 2; ++i) {
       int qrounding_factor_fp = 64;
       // y quantizer with TX scale
@@ -346,7 +346,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          : av1_ac_quant_QTX(q, 0, bit_depth);
       invert_quant(&quants->y_quant[q][i], &quants->y_quant_shift[q][i],
                    quant_QTX);
-#endif
+#endif  // CONFIG_DQ
       quants->y_quant_fp[q][i] =
           (1 << (16 + QUANT_FP_BITS + QUANT_TABLE_BITS)) / quant_QTX;
       quants->y_round_fp[q][i] =
@@ -367,7 +367,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, u_dc_delta_q, base_uv_dc_delta_q,
                                             bit_depth)
                          : av1_ac_quant_QTX(q, u_ac_delta_q, bit_depth);
-#endif
+#endif  // CONFIG_DQ
       invert_quant(&quants->u_quant[q][i], &quants->u_quant_shift[q][i],
                    quant_QTX);
       quants->u_quant_fp[q][i] =
@@ -390,7 +390,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, v_dc_delta_q, base_uv_dc_delta_q,
                                             bit_depth)
                          : av1_ac_quant_QTX(q, v_ac_delta_q, bit_depth);
-#endif
+#endif  // CONFIG_DQ
       invert_quant(&quants->v_quant[q][i], &quants->v_quant_shift[q][i],
                    quant_QTX);
       quants->v_quant_fp[q][i] =
@@ -444,7 +444,7 @@ void av1_init_quantizer(SequenceHeader *seq_params,
 #if CONFIG_DQ
                       ,
                       quant_params->tcq_mode
-#endif
+#endif  // CONFIG_DQ
   );
 }
 
@@ -585,7 +585,7 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   CommonQuantParams *quant_params = &cm->quant_params;
 #if CONFIG_DQ
   quant_params->tcq_mode = cm->features.tcq_mode;
-#endif
+#endif  // CONFIG_DQ
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q, enable_chroma_deltaq,

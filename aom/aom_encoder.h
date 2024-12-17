@@ -1108,13 +1108,11 @@ typedef struct aom_codec_enc_cfg {
    *
    * If this is nonzero, the encoder will use trellis quantization.
    * 0 = disable, use scalar quantization.
-   * 1 = use 4-state trellis
-   * 2 = use 8-state trellis
-   * 3 = use 4-state trellis (frame adaptive (key/altref))
-   * 4 = use 8-state trellis (frame adaptive (key/altref))
+   * 1 = use 8-state trellis
+   * 2 = use 8-state trellis (frame adaptive (key/altref))
    */
   unsigned int enable_tcq;
-#endif
+#endif  // CONFIG_DQ
 
   /*!\brief Bitstream syntax mode
    *

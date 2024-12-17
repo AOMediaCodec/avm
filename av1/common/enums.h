@@ -677,7 +677,7 @@ enum {
 #define MAX_TX_SQUARE (MAX_TX_SIZE * MAX_TX_SIZE)
 #if CONFIG_DQ
 #define MAX_TRELLIS 1024
-#endif
+#endif  // CONFIG_DQ
 
 // Pad 4 extra columns to remove horizontal availability check.
 #define TX_PAD_HOR_LOG2 2

@@ -4870,7 +4870,7 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
           { AOM_CDF6(4681, 9362, 14043, 18725, 28087), 0 },
       },
     };
-#endif
+#endif  // CONFIG_DQ
 
 static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
@@ -11802,7 +11802,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
           },
       },
     };
-#endif
+#endif  // CONFIG_DQ
 
 static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_EOB]

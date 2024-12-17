@@ -47,7 +47,7 @@
 #include "av1/encoder/tokenize.h"
 #if CONFIG_DQ
 #include "av1/encoder/trellis_quant.h"
-#endif
+#endif  // CONFIG_DQ
 
 #define RD_THRESH_POW 1.25
 
@@ -1118,7 +1118,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
     { 8, 9, 7, 8 },  // qidx=14
     { 8, 9, 9, 8 },  // qidx=15
   };
-#endif
+#endif  // CONFIG_DQ
   const int nplanes = AOMMIN(num_planes, PLANE_TYPES);
   for (int eob_multi_size = 0; eob_multi_size < 7; ++eob_multi_size) {
     for (int plane = 0; plane < nplanes; ++plane) {
@@ -1344,7 +1344,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
                                  fc->coeff_base_cdf[tx_size][ctx], NULL);
       }
-#endif
+#endif  // CONFIG_DQ
 #else
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_eob_cost[ctx],
@@ -1547,7 +1547,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               a3 < 0 ? 0 : pcost->lps_lf_cost[ctx][a3];
         }
       }
-#endif
+#endif  // CONFIG_DQ
     }
   }
 

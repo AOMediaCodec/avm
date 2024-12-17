@@ -31,7 +31,7 @@ extern "C" {
 #define TCQ_DIS_1D 1           // [WIP] 1:disable TCQ for 1D scan blocks
 #define TCQ_N_STATES_LOG 3     // only 8-states version is supported
 #define TCQ_N_STATES (1 << TCQ_N_STATES_LOG)
-#endif
+#endif  // CONFIG_DQ
 #define TCQ_MAX_STATES 8
 
 #define PHTHRESH 4
@@ -86,7 +86,7 @@ static INLINE bool dq_enable(int enable_tcq, int plane, TX_CLASS tx_class) {
 int tcq_parity(int absLevel);
 int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class);
 int tcq_next_state(const int curState, const int absLevel);
-#endif
+#endif  // CONFIG_DQ
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
@@ -123,7 +123,7 @@ static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
   }
   return av1_ac_quant_QTX(qindex, delta, bit_depth);
 }
-#endif
+#endif  // CONFIG_DQ
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex, aom_bit_depth_t bit_depth);

@@ -126,7 +126,7 @@ int tcq_next_state(const int curState, const int absLevel) {
   nextState += (tcq_mode << 8);
   return nextState;
 }
-#endif
+#endif  // CONFIG_DQ
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {

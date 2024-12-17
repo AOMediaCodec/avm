@@ -237,7 +237,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "Enable trellis coded quantization"
                         "(0: off, 1: on for every frame, "
                         "2: on for key and altref frames (default))"),
-#endif
+#endif  // CONFIG_DQ
   .dropframe_thresh =
       ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)"),
   .resize_mode = ARG_DEF(NULL, "resize-mode", 1, "Frame resize mode"),

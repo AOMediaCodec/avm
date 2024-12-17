@@ -282,7 +282,7 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.full_still_picture_hdr,
 #if CONFIG_DQ
   &g_av1_codec_arg_defs.enable_tcq,
-#endif
+#endif  // CONFIG_DQ
   &g_av1_codec_arg_defs.save_as_annexb,
   NULL
 };
@@ -1237,7 +1237,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 #if CONFIG_DQ
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_tcq, argi)) {
       config->cfg.enable_tcq = arg_parse_uint(&arg);
-#endif
+#endif  // CONFIG_DQ
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_metadata,
                          argi)) {
       config->cfg.frame_hash_metadata = arg_parse_enum_or_int(&arg);

@@ -2034,7 +2034,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
                              cm->seq_params.bit_depth);
         xd->plane[j].seg_dequant_QTX[i][1] = av1_ac_quant_QTX(
             current_qindex, ac_delta_q, cm->seq_params.bit_depth);
-#endif
+#endif  // CONFIG_DQ
       }
     }
   }
@@ -4028,7 +4028,7 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
 #if CONFIG_DQ
   const int tcq_mode = cm->features.tcq_mode;
-#endif
+#endif  // CONFIG_DQ
   CommonQuantParams *const quant_params = &cm->quant_params;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
@@ -4063,7 +4063,7 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
                          cm->seq_params.base_uv_dc_delta_q, bit_depth);
     quant_params->v_dequant_QTX[i][1] =
         av1_ac_quant_QTX(qindex, quant_params->v_ac_delta_q, bit_depth);
-#endif
+#endif  // CONFIG_DQ
     const int use_qmatrix = av1_use_qmatrix(quant_params, xd, i);
     // NB: depends on base index so there is only 1 set per frame
     // No quant weighting when lossless or signalled not using QM
@@ -6639,7 +6639,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
 #if CONFIG_DQ
     seq_params->enable_tcq = 1;
-#endif
+#endif  // CONFIG_DQ
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
 #if CONFIG_AFFINE_REFINEMENT
@@ -6838,7 +6838,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   }
 #else
   seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
-#endif
+#endif  // CONFIG_DQ
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
   if (seq_params->enable_ext_partitions)
@@ -8352,7 +8352,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
     features->tcq_mode = seq_params->enable_tcq;
   }
-#endif
+#endif  // CONFIG_DQ
 
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), cm->seq_params.bit_depth,
@@ -8451,7 +8451,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
 #if CONFIG_DQ
       || features->tcq_mode
-#endif
+#endif  // CONFIG_DQ
   )
     features->allow_parity_hiding = false;
   else

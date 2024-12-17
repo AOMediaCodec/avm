@@ -539,7 +539,7 @@ typedef struct SequenceHeader {
                                        // 1 - force to integer
                                        // 2 - adaptive
 #if CONFIG_DQ
-  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 8st, 2: 8st (frame)
+  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
 #endif
   uint8_t enable_sdp;   // enables/disables semi-decoupled partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
@@ -906,7 +906,7 @@ typedef struct {
    * Frame tcq_mode: 0 = diabled, 1 = 4-state, 2 = 8-state
    */
   int tcq_mode;
-#endif
+#endif  // CONFIG_DQ
 } FeatureFlags;
 
 /*!
@@ -1262,10 +1262,10 @@ struct CommonQuantParams {
   /**@}*/
 #if CONFIG_DQ
   /*!
-   * Frame tcq_mode: 0 = diabled, 1 = 4-state, 2 = 8-state
+   * Frame tcq_mode: 0 = disabled, 1 = enabled (8-state)
    */
   int tcq_mode;
-#endif
+#endif  // CONFIG_DQ
 };
 
 typedef struct CommonContexts CommonContexts;

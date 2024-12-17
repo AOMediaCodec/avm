@@ -5818,7 +5818,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #else
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
-#endif
+#endif  // CONFIG_DQ
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
   if (seq_params->enable_ext_partitions)
@@ -6550,7 +6550,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (enable_tcq >= TCQ_8ST_FR) {
     aom_wb_write_bit(wb, features->tcq_mode != 0);
   }
-#endif
+#endif  // CONFIG_DQ
 
   encode_quantization(quant_params, av1_num_planes(cm),
                       cm->seq_params.bit_depth,
@@ -6592,7 +6592,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
 #if CONFIG_DQ
       || features->tcq_mode
-#endif
+#endif  // CONFIG_DQ
   ) {
     assert(features->allow_parity_hiding == false);
   } else {

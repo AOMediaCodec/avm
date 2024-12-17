@@ -117,7 +117,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
 #if CONFIG_DQ
                          ,
                          int enable_tcq
-#endif
+#endif  // CONFIG_DQ
 );
 
 void av1_init_quantizer(SequenceHeader *seq_params,

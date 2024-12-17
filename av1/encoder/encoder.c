@@ -534,7 +534,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 #else
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
-#endif
+#endif  // CONFIG_DQ
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
@@ -4187,7 +4187,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   } else {
     features->tcq_mode = cm->seq_params.enable_tcq;
   }
-#endif
+#endif  // CONFIG_DQ
 
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {

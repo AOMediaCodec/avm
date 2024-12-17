@@ -1403,7 +1403,7 @@ static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
   if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
 #if CONFIG_DQ
       || cm->features.tcq_mode
-#endif
+#endif  // CONFIG_DQ
   )
     cm->features.allow_parity_hiding = false;
   else

@@ -1489,7 +1489,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
 #if CONFIG_DQ
   tool_cfg->enable_tcq = cfg->enable_tcq;
-#endif
+#endif  // CONFIG_DQ
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;

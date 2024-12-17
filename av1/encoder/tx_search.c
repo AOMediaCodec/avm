@@ -2694,7 +2694,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         // we do not skip any optimization in loop of txfm search. so make sure
         // each block is optimized.
         assert(intra_txb_rd_info->perform_block_coeff_opt);
-#endif
+#endif  // CONFIG_DQ
       skip_trellis |= !intra_txb_rd_info->perform_block_coeff_opt;
       update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
       recon_intra(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
@@ -2765,7 +2765,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (dq_enable(cm->features.tcq_mode, plane, TX_CLASS_2D)) {
     perform_block_coeff_opt = 1;
   } else
-#endif
+#endif  // CONFIG_DQ
   {
     perform_block_coeff_opt =
         ((uint64_t)block_mse_q8 <=
@@ -3032,7 +3032,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (dq_enable(cm->features.tcq_mode, plane, tx_class)) {
           skip_trellis_based_on_satd[txfm_param.tx_type] = skip_trellis;
         } else
-#endif
+#endif  // CONFIG_DQ
           skip_trellis_based_on_satd[txfm_param.tx_type] =
               skip_trellis_opt_based_on_satd(
                   x, &quant_param, plane, block, tx_size,

@@ -19,7 +19,7 @@
 #define MAX_VAL_BR_CTX (MAX_BASE_BR_RANGE - 1)
 #else
 #define MAX_VAL_BR_CTX MAX_BASE_BR_RANGE
-#endif
+#endif  // CONFIG_DQ
 
 extern const int16_t av1_eob_group_start[12];
 extern const int16_t av1_eob_offset_bits[12];
@@ -635,7 +635,7 @@ typedef aom_cdf_prob (*base_cdf_arr)[DQ_CTXS][CDF_SIZE(4)];
 #else
 typedef aom_cdf_prob (*base_lf_cdf_arr)[CDF_SIZE(LF_BASE_SYMBOLS)];
 typedef aom_cdf_prob (*base_cdf_arr)[CDF_SIZE(4)];
-#endif
+#endif  // CONFIG_DQ
 typedef aom_cdf_prob (*br_cdf_arr)[CDF_SIZE(BR_CDF_SIZE)];
 typedef aom_cdf_prob (*base_fsc_cdf_arr)[CDF_SIZE(4)];
 typedef aom_cdf_prob (*base_ph_cdf_arr)[CDF_SIZE(4)];

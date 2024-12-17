@@ -86,7 +86,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
 #if CONFIG_DQ
                         ,
                         0
-#endif
+#endif  // CONFIG_DQ
     );
   }
 

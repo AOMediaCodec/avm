@@ -30,7 +30,7 @@
 #include "av1/common/enums.h"
 #if CONFIG_DQ
 #include "av1/common/quant_common.h"
-#endif
+#endif  // CONFIG_DQ
 #include "config/aom_config.h"
 
 #include "av1/encoder/encoder.h"
@@ -2255,7 +2255,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs"
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif
+#endif  // CONFIG_DQ
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_LEVEL_CONTEXTS_UV;
@@ -2344,7 +2344,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(LF_BASE_SYMBOLS)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif
+#endif  // CONFIG_DQ
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;

@@ -69,7 +69,7 @@ extern "C" {
 
 #if CONFIG_DQ
 #define DQ_CTXS 2
-#endif
+#endif  // CONFIG_DQ
 
 // Number of coefficient coding contexts for the low-frequency region
 // for 2D and 1D transforms
