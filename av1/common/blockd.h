@@ -2840,7 +2840,7 @@ static INLINE void set_reduced_tx_set(TxfmParam *txfm_param) {
   txfm_param->sec_tx_set_idx =
       inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
 }
-#endif
+#endif  // CONFIG_IST_REDUCTION
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {
   static const TX_TYPE _intra_mode_to_tx_type[INTRA_MODES] = {
