@@ -3370,9 +3370,9 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
   uint16_t recon_pad[BAWP_MAX_REF_NUMB] = { 0 };
 
   if (numb_up) {
-    int step = (int)width / numb_up;
-    int start = step == 1 ? 0 : step >> 1;
-    int delta_w = width - bw;
+    const int step = (int)width / numb_up;
+    const int start = step == 1 ? 0 : step >> 1;
+    const int delta_w = width - bw;
 
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
     if (sf->x_scale_fp != REF_NO_SCALE) {
@@ -3408,11 +3408,9 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
   }
 
   if (numb_left) {
-    int step_left = (int)height / numb_left;
-    int start_left = step_left == 1
-                         ? 0
-                         : step_left >> 1;  // int start_left = step_left >> 1;
-    int delta = height - bh;
+    const int step_left = (int)height / numb_left;
+    const int start_left = step_left == 1 ? 0 : step_left >> 1;
+    const int delta = height - bh;
 
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
     if (sf->y_scale_fp != REF_NO_SCALE) {
