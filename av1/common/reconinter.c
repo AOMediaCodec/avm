@@ -103,6 +103,13 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
   inter_pred_params->ref_area = NULL;
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_WARP_BD
+  inter_pred_params->use_warp_bd = 0;
+  inter_pred_params->warp_bd_box = NULL;
+  inter_pred_params->use_warp_bd_damr = 0;
+  inter_pred_params->warp_bd_box_damr = NULL;
+#endif  // CONFIG_WARP_BD
+
 #if CONFIG_D071_IMP_MSK_BLD
   inter_pred_params->border_data.enable_bacp = 0;
   inter_pred_params->border_data.bacp_block_data = NULL;
@@ -174,6 +181,11 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
         ,
         inter_pred_params->use_damr_padding, inter_pred_params->ref_area
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+        ,
+        inter_pred_params->use_warp_bd, inter_pred_params->warp_bd_box,
+        inter_pred_params->use_warp_bd_damr, inter_pred_params->warp_bd_box_damr
+#endif  // CONFIG_WARP_BD
     );
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
     highbd_inter_predictor(
@@ -2894,10 +2906,18 @@ void make_inter_pred_of_nxn(
     int use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
     SubpelParams *subpel_params
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+    ,
+    MB_MODE_INFO *mi, int pu_height
+#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
     ,
-    int use_sub_pad, MB_MODE_INFO *mi, int pu_height
+    int use_sub_pad
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+    ,
+    int use_sub_pad_warp
+#endif  // CONFIG_WARP_BD
 ) {
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
@@ -2972,15 +2992,18 @@ void make_inter_pred_of_nxn(
 #if CONFIG_OPFL_MB
       ReferenceArea ref_area_opfl;
       if (sub_bh >= 8 && sub_bw >= 8 && use_sub_pad) {
-        MV mv_org[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
         av1_get_reference_area_with_padding_single(
-            cm, xd, plane, mi, mv_org, sub_bw, sub_bh, mi_x + i, mi_y + j,
-            &ref_area_opfl, pu_width, pu_height, ref);
+            cm, xd, plane, mi, mi->mv[ref].as_mv, sub_bw, sub_bh, mi_x + i,
+            mi_y + j, &ref_area_opfl, pu_width, pu_height, ref);
         inter_pred_params->use_ref_padding = 1;
         inter_pred_params->use_damr_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+      inter_pred_params->use_warp_bd_damr = 0;
+      inter_pred_params->warp_bd_box_damr = NULL;
+#endif  // CONFIG_WARP_BD
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
@@ -3069,6 +3092,19 @@ void make_inter_pred_of_nxn(
         } else {
           // Overwrite inter_pred_params to trigger warped prediction in
           // av1_make_inter_predictor()
+#if CONFIG_WARP_BD
+          WarpBdBox warp_bd_box;
+          if (sub_bh == 4 && sub_bw == 4 && use_sub_pad_warp) {
+            MV mv_org[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
+            av1_get_reference_area_with_padding_single_warp(
+                cm, xd, plane, mi, mv_org[ref], sub_bw, sub_bh,
+                mi_x + (i << inter_pred_params->subsampling_x),
+                mi_y + (j << inter_pred_params->subsampling_y), &warp_bd_box,
+                pu_width, pu_height, ref);
+            inter_pred_params->use_warp_bd_damr = 1;
+            inter_pred_params->warp_bd_box_damr = &warp_bd_box;
+          }
+#endif  // CONFIG_WARP_BD
           inter_pred_params->mode = WARP_PRED;
           inter_pred_params->warp_params = this_wm;
           if (comp_refine_type == COMP_REFINE_ROTZOOM4P_SUBBLK2P
@@ -3249,10 +3285,18 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+    ,
+    MB_MODE_INFO *mi, int pu_height
+#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
     ,
-    int use_sub_pad, MB_MODE_INFO *mi, int pu_height
+    int use_sub_pad
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+    ,
+    int use_sub_pad_warp
+#endif  // CONFIG_WARP_BD
 ) {
   SubpelParams subpel_params;
 
@@ -3270,10 +3314,18 @@ void av1_opfl_rebuild_inter_predictor(
                          use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
                          &subpel_params
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+                         ,
+                         mi, pu_height
+#endif  // CONFIG_OPFL_MB||CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
                          ,
-                         use_sub_pad, mi, pu_height
-#endif  // CONFIG_OPFL_MB
+                         use_sub_pad
+#endif
+#if CONFIG_WARP_BD
+                         ,
+                         use_sub_pad_warp
+#endif  // CONFIG_WARP_BD
   );
 }
 
@@ -4372,11 +4424,9 @@ static void get_ref_area_info(const MV *const src_mv,
 #if CONFIG_OPFL_MB
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv[2], int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
     int pu_width, int pu_height, int ref) {
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
-  assert(IMPLIES(!is_tip, has_second_ref(mi)));
-  assert(!is_intrabc_block(mi, xd->tree_type));
   struct macroblockd_plane *const pd = &xd->plane[plane];
 
   int row_start = 0;
@@ -4413,13 +4463,86 @@ void av1_get_reference_area_with_padding_single(
   uint16_t *src;
   int src_stride;
 
-  assert(!inter_pred_params.use_ref_padding);
-
-  const MV *src_mv = ref == 0 ? &mv[0] : &mv[1];
+  const MV *src_mv = &mv;
   get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
                     &subpel_params, &src_stride, ref_area);
 }
 #endif  // CONFIG_OPFL_MB
+
+#if CONFIG_WARP_BD
+static void get_ref_area_info_warp(const MV *const src_mv,
+                                   InterPredParams *const inter_pred_params,
+                                   MACROBLOCKD *const xd, int mi_x, int mi_y,
+                                   int use_optflow_refinement, uint16_t **pre,
+                                   SubpelParams *subpel_params, int *src_stride,
+                                   WarpBdBox *ref_area) {
+  PadBlock block;
+  MV32 scaled_mv;
+  int subpel_x_mv, subpel_y_mv;
+
+  dec_calc_subpel_params(
+      src_mv, inter_pred_params, xd, mi_x, mi_y, pre, subpel_params, src_stride,
+      &block, use_optflow_refinement, &scaled_mv, &subpel_x_mv, &subpel_y_mv);
+
+  struct buf_2d *const pre_buf = &inter_pred_params->ref_frame_buf;
+  int frame_height = pre_buf->height;
+  int frame_width = pre_buf->width;
+  block.x0 -= REF_LEFT_BORDER_WARP;
+  block.x1 += REF_RIGHT_BORDER_WARP;
+  block.y0 -= REF_TOP_BORDER_WARP;
+  block.y1 += REF_BOTTOM_BORDER_WARP;
+
+  ref_area->x0 = CLIP(block.x0, 0, frame_width - 1);
+  ref_area->y0 = CLIP(block.y0, 0, frame_height - 1);
+  ref_area->x1 = CLIP(block.x1, 1, frame_width);
+  ref_area->y1 = CLIP(block.y1, 1, frame_height);
+}
+
+void av1_get_reference_area_with_padding_single_warp(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBdBox *ref_area,
+    int pu_width, int pu_height, int ref, int is_warp, WarpBdBox *ref_area) {
+  const int is_tip = mi->ref_frame[0] == TIP_FRAME;
+  struct macroblockd_plane *const pd = &xd->plane[plane];
+
+  int row_start = 0;
+  int col_start = 0;
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
+
+  const int pre_x = ((mi_x + MI_SIZE * col_start) >> pd->subsampling_x);
+  const int pre_y = ((mi_y + MI_SIZE * row_start) >> pd->subsampling_y);
+
+  const struct scale_factors *const sf = is_tip
+                                             ? cm->tip_ref.ref_scale_factor[ref]
+                                             : xd->block_ref_scale_factors[ref];
+  const struct buf_2d *const pre_buf = &pd->pre[ref];
+
+  // initialize the reference buffer
+  ref_area->x0 = 0;
+  ref_area->y0 = 0;
+  ref_area->x1 = cm->width;
+  ref_area->y1 = cm->height;
+
+  InterPredParams inter_pred_params;
+  av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
+                        pd->subsampling_x, pd->subsampling_y, xd->bd,
+                        mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
+
+  inter_pred_params.original_pu_width = pu_width;
+  inter_pred_params.original_pu_height = pu_height;
+
+  SubpelParams subpel_params;
+  uint16_t *src;
+  int src_stride;
+
+  const MV *src_mv = &mv;
+  get_ref_area_info_warp(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
+                         &subpel_params, &src_stride, ref_area);
+}
+#endif  // CONFIG_WARP_BD
 
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi,
@@ -5177,10 +5300,18 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           ,
           use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+          ,
+          mi, pu_height
+#endif  // CONFIG_OPFL_MB
 #if CONFIG_OPFL_MB
           ,
-          0, mi, pu_height
+          0
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+          ,
+          0
+#endif  // CONFIG_WARP_BD
       );
       continue;
     }
@@ -5565,6 +5696,10 @@ static void build_inter_predictors_8x8_and_bigger(
                                          cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
+#if CONFIG_WARP_BD
+  WarpBdBox warp_bd_box_mem[MAX_WARP_BD_SQ];
+#endif  // CONFIG_WARP_BD
+
 #if CONFIG_COMPOUND_4XN
   assert(IMPLIES(singleref_for_compound, !is_compound));
 #endif  // CONFIG_COMPOUND_4XN
@@ -5604,6 +5739,39 @@ static void build_inter_predictors_8x8_and_bigger(
       if (inter_pred_params.mode == WARP_PRED &&
           !inter_pred_params.warp_params.use_affine_filter) {
         *ext_warp_used = true;
+#if CONFIG_WARP_BD
+        inter_pred_params.use_warp_bd = 1;
+        inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
+        const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+        const int_mv warp_mv = get_int_warp_mv_for_fb(
+            xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
+            (mi_y >> MI_SIZE_LOG2));
+        // printf("warpmv (%d, %d), loc (%d, %d)\n", warp_mv.as_mv.col,
+        //        warp_mv.as_mv.row, mi_x, mi_y);
+        // printf("precision %d\n", mi->pb_mv_precision);
+
+        int warp_bd_box_mem_stride = MAX_WARP_BD_SIZE;
+        for (int sub_mi_y = pre_y; sub_mi_y < pre_y + pu_height;
+             sub_mi_y += 4) {
+          for (int sub_mi_x = pre_x; sub_mi_x < pre_x + pu_width;
+               sub_mi_x += 4) {
+            int x_loc = sub_mi_x - pre_x;
+            int y_loc = sub_mi_y - pre_y;
+            if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
+              av1_get_reference_area_with_padding_single_warp(
+                  cm, xd, plane, mi, warp_mv.as_mv, 8, 8,
+                  (sub_mi_x << pd->subsampling_x),
+                  (sub_mi_y << pd->subsampling_y),
+                  &inter_pred_params
+                       .warp_bd_box[(x_loc >> 3) +
+                                    (y_loc >> 3) * warp_bd_box_mem_stride],
+                  pu_width, pu_height, ref);
+            } else {
+              continue;
+            }
+          }
+        }
+#endif  // CONFIG_WARP_BD
       }
 
 #if CONFIG_ACROSS_SCALE_WARP
@@ -5683,10 +5851,18 @@ static void build_inter_predictors_8x8_and_bigger(
           ,
           use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+          ,
+          mi, pu_height
+#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
           ,
-          1, mi, pu_height
+          1
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+          ,
+          *ext_warp_used
+#endif  // CONFIG_WARP_BD
       );
       continue;
     }

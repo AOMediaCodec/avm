@@ -1138,10 +1138,18 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           &mbmi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
           ref, mc_buf, calc_subpel_params_func, use_4x4
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+          ,
+          mbmi, bh
+#endif  // CONFIG_OPFL_MB||CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
           ,
-          0, mbmi, bh
+          0
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+          ,
+          0
+#endif  // CONFIG_WARP_BD
       );
     } else {
       av1_build_one_inter_predictor(dst, dst_stride,

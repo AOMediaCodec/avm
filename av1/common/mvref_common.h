@@ -273,6 +273,51 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
   return res;
 }
 
+#if CONFIG_WARP_BD
+static INLINE int_mv get_int_warp_mv_for_fb(const MACROBLOCKD *xd,
+                                            const WarpedMotionParams *model,
+                                            BLOCK_SIZE bsize, int mi_col,
+                                            int mi_row) {
+  // in term of luma for this function
+  int_mv res;
+
+  const int32_t *mat = model->wmmat;
+  int x, y, tx, ty;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+
+  // center without shift 1, matching with warp_motion.c
+  x = mi_col * MI_SIZE + (bw >> 1);
+  y = mi_row * MI_SIZE + (bh >> 1);
+
+  if (model->wmtype == ROTZOOM) {
+    assert(model->wmmat[5] == model->wmmat[2]);
+    assert(model->wmmat[4] == -model->wmmat[3]);
+  }
+
+  // here is mv
+  const int xc =
+      (mat[2] - (1 << WARPEDMODEL_PREC_BITS)) * x + mat[3] * y + mat[0];
+  const int yc =
+      mat[4] * x + (mat[5] - (1 << WARPEDMODEL_PREC_BITS)) * y + mat[1];
+
+  // down shift to int, match with warp_motion.c
+  int abs_xc = xc > 0 ? xc : -xc;
+  int abs_yc = yc > 0 ? yc : -yc;
+  int abs_tx = (abs_xc >> WARPEDMODEL_PREC_BITS) << 3;
+  int abs_ty = (abs_yc >> WARPEDMODEL_PREC_BITS) << 3;
+  tx = xc > 0 ? abs_tx : -abs_tx;
+  ty = yc > 0 ? abs_ty : -abs_ty;
+
+  res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
+  res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
+
+  clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
+               xd->height << MI_SIZE_LOG2, xd);
+  return res;
+}
+#endif  // CONFIG_WARP_BD
+
 static INLINE int_mv get_block_mv(const MB_MODE_INFO *candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
                                   const SUBMB_INFO *submi,

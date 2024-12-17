@@ -209,6 +209,13 @@ struct build_prediction_ctxt {
 #define REF_BOTTOM_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_WARP_BD
+#define REF_TOP_BORDER_WARP (AOM_INTERP_EXTEND - 1)
+#define REF_LEFT_BORDER_WARP (AOM_INTERP_EXTEND - 1)
+#define REF_RIGHT_BORDER_WARP (AOM_INTERP_EXTEND)
+#define REF_BOTTOM_BORDER_WARP (AOM_INTERP_EXTEND)
+#endif  // CONFIG_WARP_BD
+
 typedef enum InterPredMode {
   TRANSLATION_PRED,
   WARP_PRED,
@@ -270,6 +277,13 @@ typedef struct InterPredParams {
 #endif  // CONFIG_OPFL_MB
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
+
+#if CONFIG_WARP_BD
+  int use_warp_bd;
+  WarpBdBox *warp_bd_box;
+  int use_warp_bd_damr;
+  WarpBdBox *warp_bd_box_damr;
+#endif  // CONFIG_WARP_BD
 
 #if CONFIG_D071_IMP_MSK_BLD
   INTERINTER_COMPOUND_BORDER_DATA border_data;
@@ -654,10 +668,18 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+    ,
+    MB_MODE_INFO *mi, int pu_height
+#endif  // CONFIG_OPFL_MB||CONFIG_WARP_BD
 #if CONFIG_OPFL_MB
     ,
-    int use_sub_pad, MB_MODE_INFO *mi, int pu_height
+    int use_sub_pad
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+    ,
+    int use_sub_pad_warp
+#endif  // CONFIG_WARP_BD
 );
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
@@ -908,9 +930,15 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 #if CONFIG_OPFL_MB
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv[2], int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
     int pu_width, int pu_height, int ref);
 #endif  // CONFIG_OPFL_MB
+#if CONFIG_WARP_BD
+void av1_get_reference_area_with_padding_single_warp(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBdBox *ref_area,
+    int pu_width, int pu_height, int ref);
+#endif  // CONFIG_WARP_BD
 
 // Generate the reference area ( bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,

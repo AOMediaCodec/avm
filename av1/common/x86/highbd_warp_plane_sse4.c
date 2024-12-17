@@ -815,8 +815,13 @@ static INLINE void ext_highbd_filter_src_pixels(
 
 static INLINE void ext_highbd_warp_horizontal_filter(
     const uint16_t *ref, __m128i *tmp, int stride, int32_t ix4, int32_t iy4,
-    int32_t offset_x, int height, const int offset_bits_horiz,
-    const int reduce_bits_horiz) {
+    int32_t offset_x,
+#if CONFIG_WARP_BD
+    int top_lim, int bottom_lim,
+#else
+    int height,
+#endif  // CONFIG_WARP_BD
+    const int offset_bits_horiz, const int reduce_bits_horiz) {
   int k;
 
   __m128i coeff[3];
@@ -824,10 +829,14 @@ static INLINE void ext_highbd_warp_horizontal_filter(
 
   for (k = -4; k < 5; ++k) {
     int iy = iy4 + k;
+#if CONFIG_WARP_BD
+    iy = clamp(iy, top_lim, bottom_lim);
+#else
     if (iy < 0)
       iy = 0;
     else if (iy > height - 1)
       iy = height - 1;
+#endif  // CONFIG_WARP_BD
 
     // Load source pixels
     const __m128i src =
@@ -843,13 +852,32 @@ void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
                                       int stride, int32_t ix4, int32_t iy4,
                                       int32_t offset, int height, int width,
                                       int bd, const int offset_bits_horiz,
-                                      const int reduce_bits_horiz) {
+                                      const int reduce_bits_horiz
+#if CONFIG_WARP_BD
+                                      ,
+                                      int left_lim, int right_lim, int top_lim,
+                                      int bottom_lim
+#endif
+) {
   // If the block is aligned such that, after clamping, every sample
   // would be taken from the leftmost/rightmost column, then we can
   // skip the expensive horizontal filter.
+#if CONFIG_WARP_BD
+  (void)width;
+  (void)height;
+  if (ix4 <= left_lim - 4) {
+#else
   if (ix4 <= -4) {
+#endif  // CONFIG_WARP_BD
     for (int k = -4; k < 5; ++k) {
       int iy = iy4 + k;
+#if CONFIG_WARP_BD
+      iy = clamp(iy, top_lim, bottom_lim);
+      tmp[k + 4] =
+          _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
+                         ref[iy * stride + left_lim] *
+                             (1 << (FILTER_BITS - reduce_bits_horiz)));
+#else
       if (iy < 0)
         iy = 0;
       else if (iy > height - 1)
@@ -857,12 +885,24 @@ void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
       tmp[k + 4] = _mm_set1_epi16(
           (1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
           ref[iy * stride] * (1 << (FILTER_BITS - reduce_bits_horiz)));
+#endif  // CONFIG_WARP_BD
       // r00 r00 r00 r00
       tmp[k + 4] = _mm_unpacklo_epi16(tmp[k + 4], _mm_setzero_si128());
     }
+#if CONFIG_WARP_BD
+  } else if (ix4 >= right_lim + 1 + 3) {
+#else
   } else if (ix4 >= width + 3) {
+#endif  // CONFIG_WARP_BD
     for (int k = -4; k < 5; ++k) {
       int iy = iy4 + k;
+#if CONFIG_WARP_BD
+      iy = clamp(iy, top_lim, bottom_lim);
+      tmp[k + 4] =
+          _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
+                         ref[iy * stride + right_lim] *
+                             (1 << (FILTER_BITS - reduce_bits_horiz)));
+#else
       if (iy < 0)
         iy = 0;
       else if (iy > height - 1)
@@ -871,22 +911,33 @@ void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
           _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                          ref[iy * stride + (width - 1)] *
                              (1 << (FILTER_BITS - reduce_bits_horiz)));
+#endif  // CONFIG_WARP_BD
       // r00 r00 r00 r00
       tmp[k + 4] = _mm_unpacklo_epi16(tmp[k + 4], _mm_setzero_si128());
     }
+#if CONFIG_WARP_BD
+  } else if (((ix4 - 4) < left_lim) || ((ix4 + 12) > (right_lim + 1))) {
+    const int out_of_boundary_left = left_lim - (ix4 - 3);
+    const int out_of_boundary_right = (ix4 + 11) - (right_lim + 1);
+#else
   } else if (((ix4 - 4) < 0) || ((ix4 + 12) > width)) {
     const int out_of_boundary_left = -(ix4 - 3);
     const int out_of_boundary_right = (ix4 + 11) - width;
+#endif  // CONFIG_WARP_BD
 
     __m128i coeff[3];
     ext_highbd_filter_coeff(offset, coeff);
 
     for (int k = -4; k < 5; ++k) {
       int iy = iy4 + k;
+#if CONFIG_WARP_BD
+      iy = clamp(iy, top_lim, bottom_lim);
+#else
       if (iy < 0)
         iy = 0;
       else if (iy > height - 1)
         iy = height - 1;
+#endif  // CONFIG_WARP_BD
 
       // Load source pixels
       const __m128i src =
@@ -929,8 +980,13 @@ void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
     }
   } else {
     ext_highbd_warp_horizontal_filter(ref, tmp, stride, ix4, iy4, offset,
-                                      height, offset_bits_horiz,
-                                      reduce_bits_horiz);
+#if CONFIG_WARP_BD
+
+                                      top_lim, bottom_lim,
+#else
+                                      height,
+#endif  // CONFIG_WARP_BD
+                                      offset_bits_horiz, reduce_bits_horiz);
   }
 }
 
@@ -939,7 +995,23 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
                                        uint16_t *pred, int p_col, int p_row,
                                        int p_width, int p_height, int p_stride,
                                        int subsampling_x, int subsampling_y,
-                                       int bd, ConvolveParams *conv_params) {
+                                       int bd, ConvolveParams *conv_params
+#if CONFIG_WARP_BD
+                                       ,
+                                       int use_warp_bd, WarpBdBox *warp_bd_box,
+                                       int use_warp_bd_damr,
+                                       WarpBdBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD
+) {
+
+#if CONFIG_WARP_BD
+  int left_lim = 0;
+  int right_lim = width - 1;
+  int top_lim = 0;
+  int bottom_lim = height - 1;
+  int warp_bd_box_mem_stride = MAX_WARP_BD_SIZE;
+  int box_idx, x_loc, y_loc;
+#endif  // CONFIG_WARP_BD
   __m128i tmp[9];
   int i, j, k;
   const int reduce_bits_horiz = conv_params->round_0;
@@ -989,6 +1061,26 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
 
   for (i = 0; i < p_height; i += 4) {
     for (j = 0; j < p_width; j += 4) {
+#if CONFIG_WARP_BD
+      if (use_warp_bd) {
+        x_loc = j;
+        y_loc = i;
+        box_idx = (x_loc >> 3) + (y_loc >> 3) * warp_bd_box_mem_stride;
+        left_lim = warp_bd_box[box_idx].x0;
+        right_lim = warp_bd_box[box_idx].x1 - 1;
+        top_lim = warp_bd_box[box_idx].y0;
+        bottom_lim = warp_bd_box[box_idx].y1 - 1;
+      }
+      if (use_warp_bd_damr) {
+        if (use_warp_bd) {
+          printf("this should not be true\n");
+        }
+        left_lim = warp_bd_box_damr->x0;
+        right_lim = warp_bd_box_damr->x1 - 1;
+        top_lim = warp_bd_box_damr->y0;
+        bottom_lim = warp_bd_box_damr->y1 - 1;
+      }
+#endif  // CONFIG_WARP_BD
       // Calculate the center of this 4x4 block,
       // project to luma coordinates (if in a subsampled chroma plane),
       // apply the affine transformation,
@@ -1013,7 +1105,12 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
 
       av1_ext_highbd_warp_horiz_sse4_1(ref, tmp, stride, ix4, iy4, offs_x,
                                        height, width, bd, offset_bits_horiz,
-                                       reduce_bits_horiz);
+                                       reduce_bits_horiz
+#if CONFIG_WARP_BD
+                                       ,
+                                       left_lim, right_lim, top_lim, bottom_lim
+#endif  // CONFIG_WARP_BD
+      );
       for (k = -4; k < 4; ++k) {
         // s00 s01 s02 s03 | s10 s11 s12 s13
         tmp[k + 4] = _mm_packs_epi32(tmp[k + 4], tmp[k + 5]);

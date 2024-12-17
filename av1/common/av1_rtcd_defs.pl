@@ -627,8 +627,13 @@ else{
 }
 
 if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
-  add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params";
-  specialize qw/av1_ext_highbd_warp_affine sse4_1 avx2/;
+  if (aom_config("CONFIG_WARP_BD") eq "yes"){
+    add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd, WarpBdBox *warp_bd_box, int use_warp_bd_damr, WarpBdBox *warp_bd_box_damr";
+    specialize qw/av1_ext_highbd_warp_affine sse4_1/;
+  }else{
+    add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params";
+    specialize qw/av1_ext_highbd_warp_affine sse4_1 avx2/;
+  }
 }
 
 if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {

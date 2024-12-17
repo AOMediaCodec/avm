@@ -335,6 +335,15 @@ typedef struct PadBlock {
   int y1;
 } PadBlock;
 
+#if CONFIG_WARP_BD
+typedef struct WarpBdBox {
+  uint16_t x0;
+  uint16_t x1;
+  uint16_t y0;
+  uint16_t y1;
+} WarpBdBox;
+#endif  // CONFIG_WARP_BD
+
 typedef struct PadArea {
   PadBlock pad_block;
   uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];

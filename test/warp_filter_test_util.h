@@ -68,14 +68,17 @@ class AV1WarpFilterTest : public ::testing::TestWithParam<WarpTestParams> {
 }  // namespace AV1WarpFilter
 
 namespace AV1HighbdWarpFilter {
-typedef void (*highbd_warp_affine_func)(const int32_t *mat, const uint16_t *ref,
-                                        int width, int height, int stride,
-                                        uint16_t *pred, int p_col, int p_row,
-                                        int p_width, int p_height, int p_stride,
-                                        int subsampling_x, int subsampling_y,
-                                        int bd, ConvolveParams *conv_params,
-                                        int16_t alpha, int16_t beta,
-                                        int16_t gamma, int16_t delta);
+typedef void (*highbd_warp_affine_func)(
+    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
+    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y, int bd,
+    ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma,
+    int16_t delta
+#if CONFIG_OPFL_MB
+    ,
+    int use_damr_padding, ReferenceArea *ref_area
+#endif  // CONFIG_OPFL_MB
+);
 
 typedef std::tuple<int, int, int, int, highbd_warp_affine_func>
     HighbdWarpTestParam;
@@ -142,7 +145,13 @@ typedef void (*ext_highbd_warp_affine_func)(
     const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
     int p_stride, int subsampling_x, int subsampling_y, int bd,
-    ConvolveParams *conv_params);
+    ConvolveParams *conv_params
+#if CONFIG_WARP_BD
+    ,
+    int use_warp_bd, WarpBdBox *warp_bd_box, int use_warp_bd_damr,
+    WarpBdBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD
+);
 
 typedef ::testing::tuple<int, int, int, int, ext_highbd_warp_affine_func>
     ExtHighbdWarpTestParam;
