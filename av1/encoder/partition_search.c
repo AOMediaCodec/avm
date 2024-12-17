@@ -2511,10 +2511,9 @@ static void update_partition_stats(
   const bool ss_x = xd->plane[1].subsampling_x;
   const bool ss_y = xd->plane[1].subsampling_y;
 
-  const PARTITION_TYPE derived_partition =
-      av1_get_normative_forced_partition_type(mi_params, tree_type, ss_x, ss_y,
-                                              mi_row, mi_col, bsize, ptree_luma,
-                                              chroma_ref_info);
+  PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
+      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma,
+      chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(partition == derived_partition &&
            "Partition does not match normatively derived partition.");
@@ -2525,10 +2524,9 @@ static void update_partition_stats(
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                         mi_row, mi_col, ss_x, ss_y, bsize,
                                         chroma_ref_info);
-  const PARTITION_TYPE single_allowed_partition =
-      only_allowed_partition(partition_allowed);
-  if (single_allowed_partition != PARTITION_INVALID) {
-    assert(partition == single_allowed_partition);
+  derived_partition = only_allowed_partition(partition_allowed);
+  if (derived_partition != PARTITION_INVALID) {
+    assert(partition == derived_partition);
     return;
   }
 
@@ -3441,10 +3439,9 @@ static void init_partition_costs(const AV1_COMMON *const cm,
 #if CONFIG_EXT_RECUR_PARTITIONS
   memset(partition_cost, 0, ALL_PARTITION_TYPES * sizeof(*partition_cost));
 
-  const PARTITION_TYPE derived_partition =
-      av1_get_normative_forced_partition_type(&cm->mi_params, tree_type, ssx,
-                                              ssy, mi_row, mi_col, bsize,
-                                              ptree_luma, chroma_ref_info);
+  PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
+      &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma,
+      chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     return;  // keep signaling costs zero.
   }
@@ -3453,9 +3450,8 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         chroma_ref_info);
-  const PARTITION_TYPE single_allowed_partition =
-      only_allowed_partition(partition_allowed);
-  if (single_allowed_partition != PARTITION_INVALID) {
+  derived_partition = only_allowed_partition(partition_allowed);
+  if (derived_partition != PARTITION_INVALID) {
     return;  // keep signaling costs zero.
   }
 

@@ -3539,10 +3539,9 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int ssx = cm->seq_params.subsampling_x;
   const int ssy = cm->seq_params.subsampling_y;
-  const PARTITION_TYPE derived_partition =
-      av1_get_normative_forced_partition_type(
-          &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
-          ptree_luma, &ptree->chroma_ref_info);
+  PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
+      &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+      ptree_luma, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(p == derived_partition);
     return;
@@ -3552,10 +3551,9 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         &ptree->chroma_ref_info);
-  const PARTITION_TYPE single_allowed_partition =
-      only_allowed_partition(partition_allowed);
-  if (single_allowed_partition != PARTITION_INVALID) {
-    assert(p == single_allowed_partition);
+  derived_partition = only_allowed_partition(partition_allowed);
+  if (derived_partition != PARTITION_INVALID) {
+    assert(p == derived_partition);
     return;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
