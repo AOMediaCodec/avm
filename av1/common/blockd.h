@@ -29,7 +29,7 @@
 #include "av1/common/scale.h"
 #include "av1/common/seg_common.h"
 #include "av1/common/tile_common.h"
-
+#include "aom_dsp/txfm_common.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -2830,7 +2830,17 @@ static INLINE int replace_adst_by_ddt(const int enable_inter_ddt,
   return is_inter_block(xd->mi[0], xd->tree_type);
 }
 #endif  // CONFIG_INTER_DDT
-
+#if CONFIG_IST_REDUCTION
+// Set reduced tx kernel set
+static INLINE void set_reduced_tx_set(TxfmParam *txfm_param) {
+  const uint8_t intra_stx_mode = stx_transpose_mapping[txfm_param->intra_mode];
+  const uint8_t stx_id = (txfm_param->tx_type == ADST_ADST)
+                             ? txfm_param->sec_tx_set - IST_DIR_SIZE
+                             : txfm_param->sec_tx_set;
+  txfm_param->sec_tx_set_idx =
+      inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+}
+#endif
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {
   static const TX_TYPE _intra_mode_to_tx_type[INTRA_MODES] = {
@@ -3683,12 +3693,12 @@ static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
   const int bc = blk_col << pd->subsampling_x;
   return xd->cctx_type_map[br * xd->cctx_type_map_stride + bc];
 }
-
+#if !CONFIG_IST_NON_ZERO_DEPTH
 static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   return ctx_size == tx_size;
 }
-
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
 #if !CONFIG_NEW_TX_PARTITION
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
@@ -3921,7 +3931,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
     ist_eob = 0;
   }
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const int is_depth0 = tx_size_is_depth0(tx_size, bs);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   bool condition = (primary_tx_type == DCT_DCT && width >= 16 && height >= 16);
   bool mode_dependent_condition =
       (is_inter_block(mbmi, xd->tree_type)

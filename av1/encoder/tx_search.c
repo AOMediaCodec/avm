@@ -2879,7 +2879,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
     const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+#if !CONFIG_IST_NON_ZERO_DEPTH
     const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
     bool skip_stx =
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
@@ -2899,9 +2901,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_IST_REDUCTION
     if (max_set_id == IST_DIR_SIZE) {
       max_set_id = IST_REDUCE_SET_SIZE;
-      // if (txw <= 4 || txh <= 4){
-      //   max_set_id = 1;
-      // }
     }
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;

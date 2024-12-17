@@ -451,15 +451,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
 #if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
 #if CONFIG_IST_REDUCTION
-    uint8_t intra_stx_mode = stx_transpose_mapping[txfm_param->intra_mode];
-    uint8_t stx_id;
-    if (txfm_param->tx_type == ADST_ADST) {
-      stx_id = txfm_param->sec_tx_set - IST_DIR_SIZE;
-    } else {
-      stx_id = txfm_param->sec_tx_set;
-    }
-    uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
-    txfm_param->sec_tx_set_idx = stx_idx;
+    set_reduced_tx_set(txfm_param);
 #endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   }

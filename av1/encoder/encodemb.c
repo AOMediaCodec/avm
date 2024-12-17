@@ -740,13 +740,21 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   if (!is_inter_block(mbmi, xd->tree_type))
+#if CONFIG_IST_NON_ZERO_DEPTH
+    assert(((intra_mode >= PAETH_PRED || filter) &&
+#else
     assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
             txfm_param->sec_tx_type) == 0);
   (void)intra_mode;
   (void)filter;
+#if !CONFIG_IST_NON_ZERO_DEPTH
   (void)is_depth0;
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   av1_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
 }
 
@@ -865,15 +873,7 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
 #if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
 #if CONFIG_IST_REDUCTION
-    uint8_t intra_stx_mode = stx_transpose_mapping[txfm_param->intra_mode];
-    uint8_t stx_id;
-    if (txfm_param->tx_type == ADST_ADST) {
-      stx_id = txfm_param->sec_tx_set - IST_DIR_SIZE;
-    } else {
-      stx_id = txfm_param->sec_tx_set;
-    }
-    uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
-    txfm_param->sec_tx_set_idx = stx_idx;
+    set_reduced_tx_set(txfm_param);
 #endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
