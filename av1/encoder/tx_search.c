@@ -1405,8 +1405,9 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
   aom_highbd_convolve_copy(dst, dst_stride, recon, MAX_TX_SIZE, bsw, bsh);
 
   const PLANE_TYPE plane_type = get_plane_type(plane);
-  TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                                    cpi->common.features.reduced_tx_set_used);
+  TX_TYPE tx_type =
+      av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
+                      is_reduced_tx_set_used(&cpi->common, plane_type));
   av1_inverse_transform_block(
       xd, dqcoeff, plane, tx_type, tx_size, recon, MAX_TX_SIZE, eob,
 #if CONFIG_INTER_DDT
@@ -1480,7 +1481,7 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
   CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
   TX_TYPE tx_type =
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
-                      cpi->common.features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(&cpi->common, PLANE_TYPE_UV));
   av1_inv_cross_chroma_tx_block(tmp_dqcoeff_c1, tmp_dqcoeff_c2, tx_size,
                                 cctx_type);
   av1_inverse_transform_block(
@@ -1582,9 +1583,9 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
   if ((*intra_txb_rd_info)->entropy_context == *cur_joint_ctx &&
       txfm_info->txb_rd_record_intra.tx_rd_info[intra_hash_idx].valid) {
     xd->tx_type_map[tx_type_map_idx] = (*intra_txb_rd_info)->tx_type;
-    const TX_TYPE ref_tx_type =
-        av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
-                        cpi->common.features.reduced_tx_set_used);
+    const TX_TYPE ref_tx_type = av1_get_tx_type(
+        xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+        is_reduced_tx_set_used(&cpi->common, get_plane_type(plane)));
     const int fsc_invalid =
         !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
         (*intra_txb_rd_info)->tx_type == IDTX;
@@ -2265,7 +2266,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     // tx_type of PLANE_TYPE_UV should be the same as PLANE_TYPE_Y
     uv_tx_type = txk_allowed =
         av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
-                        cm->features.reduced_tx_set_used);
+                        is_reduced_tx_set_used(cm, get_plane_type(plane)));
   }
   uint16_t ext_tx_used_flag =
       cpi->sf.tx_sf.tx_type_search.use_reduced_intra_txset &&
@@ -3271,7 +3272,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
   CctxType best_cctx_type = CCTX_NONE;
   TX_TYPE tx_type =
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
-                      cpi->common.features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, PLANE_TYPE_UV));
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
   for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,

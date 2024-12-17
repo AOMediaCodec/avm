@@ -459,6 +459,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_IDIF
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
+#if CONFIG_CHROMA_TX
+  seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT

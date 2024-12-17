@@ -999,7 +999,7 @@ static AOM_INLINE void av1_write_coeffs_txb_facade(
       av1_write_sig_txtype(cm, x, w, blk_row, blk_col, plane, block, tx_size);
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, get_plane_type(plane)));
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (code_rest) {
     if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
@@ -5708,6 +5708,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_sdp);
   aom_wb_write_bit(wb, seq_params->enable_ist);
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
+#if CONFIG_CHROMA_TX
+  aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
 #endif  // CONFIG_INTER_DDT

@@ -3998,32 +3998,40 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
-    if (is_inter_block(mbmi, xd->tree_type)) {
-      // scale back to y plane's coordinate
-      const struct macroblockd_plane *const pd = &xd->plane[plane_type];
-      blk_row <<= pd->subsampling_y;
-      blk_col <<= pd->subsampling_x;
-      tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-      // Secondary transforms are disabled for chroma
-      disable_secondary_tx_type(&tx_type);
-    } else {
-      // In intra mode, uv planes don't share the same prediction mode as y
-      // plane, so the tx_type should not be shared
-      tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
-    }
-    const TxSetType tx_set_type = av1_get_ext_tx_set_type(
-        tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
-    if (!av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)])
+#if CONFIG_CHROMA_TX
+    if (reduced_tx_set) {
       tx_type = DCT_DCT;
-    if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
-        tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
-      uint16_t ext_tx_used_flag = av1_ext_tx_used_flag[tx_set_type];
-      adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
-
-      if (!(ext_tx_used_flag & (1 << get_primary_tx_type(tx_type)))) {
-        tx_type = DCT_DCT;
+    } else {
+#endif  // CONFIG_CHROMA_TX
+      if (is_inter_block(mbmi, xd->tree_type)) {
+        // scale back to y plane's coordinate
+        const struct macroblockd_plane *const pd = &xd->plane[plane_type];
+        blk_row <<= pd->subsampling_y;
+        blk_col <<= pd->subsampling_x;
+        tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+        // Secondary transforms are disabled for chroma
+        disable_secondary_tx_type(&tx_type);
+      } else {
+        // In intra mode, uv planes don't share the same prediction mode as y
+        // plane, so the tx_type should not be shared
+        tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
       }
+      const TxSetType tx_set_type = av1_get_ext_tx_set_type(
+          tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
+      if (!av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)])
+        tx_type = DCT_DCT;
+      if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+          tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+        uint16_t ext_tx_used_flag = av1_ext_tx_used_flag[tx_set_type];
+        adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
+
+        if (!(ext_tx_used_flag & (1 << get_primary_tx_type(tx_type)))) {
+          tx_type = DCT_DCT;
+        }
+      }
+#if CONFIG_CHROMA_TX
     }
+#endif  // CONFIG_CHROMA_TX
   }
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
@@ -4076,22 +4084,30 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
-    if (is_inter_block(mbmi, xd->tree_type)) {
-      // scale back to y plane's coordinate
-      const struct macroblockd_plane *const pd = &xd->plane[plane_type];
-      blk_row <<= pd->subsampling_y;
-      blk_col <<= pd->subsampling_x;
-      tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-      // Secondary transforms are disabled for chroma
-      disable_secondary_tx_type(&tx_type);
+#if CONFIG_CHROMA_TX
+    if (reduced_tx_set) {
+      tx_type = DCT_DCT;
     } else {
-      // In intra mode, uv planes don't share the same prediction mode as y
-      // plane, so the tx_type should not be shared
-      tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
+#endif  // CONFIG_CHROMA_TX
+      if (is_inter_block(mbmi, xd->tree_type)) {
+        // scale back to y plane's coordinate
+        const struct macroblockd_plane *const pd = &xd->plane[plane_type];
+        blk_row <<= pd->subsampling_y;
+        blk_col <<= pd->subsampling_x;
+        tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+        // Secondary transforms are disabled for chroma
+        disable_secondary_tx_type(&tx_type);
+      } else {
+        // In intra mode, uv planes don't share the same prediction mode as y
+        // plane, so the tx_type should not be shared
+        tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
+      }
+      const TxSetType tx_set_type = av1_get_ext_tx_set_type(
+          tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
+      if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
+#if CONFIG_CHROMA_TX
     }
-    const TxSetType tx_set_type = av1_get_ext_tx_set_type(
-        tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
-    if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
+#endif  // CONFIG_CHROMA_TX
   }
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]

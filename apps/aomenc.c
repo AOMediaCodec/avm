@@ -462,6 +462,9 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
   &g_av1_codec_arg_defs.enable_inter_ist,
+#if CONFIG_CHROMA_TX
+  &g_av1_codec_arg_defs.enable_chroma_dctonly,
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   &g_av1_codec_arg_defs.enable_inter_ddt,
 #endif  // CONFIG_INTER_DDT
@@ -681,6 +684,9 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_IDIF
   config->enable_ist = 1;
   config->enable_inter_ist = 1;
+#if CONFIG_CHROMA_TX
+  config->enable_chroma_dctonly = 0;
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   config->enable_inter_ddt = 1;
 #endif  // CONFIG_INTER_DDT
@@ -1555,6 +1561,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : Inter DDT (%d)\n",
           encoder_cfg->enable_inter_ddt);
 #endif  // CONFIG_INTER_DDT
+#if CONFIG_CHROMA_TX
+  fprintf(stdout, "                               : Chroma DCT only (%d)\n",
+          encoder_cfg->enable_chroma_dctonly);
+#endif  // CONFIG_CHROMA_TX
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "
           "FilterIntra (%d)\n",

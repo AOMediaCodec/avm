@@ -566,6 +566,9 @@ typedef struct SequenceHeader {
 #endif              // CONFIG_IDIF
   uint8_t enable_ist;        // enables/disables intra secondary transform
   uint8_t enable_inter_ist;  // enables/disables inter secondary transform
+#if CONFIG_CHROMA_TX
+  uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
+#endif                            // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
 #endif                       // CONFIG_INTER_DDT
@@ -4861,6 +4864,19 @@ static INLINE unsigned int av1_compute_allowed_tiles_log2(
   return AOMMIN(total_tiles_log2, MAX_NUM_TILES_FOR_CDFS_AVG_LOG2);
 }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
+
+static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
+                                         const PLANE_TYPE plane_type) {
+#if CONFIG_CHROMA_TX
+  const bool reduced_tx_set_used = plane_type == PLANE_TYPE_Y
+                                       ? cm->features.reduced_tx_set_used
+                                       : cm->seq_params.enable_chroma_dctonly;
+#else
+  (void)plane_type;
+  const bool reduced_tx_set_used = cm->features.reduced_tx_set_used;
+#endif
+  return reduced_tx_set_used;
+}
 
 #ifdef __cplusplus
 }  // extern "C"

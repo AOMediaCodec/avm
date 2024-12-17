@@ -355,6 +355,12 @@ typedef struct {
    * Flag to indicate if inter secondary transform should be enabled.
    */
   bool enable_inter_ist;
+#if CONFIG_CHROMA_TX
+  /*!
+   * Flag to indicate if only dct is applied for chroma residual coding.
+   */
+  bool enable_chroma_dctonly;
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   /*!
    * Flag to indicate if inter data-driven transform should be enabled.

@@ -340,7 +340,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       recon_with_cctx = eob_data_c1->eob > 0;
     }
     if (eob_data->eob || recon_with_cctx) {
-      const bool reduced_tx_set_used = cm->features.reduced_tx_set_used;
+      const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
       // tx_type was read out in av1_read_coeffs_txb.
       const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,
                                               reduced_tx_set_used);
@@ -406,7 +406,7 @@ static AOM_INLINE void inverse_transform_inter_block(
   MACROBLOCKD *const xd = &dcb->xd;
   PLANE_TYPE plane_type = get_plane_type(plane);
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const bool reduced_tx_set_used = cm->features.reduced_tx_set_used;
+  const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
   // tx_type was read out in av1_read_coeffs_txb.
   const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col,
                                           tx_size, reduced_tx_set_used);
@@ -6721,6 +6721,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_sdp = aom_rb_read_bit(rb);
   seq_params->enable_ist = aom_rb_read_bit(rb);
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
+#if CONFIG_CHROMA_TX
+  seq_params->enable_chroma_dctonly = aom_rb_read_bit(rb);
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
 #endif  // CONFIG_INTER_DDT

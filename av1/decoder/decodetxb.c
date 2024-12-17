@@ -744,7 +744,7 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
 
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   const qm_val_t *iqmatrix =
       av1_get_iqmatrix(&cm->quant_params, xd, plane, tx_size, tx_type);
 #if CONFIG_INSPECTION
@@ -941,7 +941,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
   const qm_val_t *iqmatrix =
       av1_get_iqmatrix(&cm->quant_params, xd, plane, tx_size, tx_type);
@@ -1359,8 +1359,9 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   const uint8_t decode_rest =
       av1_read_sig_txtype(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
   const PLANE_TYPE plane_type = get_plane_type(plane);
-  const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,
-                                          cm->features.reduced_tx_set_used);
+  const TX_TYPE tx_type =
+      av1_get_tx_type(xd, plane_type, row, col, tx_size,
+                      is_reduced_tx_set_used(cm, plane_type));
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   uint8_t cul_level = 0;
   if (decode_rest) {
@@ -1380,8 +1381,9 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level, col,
                            row);
   if (is_inter_block(mbmi, xd->tree_type) && (plane == 0)) {
-    const TX_TYPE tx_type_inter = av1_get_tx_type(
-        xd, plane_type, row, col, tx_size, cm->features.reduced_tx_set_used);
+    const TX_TYPE tx_type_inter =
+        av1_get_tx_type(xd, plane_type, row, col, tx_size,
+                        is_reduced_tx_set_used(cm, plane_type));
     update_txk_array(xd, row, col, tx_size, tx_type_inter);
   }
 

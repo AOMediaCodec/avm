@@ -929,8 +929,9 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   a = &args->ta[blk_col];
   l = &args->tl[blk_row];
 
-  TX_TYPE tx_type = av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col,
-                                    tx_size, cm->features.reduced_tx_set_used);
+  TX_TYPE tx_type =
+      av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col, tx_size,
+                      is_reduced_tx_set_used(cm, pd->plane_type));
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
   // Subtract first, so both U and V residues will be available when U
   // component is being transformed and quantized.
@@ -939,7 +940,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     PLANE_TYPE plane_type = get_plane_type(i);
     TX_TYPE plane_tx_type =
         av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                        cm->features.reduced_tx_set_used);
+                        is_reduced_tx_set_used(cm, plane_type));
     const int ss_x = xd->plane[i].subsampling_x;
     const int ss_y = xd->plane[i].subsampling_y;
     const BLOCK_SIZE plane_block_size =
@@ -1558,7 +1559,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     const ENTROPY_CONTEXT *a = &args->ta[blk_col];
     const ENTROPY_CONTEXT *l = &args->tl[blk_row];
     tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                              cm->features.reduced_tx_set_used);
+                              is_reduced_tx_set_used(cm, plane_type));
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     TX_TYPE primary_tx_type =
         is_stat_generation_stage(cpi) ? DCT_DCT : get_primary_tx_type(tx_type);
@@ -1646,7 +1647,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     if (*eob == 1 && tx_type != 0 && plane == 0) {
       xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
       tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                                cm->features.reduced_tx_set_used);
+                                is_reduced_tx_set_used(cm, plane_type));
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        cm->width, cm->height, get_primary_tx_type(tx_type));
@@ -1885,8 +1886,9 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
-  TX_TYPE tx_type = av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col,
-                                    tx_size, cm->features.reduced_tx_set_used);
+  TX_TYPE tx_type =
+      av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
+                      is_reduced_tx_set_used(cm, PLANE_TYPE_UV));
   CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
 
   av1_subtract_txb(x, AOM_PLANE_U, plane_bsize, blk_col, blk_row, tx_size

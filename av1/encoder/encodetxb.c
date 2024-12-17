@@ -820,7 +820,7 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane == PLANE_TYPE_Y) ||
@@ -879,7 +879,7 @@ void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   uint8_t levels_buf[TX_PAD_2D];
@@ -1029,7 +1029,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fEncCoeffLog, "\nblk_row=%d,blk_col=%d,plane=%d,tx_size=%d",
@@ -1619,9 +1619,9 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
 
             const int code_rest = av1_write_sig_txtype(
                 cm, x, w, blk_row, blk_col, plane, block[plane], tx_size);
-            const TX_TYPE tx_type =
-                av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col,
-                                tx_size, cm->features.reduced_tx_set_used);
+            const TX_TYPE tx_type = av1_get_tx_type(
+                xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+                is_reduced_tx_set_used(cm, get_plane_type(plane)));
             if (code_rest) {
               if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                    get_primary_tx_type(tx_type) == IDTX &&
@@ -1670,9 +1670,9 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               }
               const int code_rest = av1_write_sig_txtype(
                   cm, x, w, blk_row, blk_col, plane, block[plane], tx_size);
-              const TX_TYPE tx_type =
-                  av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col,
-                                  tx_size, cm->features.reduced_tx_set_used);
+              const TX_TYPE tx_type = av1_get_tx_type(
+                  xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+                  is_reduced_tx_set_used(cm, get_plane_type(plane)));
               if (code_rest) {
                 if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                      get_primary_tx_type(tx_type) == IDTX &&
@@ -1750,9 +1750,9 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
             }
             const int code_rest = av1_write_sig_txtype(
                 cm, x, w, blk_row, blk_col, plane, block[plane], tx_size);
-            const TX_TYPE tx_type =
-                av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col,
-                                tx_size, cm->features.reduced_tx_set_used);
+            const TX_TYPE tx_type = av1_get_tx_type(
+                xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+                is_reduced_tx_set_used(cm, get_plane_type(plane)));
             if (code_rest) {
               if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                    get_primary_tx_type(tx_type) == IDTX &&
@@ -5235,7 +5235,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                                  int eob, int bob_code, int is_fsc) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   int is_inter = is_inter_block(mbmi, xd->tree_type);
-  const int reduced_tx_set_used = cm->features.reduced_tx_set_used;
+  const int reduced_tx_set_used =
+      is_reduced_tx_set_used(cm, get_plane_type(plane));
   FRAME_CONTEXT *fc = xd->tile_ctx;
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
@@ -5468,7 +5469,7 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
   const PLANE_TYPE plane_type = pd->plane_type;
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
   tran_low_t *tcoeff;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -5734,7 +5735,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
   }
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                      cm->features.reduced_tx_set_used);
+                      is_reduced_tx_set_used(cm, plane_type));
   if ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
        get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
       use_inter_fsc(cm, plane, tx_type,

@@ -174,6 +174,9 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_IDIF
   arg_def_t enable_ist;
   arg_def_t enable_inter_ist;
+#if CONFIG_CHROMA_TX
+  arg_def_t enable_chroma_dctonly;
+#endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   arg_def_t enable_inter_ddt;
 #endif  // CONFIG_INTER_DDT
