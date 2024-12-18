@@ -246,7 +246,7 @@ Linux Sanitizer (address) Test Nightly:
 
 Linux Sanitizer (undefined) Test Nightly:
   extends: .sanitizer-common-nigtly
-  parallel: 28
+  parallel: 32
   variables:
     AOM_SANITIZER_TYPE: undefined
   needs:
