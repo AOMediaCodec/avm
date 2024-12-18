@@ -3898,7 +3898,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   } else {
     intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   }
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
