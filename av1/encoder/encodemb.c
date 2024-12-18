@@ -740,6 +740,8 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
 #endif  // !CONFIG_IST_NON_ZERO_DEPTH
   if (!is_inter_block(mbmi, xd->tree_type))
 #if CONFIG_IST_NON_ZERO_DEPTH
+    assert(((intra_mode >= PAETH_PRED || filter) &&
+#else
     assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
 #endif  // CONFIG_IST_NON_ZERO_DEPTH
             txfm_param->sec_tx_type) == 0);
@@ -1004,7 +1006,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] &&
         (p->eobs[block] > PHTHRESH);
 #else
-                get_primary_tx_type(tx_type) < IDTX;
+        get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
 
     // Whether trellis or dropout optimization is required for inter frames.
@@ -1255,29 +1257,28 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
       block += sub_step;
     }
 #else
-            assert(tx_size < TX_SIZES_ALL);
-            const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
-            assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
-            assert(IMPLIES(tx_size > TX_4X4, sub_txs < tx_size));
-            // This is the square transform block partition entry point.
-            const int bsw = tx_size_wide_unit[sub_txs];
-            const int bsh = tx_size_high_unit[sub_txs];
-            const int step = bsh * bsw;
-            assert(bsw > 0 && bsh > 0);
+    assert(tx_size < TX_SIZES_ALL);
+    const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
+    assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
+    assert(IMPLIES(tx_size > TX_4X4, sub_txs < tx_size));
+    // This is the square transform block partition entry point.
+    const int bsw = tx_size_wide_unit[sub_txs];
+    const int bsh = tx_size_high_unit[sub_txs];
+    const int step = bsh * bsw;
+    assert(bsw > 0 && bsh > 0);
 
-            for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
-              for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
-                const int offsetr = blk_row + row;
-                const int offsetc = blk_col + col;
+    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
+      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
+        const int offsetr = blk_row + row;
+        const int offsetc = blk_col + col;
 
-                if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide)
-                  continue;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
 
-                encode_block_inter(plane, block, offsetr, offsetc, plane_bsize,
-                                   sub_txs, arg, dry_run);
-                block += step;
-              }
-            }
+        encode_block_inter(plane, block, offsetr, offsetc, plane_bsize, sub_txs,
+                           arg, dry_run);
+        block += step;
+      }
+    }
 #endif  // CONFIG_NEW_TX_PARTITION
   }
 }
@@ -1605,7 +1606,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_IMPROVEIDTX
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
 #else
-                get_primary_tx_type(tx_type) < IDTX;
+        get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
 #if DEBUG_EXTQUANT
     if (args->dry_run == OUTPUT_ENABLED) {
@@ -1957,7 +1958,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     if (plane == AOM_PLANE_V && (!keep_chroma_c2(cctx_type) ||
                                  (*eob_c1 == 0 && cctx_type > CCTX_NONE))) {
 #else
-            if (plane == AOM_PLANE_V && *eob_c1 == 0 && cctx_type > CCTX_NONE) {
+    if (plane == AOM_PLANE_V && *eob_c1 == 0 && cctx_type > CCTX_NONE) {
 #endif  // CCTX_C2_DROPPED
       av1_quantize_skip(av1_get_max_eob(tx_size),
                         p_c2->qcoeff + BLOCK_OFFSET(block), dqcoeff_c2, eob_c2);
