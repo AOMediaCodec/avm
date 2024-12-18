@@ -440,11 +440,11 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   (void)blk_pos;
   (void)tx_class;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_zero;
-  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->base_cost_low_tbl;
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_eob_cost_tbl;
-  const uint16_t(*cost_mid_tbl)[LEVEL_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_mid_tbl)[LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
 
@@ -693,11 +693,11 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   };
   const uint16_t(*cost_zero)[LF_SIG_COEF_CONTEXTS] =
       txb_costs->base_lf_cost_zero;
-  const uint16_t(*cost_low_tbl)[LF_SIG_COEF_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_low_tbl)[LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->base_lf_cost_low_tbl;
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_lf_eob_cost_tbl;
-  const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_lf_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
   const int plane = 0;
@@ -876,7 +876,7 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   };
   const uint16_t(*cost_zero)[LF_SIG_COEF_CONTEXTS] =
       plane ? txb_costs->base_lf_cost_uv_zero : txb_costs->base_lf_cost_zero;
-  const uint16_t(*cost_low_tbl)[LF_SIG_COEF_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_low_tbl)[LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       plane ? txb_costs->base_lf_cost_uv_low_tbl
             : txb_costs->base_lf_cost_low_tbl;
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
@@ -999,7 +999,7 @@ void av1_get_rate_dist_def_chroma_avx2(
     int sign, struct tcq_rate_t *rd) {
   (void)bwl;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_uv_zero;
-  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][DQ_CTXS][2] =
+  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->base_cost_uv_low_tbl;
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_eob_cost_uv_tbl;

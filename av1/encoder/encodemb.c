@@ -403,14 +403,14 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                      cctx_type);
     return eob;
   }
-#if CONFIG_DQ
+#if CONFIG_TCQ
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-  int use_dq = dq_enable(cpi->common.features.tcq_mode, plane, tx_class);
-  if (use_dq) {
-    return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                         txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+  int use_tcq = tcq_enable(cpi->common.features.tcq_mode, plane, tx_class);
+  if (use_tcq) {
+    return av1_trellis_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                             txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
   } else
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
     return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type,
                                 cctx_type, txb_ctx, rate_cost,
                                 cpi->oxcf.algo_cfg.sharpness);
@@ -1054,17 +1054,17 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     // default if trellis optimization is on for inter frames.)
     OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-    int use_dq = dq_enable(cm->features.tcq_mode, plane, tx_class);
-    if (use_dq) {
-      // Dropout setting should be disabled when Dependent quantization is
+    int use_tcq = tcq_enable(cm->features.tcq_mode, plane, tx_class);
+    if (use_tcq) {
+      // Dropout setting should be disabled when Trellis Coded Quant is
       // enabled.
       // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
       // default if trellis optimization is on for inter frames.)
       INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
     }
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
     // Whether trellis or dropout optimization is required for inter frames.
     const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
@@ -1686,17 +1686,17 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     // Blocks of intra frames (key frames EXCLUSIVE).
     OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-    int use_dq = dq_enable(cm->features.tcq_mode, plane, tx_class);
-    if (use_dq) {
-      // Dropout setting should be disabled when Dependent quantization is
+    int use_tcq = tcq_enable(cm->features.tcq_mode, plane, tx_class);
+    if (use_tcq) {
+      // Dropout setting should be disabled when Trellis Coded Quant is
       // enabled.
       KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
       // Blocks of intra frames (key frames EXCLUSIVE).
       INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
     }
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
     // Whether trellis or dropout optimization is required for key frames and
     // intra frames.
@@ -2018,16 +2018,16 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   // Blocks of intra frames (key frames EXCLUSIVE).
   OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
-#if CONFIG_DQ
-  int use_dq = cm->features.tcq_mode != 0;
-  if (use_dq) {
-    // Dropout setting should be disabled when Dependent quantization is
+#if CONFIG_TCQ
+  int use_tcq = cm->features.tcq_mode != 0;
+  if (use_tcq) {
+    // Dropout setting should be disabled when Trellis Coded Quant is
     // enabled.
     KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
     // Blocks of intra frames (key frames EXCLUSIVE).
     INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
   }
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
   // Whether trellis or dropout optimization is required for key frames and
   // intra frames.

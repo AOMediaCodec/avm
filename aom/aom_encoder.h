@@ -1103,7 +1103,7 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int full_still_picture_hdr;
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
   /*!\brief enable_tcq
    *
    * If this is nonzero, the encoder will use trellis quantization.
@@ -1112,7 +1112,7 @@ typedef struct aom_codec_enc_cfg {
    * 2 = use 8-state trellis (frame adaptive (key/altref))
    */
   unsigned int enable_tcq;
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
   /*!\brief Bitstream syntax mode
    *
@@ -1219,7 +1219,6 @@ typedef struct aom_codec_enc_cfg {
    *
    */
   cfg_options_t encoder_cfg;
-
 } aom_codec_enc_cfg_t; /**< alias for struct aom_codec_enc_cfg */
 
 /*!\brief Initialize an encoder instance

@@ -23,16 +23,16 @@
 extern "C" {
 #endif
 
-#if CONFIG_DQ
-#define QINDEX_INCR 2          // tunable QP index increment
-#define QINDEX_INCR_8_BITS 2   // tunable QP index increment
-#define QINDEX_INCR_10_BITS 4  // tunable QP index increment
+#if CONFIG_TCQ
+#define QINDEX_INCR 2          // tunable general QP index increment
+#define QINDEX_INCR_8_BITS 2   // tunable QP index increment for 8 bits
+#define QINDEX_INCR_10_BITS 4  // tunable QP index increment for 10 bits
 #define TCQ_DIS_CHR 1          // 1:disable TCQ for chroma blocks
-#define TCQ_DIS_1D 1           // [WIP] 1:disable TCQ for 1D scan blocks
+#define TCQ_DIS_1D 1           // 1:disable TCQ for 1D scan blocks
 #define TCQ_N_STATES_LOG 3     // only 8-states version is supported
 #define TCQ_N_STATES (1 << TCQ_N_STATES_LOG)
-#endif  // CONFIG_DQ
 #define TCQ_MAX_STATES 8
+#endif  // CONFIG_TCQ
 
 #define PHTHRESH 4
 #define MINQ 0
@@ -61,18 +61,22 @@ struct AV1Common;
 struct CommonQuantParams;
 struct macroblockd;
 
-#if CONFIG_DQ
-// TCQ modes: 8 state, frame adaptivity
-enum { TCQ_DISABLE = 0, TCQ_8ST = 1, TCQ_8ST_FR = 2 };
+#if CONFIG_TCQ
+// Trellis codec quant modes, only 8-state scheme is supported
+enum {
+  TCQ_DISABLE = 0,  // tcq off
+  TCQ_8ST = 1,      // tcq on for every frame
+  TCQ_8ST_FR = 2    // tcq on for key/altref frames
+};
 
-static INLINE bool tcq_quant(const int state) {
-  // 8-states: A0: state 0/1/4/5, A1: state 2/3/6/7
-  return state & 2;
-}
+// Determine the quantizer to use based on the state
+// In 8-state scheme, state 0/1/4/5 are Q0 and 2/3/6/7 are Q1.
+static INLINE bool tcq_quant(const int state) { return state & 2; }
 
-#define DQMIN 0
-#define DQMAX 1024
-static INLINE bool dq_enable(int enable_tcq, int plane, TX_CLASS tx_class) {
+#define TCQMIN 0
+#define TCQMAX 1024
+// Determine whether to run tcq or regular quant in a block
+static INLINE bool tcq_enable(int enable_tcq, int plane, TX_CLASS tx_class) {
   int dq_en = enable_tcq != 0;
   if (TCQ_DIS_CHR) {
     dq_en &= plane == 0;
@@ -83,16 +87,20 @@ static INLINE bool dq_enable(int enable_tcq, int plane, TX_CLASS tx_class) {
   return dq_en;
 }
 
+// Find parity of absLevel. Used to find the next state in trellis coded quant
 int tcq_parity(int absLevel);
+// Set the initial state at beginning of trellis coding
 int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class);
+// Find the next state in trellis codec quant
 int tcq_next_state(const int curState, const int absLevel);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
+// Adjust qindex for better RDO when tcq is on
 static INLINE int get_new_qindex(int qindex, aom_bit_depth_t bit_depth) {
   switch (bit_depth) {
     case AOM_BITS_8: return clamp(qindex + QINDEX_INCR_8_BITS, 1, MAXQ_8_BITS);
@@ -105,6 +113,7 @@ static INLINE int get_new_qindex(int qindex, aom_bit_depth_t bit_depth) {
   }
 }
 
+// Calculate Qstep from Qindex for DC when tcq is on
 static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
                                            int base_dc_delta_q,
                                            aom_bit_depth_t bit_depth,
@@ -115,6 +124,7 @@ static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
   return av1_dc_quant_QTX(qindex, delta, base_dc_delta_q, bit_depth);
 }
 
+// Calculate Qstep from Qindex for AC when tcq is on
 static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
                                            aom_bit_depth_t bit_depth,
                                            int use_tcq_offset) {
@@ -123,7 +133,7 @@ static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
   }
   return av1_ac_quant_QTX(qindex, delta, bit_depth);
 }
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex, aom_bit_depth_t bit_depth);

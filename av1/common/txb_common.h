@@ -15,11 +15,11 @@
 
 #include "av1/common/av1_common_int.h"
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
 #define MAX_VAL_BR_CTX (MAX_BASE_BR_RANGE - 1)
 #else
 #define MAX_VAL_BR_CTX MAX_BASE_BR_RANGE
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 extern const int16_t av1_eob_group_start[12];
 extern const int16_t av1_eob_offset_bits[12];
@@ -629,13 +629,13 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
   return 0;
 }
 
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-typedef aom_cdf_prob (*base_lf_cdf_arr)[DQ_CTXS][CDF_SIZE(LF_BASE_SYMBOLS)];
-typedef aom_cdf_prob (*base_cdf_arr)[DQ_CTXS][CDF_SIZE(4)];
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+typedef aom_cdf_prob (*base_lf_cdf_arr)[TCQ_CTXS][CDF_SIZE(LF_BASE_SYMBOLS)];
+typedef aom_cdf_prob (*base_cdf_arr)[TCQ_CTXS][CDF_SIZE(4)];
 #else
 typedef aom_cdf_prob (*base_lf_cdf_arr)[CDF_SIZE(LF_BASE_SYMBOLS)];
 typedef aom_cdf_prob (*base_cdf_arr)[CDF_SIZE(4)];
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 typedef aom_cdf_prob (*br_cdf_arr)[CDF_SIZE(BR_CDF_SIZE)];
 typedef aom_cdf_prob (*base_fsc_cdf_arr)[CDF_SIZE(4)];
 typedef aom_cdf_prob (*base_ph_cdf_arr)[CDF_SIZE(4)];

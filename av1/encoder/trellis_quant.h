@@ -82,6 +82,7 @@ typedef struct tcq_param_t {
   const LV_MAP_COEFF_COST *txb_costs;
 } tcq_param_t;
 
+// Get the low range part of a coeff
 static AOM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
   int parity = abs_qc & 1;
@@ -97,6 +98,7 @@ static AOM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {
   return low;
 }
 
+// Get the high range part of a coeff
 static AOM_FORCE_INLINE int get_high_range(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
   int low_range = get_low_range(abs_qc, lf);
@@ -104,6 +106,7 @@ static AOM_FORCE_INLINE int get_high_range(int abs_qc, int lf) {
   return high_range;
 }
 
+// Calculate the cost of high range of a coeff
 static AOM_FORCE_INLINE int get_golomb_cost_tcq(int abs_qc, int lf) {
   const int r = 1 + get_high_range(abs_qc, lf);
   const int length = get_msb(r) + 1;
@@ -111,6 +114,7 @@ static AOM_FORCE_INLINE int get_golomb_cost_tcq(int abs_qc, int lf) {
   return 0;
 }
 
+// Calculate the cost of low range of a coeff in low-freq region
 static AOM_FORCE_INLINE int get_br_lf_cost_tcq(tran_low_t level,
                                                const int *coeff_lps) {
   const int base_range = get_low_range(level, 1);
@@ -118,16 +122,50 @@ static AOM_FORCE_INLINE int get_br_lf_cost_tcq(tran_low_t level,
   return coeff_lps[base_range] + get_golomb_cost_tcq(level, 1);
 }
 
+// Calculate the cost of low range of a coeff in non-low-freq region
 static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
   const int base_range = get_low_range(level, 0);
   if (base_range < COEFF_BASE_RANGE - 1) return coeff_lps[base_range];
   return coeff_lps[base_range] + get_golomb_cost_tcq(level, 0);
 }
 
-int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
-                  int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                  CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                  int *rate_cost, int sharpness);
+/*!\brief Adjust the magnitude of quantized coefficients to achieve better
+ * rate-distortion (RD) trade-off with trellis coded quant techology.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function builds a trellis through each position of coefficient and keep
+ * track of best RD cost of each node in the trellis. At the last position, it
+ * decides the best candidate and back track to eob to find the optimal
+ * quantization path.
+ *
+ * The coefficients are processing in reversed scan order.
+ *
+ * Note that, the end of block position (eob) may change if the original last
+ * coefficient is lowered to zero.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    cctx_type      The cross chroma component transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[out]   rate_cost      The entropy cost of coding the transform block
+ * after adjustment of coefficients.
+ * \param[in]    sharpness      When sharpness == 1, the function will be less
+ * aggressive toward lowering the magnitude of coefficients.
+ * In this way, the transform block will contain more high-frequency
+ coefficients
+ * and therefore preserve the sharpness of the reconstructed block.
+ */
+int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                      int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                      CctxType cctx_type, const TXB_CTX *const txb_ctx,
+                      int *rate_cost, int sharpness);
 
 #ifdef __cplusplus
 }

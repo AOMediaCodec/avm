@@ -908,9 +908,9 @@ typedef struct {
   // When enabled, the encoder will use a full header even for still pictures.
   // When disabled, a reduced header is used for still pictures.
   bool full_still_picture_hdr;
-#if CONFIG_DQ
+#if CONFIG_TCQ
   int enable_tcq;
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
   // Indicates if frame order hint should be enabled or not.
   bool enable_order_hint;
   // Indicates if ref_frame_mvs should be enabled at the sequence level.
@@ -1471,9 +1471,9 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_lps_lf[BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
                                   [LF_SIG_COEF_CONTEXTS]
-#if CONFIG_DQ
-                                  [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                  [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                                   [LF_BASE_SYMBOLS];
   unsigned int coeff_base_lf_eob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
                                       [SIG_COEF_CONTEXTS_EOB]
@@ -1501,17 +1501,17 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_CHROMA_CODING
   // LF Base, BR UV
   unsigned int coeff_base_lf_multi_uv[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV]
-#if CONFIG_DQ
-                                     [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                     [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                                      [LF_BASE_SYMBOLS];
   unsigned int coeff_lps_lf_multi_uv[TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV]
                                     [BR_CDF_SIZE];
   // HF Base, BR UV
   unsigned int coeff_base_multi_uv[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV]
-#if CONFIG_DQ
-                                  [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                  [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                                   [NUM_BASE_LEVELS + 2];
   unsigned int coeff_lps_multi_uv[TOKEN_CDF_Q_CTXS][LEVEL_CONTEXTS_UV]
                                  [BR_CDF_SIZE];
@@ -1524,9 +1524,9 @@ typedef struct FRAME_COUNTS {
 
   unsigned int coeff_lps[TX_SIZES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS][2];
   unsigned int coeff_base_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS]
-#if CONFIG_DQ
-                               [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                               [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                                [NUM_BASE_LEVELS + 2];
   unsigned int coeff_base_eob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
                                    [SIG_COEF_CONTEXTS_EOB][NUM_BASE_LEVELS + 1];

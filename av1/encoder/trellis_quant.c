@@ -72,6 +72,7 @@ static AOM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   }
 }
 
+// Update context buffer for the current node
 static AOM_INLINE void set_levels_buf(int prevId, int absLevel, uint8_t *levels,
                                       const int16_t *scan, const int eob_minus1,
                                       const int scan_pos, const int bwl,
@@ -222,13 +223,13 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
 
 static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                      int diag_ctx, int plane,
-                                     const LV_MAP_COEFF_COST *txb_costs, int dq,
-                                     int t_sign, int sign) {
+                                     const LV_MAP_COEFF_COST *txb_costs,
+                                     int q_i, int t_sign, int sign) {
   int base_ctx = diag_ctx + (coeff_ctx & 15);
   int mid_ctx = coeff_ctx >> 4;
-  const int(*base_cost_ptr)[DQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-  int cost = base_cost_ptr[base_ctx][dq][AOMMIN(abs_qc, 3)];
+  int cost = base_cost_ptr[base_ctx][q_i][AOMMIN(abs_qc, 3)];
   if (abs_qc != 0) {
     if (plane == AOM_PLANE_V)
       cost += txb_costs->v_ac_sign_cost[t_sign][sign];
@@ -245,19 +246,21 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
   return cost;
 }
 
-static INLINE int get_coeff_cost_general(
-    int ci, tran_low_t abs_qc, int sign, int coeff_ctx, int mid_ctx,
-    int dc_sign_ctx, const LV_MAP_COEFF_COST *txb_costs, int bwl,
-    TX_CLASS tx_class, const int32_t *tmp_sign, int plane, int limits, int dq) {
+static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
+                                         int coeff_ctx, int mid_ctx,
+                                         int dc_sign_ctx,
+                                         const LV_MAP_COEFF_COST *txb_costs,
+                                         int bwl, TX_CLASS tx_class,
+                                         const int32_t *tmp_sign, int plane,
+                                         int limits, int q_i) {
   int cost = 0;
-  const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int(*base_cost_ptr)[DQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-  cost +=
-      limits
-          ? base_lf_cost_ptr[coeff_ctx][dq][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-          : base_cost_ptr[coeff_ctx][dq][AOMMIN(abs_qc, 3)];
+  cost += limits ? base_lf_cost_ptr[coeff_ctx][q_i]
+                                   [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
+                 : base_cost_ptr[coeff_ctx][q_i][AOMMIN(abs_qc, 3)];
   if (abs_qc != 0) {
     const int dc_ph_group = 0;  // PH disabled
     const int row = ci >> bwl;
@@ -302,10 +305,12 @@ static INLINE int get_coeff_cost_general(
   return cost;
 }
 
-static void decide(int64_t rdCost, int64_t distA, int64_t distB, int64_t rdmult,
-                   int rateA, int rateB, int rate_zero, tran_low_t absA,
-                   tran_low_t absB, int limits, int prev_rate, int prev_state,
-                   tcq_node_t *decision_02, tcq_node_t *decision_1) {
+// Compare and update nodes info for current position, only used by pos eob - 1
+static void update_node_eob(int64_t rdCost, int64_t distA, int64_t distB,
+                            int64_t rdmult, int rateA, int rateB, int rate_zero,
+                            tran_low_t absA, tran_low_t absB, int limits,
+                            int prev_rate, int prev_state,
+                            tcq_node_t *decision_02, tcq_node_t *decision_1) {
   (void)limits;
   int parityA = 0;
   int parityB = 1;
@@ -356,11 +361,13 @@ static void decide(int64_t rdCost, int64_t distA, int64_t distB, int64_t rdmult,
   }
 }
 
-static void decide_new(int64_t costA, int64_t costB, int64_t cost_zero,
-                       int rateA, int rateB, int rate_zero, tran_low_t absA,
-                       tran_low_t absB, int limits, int prev_rate,
-                       int prev_state, tcq_node_t *decision_02,
-                       tcq_node_t *decision_1) {
+// Compare and update nodes info for current position
+static void update_node_general(int64_t costA, int64_t costB, int64_t cost_zero,
+                                int rateA, int rateB, int rate_zero,
+                                tran_low_t absA, tran_low_t absB, int limits,
+                                int prev_rate, int prev_state,
+                                tcq_node_t *decision_02,
+                                tcq_node_t *decision_1) {
   assert(tcq_parity(absA) == 0);
   assert(tcq_parity(absB) == 1);
 
@@ -390,6 +397,7 @@ static void decide_new(int64_t costA, int64_t costB, int64_t cost_zero,
   }
 }
 
+// Evaluate NEW_EOB at the current position
 static void decide_eob(int64_t costA, int64_t costB, int rateA, int rateB,
                        tran_low_t absA, tran_low_t absB,
                        tcq_node_t *decision_02, tcq_node_t *decision_1) {
@@ -407,6 +415,7 @@ static void decide_eob(int64_t costA, int64_t costB, int rateA, int rateB,
   }
 }
 
+// Populate the trellis from current position to next
 void av1_decide_states_c(const struct tcq_node_t *prev,
                          const struct tcq_rate_t *rd,
                          const struct prequant_t *pq, int limits, int try_eob,
@@ -418,7 +427,7 @@ void av1_decide_states_c(const struct tcq_node_t *prev,
   int64_t rdCost_zero[TCQ_MAX_STATES];
   int64_t rdCost_eob[2];
 
-  // Init for ASAN
+  // Init to 0 to avoid ASAN uninitialization warnings
   memset(rdCost, 0, sizeof(rdCost));
   memset(rdCost_zero, 0, sizeof(rdCost_zero));
 
@@ -434,30 +443,30 @@ void av1_decide_states_c(const struct tcq_node_t *prev,
   rdCost_eob[0] = RDCOST(rdmult, rate_eob[0], pq->deltaDist[0]);
   rdCost_eob[1] = RDCOST(rdmult, rate_eob[1], pq->deltaDist[2]);
 
-  decide_new(rdCost[0], rdCost[1], rdCost_zero[0], rate[0], rate[1],
-             rate_zero[0], pq->absLevel[0], pq->absLevel[2], limits,
-             prev[0].rate, 0, &decision[0], &decision[4]);
-  decide_new(rdCost[2], rdCost[3], rdCost_zero[1], rate[2], rate[3],
-             rate_zero[1], pq->absLevel[0], pq->absLevel[2], limits,
-             prev[1].rate, 1, &decision[4], &decision[0]);
-  decide_new(rdCost[5], rdCost[4], rdCost_zero[2], rate[5], rate[4],
-             rate_zero[2], pq->absLevel[3], pq->absLevel[1], limits,
-             prev[2].rate, 2, &decision[1], &decision[5]);
-  decide_new(rdCost[7], rdCost[6], rdCost_zero[3], rate[7], rate[6],
-             rate_zero[3], pq->absLevel[3], pq->absLevel[1], limits,
-             prev[3].rate, 3, &decision[5], &decision[1]);
-  decide_new(rdCost[8], rdCost[9], rdCost_zero[4], rate[8], rate[9],
-             rate_zero[4], pq->absLevel[0], pq->absLevel[2], limits,
-             prev[4].rate, 4, &decision[6], &decision[2]);
-  decide_new(rdCost[10], rdCost[11], rdCost_zero[5], rate[10], rate[11],
-             rate_zero[5], pq->absLevel[0], pq->absLevel[2], limits,
-             prev[5].rate, 5, &decision[2], &decision[6]);
-  decide_new(rdCost[13], rdCost[12], rdCost_zero[6], rate[13], rate[12],
-             rate_zero[6], pq->absLevel[3], pq->absLevel[1], limits,
-             prev[6].rate, 6, &decision[7], &decision[3]);
-  decide_new(rdCost[15], rdCost[14], rdCost_zero[7], rate[15], rate[14],
-             rate_zero[7], pq->absLevel[3], pq->absLevel[1], limits,
-             prev[7].rate, 7, &decision[3], &decision[7]);
+  update_node_general(rdCost[0], rdCost[1], rdCost_zero[0], rate[0], rate[1],
+                      rate_zero[0], pq->absLevel[0], pq->absLevel[2], limits,
+                      prev[0].rate, 0, &decision[0], &decision[4]);
+  update_node_general(rdCost[2], rdCost[3], rdCost_zero[1], rate[2], rate[3],
+                      rate_zero[1], pq->absLevel[0], pq->absLevel[2], limits,
+                      prev[1].rate, 1, &decision[4], &decision[0]);
+  update_node_general(rdCost[5], rdCost[4], rdCost_zero[2], rate[5], rate[4],
+                      rate_zero[2], pq->absLevel[3], pq->absLevel[1], limits,
+                      prev[2].rate, 2, &decision[1], &decision[5]);
+  update_node_general(rdCost[7], rdCost[6], rdCost_zero[3], rate[7], rate[6],
+                      rate_zero[3], pq->absLevel[3], pq->absLevel[1], limits,
+                      prev[3].rate, 3, &decision[5], &decision[1]);
+  update_node_general(rdCost[8], rdCost[9], rdCost_zero[4], rate[8], rate[9],
+                      rate_zero[4], pq->absLevel[0], pq->absLevel[2], limits,
+                      prev[4].rate, 4, &decision[6], &decision[2]);
+  update_node_general(rdCost[10], rdCost[11], rdCost_zero[5], rate[10],
+                      rate[11], rate_zero[5], pq->absLevel[0], pq->absLevel[2],
+                      limits, prev[5].rate, 5, &decision[2], &decision[6]);
+  update_node_general(rdCost[13], rdCost[12], rdCost_zero[6], rate[13],
+                      rate[12], rate_zero[6], pq->absLevel[3], pq->absLevel[1],
+                      limits, prev[6].rate, 6, &decision[7], &decision[3]);
+  update_node_general(rdCost[15], rdCost[14], rdCost_zero[7], rate[15],
+                      rate[14], rate_zero[7], pq->absLevel[3], pq->absLevel[1],
+                      limits, prev[7].rate, 7, &decision[3], &decision[7]);
 
   if (try_eob) {
     const int state0 = 0;
@@ -468,6 +477,9 @@ void av1_decide_states_c(const struct tcq_node_t *prev,
   }
 }
 
+// Prepare 4 quant candidates for each coeff
+// [0] and [2] are for Q0. One is even and the other is odd
+// [1] and [3] are for Q1. One is even and the other is odd
 void av1_pre_quant_c(tran_low_t tqc, struct prequant_t *pqData,
                      const int32_t *quant_ptr, int dqv, int log_scale,
                      int scan_pos) {
@@ -528,15 +540,16 @@ static int get_coeff_cost(int ci, tran_low_t abs_qc, int sign, int coeff_ctx,
                           int mid_ctx, int dc_sign_ctx,
                           const LV_MAP_COEFF_COST *txb_costs, int bwl,
                           TX_CLASS tx_class, const int32_t *tmp_sign, int plane,
-                          int limits, int dq) {
+                          int limits, int q_i) {
   return get_coeff_cost_general(ci, abs_qc, sign, coeff_ctx, mid_ctx,
                                 dc_sign_ctx, txb_costs, bwl, tx_class,
 #if CONFIG_CONTEXT_DERIVATION
                                 tmp_sign,
 #endif  // CONFIG_CONTEXT_DERIVATION
-                                plane, limits, dq);
+                                plane, limits, q_i);
 }
 
+// Process the first position
 void trellis_first_pos(const tcq_param_t *p, int scan_pos,
                        tcq_levels_t *tcq_lev, tcq_node_t *trellis) {
   int plane = p->plane;
@@ -600,9 +613,10 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos,
       eob_rate;
   const int state0 = 0;
   const int state1 = 4;
-  decide(0, pqData.deltaDist[0], pqData.deltaDist[2], rdmult, rate_Q0_a,
-         rate_Q0_b, INT32_MAX >> 1, pqData.absLevel[0], pqData.absLevel[2],
-         limits, 0, -1, &decision[state0], &decision[state1]);
+  update_node_eob(0, pqData.deltaDist[0], pqData.deltaDist[2], rdmult,
+                  rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, pqData.absLevel[0],
+                  pqData.absLevel[2], limits, 0, -1, &decision[state0],
+                  &decision[state1]);
 
   uint8_t *levels0 = tcq_levels_cur(tcq_lev, state0);
   uint8_t *levels1 = tcq_levels_cur(tcq_lev, state1);
@@ -625,15 +639,15 @@ void av1_get_rate_dist_def_luma_c(const struct LV_MAP_COEFF_COST *txb_costs,
   const tran_low_t *absLevel = pq->absLevel;
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int dq = tcq_quant(i);
-    int a0 = dq;
+    int q_i = tcq_quant(i);
+    int a0 = q_i;
     int a1 = a0 + 2;
     int base_ctx = diag_ctx + (coeff_ctx->coef[i] & 15);
     int cost0 = get_coeff_cost_def(absLevel[a0], coeff_ctx->coef[i], diag_ctx,
-                                   plane, txb_costs, dq, t_sign, sign);
+                                   plane, txb_costs, q_i, t_sign, sign);
     int cost1 = get_coeff_cost_def(absLevel[a1], coeff_ctx->coef[i], diag_ctx,
-                                   plane, txb_costs, dq, t_sign, sign);
-    rd->rate_zero[i] = txb_costs->base_cost[base_ctx][dq][0];
+                                   plane, txb_costs, q_i, t_sign, sign);
+    rd->rate_zero[i] = txb_costs->base_cost[base_ctx][q_i][0];
     rd->rate[2 * i] = cost0;
     rd->rate[2 * i + 1] = cost1;
   }
@@ -658,15 +672,15 @@ void av1_get_rate_dist_def_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
   const int dc_sign_ctx = 0;
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int dq = tcq_quant(i);
-    int a0 = dq;
+    int q_i = tcq_quant(i);
+    int a0 = q_i;
     int a1 = a0 + 2;
     int base_ctx = diag_ctx + (coeff_ctx->coef[i] & 15);
     int cost0 = get_coeff_cost_def(absLevel[a0], coeff_ctx->coef[i], diag_ctx,
-                                   plane, txb_costs, dq, t_sign, sign);
+                                   plane, txb_costs, q_i, t_sign, sign);
     int cost1 = get_coeff_cost_def(absLevel[a1], coeff_ctx->coef[i], diag_ctx,
-                                   plane, txb_costs, dq, t_sign, sign);
-    rd->rate_zero[i] = txb_costs->base_cost_uv[base_ctx][dq][0];
+                                   plane, txb_costs, q_i, t_sign, sign);
+    rd->rate_zero[i] = txb_costs->base_cost_uv[base_ctx][q_i][0];
     rd->rate[2 * i] = cost0;
     rd->rate[2 * i + 1] = cost1;
   }
@@ -694,18 +708,18 @@ void av1_get_rate_dist_lf_luma_c(const struct LV_MAP_COEFF_COST *txb_costs,
   int plane = 0;
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int dq = tcq_quant(i);
-    int a0 = dq;
+    int q_i = tcq_quant(i);
+    int a0 = q_i;
     int a1 = a0 + 2;
     base_ctx = (coeff_ctx->coef[i] & 15) + diag_ctx;
     mid_ctx = coeff_ctx->coef[i] >> 4;
     int cost0 = get_coeff_cost(blk_pos, absLevel[a0], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                               tmp_sign, plane, 1, dq);
+                               tmp_sign, plane, 1, q_i);
     int cost1 = get_coeff_cost(blk_pos, absLevel[a1], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                               tmp_sign, plane, 1, dq);
-    rd->rate_zero[i] = txb_costs->base_lf_cost[base_ctx][dq][0];
+                               tmp_sign, plane, 1, q_i);
+    rd->rate_zero[i] = txb_costs->base_lf_cost[base_ctx][q_i][0];
     rd->rate[2 * i] = cost0;
     rd->rate[2 * i + 1] = cost1;
   }
@@ -732,18 +746,18 @@ void av1_get_rate_dist_lf_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
   int t_sign = tmp_sign[blk_pos];
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int dq = tcq_quant(i);
-    int a0 = dq;
+    int q_i = tcq_quant(i);
+    int a0 = q_i;
     int a1 = a0 + 2;
     base_ctx = (coeff_ctx->coef[i] & 15) + diag_ctx;
     mid_ctx = coeff_ctx->coef[i] >> 4;
     int cost0 = get_coeff_cost(blk_pos, absLevel[a0], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                               tmp_sign, plane, 1, dq);
+                               tmp_sign, plane, 1, q_i);
     int cost1 = get_coeff_cost(blk_pos, absLevel[a1], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                               tmp_sign, plane, 1, dq);
-    rd->rate_zero[i] = txb_costs->base_lf_cost_uv[base_ctx][dq][0];
+                               tmp_sign, plane, 1, q_i);
+    rd->rate_zero[i] = txb_costs->base_lf_cost_uv[base_ctx][q_i][0];
     rd->rate[2 * i] = cost0;
     rd->rate[2 * i + 1] = cost1;
   }
@@ -806,7 +820,7 @@ static void update_levels_diagonal(tcq_levels_t *tcq_lev, const int16_t *scan,
   }
 }
 
-// TCQ 8-state
+// TCQ 8-state for a diagonal in non-lf region for 2D Luma
 static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
                                       int scan_lo, tcq_levels_t *tcq_lev,
                                       tcq_ctx_t tcq_ctx[2 * TCQ_MAX_STATES],
@@ -960,7 +974,7 @@ void av1_update_lf_ctx_c(const struct tcq_node_t *decision,
   }
 }
 
-// TCQ 8-state
+// TCQ 8-state in lf region for 2D Luma
 static void trellis_loop_lf_st8(const tcq_param_t *p, int scan_hi, int scan_lo,
                                 tcq_levels_t *tcq_lev, tcq_node_t *trellis) {
   TX_SIZE tx_size = p->tx_size;
@@ -1024,6 +1038,7 @@ static void trellis_loop_lf_st8(const tcq_param_t *p, int scan_hi, int scan_lo,
   }
 }
 
+// General TCQ 8-state, used by non 2D Luma
 void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
                   int scan_lo, tcq_levels_t *tcq_lev, tcq_node_t *trellis) {
   int plane = p->plane;
@@ -1199,6 +1214,7 @@ void av1_calc_block_eob_rate_c(struct macroblock *x, int plane, TX_SIZE tx_size,
   }
 }
 
+// Determine the best quantization option for each coeff from DC to EOB
 int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
                          const int32_t *dequant, const qm_val_t *iqmatrix,
                          const tran_low_t *tcoeff, int first_scan_pos,
@@ -1228,8 +1244,8 @@ int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
       int abs_level = decision->absLevel;
       int blk_pos = scan[scan_pos];
       int sign = -(tcoeff[blk_pos] < 0);
-      int dq = prev_id >= 0 ? tcq_quant(prev_id) : 0;
-      int qc = (abs_level == 0) ? 0 : (2 * abs_level - dq);
+      int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
+      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
       int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
                                                   QUANT_TABLE_BITS) >>
                 log_scale;
@@ -1247,8 +1263,8 @@ int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
       int sign = tcoeff[blk_pos] < 0;
       qcoeff[blk_pos] = sign ? -abs_level : abs_level;
       int dqv = get_dqv(dequant, blk_pos, iqmatrix);
-      int dq = prev_id >= 0 ? tcq_quant(prev_id) : 0;
-      int qc = (abs_level == 0) ? 0 : (2 * abs_level - dq);
+      int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
+      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
       int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
                                                   QUANT_TABLE_BITS) >>
                 log_scale;
@@ -1268,10 +1284,65 @@ int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
   return eob;
 }
 
-int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
-                  int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                  CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                  int *rate_cost, int sharpness) {
+/*
+Algorithem description:
+Unlike regular scaler quantization, trellis coded quant has dependency on
+already coded coeffs in the decoder side. In order to correctly build the
+dependency, the encoder creates a trellis and implements dependency in it.
+
+The encoder flow:
+1. Start at the first candidate EOB position and proceed towards DC (coeff[0])
+
+2. For each of the states, the RD cost is calculated for each state transition,
+keeping the best option out of the 2 (or 3) incoming candidates at each state.
+the state quantizer mapping and state transition table are shown below. In
+addition, it checks NEW_EOB at each of the coeff position and the next state is
+0/4 in this case.
+
+3. After the last coeff is processed, pick the lowest RD cost out of states 0-3
+and all_zero, back track until it reaches eob.
+
+* State-quantizer mapping and state transition table *
+---------------------------------------------------------
+| Current state | Quantizer | Parity of Qk | Next state |
+|--------------------------------------------------------
+|               |           |    Even      |     0      |
+|       0       |     0     |----------------------------
+|               |           |    Odd       |     4      |
+|--------------------------------------------------------
+|               |           |    Even      |     4      |
+|       1       |     0     |----------------------------
+|               |           |    Odd       |     0      |
+|--------------------------------------------------------
+|               |           |    Even      |     1      |
+|       2       |     1     |----------------------------
+|               |           |    Odd       |     5      |
+|--------------------------------------------------------
+|               |           |    Even      |     5      |
+|       3       |     1     |----------------------------
+|               |           |    Odd       |     1      |
+|--------------------------------------------------------
+|               |           |    Even      |     6      |
+|       4       |     0     |----------------------------
+|               |           |    Odd       |     2      |
+|--------------------------------------------------------
+|               |           |    Even      |     2      |
+|       5       |     0     |----------------------------
+|               |           |    Odd       |     6      |
+|--------------------------------------------------------
+|               |           |    Even      |     7      |
+|       6       |     1     |----------------------------
+|               |           |    Odd       |     3      |
+|--------------------------------------------------------
+|               |           |    Even      |     3      |
+|       7       |     1     |----------------------------
+|               |           |    Odd       |     7      |
+|--------------------------------------------------------
+*/
+int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                      int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                      CctxType cctx_type, const TXB_CTX *const txb_ctx,
+                      int *rate_cost, int sharpness) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
 
@@ -1378,12 +1449,15 @@ int av1_dep_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   // Start of TCQ
   int first_scan_pos = si;
+  // Process the first position
   trellis_first_pos(&param, first_scan_pos, &tcq_lev, trellis);
 
   int scan_hi = first_scan_pos - 1;
 
   if (scan_hi >= 0) {
     if (plane == 0 && tx_class == TX_CLASS_2D) {
+      // Speed-up version for 2D Luma by exploiting parallelism
+      // Process non-lf region diagonal-by-diagonal followed by lf regsion
       const int scan_lf_start = 9;
       while (scan_hi > scan_lf_start) {
         int blk_pos = scan[scan_hi];

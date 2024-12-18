@@ -188,9 +188,9 @@ typedef struct LV_MAP_COEFF_COST {
   int base_lf_eob_cost_uv[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency chroma coefficient
   int base_lf_cost_uv[LF_SIG_COEF_CONTEXTS_UV]
-#if CONFIG_DQ
-                     [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                     [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                      [LF_BASE_SYMBOLS * 2];
   //! Cost for encoding an increment to the low-frequency chroma coefficient
   int lps_lf_cost_uv[LF_LEVEL_CONTEXTS_UV]
@@ -205,9 +205,9 @@ typedef struct LV_MAP_COEFF_COST {
    * Decoder derives coeff_base as coeff_base := base_eob + 1.
    */
   int base_cost_uv[SIG_COEF_CONTEXTS_UV]
-#if CONFIG_DQ
-                  [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                  [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                   [8];
   //! Cost for encoding an increment to the chroma coefficient
   int lps_cost_uv[LEVEL_CONTEXTS_UV]
@@ -221,9 +221,9 @@ typedef struct LV_MAP_COEFF_COST {
   int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency coefficient
   int base_lf_cost[LF_SIG_COEF_CONTEXTS]
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-                  [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+                  [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                   [LF_BASE_SYMBOLS * 2];
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
@@ -243,28 +243,28 @@ typedef struct LV_MAP_COEFF_COST {
    * Decoder derives coeff_base as coeff_base := base_eob + 1.
    */
   int base_cost[SIG_COEF_CONTEXTS]
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-               [DQ_CTXS]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+               [TCQ_CTXS]
+#endif  // CONFIG_TCQ
                [8];
-#if CONFIG_DQ
+#if CONFIG_TCQ
   //! Quick access to base costs for optimized access.
-  int32_t base_cost_zero[DQ_CTXS][SIG_COEF_CONTEXTS];
-  int32_t base_cost_uv_zero[DQ_CTXS][SIG_COEF_CONTEXTS];
-  uint16_t base_cost_low_tbl[5][SIG_COEF_CONTEXTS][DQ_CTXS][2];
-  uint16_t base_cost_uv_low_tbl[5][SIG_COEF_CONTEXTS][DQ_CTXS][2];
-  uint16_t base_lf_cost_zero[DQ_CTXS][LF_SIG_COEF_CONTEXTS];
-  uint16_t base_lf_cost_uv_zero[DQ_CTXS][LF_SIG_COEF_CONTEXTS];
-  uint16_t base_lf_cost_low_tbl[9][LF_SIG_COEF_CONTEXTS][DQ_CTXS][2];
-  uint16_t base_lf_cost_uv_low_tbl[9][LF_SIG_COEF_CONTEXTS][DQ_CTXS][2];
+  int32_t base_cost_zero[TCQ_CTXS][SIG_COEF_CONTEXTS];
+  int32_t base_cost_uv_zero[TCQ_CTXS][SIG_COEF_CONTEXTS];
+  uint16_t base_cost_low_tbl[5][SIG_COEF_CONTEXTS][TCQ_CTXS][2];
+  uint16_t base_cost_uv_low_tbl[5][SIG_COEF_CONTEXTS][TCQ_CTXS][2];
+  uint16_t base_lf_cost_zero[TCQ_CTXS][LF_SIG_COEF_CONTEXTS];
+  uint16_t base_lf_cost_uv_zero[TCQ_CTXS][LF_SIG_COEF_CONTEXTS];
+  uint16_t base_lf_cost_low_tbl[9][LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2];
+  uint16_t base_lf_cost_uv_low_tbl[9][LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2];
   uint16_t base_eob_cost_tbl[5][SIG_COEF_CONTEXTS_EOB][2];
   uint16_t base_eob_cost_uv_tbl[5][SIG_COEF_CONTEXTS_EOB][2];
   uint16_t base_lf_eob_cost_tbl[9][SIG_COEF_CONTEXTS_EOB][2];
   uint16_t base_lf_eob_cost_uv_tbl[9][SIG_COEF_CONTEXTS_EOB][2];
   //! Quick access to mid (br) costs for optimized access.
-  uint16_t mid_cost_tbl[11][LEVEL_CONTEXTS][DQ_CTXS][2];
-  uint16_t mid_lf_cost_tbl[15][LF_LEVEL_CONTEXTS][DQ_CTXS][2];
-#endif  // CONFIG_DQ
+  uint16_t mid_cost_tbl[11][LEVEL_CONTEXTS][TCQ_CTXS][2];
+  uint16_t mid_lf_cost_tbl[15][LF_LEVEL_CONTEXTS][TCQ_CTXS][2];
+#endif  // CONFIG_TCQ
   /*! \brief Cost for encoding the last non-zero coefficient.
    *
    * Eob is derived from eob_extra at the decoder as eob := eob_extra + 1

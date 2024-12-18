@@ -1104,11 +1104,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif
 
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-#if CONFIG_DQ
+#if CONFIG_TCQ
   const int tcq_mode = cm->features.tcq_mode;
 #else
   const int tcq_mode = 0;
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
@@ -1150,18 +1150,18 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
   int state = tcq_init_state(tcq_mode, plane, tx_class);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
   // Loop to code AC coefficient magnitudes
   for (int c = eob - 1; c > 0; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-    int dq = tcq_quant(state);
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+    int q_i = tcq_quant(state);
+#endif  // CONFIG_TCQ
 
     if (c == eob - 1) {
       const int row = pos >> bwl;
@@ -1208,17 +1208,17 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                       [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                       [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                    [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                    [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            4);
         }
@@ -1226,24 +1226,24 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                    [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                    [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                 [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                 [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            4);
         }
       }
 #else
       if (limits) {
-#if CONFIG_DQ
+#if CONFIG_TCQ
         if (tcq_quant(state) // Q1
           aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
@@ -1259,9 +1259,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
       } else {
-#if CONFIG_DQ
+#if CONFIG_TCQ
         if (tcq_quant(state) // Q1
           aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf_tcq[txs_ctx][plane_type][coeff_ctx],
@@ -1274,7 +1274,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
       }
 #endif  // CONFIG_CHROMA_CODING
     }
@@ -1327,9 +1327,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       }
     }
 #endif  // CONFIG_CHROMA_CODING
-#if CONFIG_DQ
+#if CONFIG_TCQ
     state = tcq_next_state(state, level);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
   }
 
   // Code DC coefficient magnitude
@@ -1354,11 +1354,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-    int dq = tcq_quant(state);
-#elif CONFIG_DQ
-    int dq = 0;
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+    int q_i = tcq_quant(state);
+#elif CONFIG_TCQ
+    int q_i = 0;
+#endif  // CONFIG_TCQ
 
 #if CONFIG_CHROMA_CODING
     if (plane > 0) {
@@ -1381,17 +1381,17 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                       [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                       [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                    [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                    [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            4);
         }
@@ -1416,17 +1416,17 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
                            ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                    [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                    [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
                            ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                 [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                 [q_i]
+#endif  // CONFIG_TCQ
                            ,
                            4);
         }
@@ -1452,27 +1452,27 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
       if (limits) {
-#if CONFIG_DQ
+#if CONFIG_TCQ
         aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
-            ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx][dq],
+            ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx][q_i],
             LF_BASE_SYMBOLS);
 #else
         aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
             ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type][coeff_ctx],
             LF_BASE_SYMBOLS);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
       } else {
-#if CONFIG_DQ
+#if CONFIG_TCQ
         aom_write_symbol(
             w, AOMMIN(level, 3),
-            ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx][dq], 4);
+            ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx][q_i], 4);
 #else
         aom_write_symbol(w, AOMMIN(level, 3),
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
       }
     }
 #endif  // CONFIG_CHROMA_CODING
@@ -2457,20 +2457,20 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #endif  // CONFIG_IMPROVEIDTX
     }
   }
-#if CONFIG_DQ && CONFIG_CHROMA_CODING
-  const int(*base_lf_cost)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+#if CONFIG_TCQ && CONFIG_CHROMA_CODING
+  const int(*base_lf_cost)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost;
-  const int(*base_cost)[DQ_CTXS][8] = coeff_costs->base_cost;
-  const int(*base_lf_cost_uv)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_cost)[TCQ_CTXS][8] = coeff_costs->base_cost;
+  const int(*base_lf_cost_uv)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
-  const int(*base_cost_uv)[DQ_CTXS][8] = coeff_costs->base_cost_uv;
+  const int(*base_cost_uv)[TCQ_CTXS][8] = coeff_costs->base_cost_uv;
 #else
   const int(*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
   const int(*base_cost)[8] = coeff_costs->base_cost;
   const int(*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
   const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = hr_level >> 1;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2486,29 +2486,29 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     if (plane > 0) {
       if (limits) {
         cost += base_lf_cost_uv[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                                [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost_uv[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                             [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                             [AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
         cost += base_lf_cost[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                             [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                             [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                          [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                          [AOMMIN(level, 3)];
       }
     }
@@ -2688,29 +2688,29 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     if (plane > 0) {
       if (limits) {
         cost += base_lf_cost_uv[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                                [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                                [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost_uv[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                             [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                             [AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
         cost += base_lf_cost[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                             [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                             [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
         cost += base_cost[coeff_ctx]
-#if CONFIG_DQ
+#if CONFIG_TCQ
                          [0]
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
                          [AOMMIN(level, 3)];
       }
     }
@@ -3093,10 +3093,10 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
   assert(ci > 0);
   int cost = 0;
 
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
-  const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int(*base_cost_ptr)[DQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   cost +=
       limits
@@ -3124,7 +3124,7 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
 #if CONFIG_CHROMA_CODING
   if (limits) {
     if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
-#if CONFIG_DQ
+#if CONFIG_TCQ
       diff = (abs_qc == 0) ? 0
                            : base_lf_cost_ptr[coeff_ctx][0][abs_qc] -
                                  base_lf_cost_ptr[coeff_ctx][0][abs_qc - 1];
@@ -3132,11 +3132,11 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
       diff = (abs_qc == 0) ? 0
                            : base_lf_cost_ptr[coeff_ctx][abs_qc] -
                                  base_lf_cost_ptr[coeff_ctx][abs_qc - 1];
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
     }
   } else {
     if (abs_qc <= 3) {
-#if CONFIG_DQ
+#if CONFIG_TCQ
       diff = (abs_qc == 0) ? 0
                            : base_cost_ptr[coeff_ctx][0][abs_qc] -
                                  base_cost_ptr[coeff_ctx][0][abs_qc - 1];
@@ -3144,7 +3144,7 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
       diff = (abs_qc == 0) ? 0
                            : base_cost_ptr[coeff_ctx][abs_qc] -
                                  base_cost_ptr[coeff_ctx][abs_qc - 1];
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
     }
   }
   diff += (abs_qc == 1) ? av1_cost_literal(1) : 0;
@@ -3541,10 +3541,10 @@ static INLINE int get_coeff_cost_general(
     }
 #endif  // CONFIG_CHROMA_CODING
   } else {
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
-    const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
+    const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-    const int(*base_cost_ptr)[DQ_CTXS][8] =
+    const int(*base_cost_ptr)[TCQ_CTXS][8] =
         plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
     cost += limits ? base_lf_cost_ptr[coeff_ctx][0]
                                      [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
@@ -3565,7 +3565,7 @@ static INLINE int get_coeff_cost_general(
   } else {
     cost += txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
   }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   }
   if (abs_qc != 0) {
 #if CONFIG_IMPROVEIDTX
@@ -3844,22 +3844,22 @@ static INLINE void update_coeff_general(
   int hr_level = 0;
   int hr_level_low = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
-  const int(*base_lf_cost_ptr)[DQ_CTXS][LF_BASE_SYMBOLS * 2] =
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int(*base_cost_ptr)[DQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 #elif CONFIG_CHROMA_CODING
   const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   const int(*base_cost_ptr)[8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-#endif
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
   if (qc == 0) {
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
     *accu_rate += limits ? base_lf_cost_ptr[coeff_ctx][0][0]
                          : base_cost_ptr[coeff_ctx][0][0];
 #elif CONFIG_CHROMA_CODING
@@ -3871,7 +3871,7 @@ static INLINE void update_coeff_general(
   } else {
     *accu_rate += txb_costs->base_cost[coeff_ctx][0];
   }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   } else {
     const int sign = (qc < 0) ? 1 : 0;
     const tran_low_t abs_qc = abs(qc);
@@ -3901,7 +3901,7 @@ static INLINE void update_coeff_general(
     if (abs_qc == 1) {
       abs_qc_low = qc_low = dqc_low = 0;
       dist_low = dist0;
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
       rate_low = limits ? base_lf_cost_ptr[coeff_ctx][0][0]
                         : base_cost_ptr[coeff_ctx][0][0];
 #elif CONFIG_CHROMA_CODING
@@ -3913,7 +3913,7 @@ static INLINE void update_coeff_general(
     } else {
       rate_low = txb_costs->base_cost[coeff_ctx][0];
     }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
       abs_qc_low = abs_qc - 1;
@@ -4019,7 +4019,7 @@ static AOM_FORCE_INLINE void update_coeff_simple(
   }
 #endif  // CONFIG_CHROMA_CODING
   if (qc == 0) {
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
     if (plane > 0) {
       if (limits) {
         *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -4053,7 +4053,7 @@ static AOM_FORCE_INLINE void update_coeff_simple(
   } else {
     *accu_rate += txb_costs->base_cost[coeff_ctx][0];
   }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   } else {
     const tran_low_t abs_qc = abs(qc);
     const tran_low_t abs_tqc = abs(tcoeff[ci]);
@@ -4350,7 +4350,7 @@ static AOM_FORCE_INLINE void update_coeff_eob(
   }
 #endif  // CONFIG_CHROMA_CODING
   if (qc == 0) {
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
     if (plane > 0) {
       if (limits) {
         *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -4384,7 +4384,7 @@ static AOM_FORCE_INLINE void update_coeff_eob(
   } else {
     *accu_rate += txb_costs->base_cost[coeff_ctx][0];
   }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   } else {
     int64_t rd_eob_low = INT64_MAX >> 1;
     int rate_eob_low = INT32_MAX >> 1;
@@ -4418,7 +4418,7 @@ static AOM_FORCE_INLINE void update_coeff_eob(
       abs_qc_low = 0;
       dqc_low = qc_low = 0;
       dist_low = 0;
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
       if (plane > 0) {
         if (limits) {
           rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -4452,7 +4452,7 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     } else {
       rate_low = txb_costs->base_cost[coeff_ctx][0];
     }
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist);
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
@@ -6094,7 +6094,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
                             coeff_contexts, plane);
 
-    // select quantizer when DQ is on, 0 for Q0 and 1 for Q1
+    // select quantizer when TCQ is on, 0 for Q0 and 1 for Q1
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding &&
         !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
@@ -6103,18 +6103,18 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #else
           get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
-#if CONFIG_DQ
+#if CONFIG_TCQ
     int state = tcq_init_state(cm->features.tcq_mode, plane, tx_class);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
     for (int c = eob - 1; c > 0; --c) {
       const int pos = scan[c];
       const int coeff_ctx = coeff_contexts[pos];
       const tran_low_t v = qcoeff[pos];
       const tran_low_t level = abs(v);
-#if CONFIG_DQ
-      const int dq = tcq_quant(state);
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+      const int q_i = tcq_quant(state);
+#endif  // CONFIG_TCQ
       if (allow_update_cdf) {
         if (c == eob - 1) {
           assert(coeff_ctx < 4);
@@ -6161,40 +6161,40 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           if (plane > 0) {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                     [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                     [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                  [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                  [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                  [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                  [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                               [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                               [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, 3), 4);
             }
           }
 #else
             if (limits) {
-#if CONFIG_DQ
-              if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+              if (q_i)  // quantizer 1, update its ctx
                 update_cdf(ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type]
                                                         [coeff_ctx],
                            AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
@@ -6206,10 +6206,10 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
               update_cdf(
                   ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
                   AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             } else {
-#if CONFIG_DQ
-              if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+              if (q_i)  // quantizer 1, update its ctx
                 update_cdf(ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type]
                                                      [coeff_ctx],
                            AOMMIN(level, 3), 4);
@@ -6221,7 +6221,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
               update_cdf(
                   ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
                   AOMMIN(level, 3), 4);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             }
 #endif  // CONFIG_CHROMA_CODING
         }
@@ -6272,53 +6272,53 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           if (limits) {
             ++td->counts
                   ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_DQ
-                                          [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                          [q_i]
+#endif  // CONFIG_TCQ
                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_DQ
-                                             [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                             [q_i]
+#endif  // CONFIG_TCQ
                                              [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
             ++td->counts
                   ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                       [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                       [q_i]
+#endif  // CONFIG_TCQ
                                        [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                          [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                          [q_i]
+#endif  // CONFIG_TCQ
                                           [AOMMIN(level, 3)];
           }
         }
 #else
         if (limits) {
-#if CONFIG_DQ
-          if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+          if (q_i)  // quantizer 1, update its ctx
             ++td->counts
                   ->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
                                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           else
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
                                              [coeff_ctx][AOMMIN(
                                                  level, LF_BASE_SYMBOLS - 1)];
         } else {
-#if CONFIG_DQ
-          if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+          if (q_i)  // quantizer 1, update its ctx
             ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                               [coeff_ctx][AOMMIN(level, 3)];
           else
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
                                           [coeff_ctx][AOMMIN(level, 3)];
         }
@@ -6468,9 +6468,9 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           }
         }
 #endif  // CONFIG_CHROMA_CODING
-#if CONFIG_DQ
+#if CONFIG_TCQ
       state = tcq_next_state(state, level);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
     }
 
     bool is_hidden = false;
@@ -6541,47 +6541,47 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
-#if CONFIG_DQ
-          int dq = tcq_quant(state);
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+          int q_i = tcq_quant(state);
+#endif  // CONFIG_TCQ
 #if CONFIG_CHROMA_CODING
           if (plane > 0) {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                     [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                     [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_DQ
-                                                  [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                  [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
               update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                                  [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                                  [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
               update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                               [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                               [q_i]
+#endif  // CONFIG_TCQ
                          ,
                          AOMMIN(level, 3), 4);
             }
           }
 #else
             if (limits) {
-#if CONFIG_DQ
-              if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+              if (q_i)  // quantizer 1, update its ctx
                 update_cdf(ec_ctx->coeff_base_lf_cdf_tcq[txsize_ctx][plane_type]
                                                         [coeff_ctx],
                            AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
@@ -6593,10 +6593,10 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
               update_cdf(
                   ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
                   AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             } else {
-#if CONFIG_DQ
-              if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+              if (q_i)  // quantizer 1, update its ctx
                 update_cdf(ec_ctx->coeff_base_cdf_tcq[txsize_ctx][plane_type]
                                                      [coeff_ctx],
                            AOMMIN(level, 3), 4);
@@ -6608,7 +6608,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
               update_cdf(
                   ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
                   AOMMIN(level, 3), 4);
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             }
 #endif  // CONFIG_CHROMA_CODING
         }
@@ -6653,59 +6653,59 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
-        int dq = tcq_quant(state);
+        int q_i = tcq_quant(state);
 #if CONFIG_CHROMA_CODING
         if (plane > 0) {
           if (limits) {
             ++td->counts
                   ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_DQ
-                                          [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                          [q_i]
+#endif  // CONFIG_TCQ
                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_DQ
-                                             [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                             [q_i]
+#endif  // CONFIG_TCQ
                                              [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
             ++td->counts
                   ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                       [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                       [q_i]
+#endif  // CONFIG_TCQ
                                        [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_DQ
-                                          [dq]
-#endif  // CONFIG_DQ
+#if CONFIG_TCQ
+                                          [q_i]
+#endif  // CONFIG_TCQ
                                           [AOMMIN(level, 3)];
           }
         }
 #else
         if (limits) {
-#if CONFIG_DQ
-          if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+          if (q_i)  // quantizer 1, update its ctx
             ++td->counts
                   ->coeff_base_lf_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
                                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           else
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
                                              [coeff_ctx][AOMMIN(
                                                  level, LF_BASE_SYMBOLS - 1)];
         } else {
-#if CONFIG_DQ
-          if (dq)  // quantizer 1, update its ctx
+#if CONFIG_TCQ
+          if (q_i)  // quantizer 1, update its ctx
             ++td->counts->coeff_base_multi_tcq[cdf_idx][txsize_ctx][plane_type]
                                               [coeff_ctx][AOMMIN(level, 3)];
           else
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
             ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
                                           [coeff_ctx][AOMMIN(level, 3)];
         }

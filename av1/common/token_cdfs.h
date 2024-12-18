@@ -4398,10 +4398,10 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_CHROMA_CODING
-#if CONFIG_DQ
+#if CONFIG_TCQ
 #if TCQ_DIS_CHR
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
-    [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS]
+    [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS]
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
           {
@@ -4606,7 +4606,7 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
     };
 #else
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
-    [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS]
+    [TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS]
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
           {
@@ -4870,7 +4870,7 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
           { AOM_CDF6(4681, 9362, 14043, 18725, 28087), 0 },
       },
     };
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
@@ -4916,7 +4916,7 @@ static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
       },
     };
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
 #if TCQ_DIS_CHR
 static const aom_cdf_prob
     av1_default_coeff_base_multi_uv_cdfs[4][12][2][CDF_SIZE(4)] = {
@@ -5386,7 +5386,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs
           { AOM_CDF4(8192, 16384, 24576), 0 },
       },
     };
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 static const aom_cdf_prob av1_default_coeff_lps_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
@@ -5475,9 +5475,9 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_uv_cdfs
 
 #if CONFIG_ENTROPY_PARA
 #if CONFIG_CHROMA_CODING
-#if CONFIG_DQ
+#if CONFIG_TCQ
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
-    [TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS][DQ_CTXS]
+    [TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS][TCQ_CTXS]
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
       {
           {
@@ -9493,7 +9493,7 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
           },
       },
     };
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_EOB]
@@ -9696,9 +9696,9 @@ static const aom_cdf_prob av1_default_coeff_lps_lf_multi_cdfs
       },
     };
 
-#if CONFIG_DQ
+#if CONFIG_TCQ
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
-    [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][DQ_CTXS]
+    [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][TCQ_CTXS]
     [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
       {
           {
@@ -11802,7 +11802,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs
           },
       },
     };
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
 static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_EOB]

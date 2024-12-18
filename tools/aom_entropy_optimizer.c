@@ -28,9 +28,9 @@
 #include <stdio.h>
 
 #include "av1/common/enums.h"
-#if CONFIG_DQ
+#if CONFIG_TCQ
 #include "av1/common/quant_common.h"
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 #include "config/aom_config.h"
 
 #include "av1/encoder/encoder.h"
@@ -2209,31 +2209,31 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_CHROMA_CODING
   // LF Base, BR
-#if CONFIG_DQ
+#if CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_SIG_COEF_CONTEXTS_UV;
-  cts_each_dim[2] = DQ_CTXS;
+  cts_each_dim[2] = TCQ_CTXS;
   cts_each_dim[3] = LF_BASE_SYMBOLS;
   int dq_minus_entries_uv =
       (TCQ_DIS_CHR ? LF_SIG_COEF_CONTEXTS_UV : 0) * (LF_BASE_SYMBOLS - 1);
   optimize_cdf_table(
       &fc.coeff_base_lf_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(LF_BASE_"
+      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(LF_BASE_"
       "SYMBOLS)]",
       1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 
   // HF Base, BR
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = SIG_COEF_CONTEXTS_UV;
-  cts_each_dim[2] = DQ_CTXS;
+  cts_each_dim[2] = TCQ_CTXS;
   cts_each_dim[3] = NUM_BASE_LEVELS + 2;
   dq_minus_entries_uv =
       (TCQ_DIS_CHR ? SIG_COEF_CONTEXTS_UV : 0) * (NUM_BASE_LEVELS + 2 - 1);
   optimize_cdf_table(
       &fc.coeff_base_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][DQ_CTXS][CDF_SIZE(NUM_BASE_"
+      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(NUM_BASE_"
       "LEVELS + 2)]",
       1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 #else
@@ -2255,7 +2255,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob av1_default_coeff_base_multi_uv_cdfs"
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_LEVEL_CONTEXTS_UV;
@@ -2319,18 +2319,18 @@ int main(int argc, const char **argv) {
                      1, &total_count, 0, mem_wanted, "Coefficients");
 
 #if CONFIG_CHROMA_CODING
-#if CONFIG_DQ
+#if CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = LF_SIG_COEF_CONTEXTS;
-  cts_each_dim[3] = DQ_CTXS;
+  cts_each_dim[3] = TCQ_CTXS;
   cts_each_dim[4] = LF_BASE_SYMBOLS;
   int dq_minus_entries_lf = (TCQ_DIS_1D ? LF_SIG_COEF_CONTEXTS_1D : 0) *
                             TX_SIZES * (LF_BASE_SYMBOLS - 1);
   optimize_cdf_table(
       &fc.coeff_base_lf_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS][DQ_CTXS]"
+      "[TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS][TCQ_CTXS]"
       "[CDF_SIZE(LF_BASE_SYMBOLS)]",
       1, &total_count, dq_minus_entries_lf, mem_wanted, "Coefficients");
 #else
@@ -2344,7 +2344,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][LF_SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(LF_BASE_SYMBOLS)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_DQ
+#endif  // CONFIG_TCQ
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -2426,18 +2426,18 @@ int main(int argc, const char **argv) {
                      1, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // CONFIG_CHROMA_CODING
 
-#if CONFIG_CHROMA_CODING && CONFIG_DQ
+#if CONFIG_CHROMA_CODING && CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = SIG_COEF_CONTEXTS;
-  cts_each_dim[3] = DQ_CTXS;
+  cts_each_dim[3] = TCQ_CTXS;
   cts_each_dim[4] = NUM_BASE_LEVELS + 2;
   int dq_minus_entries_def =
       (TCQ_DIS_1D ? 5 : 0) * TX_SIZES * (NUM_BASE_LEVELS + 2 - 1);
   optimize_cdf_table(
       &fc.coeff_base_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][DQ_CTXS]"
+      "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][TCQ_CTXS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, dq_minus_entries_def, mem_wanted, "Coefficients");
 #elif CONFIG_CHROMA_CODING
