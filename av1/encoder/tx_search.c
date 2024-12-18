@@ -2879,14 +2879,20 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
     const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+#if !CONFIG_IST_NON_ZERO_DEPTH
     const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
     bool skip_stx =
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
               ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
+#if CONFIG_IST_NON_ZERO_DEPTH
+         dc_only_blk || (eob_found) || !xd->enable_ist);
+#else
          dc_only_blk || !is_depth0 || (eob_found) || !xd->enable_ist);
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
 #if CONFIG_IST_ANY_SET
     int init_set_id = 0;
     int max_set_id =

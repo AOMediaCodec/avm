@@ -460,6 +460,9 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
+
+set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
+                   "Enable IST non zero depth TUs from CWG-E151.")
 set_aom_config_var(
   CONFIG_INTRA_TX_IST_PARSE 1
   "Parsing dependency removal for intra tx type and IST set signaling.")
