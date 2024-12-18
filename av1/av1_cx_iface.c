@@ -188,12 +188,12 @@ struct av1_extracfg {
   int enable_warped_motion;       // enable local warped motion for sequence
   int enable_warped_causal;       // enable spatial warp prediction for sequence
   int enable_warp_delta;          // enable explicit warp models for sequence
- #if CONFIG_SIX_PARAM_WARP_DELTA
+#if CONFIG_SIX_PARAM_WARP_DELTA
   int enable_six_param_warp_delta;  // enable explicit six-parameter warp models
                                     // for sequence
 #endif                              // CONFIG_SIX_PARAM_WARP_DELTA
-  int enable_warp_extend;         // enable warp extension for sequence
-  int enable_filter_intra;        // enable filter intra for sequence
+  int enable_warp_extend;           // enable warp extension for sequence
+  int enable_filter_intra;          // enable filter intra for sequence
 #if CONFIG_DIP
   int enable_intra_dip;     // enable intra DIP (data-driven intra) sequence
 #endif                      // CONFIG_DIP
@@ -533,8 +533,8 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_SIX_PARAM_WARP_DELTA
   1,    // enable_six_param_warp_delta at sequence level
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
-  1,  // enable_warp_extend at sequence level
-  0,  // enable filter intra at sequence level
+  1,    // enable_warp_extend at sequence level
+  0,    // enable filter intra at sequence level
 #if CONFIG_DIP
   1,    // enable_intra_dip at sequence level
 #endif  // CONFIG_DIP
