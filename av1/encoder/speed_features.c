@@ -1186,6 +1186,11 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 #endif  // CONFIG_DIP
   }
 
+  // Disable tcq modes in sequence header when cpu-used >= 2
+  if (sf->rd_sf.disable_tcq) {
+    cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
+  }
+
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64
   // blocks. Normalise this if the blocks are bigger.
   if (MAX_SB_SIZE_LOG2 > 6) {
