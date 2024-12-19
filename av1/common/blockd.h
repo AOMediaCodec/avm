@@ -3767,19 +3767,20 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
            : (intra_dir < PAETH_PRED &&
               !(mbmi->filter_intra_mode_info.use_filter_intra)));
 #if CONFIG_IST_NON_ZERO_DEPTH_INTRA || CONFIG_IST_NON_ZERO_DEPTH_INTER
-    
-    bool is_allow_depth = is_depth0;
+
+  bool is_allow_depth = is_depth0;
 
 #if CONFIG_IST_NON_ZERO_DEPTH_INTRA
-    is_allow_depth = (!is_inter_block(mbmi, xd->tree_type) ? true : is_allow_depth);
+  is_allow_depth =
+      (!is_inter_block(mbmi, xd->tree_type) ? true : is_allow_depth);
 #endif
 #if CONFIG_IST_NON_ZERO_DEPTH_INTER
-    is_allow_depth = (is_inter_block(mbmi, xd->tree_type) ? true : is_allow_depth);
+  is_allow_depth =
+      (is_inter_block(mbmi, xd->tree_type) ? true : is_allow_depth);
 #endif
-      
+
 #if CONFIG_IST_NON_ZERO_DEPTH_DCT_ONLY
-    if(primary_tx_type == ADST_ADST)
-        is_allow_depth = is_depth0;
+  if (primary_tx_type == ADST_ADST) is_allow_depth = is_depth0;
 #endif
 #endif
   const int code_stx =

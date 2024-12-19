@@ -350,7 +350,7 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
 
-#IST for sub-TU partitions from CWG-E151
+# IST for sub-TU partitions from CWG-E151
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_INTRA 1
                    "Enable IST non zero depth intra TU.")
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH_INTER 1
