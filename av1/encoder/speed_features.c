@@ -449,6 +449,9 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->tx_sf.use_intra_txb_hash = 1;
 
+#if CONFIG_TCQ
+    sf->rd_sf.disable_tcq = 1;
+#endif  // CONFIG_TCQ
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -925,6 +928,9 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   }
   rd_sf->use_mb_rd_hash = 1;
   rd_sf->simple_model_rd_from_var = 0;
+#if CONFIG_TCQ
+  rd_sf->disable_tcq = 0;
+#endif  // CONFIG_TCQ
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;
   rd_sf->perform_coeff_opt = 0;

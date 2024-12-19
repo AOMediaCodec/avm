@@ -4187,6 +4187,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   } else {
     features->tcq_mode = cm->seq_params.enable_tcq;
   }
+  if (cpi->sf.rd_sf.disable_tcq) {
+    features->tcq_mode = 0;
+  }
 #endif  // CONFIG_TCQ
 
   int largest_tile_id = 0;
