@@ -28,6 +28,7 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+
 #define BAWP_BUGFIX 1
 #define ADJUST_SUPER_RES_Q 1
 

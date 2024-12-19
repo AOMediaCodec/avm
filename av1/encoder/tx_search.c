@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -52,6 +52,19 @@ typedef struct tx_size_rd_info_node {
   TXB_RD_INFO *rd_info_array;  // Points to array of size TX_TYPES.
   struct tx_size_rd_info_node *children[4];
 } TXB_RD_INFO_NODE;
+
+#if CONFIG_IST_REDUCTION
+// Mapping of index to IST kernel set (for encoder search only)
+static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
+  { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
+  { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+  { 2, 6, 0, 5, 1, 4, 3 },  // D45_PRED
+  { 3, 4, 6, 1, 0, 2, 5 },  // D135_PRED
+  { 4, 1, 3, 6, 0, 5, 2 },  // D113_PRED, D157_PRED
+  { 5, 0, 6, 2, 1, 4, 3 },  // D203_PRED, D67_PRED
+  { 6, 1, 0, 5, 4, 3, 2 },  // SMOOTH_PRED
+};
+#endif  // CONFIG_IST_REDUCTION
 
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
@@ -2880,28 +2893,52 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
     const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+#if !CONFIG_IST_NON_ZERO_DEPTH
     const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
     bool skip_stx =
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
               ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
+#if CONFIG_IST_NON_ZERO_DEPTH
+         dc_only_blk || (eob_found) || !xd->enable_ist);
+#else
          dc_only_blk || !is_depth0 || (eob_found) || !xd->enable_ist);
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
 #if CONFIG_IST_ANY_SET
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
+#if CONFIG_IST_REDUCTION
+    if (max_set_id == IST_DIR_SIZE) {
+      max_set_id = IST_REDUCE_SET_SIZE;
+    }
+    for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
+      txfm_param.sec_tx_set_idx = set_idx;
+      uint8_t set_id = set_idx;
+      if (!is_inter_block(mbmi, xd->tree_type)) {
+        const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
+        int intra_stx_mode = stx_transpose_mapping[mode];
+        assert(set_idx < IST_REDUCE_SET_SIZE);
+        set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+      }
+#else
     // Iterate through all possible secondary tx sets for given primary tx type
     for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_ANY_SET
 
       const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
 
       for (int stx = 0; stx < max_stx; ++stx) {
         // Skip repeated evaluation of no secondary transform.
-        if (set_id && !stx) continue;
-
+#if CONFIG_IST_REDUCTION
+        if (set_idx && !stx) continue;
+#else
+      if (set_id && !stx) continue;
+#endif  // CONFIG_IST_REDUCTION
 #if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = primary_tx_type;
         if (eob_found) skip_stx = true;

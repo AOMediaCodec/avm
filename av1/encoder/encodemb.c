@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -148,6 +148,19 @@ static AOM_INLINE void fill_residue_outside_frame(
   }
 }
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+
+#if CONFIG_IST_REDUCTION
+// Mapping of IST kernel set to index (for encoder only)
+static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
+  { 2, 1, 6, 5, 4, 3, 0 },  // DC_PRED
+  { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+  { 2, 4, 0, 6, 5, 3, 1 },  // D45_PRED
+  { 4, 3, 5, 0, 1, 6, 2 },  // D135_PRED
+  { 4, 1, 6, 2, 0, 5, 3 },  // D113_PRED, D157_PRED
+  { 1, 4, 3, 6, 5, 0, 2 },  // D203_PRED, D67_PRED
+  { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
+};
+#endif  // CONFIG_IST_REDUCTION
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int16_t *diff, ptrdiff_t diff_stride,
@@ -717,7 +730,11 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
     // per set) Set 0 ~ IST_DIR_SIZE-1 for DCT_DCT, and Set IST_DIR_SIZE ~
     // IST_SET_SIZE-1 for ADST_ADST
     if (txfm_param->sec_tx_type == 0 &&
+#if CONFIG_IST_REDUCTION
+        txfm_param->sec_tx_set_idx == 0)
+#else
         (txfm_param->sec_tx_set == 0 || txfm_param->sec_tx_set == IST_DIR_SIZE))
+#endif
 #else
     if (txfm_param->sec_tx_type == 0)
 #endif  // CONFIG_IST_ANY_SET
@@ -735,13 +752,22 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   if (!is_inter_block(mbmi, xd->tree_type))
+#if CONFIG_IST_NON_ZERO_DEPTH
+    assert(((intra_mode >= PAETH_PRED || filter) && txfm_param->sec_tx_type) ==
+           0);
+#else
     assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
             txfm_param->sec_tx_type) == 0);
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
   (void)intra_mode;
   (void)filter;
+#if !CONFIG_IST_NON_ZERO_DEPTH
   (void)is_depth0;
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   av1_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
 }
 
@@ -839,6 +865,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   txfm_param->tx_type = get_primary_tx_type(tx_type);
 #if CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_set = 0;
+#if CONFIG_IST_REDUCTION
+  txfm_param->sec_tx_set_idx = 0;
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
@@ -856,6 +885,21 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART])) {
 #if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+#if CONFIG_IST_REDUCTION
+    txfm_param->sec_tx_set_idx = txfm_param->sec_tx_set;
+    if (!is_inter_block(xd->mi[0], xd->tree_type)) {
+      int intra_stx_mode =
+          stx_transpose_mapping[AOMMIN(txfm_param->intra_mode, SMOOTH_H_PRED)];
+      uint8_t stx_id = 0;
+      if (txfm_param->tx_type == ADST_ADST) {
+        stx_id = AOMMAX(txfm_param->sec_tx_set - IST_DIR_SIZE, 0);
+      } else {
+        stx_id = txfm_param->sec_tx_set;
+      }
+      uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+      txfm_param->sec_tx_set_idx = stx_idx;
+    }
+#endif  // CONFIG_IST_REDUCTION
 #endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }

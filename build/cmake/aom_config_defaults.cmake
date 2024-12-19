@@ -413,6 +413,15 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
 
+# IST for sub-TU partitions from CWG-E151
+set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
+                   "Enable IST non zero depth TUs from CWG-E151.")
+
+# IST set reduction (non-normative)
+set_aom_config_var(
+  CONFIG_IST_REDUCTION 1
+  "Non-normatively use 4 sets for IST encoder search from CWG-E142.")
+
 set_aom_config_var(CONFIG_TMVP_IMPROVE 1
                    "Enable to improve TMVP candidate selection in DRL list")
 set_aom_config_var(CONFIG_COMPOUND_4XN 1

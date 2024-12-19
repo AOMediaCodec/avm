@@ -3904,7 +3904,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   } else {
     intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   }
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
@@ -3927,7 +3929,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
     ist_eob = 0;
   }
+#if !CONFIG_IST_NON_ZERO_DEPTH
   const int is_depth0 = tx_size_is_depth0(tx_size, bs);
+#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   bool condition = (primary_tx_type == DCT_DCT && width >= 16 && height >= 16);
   bool mode_dependent_condition =
       (is_inter_block(mbmi, xd->tree_type)
@@ -3936,8 +3940,12 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
               !(mbmi->filter_intra_mode_info.use_filter_intra)));
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
-      mode_dependent_condition && is_depth0 && ist_eob;
+      mode_dependent_condition && ist_eob;
+#if CONFIG_IST_NON_ZERO_DEPTH
   return code_stx;
+#else
+  return (code_stx && is_depth0);
+#endif  // CONFIG_IST_NON_ZERO_DEPTH
 }
 
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
