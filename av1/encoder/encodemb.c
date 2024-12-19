@@ -735,13 +735,11 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
-  const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
   if (!is_inter_block(mbmi, xd->tree_type))
-    assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
+    assert(((intra_mode >= PAETH_PRED || filter) &&
             txfm_param->sec_tx_type) == 0);
   (void)intra_mode;
   (void)filter;
-  (void)is_depth0;
   av1_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
 }
 
