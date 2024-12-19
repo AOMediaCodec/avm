@@ -2005,6 +2005,7 @@ static inline int get_group_base(int group, const int *group_counts) {
 static inline int predict_within_group(int group, int c_id,
                                        const int *match_indices,
                                        const int *group_counts) {
+  (void)match_indices;
   const int base = get_group_base(group, group_counts);
   const int count = group == 0 ? c_id + 1 : group_counts[group];
   const int prediction = base + count / 2;
