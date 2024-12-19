@@ -2005,16 +2005,10 @@ static inline int get_group_base(int group, const int *group_counts) {
 static inline int predict_within_group(int group, int c_id,
                                        const int *match_indices,
                                        const int *group_counts) {
-  int base = get_group_base(group, group_counts);
-  int sum = 0;
-  int cnt = 0;
-  for (int i = 0; i < c_id; ++i) {
-    if (index_to_group(match_indices[i], group_counts) != group) continue;
-    ++cnt;
-    sum += match_indices[i];
-  }
+  const int base = get_group_base(group, group_counts);
   const int count = group == 0 ? c_id + 1 : group_counts[group];
-  return cnt > 0 ? sum / cnt : (base + count / 2);
+  const int prediction = base + count / 2;
+  return prediction;
 }
 
 #ifndef NDEBUG
