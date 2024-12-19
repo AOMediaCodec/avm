@@ -3534,11 +3534,6 @@ static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
   return xd->cctx_type_map[br * xd->cctx_type_map_stride + bc];
 }
 
-static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
-  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
-  return ctx_size == tx_size;
-}
-
 #if !CONFIG_NEW_TX_PARTITION
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
