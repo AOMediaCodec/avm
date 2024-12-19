@@ -404,7 +404,7 @@ set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
 
 # IST set reduction (non-normative)
 set_aom_config_var(
-  CONFIG_IST_REDUCTION 1
+  CONFIG_IST_REDUCTION 0
   "Non-normatively use 4 sets for IST encoder search from CWG-E142.")
 
 set_aom_config_var(CONFIG_TMVP_IMPROVE 1
