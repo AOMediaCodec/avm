@@ -1188,6 +1188,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {
       cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
+      cpi->common.features.tcq_mode = TCQ_DISABLE;
     }
 #endif
   }
