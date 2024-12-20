@@ -281,7 +281,7 @@ typedef struct InterPredParams {
   int use_warp_bd;
   WarpBdBox *warp_bd_box;
   int use_warp_bd_damr;
-  WarpBdBox *warp_bd_box_damr;
+  WarpBdBox warp_bd_box_damr;
 #endif  // CONFIG_WARP_BD
 
 #if CONFIG_D071_IMP_MSK_BLD

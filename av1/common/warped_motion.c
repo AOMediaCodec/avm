@@ -1045,9 +1045,6 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
         bottom_lim = warp_bd_box[box_idx].y1 - 1;
       }
       if (use_warp_bd_damr) {
-        if (use_warp_bd) {
-          printf("this should not be true\n");
-        }
         left_lim = warp_bd_box_damr->x0;
         right_lim = warp_bd_box_damr->x1 - 1;
         top_lim = warp_bd_box_damr->y0;

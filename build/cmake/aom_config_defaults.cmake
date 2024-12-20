@@ -524,7 +524,7 @@ set_aom_config_var(CONFIG_SIX_PARAM_WARP_DELTA 1
                    "Enable six parameter warp models.")
 
 set_aom_config_var(CONFIG_OPFL_MB 1
-                   "Reduce memory bandwith for OFFL/subblk ref/DAMR to 15x15.")
+                   "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
 
 set_aom_config_var(CONFIG_WARP_BD 1 "4x4 warp constraints.")
 #

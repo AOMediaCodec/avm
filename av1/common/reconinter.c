@@ -106,7 +106,10 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
   inter_pred_params->use_warp_bd = 0;
   inter_pred_params->warp_bd_box = NULL;
   inter_pred_params->use_warp_bd_damr = 0;
-  inter_pred_params->warp_bd_box_damr = NULL;
+  inter_pred_params->warp_bd_box_damr.x0 = 0;
+  inter_pred_params->warp_bd_box_damr.y0 = 0;
+  inter_pred_params->warp_bd_box_damr.x1 = ref_buf->width;
+  inter_pred_params->warp_bd_box_damr.y1 = ref_buf->height;
 #endif  // CONFIG_WARP_BD
 
 #if CONFIG_D071_IMP_MSK_BLD
@@ -183,7 +186,8 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
 #if CONFIG_WARP_BD
         ,
         inter_pred_params->use_warp_bd, inter_pred_params->warp_bd_box,
-        inter_pred_params->use_warp_bd_damr, inter_pred_params->warp_bd_box_damr
+        inter_pred_params->use_warp_bd_damr,
+        &inter_pred_params->warp_bd_box_damr
 #endif  // CONFIG_WARP_BD
     );
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
@@ -3001,7 +3005,10 @@ void make_inter_pred_of_nxn(
 #endif  // CONFIG_OPFL_MB
 #if CONFIG_WARP_BD
       inter_pred_params->use_warp_bd_damr = 0;
-      inter_pred_params->warp_bd_box_damr = NULL;
+      inter_pred_params->warp_bd_box_damr.x0 = 0;
+      inter_pred_params->warp_bd_box_damr.y0 = 0;
+      inter_pred_params->warp_bd_box_damr.x1 = cm->width;
+      inter_pred_params->warp_bd_box_damr.y1 = cm->height;
 #endif  // CONFIG_WARP_BD
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
@@ -3101,7 +3108,7 @@ void make_inter_pred_of_nxn(
                 mi_y + (j << inter_pred_params->subsampling_y), &warp_bd_box,
                 pu_width, pu_height, ref);
             inter_pred_params->use_warp_bd_damr = 1;
-            inter_pred_params->warp_bd_box_damr = &warp_bd_box;
+            inter_pred_params->warp_bd_box_damr = warp_bd_box;
           }
 #endif  // CONFIG_WARP_BD
           inter_pred_params->mode = WARP_PRED;
