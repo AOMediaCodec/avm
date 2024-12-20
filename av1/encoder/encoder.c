@@ -3547,6 +3547,16 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_CCSO_IMPROVE
+    cm->ccso_info.ccso_frame_flag = false;
+    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
+        cm->ccso_info.ccso_enable[2] = 0;
+    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+      cm->ccso_info.sb_reuse_ccso[plane] = false;
+      cm->ccso_info.reuse_ccso[plane] = false;
+    }
+#endif  // CONFIG_CCSO_IMPROVE
   }
 
   int64_t tip_as_output_sse = INT64_MAX;
@@ -3759,6 +3769,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
         if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
             superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
           cpi->common.features.allow_screen_content_tools = 0;
+          cpi->common.features.cur_frame_force_integer_mv = 0;
         }
         err = encode_with_recode_loop_and_filter(
             cpi, size, dest, &superres_sses[this_index],
@@ -3823,6 +3834,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
           superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
         cpi->common.features.allow_screen_content_tools = 0;
+        cpi->common.features.cur_frame_force_integer_mv = 0;
       }
       err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                                largest_tile_id);
@@ -3843,6 +3855,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     frame_probs->warped_probs[update_type] = warped_probs_tmp;
     if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
       cpi->common.features.allow_screen_content_tools = 0;
+      cpi->common.features.cur_frame_force_integer_mv = 0;
     }
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
                                              &largest_tile_id1);
@@ -3874,6 +3887,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       frame_probs->warped_probs[update_type] = warped_probs_tmp;
       if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
         cpi->common.features.allow_screen_content_tools = 0;
+        cpi->common.features.cur_frame_force_integer_mv = 0;
       }
       err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                                largest_tile_id);
