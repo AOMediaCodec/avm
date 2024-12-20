@@ -201,15 +201,15 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        ,
                        const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                        ,
                        int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
                        ,
-                       int use_warp_bd, WarpBdBox *warp_bd_box,
-                       int use_warp_bd_damr, WarpBdBox *warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+                       int use_warp_bd_box, WarpBoundaryBox *warp_bd_box,
+                       int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD_BOX
 );
 
 void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
@@ -232,15 +232,15 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ,
                     const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                     ,
                     int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
                     ,
-                    int use_warp_bd, WarpBdBox *warp_bd_box,
-                    int use_warp_bd_damr, WarpBdBox *warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+                    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box,
+                    int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD_BOX
 );
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,

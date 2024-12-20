@@ -74,10 +74,10 @@ typedef void (*highbd_warp_affine_func)(
     int p_stride, int subsampling_x, int subsampling_y, int bd,
     ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma,
     int16_t delta
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
     ,
     int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 );
 
 typedef std::tuple<int, int, int, int, highbd_warp_affine_func>
@@ -146,11 +146,11 @@ typedef void (*ext_highbd_warp_affine_func)(
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
     int p_stride, int subsampling_x, int subsampling_y, int bd,
     ConvolveParams *conv_params
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
     ,
-    int use_warp_bd, WarpBdBox *warp_bd_box, int use_warp_bd_damr,
-    WarpBdBox *warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box, int use_warp_bd_damr,
+    WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD_BOX
 );
 
 typedef ::testing::tuple<int, int, int, int, ext_highbd_warp_affine_func>

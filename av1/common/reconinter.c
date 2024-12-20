@@ -96,21 +96,21 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 
 #if CONFIG_REFINEMV
   inter_pred_params->use_ref_padding = 0;
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
   inter_pred_params->use_damr_padding = 0;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
   inter_pred_params->ref_area = NULL;
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_WARP_BD
-  inter_pred_params->use_warp_bd = 0;
+#if CONFIG_WARP_BD_BOX
+  inter_pred_params->use_warp_bd_box = 0;
   inter_pred_params->warp_bd_box = NULL;
   inter_pred_params->use_warp_bd_damr = 0;
   inter_pred_params->warp_bd_box_damr.x0 = 0;
   inter_pred_params->warp_bd_box_damr.y0 = 0;
   inter_pred_params->warp_bd_box_damr.x1 = ref_buf->width;
   inter_pred_params->warp_bd_box_damr.y1 = ref_buf->height;
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 
 #if CONFIG_D071_IMP_MSK_BLD
   inter_pred_params->border_data.enable_bacp = 0;
@@ -179,16 +179,16 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
         ,
         inter_pred_params->scale_factors
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
         ,
         inter_pred_params->use_damr_padding, inter_pred_params->ref_area
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
         ,
-        inter_pred_params->use_warp_bd, inter_pred_params->warp_bd_box,
+        inter_pred_params->use_warp_bd_box, inter_pred_params->warp_bd_box,
         inter_pred_params->use_warp_bd_damr,
         &inter_pred_params->warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
     );
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
     highbd_inter_predictor(
@@ -2909,18 +2909,18 @@ void make_inter_pred_of_nxn(
     int use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
     SubpelParams *subpel_params
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height
-#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
+#if CONFIG_OPFL_MEMBW_REDUCTION
     ,
     int use_sub_pad
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
     ,
     int use_sub_pad_warp
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 ) {
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
@@ -2992,7 +2992,7 @@ void make_inter_pred_of_nxn(
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
       ReferenceArea ref_area_opfl;
       if (sub_bh >= 8 && sub_bw >= 8 && use_sub_pad) {
         av1_get_reference_area_with_padding_single(
@@ -3002,14 +3002,14 @@ void make_inter_pred_of_nxn(
         inter_pred_params->use_damr_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
       inter_pred_params->use_warp_bd_damr = 0;
       inter_pred_params->warp_bd_box_damr.x0 = 0;
       inter_pred_params->warp_bd_box_damr.y0 = 0;
       inter_pred_params->warp_bd_box_damr.x1 = cm->width;
       inter_pred_params->warp_bd_box_damr.y1 = cm->height;
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
@@ -3098,8 +3098,8 @@ void make_inter_pred_of_nxn(
         } else {
           // Overwrite inter_pred_params to trigger warped prediction in
           // av1_make_inter_predictor()
-#if CONFIG_WARP_BD
-          WarpBdBox warp_bd_box;
+#if CONFIG_WARP_BD_BOX
+          WarpBoundaryBox warp_bd_box;
           if (sub_bh == 4 && sub_bw == 4 && use_sub_pad_warp) {
             MV mv_org[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
             av1_get_reference_area_with_padding_single_warp(
@@ -3110,7 +3110,7 @@ void make_inter_pred_of_nxn(
             inter_pred_params->use_warp_bd_damr = 1;
             inter_pred_params->warp_bd_box_damr = warp_bd_box;
           }
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
           inter_pred_params->mode = WARP_PRED;
           inter_pred_params->warp_params = this_wm;
           if (comp_refine_type == COMP_REFINE_ROTZOOM4P_SUBBLK2P
@@ -3291,18 +3291,18 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height
-#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
+#if CONFIG_OPFL_MEMBW_REDUCTION
     ,
     int use_sub_pad
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
     ,
     int use_sub_pad_warp
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 ) {
   SubpelParams subpel_params;
 
@@ -3320,18 +3320,18 @@ void av1_opfl_rebuild_inter_predictor(
                          use_4x4,
 #endif  // CONFIG_OPTFLOW_ON_TIP
                          &subpel_params
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
                          ,
                          mi, pu_height
-#endif  // CONFIG_OPFL_MB||CONFIG_WARP_BD
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
+#if CONFIG_OPFL_MEMBW_REDUCTION
                          ,
                          use_sub_pad
 #endif
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
                          ,
                          use_sub_pad_warp
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
   );
 }
 
@@ -4343,7 +4343,7 @@ static void get_ref_area_info(const MV *const src_mv,
   ref_area->pad_block.y1 = CLIP(block.y1, 1, frame_height);
 }
 
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
@@ -4389,15 +4389,15 @@ void av1_get_reference_area_with_padding_single(
   get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
                     &subpel_params, &src_stride, ref_area);
 }
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
 static void get_ref_area_info_warp(const MV *const src_mv,
                                    InterPredParams *const inter_pred_params,
                                    MACROBLOCKD *const xd, int mi_x, int mi_y,
                                    int use_optflow_refinement, uint16_t **pre,
                                    SubpelParams *subpel_params, int *src_stride,
-                                   WarpBdBox *ref_area) {
+                                   WarpBoundaryBox *ref_area) {
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -4422,7 +4422,7 @@ static void get_ref_area_info_warp(const MV *const src_mv,
 
 void av1_get_reference_area_with_padding_single_warp(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBdBox *ref_area,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBoundaryBox *ref_area,
     int pu_width, int pu_height, int ref) {
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -4464,7 +4464,7 @@ void av1_get_reference_area_with_padding_single_warp(
   get_ref_area_info_warp(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
                          &subpel_params, &src_stride, ref_area);
 }
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi,
@@ -4551,10 +4551,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
                          int pu_height
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                          ,
                          ReferenceArea ref_area[2]
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 ) {
   // initialize basemv as best MV
   best_mv_ref[0] = mv[0];
@@ -4603,10 +4603,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     assert(inter_pred_params[ref].conv_params.is_compound == 0);
     assert(inter_pred_params[ref].conv_params.do_average == 0);
     assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
     inter_pred_params[ref].use_ref_padding = 1;
     inter_pred_params[ref].ref_area = &ref_area[ref];
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
   }
 
 #if !CONFIG_16_FULL_SEARCH_DMVR
@@ -4966,10 +4966,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     apply_mv_refinement(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf, mi_mv,
                         calc_subpel_params_func, pre_x, pre_y, dst_ref0,
                         dst_ref1, best_mv_ref, pu_width, pu_height
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                         ,
                         ref_area
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
     );
     if (sb_refined_mv) {
       // store the DMVR refined MV so that chroma can use it
@@ -5156,12 +5156,12 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
 #if CONFIG_REFINEMV
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
     const int use_ref_padding =
         tip_ref_frame ? (apply_refinemv || use_optflow_refinement) : 1;
 #else
     const int use_ref_padding = tip_ref_frame ? apply_refinemv : 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
     if (use_ref_padding) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
@@ -5221,18 +5221,18 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           ,
           use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
           mi, pu_height
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION
           ,
           0
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
           ,
           0
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
       );
       continue;
     }
@@ -5617,9 +5617,9 @@ static void build_inter_predictors_8x8_and_bigger(
                                          cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-#if CONFIG_WARP_BD
-  WarpBdBox warp_bd_box_mem[MAX_WARP_BD_SQ];
-#endif  // CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
+  WarpBoundaryBox warp_bd_box_mem[MAX_WARP_BD_SQ];
+#endif  // CONFIG_WARP_BD_BOX
 
 #if CONFIG_COMPOUND_4XN
   assert(IMPLIES(singleref_for_compound, !is_compound));
@@ -5660,8 +5660,8 @@ static void build_inter_predictors_8x8_and_bigger(
       if (inter_pred_params.mode == WARP_PRED &&
           !inter_pred_params.warp_params.use_affine_filter) {
         *ext_warp_used = true;
-#if CONFIG_WARP_BD
-        inter_pred_params.use_warp_bd = 1;
+#if CONFIG_WARP_BD_BOX
+        inter_pred_params.use_warp_bd_box = 1;
         inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
         const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
         const int_mv warp_mv = get_int_warp_mv_for_fb(
@@ -5692,7 +5692,7 @@ static void build_inter_predictors_8x8_and_bigger(
             }
           }
         }
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
       }
 
 #if CONFIG_ACROSS_SCALE_WARP
@@ -5772,18 +5772,18 @@ static void build_inter_predictors_8x8_and_bigger(
           ,
           use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
           mi, pu_height
-#endif  // CONFIG_OPFL_MB || CONFIG_WARP_BD
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
+#if CONFIG_OPFL_MEMBW_REDUCTION
           ,
           1
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
           ,
           *ext_warp_used
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
       );
       continue;
     }

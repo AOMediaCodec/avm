@@ -174,10 +174,10 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
               sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
               ,
               0, NULL
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
     );
 
   aom_usec_timer_mark(&timer);
@@ -254,10 +254,10 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               av1_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
                                        out_w, out_h, out_w, sub_x, sub_y, bd,
                                        &conv_params, alpha, beta, gamma, delta
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                                        ,
                                        0, NULL
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
               );
               if (use_no_round) {
                 // TODO(angiebird): Change this to test_impl once we have SIMD
@@ -273,10 +273,10 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                         out_w, sub_x, sub_y, bd, &conv_params, alpha, beta,
                         gamma, delta
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                         ,
                         0, NULL
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
               );
 
               if (use_no_round) {
@@ -600,10 +600,10 @@ void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
               sub_x, sub_y, bd, &conv_params
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
               ,
               0, NULL, 0, NULL
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
     );
 
   aom_usec_timer_mark(&timer);
@@ -676,10 +676,10 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
             av1_ext_highbd_warp_affine_c(mat, input, w, h, stride, output, 32,
                                          32, out_w, out_h, out_w, sub_x, sub_y,
                                          bd, &conv_params
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
                                          ,
                                          0, NULL, 0, NULL
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
             );
             if (use_no_round) {
               // TODO(angiebird): Change this to test_impl once we have SIMD
@@ -691,10 +691,10 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
             conv_params.bck_offset = quant_dist_lookup_table[ii][1];
             test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                       out_w, sub_x, sub_y, bd, &conv_params
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
                       ,
                       0, NULL, 0, NULL
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
             );
 
             if (use_no_round) {

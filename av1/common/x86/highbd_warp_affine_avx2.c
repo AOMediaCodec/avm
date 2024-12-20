@@ -286,19 +286,19 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
                                  int subsampling_x, int subsampling_y, int bd,
                                  ConvolveParams *conv_params, int16_t alpha,
                                  int16_t beta, int16_t gamma, int16_t delta
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                                  ,
                                  int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 ) {
-#if CONFIG_OPFL_MB
-  const int left_lim = use_damr_padding ? ref_area->pad_block.x0 : 0;
-  const int right_lim =
+#if CONFIG_OPFL_MEMBW_REDUCTION
+  const int left_limit = use_damr_padding ? ref_area->pad_block.x0 : 0;
+  const int right_limit =
       use_damr_padding ? ref_area->pad_block.x1 - 1 : width - 1;
-  const int top_lim = use_damr_padding ? ref_area->pad_block.y0 : 0;
-  const int bottom_lim =
+  const int top_limit = use_damr_padding ? ref_area->pad_block.y0 : 0;
+  const int bottom_limit =
       use_damr_padding ? ref_area->pad_block.y1 - 1 : height - 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
   __m256i tmp[15];
   const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
@@ -376,18 +376,18 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
       sy4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
 
       // Horizontal filter
-#if CONFIG_OPFL_MB
-      if (ix4 <= left_lim - 7) {
+#if CONFIG_OPFL_MEMBW_REDUCTION
+      if (ix4 <= left_limit - 7) {
 #else
       if (ix4 <= -7) {
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-          iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+          iy = clamp(iy, top_limit, bottom_limit);
           tmp[k + 7] = _mm256_cvtepi16_epi32(
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
-                             ref[iy * stride + left_lim] *
+                             ref[iy * stride + left_limit] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz))));
 #else
           if (iy < 0)
@@ -397,20 +397,20 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           tmp[k + 7] = _mm256_cvtepi16_epi32(_mm_set1_epi16(
               (1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
               ref[iy * stride] * (1 << (FILTER_BITS - reduce_bits_horiz))));
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
         }
-#if CONFIG_OPFL_MB
-      } else if (ix4 >= right_lim + 7) {
+#if CONFIG_OPFL_MEMBW_REDUCTION
+      } else if (ix4 >= right_limit + 7) {
 #else
       } else if (ix4 >= width + 6) {
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-          iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+          iy = clamp(iy, top_limit, bottom_limit);
           tmp[k + 7] = _mm256_cvtepi16_epi32(
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
-                             ref[iy * stride + right_lim] *
+                             ref[iy * stride + right_limit] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz))));
 #else
           if (iy < 0)
@@ -421,20 +421,20 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + (width - 1)] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz))));
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
         }
-#if CONFIG_OPFL_MB
-      } else if (((ix4 - 7) < left_lim) || ((ix4 + 8) > right_lim)) {
+#if CONFIG_OPFL_MEMBW_REDUCTION
+      } else if (((ix4 - 7) < left_limit) || ((ix4 + 8) > right_limit)) {
 #else
       } else if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
         int32_t tmp1[8];
         for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
-#if CONFIG_OPFL_MB
-          const int iy = clamp(iy4 + k, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+          const int iy = clamp(iy4 + k, top_limit, bottom_limit);
 #else
           const int iy = clamp(iy4 + k, 0, height - 1);
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
           sx = sx4 + beta * (k + 4);
           for (int l = -4; l < 4; ++l) {
@@ -444,11 +444,11 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
 
             int32_t sum = 1 << offset_bits_horiz;
             for (int m = 0; m < 8; ++m) {
-#if CONFIG_OPFL_MB
-              const int sample_x = clamp(ix + m, left_lim, right_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+              const int sample_x = clamp(ix + m, left_limit, right_limit);
 #else
               const int sample_x = clamp(ix + m, 0, width - 1);
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
               sum += ref[iy * stride + sample_x] * coeffs[m];
             }
             sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
@@ -473,14 +473,14 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
               _mm_shuffle_epi32(v_01, 3));  // A7A6A7A6A7A6A7A6
           for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-            iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+            iy = clamp(iy, top_limit, bottom_limit);
 #else
             if (iy < 0)
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
             iy = iy * stride;
 
             __m256i v_refl = _mm256_inserti128_si256(
@@ -524,14 +524,14 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else if (alpha == 0) {
           for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-            iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+            iy = clamp(iy, top_limit, bottom_limit);
 #else
             if (iy < 0)
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);
@@ -656,14 +656,14 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
 
           for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-            iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+            iy = clamp(iy, top_limit, bottom_limit);
 #else
             if (iy < 0)
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
             iy = iy * stride;
 
             __m256i v_refl = _mm256_inserti128_si256(
@@ -709,14 +709,14 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else {
           for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-#if CONFIG_OPFL_MB
-            iy = clamp(iy, top_lim, bottom_lim);
+#if CONFIG_OPFL_MEMBW_REDUCTION
+            iy = clamp(iy, top_limit, bottom_limit);
 #else
             if (iy < 0)
               iy = 0;
             else if (iy > height - 1)
               iy = height - 1;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);
@@ -1002,27 +1002,25 @@ static INLINE void ext_highbd_warp_horizontal_filter_avx2(
   }
 }
 
-void av1_ext_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
-                                     int width, int height, int stride,
-                                     uint16_t *pred, int p_col, int p_row,
-                                     int p_width, int p_height, int p_stride,
-                                     int subsampling_x, int subsampling_y,
-                                     int bd, ConvolveParams *conv_params
-#if CONFIG_WARP_BD
-                                     ,
-                                     int use_warp_bd, WarpBdBox *warp_bd_box,
-                                     int use_warp_bd_damr,
-                                     WarpBdBox *warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+void av1_ext_highbd_warp_affine_avx2(
+    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
+    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y, int bd,
+    ConvolveParams *conv_params
+#if CONFIG_WARP_BD_BOX
+    ,
+    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box, int use_warp_bd_damr,
+    WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_WARP_BD_BOX
 ) {
   if (p_width == 4) {
     av1_ext_highbd_warp_affine_sse4_1(
         mat, ref, width, height, stride, pred, p_col, p_row, p_width, p_height,
         p_stride, subsampling_x, subsampling_y, bd, conv_params
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
         ,
-        use_warp_bd, warp_bd_box, use_warp_bd_damr, warp_bd_box_damr
-#endif  // CONFIG_WARP_BD
+        use_warp_bd_box, warp_bd_box, use_warp_bd_damr, warp_bd_box_damr
+#endif  // CONFIG_WARP_BD_BOX
     );
   } else {
     assert(p_width % 8 == 0);

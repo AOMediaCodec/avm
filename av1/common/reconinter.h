@@ -198,23 +198,23 @@ struct build_prediction_ctxt {
 };
 
 #if CONFIG_REFINEMV
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
 #define REFINE_MV_MAX_OFFSET 0
 #else
 #define REFINE_MV_MAX_OFFSET 1
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
 #define REF_BOTTOM_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_WARP_BD
+#if CONFIG_WARP_BD_BOX
 #define REF_TOP_BORDER_WARP (AOM_INTERP_EXTEND - 1)
 #define REF_LEFT_BORDER_WARP (AOM_INTERP_EXTEND - 1)
 #define REF_RIGHT_BORDER_WARP (AOM_INTERP_EXTEND)
 #define REF_BOTTOM_BORDER_WARP (AOM_INTERP_EXTEND)
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 
 typedef enum InterPredMode {
   TRANSLATION_PRED,
@@ -271,18 +271,18 @@ typedef struct InterPredParams {
 
 #if CONFIG_REFINEMV
   int use_ref_padding;
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
   int use_damr_padding;
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_WARP_BD
-  int use_warp_bd;
-  WarpBdBox *warp_bd_box;
+#if CONFIG_WARP_BD_BOX
+  int use_warp_bd_box;
+  WarpBoundaryBox *warp_bd_box;
   int use_warp_bd_damr;
-  WarpBdBox warp_bd_box_damr;
-#endif  // CONFIG_WARP_BD
+  WarpBoundaryBox warp_bd_box_damr;
+#endif  // CONFIG_WARP_BD_BOX
 
 #if CONFIG_D071_IMP_MSK_BLD
   INTERINTER_COMPOUND_BORDER_DATA border_data;
@@ -667,18 +667,18 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_OPFL_MB || CONFIG_WARP_BD
+#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height
-#endif  // CONFIG_OPFL_MB||CONFIG_WARP_BD
-#if CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
+#if CONFIG_OPFL_MEMBW_REDUCTION
     ,
     int use_sub_pad
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
     ,
     int use_sub_pad_warp
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 );
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
@@ -926,18 +926,18 @@ int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1);
 
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
     int pu_width, int pu_height, int ref);
-#endif  // CONFIG_OPFL_MB
-#if CONFIG_WARP_BD
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_WARP_BD_BOX
 void av1_get_reference_area_with_padding_single_warp(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBdBox *ref_area,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBoundaryBox *ref_area,
     int pu_width, int pu_height, int ref);
-#endif  // CONFIG_WARP_BD
+#endif  // CONFIG_WARP_BD_BOX
 
 // Generate the reference area ( bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -1171,10 +1171,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
                          int pu_height
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
                          ,
                          ReferenceArea ref_area[2]
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 );
 
 // check if padding is required during motion compensation
@@ -1187,14 +1187,14 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    int *x_pad, int *y_pad,
                                    const ReferenceArea *ref_area);
 
-#if CONFIG_OPFL_MB
+#if CONFIG_OPFL_MEMBW_REDUCTION
 int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
                                       struct buf_2d *const pre_buf,
                                       MV32 scaled_mv, PadBlock *block,
                                       int subpel_x_mv, int subpel_y_mv,
                                       int do_warp, int is_intrabc,
                                       const ReferenceArea *ref_area);
-#endif  // CONFIG_OPFL_MB
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
 // Derive the sub-pixel related parameters of refinemv non-TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by

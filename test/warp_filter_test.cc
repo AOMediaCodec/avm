@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1ExtHighbdWarpFilterTest,
                              av1_ext_highbd_warp_affine_sse4_1));
 #endif  // HAVE_SSE4_1
 #if HAVE_AVX2
-#if !CONFIG_WARP_BD
+#if !CONFIG_WARP_BD_BOX
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1ExtHighbdWarpFilterTest,
                          libaom_test::AV1ExtHighbdWarpFilter::BuildParams(
                              av1_ext_highbd_warp_affine_avx2));
@@ -60,11 +60,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ExtHighbdWarpFilterTest,
 #endif  // CONFIG_EXT_WARP_FILTER
 
 #if HAVE_AVX2
-#if !CONFIG_OPFL_MB
+#if !CONFIG_OPFL_MEMBW_REDUCTION
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdWarpFilterTest,
     libaom_test::AV1HighbdWarpFilter::BuildParams(av1_highbd_warp_affine_avx2));
-#endif  // !CONFIG_OPFL_MB
+#endif  // !CONFIG_OPFL_MEMBW_REDUCTION
 #endif  // HAVE_AVX2
 
 }  // namespace
