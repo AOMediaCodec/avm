@@ -98,7 +98,6 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
   inter_pred_params->use_ref_padding = 0;
 #if CONFIG_OPFL_MB
   inter_pred_params->use_damr_padding = 0;
-  inter_pred_params->use_bi_padding = 0;
 #endif  // CONFIG_OPFL_MB
   inter_pred_params->ref_area = NULL;
 #endif  // CONFIG_REFINEMV
@@ -4130,50 +4129,6 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
   return 0;
 };
 
-#if CONFIG_OPFL_MB
-int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
-                                      struct buf_2d *const pre_buf,
-                                      MV32 scaled_mv, PadBlock *block,
-                                      int subpel_x_mv, int subpel_y_mv,
-                                      int do_warp, int is_intrabc,
-                                      const ReferenceArea *ref_area) {
-  // Get reference width and height.
-  int frame_width = pre_buf->width;
-  int frame_height = pre_buf->height;
-
-  // Do border extension if there is motion or
-  // width/height is not a multiple of 8 pixels.
-  // Extension is needed in optical flow refinement to obtain MV offsets
-  (void)scaled_mv;
-  if (!is_intrabc && !do_warp) {
-    if (subpel_x_mv || (sf->x_step_q4 != SUBPEL_SHIFTS)) {
-      block->x1 += 1;
-    }
-
-    if (subpel_y_mv || (sf->y_step_q4 != SUBPEL_SHIFTS)) {
-      block->y1 += 1;
-    }
-
-    // Skip border extension if block is inside the frame.
-    if (block->x0 < 0 || block->x1 > frame_width - 1 || block->y0 < 0 ||
-        block->y1 > frame_height - 1) {
-      return 1;
-    }
-
-    if (ref_area) {
-      // Skip border extension if block is in the reference area.
-      if (block->x0 < ref_area->pad_block.x0 ||
-          block->x1 > ref_area->pad_block.x1 ||
-          block->y0 < ref_area->pad_block.y0 ||
-          block->y1 > ref_area->pad_block.y1) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-};
-#endif  // CONFIG_OPFL_MB
-
 // perform padding of the motion compensated block if requires.
 // Padding is performed if the motion compensated block is partially out of the
 // reference area.
@@ -4204,33 +4159,6 @@ static void refinemv_extend_mc_border(
            x_pad * (AOM_INTERP_EXTEND - 1);
   }
 }
-
-#if CONFIG_OPFL_MB
-static void refinemv_extend_mc_border_bi(
-    const struct scale_factors *const sf, struct buf_2d *const pre_buf,
-    MV32 scaled_mv, PadBlock block, int subpel_x_mv, int subpel_y_mv,
-    int do_warp, int is_intrabc, uint16_t *paded_ref_buf,
-    int paded_ref_buf_stride, uint16_t **pre, int *src_stride,
-    const ReferenceArea *ref_area) {
-  if (update_extend_mc_border_params_bi(sf, pre_buf, scaled_mv, &block,
-                                        subpel_x_mv, subpel_y_mv, do_warp,
-                                        is_intrabc, ref_area)) {
-    // printf(" Out of border \n");
-    // Get reference block pointer.
-    const uint16_t *const buf_ptr =
-        pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
-    int buf_stride = pre_buf->stride;
-    const int b_w = block.x1 - block.x0;
-    const int b_h = block.y1 - block.y0;
-
-    refinemv_highbd_pad_mc_border(buf_ptr, buf_stride, paded_ref_buf,
-                                  paded_ref_buf_stride, block.x0, block.y0, b_w,
-                                  b_h, ref_area);
-    *src_stride = paded_ref_buf_stride;
-    *pre = paded_ref_buf;
-  }
-}
-#endif  // CONFIG_OPFL_MB
 
 void dec_calc_subpel_params(const MV *const src_mv,
                             InterPredParams *const inter_pred_params,
@@ -4372,25 +4300,12 @@ void common_calc_subpel_params_and_extend(
   // printf(" Use ref padding \n");
   const int paded_ref_buf_stride =
       inter_pred_params->ref_area->paded_ref_buf_stride;
-#if CONFIG_OPFL_MB
-  if (inter_pred_params->use_bi_padding) {
-    refinemv_extend_mc_border_bi(
-        inter_pred_params->scale_factors, &inter_pred_params->ref_frame_buf,
-        scaled_mv, block, subpel_x_mv, subpel_y_mv,
-        inter_pred_params->mode == WARP_PRED, inter_pred_params->is_intrabc,
-        &inter_pred_params->ref_area->paded_ref_buf[0], paded_ref_buf_stride,
-        pre, src_stride, inter_pred_params->ref_area);
-  } else {
-#endif  // CONFIG_OPFL_MB
-    refinemv_extend_mc_border(
-        inter_pred_params->scale_factors, &inter_pred_params->ref_frame_buf,
-        scaled_mv, block, subpel_x_mv, subpel_y_mv,
-        inter_pred_params->mode == WARP_PRED, inter_pred_params->is_intrabc,
-        &inter_pred_params->ref_area->paded_ref_buf[0], paded_ref_buf_stride,
-        pre, src_stride, inter_pred_params->ref_area);
-#if CONFIG_OPFL_MB
-  }
-#endif  // CONFIG_OPFL_MB
+  refinemv_extend_mc_border(
+      inter_pred_params->scale_factors, &inter_pred_params->ref_frame_buf,
+      scaled_mv, block, subpel_x_mv, subpel_y_mv,
+      inter_pred_params->mode == WARP_PRED, inter_pred_params->is_intrabc,
+      &inter_pred_params->ref_area->paded_ref_buf[0], paded_ref_buf_stride, pre,
+      src_stride, inter_pred_params->ref_area);
 }
 
 static void get_ref_area_info(const MV *const src_mv,
@@ -4501,7 +4416,7 @@ static void get_ref_area_info_warp(const MV *const src_mv,
 void av1_get_reference_area_with_padding_single_warp(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBdBox *ref_area,
-    int pu_width, int pu_height, int ref, int is_warp, WarpBdBox *ref_area) {
+    int pu_width, int pu_height, int ref) {
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
   struct macroblockd_plane *const pd = &xd->plane[plane];
 
@@ -4683,7 +4598,6 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
 #if CONFIG_OPFL_MB
     inter_pred_params[ref].use_ref_padding = 1;
-    inter_pred_params[ref].use_bi_padding = 1;
     inter_pred_params[ref].ref_area = &ref_area[ref];
 #endif  // CONFIG_OPFL_MB
   }

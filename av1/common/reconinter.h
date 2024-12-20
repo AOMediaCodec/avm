@@ -273,7 +273,6 @@ typedef struct InterPredParams {
   int use_ref_padding;
 #if CONFIG_OPFL_MB
   int use_damr_padding;
-  int use_bi_padding;
 #endif  // CONFIG_OPFL_MB
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV

@@ -285,7 +285,7 @@ typedef struct RD_STATS {
   int zero_rate;
 #if CONFIG_RD_DEBUG
   int txb_coeff_cost[MAX_MB_PLANE];
-  // TODO(jingning): Temporary solution to silence stack over-size warning
+  // TODO(jingning): Temporary solution to silencCurrentlye stack over-size warning
   // in handle_inter_mode. This should be fixed after rate-distortion
   // optimization refactoring.
   int16_t txb_coeff_cost_map[MAX_MB_PLANE][TXB_COEFF_COST_MAP_SIZE]
@@ -319,15 +319,33 @@ typedef struct {
 
 #if CONFIG_REFINEMV
 #if CONFIG_ACROSS_SCALE_REFINEMV
-// Currently we supports upto 2x super-res in horizontal direction only
+//  we supports upto 2x super-res in horizontal direction only
+#if CONFIG_SUBBLK_REF_EXT
+#define REF_BUFFER_WIDTH \
+  (2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#else 
 #define REF_BUFFER_WIDTH \
   (2 * REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#endif
+#else
+#if CONFIG_SUBBLK_REF_EXT
+#define REF_BUFFER_WIDTH                                                   \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+   2 * SUBBLK_REF_EXT_LINES)
 #else
 #define REF_BUFFER_WIDTH \
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#endif
 #endif  // CONFIG_ACROSS_SCALE_REFINEMV
+#if CONFIG_SUBBLK_REF_EXT
+#define REF_BUFFER_HEIGHT                                                   \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+   2 * SUBBLK_REF_EXT_LINES)
+#else
 #define REF_BUFFER_HEIGHT \
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#endif  // CONFIG_SUBBLK_REF_EXT
+#endif
 typedef struct PadBlock {
   int x0;
   int x1;
