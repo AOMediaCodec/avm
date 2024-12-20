@@ -212,15 +212,10 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
                                             int mi_row) {
   int_mv res;
 
-  if (model->wmtype == IDENTITY) {
-    res.as_int = 0;
-    return res;
-  }
-
   const int32_t *mat = model->wmmat;
   int x, y, tx, ty;
 
-  if (model->wmtype == TRANSLATION) {
+  if (model->wmtype == IDENTITY || model->wmtype == TRANSLATION) {
     // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
     // bits of fractional precision. The offset for a translation is stored in
     // entries 0 and 1. For translations, all but the top three (two if
