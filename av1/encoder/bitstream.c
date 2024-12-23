@@ -5817,7 +5817,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
   }
 #else
-  aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
+    aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #endif  // CONFIG_TCQ
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);

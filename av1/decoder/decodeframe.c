@@ -6837,7 +6837,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
     seq_params->enable_parity_hiding = 0;
   }
 #else
-  seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
+    seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
 #endif  // CONFIG_TCQ
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
