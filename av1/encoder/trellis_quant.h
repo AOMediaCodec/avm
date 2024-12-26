@@ -25,6 +25,7 @@
 extern "C" {
 #endif
 
+#if CONFIG_TCQ
 #define MAX_DIAG 32
 #define MAX_LF_SCAN 10
 
@@ -166,6 +167,7 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
                       CctxType cctx_type, const TXB_CTX *const txb_ctx,
                       int *rate_cost, int sharpness);
+#endif  // CONFIG_TCQ
 
 #ifdef __cplusplus
 }
