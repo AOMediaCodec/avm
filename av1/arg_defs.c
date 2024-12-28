@@ -860,6 +860,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable DRL reorder (0: no reorder, 1: reorder with constraints "
               "(default), 2: always reorder"),
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  .enable_cdef_on_skip_txfm = ARG_DEF(
+      NULL, "enable-cdef-on-skip-txfm", 1,
+      "Enable CDEF on skip_txfm = 1 blocks (0: always off, 1: always on "
+      "(default), 2: adptive, allow on or off at the frame level"),
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   .enable_avg_cdf = ARG_DEF(NULL, "enable-avg-cdf", 1,
                             "Enable frame/tile cdfs average for initialization "

@@ -1907,14 +1907,33 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.default_ccso_cnts[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Intra");
+                     0, &total_count, 0, mem_wanted, "Filters");
 #else
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.default_ccso_cnts[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_ccso_cdf[2]",
-                     0, &total_count, 0, mem_wanted, "Intra");
+                     0, &total_count, 0, mem_wanted, "Filters");
 #endif
+
+#if CONFIG_CDEF_ENHANCEMENTS
+  cts_each_dim[0] = CDEF_STRENGTH_INDEX0_CTX;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.cdef_strength_index0_cnts[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)]",
+      0, &total_count, 0, mem_wanted, "Filters");
+
+  cts_each_dim[0] = CDEF_STRENGTHS_NUM - 1;
+  cts_each_dim[1] = CDEF_STRENGTHS_NUM;
+  int cdef_size_each_ctx[CDEF_STRENGTHS_NUM - 1] = { 2, 3, 4, 5, 6, 7 };
+  optimize_cdf_table_var_modes_2d(
+      &fc.cdef_cnts[0][0], probsfile, 2, cts_each_dim, cdef_size_each_ctx,
+      "static const aom_cdf_prob "
+      "default_cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)]",
+      0, &total_count, mem_wanted, "Filters");
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 
   cts_each_dim[0] = MAX_LR_FLEX_SWITCHABLE_BITS;
   cts_each_dim[1] = MAX_MB_PLANE;

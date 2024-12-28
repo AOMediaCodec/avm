@@ -9,7 +9,6 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-
 #include "av1/common/common.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
@@ -611,6 +610,80 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   }
 }
 #endif  // CONFIG_CCSO_IMPROVE
+
+#if CONFIG_CDEF_ENHANCEMENTS
+// This funtion is to check if the 1st mbmi of the current cdef unit is inside
+// the current tile. The 1st mbmi is used to signal the cdef block control flag
+// for the current cdef unit.
+bool av1_check_cdef_mbmi_inside_tile(const MACROBLOCKD *xd,
+                                     const MB_MODE_INFO *const mbmi) {
+  const TileInfo *const tile = &xd->tile;
+  // CDEF unit size is 64x64 irrespective of the superblock size.
+  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
+  const int block_mask = ~(cdef_size - 1);
+
+  return (((mbmi->mi_row_start & block_mask) >= tile->mi_row_start) &&
+          ((mbmi->mi_col_start & block_mask) >= tile->mi_col_start) &&
+          ((mbmi->mi_row_start & block_mask) < tile->mi_row_end) &&
+          ((mbmi->mi_col_start & block_mask) < tile->mi_col_end));
+}
+
+// This function is the derive the neighboring context of cdef_cdf. -- means
+// neighbouring cdef unit or cdef flag is not available. 0 -
+// neighbor0_cdef_false/neighbor1_cdef_false, neighbor0_cdef_false/--,
+// --/neighbor1_cdef_false, --/-- 1 - neighbor0_cdef_true/neighbor0_cdef_false,
+// neighbor0_cdef_false/neighbor1_cdef_true 2 - neighbor0_cdef_true/--,
+// --/neighbor1_cdef_true, neighbor0_cdef_true/neighbor1_cdef_true &&
+// neighbor0_cdef_unit==neighbor1_cdef_unit 3 -
+// neighbor0_cdef_true/neighbor1_cdef_true &&
+// neighbor0_cdef_unit!=neighbor1_cdef_unit
+int av1_get_cdef_context(const MACROBLOCKD *xd) {
+  // CDEF unit size is 64x64 irrespective of the superblock size.
+  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
+  const int block_mask = ~(cdef_size - 1);
+
+  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
+  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
+
+  bool neighbor0_cdef_available = 0;
+  bool neighbor1_cdef_available = 0;
+
+  if (neighbor0) {
+    neighbor0_cdef_available = av1_check_cdef_mbmi_inside_tile(xd, neighbor0);
+  }
+
+  if (neighbor1) {
+    neighbor1_cdef_available = av1_check_cdef_mbmi_inside_tile(xd, neighbor1);
+  }
+
+  if (neighbor0_cdef_available && neighbor1_cdef_available) {
+    const int is_neighbor0_cdef_index0 = (neighbor0->cdef_strength == 0);
+    const int is_neighbor1_cdef_index0 = (neighbor1->cdef_strength == 0);
+
+    if ((neighbor0->mi_row_start & block_mask) !=
+            (neighbor1->mi_row_start & block_mask) ||
+        (neighbor0->mi_col_start & block_mask) !=
+            (neighbor1->mi_col_start & block_mask)) {
+      // neighbor0 and neighbor1 belong to different superblocks
+      return is_neighbor0_cdef_index0 && is_neighbor1_cdef_index0
+                 ? 3
+                 : (is_neighbor0_cdef_index0 || is_neighbor1_cdef_index0);
+    } else {
+      // neighbor0 and neighbor1 belong to the same superblock
+      return is_neighbor0_cdef_index0 ? 2 : 0;
+    }
+  } else if (neighbor0_cdef_available || neighbor1_cdef_available) {
+    const MB_MODE_INFO *const neighbor =
+        neighbor0_cdef_available ? neighbor0 : neighbor1;
+
+    const int is_neighbor_cdef_index0 = (neighbor->cdef_strength == 0);
+
+    return is_neighbor_cdef_index0 ? 2 : 0;
+  } else {
+    return 0;
+  }
+}
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 #define IS_BACKWARD_REF_FRAME(ref_frame) \
   (get_dir_rank(cm, ref_frame, NULL) == 1)

@@ -54,7 +54,11 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #if CONFIG_FIX_CDEF_SYNTAX
     assert(cm->cdef_info.cdef_frame_enable == 0);
 #else
+#if CONFIG_CDEF_ENHANCEMENTS
+    assert(cm->cdef_info.nb_cdef_strengths == 1);
+#else
     assert(cm->cdef_info.cdef_bits == 0);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     return;
   }
@@ -62,11 +66,14 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
 
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
   // At the start of a superblock, mark that we haven't yet read CDEF strengths
   // for any of the CDEF units contained in this superblock.
   const int sb_mask = (cm->mib_size - 1);
-  const int mi_row_in_sb = (xd->mi_row & sb_mask);
-  const int mi_col_in_sb = (xd->mi_col & sb_mask);
+  const int mi_row_in_sb = (mi_row & sb_mask);
+  const int mi_col_in_sb = (mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
     av1_zero(xd->cdef_transmitted);
   }
@@ -75,22 +82,63 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
 
   // Find index of this CDEF unit in this superblock.
-  const int index = av1_get_cdef_transmitted_index(xd->mi_row, xd->mi_col);
+  const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
+
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   // Read CDEF strength from the first non-skip coding block in this CDEF unit.
-  if (!xd->cdef_transmitted[index] && !skip_txfm) {
+  if (!xd->cdef_transmitted[index] &&
+#if CONFIG_CDEF_ENHANCEMENTS
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip_txfm)
+#else
+      !skip_txfm
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  ) {
     // CDEF strength for this CDEF unit needs to be read into the MB_MODE_INFO
     // of the 1st block in this CDEF unit.
     const int first_block_mask = ~(cdef_size - 1);
-    CommonModeInfoParams *const mi_params = &cm->mi_params;
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, xd->mi_row & first_block_mask,
-                        xd->mi_col & first_block_mask);
+    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
+                                         mi_col & first_block_mask);
     MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+#if CONFIG_CDEF_ENHANCEMENTS
+    if (cm->cdef_info.nb_cdef_strengths == 1) {
+      mbmi->cdef_strength = 0;
+    } else {
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int is_strength_index0 = aom_read_symbol(
+          r, xd->tile_ctx->cdef_strength_index0_cdf[cdef_strength_index0_ctx],
+          2, ACCT_INFO("cdef_strength_index0_cdf"));
+      if (is_strength_index0) {
+        mbmi->cdef_strength = 0;
+      } else {
+        const int nb_cdef_strengths = cm->cdef_info.nb_cdef_strengths;
+        if (nb_cdef_strengths == 2) {
+          mbmi->cdef_strength = 1;
+        } else {
+          mbmi->cdef_strength =
+              aom_read_symbol(r, xd->tile_ctx->cdef_cdf[nb_cdef_strengths - 3],
+                              nb_cdef_strengths - 1,
+                              ACCT_INFO("cdef_strength")) +
+              1;
+        }
+      }
+    }
+#else
     mbmi->cdef_strength = aom_read_literal(r, cm->cdef_info.cdef_bits,
                                            ACCT_INFO("cdef_strength"));
+#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
   }
+#if CONFIG_CDEF_ENHANCEMENTS
+  else {
+    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
+        ->cdef_strength =
+        mi_params
+            ->mi_grid_base[(mi_row & ~(cdef_size - 1)) * mi_params->mi_stride +
+                           (mi_col & ~(cdef_size - 1))]
+            ->cdef_strength;
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 }
 
 // This function is to copy the block level ccso control flag when the

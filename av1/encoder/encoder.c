@@ -519,6 +519,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_DRL_REORDER_CONTROL
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
@@ -2347,6 +2350,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
     // Find CDEF parameters
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
+#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+                    &cpi->td,
+#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
@@ -2362,7 +2368,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3038,6 +3046,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
                                                     int64_t *sse, int64_t *rate,
                                                     int *largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
+
   if (allow_tip_direct_output(cm)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
@@ -3344,7 +3353,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3536,7 +3547,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;

@@ -303,6 +303,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_DRL_REORDER_CONTROL
   arg_def_t enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  arg_def_t enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   arg_def_t enable_avg_cdf;
   arg_def_t avg_cdf_type;

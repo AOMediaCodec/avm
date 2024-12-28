@@ -1981,11 +1981,16 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
+
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
   // At the start of a superblock, mark that we haven't yet written CDEF
   // strengths for any of the CDEF units contained in this superblock.
   const int sb_mask = (cm->mib_size - 1);
-  const int mi_row_in_sb = (xd->mi_row & sb_mask);
-  const int mi_col_in_sb = (xd->mi_col & sb_mask);
+  const int mi_row_in_sb = (mi_row & sb_mask);
+  const int mi_col_in_sb = (mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
     av1_zero(xd->cdef_transmitted);
   }
@@ -1994,19 +1999,39 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
   const int cdef_size = 1 << (6 - MI_SIZE_LOG2);
 
   // Find index of this CDEF unit in this superblock.
-  const int index = av1_get_cdef_transmitted_index(xd->mi_row, xd->mi_col);
+  const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
 
   // Write CDEF strength to the first non-skip coding block in this CDEF unit.
-  if (!xd->cdef_transmitted[index] && !skip) {
+  if (!xd->cdef_transmitted[index] &&
+#if CONFIG_CDEF_ENHANCEMENTS
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip)
+#else
+      !skip
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  ) {
     // CDEF strength for this CDEF unit needs to be stored in the MB_MODE_INFO
     // of the 1st block in this CDEF unit.
     const int first_block_mask = ~(cdef_size - 1);
-    const CommonModeInfoParams *const mi_params = &cm->mi_params;
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, xd->mi_row & first_block_mask,
-                        xd->mi_col & first_block_mask);
+    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
+                                         mi_col & first_block_mask);
     const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+#if CONFIG_CDEF_ENHANCEMENTS
+    if (cm->cdef_info.nb_cdef_strengths > 1) {
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int is_strength_index0 = mbmi->cdef_strength == 0;
+      aom_write_symbol(
+          w, is_strength_index0,
+          xd->tile_ctx->cdef_strength_index0_cdf[cdef_strength_index0_ctx], 2);
+      const int nb_cdef_strengths = cm->cdef_info.nb_cdef_strengths;
+      if (!is_strength_index0 && nb_cdef_strengths > 2) {
+        aom_write_symbol(w, mbmi->cdef_strength - 1,
+                         xd->tile_ctx->cdef_cdf[nb_cdef_strengths - 3],
+                         nb_cdef_strengths - 1);
+      }
+    }
+#else
     aom_write_literal(w, mbmi->cdef_strength, cm->cdef_info.cdef_bits);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
   }
 }
@@ -5161,20 +5186,47 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   assert(!cm->features.coded_lossless);
   if (!cm->seq_params.enable_cdef) return;
   if (is_global_intrabc_allowed(cm)) return;
+  const CdefInfo *const cdef_info = &cm->cdef_info;
 #if CONFIG_FIX_CDEF_SYNTAX
-  aom_wb_write_bit(wb, cm->cdef_info.cdef_frame_enable);
-  if (!cm->cdef_info.cdef_frame_enable) return;
+  aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
+  if (!cdef_info->cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   const int num_planes = av1_num_planes(cm);
   int i;
-  aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
-  aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
-  for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
+  aom_wb_write_literal(wb, cdef_info->cdef_damping - 3, 2);
+#if CONFIG_CDEF_ENHANCEMENTS
+  aom_wb_write_literal(wb, cdef_info->nb_cdef_strengths - 1, 3);
+  if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
+    aom_wb_write_bit(wb, cdef_info->cdef_on_skip_txfm_frame_enable);
+  }
+#else
+  aom_wb_write_literal(wb, cdef_info->cdef_bits, 2);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  for (i = 0; i < cdef_info->nb_cdef_strengths; i++) {
+#if CONFIG_CDEF_ENHANCEMENTS
+    aom_wb_write_bit(wb, cdef_info->cdef_strengths[i] < 4);
+    if (cdef_info->cdef_strengths[i] < 4) {
+      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i], 2);
+    } else {
+      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i],
+                           CDEF_STRENGTH_BITS);
+    }
+    if (num_planes > 1) {
+      aom_wb_write_bit(wb, cdef_info->cdef_uv_strengths[i] < 4);
+      if (cdef_info->cdef_uv_strengths[i] < 4) {
+        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i], 2);
+      } else {
+        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i],
+                             CDEF_STRENGTH_BITS);
+      }
+    }
+#else
     aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
                          CDEF_STRENGTH_BITS);
     if (num_planes > 1)
       aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
                            CDEF_STRENGTH_BITS);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   }
 }
 
@@ -6001,6 +6053,15 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
                      seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  const int is_cdef_on_skip_txfm_always_on =
+      (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
+  aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);
+  if (!is_cdef_on_skip_txfm_always_on) {
+    aom_wb_write_bit(
+        wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
   if (seq_params->enable_avg_cdf) {

@@ -34,9 +34,12 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
   return 1;
 }
 
-int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
-                             int mi_row, int mi_col, cdef_list *dlist,
-                             BLOCK_SIZE bs) {
+int av1_cdef_compute_sb_list(
+#if CONFIG_CDEF_ENHANCEMENTS
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+    const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
+    cdef_list *dlist, BLOCK_SIZE bs) {
   MB_MODE_INFO **grid = mi_params->mi_grid_base;
   int maxc = mi_params->mi_cols - mi_col;
   int maxr = mi_params->mi_rows - mi_row;
@@ -67,7 +70,11 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
   int count = 0;
   for (int r = 0; r < maxr; r += r_step) {
     for (int c = 0; c < maxc; c += c_step) {
-      if (!is_8x8_block_skip(grid, mi_row + r, mi_col + c,
+      if (
+#if CONFIG_CDEF_ENHANCEMENTS
+          cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 ||
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+          !is_8x8_block_skip(grid, mi_row + r, mi_col + c,
                              mi_params->mi_stride)) {
         dlist[count].by = r >> r_shift;
         dlist[count].bx = c >> c_shift;
@@ -222,9 +229,12 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       uv_sec_strength += uv_sec_strength == 3;
       if ((level == 0 && sec_strength == 0 && uv_level == 0 &&
            uv_sec_strength == 0) ||
-          (cdef_count = av1_cdef_compute_sb_list(mi_params, fbr * MI_SIZE_64X64,
-                                                 fbc * MI_SIZE_64X64, dlist,
-                                                 BLOCK_64X64)) == 0) {
+          (cdef_count = av1_cdef_compute_sb_list(
+#if CONFIG_CDEF_ENHANCEMENTS
+               cm,
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+               mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist,
+               BLOCK_64X64)) == 0) {
         cdef_left = 0;
         continue;
       }

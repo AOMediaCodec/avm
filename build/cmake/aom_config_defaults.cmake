@@ -371,6 +371,9 @@ set_aom_config_var(CONFIG_KEY_OVERLAY 1
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
 
+set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
+                   "Enable the optimization of CDEF strengths")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

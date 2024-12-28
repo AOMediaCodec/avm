@@ -1724,6 +1724,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->ccso_cdf[plane], ctx_tr->ccso_cdf[plane], 2);
 #endif  // CONFIG_CCSO_IMPROVE
   }
+#if CONFIG_CDEF_ENHANCEMENTS
+  AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
+              ctx_tr->cdef_strength_index0_cdf, 2);
+  for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
+    AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
+                   CDF_SIZE(CDEF_STRENGTHS_NUM));
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
