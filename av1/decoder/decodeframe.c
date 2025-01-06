@@ -7535,7 +7535,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else if (features->error_resilient_mode) {
     pbi->error_resilient_frame_seen = 1;
   }
-#endif
+#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
@@ -8711,12 +8711,10 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     const int map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
     if ((map_idx != INVALID_IDX) &&
         (ref_frame_used != cm->features.primary_ref_frame) &&
-        (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type)
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-        && !(cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-             pbi->error_resilient_frame_seen)
-#endif
-    ) {
+        (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+        !(cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+          pbi->error_resilient_frame_seen) &&
+        (ref_frame_used != PRIMARY_REF_NONE)) {
       av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
