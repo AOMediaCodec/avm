@@ -232,14 +232,14 @@ static INLINE void read_coeffs_reverse_2d(
       if (limits) {
         const int coeff_ctx =
             get_lower_levels_ctx_lf_2d_chroma(levels, pos, bwl, plane);
-        level += aom_read_symbol(r,
-                                 base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                               [q_i]
-#endif  // CONFIG_TCQ
-                                 ,
-                                 LF_BASE_SYMBOLS,
+        level +=
+            aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx][q_i], LF_BASE_SYMBOLS,
+                            ACCT_INFO("level", "base_lf_uv_cdf"));
+#else
+        level += aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
+#endif  // CONFIG_TCQ
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_2d_chroma(levels, pos, bwl);
           aom_cdf_prob *cdf = br_lf_uv_cdf[br_ctx];
@@ -248,13 +248,13 @@ static INLINE void read_coeffs_reverse_2d(
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_2d_chroma(levels, pos, bwl, plane);
-        level += aom_read_symbol(r,
-                                 base_uv_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                            [q_i]
+        level += aom_read_symbol(r, base_uv_cdf[coeff_ctx][q_i], 4,
+                                 ACCT_INFO("level", "base_uv_cdf"));
+#else
+        level += aom_read_symbol(r, base_uv_cdf[coeff_ctx], 4,
+                                 ACCT_INFO("level", "base_uv_cdf"));
 #endif  // CONFIG_TCQ
-                                 ,
-                                 4, ACCT_INFO("level", "base_uv_cdf"));
         if (level > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_2d_chroma(levels, pos, bwl);
           aom_cdf_prob *cdf = br_uv_cdf[br_ctx];
@@ -264,14 +264,14 @@ static INLINE void read_coeffs_reverse_2d(
     } else {
       if (limits) {
         const int coeff_ctx = get_lower_levels_ctx_lf_2d(levels, pos, bwl);
-        level +=
-            aom_read_symbol(r,
-                            base_lf_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                       [q_i]
+        level +=
+            aom_read_symbol(r, base_lf_cdf[coeff_ctx][q_i], LF_BASE_SYMBOLS,
+                            ACCT_INFO("level", "base_lf_cdf"));
+#else
+        level += aom_read_symbol(r, base_lf_cdf[coeff_ctx], LF_BASE_SYMBOLS,
+                                 ACCT_INFO("level", "base_lf_cdf"));
 #endif  // CONFIG_TCQ
-                            ,
-                            LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_2d(levels, pos, bwl);
           aom_cdf_prob *cdf = br_lf_cdf[br_ctx];
@@ -284,13 +284,13 @@ static INLINE void read_coeffs_reverse_2d(
                                                       plane
 #endif  // CONFIG_CHROMA_CODING
         );
-        level += aom_read_symbol(r,
-                                 base_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                         [q_i]
+        level += aom_read_symbol(r, base_cdf[coeff_ctx][q_i], 4,
+                                 ACCT_INFO("level", "base_cdf"));
+#else
+        level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
+                                 ACCT_INFO("level", "base_cdf"));
 #endif  // CONFIG_TCQ
-                                 ,
-                                 4, ACCT_INFO("level", "base_cdf"));
         if (level > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_2d(levels, pos, bwl);
           aom_cdf_prob *cdf = br_cdf[br_ctx];
@@ -378,14 +378,14 @@ static INLINE void read_coeffs_reverse(
       if (limits) {
         const int coeff_ctx =
             get_lower_levels_lf_ctx_chroma(levels, pos, bwl, tx_class, plane);
-        level += aom_read_symbol(r,
-                                 base_lf_uv_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                               [q_i]
-#endif  // CONFIG_TCQ
-                                 ,
-                                 LF_BASE_SYMBOLS,
+        level +=
+            aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx][q_i], LF_BASE_SYMBOLS,
+                            ACCT_INFO("level", "base_lf_uv_cdf"));
+#else
+        level += aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
+#endif  // CONFIG_TCQ
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
           aom_cdf_prob *cdf = br_lf_uv_cdf[br_ctx];
@@ -394,13 +394,13 @@ static INLINE void read_coeffs_reverse(
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_chroma(levels, pos, bwl, tx_class, plane);
-        level += aom_read_symbol(r,
-                                 base_uv_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                            [q_i]
+        level += aom_read_symbol(r, base_uv_cdf[coeff_ctx][q_i], 4,
+                                 ACCT_INFO("level", "base_uv_cdf"));
+#else
+        level += aom_read_symbol(r, base_uv_cdf[coeff_ctx], 4,
+                                 ACCT_INFO("level", "base_uv_cdf"));
 #endif  // CONFIG_TCQ
-                                 ,
-                                 4, ACCT_INFO("level", "base_uv_cdf"));
         if (level > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
           aom_cdf_prob *cdf = br_uv_cdf[br_ctx];
@@ -411,14 +411,14 @@ static INLINE void read_coeffs_reverse(
       if (limits) {
         const int coeff_ctx =
             get_lower_levels_lf_ctx(levels, pos, bwl, tx_class);
-        level +=
-            aom_read_symbol(r,
-                            base_lf_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                       [q_i]
+        level +=
+            aom_read_symbol(r, base_lf_cdf[coeff_ctx][q_i], LF_BASE_SYMBOLS,
+                            ACCT_INFO("level", "base_lf_cdf"));
+#else
+        level += aom_read_symbol(r, base_lf_cdf[coeff_ctx], LF_BASE_SYMBOLS,
+                                 ACCT_INFO("level", "base_lf_cdf"));
 #endif  // CONFIG_TCQ
-                            ,
-                            LF_BASE_SYMBOLS, ACCT_INFO("level", "base_lf_cdf"));
 
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
@@ -432,14 +432,13 @@ static INLINE void read_coeffs_reverse(
                                                    plane
 #endif  // CONFIG_CHROMA_CODING
         );
-        level += aom_read_symbol(r,
-                                 base_cdf[coeff_ctx]
 #if CONFIG_TCQ
-                                         [q_i]
+        level += aom_read_symbol(r, base_cdf[coeff_ctx][q_i], 4,
+                                 ACCT_INFO("level", "base_cdf"));
+#else
+        level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
+                                 ACCT_INFO("level", "base_cdf"));
 #endif  // CONFIG_TCQ
-                                 ,
-                                 4, ACCT_INFO("level", "base_cdf"));
-
         if (level > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
           aom_cdf_prob *cdf = br_cdf[br_ctx];
