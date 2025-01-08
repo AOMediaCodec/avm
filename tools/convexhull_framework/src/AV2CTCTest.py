@@ -18,7 +18,7 @@ import subprocess
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      Cleanfolder, CreateClipList, GetEncLogFile, GetDecLogFile, ParseDecLogFile, GatherPerfInfo, \
-     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile, md5
+     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile, md5, get_total_frame
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
@@ -67,12 +67,6 @@ def setupWorkFolderStructure():
     Path_DecLog = CreateNewSubfolder(WorkPath, "decLogs")
     Path_VmafLog = CreateNewSubfolder(WorkPath, "vmafLogs")
 
-def get_total_frame(test_cfg, clip):
-    if EnableSubjectiveTest:
-        total_frame = FrameNum[test_cfg][clip.file_name]
-    else:
-        total_frame = FrameNum[test_cfg]
-    return total_frame
 
 ###############################################################################
 ######### Major Functions #####################################################
@@ -283,6 +277,11 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                 missing.write("\nmissing quality in %s" % vmaf_log)
                 continue
 
+            if (frame_num < FrameNum[test_cfg]):
+                print("missing frames in %s" % vmaf_log)
+                missing.write("\nmissing frames in %s" % vmaf_log)
+                continue
+
             # print("%s Frame number = %d"%(bs, frame_num))
             filesize = os.path.getsize(bs)
             bitrate = round((filesize * 8 * (clip.fps_num / clip.fps_denom) / frame_num) / 1000.0, 6)
@@ -385,7 +384,7 @@ if __name__ == "__main__":
 
     # preparation for executing functions
     setupWorkFolderStructure()
-    if Function != 'clean':
+    if Function not in ['clean']:
         SetupLogging(LogLevel, LogCmdOnly, LoggerName, WorkPath, Path_TestLog)
 
     # execute functions

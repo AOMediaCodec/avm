@@ -24,7 +24,7 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from operator import itemgetter
 from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y_WEIGHT, PSNR_U_WEIGHT, PSNR_V_WEIGHT, \
-APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG, DATASET
+APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG, DATASET, FrameNum, EnableSubjectiveTest
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 from CalcBDRate import BD_RATE
 from AV2SubjectiveVideo import SUBJECTIVE_CLIPS, AV2_SUBJECTIVE_TEST
@@ -205,6 +205,13 @@ def GetDecLogFile(bsfile, logpath):
 def GetVmafLogFile(bsfile, logpath):
     filename = GetShortContentName(bsfile, False) + '_VmafLog.txt'
     return os.path.join(logpath, filename)
+
+def get_total_frame(test_cfg, clip):
+    if EnableSubjectiveTest:
+        total_frame = FrameNum[test_cfg][clip.file_name]
+    else:
+        total_frame = FrameNum[test_cfg]
+    return total_frame
 
 def ParseDecLogFile(dec_log):
     """
@@ -405,7 +412,7 @@ def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, 
                     if enc_list[int(POC)] == '':
                         enc_list[int(POC)] = "%s,%s,%s,%s,%s"%(POC,frame_type,pyd_level,qindex,frame_size)
     except:
-        print("error with %s POC = %s" % (enc_log, POC))
+        print("GatherPerframeStat error with %s POC = %s" % (enc_log, POC))
         exit(-1)
 
     for i in range(len(enc_list)):

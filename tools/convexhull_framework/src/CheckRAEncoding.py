@@ -16,13 +16,15 @@ import sys
 import argparse
 import subprocess
 
+from Utils import CreateNewSubfolder
+from Config import WorkPath
 
-root_path = '/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v7.0.0-new/'
+root_path = '/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v8.0.0/'
 test_path = os.path.join(root_path, 'test')
 dec_path = os.path.join(test_path, 'decodedYUVs')
 dec_log_path = os.path.join(test_path, 'RA_decLogs')
-cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd.log")
-decoder = "%s/bin/aomdec-v7.0.0" % root_path
+cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_AS_Update.log")
+decoder = "%s/bin/aomdec-v8.0.0" % root_path
 dec_error_log = os.path.join(test_path, "decode_error.log")
 expected_frames = 65
 updated_cmd_log = os.path.join(test_path, "AV2CTC_TestCmd_Update.log")
@@ -40,6 +42,7 @@ def check_decode_log(dec_log_file):
     return False
 
 def run_decode(cmd_log_file):
+    CreateNewSubfolder(WorkPath, dec_log_path)
     cmd_log = open(cmd_log_file, 'r')
     for line in cmd_log:
         m = re.search(r"-o (.*).obu",line)
@@ -104,12 +107,22 @@ def filter_cmd_log(cmd_log_file, updated_cmd_log_file, error_list):
             if video in error_list:
                 start_copy = True
                 updated_cmd_log.write(line)
+            else:
+                video = video.replace("_AS_3840x2160_Preset", "_AS_Preset")
+                if video in error_list:
+                    start_copy = True
+                    updated_cmd_log.write(line)
 
         m = re.search(r"============== (.*) Job End =================", line)
         if m:
             video = m.group(1)
             if video in error_list:
                 start_copy = False
+            else:
+                video = video.replace("_AS_3840x2160_Preset", "_AS_Preset")
+                if video in error_list:
+                    start_copy = False
+
 
     cmd_log.close()
     updated_cmd_log.close()
@@ -119,7 +132,11 @@ def filter_cmd_log(cmd_log_file, updated_cmd_log_file, error_list):
 # main
 ######################################
 if __name__ == "__main__":
+
+    #1. trigger decoding process
     #run_decode(cmd_log_file)
+
+    #2. check decoding errors
     error_list = check_decoding()
-    #print(error_list)
+    print(error_list)
     filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)

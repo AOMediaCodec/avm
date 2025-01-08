@@ -27,17 +27,19 @@ from itertools import cycle
 import pandas as pd
 from tabulate import tabulate
 
+CTC_RESULT_PATH = "..\\ctc_result"
+
 qtys = ["psnr_y", "psnr_u", "psnr_v", "overall_psnr", "ssim_y", "ms_ssim_y",
         "vmaf", "vmaf_neg", "psnr_hvs","ciede2k", "apsnr_y", "apsnr_u",
         "apsnr_v", "overall_apsnr"]
 
 csv_paths = {
-    "v1.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v1.0.0-alt-anchor-r3.0-new\\analysis\\rdresult",
-    "v2.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v2.0.0-new\\analysis\\rdresult",
-    "v3.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v3.0.0-new\\analysis\\rdresult",
-    "v7.0.0" : "F:\\AV2-CTC-new\\AV2-CTC-v7.0.0-new\\analysis\\rdresult",
+    "v1.0.0" : "%s\\AV2-CTC-v1.0.0-alt-anchor-r3.0" % (CTC_RESULT_PATH),
+    "v2.0.0" : "%s\\AV2-CTC-v2.0.0" % (CTC_RESULT_PATH),
+    "v3.0.0" : "%s\\AV2-CTC-v3.0.0" % (CTC_RESULT_PATH),
+    "v4.0.0" : "%s\\AV2-CTC-v4.0.0" % (CTC_RESULT_PATH),
+    "v7.0.0" : "%s\\AV2-CTC-v7.0.0" % (CTC_RESULT_PATH),
 }
-
 
 start_row = {
     "AI": 2,
@@ -51,6 +53,7 @@ formats = {
     "v1.0.0":       ['r', '-', 'o'],
     "v2.0.0":       ['g', '-', '*'],
     "v3.0.0":       ['b', '-', '^'],
+    "v4.0.0":       ['g', '-', 'o'],
     "v7.0.0":       ['r', '-', '+'],
 }
 
@@ -64,7 +67,13 @@ AS_formats = {
 }
 
 anchor = "v1.0.0"
-rd_curve_pdf = "rdcurve.pdf"
+rd_curve_pdf = "%s\\rdcurve.pdf" % (CTC_RESULT_PATH)
+combined_rd_curve_pdf = "%s\\combined_rdcurve.pdf" % (CTC_RESULT_PATH)
+combined_runtime_pdf = "%s\\combined_runtime.pdf" % (CTC_RESULT_PATH)
+avg_bdrate_file_by_tag_class = "%s\\AverageBdrateByTagClass-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+avg_bdrate_file_by_tag = "%s\\AverageBdrateByTag-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+per_video_bdrate_file = "%s\\PerVideoBdrate-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+
 colors = cycle('bgrycmk')
 markers = cycle('o*^+<x')
 
@@ -107,13 +116,13 @@ def FillXlsFile():
                 test_sht_name = "Test-%s" % cfg
                 if cfg == "AS":
                     xls_template = CTC_ASXLSTemplate
-                    xls_file = "CTC_AS_%s-%s.xlsm" % (anchor, tag)
+                    xls_file = "%s//CTC_AS_%s-%s.xlsm" % (CTC_RESULT_PATH, anchor, tag)
                     shutil.copyfile(xls_template, xls_file)
                     anchor_sht_name = "Anchor"
                     test_sht_name = "Test"
                 elif cfg == "AI":
                     xls_template = CTC_RegularXLSTemplate
-                    xls_file = "CTC_Regular_%s-%s.xlsm" % (anchor, tag)
+                    xls_file = "%s//CTC_Regular_%s-%s.xlsm" % (CTC_RESULT_PATH, anchor, tag)
                     shutil.copyfile(xls_template, xls_file)
 
                 wb = openpyxl.load_workbook(filename=xls_file, read_only=False, keep_vba=True)
@@ -194,8 +203,7 @@ def DrawIndividualRDCurve(records, anchor, pdf):
                     plt.close()
 
 
-def DrawCombinedRDCurve(records):
-    pdf = "combined_rdcurve.pdf"
+def DrawCombinedRDCurve(records, pdf):
     with PdfPages(pdf) as export_pdf:
         for tag in csv_files.keys():
             for cfg in csv_files[tag].keys():
@@ -244,8 +252,7 @@ def DrawCombinedRDCurve(records):
                 export_pdf.savefig()
                 plt.close()
 
-def DrawCombinedRuntime(records):
-    pdf = "combined_runtime.pdf"
+def DrawCombinedRuntime(records, pdf):
     with PdfPages(pdf) as export_pdf:
         for tag in csv_files.keys():
             for cfg in csv_files[tag].keys():
@@ -513,19 +520,19 @@ if __name__ == "__main__":
     for tag in csv_files.keys():
         records[tag] = {}
         for test_cfg in csv_files[tag].keys():
-            IgnorePerf = (test_cfg == "RA")
+            IgnorePerf = (test_cfg in ["RA", "AS"])
             records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg], IgnorePerf)
 
     FillXlsFile()
-    DrawCombinedRDCurve(records)
-    DrawCombinedRuntime(records)
+    DrawCombinedRDCurve(records, combined_rd_curve_pdf)
+    DrawCombinedRuntime(records, combined_runtime_pdf)
     DrawIndividualRDCurve(records, anchor, rd_curve_pdf)
 
     #Calculate BDRate and collect total time
     (bdrate, seq_time) = CalcFullBDRate(anchor)
 
     df = pd.DataFrame(bdrate)
-    average_bdrate_by_tag = df.groupby(['tag', 'cfg', 'class']).agg({
+    average_bdrate_by_tag_class = df.groupby(['tag', 'cfg', 'class']).agg({
         'psnr_y': ['mean'],
         'psnr_u': ['mean'],
         'psnr_v': ['mean'],
@@ -542,12 +549,34 @@ if __name__ == "__main__":
         'overall_apsnr':['mean']
     })
 
-    #print(average_bdrate)
-    #print(tabulate(average_bdrate, headers='keys', tablefmt='psql'))
+    #print(average_bdrate_by_tag)
+    #print(tabulate(average_bdrate_by_tag, headers='keys', tablefmt='psql'))
 
     # Write output summary csv file
-    AvgBDRATEFile = "AverageBdrate-Summary-AV1-vs-AV2.csv"
-    average_bdrate_by_tag.to_csv(AvgBDRATEFile, index=True)
+    average_bdrate_by_tag_class.to_csv(avg_bdrate_file_by_tag_class, index=True)
+
+    average_bdrate_by_tag = df.groupby(['tag', 'cfg']).agg({
+        'psnr_y': ['mean'],
+        'psnr_u': ['mean'],
+        'psnr_v': ['mean'],
+        'overall_psnr': ['mean'],
+        'ssim_y': ['mean'],
+        'ms_ssim_y': ['mean'],
+        'vmaf': ['mean'],
+        'vmaf_neg': ['mean'],
+        'psnr_hvs': ['mean'],
+        'ciede2k': ['mean'],
+        'apsnr_y': ['mean'],
+        'apsnr_u': ['mean'],
+        'apsnr_v': ['mean'],
+        'overall_apsnr': ['mean']
+    })
+
+    # print(average_bdrate_by_tag)
+    # print(tabulate(average_bdrate_by_tag, headers='keys', tablefmt='psql'))
+
+    # Write output summary csv file
+    average_bdrate_by_tag.to_csv(avg_bdrate_file_by_tag, index=True)
 
     average_bdrate_by_video = df.groupby(['cfg', 'class', 'video', 'tag']).agg({
         'psnr_y': ['mean'],
@@ -566,5 +595,4 @@ if __name__ == "__main__":
         'overall_apsnr': ['mean']
     })
 
-    PerVideoBDRATEFile = "PerVideoBdrate-Summary-AV1-vs-AV2.csv"
-    average_bdrate_by_video.to_csv(PerVideoBDRATEFile, index=True)
+    average_bdrate_by_video.to_csv(per_video_bdrate_file, index=True)

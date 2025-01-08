@@ -28,7 +28,7 @@ logger = logging.getLogger(loggername)
 def GetBitstreamFile(method, codec, test_cfg, preset, yuvfile, qp, start_frame, num, outpath):
     bs_suffix = SUFFIX[codec]
     Prefix_EncodeCfg = '_%s_%s_%s_Preset_%s' % (method, codec, test_cfg, preset)
-    if test_cfg == "RA" and EnableParallelGopEncoding:
+    if test_cfg in ["RA", "AS"] and EnableParallelGopEncoding:
         filename = GetShortContentName(yuvfile, False) + Prefix_EncodeCfg + "_QP_"\
                     + str(qp) + "_start_" + str(start_frame) + "_frames_" + str(num) + bs_suffix
     else:

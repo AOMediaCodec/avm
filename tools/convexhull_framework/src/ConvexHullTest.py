@@ -13,22 +13,23 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 import os
 import sys
 import argparse
-
-from EncDecUpscale import Run_EncDec_Upscale, GetBsReconFileName
-from VideoScaler import GetDownScaledOutFile, DownScaling
+import subprocess
+from EncDecUpscale import Run_EncDec_Upscale, GetBsReconFileName, Encode, GetBitstreamFile, Decode
+from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
-     Cleanfolder, CreateClipList, Clip, GatherPerfInfo, GetEncLogFile, \
-     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, \
-     Interpolate_Bilinear, Interpolate_PCHIP, convex_hull, DeleteFile, md5
+     Cleanfolder, CreateClipList, Clip, GatherPerfInfo, GetEncLogFile, GetDecLogFile, \
+     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, ParseDecLogFile, \
+     Interpolate_Bilinear, Interpolate_PCHIP, convex_hull, DeleteFile, md5, get_total_frame
 from ScalingTest import Run_Scaling_Test
-import Utils
 from Config import LogLevels, FrameNum, QPs, QualityList, WorkPath, \
      Path_RDResults, DnScalingAlgos, UpScalingAlgos, \
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, \
      EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
      UsePerfUtil, ScaleMethods, EnableTimingInfo, InterpolatePieces, EnableMD5, \
-     UsePCHIPInterpolation, HEVC_QPs
+     UsePCHIPInterpolation, EnableParallelGopEncoding, GOP_SIZE
+from CalcQtyWithVmafTool import GetVMAFLogFile
+import Utils
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -109,6 +110,60 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
         Utils.Logger.info("finish running encode test.")
     Utils.Logger.info("finish running encode test.")
 
+def Run_Parallel_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = False):
+    if EnableParallelGopEncoding:
+        Utils.Logger.info("start encode %s" % clip.file_name)
+        DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
+                       DnScaleRatio]
+        for i in range(len(DnScaledRes)):
+            DnScaledW = DnScaledRes[i][0]
+            DnScaledH = DnScaledRes[i][1]
+            # downscaling if the downscaled file does not exist
+            dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                             ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
+            if not os.path.isfile(dnscalyuv):
+                dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
+                                        Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
+            ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
+                           clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                           clip.fps_denom, clip.bit_depth)
+            QPSet = QPs['AS']
+            for QP in QPSet:
+                Utils.Logger.info("start encode for QP %d" % QP)
+                total_frame = get_total_frame('AS', clip)
+
+                # Encode
+                start_frame = 0
+                while start_frame < total_frame:
+                    #encode
+                    num_frames = GOP_SIZE
+                    if (start_frame + num_frames) > total_frame:
+                        num_frames = total_frame - start_frame
+
+                    JobName = '%s_%s_%s_%s_%dx%d_Preset_%s_QP_%d_start_%d_frames_%d' % \
+                          (GetShortContentName(clip.file_name, False),
+                           EncodeMethod, CodecName, "AS", DnScaledW, DnScaledH,
+                           EncodePreset, QP, start_frame, num_frames)
+
+                    if LogCmdOnly:
+                        Utils.CmdLogger.write("============== %s Job Start =================\n"%JobName)
+
+                    #encode
+                    bsFile = Encode(EncodeMethod, CodecName, EncodePreset, ds_clip, 'AS', QP,
+                                num_frames, Path_Bitstreams, Path_PerfLog,
+                                Path_EncLog, start_frame, LogCmdOnly)
+                    start_frame += num_frames
+                    if LogCmdOnly:
+                        Utils.CmdLogger.write("============== %s Job End =================\n" % JobName)
+
+            if SaveMemory:
+                if AS_DOWNSCALE_ON_THE_FLY and dnscalyuv != clip.file_path:
+                    DeleteFile(dnscalyuv)
+            Utils.Logger.info("finish running encode test.")
+        Utils.Logger.info("finish running encode test.")
+    else:
+        Utils.Logger.error("parallel encode function can only be used with Parallel Gop Encoding mode")
+
 def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perframe_csv,
                                  EnablePreInterpolation=False):
     Utils.Logger.info("start saving RD results to excel file.......")
@@ -138,8 +193,26 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                                                   Path_Bitstreams, False, i)
 
                 if not os.path.exists(bs):
-                    print("%s is missing" % bs)
-                    missing.write("\n%s is missing" % bs)
+                    print("bitstream %s is missing" % bs)
+                    missing.write("\nbitstream %s is missing" % bs)
+                    continue
+
+                dec_log = GetDecLogFile(bs, Path_DecLog)
+                if not os.path.exists(dec_log):
+                    print("dec_log %s is missing" % dec_log)
+                    missing.write("\ndec_log %s is missing" % dec_log)
+                    continue
+
+                num_dec_frames = ParseDecLogFile(dec_log)
+                if num_dec_frames == 0:
+                    print("decoding error in %s" % dec_log)
+                    missing.write("\ndecoding error in %s" % dec_log)
+                    continue
+
+                vmaf_log = GetVMAFLogFile(reconyuv, Path_QualityLog)
+                if not os.path.exists(vmaf_log):
+                    print("vmaf_log %s is missing" % vmaf_log)
+                    missing.write("\nvmaf_log %s is missing" % vmaf_log)
                     continue
 
                 quality, perframe_vmaf_log, frame_num = GatherQualityMetrics(reconyuv, Path_QualityLog)
@@ -163,7 +236,7 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                 for qty in quality:
                     csv.write(",%f"%qty)
 
-                if EnableTimingInfo:
+                if EnableTimingInfo and not EnableParallelGopEncoding:
                     if UsePerfUtil:
                         enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_PerfLog)
                         csv.write(",%.2f,%.2f,%s,%s,%s,%s,"%(enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
@@ -171,7 +244,7 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                         enc_time, dec_time = GatherPerfInfo(bs, Path_PerfLog)
                         csv.write(",%.2f,%.2f," % (enc_time, dec_time))
                 else:
-                    csv.write(",,,")
+                    csv.write(",,,,,,,")
 
                 if EnableMD5:
                     enc_md5 = md5(bs)
@@ -179,7 +252,7 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                     csv.write("%s,%s" % (enc_md5, dec_md5))
                 csv.write("\n")
 
-                if (EncodeMethod == 'aom'):
+                if (EncodeMethod == 'aom') and not EnableParallelGopEncoding:
                     enc_log = GetEncLogFile(bs, Path_EncLog)
                     GatherPerframeStat("AS", EncodeMethod, CodecName, EncodePreset, clip, GetShortContentName(bs),
                                        DnScaledW, DnScaledH, qp, enc_log, perframe_csv,
@@ -188,6 +261,106 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
     missing.close()
     Utils.Logger.info("finish export convex hull results to excel file.")
 
+def Run_AS_Concatenate_Test(test_cfg, clip, dnScalAlgo, codec, method, preset, LogCmdOnly = False):
+    if EnableParallelGopEncoding:
+        Utils.Logger.info("start running %s concatenate tests with %s"
+                      % (test_cfg, clip.file_name))
+        DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
+                       DnScaleRatio]
+        for i in range(len(DnScaledRes)):
+            DnScaledW = DnScaledRes[i][0]
+            DnScaledH = DnScaledRes[i][1]
+
+            # downscaling if the downscaled file does not exist
+            dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                             ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
+            ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
+                           clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                           clip.fps_denom, clip.bit_depth)
+            QPSet = QPs['AS']
+            for QP in QPSet:
+                Utils.Logger.info("start encode for QP %d" % QP)
+                total_frame = get_total_frame('AS', clip)
+
+                cmd = "cat "
+                start_frame = 0
+                while start_frame < total_frame:
+                    num_frames = GOP_SIZE
+                    if (start_frame + num_frames) > total_frame:
+                        num_frames = total_frame - start_frame
+
+                    bsfile = GetBitstreamFile(method, codec, test_cfg, preset, ds_clip.file_path,
+                              QP, start_frame, num_frames, Path_Bitstreams)
+                    cmd += " %s " % bsfile
+                    start_frame += num_frames
+
+                bsfile = '%s_%s_%s_%s_Preset_%s_QP_%d_start_%d_frames_%d.obu' % \
+                            (GetShortContentName(ds_clip.file_name, False),
+                            method, codec, test_cfg, preset, QP, 0, total_frame)
+
+                cmd += " > %s/%s" % (Path_Bitstreams, bsfile)
+
+                if LogCmdOnly:
+                    Utils.CmdLogger.write("%s\n" % cmd)
+                else:
+                    subprocess.call(cmd, shell=True)
+
+def Run_AS_Decode_Test(test_cfg, clip, dnScalAlgo, upScalAlgo, scale_method, codec, method, preset, LogCmdOnly = False):
+    if EnableParallelGopEncoding:
+        Utils.Logger.info("start running %s decode tests with %s"
+                      % (test_cfg, clip.file_name))
+        DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
+                       DnScaleRatio]
+        for i in range(len(DnScaledRes)):
+            DnScaledW = DnScaledRes[i][0]
+            DnScaledH = DnScaledRes[i][1]
+
+            # downscaling if the downscaled file does not exist
+            dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                             ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
+            ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
+                           clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                           clip.fps_denom, clip.bit_depth)
+
+            QPSet = QPs[test_cfg]
+
+            for QP in QPSet:
+                Utils.Logger.info("start decode  with QP %d" % (QP))
+                total_frame = get_total_frame(test_cfg, clip.file_name)
+
+                # decode
+                JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
+                              (GetShortContentName(ds_clip.file_name, False),
+                              method, codec, test_cfg, preset, QP)
+                if LogCmdOnly:
+                    Utils.CmdLogger.write("============== %s Job Start =================\n"%JobName)
+
+                bsfile = '%s/%s_%s_%s_%s_Preset_%s_QP_%d_start_%d_frames_%d.obu' % \
+                        (Path_Bitstreams, GetShortContentName(ds_clip.file_name, False),
+                        method, codec, test_cfg, preset, QP, 0, total_frame)
+
+                decodedYUV = Decode(ds_clip, method, test_cfg, codec, bsfile, Path_DecodedYuv, Path_PerfLog, False,
+                                Path_DecLog, LogCmdOnly)
+
+                dec_clip = Clip(GetShortContentName(decodedYUV, False) + ".y4m",
+                            decodedYUV, ds_clip.file_class, ds_clip.width, ds_clip.height,
+                            ds_clip.fmt, 0, 0, ds_clip.bit_depth)
+                upscaledYUV = UpScaling(scale_method, dec_clip, total_frame, clip.width, clip.height,
+                            Path_UpScaleYuv, Path_CfgFiles, upScalAlgo, LogCmdOnly)
+                if SaveMemory and decodedYUV != upscaledYUV:
+                    DeleteFile(decodedYUV, LogCmdOnly)
+
+                #calcualte quality distortion
+                Utils.Logger.info("start quality metric calculation")
+                CalculateQualityMetric(clip.file_path, total_frame, upscaledYUV,
+                                       clip.fmt, clip.width, clip.height,
+                                       clip.bit_depth, Path_QualityLog, Path_VmafLog, LogCmdOnly)
+                if SaveMemory:
+                    DeleteFile(upscaledYUV, LogCmdOnly)
+                if LogCmdOnly:
+                    Utils.CmdLogger.write("============== %s Job End =================\n" % JobName)
+    else:
+        Utils.Logger.error("decode function can only be used with Parallel Gop Encoding mode")
 
 def ParseArguments(raw_args):
     parser = argparse.ArgumentParser(prog='ConvexHullTest.py',
@@ -196,9 +369,9 @@ def ParseArguments(raw_args):
     parser.add_argument('-f', '--function', dest='Function', type=str,
                         required=True, metavar='',
                         choices=["clean", "scaling","encode",
-                                 "convexhull"],
+                                 "convexhull", "concatnate", "decode"],
                         help="function to run: clean, scaling, encode,"
-                             " convexhull")
+                             " convexhull, concatnate, decode")
     parser.add_argument('-k', "--KeepUpscaleOutput", dest='KeepUpscaledOutput',
                         type=bool, default=False, metavar='',
                         help="in function clean, if keep upscaled yuv files. It"
@@ -281,11 +454,38 @@ if __name__ == "__main__":
     elif Function == 'encode':
         for clip in clip_list:
             for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
-                Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly)
+                if EnableParallelGopEncoding:
+                    Run_Parallel_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly)
+                else:
+                    Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly)
         if SaveMemory:
             Cleanfolder(Path_DnScaleYuv)
             if not KeepUpscaledOutput:
                 Cleanfolder(Path_UpScaleYuv)
+    elif Function == 'decode':
+        test_cfg = "AS"
+        if EnableParallelGopEncoding:
+            clip_list = CreateClipList(test_cfg)
+            for clip in clip_list:
+                for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
+                    if EnableParallelGopEncoding:
+                        Run_AS_Decode_Test(test_cfg, clip, dnScalAlgo, upScalAlgo, ScaleMethod, CodecName, EncodeMethod, EncodePreset, LogCmdOnly)
+                    else:
+                        Utils.Logger.error("concatenate function can only be used with Parallel Gop Encoding mode and RA configuration")
+        else:
+            print("decode command can only be used when parallel gop encoding is enabled")
+    elif Function == 'concatnate':
+        test_cfg = "AS"
+        if EnableParallelGopEncoding:
+            clip_list = CreateClipList(test_cfg)
+            for clip in clip_list:
+                for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
+                    if EnableParallelGopEncoding:
+                        Run_AS_Concatenate_Test(test_cfg, clip, dnScalAlgo, CodecName, EncodeMethod, EncodePreset, LogCmdOnly)
+                    else:
+                        Utils.Logger.error("concatenate function can only be used with Parallel Gop Encoding mode and RA configuration")
+        else:
+            print("concatnate command can only be used when parallel gop encoding is enabled")
     elif Function == 'convexhull':
         csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
         csv = open(csv_file, "wt")
