@@ -1,0 +1,1 @@
+TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,OrigRes,FPS,BitDepth,CodedRes,QP,Bitrate(kbps),PSNR_Y,PSNR_U,PSNR_V,SSIM_Y(dB),MS-SSIM_Y(dB),VMAF_Y,VMAF_Y-NEG,PSNR-HVS,CIEDE2000,APSNR_Y,APSNR_U,APSNR_V,CAMBI,EncT[s],DecT[s],EncInstr,DecInstr,EncCycles,DecCycles,EncMD5,DecMD5

@@ -138,5 +138,10 @@ if __name__ == "__main__":
 
     #2. check decoding errors
     error_list = check_decoding()
+<<<<<<< HEAD
     #print(error_list)
     filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)
+=======
+    print(error_list)
+    filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)
+>>>>>>> 63086124c (update ctc script)

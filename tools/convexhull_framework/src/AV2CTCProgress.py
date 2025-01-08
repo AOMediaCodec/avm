@@ -12,6 +12,7 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import re
 import os
+import csv
 import openpyxl
 import xlsxwriter
 import shutil
@@ -38,6 +39,11 @@ csv_paths = {
     "v2.0.0" : "%s\\AV2-CTC-v2.0.0" % (CTC_RESULT_PATH),
     "v3.0.0" : "%s\\AV2-CTC-v3.0.0" % (CTC_RESULT_PATH),
     "v4.0.0" : "%s\\AV2-CTC-v4.0.0" % (CTC_RESULT_PATH),
+<<<<<<< HEAD
+=======
+    "v5.0.0" : "%s\\AV2-CTC-v5.0.0" % (CTC_RESULT_PATH),
+    "v6.0.0" : "%s\\AV2-CTC-v6.0.0" % (CTC_RESULT_PATH),
+>>>>>>> 63086124c (update ctc script)
     "v7.0.0" : "%s\\AV2-CTC-v7.0.0" % (CTC_RESULT_PATH),
 }
 
@@ -54,6 +60,11 @@ formats = {
     "v2.0.0":       ['g', '-', '*'],
     "v3.0.0":       ['b', '-', '^'],
     "v4.0.0":       ['g', '-', 'o'],
+<<<<<<< HEAD
+=======
+    "v5.0.0":       ['b', '-', '*'],
+    "v6.0.0":       ['c', '-', 'o'],
+>>>>>>> 63086124c (update ctc script)
     "v7.0.0":       ['r', '-', '+'],
 }
 
@@ -70,9 +81,18 @@ anchor = "v1.0.0"
 rd_curve_pdf = "%s\\rdcurve.pdf" % (CTC_RESULT_PATH)
 combined_rd_curve_pdf = "%s\\combined_rdcurve.pdf" % (CTC_RESULT_PATH)
 combined_runtime_pdf = "%s\\combined_runtime.pdf" % (CTC_RESULT_PATH)
+<<<<<<< HEAD
 avg_bdrate_file_by_tag_class = "%s\\AverageBdrateByTagClass-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
 avg_bdrate_file_by_tag = "%s\\AverageBdrateByTag-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
 per_video_bdrate_file = "%s\\PerVideoBdrate-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+=======
+bdrate_summary = "%s\\Bdrate-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+avg_bdrate_by_tag_class = "%s\\AverageBdrateByTagClass-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+avg_bdrate_by_tag = "%s\\AverageBdrateByTag-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+per_video_bdrate = "%s\\PerVideoBdrate-Summary-AV1-vs-AV2.csv" % (CTC_RESULT_PATH)
+avg_bdrate_by_tag_pdf = "%s\\AverageBdrateByTag-Summary-AV1-vs-AV2.pdf" % (CTC_RESULT_PATH)
+avg_bdrate_by_tag_class_pdf = "%s\\AverageBdrateByTagClass-Summary-AV1-vs-AV2.pdf" % (CTC_RESULT_PATH)
+>>>>>>> 63086124c (update ctc script)
 
 colors = cycle('bgrycmk')
 markers = cycle('o*^+<x')
@@ -511,6 +531,7 @@ def WriteSummaryXlsFile(bdrate, seq_time, seq_instr, summary):
     wb.close()
     csv.close()
 
+<<<<<<< HEAD
 ######################################
 # main
 ######################################
@@ -532,6 +553,18 @@ if __name__ == "__main__":
     (bdrate, seq_time) = CalcFullBDRate(anchor)
 
     df = pd.DataFrame(bdrate)
+=======
+
+def write_bdrate(bdrate, bdrate_csv):
+    # Open the CSV file for writing
+    with open(bdrate_csv, 'w', encoding='utf8', newline='') as csvfile:
+        fc = csv.DictWriter(csvfile, fieldnames=bdrate[0].keys(), )
+        fc.writeheader()
+        fc.writerows(bdrate)
+
+def write_avg_bdrate(bdrate_csv, avg_bdrate_by_tag_csv, avg_bdrate_by_tag_class_csv, per_video_bdrate_csv):
+    df = pd.read_csv(bdrate_csv)
+>>>>>>> 63086124c (update ctc script)
     average_bdrate_by_tag_class = df.groupby(['tag', 'cfg', 'class']).agg({
         'psnr_y': ['mean'],
         'psnr_u': ['mean'],
@@ -549,11 +582,22 @@ if __name__ == "__main__":
         'overall_apsnr':['mean']
     })
 
+<<<<<<< HEAD
     #print(average_bdrate_by_tag)
     #print(tabulate(average_bdrate_by_tag, headers='keys', tablefmt='psql'))
 
     # Write output summary csv file
     average_bdrate_by_tag_class.to_csv(avg_bdrate_file_by_tag_class, index=True)
+=======
+    fields_name = ['psnr_y','psnr_u','psnr_v','overall_psnr','ssim_y','ms_ssim_y','vmaf','vmaf_neg','psnr_hvs','ciede2k','apsnr_y','apsnr_u','apsnr_v','overall_apsnr']
+    #print(average_bdrate_by_tag_class)
+    #print(tabulate(average_bdrate_by_tag_class, headers='keys', tablefmt='psql'))
+
+    # Write output summary csv file
+    average_bdrate_by_tag_class.columns = fields_name
+    average_bdrate_by_tag_class.reset_index(inplace=True)
+    average_bdrate_by_tag_class.to_csv(avg_bdrate_by_tag_class_csv, index=False)
+>>>>>>> 63086124c (update ctc script)
 
     average_bdrate_by_tag = df.groupby(['tag', 'cfg']).agg({
         'psnr_y': ['mean'],
@@ -572,11 +616,20 @@ if __name__ == "__main__":
         'overall_apsnr': ['mean']
     })
 
+<<<<<<< HEAD
     # print(average_bdrate_by_tag)
     # print(tabulate(average_bdrate_by_tag, headers='keys', tablefmt='psql'))
 
     # Write output summary csv file
     average_bdrate_by_tag.to_csv(avg_bdrate_file_by_tag, index=True)
+=======
+    #print(average_bdrate_by_tag)
+    #print(tabulate(average_bdrate_by_tag, headers='keys', tablefmt='psql'))
+    # Write output summary csv file
+    average_bdrate_by_tag.columns = fields_name
+    average_bdrate_by_tag.reset_index(inplace=True)
+    average_bdrate_by_tag.to_csv(avg_bdrate_by_tag_csv, index=False)
+>>>>>>> 63086124c (update ctc script)
 
     average_bdrate_by_video = df.groupby(['cfg', 'class', 'video', 'tag']).agg({
         'psnr_y': ['mean'],
@@ -595,4 +648,89 @@ if __name__ == "__main__":
         'overall_apsnr': ['mean']
     })
 
+<<<<<<< HEAD
     average_bdrate_by_video.to_csv(per_video_bdrate_file, index=True)
+=======
+    average_bdrate_by_video.columns = fields_name
+    average_bdrate_by_video.reset_index(inplace=True)
+    average_bdrate_by_video.to_csv(per_video_bdrate_csv, index=False)
+
+def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
+    df = pd.read_csv(avg_bdrate_by_tag_csv, index_col=0)
+    #print(df)
+    with PdfPages(avg_bdrate_by_tag_pdf) as export_pdf:
+        for cfg in df['cfg'].unique().tolist():
+            for qty in ['overall_psnr', 'ssim_y', 'vmaf']:
+                ax = df[df['cfg']==cfg][qty].plot(
+                    kind='bar',
+                    figsize=(30, 15),
+                    fontsize=20
+                )
+                ax.set_title("BDRATE-%s for %s" % (qty, cfg), fontsize=40)
+                ax.set_xlabel('Tag', fontsize=20)
+                ax.set_ylabel('BDRATE', fontsize=20)
+                for q in ax.containers:
+                    ax.bar_label(q, fontsize=20)
+                plt.xticks(rotation=30, horizontalalignment="center")
+                plt.grid(True)
+                plt.show()
+                export_pdf.savefig()
+                plt.close()
+
+
+def plot_avg_bdrate_by_tag_class(avg_bdrate_by_tag_class_csv, avg_bdrate_by_tag_class_pdf):
+    df = pd.read_csv(avg_bdrate_by_tag_class_csv, index_col=0)
+    print(df)
+    with PdfPages(avg_bdrate_by_tag_class_pdf) as export_pdf:
+        for cfg in df['cfg'].unique().tolist():
+            print(df['class'].unique().tolist())
+            for cls in df['class'].unique().tolist():
+                for qty in ['overall_psnr', 'ssim_y', 'vmaf']:
+                    selected_rows = df[(df['cfg']==cfg) & (df['class']==cls)]
+                    if selected_rows.empty:
+                        continue
+                    print(selected_rows)
+                    ax = selected_rows[qty].plot(
+                        kind='bar',
+                        figsize=(30, 15),
+                        fontsize=20
+                    )
+                    ax.set_title("BDRATE-%s for %s class %s" % (qty, cfg, cls), fontsize=40)
+                    ax.set_xlabel('Tag', fontsize=20)
+                    ax.set_ylabel('BDRATE', fontsize=20)
+                    for q in ax.containers:
+                        ax.bar_label(q, fontsize=20)
+                    plt.xticks(rotation=30, horizontalalignment="center")
+                    plt.grid(True)
+                    plt.show()
+                    export_pdf.savefig()
+                    plt.close()
+
+######################################
+# main
+######################################
+if __name__ == "__main__":
+    csv_files = populate_stats_files()
+    records = {}
+    for tag in csv_files.keys():
+        records[tag] = {}
+        for test_cfg in csv_files[tag].keys():
+            IgnorePerf = (test_cfg in ["RA", "AS"])
+            records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg], IgnorePerf)
+
+    FillXlsFile()
+    DrawCombinedRDCurve(records, combined_rd_curve_pdf)
+    DrawCombinedRuntime(records, combined_runtime_pdf)
+    DrawIndividualRDCurve(records, anchor, rd_curve_pdf)
+
+    #Calculate BDRate and collect total time
+    (bdrate, seq_time) = CalcFullBDRate(anchor)
+
+    write_bdrate(bdrate, bdrate_summary)
+
+    write_avg_bdrate(bdrate_summary, avg_bdrate_by_tag, avg_bdrate_by_tag_class, per_video_bdrate)
+
+    plot_avg_bdrate_by_tag(avg_bdrate_by_tag, avg_bdrate_by_tag_pdf)
+
+    plot_avg_bdrate_by_tag_class(avg_bdrate_by_tag_class, avg_bdrate_by_tag_class_pdf)
+>>>>>>> 63086124c (update ctc script)
