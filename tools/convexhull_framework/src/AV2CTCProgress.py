@@ -678,3 +678,5 @@ if __name__ == "__main__":
     plot_avg_bdrate_by_tag(avg_bdrate_by_tag, avg_bdrate_by_tag_pdf)
 
     plot_avg_bdrate_by_tag_class(avg_bdrate_by_tag_class, avg_bdrate_by_tag_class_pdf)
+
+    plot_per_video_bdrate_by_tag_class(per_video_bdrate, per_video_bdrate_by_tag_class_pdf)
