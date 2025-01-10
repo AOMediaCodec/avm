@@ -2476,9 +2476,10 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
           xd->chroma_above_mbmi = chroma_above_base_mi;
         } else {
           const int first_col = above_base_chroma_ref_info->mi_col_chroma_base;
-          const int last_col =
+          const int last_col = AOMMIN(
               first_col + mi_size_wide[above_base_chroma_ref_info->bsize_base] -
-              1;
+                  1,
+              mi_cols - 1);
           const int col_offset = last_col - chroma_ref_info->mi_col_chroma_base;
           xd->chroma_above_mbmi = base_mi[-xd->mi_stride + col_offset];
         }
@@ -2501,9 +2502,10 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
           xd->chroma_left_mbmi = chroma_left_base_mi;
         } else {
           const int first_row = left_base_chroma_ref_info->mi_row_chroma_base;
-          const int last_row =
+          const int last_row = AOMMIN(
               first_row + mi_size_high[left_base_chroma_ref_info->bsize_base] -
-              1;
+                  1,
+              mi_rows - 1);
           const int row_offset = last_row - chroma_ref_info->mi_row_chroma_base;
           xd->chroma_left_mbmi = base_mi[row_offset * xd->mi_stride - 1];
         }
