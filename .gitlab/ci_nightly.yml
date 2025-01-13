@@ -237,7 +237,7 @@ Linux Unit (x86_64, sse4_2):
 
 Linux Sanitizer (address) Test Nightly:
   extends: .sanitizer-common-nigtly
-  parallel: 32
+  parallel: 34
   variables:
     AOM_SANITIZER_TYPE: address
   needs:
