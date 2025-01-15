@@ -2125,10 +2125,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
         ++counts->inter_compound_mode_is_joint
               [get_inter_compound_mode_is_joint_context(cm, mbmi)][is_joint];
-        ++counts->inter_compound_mode_joint_type[0][comp_mode_idx ==
-                                                    INTER_COMPOUND_OFFSET(
-                                                        JOINT_NEWMV)];
-        ++counts->inter_compound_mode_non_joint_type[mode_ctx][comp_mode_idx];
+        if (is_joint) {
+          ++counts->inter_compound_mode_joint_type[0][comp_mode_idx ==
+                                                      INTER_COMPOUND_OFFSET(
+                                                          JOINT_NEWMV)];
+        } else {
+          ++counts->inter_compound_mode_non_joint_type[mode_ctx][comp_mode_idx];
+        }
 #endif  // CONFIG_ENTROPY_STATS
 
 #else
