@@ -3641,25 +3641,24 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
-  }
+
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  if (cm->features.primary_ref_frame != PRIMARY_REF_NONE) {
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
                                    ? cm->features.derived_secondary_ref_frame
                                    : cm->features.derived_primary_ref_frame;
-    const int map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
-    if ((map_idx != INVALID_IDX) &&
+    const int secondary_map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
+    if ((secondary_map_idx != INVALID_IDX) &&
         (ref_frame_used != cm->features.primary_ref_frame) &&
         (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-        !(cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          cpi->error_resilient_frame_seen) &&
+        !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
         (ref_frame_used != PRIMARY_REF_NONE)) {
-      av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
+      av1_avg_cdf_symbols(cm->fc,
+                          &cm->ref_frame_map[secondary_map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
-  }
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+  }
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_finalize_encoded_frame(cpi);

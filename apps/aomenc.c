@@ -228,6 +228,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
+#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+                                        AV1E_SET_ENABLE_CDF_AVERAGING,
+#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,

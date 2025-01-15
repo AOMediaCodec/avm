@@ -7527,16 +7527,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             : aom_rb_read_bit(rb);
   }
 
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  const int intra_only = current_frame->frame_type == KEY_FRAME ||
-                         current_frame->frame_type == INTRA_ONLY_FRAME;
-  if (intra_only) {
-    pbi->error_resilient_frame_seen = 0;
-  } else if (features->error_resilient_mode) {
-    pbi->error_resilient_frame_seen = 1;
-  }
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
   if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
@@ -8712,8 +8702,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     if ((map_idx != INVALID_IDX) &&
         (ref_frame_used != cm->features.primary_ref_frame) &&
         (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-        !(cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          pbi->error_resilient_frame_seen) &&
+        !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
         (ref_frame_used != PRIMARY_REF_NONE)) {
       av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);

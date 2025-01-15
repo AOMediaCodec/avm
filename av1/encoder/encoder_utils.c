@@ -848,8 +848,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
       if ((map_idx != INVALID_IDX) &&
           (ref_frame_used != cm->features.primary_ref_frame) &&
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-          !(cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-            cpi->error_resilient_frame_seen) &&
+          !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
           (ref_frame_used != PRIMARY_REF_NONE)) {
         av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
