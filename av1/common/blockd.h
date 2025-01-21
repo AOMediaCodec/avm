@@ -1598,8 +1598,9 @@ static INLINE void set_chroma_ref_offset_size(
               parent_info->mi_row_chroma_base + mi_size_high[BLOCK_8X8];
           info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
           info->bsize_base = BLOCK_8X16;
-        } else {  // Nothing to do: `info` is already initialized correctly.
+        } else {
           assert(bsize == BLOCK_8X8);
+          info->offset_started = 0;  // as block is a chroma ref by itself
         }
       } else {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
@@ -1615,8 +1616,9 @@ static INLINE void set_chroma_ref_offset_size(
           info->mi_col_chroma_base =
               parent_info->mi_col_chroma_base + mi_size_wide[BLOCK_8X8];
           info->bsize_base = BLOCK_16X8;
-        } else {  // Nothing to do: `info` is already initialized correctly.
+        } else {
           assert(bsize == BLOCK_8X8);
+          info->offset_started = 0;  // as block is a chroma ref by itself
         }
       } else {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
