@@ -1167,16 +1167,6 @@ static INLINE void av1_get_warp_base_params(
 }
 
 // Try to get the neighbor's warp model
-// If this is possible, return true and set *wm_params to the neighbor's warp
-// model.
-// If this is not possible, return false and leave *wm_params unmodified.
-//
-// Encoders should only select warp_extend mode if this function returns true
-// (indicating a useful model was available).
-// But decoders must be prepared for the possibility than an encoder selects
-// warp_extend even if this function returns false. In that case, the decoder
-// should fall back to translational motion, generally by setting
-// mbmi->wm_params[0].invalid = 1;
 static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const MB_MODE_INFO *neighbor_mi,
@@ -1185,7 +1175,10 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
       &cm->global_motion[neighbor_mi->ref_frame[0]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
-    *wm_params = neighbor_mi->wm_params[0];
+    if (neighbor_mi->wm_params[0].invalid)
+      *wm_params = default_warp_params;
+    else
+      *wm_params = neighbor_mi->wm_params[0];
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {
