@@ -8214,6 +8214,109 @@ static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
 
 #define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
+#if CONFIG_PALETTE_THREE_NEIGHBOR
+static INLINE void swap_color_order(uint8_t *color_order, uint8_t *color_order_status, int switch_idx,
+                                    int max_idx, int *color_order_cnt) {
+  color_order[switch_idx] = max_idx;
+  color_order_status[max_idx] = 1;
+  (*color_order_cnt)++;
+}
+
+static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
+                                         const uint8_t *color_map, int stride,
+                                         int r, int c) {
+  int color_index_ctx = 0;
+  uint8_t color_status[PALETTE_MAX_SIZE] = {0};
+  int color_cnt = 0;
+  for (int j = 0; j < PALETTE_MAX_SIZE; ++j) {
+    color_order[j] = j;
+  }
+
+  if (r > 0 && c > 0) {
+    int color_neighbors[3] = { 0 };
+    color_neighbors[0] = color_map[r * stride + c - 1];
+    color_neighbors[1] = color_map[(r - 1) * stride + c - 1];
+    color_neighbors[2] = color_map[(r - 1) * stride + c];
+
+    if (color_neighbors[0] == color_neighbors[1] &&
+        color_neighbors[0] == color_neighbors[2]) {
+      color_index_ctx = 4;
+      swap_color_order(color_order, color_status, 0, color_neighbors[0], &color_cnt);
+    } else if (color_neighbors[0] == color_neighbors[2]) {
+      color_index_ctx = 3;
+      swap_color_order(color_order,  color_status, 0, color_neighbors[0], &color_cnt);
+      swap_color_order(color_order,  color_status, 1, color_neighbors[1], &color_cnt);
+    } else if (color_neighbors[0] == color_neighbors[1]) {
+      color_index_ctx = 2;
+      swap_color_order(color_order,  color_status, 0, color_neighbors[0], &color_cnt);
+      swap_color_order(color_order,  color_status, 1, color_neighbors[2], &color_cnt);
+    } else if (color_neighbors[1] == color_neighbors[2]) {
+      color_index_ctx = 2;
+      swap_color_order(color_order,  color_status, 0, color_neighbors[2], &color_cnt);
+      swap_color_order(color_order,  color_status, 1, color_neighbors[0], &color_cnt);
+    } else {
+      color_index_ctx = 1;
+      int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
+      int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
+      swap_color_order(color_order,  color_status, 0, min_color, &color_cnt);
+      swap_color_order(color_order,  color_status, 1, max_color, &color_cnt);
+      swap_color_order(color_order,  color_status, 2, color_neighbors[1], &color_cnt);
+    }
+  } else if (c == 0 && r > 0) {
+    color_index_ctx = 0;
+    const int color_neighbor = color_map[(r - 1) * stride + c];
+    swap_color_order(color_order,  color_status, 0, color_neighbor, &color_cnt);
+  } else if (c > 0 && r == 0) {
+    color_index_ctx = 0;
+    const int color_neighbor = color_map[r * stride + c - 1];
+    swap_color_order(color_order,  color_status, 0, color_neighbor, &color_cnt);
+  }
+
+  int write_idx = color_cnt;
+  for (int read_idx = 0; read_idx < PALETTE_MAX_SIZE; read_idx++) {
+    if (color_status[read_idx] == 0) {
+      color_order[write_idx] = read_idx;
+      write_idx++;
+    }
+  }
+
+  if (color_idx != NULL) {
+    // If any of the neighbor color has higher index than current color index,
+    // then we move up by 1 unless the current color is the same as one of the
+    // neighbor
+    const int current_color = *color_idx = color_map[r * stride + c];
+    for (int idx = 0; idx < PALETTE_MAX_SIZE; idx++) {
+      if (color_order[idx] == current_color) {
+        *color_idx = idx;
+        break;
+      }
+    }
+  }
+  return color_index_ctx;
+}
+
+int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
+                                        int r, int c, int palette_size,
+                                        uint8_t *color_order, int *color_idx
+#if CONFIG_PALETTE_IMPROVEMENTS
+                                        ,
+                                        int row_flag, int prev_row_flag
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+) {
+  assert(palette_size <= PALETTE_MAX_SIZE);
+  assert(r > 0 || c > 0);
+
+  int color_index_ctx =
+      derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
+#if CONFIG_PALETTE_IMPROVEMENTS
+  // Special context value for the first (and only) index of an identity row
+  // and when the previous row is also an identity row.
+  if (c == 0 && row_flag && prev_row_flag)
+    color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+  return color_index_ctx;
+}
+#else
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx
@@ -8302,6 +8405,7 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
   assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
   return color_index_ctx;
 }
+#endif // CONFIG_PALETTE_THREE_NEIGHBOR
 
 int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int r, int c, int *color_idx
