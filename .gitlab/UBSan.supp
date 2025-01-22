@@ -60,3 +60,9 @@ shift-base:test/simd_cmp_impl.h
 
 # Lots of warnings throughout codebase.
 implicit-integer-sign-change:*/avm/*
+
+# Tflite and dependencies.
+unsigned-integer-overflow:*/tensorflow/*
+unsigned-integer-overflow:*/XNNPACK/*
+unsigned-integer-overflow:*/cpuinfo/*
+shift-base:*/tensorflow/*

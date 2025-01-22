@@ -2269,8 +2269,8 @@ static AOM_INLINE void av1_ml_part_split_features_square(AV1_COMP *const cpi,
         // Don't process beyond the tile boundary
         if (mi_col_left < 0) break;
         int src_off = (row_off << 2) * x->plane[0].src.stride + (col_off << 2);
-        xd->mb_to_top_edge = (-mi_row - row_off) << MI_SUBPEL_SIZE_LOG2;
-        xd->mb_to_left_edge = (-mi_col - col_off) << MI_SUBPEL_SIZE_LOG2;
+        xd->mb_to_top_edge = -GET_MV_SUBPEL((mi_row + row_off) * MI_SIZE);
+        xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col + col_off) * MI_SIZE);
         mbmi->sb_type[0] = subsize_sq;
         xd->up_available = (mi_row + row_off) > 0;
         xd->left_available = (mi_col + col_off) > 0;
@@ -2340,8 +2340,8 @@ static AOM_INLINE void av1_ml_part_split_features_none(AV1_COMP *const cpi,
   unsigned int tx_h = tx_size_high_unit[tx_size];
   DECLARE_ALIGNED(16, uint16_t, intrapred[MAX_BLK_SQUARE]);
 
-  xd->mb_to_top_edge = -mi_row << MI_SUBPEL_SIZE_LOG2;
-  xd->mb_to_left_edge = -mi_col << MI_SUBPEL_SIZE_LOG2;
+  xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
+  xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
   mbmi->sb_type[0] = bsize;
   unsigned int best_sse[3] = { INT_MAX, INT_MAX, INT_MAX };
   unsigned int best_var[3] = { 0, 0, 0 };
