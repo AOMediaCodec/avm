@@ -3859,6 +3859,11 @@ static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     return 1;
   }
+#if CONFIG_DISABLE_4X4_INTER
+  if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
+    return 0;
+  }
+#endif
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int is_inter =

@@ -1365,6 +1365,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_EXTENDED_SDP
         && mbmi->region_type != INTRA_REGION
 #endif  // CONFIG_EXTENDED_SDP
+#if CONFIG_DISABLE_4X4_INTER
+        && mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4
+#endif
     ) {
       const int intra_inter_ctx = av1_get_intra_inter_context(xd);
 #if CONFIG_ENTROPY_STATS

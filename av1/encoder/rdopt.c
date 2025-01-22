@@ -648,6 +648,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
         base_cost + mode_costs->intra_inter_cost[intra_inter_ctx][0];
     base_cost += mode_costs->intra_inter_cost[intra_inter_ctx][1];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+#if CONFIG_DISABLE_4X4_INTER
+    if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
+      ref_costs_single[INTRA_FRAME_INDEX] = 0;
+    }
+#endif
 
     if (is_tip_allowed(cm, xd)) {
       const int tip_ctx = get_tip_ctx(xd);
@@ -10877,6 +10882,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
       if (this_mode < INTRA_MODE_END && ref_frame != INTRA_FRAME) continue;
       if (this_mode >= INTRA_MODE_END && ref_frame == INTRA_FRAME) continue;
+#if CONFIG_DISABLE_4X4_INTER
+      if (ref_frame != INTRA_FRAME && bsize == BLOCK_4X4) {
+        continue;  // disable 4x4 inter blocks
+      }
+#endif
       for (MV_REFERENCE_FRAME second_rf = NONE_FRAME;
            second_rf < cm->ref_frames_info.num_total_refs; ++second_rf) {
         MV_REFERENCE_FRAME second_ref_frame = second_rf;

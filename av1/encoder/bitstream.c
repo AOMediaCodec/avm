@@ -610,6 +610,12 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
     assert(is_inter);
     return;
   }
+#if CONFIG_DISABLE_4X4_INTER
+  if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
+    assert(!is_inter);
+    return;
+  }
+#endif
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -2625,6 +2631,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_IBC_SR_EXT
   const int is_compound = has_second_ref(mbmi);
   int ref;
+
+#if CONFIG_DISABLE_4X4_INTER
+  assert(IMPLIES(bsize == BLOCK_4X4, !is_inter && !mbmi->skip_mode));
+#endif
 
   write_inter_segment_id(cpi, w, seg, segp, 0, 1);
 

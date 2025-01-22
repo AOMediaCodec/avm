@@ -186,6 +186,7 @@ set_aom_config_var(CONFIG_INTER_COMPOUND_BY_JOINT 1
                    "AV2 inter compound mode by joint.")
 set_aom_config_var(CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX 1
                    "AV2 no joint mode when same ref index.")
+set_aom_config_var(CONFIG_DISABLE_4X4_INTER 1 "Disable 4x4 inter blocks")
 
 set_aom_config_var(
   CONFIG_16_FULL_SEARCH_DMVR
