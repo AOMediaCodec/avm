@@ -33,7 +33,7 @@ typedef struct tcq_node_t {
   int64_t rdCost : 64;
   int32_t rate : 32;
   int32_t absLevel : 24;
-  int8_t prevId : 8;
+  int32_t prevId : 8;
 } tcq_node_t;
 
 typedef struct tcq_ctx_t {
