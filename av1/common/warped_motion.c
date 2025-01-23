@@ -1776,10 +1776,10 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
   const int center_y = (mi_row * MI_SIZE) + (1 << half_height_log2) - 1;
   // Calculate the point (at warp model precision) where the center of the
   // current block should be mapped to
-  int proj_center_x = (center_x * (1 << WARPEDMODEL_PREC_BITS)) +
-                      (center_mv->col * (1 << (WARPEDMODEL_PREC_BITS - 3)));
-  int proj_center_y = (center_y * (1 << WARPEDMODEL_PREC_BITS)) +
-                      (center_mv->row * (1 << (WARPEDMODEL_PREC_BITS - 3)));
+  int64_t proj_center_x = ((int64_t)center_x * (1 << WARPEDMODEL_PREC_BITS)) +
+                          (center_mv->col * (1 << (WARPEDMODEL_PREC_BITS - 3)));
+  int64_t proj_center_y = ((int64_t)center_y * (1 << WARPEDMODEL_PREC_BITS)) +
+                          (center_mv->row * (1 << (WARPEDMODEL_PREC_BITS - 3)));
 
   *wm_params = default_warp_params;
   wm_params->wmtype = AFFINE;
@@ -1805,20 +1805,22 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
     wm_params->wmmat[4] = neighbor_wm->wmmat[4];
 
     // Project above point
-    int above_x = center_x;
-    int above_y = center_y - (1 << half_height_log2);
-    int proj_above_x = neighbor_wm->wmmat[2] * above_x +
-                       neighbor_wm->wmmat[3] * above_y + neighbor_wm->wmmat[0];
-    int proj_above_y = neighbor_wm->wmmat[4] * above_x +
-                       neighbor_wm->wmmat[5] * above_y + neighbor_wm->wmmat[1];
+    int64_t above_x = center_x;
+    int64_t above_y = center_y - (1 << half_height_log2);
+    int64_t proj_above_x = neighbor_wm->wmmat[2] * above_x +
+                           neighbor_wm->wmmat[3] * above_y +
+                           neighbor_wm->wmmat[0];
+    int64_t proj_above_y = neighbor_wm->wmmat[4] * above_x +
+                           neighbor_wm->wmmat[5] * above_y +
+                           neighbor_wm->wmmat[1];
 
     // y coefficients are (project(center) - project(above)) / (center.y -
     // above.y), which simplifies to (project(center) - project(above)) /
     // 2^(half_height_log2)
-    wm_params->wmmat[3] =
-        ROUND_POWER_OF_TWO(proj_center_x - proj_above_x, half_height_log2);
-    wm_params->wmmat[5] =
-        ROUND_POWER_OF_TWO(proj_center_y - proj_above_y, half_height_log2);
+    wm_params->wmmat[3] = (int32_t)(ROUND_POWER_OF_TWO_64(
+        proj_center_x - proj_above_x, half_height_log2));
+    wm_params->wmmat[5] = (int32_t)(ROUND_POWER_OF_TWO_64(
+        proj_center_y - proj_above_y, half_height_log2));
   } else {
     // If the neighboring block is to the left of the current block, we do the
     // same thing as for the above case, but with x and y axes interchanged
@@ -1827,21 +1829,23 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
     wm_params->wmmat[5] = neighbor_wm->wmmat[5];
 
     // Project left point
-    int left_x = center_x - (1 << half_width_log2);
-    int left_y = center_y;
-    int proj_left_x = neighbor_wm->wmmat[2] * left_x +
-                      neighbor_wm->wmmat[3] * left_y + neighbor_wm->wmmat[0];
-    int proj_left_y = neighbor_wm->wmmat[4] * left_x +
-                      neighbor_wm->wmmat[5] * left_y + neighbor_wm->wmmat[1];
+    int64_t left_x = center_x - (1 << half_width_log2);
+    int64_t left_y = center_y;
+    int64_t proj_left_x = neighbor_wm->wmmat[2] * left_x +
+                          neighbor_wm->wmmat[3] * left_y +
+                          neighbor_wm->wmmat[0];
+    int64_t proj_left_y = neighbor_wm->wmmat[4] * left_x +
+                          neighbor_wm->wmmat[5] * left_y +
+                          neighbor_wm->wmmat[1];
 
     // y coefficients are
     //    (project(center) - project(left)) / (center.y - left.y)
     // which simplifies to
     //    (project(center) - project(left)) / 2^(half_width_log2)
-    wm_params->wmmat[2] =
-        ROUND_POWER_OF_TWO(proj_center_x - proj_left_x, half_width_log2);
-    wm_params->wmmat[4] =
-        ROUND_POWER_OF_TWO(proj_center_y - proj_left_y, half_width_log2);
+    wm_params->wmmat[2] = (int32_t)(ROUND_POWER_OF_TWO_64(
+        proj_center_x - proj_left_x, half_width_log2));
+    wm_params->wmmat[4] = (int32_t)(ROUND_POWER_OF_TWO_64(
+        proj_center_y - proj_left_y, half_width_log2));
   }
 
   av1_reduce_warp_model(wm_params);
