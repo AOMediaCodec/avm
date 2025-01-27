@@ -5604,6 +5604,16 @@ static const aom_cdf_prob
 #endif  // CONFIG_C076_INTER_MOD_CTX
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
+#if CONFIG_WARP_INTER_INTRA
+static const aom_cdf_prob default_warp_interintra_cdf[BLOCK_SIZE_GROUPS]
+                                                     [CDF_SIZE(2)] = {
+                                                       { AOM_CDF2(16384), 0 },
+                                                       { AOM_CDF2(16384), 0 },
+                                                       { AOM_CDF2(16384), 0 },
+                                                       { AOM_CDF2(16384), 0 },
+                                                     };
+#endif  // CONFIG_WARP_INTER_INTRA
+
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_interintra_cdf[BLOCK_SIZE_GROUPS]
                                                 [CDF_SIZE(2)] = {
@@ -8707,6 +8717,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->wedge_idx_cdf, default_wedge_idx_cdf);
 #endif  // CONFIG_WEDGE_MOD_EXT
   av1_copy(fc->interintra_cdf, default_interintra_cdf);
+#if CONFIG_WARP_INTER_INTRA
+  av1_copy(fc->warp_interintra_cdf, default_warp_interintra_cdf);
+#endif  // CONFIG_WARP_INTER_INTRA
   av1_copy(fc->wedge_interintra_cdf, default_wedge_interintra_cdf);
   av1_copy(fc->interintra_mode_cdf, default_interintra_mode_cdf);
   av1_copy(fc->seg.pred_cdf, default_segment_pred_cdf);
@@ -9083,6 +9096,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_idx_cdf, ctx_tr->wedge_idx_cdf, 16);
 #endif
+#if CONFIG_WARP_INTER_INTRA
+  CUMULATIVE_AVERAGE_CDF(ctx_left->warp_interintra_cdf,
+                         ctx_tr->warp_interintra_cdf, 2);
+#endif  // CONFIG_WARP_INTER_INTRA
+
   CUMULATIVE_AVERAGE_CDF(ctx_left->interintra_cdf, ctx_tr->interintra_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_interintra_cdf,
                          ctx_tr->wedge_interintra_cdf, 2);
@@ -9587,6 +9605,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #else
   SHIFT_CDF(ctx_ptr->wedge_idx_cdf, 16);
 #endif
+#if CONFIG_WARP_INTER_INTRA
+  SHIFT_CDF(ctx_ptr->warp_interintra_cdf, 2);
+#endif  // CONFIG_WARP_INTER_INTRA
   SHIFT_CDF(ctx_ptr->interintra_cdf, 2);
   SHIFT_CDF(ctx_ptr->wedge_interintra_cdf, 2);
   SHIFT_CDF(ctx_ptr->interintra_mode_cdf, INTERINTRA_MODES);
@@ -10046,6 +10067,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #else
   AVERAGE_CDF(ctx_left->wedge_idx_cdf, ctx_tr->wedge_idx_cdf, 16);
 #endif
+#if CONFIG_WARP_INTER_INTRA
+  AVERAGE_CDF(ctx_left->warp_interintra_cdf, ctx_tr->warp_interintra_cdf, 2);
+#endif  // CONFIG_WARP_INTER_INTRA
   AVERAGE_CDF(ctx_left->interintra_cdf, ctx_tr->interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->wedge_interintra_cdf, ctx_tr->wedge_interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,

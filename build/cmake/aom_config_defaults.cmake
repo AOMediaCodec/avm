@@ -347,7 +347,7 @@ set_aom_config_var(CONFIG_REFRESH_FLAG 0
 set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
                    "Enable to optimize block size dependent context modeling")
 set_aom_config_var(
-  CONFIG_COMPOUND_WARP_CAUSAL 1
+  CONFIG_COMPOUND_WARP_CAUSAL 0
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
 set_aom_config_var(CONFIG_DSMVP_REFBANK_MV_SWAP 1
                    "Swap ref bank mv and derived smvp in DRL generation")
@@ -588,6 +588,12 @@ set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")
 set_aom_config_var(CONFIG_SIX_PARAM_WARP_DELTA 1
                    "Enable six parameter warp models.")
+set_aom_config_var(
+  CONFIG_REORDER_SIX_PARAM_DELTA 1
+  "Enable to six parameter warp models signal when warp_ref_idx is 1.")
+
+set_aom_config_var(CONFIG_WARP_INTER_INTRA 1
+                   "Enable inter-intra mode for warp block.")
 
 set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")

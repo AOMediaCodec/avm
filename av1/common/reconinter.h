@@ -357,11 +357,38 @@ static INLINE void get_warp_model_steps(const MB_MODE_INFO *mbmi,
 // Get the default value of the six_param_flag
 static INLINE int get_default_six_param_flag(const AV1_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi) {
-  return (cm->seq_params.enable_six_param_warp_delta && mbmi->warp_ref_idx == 0)
+  return (cm->seq_params.enable_six_param_warp_delta &&
+
+#if CONFIG_REORDER_SIX_PARAM_DELTA
+          mbmi->warp_ref_idx == 1)
+#else
+          mbmi->warp_ref_idx == 0)
+#endif  // CONFIG_REORDER_SIX_PARAM_DELTA
              ? 1
              : 0;
 }
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
+#if CONFIG_WARP_INTER_INTRA
+static INLINE int allow_warp_inter_intra(const AV1_COMMON *const cm,
+                                         const MB_MODE_INFO *mbmi,
+                                         const int motion_mode) {
+  (void)cm;
+  return mbmi->mode == WARPMV && motion_mode >= WARP_CAUSAL &&
+         is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+         is_interintra_allowed_mode(mbmi->mode) &&
+         is_interintra_allowed_ref(mbmi->ref_frame)
+#if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+         && mbmi->bawp_flag[0] == 0
+#else
+         && mbmi->bawp_flag == 0
+#endif  // CONFIG_BAWP_CHROMA
+#endif  // CONFIG_BAWP
+      ;
+}
+#endif  // CONFIG_WARP_INTER_INTRA
+
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
@@ -375,7 +402,11 @@ static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
 #if CONFIG_SIX_PARAM_WARP_DELTA
       get_default_six_param_flag(cm, mbmi) ||  // 6-parameter
 #endif                                         // CONFIG_SIX_PARAM_WARP_DELTA
-      (mbmi->warp_ref_idx == 1);               // 4-parameter
+#if CONFIG_REORDER_SIX_PARAM_DELTA
+      (mbmi->warp_ref_idx == 0);  // 4-parameter
+#else
+      (mbmi->warp_ref_idx == 1);  // 4-parameter
+#endif  // CONFIG_REORDER_SIX_PARAM_DELTA
 
   return (
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW

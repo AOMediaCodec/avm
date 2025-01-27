@@ -1134,6 +1134,9 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 #if CONFIG_WARP_PRECISION
   mbmi->warp_precision_idx = 0;
 #endif  // CONFIG_WARP_PRECISION
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif  // CONFIG_WARP_INTER_INTRA
 
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);

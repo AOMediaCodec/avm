@@ -591,7 +591,12 @@ static AOM_INLINE int64_t compute_best_wedge_interintra(
   for (INTERINTRA_MODE mode = 0; mode < INTERINTRA_MODES; ++mode) {
     mbmi->interintra_mode = mode;
 #if CONFIG_INTERINTRA_IMPROVEMENT
+#if CONFIG_WARP_INTER_INTRA
+    assert(IMPLIES(!mbmi->warp_inter_intra, mbmi->motion_mode == INTERINTRA));
+    assert(IMPLIES(mbmi->warp_inter_intra, mbmi->motion_mode >= WARP_CAUSAL));
+#else
     assert(mbmi->motion_mode == INTERINTRA);
+#endif  // CONFIG_WARP_INTER_INTRA
     assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -671,14 +676,15 @@ static int handle_smooth_inter_intra_mode(
   // Compute rd cost for best smooth_interintra
   RD_STATS rd_stats;
   const int is_wedge_used = av1_is_wedge_used(bsize);
-  const int rmode = interintra_mode_cost[*best_interintra_mode] +
-                    (is_wedge_used ?
+  int rmode = interintra_mode_cost[*best_interintra_mode] +
+              (is_wedge_used ?
 #if CONFIG_D149_CTX_MODELING_OPT
-                                   mode_costs->wedge_interintra_cost[0]
+                             mode_costs->wedge_interintra_cost[0]
 #else
-                                   mode_costs->wedge_interintra_cost[bsize][0]
+                             mode_costs->wedge_interintra_cost[bsize][0]
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-                                   : 0);
+                             : 0);
+
   const int total_mode_rate = rmode + *rate_mv;
   const int64_t rd_thresh = compute_rd_thresh(x, total_mode_rate, ref_best_rd);
   int64_t rd = estimate_yrd_for_sb(cpi, bsize, x, rd_thresh, &rd_stats);
@@ -717,7 +723,12 @@ static int handle_wedge_inter_intra_mode(
 
   mbmi->use_wedge_interintra = 1;
 #if CONFIG_INTERINTRA_IMPROVEMENT
+#if CONFIG_WARP_INTER_INTRA
+  assert(IMPLIES(!mbmi->warp_inter_intra, mbmi->motion_mode == INTERINTRA));
+  assert(IMPLIES(mbmi->warp_inter_intra, mbmi->motion_mode >= WARP_CAUSAL));
+#else
   assert(mbmi->motion_mode == INTERINTRA);
+#endif  // CONFIG_WARP_INTER_INTRA
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 
@@ -806,7 +817,11 @@ static int handle_wedge_inter_intra_mode(
   int64_t rd = INT64_MAX;
   const int_mv mv0 = mbmi->mv[0];
   // Refine motion vector for NEWMV case.
-  if (have_newmv_in_inter_mode(mbmi->mode)) {
+  if (have_newmv_in_inter_mode(mbmi->mode)
+#if CONFIG_WARP_INTER_INTRA
+      && !mbmi->warp_inter_intra
+#endif  // CONFIG_WARP_INTER_INTRA
+  ) {
     int rate_sum, skip_txfm_sb;
     int64_t dist_sum, skip_sse_sb;
     // get negative of mask
@@ -873,6 +888,11 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                 HandleInterModeArgs *args, int64_t ref_best_rd,
                                 int *rate_mv, int *tmp_rate2,
                                 const BUFFER_SET *orig_dst) {
+#if CONFIG_WARP_INTER_INTRA
+  const MOTION_MODE org_motion_mode = mbmi->motion_mode;
+  const MOTION_MODE org_warp_inter_intra = mbmi->warp_inter_intra;
+#endif  // CONFIG_WARP_INTER_INTRA
+
   const int try_smooth_interintra =
       cpi->oxcf.comp_type_cfg.enable_smooth_interintra &&
       !cpi->sf.inter_sf.disable_smooth_interintra;
@@ -893,10 +913,19 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
 #if CONFIG_INTERINTRA_IMPROVEMENT
   // Only generate inter part of inter-intra
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  mbmi->motion_mode =
+#if CONFIG_WARP_INTER_INTRA
+      org_warp_inter_intra ? org_motion_mode :
+#endif  // CONFIG_WARP_INTER_INTRA
+                           SIMPLE_TRANSLATION;
 #else
   mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
+
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif  // CONFIG_WARP_INTER_INTRA
+
   xd->plane[0].dst.buf = tmp_buf;
   xd->plane[0].dst.stride = bw;
 #if CONFIG_BAWP
@@ -910,8 +939,16 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   // Restore the buffers for intra prediction
   restore_dst_buf(xd, *orig_dst, num_planes);
 
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = org_warp_inter_intra;
+#endif  // CONFIG_WARP_INTER_INTRA
+
 #if CONFIG_INTERINTRA_IMPROVEMENT
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->motion_mode = org_motion_mode;
+#else
   mbmi->motion_mode = INTERINTRA;
+#endif  // CONFIG_WARP_INTER_INTRA
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #else
   mbmi->ref_frame[1] = INTRA_FRAME;
@@ -919,6 +956,12 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   INTERINTRA_MODE best_interintra_mode =
       args->inter_intra_mode[mbmi->ref_frame[0]];
+
+#if CONFIG_WARP_INTER_INTRA
+  if (mbmi->warp_inter_intra) {
+    best_interintra_mode = INTERINTRA_MODES;
+  }
+#endif  // CONFIG_WARP_INTER_INTRA
 
   // Compute smooth_interintra
   int64_t best_interintra_rd_nowedge = INT64_MAX;
@@ -934,7 +977,12 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 
 #if CONFIG_INTERINTRA_IMPROVEMENT
+#if CONFIG_WARP_INTER_INTRA
+  assert(IMPLIES(!mbmi->warp_inter_intra, mbmi->motion_mode == INTERINTRA));
+  assert(IMPLIES(mbmi->warp_inter_intra, mbmi->motion_mode >= WARP_CAUSAL));
+#else
   assert(mbmi->motion_mode == INTERINTRA);
+#endif  // CONFIG_WARP_INTER_INTRA
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
   // Compute wedge interintra
@@ -958,6 +1006,12 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
       best_interintra_rd_wedge == INT64_MAX) {
     return IGNORE_MODE;
   }
+
+#if CONFIG_WARP_INTER_INTRA
+  assert(org_motion_mode == mbmi->motion_mode);
+  assert(org_warp_inter_intra == mbmi->warp_inter_intra);
+#endif  // CONFIG_WARP_INTER_INTRA
+
   if (best_interintra_rd_wedge < best_interintra_rd_nowedge) {
     mbmi->mv[0].as_int = tmp_mv.as_int;
     *tmp_rate2 += tmp_rate_mv - *rate_mv;
@@ -969,12 +1023,22 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
     mbmi->use_wedge_interintra = 0;
     mbmi->interintra_mode = best_interintra_mode;
     mbmi->mv[0].as_int = mv0.as_int;
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                  AOM_PLANE_Y, AOM_PLANE_Y);
+#if CONFIG_WARP_INTER_INTRA
+    if (!mbmi->warp_inter_intra) {
+#endif  // CONFIG_WARP_INTER_INTRA
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                    AOM_PLANE_Y, AOM_PLANE_Y);
+#if CONFIG_WARP_INTER_INTRA
+    }
+#endif  // CONFIG_WARP_INTER_INTRA
   }
   *tmp_rate2 += best_mode_rate;
 
-  if (num_planes > 1) {
+  if (num_planes > 1
+#if CONFIG_WARP_INTER_INTRA
+      && !mbmi->warp_inter_intra
+#endif  // CONFIG_WARP_INTER_INTRA
+  ) {
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                   AOM_PLANE_U, num_planes - 1);
   }

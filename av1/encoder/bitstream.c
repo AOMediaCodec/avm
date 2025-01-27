@@ -3069,6 +3069,41 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (mbmi->motion_mode == WARP_DELTA) {
       write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
     }
+
+#if CONFIG_WARP_INTER_INTRA
+    if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
+      const int bsize_group = size_group_lookup[bsize];
+      aom_write_symbol(w, mbmi->warp_inter_intra,
+                       xd->tile_ctx->warp_interintra_cdf[bsize_group], 2);
+
+      if (mbmi->warp_inter_intra) {
+        aom_write_symbol(w, mbmi->interintra_mode,
+                         xd->tile_ctx->interintra_mode_cdf[bsize_group],
+                         INTERINTRA_MODES);
+        if (av1_is_wedge_used(bsize)) {
+          aom_write_symbol(w, mbmi->use_wedge_interintra,
+#if CONFIG_D149_CTX_MODELING_OPT
+                           xd->tile_ctx->wedge_interintra_cdf,
+#else
+                           xd->tile_ctx->wedge_interintra_cdf[bsize],
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+                           2);
+          if (mbmi->use_wedge_interintra) {
+#if CONFIG_WEDGE_MOD_EXT
+            write_wedge_mode(w, xd->tile_ctx, bsize,
+                             mbmi->interintra_wedge_index);
+#else
+            aom_write_symbol(w, mbmi->interintra_wedge_index,
+                             xd->tile_ctx->wedge_idx_cdf[bsize],
+                             MAX_WEDGE_TYPES);
+#endif  // CONFIG_WEDGE_MOD_EXT
+          }
+        }
+
+      }  // if (mbmi->warp_inter_intra) {
+    }
+#endif  // CONFIG_WARP_INTER_INTRA
+
 #if CONFIG_REFINEMV
     if (!mbmi->skip_mode) {
       write_refinemv_flag(cm, xd, w, bsize);

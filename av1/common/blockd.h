@@ -707,6 +707,11 @@ typedef struct MB_MODE_INFO {
   uint8_t six_param_warp_model_flag;
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
 
+#if CONFIG_WARP_INTER_INTRA
+  /*! \brief warp inter intra enable or not. */
+  uint8_t warp_inter_intra;
+#endif  // CONFIG_WARP_INTER_INTRA
+
 #if CONFIG_WARP_PRECISION
   /*! \brief warp_precision_idx this mbmi. */
   uint8_t warp_precision_idx;
@@ -4409,7 +4414,12 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-  return mbmi->motion_mode == INTERINTRA;
+  return
+#if CONFIG_WARP_INTER_INTRA
+      (mbmi->motion_mode >= WARP_CAUSAL && mbmi->warp_inter_intra) ||
+#endif  // CONFIG_WARP_INTER_INTRA
+
+      (mbmi->motion_mode == INTERINTRA);
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS

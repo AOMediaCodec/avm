@@ -2002,6 +2002,52 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         // continue_motion_mode_signaling = false;
       }
 
+#if CONFIG_WARP_INTER_INTRA
+      if (allow_warp_inter_intra(cm, mbmi, motion_mode)) {
+        const int bsize_group = size_group_lookup[bsize];
+        update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
+                   2);
+
+        if (mbmi->warp_inter_intra) {
+#if CONFIG_ENTROPY_STATS
+          counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
+#endif
+          update_cdf(fc->interintra_mode_cdf[bsize_group],
+                     mbmi->interintra_mode, INTERINTRA_MODES);
+          if (av1_is_wedge_used(bsize)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+#else
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf[bsize],
+                       mbmi->use_wedge_interintra, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+            if (mbmi->use_wedge_interintra) {
+#if CONFIG_WEDGE_MOD_EXT
+              update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
+#if CONFIG_ENTROPY_STATS
+                                    ,
+                                    counts
+#endif  // CONFIG_ENTROPY_STATS
+              );
+#else
+#if CONFIG_ENTROPY_STATS
+              counts->wedge_idx[bsize][mbmi->interintra_wedge_index]++;
+#endif
+              update_cdf(fc->wedge_idx_cdf[bsize], mbmi->interintra_wedge_index,
+                         16);
+#endif  // CONFIG_WEDGE_MOD_EXT
+            }
+          }
+        }
+      }
+#endif  // CONFIG_WARP_INTER_INTRA
+
       if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS

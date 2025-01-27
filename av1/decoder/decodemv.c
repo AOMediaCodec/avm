@@ -4079,7 +4079,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_WARP_PRECISION
   mbmi->warp_precision_idx = 0;
 #endif  // CONFIG_WARP_PRECISION
-
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif  // CONFIG_WARP_INTER_INTRA
   if (mbmi->skip_mode) {
 #if !CONFIG_D072_SKIP_MODE_IMPROVE
     assert(is_compound);
@@ -4439,6 +4441,60 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (mbmi->motion_mode == WARP_DELTA) {
     read_warp_delta(cm, xd, mbmi, r, warp_param_stack);
   }
+
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+  if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
+    const int bsize_group = size_group_lookup[bsize];
+    mbmi->warp_inter_intra =
+        aom_read_symbol(r, xd->tile_ctx->warp_interintra_cdf[bsize_group], 2,
+                        ACCT_INFO("warp_inter_intra"));
+
+    if (mbmi->warp_inter_intra) {
+      const INTERINTRA_MODE interintra_mode =
+          read_interintra_mode(xd, r, bsize_group);
+#if !CONFIG_INTERINTRA_IMPROVEMENT
+      mbmi->ref_frame[1] = INTRA_FRAME;
+#endif  // !CONFIG_INTERINTRA_IMPROVEMENT
+
+      mbmi->interintra_mode = interintra_mode;
+      mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+      mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#if CONFIG_LOSSLESS_DPCM
+      mbmi->use_dpcm_y = 0;
+      mbmi->dpcm_mode_y = 0;
+      mbmi->use_dpcm_uv = 0;
+      mbmi->dpcm_mode_uv = 0;
+#endif  // CONFIG_LOSSLESS_DPCM
+      mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_DIP
+      mbmi->use_intra_dip = 0;
+#endif  // CONFIG_DIP
+      if (av1_is_wedge_used(bsize)) {
+        mbmi->use_wedge_interintra =
+#if CONFIG_D149_CTX_MODELING_OPT
+            aom_read_symbol(r, xd->tile_ctx->wedge_interintra_cdf, 2,
+                            ACCT_INFO("use_wedge_interintra"));
+#else
+            aom_read_symbol(r, xd->tile_ctx->wedge_interintra_cdf[bsize], 2,
+                            ACCT_INFO("use_wedge_interintra"));
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
+        if (mbmi->use_wedge_interintra) {
+#if CONFIG_WEDGE_MOD_EXT
+          mbmi->interintra_wedge_index =
+              read_wedge_mode(r, xd->tile_ctx, bsize);
+          assert(mbmi->interintra_wedge_index != -1);
+#else
+          mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
+              r, xd->tile_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES,
+              ACCT_INFO("interintra_wedge_index"));
+#endif
+        }
+      }
+    }  // if (mbmi->warp_inter_intra)
+  }
+#endif  // CONFIG_WARP_INTER_INTRA
 
 #if CONFIG_REFINEMV
   if (!mbmi->skip_mode) {
@@ -4857,6 +4913,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_WARP_PRECISION
   mbmi->warp_precision_idx = 0;
 #endif  // CONFIG_WARP_PRECISION
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif  // CONFIG_WARP_INTER_INTRA
 
   if (!cm->seg.segid_preskip)
     mbmi->segment_id = read_inter_segment_id(cm, xd, 0, r);
