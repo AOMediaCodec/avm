@@ -1806,6 +1806,12 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     sms_data->ref_frame = -1;
     sms_data->rdmult = 0;
     sms_data->valid = 1;
+#if CONFIG_ML_PART_SPLIT
+    if (need_residual_stats) {
+      sms_data->residual_stats_valid = true;
+      memset(&sms_data->residual_stats, 0, sizeof(sms_data->residual_stats));
+    }
+#endif  // CONFIG_ML_PART_SPLIT
     return;
   }
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
@@ -2654,6 +2660,7 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
 int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                             int mi_col, BLOCK_SIZE bsize,
                             const TileInfo *tile_info, ThreadData *td) {
+  const AV1_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *xd = &x->e_mbd;
   int qp = cpi->common.quant_params.base_qindex;
   bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
@@ -2672,7 +2679,6 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     if (had_error) return ML_PART_NOT_SURE;
   }
 
-  const AV1_COMMON *const cm = &cpi->common;
   int qp_offset;
   switch (cm->seq_params.bit_depth) {
     case AOM_BITS_10: qp_offset = qindex_10b_offset[1]; break;
