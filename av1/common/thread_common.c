@@ -861,6 +861,9 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+#if ISSUE_253
+     luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
+#else
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
@@ -875,6 +878,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
+#endif // ISSUE_253
   assert(luma_buf != NULL);
 
   const int num_planes = av1_num_planes(cm);
@@ -951,7 +955,6 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
-
   free(luma_buf);
 }
 

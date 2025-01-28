@@ -29,6 +29,8 @@ extern "C" {
 
 /*!\cond */
 
+#define ISSUE_253 1 // enable virtual line buffer for cross-component wienerNS filter
+
 // Border for Loop restoration buffer
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
@@ -62,7 +64,11 @@ extern "C" {
 #endif  // SGRPROJ_BORDER_VERT >= WIENER_BORDER_VERT
 
 // How many border pixels do we need for each processing unit?
+#if ISSUE_253
+#define RESTORATION_BORDER 4 // 4 rows/columns are needed for only cross-component wienerns filter,
+#else
 #define RESTORATION_BORDER 3
+#endif // ISSUE_253
 
 // How many rows of deblocked pixels do we save above/below each processing
 // stripe?
@@ -431,8 +437,14 @@ typedef struct {
 
 // A restoration line buffer needs space for two lines plus a horizontal filter
 // margin of RESTORATION_EXTRA_HORZ on each side.
+#if ISSUE_253
+// The maximum picture widht is 8192 for LR to work properly in this software implementation
+#define RESTORATION_LINEBUFFER_WIDTH \
+  (8192 * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
+#else
 #define RESTORATION_LINEBUFFER_WIDTH \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
+#endif // ISSUE_253
 
 // Similarly, the column buffers (used when we're at a vertical tile edge
 // that we can't filter across) need space for one processing unit's worth
@@ -443,8 +455,13 @@ typedef struct {
 typedef struct {
   // Temporary buffers to save/restore 3 lines above/below the restoration
   // stripe.
+#if ISSUE_253
+  uint16_t tmp_save_above[2][RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+  uint16_t tmp_save_below[2][RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+#else
   uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+#endif // ISSUE_253
 } RestorationLineBuffers;
 /*!\endcond */
 
@@ -669,6 +686,11 @@ extern const sgr_params_type av1_sgr_params[SGRPROJ_PARAMS];
 extern int sgrproj_mtable[SGRPROJ_PARAMS][2];
 extern const int32_t av1_x_by_xplus1[256];
 extern const int32_t av1_one_by_x[MAX_NELEM];
+
+
+#if ISSUE_253
+uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t **luma_hbd);
+#endif // ISSUE_253
 
 void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
                                   int is_uv);
