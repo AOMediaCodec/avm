@@ -133,7 +133,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
-    for (RECT_PART_TYPE rect_type = 0; rect_type < NUM_RECT_PARTS;
+    for (RECT_PART_TYPE rect_type = 0; rect_type < NUM_RECT_CONTEXTS;
          rect_type++) {
       for (i = 0; i < PARTITION_CONTEXTS; ++i) {
         av1_cost_tokens_from_cdf(
@@ -143,11 +143,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
             mode_costs
                 ->do_uneven_4way_partition_cost[plane_index][rect_type][i],
             fc->do_uneven_4way_partition_cdf[plane_index][rect_type][i], NULL);
+#if !CONFIG_NEW_PART_CTX
         av1_cost_tokens_from_cdf(
             mode_costs
                 ->uneven_4way_partition_type_cost[plane_index][rect_type][i],
             fc->uneven_4way_partition_type_cdf[plane_index][rect_type][i],
             NULL);
+#endif  // !CONFIG_NEW_PART_CTX
       }
     }
   }

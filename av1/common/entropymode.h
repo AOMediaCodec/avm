@@ -167,6 +167,17 @@ extern "C" {
 
 struct AV1Common;
 
+#define PARTITION_STRUCTURE_NUM 2
+
+#if CONFIG_NEW_PART_CTX
+#define PARTITION_BLOCK_GROUPS 16
+#define PARTITION_CONTEXTS (PARTITION_BLOCK_GROUPS * PARTITION_PLOFFSET)
+#define NUM_RECT_CONTEXTS 1
+#else
+#define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)
+#define NUM_RECT_CONTEXTS 2
+#endif  // CONFIG_NEW_PART_CTX
+
 typedef struct {
   const int16_t *scan;
   const int16_t *iscan;
@@ -619,15 +630,17 @@ typedef struct frame_contexts {
   aom_cdf_prob region_type_cdf[INTER_SDP_BSIZE_GROUP][CDF_SIZE(REGION_TYPES)];
 #endif  // CONFIG_EXTENDED_SDP
 
-  aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+  aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS]
                                    [PARTITION_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob do_uneven_4way_partition_cdf[PARTITION_STRUCTURE_NUM]
-                                           [NUM_RECT_PARTS][PARTITION_CONTEXTS]
-                                           [CDF_SIZE(2)];
+                                           [NUM_RECT_CONTEXTS]
+                                           [PARTITION_CONTEXTS][CDF_SIZE(2)];
+#if !CONFIG_NEW_PART_CTX
   aom_cdf_prob uneven_4way_partition_type_cdf[PARTITION_STRUCTURE_NUM]
-                                             [NUM_RECT_PARTS]
+                                             [NUM_RECT_CONTEXTS]
                                              [PARTITION_CONTEXTS]
                                              [CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)];
+#endif  // !CONFIG_NEW_PART_CTX
 #else
   // Partition type for a square block, without limitations.
   aom_cdf_prob partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]

@@ -2753,6 +2753,17 @@ static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
 }
 #endif  // CONFIG_MRLS_IMPROVE
 
+#if CONFIG_NEW_PART_CTX
+enum {
+  SPLIT_CTX_MODE,
+  SQUARE_SPLIT_CTX_MODE,
+  RECT_TYPE_CTX_MODE,
+  EXT_PART_CTX_MODE,
+  FOUR_WAY_CTX_MODE,
+  FOUR_WAY_AB_CTX_MODE,
+} UENUM1BYTE(PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
+
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
                                             BLOCK_SIZE bsize) {
@@ -2898,7 +2909,11 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
 /*!\brief Returns the context used by \ref PARTITION_SPLIT. */
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
+#if CONFIG_NEW_PART_CTX
+  const int plane = 0;
+#else
   const int plane = xd->tree_type == CHROMA_PART;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
@@ -2906,7 +2921,6 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
   assert(bsize < BLOCK_SIZES);
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
-
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
 
@@ -2925,6 +2939,66 @@ static INLINE int partition_plane_context_helper(int raw_context,
 ) {
   int ctx = raw_context + bsize * PARTITION_PLOFFSET;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
+#if CONFIG_NEW_PART_CTX
+  const int bsize_rect_map[BLOCK_SIZES] = {
+    0,  // BLOCK_4X4,
+    0,  // BLOCK_4X8,
+    0,  // BLOCK_8X4,
+    0,  // BLOCK_8X8,
+    1,  // BLOCK_8X16,
+    2,  // BLOCK_16X8,
+    0,  // BLOCK_16X16,
+    1,  // BLOCK_16X32,
+    2,  // BLOCK_32X16,
+    3,  // BLOCK_32X32,
+    4,  // BLOCK_32X64,
+    5,  // BLOCK_64X32,
+    6,  // BLOCK_64X64,
+    7,  // BLOCK_64X128,
+    8,  // BLOCK_128X64,
+    9,  // BLOCK_128X128,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    10,  // BLOCK_128X256,
+    11,  // BLOCK_256X128,
+    12,  // BLOCK_256X256,
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
+    13,  // BLOCK_4X16,
+    14,  // BLOCK_16X4,
+    13,  // BLOCK_8X32,
+    14,  // BLOCK_32X8,
+    13,  // BLOCK_16X64,
+    14,  // BLOCK_64X16,
+  };
+  const int bsize_map[BLOCK_SIZES] = {
+    0,  // BLOCK_4X4,
+    0,  // BLOCK_4X8,
+    0,  // BLOCK_8X4,
+    0,  // BLOCK_8X8,
+    1,  // BLOCK_8X16,
+    1,  // BLOCK_16X8,
+    1,  // BLOCK_16X16,
+    2,  // BLOCK_16X32,
+    2,  // BLOCK_32X16,
+    2,  // BLOCK_32X32,
+    3,  // BLOCK_32X64,
+    3,  // BLOCK_64X32,
+    3,  // BLOCK_64X64,
+    4,  // BLOCK_64X128,
+    5,  // BLOCK_128X64,
+    6,  // BLOCK_128X128,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    7,   // BLOCK_128X256,
+    8,   // BLOCK_256X128,
+    9,   // BLOCK_256X256,
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
+    10,  // BLOCK_4X16,
+    11,  // BLOCK_16X4,
+    12,  // BLOCK_8X32,
+    13,  // BLOCK_32X8,
+    14,  // BLOCK_16X64,
+    15,  // BLOCK_64X16,
+  };
+#else  // CONFIG_NEW_PART_CTX
 #if CONFIG_RECT_CTX
   const int bsize_rect_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
@@ -2947,7 +3021,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     12,  // BLOCK_128X256,
     13,  // BLOCK_256X128,
     14,  // BLOCK_256X256,
-#endif   // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     15,  // BLOCK_4X16,
     16,  // BLOCK_16X4,
     15,  // BLOCK_8X32,
@@ -2977,7 +3051,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     16,  // BLOCK_128X256,
     17,  // BLOCK_256X128,
     18,  // BLOCK_256X256,
-#endif   // CONFIG_EXT_RECUR_PARTITIONS
+#endif                // CONFIG_EXT_RECUR_PARTITIONS
     19,  // BLOCK_4X16,
     20,  // BLOCK_16X4,
     21,  // BLOCK_8X32,
@@ -2985,6 +3059,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     23,  // BLOCK_16X64,
     24,  // BLOCK_64X16,
   };
+#endif                // CONFIG_NEW_PART_CTX
   if (ctx_mode == 1)  // all part ctx except rect mode
     ctx = raw_context + bsize_map[bsize] * PARTITION_PLOFFSET;
 #if CONFIG_RECT_CTX
@@ -3001,21 +3076,58 @@ static INLINE int partition_plane_context_helper(int raw_context,
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize
+#if CONFIG_NEW_PART_CTX
+                                          ,
+                                          RECT_PART_TYPE rect_type
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                                           ,
                                           int ctx_mode
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
 ) {
+#if CONFIG_NEW_PART_CTX
+  const int plane = 0;
+#else
   const int plane = xd->tree_type == CHROMA_PART;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
 #if CONFIG_EXT_RECUR_PARTITIONS
   assert(bsize < BLOCK_SIZES);
+#if CONFIG_NEW_PART_CTX
+  int ctx, ctx1, ctx2;
+  const int bw_mi = mi_size_wide[bsize];
+  const int bh_mi = mi_size_high[bsize];
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
-
+  if (ctx_mode == EXT_PART_CTX_MODE || ctx_mode == FOUR_WAY_CTX_MODE ||
+      ctx_mode == FOUR_WAY_AB_CTX_MODE) {
+    if (rect_type == HORZ) {
+      const PARTITION_CONTEXT *left_mid_ctx = left_ctx + bh_mi / 2;
+      ctx1 = (*left_ctx >> AOMMAX(bsl_h - 2, 0)) & 1;
+      ctx2 = (*left_mid_ctx >> AOMMAX(bsl_h - 2, 0)) & 1;
+    } else {
+      const PARTITION_CONTEXT *above_mid_ctx = above_ctx + bw_mi / 2;
+      ctx1 = (*above_ctx >> AOMMAX(bsl_w - 2, 0)) & 1;
+      ctx2 = (*above_mid_ctx >> AOMMAX(bsl_w - 2, 0)) & 1;
+    }
+    ctx = ctx1 * 2 + ctx2;
+  } else {
+    const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
+    const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+    ctx = left * 2 + above;
+  }
+  return partition_plane_context_helper(ctx, bsize
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+                                        ,
+                                        ctx_mode != RECT_TYPE_CTX_MODE
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
+  );
+#else  // CONFIG_NEW_PART_CTX
+  const int bsl_w = mi_size_wide_log2[bsize];
+  const int bsl_h = mi_size_high_log2[bsize];
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
   return partition_plane_context_helper(left * 2 + above, bsize
@@ -3024,7 +3136,8 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                         ctx_mode
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
   );
-#else
+#endif  // CONFIG_NEW_PART_CTX
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   // Minimum partition point is 8x8. Offset the bsl accordingly.
   const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
   int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;

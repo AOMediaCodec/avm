@@ -1854,10 +1854,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
         AVERAGE_CDF(
             ctx_left->do_uneven_4way_partition_cdf[plane_index][rect][i],
             ctx_tr->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+#if !CONFIG_NEW_PART_CTX
         AVERAGE_CDF(
             ctx_left->uneven_4way_partition_type_cdf[plane_index][rect][i],
             ctx_tr->uneven_4way_partition_type_cdf[plane_index][rect][i],
             NUM_UNEVEN_4WAY_PARTS);
+#endif  // !CONFIG_NEW_PART_CTX
       }
     }
   }

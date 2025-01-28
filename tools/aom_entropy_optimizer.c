@@ -672,7 +672,7 @@ int main(int argc, const char **argv) {
       "Partitions");  // minus unused context entries
 
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
   int do_ext_partition_reduce = 264;
@@ -682,12 +682,12 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.do_ext_partition[0][0][0][0], probsfile, 4,
                      cts_each_dim,
                      "static aom_cdf_prob default_do_ext_partition_cdf"
-                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, do_ext_partition_reduce, mem_wanted,
                      "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
   int do_uneven_4way_partition_reduce = 320;
@@ -697,12 +697,13 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.do_uneven_4way_partition[0][0][0][0], probsfile, 4, cts_each_dim,
       "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
-      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-      "CONTEXTS][CDF_SIZE(2)]",
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_CONTEXTS][CDF_"
+      "SIZE(2)]",
       0, &total_count, do_uneven_4way_partition_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
+#if !CONFIG_NEW_PART_CTX
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = NUM_UNEVEN_4WAY_PARTS;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -713,10 +714,11 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
       "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
-      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-      "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_CONTEXTS][CDF_"
+      "SIZE(NUM_UNEVEN_4WAY_PARTS)]",
       0, &total_count, do_uneven_4way_partition_type_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
+#endif
 #else
   /* block partition */
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;

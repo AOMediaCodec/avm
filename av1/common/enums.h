@@ -277,7 +277,6 @@ enum {
 
 // Semi-Decoupled Partitioning
 #define SHARED_PART_SIZE 128
-#define PARTITION_STRUCTURE_NUM 2
 
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
@@ -596,8 +595,6 @@ typedef char PARTITION_CONTEXT;
 #define INTER_SDP_MAX_BLOCK_SIZE 32
 #endif  // CONFIG_EXTENDED_SDP_64x64
 #endif  // CONFIG_EXTENDED_SDP
-
-#define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)
 
 // block transform size
 enum {

@@ -2689,7 +2689,7 @@ static void update_partition_stats(
     PARTITION_TREE const *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     PARTITION_TYPE partition, const int mi_row, const int mi_col,
-    BLOCK_SIZE bsize, const int ctx) {
+    BLOCK_SIZE bsize, int ctx) {
   const TREE_TYPE tree_type = xd->tree_type;
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -2723,6 +2723,10 @@ static void update_partition_stats(
     assert(do_split == implied_do_split);
   } else {
     if (allow_update_cdf) {
+#if CONFIG_NEW_PART_CTX
+      ctx =
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
       counts->do_split[plane_index][ctx][do_split]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2753,8 +2757,13 @@ static void update_partition_stats(
   }
   if (rect_type == RECT_INVALID) {
     rect_type = get_rect_part_type(partition);
+#if CONFIG_NEW_PART_CTX
+    const int rect_type_ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                                      0, RECT_TYPE_CTX_MODE);
+#else
     const int rect_type_ctx =
         partition_plane_context(xd, mi_row, mi_col, bsize, 0);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
     counts->rect_type[plane_index][rect_type_ctx][rect_type]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2763,16 +2772,26 @@ static void update_partition_stats(
     assert(rect_type == get_rect_part_type(partition));
   }
 
+#if CONFIG_NEW_PART_CTX
+  const int rect_type_context = 0;
+#else
+  const int rect_type_context = rect_type;
+#endif  // CONFIG_NEW_PART_CTX
   bool do_ext_partition = (partition >= PARTITION_HORZ_3);
   bool implied_do_ext;
   if (is_do_ext_partition_implied(partition_allowed, rect_type,
                                   &implied_do_ext)) {
     assert(do_ext_partition == implied_do_ext);
   } else {
+#if CONFIG_NEW_PART_CTX
+    ctx = partition_plane_context(xd, mi_row, mi_col, bsize, rect_type,
+                                  EXT_PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
-    counts->do_ext_partition[plane_index][rect_type][ctx][do_ext_partition]++;
+    counts->do_ext_partition[plane_index][rect_type_context][ctx]
+                            [do_ext_partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(fc->do_ext_partition_cdf[plane_index][rect_type][ctx],
+    update_cdf(fc->do_ext_partition_cdf[plane_index][rect_type_context][ctx],
                do_ext_partition, 2);
   }
   if (do_ext_partition) {
@@ -2782,26 +2801,33 @@ static void update_partition_stats(
                                             &implied_do_uneven_4way)) {
       assert(do_uneven_4way_partition == implied_do_uneven_4way);
     } else {
+#if CONFIG_NEW_PART_CTX
+      ctx = partition_plane_context(xd, mi_row, mi_col, bsize, rect_type,
+                                    FOUR_WAY_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
-      counts->do_uneven_4way_partition[plane_index][rect_type][ctx]
+      counts->do_uneven_4way_partition[plane_index][rect_type_context][ctx]
                                       [do_uneven_4way_partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->do_uneven_4way_partition_cdf[plane_index][rect_type][ctx],
-                 do_uneven_4way_partition, 2);
+      update_cdf(
+          fc->do_uneven_4way_partition_cdf[plane_index][rect_type_context][ctx],
+          do_uneven_4way_partition, 2);
     }
+#if !CONFIG_NEW_PART_CTX
     if (do_uneven_4way_partition) {
       const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
           (partition == PARTITION_HORZ_4A || partition == PARTITION_VERT_4A)
               ? UNEVEN_4A
               : UNEVEN_4B;
 #if CONFIG_ENTROPY_STATS
-      counts->uneven_4way_partition_type[plane_index][rect_type][ctx]
+      counts->uneven_4way_partition_type[plane_index][rect_type_context][ctx]
                                         [uneven_4way_type]++;
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(
-          fc->uneven_4way_partition_type_cdf[plane_index][rect_type][ctx],
-          uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
+      update_cdf(fc->uneven_4way_partition_type_cdf[plane_index]
+                                                   [rect_type_context][ctx],
+                 uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
     }
+#endif  // !CONFIG_NEW_PART_CTX
   }
 #else  // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2923,6 +2949,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const int qbs_h = mi_size_high[bsize] / 4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int is_partition_root = is_partition_point(bsize);
+#if CONFIG_NEW_PART_CTX
+  const int ctx = 0;
+#else
   const int ctx = is_partition_root
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                       ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
@@ -2930,6 +2959,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                       ? partition_plane_context(xd, mi_row, mi_col, bsize)
 #endif
                       : -1;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -2938,7 +2968,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 
   if (subsize == BLOCK_INVALID) return;
 
-  if (!dry_run && ctx >= 0)
+  if (!dry_run && is_partition_root)
     update_partition_stats(cm, xd,
 #if CONFIG_ENTROPY_STATS
                            td->counts,
@@ -3691,13 +3721,14 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   const ModeCosts *const mode_costs = &x->mode_costs;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int plane_index = (tree_type == CHROMA_PART);
-
+#if !CONFIG_NEW_PART_CTX
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                                           ,
                                           1
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
   );
+#endif  // !CONFIG_NEW_PART_CTX
 
   for (PARTITION_TYPE part = 0; part < ALL_PARTITION_TYPES; part++) {
     if (!partition_allowed[part]) {
@@ -3708,6 +3739,10 @@ static void init_partition_costs(const AV1_COMMON *const cm,
     if (is_do_split_implied(partition_allowed, &implied_do_split)) {
       assert(do_split == implied_do_split);
     } else {
+#if CONFIG_NEW_PART_CTX
+      const int ctx =
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
           mode_costs->do_split_cost[plane_index][ctx][do_split];
     }
@@ -3731,6 +3766,10 @@ static void init_partition_costs(const AV1_COMMON *const cm,
     }
     if (rect_type == RECT_INVALID) {
       rect_type = get_rect_part_type(part);
+#if CONFIG_NEW_PART_CTX
+      const int rect_type_ctx = partition_plane_context(
+          xd, mi_row, mi_col, bsize, 0, RECT_TYPE_CTX_MODE);
+#else
       const int rect_type_ctx =
           partition_plane_context(xd, mi_row, mi_col, bsize
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -3738,12 +3777,18 @@ static void init_partition_costs(const AV1_COMMON *const cm,
                                   0
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
           );
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
           mode_costs->rect_type_cost[plane_index][rect_type_ctx][rect_type];
     } else if (rect_type != get_rect_part_type(part)) {
       partition_cost[part] = 0;  // unused
       continue;
     }
+#if CONFIG_NEW_PART_CTX
+    const int rect_type_context = 0;
+#else
+    const int rect_type_context = rect_type;
+#endif  // CONFIG_NEW_PART_CTX
     bool do_ext_partition = (part >= PARTITION_HORZ_3);
     bool implied_do_ext;
     if (is_do_ext_partition_implied(partition_allowed, rect_type,
@@ -3753,8 +3798,12 @@ static void init_partition_costs(const AV1_COMMON *const cm,
         continue;
       }
     } else {
+#if CONFIG_NEW_PART_CTX
+      const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                              rect_type, EXT_PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
-          mode_costs->do_ext_partition_cost[plane_index][rect_type][ctx]
+          mode_costs->do_ext_partition_cost[plane_index][rect_type_context][ctx]
                                            [do_ext_partition];
     }
     if (do_ext_partition) {
@@ -3767,19 +3816,28 @@ static void init_partition_costs(const AV1_COMMON *const cm,
           continue;
         }
       } else {
+#if CONFIG_NEW_PART_CTX
+        const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                                rect_type, FOUR_WAY_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
         partition_cost[part] +=
             mode_costs
-                ->do_uneven_4way_partition_cost[plane_index][rect_type][ctx]
-                                               [do_uneven_4way_partition];
+                ->do_uneven_4way_partition_cost[plane_index][rect_type_context]
+                                               [ctx][do_uneven_4way_partition];
       }
       if (do_uneven_4way_partition) {
+#if CONFIG_NEW_PART_CTX
+        partition_cost[part] += av1_cost_literal(1);
+#else
         const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
             (part == PARTITION_HORZ_4A || part == PARTITION_VERT_4A)
                 ? UNEVEN_4A
                 : UNEVEN_4B;
         partition_cost[part] +=
-            mode_costs->uneven_4way_partition_type_cost[plane_index][rect_type]
-                                                       [ctx][uneven_4way_type];
+            mode_costs->uneven_4way_partition_type_cost[plane_index]
+                                                       [rect_type_context][ctx]
+                                                       [uneven_4way_type];
+#endif  // CONFIG_NEW_PART_CTX
       }
     }
   }

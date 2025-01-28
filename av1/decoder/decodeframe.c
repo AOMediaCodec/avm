@@ -2041,6 +2041,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
+#if !CONFIG_NEW_PART_CTX
 #if CONFIG_PARTITION_CONTEXT_REDUCE
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
   const int rect_type_ctx =
@@ -2049,6 +2050,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   const int rect_type_ctx = ctx;
 #endif
+#endif  // !CONFIG_NEW_PART_CTX
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2080,8 +2082,15 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (is_do_split_implied(partition_allowed, &implied_do_split)) {
     do_split = implied_do_split;
   } else {
+#if CONFIG_NEW_PART_CTX
+    const int ctx =
+        partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
     do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
                                ACCT_INFO("do_split"));
+#else
+    do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+                               ACCT_INFO("do_split"));
+#endif  // CONFIG_NEW_PART_CTX
   }
   if (!do_split) {
     return PARTITION_NONE;
@@ -2103,22 +2112,36 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
     rect_type = only_allowed_rect_type(partition_allowed);
   }
   if (rect_type == RECT_INVALID) {
+#if CONFIG_NEW_PART_CTX
+    const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 0,
+                                            RECT_TYPE_CTX_MODE);
+    rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx],
+                                NUM_RECT_PARTS, ACCT_INFO("rect_type"));
+#else
     rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][rect_type_ctx],
                                 NUM_RECT_PARTS, ACCT_INFO("rect_type"));
+#endif  // CONFIG_NEW_PART_CTX
   }
 
   bool do_ext_partition = false;
   bool do_uneven_4way_partition = false;
   UNEVEN_4WAY_PART_TYPE uneven_4way_partition_type = UNEVEN_4A;
-
   bool implied_do_ext;
   if (is_do_ext_partition_implied(partition_allowed, rect_type,
                                   &implied_do_ext)) {
     do_ext_partition = implied_do_ext;
   } else {
+#if CONFIG_NEW_PART_CTX
+    const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                            rect_type, EXT_PART_CTX_MODE);
+    do_ext_partition =
+        aom_read_symbol(r, ec_ctx->do_ext_partition_cdf[plane][0][ctx], 2,
+                        ACCT_INFO("do_ext_partition"));
+#else
     do_ext_partition =
         aom_read_symbol(r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx],
                         2, ACCT_INFO("do_ext_partition"));
+#endif  // CONFIG_NEW_PART_CTX
   }
   if (do_ext_partition) {
     bool implied_do_uneven_4way;
@@ -2126,14 +2149,27 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                             &implied_do_uneven_4way)) {
       do_uneven_4way_partition = implied_do_uneven_4way;
     } else {
+#if CONFIG_NEW_PART_CTX
+      const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                              rect_type, FOUR_WAY_CTX_MODE);
+      do_uneven_4way_partition = aom_read_symbol(
+          r, ec_ctx->do_uneven_4way_partition_cdf[plane][0][ctx], 2,
+          ACCT_INFO("do_uneven_4way_partition"));
+#else
       do_uneven_4way_partition = aom_read_symbol(
           r, ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2,
           ACCT_INFO("do_uneven_4way_partition"));
+#endif  // CONFIG_NEW_PART_CTX
     }
     if (do_uneven_4way_partition) {
+#if CONFIG_NEW_PART_CTX
+      uneven_4way_partition_type =
+          aom_read_bit(r, ACCT_INFO("uneven_4way_partition_type"));
+#else
       uneven_4way_partition_type = aom_read_symbol(
           r, ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
           NUM_UNEVEN_4WAY_PARTS, ACCT_INFO("uneven_4way_partition_type"));
+#endif  // CONFIG_NEW_PART_CTX
     }
   }
   return rect_part_table[do_ext_partition][do_uneven_4way_partition]
