@@ -4046,11 +4046,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #if CONFIG_COMPOUND_WARP_CAUSAL
           !mbmi->skip_mode &&
-          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN
-                                        xd,
+                                                                    xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                        mbmi))) {
+                                                                    mbmi))) {
         mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
         if (has_second_ref(mbmi))
           mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts1_inref, 1);
@@ -4266,12 +4266,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
              (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-              is_compound_warp_causal_allowed(xd, mbmi)));
+              is_compound_warp_causal_allowed(cm, xd, mbmi)));
 #else
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
              (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-              is_compound_warp_causal_allowed(mbmi)));
+              is_compound_warp_causal_allowed(cm, mbmi)));
 #endif  // CONFIG_COMPOUND_4XN
 #else
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&

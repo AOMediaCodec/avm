@@ -11628,11 +11628,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   av1_count_overlappable_neighbors(cm, xd);
 #if CONFIG_COMPOUND_WARP_CAUSAL
   if (is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
-      (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(
+      (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN
-                                    xd,
+                                                                xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                    mbmi))) {
+                                                                mbmi))) {
     int pts0[SAMPLES_ARRAY_SIZE], pts0_inref[SAMPLES_ARRAY_SIZE];
     mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
     // Select the samples according to motion vector difference

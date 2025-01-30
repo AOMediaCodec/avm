@@ -4707,18 +4707,19 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors);
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
-static INLINE int is_compound_warp_causal_allowed(
+static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
-    const MACROBLOCKD *xd,
+                                                  const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
-    const MB_MODE_INFO *mbmi) {
+                                                  const MB_MODE_INFO *mbmi) {
   return
 #if CONFIG_COMPOUND_4XN
       (AOMMIN(block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
               block_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]]) >=
        8) &&
 #endif  // CONFIG_COMPOUND_4XN
-      (mbmi->mode == NEW_NEWMV);
+      (mbmi->mode == NEW_NEWMV) &&
+      (cm->features.opfl_refine_type != REFINE_ALL);
 }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
@@ -4820,11 +4821,11 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
       (is_motion_variation_allowed_compound(mbmi) ||
-       is_compound_warp_causal_allowed(
+       is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN
-           xd,
+                                       xd,
 #endif  // CONFIG_COMPOUND_4XN
-           mbmi));
+                                       mbmi));
   if (allow_warp_causal_motion &&
       (mbmi->num_proj_ref[0] >= 1 &&
        (!has_second_ref(mbmi) || mbmi->num_proj_ref[1] >= 1))

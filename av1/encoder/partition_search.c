@@ -1977,12 +1977,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(xd, mbmi)));
+                is_compound_warp_causal_allowed(cm, xd, mbmi)));
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(mbmi)));
+                is_compound_warp_causal_allowed(cm, mbmi)));
 #endif  // CONFIG_COMPOUND_4XN
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&

@@ -2697,11 +2697,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
                                             xd->mi_row, xd->mi_col) &&
           !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode &&
-          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN
-                                        xd,
+                                                                    xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                        mbmi))) {
+                                                                    mbmi))) {
         int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
         mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
         mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts, pts_inref, 0);
@@ -2941,12 +2941,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(xd, mbmi)));
+                is_compound_warp_causal_allowed(cm, xd, mbmi)));
 #else
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(mbmi)));
+                is_compound_warp_causal_allowed(cm, mbmi)));
 #endif  // CONFIG_COMPOUND_4XN
 #else
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
