@@ -6925,7 +6925,7 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
-  for (int pos_idx = 1; pos_idx <= 8; pos_idx++) {
+  for (int pos_idx = 1; pos_idx <= 9; pos_idx++) {
     if (check_pos_and_get_base_pos(cm, xd, mbmi, base_pos, pos_idx)) return 1;
   }
   return 0;
