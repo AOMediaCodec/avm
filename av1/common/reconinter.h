@@ -1083,7 +1083,8 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
   if (is_tip) return 0;
   assert(!mbmi->skip_mode);
   int is_compound = has_second_ref(mbmi);
-  return is_compound && is_refinemv_allowed_bsize(bsize) &&
+  return mbmi->motion_mode == SIMPLE_TRANSLATION && is_compound &&
+         is_refinemv_allowed_bsize(bsize) &&
          is_refinemv_allowed_mode_precision(mbmi->mode, mbmi->pb_mv_precision,
                                             cm) &&
          is_refinemv_allowed_reference(cm, mbmi);

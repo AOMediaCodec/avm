@@ -2438,6 +2438,7 @@ static int64_t motion_mode_rd(
   for (int mode_index = SIMPLE_TRANSLATION; mode_index < MOTION_MODES;
        mode_index++) {
     if ((modes_to_search & (1 << mode_index)) == 0) continue;
+    if (base_mbmi.refinemv_flag && mode_index != SIMPLE_TRANSLATION) continue;
 
     int is_warpmv_warp_causal =
         (mode_index == WARPED_CAUSAL) && (base_mbmi.mode == WARPMV);
@@ -5761,6 +5762,7 @@ static int64_t handle_inter_mode(
 
 #if CONFIG_REFINEMV
             // Get the default value of DMVR flag based on mode
+            assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
             mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
 #endif  // CONFIG_REFINEMV
 
