@@ -955,7 +955,8 @@ static void screen_content_tools_determination(
     features->allow_screen_content_tools = 1;
 #if CONFIG_SCC_DETERMINATION
     features->allow_intrabc =
-        (is_sc_encoding_much_better_2 || cpi->intrabc_used);
+        (is_sc_encoding_much_better_2 || cpi->intrabc_used ||
+         allow_intrabc_orig_decision);
 #else
     features->allow_intrabc = cpi->intrabc_used;
 #endif  // CONFIG_SCC_DETERMINATION
