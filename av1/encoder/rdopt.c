@@ -5846,7 +5846,8 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_EXPLICIT_BAWP
               for (int bawp_flag_uv = 0; bawp_flag_uv <= AOMMIN(1, bawp_flag);
                    bawp_flag_uv++) {
-                if (bawp_flag_uv && !xd->is_chroma_ref) {
+                if (bawp_flag_uv &&
+                    (!xd->is_chroma_ref || cm->seq_params.monochrome)) {
                   mbmi->bawp_flag[1] = 0;
                   continue;
                 }
