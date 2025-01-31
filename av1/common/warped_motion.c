@@ -1968,12 +1968,14 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   assert(derive_model != NULL);
 
   for (int n = 0; n < np; n++) {
-    pts_inref[2 * n] = pts[2 * n] * (1 << WARPEDMODEL_PREC_BITS) +
-                       mvs[2 * n] * (1 << GM_TRANS_ONLY_PREC_DIFF);
-    pts_inref[2 * n + 1] = pts[2 * n + 1] * (1 << WARPEDMODEL_PREC_BITS) +
-                           mvs[2 * n + 1] * (1 << GM_TRANS_ONLY_PREC_DIFF);
-    int valid_point = (pts[2 * n] >= 0 && pts[2 * n + 1] >= 0 &&
-                       pts_inref[2 * n] >= 0 && pts_inref[2 * n + 1] >= 0);
+    pts_inref[2 * n] = (int64_t)pts[2 * n] * (1 << WARPEDMODEL_PREC_BITS) +
+                       (int64_t)mvs[2 * n] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    pts_inref[2 * n + 1] =
+        (int64_t)pts[2 * n + 1] * (1 << WARPEDMODEL_PREC_BITS) +
+        (int64_t)mvs[2 * n + 1] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    int valid_point =
+        ((int64_t)pts[2 * n] >= 0 && (int64_t)pts[2 * n + 1] >= 0 &&
+         pts_inref[2 * n] >= 0 && pts_inref[2 * n + 1] >= 0);
     if (!valid_point) return 0;
   }
 
