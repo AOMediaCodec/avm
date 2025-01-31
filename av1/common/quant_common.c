@@ -886,7 +886,7 @@ static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
         },
     },
 };
-static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
+static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
     {
         {
             /* Luma */
@@ -1071,7 +1071,7 @@ static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = 
         },
     },
 };
-static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
+static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
     {
         {
             /* Luma */
