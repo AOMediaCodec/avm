@@ -4535,8 +4535,10 @@ int av1_refinemv_build_predictors_and_get_sad(
     uint16_t *dst_ref = ref == 0 ? dst_ref0 : dst_ref1;
     MV *src_mv = ref == 0 ? &mv0 : &mv1;
 #if CONFIG_SUBBLK_REF_EXT
-    src_mv->row -= 8 * SUBBLK_REF_EXT_LINES;
-    src_mv->col -= 8 * SUBBLK_REF_EXT_LINES;
+    src_mv->row =
+        clamp(src_mv->row - 8 * SUBBLK_REF_EXT_LINES, MV_LOW + 1, MV_UPP - 1);
+    src_mv->col =
+        clamp(src_mv->col - 8 * SUBBLK_REF_EXT_LINES, MV_LOW + 1, MV_UPP - 1);
 #endif  // CONFIG_SUBBLK_REF_EXT
     calc_subpel_params_func(src_mv, &inter_pred_params[ref], xd, mi_x, mi_y,
                             ref, 0, mc_buf, &src, &subpel_params, &src_stride);
@@ -4662,10 +4664,14 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   for (int idx = 0; idx < DMVR_SEARCH_NUM_NEIGHBORS; ++idx) {
     const MV offset = { neighbors[idx].row, neighbors[idx].col };
 
-    refined_mv0.row = center_mvs[0].row + 8 * offset.row;
-    refined_mv0.col = center_mvs[0].col + 8 * offset.col;
-    refined_mv1.row = center_mvs[1].row - 8 * offset.row;
-    refined_mv1.col = center_mvs[1].col - 8 * offset.col;
+    refined_mv0.row =
+        clamp(center_mvs[0].row + 8 * offset.row, MV_LOW + 1, MV_UPP - 1);
+    refined_mv0.col =
+        clamp(center_mvs[0].col + 8 * offset.col, MV_LOW + 1, MV_UPP - 1);
+    refined_mv1.row =
+        clamp(center_mvs[1].row - 8 * offset.row, MV_LOW + 1, MV_UPP - 1);
+    refined_mv1.col =
+        clamp(center_mvs[1].col - 8 * offset.col, MV_LOW + 1, MV_UPP - 1);
 
     const int this_sad = av1_refinemv_build_predictors_and_get_sad(
         xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func, dst_ref0,
@@ -4677,10 +4683,14 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     }
   }
 
-  best_mv_ref[0].row = center_mvs[0].row + 8 * best_offset.row;
-  best_mv_ref[0].col = center_mvs[0].col + 8 * best_offset.col;
-  best_mv_ref[1].row = center_mvs[1].row - 8 * best_offset.row;
-  best_mv_ref[1].col = center_mvs[1].col - 8 * best_offset.col;
+  best_mv_ref[0].row =
+      clamp(center_mvs[0].row + 8 * best_offset.row, MV_LOW + 1, MV_UPP - 1);
+  best_mv_ref[0].col =
+      clamp(center_mvs[0].col + 8 * best_offset.col, MV_LOW + 1, MV_UPP - 1);
+  best_mv_ref[1].row =
+      clamp(center_mvs[1].row - 8 * best_offset.row, MV_LOW + 1, MV_UPP - 1);
+  best_mv_ref[1].col =
+      clamp(center_mvs[1].col - 8 * best_offset.col, MV_LOW + 1, MV_UPP - 1);
 
 #else
   int et_sad_th = (bw * bh) << 1;
