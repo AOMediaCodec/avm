@@ -6651,7 +6651,13 @@ bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
   }
   return true;
 }
-
+static int is_same_ref_frame(const MB_MODE_INFO *neighbor_mi,
+                             const MB_MODE_INFO *mbmi) {
+  return (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+          neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) ||
+         (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
+          neighbor_mi->ref_frame[1] == mbmi->ref_frame[0]);
+}
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors) {
   const TileInfo *const tile = &xd->tile;
@@ -6679,8 +6685,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6694,8 +6699,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6709,8 +6713,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6724,8 +6727,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6738,8 +6740,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_bl) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6752,8 +6753,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_tr) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6767,8 +6767,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6781,8 +6780,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6795,8 +6793,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6896,10 +6893,7 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
       get_cand_from_pos_idx(cm, xd, pos_idx)) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if ((is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) ||
-        (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
-         neighbor_mi->ref_frame[1] == mbmi->ref_frame[0])) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
           mbmi->mode == NEWMV) {
         base_pos->row = mi_pos.row;

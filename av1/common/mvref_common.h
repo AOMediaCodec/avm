@@ -1171,14 +1171,23 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const MB_MODE_INFO *neighbor_mi,
                                                WarpedMotionParams *wm_params) {
+  const int ref_frame = xd->mi[0]->ref_frame[0];
+  const int neighbor_ref = neighbor_mi->ref_frame[1] == ref_frame ? 1 : 0;
   const WarpedMotionParams *gm_params =
-      &cm->global_motion[neighbor_mi->ref_frame[0]];
+      &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    if (neighbor_mi->wm_params[neighbor_ref].invalid)
+      *wm_params = default_warp_params;
+    else
+      *wm_params = neighbor_mi->wm_params[neighbor_ref];
+#else
     if (neighbor_mi->wm_params[0].invalid)
       *wm_params = default_warp_params;
     else
       *wm_params = neighbor_mi->wm_params[0];
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {
@@ -1190,7 +1199,6 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
     *wm_params = default_warp_params;
     wm_params->wmtype = TRANSLATION;
 
-    int ref_frame = xd->mi[0]->ref_frame[0];
     if (neighbor_mi->ref_frame[0] == ref_frame) {
       wm_params->wmmat[0] =
           neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
