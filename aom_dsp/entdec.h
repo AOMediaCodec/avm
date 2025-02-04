@@ -19,6 +19,13 @@
 extern "C" {
 #endif
 
+/* Minimum # of preloaded bits to maintain in od_ec_window. */
+#if CONFIG_BYPASS_IMPROVEMENT
+#define OD_EC_MIN_BITS 8
+#else
+#define OD_EC_MIN_BITS 0
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 typedef struct od_ec_dec od_ec_dec;
 
 #if defined(OD_ACCOUNTING) && OD_ACCOUNTING
@@ -58,6 +65,7 @@ struct od_ec_dec {
 
 /*See entdec.c for further documentation.*/
 
+void od_ec_dec_refill(od_ec_dec *dec);
 void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf, uint32_t storage)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
@@ -73,9 +81,11 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
+#if !CONFIG_CDF_SCALE
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,
                                                const uint16_t *cdf, int nsyms)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+#endif
 
 OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb)
     OD_ARG_NONNULL(1);
@@ -84,6 +94,45 @@ OD_WARN_UNUSED_RESULT int od_ec_dec_tell(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
+
+/*Takes updated dif and range values, renormalizes them so that
+   32768 <= rng < 65536 (reading more bytes from the stream into dif if
+   necessary), and stores them back in the decoder context.
+  dif: The new value of dif.
+  rng: The new value of the range.
+  ret: The value to return.
+  Return: ret.
+          This allows the compiler to jump to this function via a tail-call.*/
+static INLINE int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif,
+                                      unsigned rng, int ret) {
+  int d;
+  assert(rng <= 65535U);
+  /*The number of leading zeros in the 16-bit binary representation of rng.*/
+  d = 16 - OD_ILOG_NZ(rng);
+  /*d bits in dec->dif are consumed.*/
+  dec->cnt -= d;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << d) - 1;
+  dec->rng = rng << d;
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
+  return ret;
+}
+
+#if CONFIG_BYPASS_IMPROVEMENT
+/* This function performs renormalization after decoding bypass symbols.
+   This is a simplified version of od_ec_dec_normalize(), as bypass
+   symbol decoding only requires shifting in new bits, and the range
+   value remains unchanged. */
+static INLINE int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
+                                             int n_bypass, int ret) {
+  /*n_bypass bits in dec->dif are consumed.*/
+  dec->cnt -= n_bypass;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << n_bypass) - 1;
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
+  return ret;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"

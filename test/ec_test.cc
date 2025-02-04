@@ -14,8 +14,14 @@
 
 #include <cstdlib>
 
+#include "config/aom_config.h"
+#if CONFIG_CDF_SCALE
+#include "config/aom_dsp_rtcd.h"
+#endif
+
 #include "aom_dsp/entenc.h"
 #include "aom_dsp/entdec.h"
+#include "aom_dsp/prob.h"
 
 TEST(EC_TEST, random_ec_test_Large) {
   od_ec_enc enc;

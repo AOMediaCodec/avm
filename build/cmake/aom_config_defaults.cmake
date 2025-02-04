@@ -162,6 +162,8 @@ set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
+set_aom_config_var(CONFIG_CDF_SCALE 1
+                   "AV2 enable entropy cdf scaling improvement.")
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
 set_aom_config_var(
   CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER

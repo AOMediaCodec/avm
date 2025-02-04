@@ -16,10 +16,6 @@
 #include <limits.h>
 #include <stddef.h>
 #include "av1/common/odintrin.h"
-#include "aom_dsp/prob.h"
-
-#define EC_PROB_SHIFT 6
-#define EC_MIN_PROB 4  // must be <= (1<<EC_PROB_SHIFT)/16
 
 /*OPT: od_ec_window must be at least 32 bits, but if you have fast arithmetic
    on a larger type, you can speed up the decoder by using it here.*/
@@ -37,6 +33,10 @@ typedef uint32_t od_ec_window;
 #define OD_BITRES (16)
 
 #define OD_ICDF AOM_ICDF
+
+#if CONFIG_CDF_SCALE
+extern const uint16_t av1_prob_inc_tbl[15][16];
+#endif
 
 /*See entcode.c for further documentation.*/
 

@@ -74,16 +74,9 @@
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
-/* Minimum # of preloaded bits to maintain in od_ec_window. */
-#if CONFIG_BYPASS_IMPROVEMENT
-#define OD_EC_MIN_BITS 8
-#else
-#define OD_EC_MIN_BITS 0
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-
 /*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
    call.*/
-static void od_ec_dec_refill(od_ec_dec *dec) {
+void od_ec_dec_refill(od_ec_dec *dec) {
   int s;
   od_ec_window dif;
   int16_t cnt;
@@ -122,53 +115,6 @@ static void od_ec_dec_refill(od_ec_dec *dec) {
   dec->bptr = bptr;
 }
 
-/*Takes updated dif and range values, renormalizes them so that
-   32768 <= rng < 65536 (reading more bytes from the stream into dif if
-   necessary), and stores them back in the decoder context.
-  dif: The new value of dif.
-  rng: The new value of the range.
-  ret: The value to return.
-  Return: ret.
-          This allows the compiler to jump to this function via a tail-call.*/
-static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
-                               int ret) {
-  int d;
-  assert(rng <= 65535U);
-  /*The number of leading zeros in the 16-bit binary representation of rng.*/
-  d = 16 - OD_ILOG_NZ(rng);
-  /*d bits in dec->dif are consumed.*/
-  dec->cnt -= d;
-  /*This is equivalent to shifting in 1's instead of 0's.*/
-  dec->dif = ((dif + 1) << d) - 1;
-  dec->rng = rng << d;
-  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
-  return ret;
-}
-
-#if CONFIG_BYPASS_IMPROVEMENT
-/* This function performs renormalization after decoding bypass symbols.
-   This is a simplified version of od_ec_dec_normalize(), as bypass
-   symbol decoding only requires shifting in new bits, and the range
-   value remains unchanged. */
-static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
-                                      int n_bypass, int ret) {
-  /*n_bypass bits in dec->dif are consumed.*/
-  dec->cnt -= n_bypass;
-  /*This is equivalent to shifting in 1's instead of 0's.*/
-  dec->dif = ((dif + 1) << n_bypass) - 1;
-  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
-  return ret;
-}
-
-// Scale the CDF to match the range value stored in the entropy decoder.
-static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
-  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
-           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
-          << 1) +
-         EC_MIN_PROB * n;
-}
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-
 /*Initializes the decoder.
   buf: The input buffer to use.
   storage: The size in bytes of the input buffer.*/
@@ -201,7 +147,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(32768U <= r);
 #if CONFIG_BYPASS_IMPROVEMENT
-  v = od_ec_prob_scale(f, r, 1);
+  v = od_ec_prob_scale(f, r, 0, 2);
 #else
   v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
   v += EC_MIN_PROB;
@@ -296,7 +242,12 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
+#if CONFIG_CDF_SCALE
+int od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf, int nsyms)
+#else
+int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms)
+#endif
+{
   od_ec_window dif;
   unsigned r;
   unsigned c;
@@ -306,7 +257,6 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   (void)nsyms;
   dif = dec->dif;
   r = dec->rng;
-  const int N = nsyms - 1;
 
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(icdf[nsyms - 1] == OD_ICDF(CDF_PROB_TOP));
@@ -319,11 +269,11 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
     u = v;
 #if CONFIG_BYPASS_IMPROVEMENT
     ret++;
-    v = od_ec_prob_scale(icdf[ret], r, N - ret);
+    v = od_ec_prob_scale(icdf[ret], r, ret, nsyms);
 #else
     v = ((r >> 8) * (uint32_t)(icdf[++ret] >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT));
-    v += EC_MIN_PROB * (N - ret);
+    v += EC_MIN_PROB * (nsyms - 1 - ret);
 #endif  // CONFIG_BYPASS_IMPROVEMENT
   } while (c < v);
   assert(v < u);
