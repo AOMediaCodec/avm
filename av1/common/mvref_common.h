@@ -1172,7 +1172,7 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
                                                const MB_MODE_INFO *neighbor_mi,
                                                WarpedMotionParams *wm_params) {
   const int ref_frame = xd->mi[0]->ref_frame[0];
-  const int neighbor_ref = neighbor_mi->ref_frame[1] == ref_frame ? 1 : 0;
+  const int neighbor_ref = neighbor_mi->ref_frame[0] == ref_frame ? 0 : 1;
   const WarpedMotionParams *gm_params =
       &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
