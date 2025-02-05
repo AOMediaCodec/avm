@@ -4141,7 +4141,7 @@ static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
 
 void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
                                         tran_low_t *coeff_c2, TX_SIZE tx_size,
-                                        CctxType cctx_type) {
+                                        CctxType cctx_type, const int bd) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av1_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)coeff_c1;
@@ -4150,6 +4150,8 @@ void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
   const int angle_idx = cctx_type - CCTX_START;
   const __m256i cos_t = _mm256_set1_epi32(cctx_mtx[angle_idx][0]);
   const __m256i sin_t = _mm256_set1_epi32(cctx_mtx[angle_idx][1]);
+  const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+  const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
 
   for (int i = 0; i < ncoeffs; i += 8) {
     // Load 8 elements from both coeff_c1 and coeff_c2
@@ -4163,10 +4165,14 @@ void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
     const __m256i v_tmp3 = _mm256_mullo_epi32(cos_t, v_c2);
 
     // Add and round the results to CCTX_PREC_BITS
-    const __m256i v_res0 = round_power_of_two_signed_avx2(
+    __m256i v_res0 = round_power_of_two_signed_avx2(
         _mm256_add_epi32(v_tmp0, v_tmp1), CCTX_PREC_BITS);
-    const __m256i v_res1 = round_power_of_two_signed_avx2(
+    __m256i v_res1 = round_power_of_two_signed_avx2(
         _mm256_sub_epi32(v_tmp3, v_tmp2), CCTX_PREC_BITS);
+
+    // Clamp to valid range
+    v_res0 = _mm256_min_epi32(_mm256_max_epi32(v_res0, min_value), max_value);
+    v_res1 = _mm256_min_epi32(_mm256_max_epi32(v_res1, min_value), max_value);
 
     // Round and store the results back to src_c1 and src_c2
     _mm256_storeu_si256((__m256i *)&src_c1[i], v_res0);
@@ -4238,7 +4244,7 @@ static INLINE void transpose_kernel(const int16_t *kernel, __m256i *out) {
 // Forward secondary transform
 void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
-                    const int size) {
+                    const int size, const int bd) {
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -4276,6 +4282,10 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
     const __m256i offset_vec = _mm256_set1_epi32(offset);
     sum = _mm256_srai_epi32(_mm256_add_epi32(sum, offset_vec), shift);
 #endif
+    // Clamp to valid range
+    const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+    const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
+    sum = _mm256_min_epi32(_mm256_max_epi32(sum, min_value), max_value);
     _mm256_storeu_si256((__m256i *)out, sum);
   } else {
 #if CONFIG_E194_FLEX_SECTX
@@ -4371,9 +4381,9 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
           _mm_add_epi32(sum_32x2, _mm_srli_si128(sum_32x2, 4));
       int coef = _mm_cvtsi128_si32(sum_32x1);
 #if CONFIG_E194_FLEX_SECTX
-      *out++ = ROUND_POWER_OF_TWO_SIGNED(coef, shift);
+      *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
 #else
-      *out++ = (coef + offset) >> shift;
+      *out++ = clamp_value((coef + offset) >> shift, 8 + bd);
 #endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
       kernel += reduced_width;

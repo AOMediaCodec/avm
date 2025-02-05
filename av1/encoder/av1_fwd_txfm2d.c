@@ -739,7 +739,7 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
 }
 
 void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
-                 const uint8_t stx_idx, const int size) {
+                 const uint8_t stx_idx, const int size, const int bd) {
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -781,9 +781,9 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
       coef += *srcPtr++ * *kernel_tmp++;
     }
 #if CONFIG_E194_FLEX_SECTX
-    *out++ = ROUND_POWER_OF_TWO_SIGNED(coef, shift);
+    *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
 #else
-    *out++ = (coef + offset) >> shift;
+    *out++ = clamp_value((coef + offset) >> shift, 8 + bd);
 #endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     kernel += reduced_width;

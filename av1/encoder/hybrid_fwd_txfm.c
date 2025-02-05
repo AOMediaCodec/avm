@@ -477,7 +477,8 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
 
 // Apply forward cross chroma component transform
 void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
-                                     TX_SIZE tx_size, CctxType cctx_type) {
+                                     TX_SIZE tx_size, CctxType cctx_type,
+                                     const int bd) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av1_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)coeff_c1;
@@ -492,7 +493,10 @@ void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
              (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c2[i];
     src_c1[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[0], CCTX_PREC_BITS);
     src_c2[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[1], CCTX_PREC_BITS);
+    src_c1[i] = clamp_value(src_c1[i], 8 + bd);
+    src_c2[i] = clamp_value(src_c2[i], 8 + bd);
   }
+  // TODO(kslu) add clip (and in AVX)
 }
 
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
@@ -586,7 +590,7 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
 #else
     const int st_size_class = sb_size;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
+    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     if (sec_tx_sse != NULL) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
       const int reduced_height = (st_size_class == 0)   ? IST_4x4_HEIGHT

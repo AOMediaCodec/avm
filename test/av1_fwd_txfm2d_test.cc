@@ -693,7 +693,7 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdFwdTxfm2dTest,
 ///////////////////////////////////////////////////////////////
 
 typedef void (*CCTXFunc)(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
-                         TX_SIZE tx_size, CctxType cctx_type);
+                         TX_SIZE tx_size, CctxType cctx_type, const int bd);
 typedef libaom_test::FuncParam<CCTXFunc> TestFuncs;
 
 class FwdCctxTest : public ::testing::TestWithParam<TestFuncs> {
@@ -772,8 +772,8 @@ void FwdCctxTest::RunTest(int isRandom) {
           }
           memcpy(coeff_c1_test_, coeff_c1_ref_, coeff_alloc_size_);
           memcpy(coeff_c2_test_, coeff_c2_ref_, coeff_alloc_size_);
-          params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type);
-          params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type);
+          params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type, bd);
+          params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type, bd);
 
           for (int i = 0; i < ncoeffs; i++) {
             EXPECT_EQ(coeff_c1_ref_[i], coeff_c1_test_[i])
@@ -807,14 +807,14 @@ void FwdCctxTest::RunSpeedTest() {
 
     aom_usec_timer_start(&ref_timer);
     for (int i = 0; i < num_loops; ++i)
-      params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type);
+      params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type, 12);
     aom_usec_timer_mark(&ref_timer);
     const int elapsed_time_c =
         static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
 
     aom_usec_timer_start(&test_timer);
     for (int i = 0; i < num_loops; ++i)
-      params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type);
+      params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type, 12);
     aom_usec_timer_mark(&test_timer);
     const int elapsed_time_simd =
         static_cast<int>(aom_usec_timer_elapsed(&test_timer));
@@ -845,7 +845,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 typedef void (*FwdSTxfmFunc)(tran_low_t *src, tran_low_t *dst,
                              const PREDICTION_MODE mode, const uint8_t stx_idx,
-                             const int size);
+                             const int size, const int bd);
 class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
  public:
   AV1FwdSecTxfmTest() : fwd_stxfm_func_(GetParam()) {}
@@ -877,8 +877,8 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
                 input[r] = rnd(2) ? rnd(coeff_range) : -rnd(coeff_range);
               }
             }
-            fwd_stxfm_c(input, ref_output, set_id, stx, sb_size);
-            fwd_stxfm_func_(input, output, set_id, stx, sb_size);
+            fwd_stxfm_c(input, ref_output, set_id, stx, sb_size, bd);
+            fwd_stxfm_func_(input, output, set_id, stx, sb_size, bd);
 #if CONFIG_E124_IST_REDUCE_METHOD4
             int check_rows = (sb_size == 0)   ? IST_4x4_HEIGHT
                              : (sb_size == 1) ? IST_8x8_HEIGHT_RED
@@ -916,7 +916,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
       const int knum_loops = 100000000;
       aom_usec_timer_start(&ref_timer);
       for (int i = 0; i < knum_loops; ++i) {
-        fwd_stxfm_c(input, output, 0, 0, sb_size);
+        fwd_stxfm_c(input, output, 0, 0, sb_size, bd);
       }
       aom_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
@@ -924,7 +924,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
 
       aom_usec_timer_start(&test_timer);
       for (int i = 0; i < knum_loops; ++i) {
-        fwd_stxfm_func_(input, output, 0, 0, sb_size);
+        fwd_stxfm_func_(input, output, 0, 0, sb_size, bd);
       }
       aom_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
@@ -1017,7 +1017,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
       const int knum_loops = 100000000;
       aom_usec_timer_start(&ref_timer);
       for (int i = 0; i < knum_loops; ++i) {
-        fwd_stxfm_c(input, output, 0, 0, sb_size);
+        fwd_stxfm_c(input, output, 0, 0, sb_size, bd);
       }
       aom_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =

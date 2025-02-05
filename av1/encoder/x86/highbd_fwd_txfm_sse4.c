@@ -3771,7 +3771,7 @@ void av1_fwd_txfm2d_32x4_sse4_1(const int16_t *input, int32_t *coeff,
 // Forward secondary transform
 void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
                       const PREDICTION_MODE mode, const uint8_t stx_idx,
-                      const int size) {
+                      const int size, const int bd) {
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -3821,9 +3821,9 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
                            _mm_shuffle_epi32(tmpSum, _MM_SHUFFLE(1, 0, 3, 2)));
     coef = _mm_cvtsi128_si32(tmpSum);
 #if CONFIG_E194_FLEX_SECTX
-    *out++ = ROUND_POWER_OF_TWO_SIGNED(coef, shift);
+    *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
 #else
-    *out++ = (coef + offset) >> shift;
+    *out++ = clamp_value((coef + offset) >> shift, 8 + bd);
 #endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     kernel += reduced_width;

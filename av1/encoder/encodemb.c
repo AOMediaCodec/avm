@@ -778,7 +778,8 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *coeff_c1 = p_c1->coeff + block_offset;
   tran_low_t *coeff_c2 = p_c2->coeff + block_offset;
-  av1_fwd_cross_chroma_tx_block(coeff_c1, coeff_c2, tx_size, cctx_type);
+  av1_fwd_cross_chroma_tx_block(coeff_c1, coeff_c2, tx_size, cctx_type,
+                                x->e_mbd.bd);
 }
 
 // Finds and sets the first position (BOB) index.
