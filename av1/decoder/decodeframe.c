@@ -8444,6 +8444,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!features->all_lossless && seq_params->enable_restoration) {
     decode_restoration_mode(cm, rb);
   }
+  for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
+    cm->ccso_info.ccso_enable[plane] = false;
+  }
   if (!features->coded_lossless && seq_params->enable_ccso) {
     setup_ccso(cm, rb);
   }
