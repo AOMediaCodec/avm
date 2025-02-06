@@ -4316,7 +4316,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   int width, height;
   int found = 0;
   int has_valid_ref_frame = 0;
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     if (aom_rb_read_bit(rb)) {
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
       // This will never be NULL in a normal stream, as streams are required to
@@ -4358,7 +4358,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
 
   // Check to make sure at least one of frames that this frame references has
   // valid dimensions.
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     has_valid_ref_frame |=
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
@@ -4367,7 +4367,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   if (!has_valid_ref_frame)
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     if (!valid_ref_frame_img_fmt(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
@@ -6317,9 +6317,9 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     int film_grain_params_ref_idx = aom_rb_read_literal(rb, 3);
     // Section 6.8.20: It is a requirement of bitstream conformance that
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
-    // of j in the range 0 to REFS_PER_FRAME - 1.
+    // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
     int found = 0;
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+    for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
       if (film_grain_params_ref_idx == cm->remapped_ref_idx[i]) {
         found = 1;
         break;
@@ -7792,8 +7792,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           // use a different approach.
           cm->ref_frame_map[ref_idx] = buf;
           buf->order_hint = order_hint;
-          // TODO(kslu) This is a workaround for error resilient mode. Make
-          // it more consistent with get_disp_order_hint().
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
           buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
 #else
