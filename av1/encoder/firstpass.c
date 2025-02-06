@@ -675,7 +675,7 @@ static int firstpass_inter_prediction(
     xd->mi[0]->mode = NEWMV;
     xd->mi[0]->mv[0].as_mv = best_mv;
     xd->mi[0]->tx_size = TX_4X4;
-    xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_index(cm);
+    xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_or_ref0(cm);
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
     xd->mi[0]->cwp_idx = CWP_EQUAL;
     av1_enc_build_inter_predictor(cm, xd, mb_row * mb_scale, mb_col * mb_scale,

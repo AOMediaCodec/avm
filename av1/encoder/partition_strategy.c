@@ -406,7 +406,7 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
   // Setting up motion search
   int ref_list[1];
-  ref_list[0] = get_closest_pastcur_ref_index(&cpi->common);
+  ref_list[0] = get_closest_pastcur_ref_or_ref0(&cpi->common);
 
   const int num_refs = 1;
   const int use_subpixel = 1;
@@ -1794,7 +1794,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
-  const int ref_frame = get_closest_pastcur_ref_index(cm);
+  const int ref_frame = get_closest_pastcur_ref_or_ref0(cm);
   assert(ref_frame >= 0);
   if (mi_col >= cm->mi_params.mi_cols || mi_row >= cm->mi_params.mi_rows) {
     // If the whole block is outside of the image, set the var and sse to 0.

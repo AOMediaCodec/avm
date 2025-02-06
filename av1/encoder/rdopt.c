@@ -11584,7 +11584,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->mode = GLOBALMV;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->uv_mode = UV_DC_PRED;
-  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_or_ref0(cm);
   mbmi->ref_frame[0] = last_frame;
   mbmi->ref_frame[1] = NONE_FRAME;
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {

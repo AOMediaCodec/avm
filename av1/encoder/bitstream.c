@@ -1317,7 +1317,7 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
   // or the segment allows multiple reference frame options
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    assert(mbmi->ref_frame[0] == get_closest_pastcur_ref_index(cm));
+    assert(mbmi->ref_frame[0] == get_closest_pastcur_ref_or_ref0(cm));
     assert(!is_compound);
   } else {
     // does the feature use compound prediction or not

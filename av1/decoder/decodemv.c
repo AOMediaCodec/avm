@@ -3002,7 +3002,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    ref_frame[0] = get_closest_pastcur_ref_index(cm);
+    ref_frame[0] = get_closest_pastcur_ref_or_ref0(cm);
     ref_frame[1] = NONE_FRAME;
   } else {
     const REFERENCE_MODE mode = read_block_reference_mode(cm, xd, r);

@@ -134,12 +134,16 @@ static INLINE int get_closest_past_ref_index(const AV1_COMMON *const cm) {
   return index;
 }
 
-// Get the current frame if it is available in the reference list. Otherwise
-// get the closest past reference
-static INLINE int get_closest_pastcur_ref_index(const AV1_COMMON *const cm) {
+// Get the temporally closest reference frame:
+// 1. Get current frame if it is available in the reference list.
+// 2. Otherwise get the closest past reference if there is any past reference.
+// 3. Otherwise use ref 0.
+static INLINE int get_closest_pastcur_ref_or_ref0(const AV1_COMMON *const cm) {
   if (cm->ref_frames_info.num_cur_refs > 0)
     return cm->ref_frames_info.cur_refs[0];
-  return get_closest_past_ref_index(cm);
+  if (cm->ref_frames_info.num_past_refs > 0)
+    return get_closest_past_ref_index(cm);
+  return 0;
 }
 
 static INLINE int get_best_past_ref_index(const AV1_COMMON *const cm) {

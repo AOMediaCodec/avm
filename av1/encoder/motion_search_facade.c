@@ -1601,7 +1601,7 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var) {
   MACROBLOCKD *xd = &x->e_mbd;
-  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_index(&cpi->common);
+  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_or_ref0(&cpi->common);
 
   int_mv best_mv = av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
                                             start_mv, 1, use_subpixel);

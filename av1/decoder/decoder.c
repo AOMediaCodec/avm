@@ -758,7 +758,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     // TODO(jkoleszar): Error concealment is undefined and non-normative
     // at this point, but if it becomes so, [0] may not always be the correct
     // thing to do here.
-    const int last_frame = get_closest_pastcur_ref_index(cm);
+    const int last_frame = get_closest_pastcur_ref_or_ref0(cm);
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
