@@ -6456,14 +6456,26 @@ void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 // Function to check if precision need to be signaled or not
-int is_intraBC_bv_precision_active(const int intrabc_mode) {
-  return (intrabc_mode == 0);
+int is_intraBC_bv_precision_active(const AV1_COMMON *const cm,
+                                   const int intrabc_mode) {
+  assert(IMPLIES(!cm->features.allow_screen_content_tools,
+                 !cm->features.cur_frame_force_integer_mv));
+  assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
+                 cm->features.allow_screen_content_tools));
+  return (!cm->features.cur_frame_force_integer_mv && intrabc_mode == 0);
 }
 // Set max value as default precision
-void set_default_intraBC_bv_precision(MB_MODE_INFO *mbmi) {
+void set_default_intraBC_bv_precision(const AV1_COMMON *const cm,
+                                      MB_MODE_INFO *mbmi) {
+  assert(IMPLIES(!cm->features.allow_screen_content_tools,
+                 !cm->features.cur_frame_force_integer_mv));
+  assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
+                 cm->features.allow_screen_content_tools));
   mbmi->pb_mv_precision =
-      av1_intraBc_precision_sets
-          .precision[av1_intraBc_precision_sets.num_precisions - 1];
+      cm->features.cur_frame_force_integer_mv
+          ? MV_PRECISION_ONE_PEL
+          : av1_intraBc_precision_sets
+                .precision[av1_intraBc_precision_sets.num_precisions - 1];
 }
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 

@@ -1946,7 +1946,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     // blocks");
     set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
 #if CONFIG_IBC_SUBPEL_PRECISION
-    set_default_intraBC_bv_precision(mbmi);
+    set_default_intraBC_bv_precision(cm, mbmi);
 #else
     set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
@@ -2021,7 +2021,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_IBC_SUBPEL_PRECISION
     int valid_dv = 1;
     assert(is_this_mv_precision_compliant(dv_ref.as_mv, mbmi->pb_mv_precision));
-    if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+    if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
       int index = aom_read_symbol(r, ec_ctx->intrabc_bv_precision_cdf[0],
                                   av1_intraBc_precision_sets.num_precisions,
                                   ACCT_INFO());

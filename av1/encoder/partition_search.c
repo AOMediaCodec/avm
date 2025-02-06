@@ -1552,7 +1552,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_IBC_MAX_DRL
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-      if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+      if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
         int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
         assert(index < av1_intraBc_precision_sets.num_precisions);
         assert(index < NUM_ALLOWED_BV_PRECISIONS);

@@ -3065,7 +3065,7 @@ static AOM_INLINE void write_intrabc_info(
         ec_ctx, mbmi, mbmi_ext_frame, w);
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-    if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+    if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
       int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
       assert(index < av1_intraBc_precision_sets.num_precisions);
       assert(index < NUM_ALLOWED_BV_PRECISIONS);
