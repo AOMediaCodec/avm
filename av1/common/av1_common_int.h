@@ -3469,14 +3469,16 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const bool is_chroma_ref =
       chroma_ref_info ? chroma_ref_info->is_chroma_ref : true;
   int num_allowed_partitions = 0;
+  const RECT_PART_TYPE implied_rect_type =
+      rect_type_implied_by_bsize(bsize, tree_type);
 
   const int is_horz_size_valid =
-      is_partition_valid(bsize, PARTITION_HORZ) &&
+      is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
       check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info);
 
   const int is_vert_size_valid =
-      is_partition_valid(bsize, PARTITION_VERT) &&
+      is_partition_valid(bsize, PARTITION_VERT) && implied_rect_type != HORZ &&
       check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info);
 
@@ -3509,7 +3511,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       is_block_splittable && cm->seq_params.enable_ext_partitions;
 
   partition_allowed[PARTITION_HORZ_3] =
-      ext_partition_allowed &&
+      ext_partition_allowed && implied_rect_type != VERT &&
       is_ext_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_HORZ_3, bsize, mi_row,
@@ -3522,7 +3524,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_3];
 
   partition_allowed[PARTITION_VERT_3] =
-      ext_partition_allowed &&
+      ext_partition_allowed && implied_rect_type != HORZ &&
       is_ext_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_VERT_3, bsize, mi_row,
@@ -3537,7 +3539,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const bool uneven_4way_partition_allowed =
       ext_partition_allowed && cm->seq_params.enable_uneven_4way_partitions;
   partition_allowed[PARTITION_HORZ_4A] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row,
@@ -3548,7 +3550,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4A];
 
   partition_allowed[PARTITION_HORZ_4B] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row,
@@ -3559,7 +3561,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4B];
 
   partition_allowed[PARTITION_VERT_4A] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row,
@@ -3570,7 +3572,7 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   num_allowed_partitions += partition_allowed[PARTITION_VERT_4A];
 
   partition_allowed[PARTITION_VERT_4B] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
       check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row,
