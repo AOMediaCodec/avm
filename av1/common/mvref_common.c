@@ -3794,12 +3794,7 @@ void av1_find_mv_refs(
   const int mi_col = xd->mi_col;
   int_mv gm_mv[2];
 
-  if (ref_frame == INTRA_FRAME) {
-    gm_mv[0].as_int = gm_mv[1].as_int = 0;
-    if (global_mvs != NULL) {
-      global_mvs[ref_frame].as_int = INVALID_MV;
-    }
-  } else if (is_tip_ref_frame(ref_frame)) {
+  if (ref_frame == INTRA_FRAME || is_tip_ref_frame(ref_frame)) {
     gm_mv[0].as_int = gm_mv[1].as_int = 0;
   } else {
     const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];

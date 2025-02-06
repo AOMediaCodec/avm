@@ -507,13 +507,15 @@ static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
 
 static INLINE int16_t av1_mode_context_pristine(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  int8_t ref_frame = av1_ref_frame_type(rf);
+  if (ref_frame == NONE_FRAME) ref_frame = 0;
   return mode_context[ref_frame];
 }
 
 static INLINE int16_t av1_mode_context_analyzer(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  int8_t ref_frame = av1_ref_frame_type(rf);
+  if (ref_frame == NONE_FRAME) ref_frame = 0;
 
 #if CONFIG_OPT_INTER_MODE_CTX
   return mode_context[ref_frame];
