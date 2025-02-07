@@ -199,7 +199,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
 set_aom_config_var(CONFIG_SIMPLIFIED_AIMC 1 "Simplification for AIMC.")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
-set_aom_config_var(CONFIG_UV_CFL 1 "AV2 intra UV mode and CFL coding flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
                    "Improvement of AV2 linear intra prediction mode.")
