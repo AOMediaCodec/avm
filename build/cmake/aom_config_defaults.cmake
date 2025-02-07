@@ -540,6 +540,12 @@ set_aom_config_var(
   CONFIG_ENHANCED_FRAME_CONTEXT_INIT 1
   "Enables improved frame context initialization with frame averaging.")
 
+set_aom_config_var(
+  CONFIG_IMPROVED_SECONDARY_REFERENCE
+  1
+  "Enables improved secondary reference frame derivation for frame context initialization."
+)
+
 set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
                    "Fix precision of inter DDT.")
 set_aom_config_var(

@@ -308,6 +308,17 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
   else if (secondary_cand_higher_qp.idx != -1)
     secondary_ref_frame = secondary_cand_higher_qp.idx;
 
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+  if (primary_ref_frame == cand_lower_qp.idx && cand_higher_qp.idx != -1 &&
+      secondary_cand_lower_qp.idx != -1) {
+    if (abs(cm->quant_params.base_qindex -
+            secondary_cand_lower_qp.base_qindex) >
+        abs(cm->quant_params.base_qindex - cand_higher_qp.base_qindex)) {
+      secondary_ref_frame = cand_higher_qp.idx;
+    }
+  }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
+
   ref_frame[0] = primary_ref_frame;
   ref_frame[1] = secondary_ref_frame;
 

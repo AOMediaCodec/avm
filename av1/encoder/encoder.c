@@ -3655,6 +3655,12 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                          "Uninitialized entropy context.");
 
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+    int ref_frame_used = PRIMARY_REF_NONE;
+    int secondary_map_idx = INVALID_IDX;
+    get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
+    avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+#else
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
                                    ? cm->features.derived_secondary_ref_frame
@@ -3669,6 +3675,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                           &cm->ref_frame_map[secondary_map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   }
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT

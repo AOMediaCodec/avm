@@ -8758,6 +8758,12 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+    int ref_frame_used = PRIMARY_REF_NONE;
+    int map_idx = INVALID_IDX;
+    get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+    avg_primary_secondary_references(cm, ref_frame_used, map_idx);
+#else
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
                                    ? cm->features.derived_secondary_ref_frame
@@ -8771,6 +8777,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   }
   if (!cm->fc->initialized)

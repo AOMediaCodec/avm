@@ -2161,6 +2161,49 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
              : INVALID_IDX;
 }
 
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
+                                                     int *ref_frame_used,
+                                                     int *secondary_map_idx) {
+  const int map_idx = get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
+  *ref_frame_used =
+      (cm->features.primary_ref_frame == cm->features.derived_primary_ref_frame)
+          ? cm->features.derived_secondary_ref_frame
+          : cm->features.derived_primary_ref_frame;
+  *secondary_map_idx = get_ref_frame_map_idx(cm, *ref_frame_used);
+  if ((*ref_frame_used == PRIMARY_REF_NONE) || (map_idx == INVALID_IDX) ||
+      (*ref_frame_used == cm->features.primary_ref_frame)) {
+    int iter_map_idx = 0;
+    int ref_frame = 0;
+    for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
+      iter_map_idx = get_ref_frame_map_idx(cm, ref_frame);
+      if (iter_map_idx == INVALID_IDX ||
+          ref_frame == cm->features.primary_ref_frame)
+        continue;
+      RefFrameMapPair cur_ref = cm->ref_frame_map_pairs[iter_map_idx];
+      if (cur_ref.disp_order == -1) continue;
+      if (cur_ref.frame_type != INTER_FRAME) continue;
+      break;
+    }
+    *secondary_map_idx = iter_map_idx;
+    *ref_frame_used = ref_frame;
+  }
+}
+
+static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
+                                                    int ref_frame_used,
+                                                    int map_idx) {
+  if ((map_idx != INVALID_IDX) &&
+      (ref_frame_used != cm->features.primary_ref_frame) &&
+      (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+      !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
+      (ref_frame_used != PRIMARY_REF_NONE)) {
+    av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
+                        AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+  }
+}
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
+
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
   if (is_tip_ref_frame(ref_frame)) {
