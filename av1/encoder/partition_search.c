@@ -4252,42 +4252,10 @@ static AOM_INLINE void init_allowed_partitions(
     const AV1_COMMON *const cm, PartitionSearchState *part_search_state,
     const PartitionCfg *part_cfg, const CHROMA_REF_INFO *chroma_ref_info,
     TREE_TYPE tree_type) {
-  // Reset the flag indicating whether a partition leading to a rdcost lower
-  // than the bound best_rdc has been found.
-  part_search_state->found_best_partition = false;
-
-  // Initialize flag indicating if block can be further partitioned.
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const BLOCK_SIZE bsize = blk_params->bsize;
-  part_search_state->is_block_splittable = is_partition_point(bsize);
-
-  // Initialize allowed partition types for the partition block.
-  const PARTITION_TYPE forced_part = part_search_state->forced_partition;
-  if (forced_part != PARTITION_INVALID) {
-    part_search_state->partition_none_allowed = (forced_part == PARTITION_NONE);
-    part_search_state->partition_rect_allowed[HORZ] =
-        (forced_part == PARTITION_HORZ);
-    part_search_state->partition_rect_allowed[VERT] =
-        (forced_part == PARTITION_VERT);
-    part_search_state->partition_3_allowed[HORZ] =
-        (forced_part == PARTITION_HORZ_3);
-    part_search_state->partition_3_allowed[VERT] =
-        (forced_part == PARTITION_VERT_3);
-    part_search_state->partition_4a_allowed[HORZ] =
-        (forced_part == PARTITION_HORZ_4A);
-    part_search_state->partition_4a_allowed[VERT] =
-        (forced_part == PARTITION_VERT_4A);
-    part_search_state->partition_4b_allowed[HORZ] =
-        (forced_part == PARTITION_HORZ_4B);
-    part_search_state->partition_4b_allowed[VERT] =
-        (forced_part == PARTITION_VERT_4B);
-    part_search_state->partition_split_allowed =
-        (forced_part == PARTITION_SPLIT);
-    return;
-  }
-
   const int mi_row = blk_params->mi_row;
   const int mi_col = blk_params->mi_col;
+  const BLOCK_SIZE bsize = blk_params->bsize;
   const bool ss_x = part_search_state->ss_x;
   const bool ss_y = part_search_state->ss_y;
   const bool allow_rect = part_cfg->enable_rect_partitions ||
@@ -4303,6 +4271,8 @@ static AOM_INLINE void init_allowed_partitions(
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
 
+  // Initialize allowed partition types for the partition block.
+  part_search_state->is_block_splittable = is_partition_point(bsize);
   part_search_state->partition_none_allowed =
       partition_allowed[PARTITION_NONE] &&
       is_bsize_geq(blk_params->bsize, blk_params->min_partition_size);
@@ -4353,6 +4323,10 @@ static AOM_INLINE void init_allowed_partitions(
       partition_allowed[PARTITION_SPLIT] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_SPLIT),
                    blk_params->min_partition_size);
+
+  // Reset the flag indicating whether a partition leading to a rdcost lower
+  // than the bound best_rdc has been found.
+  part_search_state->found_best_partition = false;
 }
 
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
