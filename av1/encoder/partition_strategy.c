@@ -1436,27 +1436,31 @@ void av1_prune_partitions_by_max_min_bsize(
 
   if (is_gt_max_sq_part) {  // current block size is larger than max size.
     // Disable some partition types to partition down to max allowed size.
-    partition_search_state->partition_none_allowed = 0;
+    partition_search_state->prune_partition_none = true;
 #if CONFIG_EXT_RECUR_PARTITIONS
-    partition_search_state->partition_3_allowed[HORZ] = 0;
-    partition_search_state->partition_3_allowed[VERT] = 0;
-    partition_search_state->partition_4a_allowed[HORZ] = 0;
-    partition_search_state->partition_4a_allowed[VERT] = 0;
-    partition_search_state->partition_4b_allowed[HORZ] = 0;
-    partition_search_state->partition_4b_allowed[VERT] = 0;
+    partition_search_state->prune_partition_3[HORZ] = true;
+    partition_search_state->prune_partition_3[VERT] = true;
+    partition_search_state->prune_partition_4a[HORZ] = true;
+    partition_search_state->prune_partition_4a[VERT] = true;
+    partition_search_state->prune_partition_4b[HORZ] = true;
+    partition_search_state->prune_partition_4b[VERT] = true;
     if (partition_search_state->partition_split_allowed) {  // only allow split
-      partition_search_state->partition_rect_allowed[HORZ] = 0;
-      partition_search_state->partition_rect_allowed[VERT] = 0;
+      partition_search_state->prune_rect_part[HORZ] = true;
+      partition_search_state->prune_rect_part[VERT] = true;
     } else {  // only allow one of horz or vert
       assert(partition_search_state->partition_rect_allowed[HORZ] ||
              partition_search_state->partition_rect_allowed[VERT]);
+      assert(!partition_search_state->prune_rect_part[HORZ] ||
+             !partition_search_state->prune_rect_part[VERT]);
       if (partition_search_state->partition_rect_allowed[HORZ] &&
-          partition_search_state->partition_rect_allowed[VERT]) {
+          partition_search_state->partition_rect_allowed[VERT] &&
+          !partition_search_state->prune_rect_part[HORZ] &&
+          !partition_search_state->prune_rect_part[VERT]) {
         if (is_wide_block(bsize)) {  // Allow VERT partition only.
-          partition_search_state->partition_rect_allowed[HORZ] = 0;
+          partition_search_state->prune_rect_part[HORZ] = true;
         } else {  // Allow HORZ partition only.
           assert(is_square_block(bsize) || is_tall_block(bsize));
-          partition_search_state->partition_rect_allowed[VERT] = 0;
+          partition_search_state->prune_rect_part[VERT] = true;
         }
       }
     }
@@ -1468,18 +1472,16 @@ void av1_prune_partitions_by_max_min_bsize(
 #endif                             // CONFIG_EXT_RECUR_PARTITIONS
   } else if (is_le_min_sq_part) {  // current block size is less or equal to min
     // Disallow all 2-way partitions.
-    partition_search_state->partition_rect_allowed[HORZ] = 0;
-    partition_search_state->partition_rect_allowed[VERT] = 0;
+    partition_search_state->prune_rect_part[HORZ] = true;
+    partition_search_state->prune_rect_part[VERT] = true;
 #if CONFIG_EXT_RECUR_PARTITIONS
     // Disallow all H and uneven-4way partitions.
-    partition_search_state->partition_3_allowed[HORZ] = 0;
-    partition_search_state->partition_3_allowed[VERT] = 0;
-    partition_search_state->partition_4a_allowed[HORZ] = 0;
-    partition_search_state->partition_4a_allowed[VERT] = 0;
-    partition_search_state->partition_4b_allowed[HORZ] = 0;
-    partition_search_state->partition_4b_allowed[VERT] = 0;
-    // only allow none.
-    partition_search_state->partition_none_allowed = 1;
+    partition_search_state->prune_partition_3[HORZ] = true;
+    partition_search_state->prune_partition_3[VERT] = true;
+    partition_search_state->prune_partition_4a[HORZ] = true;
+    partition_search_state->prune_partition_4a[VERT] = true;
+    partition_search_state->prune_partition_4b[HORZ] = true;
+    partition_search_state->prune_partition_4b[VERT] = true;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     // only allow none if valid block large enough; only allow split otherwise.
     // only disable square split when current block is not at the picture
