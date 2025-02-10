@@ -332,8 +332,24 @@ void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
       get_shell_class_with_precision(shell_index, &shell_cls_offset);
 
   // Encode int shell class
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int num_mv_class_0, num_mv_class_1;
+  split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+  if (shell_class < num_mv_class_0) {
+    aom_write_symbol(w, 0, mvctx->joint_shell_set_cdf, 2);
+    aom_write_symbol(w, shell_class,
+                     mvctx->joint_shell_class_cdf_0[pb_mv_precision],
+                     num_mv_class_0);
+  } else {
+    aom_write_symbol(w, 1, mvctx->joint_shell_set_cdf, 2);
+    aom_write_symbol(w, shell_class - num_mv_class_0,
+                     mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+                     num_mv_class_1);
+  }
+#else
   aom_write_symbol(w, shell_class,
                    mvctx->joint_shell_class_cdf[pb_mv_precision], num_mv_class);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   assert(shell_class >= 0 && shell_class < num_mv_class);
 
@@ -425,10 +441,22 @@ void av1_update_mv_stats(nmv_context *mvctx, const MV mv_diff,
   const int shell_index = (scaled_mv_diff.row) + (scaled_mv_diff.col);
   const int shell_class =
       get_shell_class_with_precision(shell_index, &shell_cls_offset);
-
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int num_mv_class_0, num_mv_class_1;
+  split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+  if (shell_class < num_mv_class_0) {
+    update_cdf(mvctx->joint_shell_set_cdf, 0, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_0[pb_mv_precision], shell_class,
+               num_mv_class_0);
+  } else {
+    update_cdf(mvctx->joint_shell_set_cdf, 1, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+               shell_class - num_mv_class_0, num_mv_class_1);
+  }
+#else
   update_cdf(mvctx->joint_shell_class_cdf[pb_mv_precision], shell_class,
              num_mv_class);
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   assert(shell_class >= 0 && shell_class < num_mv_class);
 
   if (shell_class < 2) {
@@ -970,7 +998,13 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
                                  IntraBCMvCosts *dv_costs, int is_ibc
 
 ) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int joint_shell_set_cost[2];
+  int joint_shell_class_cost_0[FIRST_SHELL_CLASS];
+  int joint_shell_class_cost_1[SECOND_SHELL_CLASS];
+#else
   int joint_shell_class_cost[MAX_NUM_SHELL_CLASS];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   int shell_offset_low_class_cost[2][2];
 
   int shell_offset_class2_cost[3][2];
@@ -990,8 +1024,17 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
   int start_lsb = (MV_PRECISION_ONE_EIGHTH_PEL - precision);
 
   // Symbols related to shell index
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  av1_cost_tokens_from_cdf(joint_shell_set_cost, ctx->joint_shell_set_cdf,
+                           NULL);
+  av1_cost_tokens_from_cdf(joint_shell_class_cost_0,
+                           ctx->joint_shell_class_cdf_0[precision], NULL);
+  av1_cost_tokens_from_cdf(joint_shell_class_cost_1,
+                           ctx->joint_shell_class_cdf_1[precision], NULL);
+#else
   av1_cost_tokens_from_cdf(joint_shell_class_cost,
                            ctx->joint_shell_class_cdf[precision], NULL);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   for (int i = 0; i < 2; i++) {
     av1_cost_tokens_from_cdf(shell_offset_low_class_cost[i],
@@ -1090,7 +1133,21 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
     int shell_cls_offset;
     const int shell_class =
         get_shell_class_with_precision(shell_index, &shell_cls_offset);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    const int check_num_mv_class = get_default_num_shell_class(precision);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(check_num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    if (shell_class < num_mv_class_0) {
+      shell_cost[shell_index] += joint_shell_set_cost[0];
+      shell_cost[shell_index] += joint_shell_class_cost_0[shell_class];
+    } else {
+      shell_cost[shell_index] += joint_shell_set_cost[1];
+      shell_cost[shell_index] +=
+          joint_shell_class_cost_1[shell_class - num_mv_class_0];
+    }
+#else
     shell_cost[shell_index] += joint_shell_class_cost[shell_class];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     assert(shell_class >= 0 && shell_class < num_mv_class);
 
     // Shell offset cost

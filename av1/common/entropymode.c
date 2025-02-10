@@ -5700,6 +5700,16 @@ static const aom_cdf_prob default_compound_type_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
  * wedge_angle is decoded. Depending on the wedge_angle, the wedge_dist is
  * decoded.*/
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+static const aom_cdf_prob default_wedge_quad_cdf[CDF_SIZE(WEDGE_QUADS)] = {
+  AOM_CDF4(9105, 18210, 25489), 93
+};
+static const aom_cdf_prob default_wedge_angle_cdf[WEDGE_QUADS][CDF_SIZE(
+    QUAD_WEDGE_ANGLES)] = { { AOM_CDF5(6495, 14916, 23085, 27549), 76 },
+                            { AOM_CDF5(12000, 15000, 22500, 28500), 76 },
+                            { AOM_CDF5(16520, 21143, 25198, 28761), 76 },
+                            { AOM_CDF5(13800, 16100, 23000, 27600), 76 } };
+#else
 static const aom_cdf_prob default_wedge_angle_dir_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(18210), 93
 };
@@ -5712,7 +5722,7 @@ static const aom_cdf_prob default_wedge_angle_1_cdf[CDF_SIZE(
     H_WEDGE_ANGLES)] = {
   AOM_CDF10(9441, 12082, 14399, 16435, 18353, 24264, 25188, 28656, 30548), 76
 };
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 static const aom_cdf_prob default_wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)] = {
   AOM_CDF4(5746, 15860, 20435), 75
 };
@@ -8708,9 +8718,14 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_OPT_INTER_MODE_CTX
   av1_copy(fc->compound_type_cdf, default_compound_type_cdf);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  av1_copy(fc->wedge_quad_cdf, default_wedge_quad_cdf);
+  av1_copy(fc->wedge_angle_cdf, default_wedge_angle_cdf);
+#else
   av1_copy(fc->wedge_angle_dir_cdf, default_wedge_angle_dir_cdf);
   av1_copy(fc->wedge_angle_0_cdf, default_wedge_angle_0_cdf);
   av1_copy(fc->wedge_angle_1_cdf, default_wedge_angle_1_cdf);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   av1_copy(fc->wedge_dist_cdf, default_wedge_dist_cdf);
   av1_copy(fc->wedge_dist_cdf2, default_wedge_dist_cdf2);
 #else
@@ -8909,11 +8924,27 @@ static void cumulative_avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr,
 #if !CONFIG_VQ_MVD_CODING
   CUMULATIVE_AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
 #else
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_set_cdf,
+                         nmv_tr->joint_shell_set_cdf, 2);
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    const int num_mv_class = get_default_num_shell_class(prec);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_class_cdf_0[prec],
+                           nmv_tr->joint_shell_class_cdf_0[prec],
+                           num_mv_class_0);
+    CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_class_cdf_1[prec],
+                           nmv_tr->joint_shell_class_cdf_1[prec],
+                           num_mv_class_1);
+  }
+#else
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
     int num_mv_class = get_default_num_shell_class(prec);
     CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_class_cdf[prec],
                            nmv_tr->joint_shell_class_cdf[prec], num_mv_class);
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_low_class_cdf,
                          nmv_tr->shell_offset_low_class_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
@@ -9083,12 +9114,19 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->compound_type_cdf, ctx_tr->compound_type_cdf,
                          MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_quad_cdf, ctx_tr->wedge_quad_cdf,
+                         WEDGE_QUADS);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_cdf, ctx_tr->wedge_angle_cdf,
+                         QUAD_WEDGE_ANGLES);
+#else
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_dir_cdf,
                          ctx_tr->wedge_angle_dir_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_0_cdf, ctx_tr->wedge_angle_0_cdf,
                          H_WEDGE_ANGLES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_angle_1_cdf, ctx_tr->wedge_angle_1_cdf,
                          H_WEDGE_ANGLES);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_dist_cdf, ctx_tr->wedge_dist_cdf,
                          NUM_WEDGE_DIST);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wedge_dist_cdf2, ctx_tr->wedge_dist_cdf2,
@@ -9479,10 +9517,21 @@ static void shift_nmv(nmv_context *nmv_ptr, int total_tiles_log2) {
 #if !CONFIG_VQ_MVD_CODING
   SHIFT_CDF(nmv_ptr->joints_cdf, 4);
 #else
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  SHIFT_CDF(nmv_ptr->joint_shell_set_cdf, 2);
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    const int num_mv_class = get_default_num_shell_class(prec);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    SHIFT_CDF(nmv_ptr->joint_shell_class_cdf_0[prec], num_mv_class_0);
+    SHIFT_CDF(nmv_ptr->joint_shell_class_cdf_1[prec], num_mv_class_1);
+  }
+#else
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
     int num_mv_class = get_default_num_shell_class(prec);
     SHIFT_CDF(nmv_ptr->joint_shell_class_cdf[prec], num_mv_class);
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(nmv_ptr->shell_offset_low_class_cdf, 2);
   SHIFT_CDF(nmv_ptr->shell_offset_class2_cdf, 2);
 #if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
@@ -9597,9 +9646,14 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
   SHIFT_CDF(ctx_ptr->compound_type_cdf, MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  SHIFT_CDF(ctx_ptr->wedge_quad_cdf, WEDGE_QUADS);
+  SHIFT_CDF(ctx_ptr->wedge_angle_cdf, QUAD_WEDGE_ANGLES);
+#else
   SHIFT_CDF(ctx_ptr->wedge_angle_dir_cdf, 2);
   SHIFT_CDF(ctx_ptr->wedge_angle_0_cdf, H_WEDGE_ANGLES);
   SHIFT_CDF(ctx_ptr->wedge_angle_1_cdf, H_WEDGE_ANGLES);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(ctx_ptr->wedge_dist_cdf, NUM_WEDGE_DIST);
   SHIFT_CDF(ctx_ptr->wedge_dist_cdf2, NUM_WEDGE_DIST - 1);
 #else
@@ -9894,11 +9948,24 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
 #if !CONFIG_VQ_MVD_CODING
   AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
 #else
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  AVERAGE_CDF(nmv_left->joint_shell_set_cdf, nmv_tr->joint_shell_set_cdf, 2);
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    const int num_mv_class = get_default_num_shell_class(prec);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    AVERAGE_CDF(nmv_left->joint_shell_class_cdf_0[prec],
+                nmv_tr->joint_shell_class_cdf_0[prec], num_mv_class_0);
+    AVERAGE_CDF(nmv_left->joint_shell_class_cdf_1[prec],
+                nmv_tr->joint_shell_class_cdf_1[prec], num_mv_class_1);
+  }
+#else
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
     int num_mv_class = get_default_num_shell_class(prec);
     AVERAGE_CDF(nmv_left->joint_shell_class_cdf[prec],
                 nmv_tr->joint_shell_class_cdf[prec], num_mv_class);
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(nmv_left->shell_offset_low_class_cdf,
               nmv_tr->shell_offset_low_class_cdf, 2);
   AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
@@ -10056,11 +10123,17 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->compound_type_cdf, ctx_tr->compound_type_cdf,
               MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  AVERAGE_CDF(ctx_left->wedge_quad_cdf, ctx_tr->wedge_quad_cdf, WEDGE_QUADS);
+  AVERAGE_CDF(ctx_left->wedge_angle_cdf, ctx_tr->wedge_angle_cdf,
+              QUAD_WEDGE_ANGLES);
+#else
   AVERAGE_CDF(ctx_left->wedge_angle_dir_cdf, ctx_tr->wedge_angle_dir_cdf, 2);
   AVERAGE_CDF(ctx_left->wedge_angle_0_cdf, ctx_tr->wedge_angle_0_cdf,
               H_WEDGE_ANGLES);
   AVERAGE_CDF(ctx_left->wedge_angle_1_cdf, ctx_tr->wedge_angle_1_cdf,
               H_WEDGE_ANGLES);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(ctx_left->wedge_dist_cdf, ctx_tr->wedge_dist_cdf, NUM_WEDGE_DIST);
   AVERAGE_CDF(ctx_left->wedge_dist_cdf2, ctx_tr->wedge_dist_cdf2,
               NUM_WEDGE_DIST - 1);

@@ -799,6 +799,28 @@ int main(int argc, const char **argv) {
     nmv_context_count *nmvc_cnts = (ibc == 0) ? &fc.nmvc_cnts : &fc.ndvc_cnts;
 
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    cts_each_dim[0] = 2;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_set_cnts[0], probsfile, 1,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_set_cdf_placeholder"
+                       "[CDF_SIZE(2)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+    cts_each_dim[0] = NUM_MV_PRECISIONS;
+    cts_each_dim[1] = FIRST_SHELL_CLASS;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_class_0_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_class_0_cdf_placeholder"
+                       "[NUM_MV_PRECISIONS][CDF_SIZE(FIRST_SHELL_CLASS)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+    cts_each_dim[0] = NUM_MV_PRECISIONS;
+    cts_each_dim[1] = SECOND_SHELL_CLASS;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_class_1_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_class_1_cdf_placeholder"
+                       "[NUM_MV_PRECISIONS][CDF_SIZE(SECOND_SHELL_CLASS)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+#else
     cts_each_dim[0] = ibc == 0 ? NUM_MV_PRECISIONS : 1;
     cts_each_dim[1] = MAX_NUM_SHELL_CLASS;
     optimize_cdf_table(&nmvc_cnts->joint_shell_class_cnts[0][0], probsfile, 2,
@@ -806,6 +828,7 @@ int main(int argc, const char **argv) {
                        "static aom_cdf_prob joint_shell_class_cdf_placeholder"
                        "[NUM_MV_PRECISIONS][CDF_SIZE(MAX_NUM_SHELL_CLASS)]",
                        0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
     cts_each_dim[0] = 2;
     cts_each_dim[1] = 2;
@@ -1313,6 +1336,21 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  cts_each_dim[0] = WEDGE_QUADS;
+  optimize_cdf_table(&fc.wedge_quad_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_quad_cdf[CDF_SIZE(WEDGE_QUADS)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+
+  cts_each_dim[0] = WEDGE_QUADS;
+  cts_each_dim[1] = QUAD_WEDGE_ANGLES;
+  optimize_cdf_table(&fc.wedge_angle_cnt[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_angle_cdf[CDF_SIZE(WEDGE_QUADS)][CDF_SIZE("
+                     "QUAD_WEDGE_ANGLES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.wedge_angle_dir_cnt[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
@@ -1330,7 +1368,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-
+#endif
   cts_each_dim[0] = NUM_WEDGE_DIST;
   optimize_cdf_table(&fc.wedge_dist_cnt[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "

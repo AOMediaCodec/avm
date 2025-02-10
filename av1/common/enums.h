@@ -29,6 +29,15 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+// Macros related to joint shell signaling
+#define FIRST_SHELL_CLASS 8
+#define SECOND_SHELL_CLASS 8
+// Macros related to wedge angle signaling
+#define WEDGE_QUADS 4
+#define QUAD_WEDGE_ANGLES 5
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+
 #define BAWP_BUGFIX 1
 #define ADJUST_SUPER_RES_Q 1
 

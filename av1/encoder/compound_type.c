@@ -203,8 +203,16 @@ static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
   assert(wedge_index >= 0 && wedge_index < MAX_WEDGE_TYPES);
   const int wedge_angle = wedge_index_2_angle[wedge_index];
   const int wedge_dist = wedge_index_2_dist[wedge_index];
+#if !CONFIG_REDUCE_SYMBOL_SIZE
   const int wedge_angle_dir = wedge_angle >= H_WEDGE_ANGLES;
+#endif  // !CONFIG_REDUCE_SYMBOL_SIZE
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  const int wedge_quad = (wedge_angle / QUAD_WEDGE_ANGLES);
+  const int wedge_angle_in_quad = (wedge_angle % QUAD_WEDGE_ANGLES);
+  int wedge_cost = x->mode_costs.wedge_quad_cost[wedge_quad];
+  wedge_cost += x->mode_costs.wedge_angle_cost[wedge_quad][wedge_angle_in_quad];
+#else
   int wedge_cost = x->mode_costs.wedge_angle_dir_cost[wedge_angle_dir];
   if (wedge_angle_dir == 0) {
     wedge_cost += x->mode_costs.wedge_angle_0_cost[wedge_angle];
@@ -212,7 +220,7 @@ static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
     wedge_cost +=
         x->mode_costs.wedge_angle_1_cost[wedge_angle - H_WEDGE_ANGLES];
   }
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   if ((wedge_angle >= H_WEDGE_ANGLES) ||
       (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
     assert(wedge_dist != 0);

@@ -342,9 +342,17 @@ typedef struct frame_contexts {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  /*The wedge_quad is first decoded. Depending on the wedge quadrant, the
+   * wedge_angle is decoded. Depending on the wedge_angle, the wedge_dist is
+   * decoded.*/
+  aom_cdf_prob wedge_quad_cdf[CDF_SIZE(WEDGE_QUADS)];
+  aom_cdf_prob wedge_angle_cdf[WEDGE_QUADS][CDF_SIZE(QUAD_WEDGE_ANGLES)];
+#else
   aom_cdf_prob wedge_angle_dir_cdf[CDF_SIZE(2)];
   aom_cdf_prob wedge_angle_0_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
   aom_cdf_prob wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   aom_cdf_prob wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)];
   aom_cdf_prob wedge_dist_cdf2[CDF_SIZE(NUM_WEDGE_DIST - 1)];
 #else

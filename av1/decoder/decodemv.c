@@ -599,13 +599,24 @@ static int8_t read_wedge_mode(aom_reader *r, FRAME_CONTEXT *ec_ctx,
   (void)bsize;
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int wedge_quad_dir = aom_read_symbol(r, ec_ctx->wedge_quad_cdf, WEDGE_QUADS,
+                                       ACCT_INFO("wedge_quad"));
+#else
   int wedge_angle_dir = aom_read_symbol(r, ec_ctx->wedge_angle_dir_cdf, 2,
                                         ACCT_INFO("wedge_angle_dir"));
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 #else
   int wedge_angle_dir = aom_read_symbol(r, ec_ctx->wedge_angle_dir_cdf[bsize],
                                         2, ACCT_INFO("wedge_angle_dir"));
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   int wedge_angle = WEDGE_ANGLES;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  wedge_angle = QUAD_WEDGE_ANGLES * wedge_quad_dir +
+                aom_read_symbol(r, ec_ctx->wedge_angle_cdf[wedge_quad_dir],
+                                QUAD_WEDGE_ANGLES,
+                                ACCT_INFO("wedge_angle", "wedge_angle_cdf"));
+#else
   if (wedge_angle_dir == 0) {
 #if CONFIG_D149_CTX_MODELING_OPT
     wedge_angle =
@@ -627,6 +638,7 @@ static int8_t read_wedge_mode(aom_reader *r, FRAME_CONTEXT *ec_ctx,
                         ACCT_INFO("wedge_angle", "wedge_angle_1_cdf"));
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   int wedge_dist = 0;
   if ((wedge_angle >= H_WEDGE_ANGLES) ||
       (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
@@ -2937,10 +2949,29 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
 
   // Read shell class
   int num_mv_class = get_default_num_shell_class(precision);
-
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int shell_class = 0;
+  int shell_set = 0;
+  int num_mv_class_0, num_mv_class_1;
+  split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+  shell_set = aom_read_symbol(r, ctx->joint_shell_set_cdf, 2,
+                              ACCT_INFO("shell_set", "joint_shell_set_cdf"));
+  if (shell_set) {
+    shell_class =
+        num_mv_class_0 +
+        aom_read_symbol(r, ctx->joint_shell_class_cdf_1[precision],
+                        num_mv_class_1,
+                        ACCT_INFO("shell_class_1", "joint_shell_class_cdf_1"));
+  } else {
+    shell_class = aom_read_symbol(
+        r, ctx->joint_shell_class_cdf_0[precision], num_mv_class_0,
+        ACCT_INFO("shell_class_0", "joint_shell_class_cdf_0"));
+  }
+#else
   const int shell_class =
       aom_read_symbol(r, ctx->joint_shell_class_cdf[precision], num_mv_class,
                       ACCT_INFO("shell_class", "joint_shell_class_cdf"));
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   assert(shell_class < num_mv_class);
 
   // Decode shell class offset

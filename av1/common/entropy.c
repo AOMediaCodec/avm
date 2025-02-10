@@ -131,10 +131,21 @@ static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
 
 static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  RESET_CDF_COUNTER(nmv->joint_shell_set_cdf, 2);
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    const int num_mv_class = get_default_num_shell_class(prec);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    RESET_CDF_COUNTER(nmv->joint_shell_class_cdf_0[prec], num_mv_class_0);
+    RESET_CDF_COUNTER(nmv->joint_shell_class_cdf_1[prec], num_mv_class_1);
+  }
+#else
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
     int num_mv_class = get_default_num_shell_class(prec);
     RESET_CDF_COUNTER(nmv->joint_shell_class_cdf[prec], num_mv_class);
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   RESET_CDF_COUNTER(nmv->shell_offset_low_class_cdf, 2);
   RESET_CDF_COUNTER(nmv->shell_offset_class2_cdf, 2);
 #if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
@@ -243,9 +254,14 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->compound_type_cdf, MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  RESET_CDF_COUNTER(fc->wedge_quad_cdf, WEDGE_QUADS);
+  RESET_CDF_COUNTER(fc->wedge_angle_cdf, QUAD_WEDGE_ANGLES);
+#else
   RESET_CDF_COUNTER(fc->wedge_angle_dir_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_angle_0_cdf, H_WEDGE_ANGLES);
   RESET_CDF_COUNTER(fc->wedge_angle_1_cdf, H_WEDGE_ANGLES);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   RESET_CDF_COUNTER(fc->wedge_dist_cdf, NUM_WEDGE_DIST);
   RESET_CDF_COUNTER(fc->wedge_dist_cdf2, NUM_WEDGE_DIST - 1);
 #else

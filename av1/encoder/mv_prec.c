@@ -455,10 +455,31 @@ static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
   const int shell_class =
       get_shell_class_with_precision(shell_index, &shell_cls_offset);
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int num_mv_class_0, num_mv_class_1;
+  split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+  if (shell_class < num_mv_class_0) {
+    total_rate += get_symbol_cost(mvctx->joint_shell_set_cdf, 0);
+    total_rate += get_symbol_cost(
+        mvctx->joint_shell_class_cdf_0[pb_mv_precision], shell_class);
+    update_cdf(mvctx->joint_shell_set_cdf, 0, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_0[pb_mv_precision], shell_class,
+               num_mv_class_0);
+  } else {
+    total_rate += get_symbol_cost(mvctx->joint_shell_set_cdf, 1);
+    total_rate +=
+        get_symbol_cost(mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+                        shell_class - num_mv_class_0);
+    update_cdf(mvctx->joint_shell_set_cdf, 1, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+               shell_class - num_mv_class_0, num_mv_class_1);
+  }
+#else
   total_rate += get_symbol_cost(mvctx->joint_shell_class_cdf[pb_mv_precision],
                                 shell_class);
   update_cdf(mvctx->joint_shell_class_cdf[pb_mv_precision], shell_class,
              num_mv_class);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   assert(shell_class >= 0 && shell_class < num_mv_class);
 

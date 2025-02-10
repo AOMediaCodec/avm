@@ -633,6 +633,13 @@ static void write_wedge_mode(aom_writer *w, FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   const int wedge_angle = wedge_index_2_angle[wedge_index];
   const int wedge_dist = wedge_index_2_dist[wedge_index];
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  const int wedge_quad = (wedge_angle / QUAD_WEDGE_ANGLES);
+  const int wedge_angle_in_quad = (wedge_angle % QUAD_WEDGE_ANGLES);
+  aom_write_symbol(w, wedge_quad, ec_ctx->wedge_quad_cdf, WEDGE_QUADS);
+  aom_write_symbol(w, wedge_angle_in_quad, ec_ctx->wedge_angle_cdf[wedge_quad],
+                   QUAD_WEDGE_ANGLES);
+#else
   const int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
   aom_write_symbol(w, wedge_angle_dir,
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -660,7 +667,7 @@ static void write_wedge_mode(aom_writer *w, FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_D149_CTX_MODELING_OPT
                      H_WEDGE_ANGLES);
   }
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   if ((wedge_angle >= H_WEDGE_ANGLES) ||
       (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
     assert(wedge_dist != 0);

@@ -710,12 +710,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_D149_CTX_MODELING_OPT && CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    av1_cost_tokens_from_cdf(mode_costs->wedge_quad_cost, fc->wedge_quad_cdf,
+                             NULL);
+    for (i = 0; i < WEDGE_QUADS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->wedge_angle_cost[i],
+                               fc->wedge_angle_cdf[i], NULL);
+    }
+#else
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_dir_cost,
                              fc->wedge_angle_dir_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_0_cost,
                              fc->wedge_angle_0_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_1_cost,
                              fc->wedge_angle_1_cdf, NULL);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost, fc->wedge_dist_cdf,
                              NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost2, fc->wedge_dist_cdf2,

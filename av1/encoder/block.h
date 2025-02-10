@@ -1201,12 +1201,17 @@ typedef struct {
   //! wedge_idx_cost
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int wedge_quad_cost[WEDGE_QUADS];
+  int wedge_angle_cost[WEDGE_QUADS][QUAD_WEDGE_ANGLES];
+#else
   //! wedge_angle_dir_cost
   int wedge_angle_dir_cost[2];
   //! wedge_angle_0_cost
   int wedge_angle_0_cost[H_WEDGE_ANGLES];
   //! wedge_angle_1_cost
   int wedge_angle_1_cost[H_WEDGE_ANGLES];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   //! wedge_dist_cost
   int wedge_dist_cost[NUM_WEDGE_DIST];
   //! wedge_dist_cost2

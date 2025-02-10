@@ -1286,8 +1286,16 @@ typedef struct {
 
 typedef struct {
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  unsigned int joint_shell_set_cnts[CDF_SIZE(2)];
+  unsigned int joint_shell_class_0_cnts[NUM_MV_PRECISIONS]
+                                       [CDF_SIZE(FIRST_SHELL_CLASS)];
+  unsigned int joint_shell_class_1_cnts[NUM_MV_PRECISIONS]
+                                       [CDF_SIZE(SECOND_SHELL_CLASS)];
+#else
   unsigned int joint_shell_class_cnts[NUM_MV_PRECISIONS][CDF_SIZE(
-      MAX_NUM_SHELL_CLASS)];                                 // placeholder
+      MAX_NUM_SHELL_CLASS)];  // placeholder
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   unsigned int shell_offset_low_class_cnts[2][CDF_SIZE(2)];  // placeholder
   unsigned int shell_offset_class2_cnts[3][CDF_SIZE(2)];     // // placeholder
   unsigned int shell_offset_other_class_cnts[NUM_CTX_CLASS_OFFSETS]
@@ -1602,9 +1610,14 @@ typedef struct FRAME_COUNTS {
 
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  unsigned int wedge_quad_cnt[WEDGE_QUADS];
+  unsigned int wedge_angle_cnt[WEDGE_QUADS][QUAD_WEDGE_ANGLES];
+#else
   unsigned int wedge_angle_dir_cnt[2];
   unsigned int wedge_angle_0_cnt[H_WEDGE_ANGLES];
   unsigned int wedge_angle_1_cnt[H_WEDGE_ANGLES];
+#endif
   unsigned int wedge_dist_cnt[NUM_WEDGE_DIST];
   unsigned int wedge_dist2_cnt[NUM_WEDGE_DIST - 1];
 #else
