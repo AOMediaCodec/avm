@@ -18,12 +18,22 @@ using libaom_test::input_base;
 using libaom_test::reference_hybrid_1d;
 using libaom_test::TYPE_ADST;
 using libaom_test::TYPE_DCT;
+#if CONFIG_INTER_DDT
+using libaom_test::TYPE_DDT;
+#endif  // CONFIG_INTER_DDT
 using libaom_test::TYPE_IDTX;
 using libaom_test::TYPE_TXFM;
 
 namespace {
+#if CONFIG_INTER_DDT
+const int txfm_type_num = 4;
+#else
 const int txfm_type_num = 3;
+#endif  // CONFIG_INTER_DDT
 const TYPE_TXFM txfm_type_ls[txfm_type_num] = { TYPE_DCT, TYPE_ADST,
+#if CONFIG_INTER_DDT
+                                                TYPE_DDT,
+#endif  // CONFIG_INTER_DDT
                                                 TYPE_IDTX };
 
 const int txfm_size_num = 5;
@@ -31,11 +41,31 @@ const int txfm_size_num = 5;
 const int txfm_size_ls[] = { 4, 8, 16, 32, 64 };
 
 const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
+#if CONFIG_INTER_DDT
+#if REPLACE_ADST4
+  { av1_fdct4, av1_fadst4, av1_fddt4, av1_fidentity4_c },
+#else
+  { av1_fdct4, av1_fadst4, NULL, av1_fidentity4_c },
+#endif
+#if REPLACE_ADST8
+  { av1_fdct8, av1_fadst8, av1_fddt8, av1_fidentity8_c },
+#else
+  { av1_fdct8, av1_fadst8, NULL, av1_fidentity8_c },
+#endif
+#if REPLACE_ADST16
+  { av1_fdct16, av1_fadst16, av1_fddt16, av1_fidentity16_c },
+#else
+  { av1_fdct16, av1_fadst16, NULL, av1_fidentity16_c },
+#endif
+  { av1_fdct32, NULL, NULL, av1_fidentity32_c },
+  { av1_fdct64, NULL, NULL, NULL },
+#else
   { av1_fdct4, av1_fadst4, av1_fidentity4_c },
   { av1_fdct8, av1_fadst8, av1_fidentity8_c },
   { av1_fdct16, av1_fadst16, av1_fidentity16_c },
   { av1_fdct32, NULL, av1_fidentity32_c },
   { av1_fdct64, NULL, NULL },
+#endif  // CONFIG_INTER_DDT
 };
 
 // the maximum stage number of fwd/inv 1d dct/adst txfm is 12
