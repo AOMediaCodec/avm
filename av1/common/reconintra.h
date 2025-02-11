@@ -367,10 +367,12 @@ static INLINE int av1_get_dy(int angle) {
 }
 
 #if CONFIG_WAIP
+#if CONFIG_NEW_TX_PARTITION
 static INLINE int get_tx_partition_idx(const MB_MODE_INFO *mbmi, int plane) {
   // Transform partitioning is not allowed for chroma, so index 0 is returned.
   return (plane == AOM_PLANE_Y) ? mbmi->txb_idx : 0;
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 // Check whether one angular intra prediction needs to be mapped to wide angles.
 // If it needs to be mapped, either add or subtract 180 degrees to make it wide

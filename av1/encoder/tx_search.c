@@ -4351,7 +4351,7 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     rd[depth] = av1_uniform_txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs,
                                      tx_size, FTXS_NONE, skip_trellis);
     if (rd[depth] < best_rd) {
-      av1_copy_array(best_blk_skip, txfm_info->blk_skip, num_blks);
+      av1_copy_array(best_blk_skip, txfm_info->blk_skip[AOM_PLANE_Y], num_blks);
       av1_copy_array(best_txk_type_map, xd->tx_type_map, num_blks);
       best_tx_size = tx_size;
       best_rd = rd[depth];
@@ -4369,7 +4369,7 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
     av1_copy_array(xd->tx_type_map, best_txk_type_map, num_blks);
-    av1_copy_array(txfm_info->blk_skip, best_blk_skip, num_blks);
+    av1_copy_array(txfm_info->blk_skip[AOM_PLANE_Y], best_blk_skip, num_blks);
   }
 }
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -4584,9 +4584,18 @@ static AOM_INLINE void tx_block_yrd(
     get_txb_ctx(plane_bsize, tx_size, 0, ta, tl, &txb_ctx,
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    const int zero_blk_rate =
+        x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
+            .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
+#else
     const int zero_blk_rate =
         x->coeff_costs.coeff_costs[txs_ctx][get_plane_type(0)]
             .txb_skip_cost[txb_ctx.txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     rd_stats->zero_rate = zero_blk_rate;
     tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
                rd_stats, ftxs_mode, ref_best_rd, NULL);
@@ -5056,7 +5065,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // up TX size/type search.
   TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
   int found_rd_info = 0;
-#if !CONFIG_NEW_TX_PARTITION
+#if 0 && !CONFIG_NEW_TX_PARTITION
   if (ref_best_rd != INT64_MAX && within_border &&
       cpi->sf.tx_sf.use_inter_txb_hash) {
     found_rd_info = find_tx_size_rd_records(x, bsize, matched_rd_info);

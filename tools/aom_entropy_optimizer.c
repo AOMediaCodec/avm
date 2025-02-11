@@ -2000,7 +2000,8 @@ int main(int argc, const char **argv) {
       &fc.intra_tx_size[0][0][0], probsfile, 3, cts_each_dim,
       intra_tx_sizes_each_ctx,
       "static const aom_cdf_prob default_tx_size_cdf"
-      "[MAX_TX_CATS][TX_SIZE_CONTEXTS][CDF_SIZE(MAX_TX_DEPTH + 1)]");
+      "[MAX_TX_CATS][TX_SIZE_CONTEXTS][CDF_SIZE(MAX_TX_DEPTH + 1)]",
+      0, &total_count, mem_wanted, "Partitions");
 #endif  // !CONFIG_NEW_TX_PARTITION
 
   /* transform coding */
