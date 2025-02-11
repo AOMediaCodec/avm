@@ -3896,7 +3896,7 @@ static void select_tx_partition_type(
   }
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     // Skip any illegal partitions for this block size
-    if (!use_tx_partition(type, max_tx_size)) continue;
+    if (!use_tx_partition(type, plane_bsize, max_tx_size)) continue;
     // ML based speed feature to skip searching for split transform blocks.
     if (try_ml_predict_tx_split) {
       if (!is_rect && type == TX_PARTITION_SPLIT) {
@@ -4301,7 +4301,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   int64_t cur_rd = INT64_MAX;
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     // Skip any illegal partitions for this block size
-    if (!use_tx_partition(type, max_tx_size)) continue;
+    if (!use_tx_partition(type, bs, max_tx_size)) continue;
 
     mbmi->tx_partition_type[0] = type;
     get_tx_partition_sizes(type, max_tx_size, &mbmi->txb_pos, mbmi->sub_txs);

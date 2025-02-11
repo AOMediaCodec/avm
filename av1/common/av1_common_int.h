@@ -4091,28 +4091,55 @@ static INLINE int get_vert_or_horz_group(BLOCK_SIZE bsize) {
 
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 
-static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+static INLINE bool coding_block_disallows_tx_partitioning(BLOCK_SIZE bsize) {
+  if (bsize >= BLOCK_64X128 && bsize <= BLOCK_256X256) return true;
+  return false;
+}
+#endif  // CONFIG_TX_PARTITION_RESTRICT
+
+static INLINE int allow_tx_horz_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size];
   const int sub_txh = tx_size_high[max_tx_size] >> 1;
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_vert_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_vert_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size] >> 1;
   const int sub_txh = tx_size_high[max_tx_size];
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_horz4_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_horz4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size];
   const int sub_txh = tx_size_high[max_tx_size] >> 2;
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_vert4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size] >> 2;
   const int sub_txh = tx_size_high[max_tx_size];
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
@@ -4120,11 +4147,11 @@ static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
 }
 
 static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
-                                   TX_SIZE max_tx_size) {
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
-  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
-  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+                                   BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(bsize, max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(bsize, max_tx_size);
 
   switch (partition) {
     case TX_PARTITION_NONE: return 1;

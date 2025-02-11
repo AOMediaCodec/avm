@@ -389,8 +389,8 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
 #if !CONFIG_TX_PARTITION_CTX
     const int is_rect = is_rect_tx(max_tx_size);
 #endif  // !CONFIG_TX_PARTITION_CTX
-    const int allow_horz = allow_tx_horz_split(max_tx_size);
-    const int allow_vert = allow_tx_vert_split(max_tx_size);
+    const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+    const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
 #if CONFIG_TX_PARTITION_CTX
     const int bsize_group = size_to_tx_part_group_lookup[bsize];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING

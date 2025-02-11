@@ -1494,8 +1494,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #if !CONFIG_TX_PARTITION_CTX
   const int is_rect = is_rect_tx(max_tx_size);
 #endif  // !CONFIG_TX_PARTITION_CTX
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
   TX_PARTITION_TYPE partition = 0;
 #if CONFIG_IMPROVEIDTX
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&

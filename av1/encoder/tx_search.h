@@ -47,8 +47,8 @@ static AOM_INLINE int inter_tx_partition_cost(
     BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
 #endif  // CONFIG_TX_PARTITION_CTX
   int cost = 0;
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
 #if CONFIG_IMPROVEIDTX
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -151,11 +151,11 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
                                               TX_SIZE max_tx_size) {
   int cost = 0;
   const MACROBLOCKD *const xd = &x->e_mbd;
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
-#if CONFIG_TX_PARTITION_CTX
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
+#if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
   const int txsize_group_h_and_v = get_vert_and_horz_group(bsize);

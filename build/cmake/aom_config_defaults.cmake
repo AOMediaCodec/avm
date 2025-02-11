@@ -579,6 +579,9 @@ set_aom_config_var(CONFIG_DF_PAR_BITS 1
                    "Flexible control of deblocking parameter bits.")
 set_aom_config_var(CONFIG_DELTAQ_OPT 1
                    "Enable delta-q entropy coding optimization.")
+set_aom_config_var(CONFIG_TX_PARTITION_RESTRICT 1
+                   "Disallow transform partition for large coding blocks.")
+
 #
 # Variables in this section control optional features of the build system.
 #
