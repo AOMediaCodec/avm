@@ -141,8 +141,7 @@ macro(fix_experiment_configs)
 
   # CONFIG_TX_PARTITION_CTX depends on CONFIG_NEW_TX_PARTITION
   if(NOT CONFIG_NEW_TX_PARTITION AND CONFIG_TX_PARTITION_CTX)
-    change_config_and_warn(CONFIG_TX_PARTITION_CTX 0
-                           !CONFIG_NEW_TX_PARTITION)
+    change_config_and_warn(CONFIG_TX_PARTITION_CTX 0 !CONFIG_NEW_TX_PARTITION)
   endif()
 
   if(CONFIG_ML_PART_SPLIT)
