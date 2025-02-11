@@ -780,6 +780,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mapped_intra_mode[1][0] = DC_PRED;
 #else
   mbmi->is_wide_angle[1] = 0;
+  mbmi->mapped_intra_mode[1] = DC_PRED;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 
@@ -2190,6 +2191,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mapped_intra_mode[0][mbmi->txb_idx] = DC_PRED;
 #else
   mbmi->is_wide_angle[0] = 0;
+  mbmi->mapped_intra_mode[0] = DC_PRED;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 

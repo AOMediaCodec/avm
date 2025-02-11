@@ -434,6 +434,7 @@ void av1_rd_pick_palette_intra_sby(
   }
 #else
   mbmi->is_wide_angle[0] = 0;
+  mbmi->mapped_intra_mode[0] = DC_PRED;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 
@@ -672,6 +673,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->mapped_intra_mode[1][0] = DC_PRED;
 #else
   mbmi->is_wide_angle[1] = 0;
+  mbmi->mapped_intra_mode[1] = 0;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
 

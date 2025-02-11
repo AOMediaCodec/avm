@@ -4336,6 +4336,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_SIZE best_tx_size = max_rect_tx_size;
   int64_t best_rd = INT64_MAX;
+#if CONFIG_WAIP
+  int is_wide_angle_mapped = 0;
+  int mapped_wide_angle = DC_PRED;
+#endif  // CONFIG_WAIP
   const int num_blks = bsize_to_num_blk(bs);
   x->rd_model = FULL_TXFM_RD;
   int64_t rd[MAX_TX_DEPTH + 1] = { INT64_MAX, INT64_MAX, INT64_MAX };
@@ -4354,6 +4358,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
       av1_copy_array(best_blk_skip, txfm_info->blk_skip[AOM_PLANE_Y], num_blks);
       av1_copy_array(best_txk_type_map, xd->tx_type_map, num_blks);
       best_tx_size = tx_size;
+#if CONFIG_WAIP
+      is_wide_angle_mapped = mbmi->is_wide_angle[0];
+      mapped_wide_angle = mbmi->mapped_intra_mode[0];
+#endif
       best_rd = rd[depth];
       *rd_stats = this_rd_stats;
     }
@@ -4368,6 +4376,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+#if CONFIG_WAIP
+    mbmi->is_wide_angle[0] = is_wide_angle_mapped;
+    mbmi->mapped_intra_mode[0] = mapped_wide_angle;
+#endif
     av1_copy_array(xd->tx_type_map, best_txk_type_map, num_blks);
     av1_copy_array(txfm_info->blk_skip[AOM_PLANE_Y], best_blk_skip, num_blks);
   }

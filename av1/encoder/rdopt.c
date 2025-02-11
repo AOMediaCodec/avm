@@ -9565,6 +9565,8 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #else
   mbmi->is_wide_angle[0] = 0;
   mbmi->is_wide_angle[1] = 0;
+  mbmi->mapped_intra_mode[0] = DC_PRED;
+  mbmi->mapped_intra_mode[1] = DC_PRED;
 #endif  // CONFIG_NEW_TX_PARTITION
 #endif  // CONFIG_WAIP
   set_default_interp_filters(mbmi, cm,
