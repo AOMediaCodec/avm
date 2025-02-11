@@ -261,6 +261,14 @@ static const RD_RECORD_IDX_NODE *rd_record_tree[BLOCK_SIZES_ALL] = {
   rd_record_tree_4_1,  // BLOCK_32X8
   rd_record_tree_1_4,  // BLOCK_16X64
   rd_record_tree_4_1,  // BLOCK_64X16
+#if CONFIG_EXT_RECUR_PARTITIONS
+  NULL,  // BLOCK_4X32
+  NULL,  // BLOCK_32X4
+  NULL,  // BLOCK_8X64
+  NULL,  // BLOCK_64X8
+  NULL,  // BLOCK_4X64
+  NULL,  // BLOCK_64X4
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
@@ -291,6 +299,14 @@ static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_32X8
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_16X64
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_64X16
+#if CONFIG_EXT_RECUR_PARTITIONS
+  0,    // BLOCK_4X32
+  0,    // BLOCK_32X4
+  0,    // BLOCK_8X64
+  0,    // BLOCK_64X8
+  0,    // BLOCK_4X64
+  0,    // BLOCK_64X4
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
@@ -317,6 +333,7 @@ static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
 // the form of a quadtree for easier access in actual TX size search.
 static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
                                    TXB_RD_INFO_NODE *dst_rd_info) {
+  int found = 0;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   TXB_RD_RECORD *rd_records_table[4] = { txfm_info->txb_rd_record_8X8,
                                          txfm_info->txb_rd_record_16X16,
@@ -377,6 +394,7 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
           int idx = find_tx_size_rd_info(records, hash);
           dst_rd_info[cur_rd_info_idx].rd_info_array =
               &records->tx_rd_info[idx];
+          found = 1;
         }
         ++cur_rd_info_idx;
       }
@@ -384,7 +402,7 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
     cur_tx_size = next_tx_size;
     ++cur_tx_depth;
   }
-  return 1;
+  return found;
 }
 #endif  // !CONFIG_NEW_TX_PARTITION
 
@@ -3661,7 +3679,7 @@ static AOM_INLINE void try_tx_block_no_split(
   mbmi->inter_tx_size[index] = tx_size;
   tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
              rd_stats, ftxs_mode, ref_best_rd,
-             rd_info_node != NULL ? rd_info_node->rd_info_array : NULL);
+             rd_info_node ? rd_info_node->rd_info_array : NULL);
   assert(rd_stats->rate < INT_MAX);
 
   const int pick_skip_txfm =
@@ -5077,7 +5095,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // up TX size/type search.
   TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
   int found_rd_info = 0;
-#if 0 && !CONFIG_NEW_TX_PARTITION
+#if !CONFIG_NEW_TX_PARTITION
   if (ref_best_rd != INT64_MAX && within_border &&
       cpi->sf.tx_sf.use_inter_txb_hash) {
     found_rd_info = find_tx_size_rd_records(x, bsize, matched_rd_info);
