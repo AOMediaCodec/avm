@@ -1854,10 +1854,6 @@ static void lowbd_fwd_txfm2d_16x32_avx2(const int16_t *input, int32_t *output,
 #endif  // CONFIG_INTER_DDT
                                         int bd) {
   (void)bd;
-#if CONFIG_INTER_DDT
-  (void)use_ddt;
-#endif  // CONFIG_INTER_DDT
-
   const TX_SIZE tx_size = TX_16X32;
   __m256i buf0[32], buf1[32];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
@@ -1868,7 +1864,13 @@ static void lowbd_fwd_txfm2d_16x32_avx2(const int16_t *input, int32_t *output,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const transform_1d_avx2 col_txfm = col_txfm16x32_arr[tx_type];
+#if CONFIG_INTER_DDT
+  const transform_1d_avx2 row_txfm = (use_ddt && REPLACE_ADST16)
+                                         ? row_txfm16x16_arr_inter[tx_type]
+                                         : row_txfm16x16_arr[tx_type];
+#else
   const transform_1d_avx2 row_txfm = row_txfm16x16_arr[tx_type];
+#endif  // CONFIG_INTER_DDT
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1907,10 +1909,6 @@ static void lowbd_fwd_txfm2d_32x16_avx2(const int16_t *input, int32_t *output,
 #endif  // CONFIG_INTER_DDT
                                         int bd) {
   (void)bd;
-#if CONFIG_INTER_DDT
-  (void)use_ddt;
-#endif  // CONFIG_INTER_DDT
-
   __m256i buf0[32], buf1[64];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X16];
   const int txw_idx = get_txw_idx(TX_32X16);
@@ -1919,7 +1917,13 @@ static void lowbd_fwd_txfm2d_32x16_avx2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = 32;
   const int height = 16;
+#if CONFIG_INTER_DDT
+  const transform_1d_avx2 col_txfm = (use_ddt && REPLACE_ADST16)
+                                         ? col_txfm16x16_arr_inter[tx_type]
+                                         : col_txfm16x16_arr[tx_type];
+#else
   const transform_1d_avx2 col_txfm = col_txfm16x16_arr[tx_type];
+#endif  // CONFIG_INTER_DDT
   const transform_1d_avx2 row_txfm = row_txfm16x32_arr[tx_type];
 
   int ud_flip, lr_flip;
@@ -2076,10 +2080,6 @@ static void lowbd_fwd_txfm2d_16x64_avx2(const int16_t *input, int32_t *output,
                                         int bd) {
   (void)bd;
   (void)tx_type;
-#if CONFIG_INTER_DDT
-  (void)use_ddt;
-#endif  // CONFIG_INTER_DDT
-
   const TX_SIZE tx_size = TX_16X64;
   __m256i buf0[64], buf1[64];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
@@ -2090,7 +2090,13 @@ static void lowbd_fwd_txfm2d_16x64_avx2(const int16_t *input, int32_t *output,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const transform_1d_avx2 col_txfm = fdct16x64_new_avx2;
+#if CONFIG_INTER_DDT
+  const transform_1d_avx2 row_txfm = (use_ddt && REPLACE_ADST16)
+                                         ? row_txfm16x16_arr_inter[tx_type]
+                                         : row_txfm16x16_arr[tx_type];
+#else
   const transform_1d_avx2 row_txfm = row_txfm16x16_arr[tx_type];
+#endif  // CONFIG_INTER_DDT
   const int width_div16 = (width >> 4);
   const int height_div16 = (height >> 4);
   int ud_flip, lr_flip;
@@ -2140,10 +2146,6 @@ static void lowbd_fwd_txfm2d_64x16_avx2(const int16_t *input, int32_t *output,
                                         int bd) {
   (void)bd;
   (void)tx_type;
-#if CONFIG_INTER_DDT
-  (void)use_ddt;
-#endif  // CONFIG_INTER_DDT
-
   const TX_SIZE tx_size = TX_64X16;
   __m256i buf0[64], buf1[64];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
@@ -2153,7 +2155,13 @@ static void lowbd_fwd_txfm2d_64x16_avx2(const int16_t *input, int32_t *output,
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
+#if CONFIG_INTER_DDT
+  const transform_1d_avx2 col_txfm = (use_ddt && REPLACE_ADST16)
+                                         ? col_txfm16x16_arr_inter[tx_type]
+                                         : col_txfm16x16_arr[tx_type];
+#else
   const transform_1d_avx2 col_txfm = col_txfm16x16_arr[tx_type];
+#endif  // CONFIG_INTER_DDT
   const transform_1d_avx2 row_txfm = fdct16x64_new_avx2;
   const int width_div16 = (width >> 4);
   const int height_div16 = (height >> 4);
