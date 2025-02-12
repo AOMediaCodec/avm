@@ -1081,18 +1081,18 @@ void av1_apply_selfguided_restoration_c(const uint16_t *dat, int width,
 // This routine should remain in sync with av1_convert_qindex_to_q.
 // The actual qstep used to quantize coefficients should be:
 //  get_qstep() / (1 << shift)
-static int get_qstep(int base_qindex, int bit_depth, int *shift) {
-  int base_shift = QUANT_TABLE_BITS;
+static int get_qstep(int ac_qindex, int bit_depth, int *shift) {
+  int ac_shift = QUANT_TABLE_BITS;
   switch (bit_depth) {
     case AOM_BITS_8:
-      *shift = 2 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+      *shift = 2 + ac_shift;
+      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
     case AOM_BITS_10:
-      *shift = 4 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+      *shift = 4 + ac_shift;
+      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
     case AOM_BITS_12:
-      *shift = 6 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+      *shift = 6 + ac_shift;
+      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
@@ -1236,10 +1236,10 @@ static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
 // the thresholds can be precomputed rather than performing an online
 // calculation over each classified block. See CWG-C016 contribution for
 // details.
-static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth,
+static void fill_qval_given_tskip_lut(int ac_qindex, int bit_depth,
                                       PcwienerBuffers *buffers) {
   int qstep_shift = 0;
-  int qstep = get_qstep(base_qindex, bit_depth, &qstep_shift);
+  int qstep = get_qstep(ac_qindex, bit_depth, &qstep_shift);
   qstep_shift += 8;  // normalization in tf
   const int bit_depth_shift = bit_depth - 8;
   if (bit_depth_shift) {
@@ -2429,10 +2429,10 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
     if (plane != AOM_PLANE_Y)
       ctxt[plane].qindex_offset = plane == AOM_PLANE_U
-                                      ? cm->quant_params.u_dc_delta_q
-                                      : cm->quant_params.v_dc_delta_q;
+                                      ? cm->quant_params.u_ac_delta_q
+                                      : cm->quant_params.v_ac_delta_q;
     else
-      ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
+      ctxt[plane].qindex_offset = 0;
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
