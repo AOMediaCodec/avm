@@ -418,6 +418,7 @@ using ::testing::Values;
 using ::testing::ValuesIn;
 
 #if HAVE_SSE2
+/* clang-format off */
 static TX_SIZE fwd_txfm_for_sse2[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
@@ -426,6 +427,7 @@ static TX_SIZE fwd_txfm_for_sse2[] = {
   TX_4X32, TX_32X4, TX_8X64,  TX_64X8,  TX_4X64,  TX_64X4,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
+/* clang-format on */
 
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1FwdTxfm2dTest,
                          Combine(ValuesIn(fwd_txfm_for_sse2),
@@ -446,6 +448,7 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1FwdTxfm2dTest,
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
+/* clang-format off */
 static TX_SIZE fwd_txfm_for_avx2[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
@@ -454,6 +457,7 @@ static TX_SIZE fwd_txfm_for_avx2[] = {
   TX_4X32, TX_32X4, TX_8X64,  TX_64X8,  TX_4X64,  TX_64X4,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
+/* clang-format on */
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1FwdTxfm2dTest,
                          Combine(ValuesIn(fwd_txfm_for_avx2),
@@ -641,6 +645,7 @@ using ::testing::Values;
 using ::testing::ValuesIn;
 
 #if HAVE_SSE4_1
+/* clang-format off */
 static TX_SIZE Highbd_fwd_txfm_for_sse4_1[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
@@ -649,17 +654,20 @@ static TX_SIZE Highbd_fwd_txfm_for_sse4_1[] = {
   TX_4X32, TX_32X4, TX_8X64,  TX_64X8,  TX_4X64,  TX_64X4,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
+/* clang-format on */
 
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_sse4_1),
                                  Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_SSE4_1
 #if HAVE_AVX2
+/* clang-format off */
 static TX_SIZE Highbd_fwd_txfm_for_avx2[] = {
   TX_8X8,   TX_16X16, TX_32X32, TX_64X64, TX_8X16, TX_16X8,
   TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_8X32, TX_32X8,
   TX_16X64, TX_64X16, TX_8X64,  TX_64X8
 };
+/* clang-format on */
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_avx2),
@@ -667,11 +675,13 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON && !CONFIG_ADST_TUNED && !CONFIG_INTER_DDT
+/* clang-format off */
 static TX_SIZE Highbd_fwd_txfm_for_neon[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
   TX_16X4, TX_8X32, TX_32X8,  TX_16X64, TX_64X16
 };
+/* clang-format on */
 
 INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_neon),

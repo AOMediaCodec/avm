@@ -285,6 +285,7 @@ void reference_adst_1d(const double *in, double *out, int size) {
 #endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_INTER_DDT
+/* clang-format off */
 void reference_ddt_1d(const double *in, double *out, int size) {
   if (size == 4) {
 #if REPLACE_ADST4
@@ -384,11 +385,12 @@ void reference_ddt_1d(const double *in, double *out, int size) {
     for (int n = 0; n < size; ++n) {
       out[k] += in[n] * sin(PI * (2 * k + 1) * (n + 1) / (2 * size + 1));
     }
-    out[k] /= (0.3535533905932738 /
-               0.3481553119113957);  // Renormalize from DST-4 to DST-7
+    // Renormalize from DST-4 to DST-7
+    out[k] /= (0.3535533905932738 / 0.3481553119113957);
   }
 #endif
 }
+/* clang-format on */
 #endif  // CONFIG_INTER_DDT
 
 void reference_idtx_1d(const double *in, double *out, int size) {
