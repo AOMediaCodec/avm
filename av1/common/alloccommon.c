@@ -296,6 +296,10 @@ static int alloc_mi(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     mi_params->cctx_type_map =
         aom_calloc(mi_grid_size, sizeof(*mi_params->cctx_type_map));
     if (!mi_params->cctx_type_map) return 1;
+  } else {
+    // Set only the strides corresponding to the current frame dims
+    av1_set_txk_skip_array_stride(mi_params, cm);
+    av1_set_class_id_array_stride(mi_params, cm);
   }
 
   return 0;

@@ -1977,6 +1977,8 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
 
 #define ILLEGAL_TXK_SKIP_VALUE 255
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_set_txk_skip_array_stride(CommonModeInfoParams *mi_params,
+                                   AV1_COMMON *cm);
 void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
 void av1_reset_txk_skip_array(AV1_COMMON *cm);
 void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params);
@@ -1993,6 +1995,8 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          int plane, int blk_row, int blk_col);
 void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
+                                   AV1_COMMON *cm);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
