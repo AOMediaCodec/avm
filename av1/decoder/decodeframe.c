@@ -3046,8 +3046,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
             if (!tmp_rsi.frame_filters_on) {
-              aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                               "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_ERROR,
+                  "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
             }
             av1_copy_rst_frame_filters(rsi, &tmp_rsi);
             rsi->frame_filters_initialized = 1;
