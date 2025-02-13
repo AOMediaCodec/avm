@@ -454,9 +454,10 @@ static void setup_processing_stripe_boundary(
     int rsb_row, int h, uint16_t *data, int data_stride,
     RestorationLineBuffers *rlbs, int copy_above, int copy_below, int opt
 #if ISSUE_253
-    ,int is_chroma
-#endif // ISSUE_253
-    ) {
+    ,
+    int is_chroma
+#endif  // ISSUE_253
+) {
   // Offsets within the line buffers. The buffer logically starts at column
   // -RESTORATION_EXTRA_HORZ so the 1st column (at x0 - RESTORATION_EXTRA_HORZ)
   // has column x0 in the buffer.
@@ -492,10 +493,11 @@ static void setup_processing_stripe_boundary(
         uint16_t *dst = data_tl + i * data_stride;
         // Save old pixels, then replace with data from stripe_boundary_above
 #if ISSUE_253
-        memcpy(rlbs->tmp_save_above[is_chroma][i + RESTORATION_BORDER], dst, line_size);
+        memcpy(rlbs->tmp_save_above[is_chroma][i + RESTORATION_BORDER], dst,
+               line_size);
 #else
         memcpy(rlbs->tmp_save_above[i + RESTORATION_BORDER], dst, line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
         memcpy(dst, buf, line_size);
       }
     }
@@ -520,7 +522,7 @@ static void setup_processing_stripe_boundary(
         memcpy(rlbs->tmp_save_below[is_chroma][i], dst, line_size);
 #else
         memcpy(rlbs->tmp_save_below[i], dst, line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
         memcpy(dst, src, line_size);
       }
     }
@@ -535,11 +537,12 @@ static void setup_processing_stripe_boundary(
       memcpy(rlbs->tmp_save_above[is_chroma][0], dst, line_size);
       memcpy(dst, data_tl + (-RESTORATION_BORDER + 2) * data_stride, line_size);
       memcpy(rlbs->tmp_save_above[is_chroma][1], dst + data_stride, line_size);
-      memcpy(dst + data_stride, data_tl + (-RESTORATION_BORDER + 2) * data_stride, line_size);
+      memcpy(dst + data_stride,
+             data_tl + (-RESTORATION_BORDER + 2) * data_stride, line_size);
 #else
       memcpy(rlbs->tmp_save_above[0], dst, line_size);
       memcpy(dst, data_tl + (-RESTORATION_BORDER + 1) * data_stride, line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
     }
 
     if (copy_below) {
@@ -558,7 +561,7 @@ static void setup_processing_stripe_boundary(
 #else
       memcpy(rlbs->tmp_save_below[2], dst, line_size);
       memcpy(dst, data_bl + (2 - 1) * data_stride, line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
     }
   }
 }
@@ -581,9 +584,10 @@ static void restore_processing_stripe_boundary(
     int h, uint16_t *data, int data_stride, int copy_above, int copy_below,
     int opt
 #if ISSUE_253
-    ,int is_chroma
-#endif // ISSUE_253
-    ) {
+    ,
+    int is_chroma
+#endif  // ISSUE_253
+) {
   const int line_width =
       (limits->h_end - limits->h_start) + 2 * RESTORATION_EXTRA_HORZ;
   const int line_size = line_width << 1;
@@ -596,10 +600,11 @@ static void restore_processing_stripe_boundary(
       for (int i = -RESTORATION_BORDER; i < 0; ++i) {
         uint16_t *dst = data_tl + i * data_stride;
 #if ISSUE_253
-        memcpy(dst, rlbs->tmp_save_above[is_chroma][i + RESTORATION_BORDER], line_size);
+        memcpy(dst, rlbs->tmp_save_above[is_chroma][i + RESTORATION_BORDER],
+               line_size);
 #else
         memcpy(dst, rlbs->tmp_save_above[i + RESTORATION_BORDER], line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
       }
     }
 
@@ -615,7 +620,7 @@ static void restore_processing_stripe_boundary(
         memcpy(dst, rlbs->tmp_save_below[is_chroma][i], line_size);
 #else
         memcpy(dst, rlbs->tmp_save_below[i], line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
       }
     }
   } else {
@@ -629,7 +634,7 @@ static void restore_processing_stripe_boundary(
       memcpy(dst + data_stride, rlbs->tmp_save_above[is_chroma][1], line_size);
 #else
       memcpy(dst, rlbs->tmp_save_above[0], line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
     }
 
     if (copy_below) {
@@ -641,10 +646,11 @@ static void restore_processing_stripe_boundary(
         uint16_t *dst = data_bl + 2 * data_stride;
 #if ISSUE_253
         memcpy(dst, rlbs->tmp_save_below[is_chroma][2], line_size);
-        memcpy(dst + data_stride, rlbs->tmp_save_below[is_chroma][3], line_size);
+        memcpy(dst + data_stride, rlbs->tmp_save_below[is_chroma][3],
+               line_size);
 #else
         memcpy(dst, rlbs->tmp_save_below[2], line_size);
-#endif // ISSUE_253
+#endif  // ISSUE_253
       }
     }
   }
@@ -1546,8 +1552,8 @@ void apply_pc_wiener_highbd(
           tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
           int dst_id = r * dst_stride + c;
           dst[dst_id] = (tmp > max_pixel_value) ? max_pixel_value
-                        : (tmp < 0)             ? 0
-                                                : tmp;
+                        : (tmp < 0) ? 0
+                                    : tmp;
         }
       }
 #endif  // USE_CONVOLVE_SYM
@@ -2018,7 +2024,8 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
   }
 }
 #if ISSUE_253
-uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t **luma_hbd) {
+uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
+                                                uint16_t **luma_hbd) {
   const RestorationInfo *rsi = &cm->rst_info[0];
 
   const YV12_BUFFER_CONFIG *frame_buf = &cm->cur_frame->buf;
@@ -2041,15 +2048,19 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
   int ds_type = cm->seq_params.cfl_ds_filter_index == 1
 #endif
 #endif
-  int first_stripe_height = RESTORATION_PROC_UNIT_SIZE - RESTORATION_UNIT_OFFSET;
-  int precess_unit_rows = height_y <= first_stripe_height ? 1 :
-            1 + (height_y - first_stripe_height + RESTORATION_PROC_UNIT_SIZE - 1)/RESTORATION_PROC_UNIT_SIZE;
+  int first_stripe_height =
+      RESTORATION_PROC_UNIT_SIZE - RESTORATION_UNIT_OFFSET;
+  int precess_unit_rows = height_y <= first_stripe_height
+                              ? 1
+                              : 1 + (height_y - first_stripe_height +
+                                     RESTORATION_PROC_UNIT_SIZE - 1) /
+                                        RESTORATION_PROC_UNIT_SIZE;
   int resized_luma_height = height_uv + 2 * WIENERNS_UV_BRD * precess_unit_rows;
 
   uint16_t *aug_luma = (uint16_t *)malloc(
       sizeof(uint16_t) * resized_luma_stride * resized_luma_height);
   memset(aug_luma, 0,
-      sizeof(*aug_luma) * resized_luma_stride * resized_luma_height);
+         sizeof(*aug_luma) * resized_luma_stride * resized_luma_height);
 
   uint16_t *luma[1];
   *luma = aug_luma + border * out_stride + border;
@@ -2059,27 +2070,26 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
   const int ss_x = (((width_y + 1) >> 1) == width_uv);
   const int ss_y = (((height_y + 1) >> 1) == height_uv);
 
-  AV1PixelRect tile_rect = {0, 0, width_y, height_y};
+  AV1PixelRect tile_rect = { 0, 0, width_y, height_y };
 
-  RestorationTileLimits remaining_stripes = {0, width_y, 0, height_y};
+  RestorationTileLimits remaining_stripes = { 0, width_y, 0, height_y };
 
   const int tile_stripe0 = 0;
 
   uint16_t *curr_luma = *luma;
   uint16_t *curr_dgd = dgd;
 
-  for (int i = 0; i < precess_unit_rows; i ++) {
-
+  for (int i = 0; i < precess_unit_rows; i++) {
     int copy_above, copy_below;
 
     const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE;
     const int runit_offset = RESTORATION_UNIT_OFFSET;
 
-    remaining_stripes.v_start = i == 0 ? 0 :  (i * full_stripe_height - runit_offset);
+    remaining_stripes.v_start =
+        i == 0 ? 0 : (i * full_stripe_height - runit_offset);
 
     get_stripe_boundary_info(&remaining_stripes, &tile_rect, 0, &copy_above,
                              &copy_below);
-
 
     // Work out where this stripe's boundaries are within
     // rsb->stripe_boundary_{above,below}
@@ -2087,7 +2097,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
         (remaining_stripes.v_start - tile_rect.top + runit_offset) /
         full_stripe_height;
 
-    assert (tile_stripe == i);
+    assert(tile_stripe == i);
 
     const int nominal_stripe_height =
         full_stripe_height - ((tile_stripe == 0) ? runit_offset : 0);
@@ -2097,25 +2107,26 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
     const int frame_stripe = tile_stripe0 + tile_stripe;
     const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
 
-    setup_processing_stripe_boundary(&remaining_stripes, &rsi->boundaries, rsb_row, h,
-                                     dgd, in_stride, cm->rlbs, copy_above, copy_below,
-                                     rsi->optimized_lr,0);
+    setup_processing_stripe_boundary(
+        &remaining_stripes, &rsi->boundaries, rsb_row, h, dgd, in_stride,
+        cm->rlbs, copy_above, copy_below, rsi->optimized_lr, 0);
 
-    const int h_uv = (ss_y ? (h+1) >> ss_y: h ) + (copy_above + copy_below) * WIENERNS_UV_BRD;
+    const int h_uv = (ss_y ? (h + 1) >> ss_y : h) +
+                     (copy_above + copy_below) * WIENERNS_UV_BRD;
 
     if (copy_above) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
 
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
-    ?????? // not working
-    for (int r = 0; r < height_uv; ++r) {
+    ? ? ? ? ? ?  // not working
+        for (int r = 0; r < height_uv; ++r) {
       for (int c = 0; c < width_uv; ++c) {
         (*luma)[r * out_stride + c] =
             dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
       }
     }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
-    ?????? // not working
-    if (ss_x && ss_y) {  // 420
+    ? ? ? ? ? ?              // not working
+        if (ss_x && ss_y) {  // 420
       int r;
       for (r = 0; r < height_y / 2; ++r) {
         int c;
@@ -2149,26 +2160,29 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
           (*luma)[r * out_stride + c] = dgd[2 * r * in_stride + 2 * c];
         }
       }
-    } else if (ss_x && !ss_y) {  // 422
+    }
+    else if (ss_x && !ss_y) {  // 422
       for (int r = 0; r < height_uv; ++r) {
         int c;
         for (c = 0; c < width_y / 2; ++c) {
-          (*luma)[r * out_stride + c] =
-              (dgd[r * in_stride + 2 * c] + dgd[r * in_stride + 2 * c + 1] + 1) >>
-              1;
+          (*luma)[r * out_stride + c] = (dgd[r * in_stride + 2 * c] +
+                                         dgd[r * in_stride + 2 * c + 1] + 1) >>
+                                        1;
         }
         // handle odd width_y
         for (; c < width_uv; ++c) {
           (*luma)[r * out_stride + c] = dgd[r * in_stride + 2 * c];
         }
       }
-    } else if (!ss_x && !ss_y) {  // 444
+    }
+    else if (!ss_x && !ss_y) {  // 444
       for (int r = 0; r < height_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
           (*luma)[r * out_stride + c] = dgd[r * in_stride + c];
         }
       }
-    } else {
+    }
+    else {
       assert(0 && "Invalid dimensions");
     }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
@@ -2181,7 +2195,8 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
                 (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
                  2 * curr_dgd[2 * r * in_stride + 2 * c] +
                  curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c -
+                          ((c == 0) ? 0 : 1)] +
                  2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
                  curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
                 3;
@@ -2208,16 +2223,17 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
       }
     } else {
 #else
-    ?????? // not working
-  if (ss_x && ss_y && ds_type == 1) {
-    for (int r = 0; r < height_uv; ++r) {
-      for (int c = 0; c < width_uv; ++c) {
-        (*luma)[r * out_stride + c] = (dgd[2 * r * in_stride + 2 * c] +
-                                       dgd[(2 * r + 1) * in_stride + 2 * c]) /
-                                      2;
+    ? ? ? ? ? ?  // not working
+        if (ss_x && ss_y && ds_type == 1) {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] = (dgd[2 * r * in_stride + 2 * c] +
+                                         dgd[(2 * r + 1) * in_stride + 2 * c]) /
+                                        2;
+        }
       }
     }
-  } else {
+    else {
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
       for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
@@ -2228,19 +2244,19 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
     }
 #else
     av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
-                          width_uv, out_stride, bd);
+                            width_uv, out_stride, bd);
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
 
     restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
                                        in_stride, copy_above, copy_below,
-                                    rsi->optimized_lr, 0);
+                                       rsi->optimized_lr, 0);
 
     if (copy_above) curr_dgd += WIENERNS_UV_BRD * in_stride << ss_y;
     curr_dgd += in_stride * h;
     curr_luma += out_stride * h_uv;
   }
   // extend border by replication
-  int internal_luma_height = resized_luma_height - 2*WIENERNS_UV_BRD;
+  int internal_luma_height = resized_luma_height - 2 * WIENERNS_UV_BRD;
 
   for (int r = 0; r < internal_luma_height; ++r) {
     for (int c = -border; c < 0; ++c)
@@ -2259,7 +2275,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm, uint16_t *
            (width_uv + 2 * border) * sizeof((*luma)[0]));
   return aug_luma;
 }
-#endif //ISSUE_253
+#endif  // ISSUE_253
 
 uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
                                     int width_y, int in_stride,
@@ -2561,17 +2577,21 @@ void av1_loop_restoration_filter_unit(
                                      stride, rlbs, copy_above, copy_below,
                                      optimized_lr
 #if ISSUE_253
-                                     , rui->plane != PLANE_TYPE_Y
-#endif // ISSUE_253
-                                     );
+                                     ,
+                                     rui->plane != PLANE_TYPE_Y
+#endif  // ISSUE_253
+    );
 
     // cross-filter
     tmp_rui->luma =
 #if ISSUE_253
-        enable_cross_buffers ? luma_in_ru + (i +  2*frame_stripe*WIENERNS_UV_BRD) * rui->luma_stride : NULL;
+        enable_cross_buffers
+            ? luma_in_ru +
+                  (i + 2 * frame_stripe * WIENERNS_UV_BRD) * rui->luma_stride
+            : NULL;
 #else
         enable_cross_buffers ? luma_in_ru + i * rui->luma_stride : NULL;
-#endif // ISSUE_253
+#endif  // ISSUE_253
     // pc wiener filter
     tmp_rui->tskip = enable_pcwiener_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
@@ -2590,9 +2610,10 @@ void av1_loop_restoration_filter_unit(
                                        stride, copy_above, copy_below,
                                        optimized_lr
 #if ISSUE_253
-                                     , rui->plane != PLANE_TYPE_Y
-#endif // ISSUE_253
-                                       );
+                                       ,
+                                       rui->plane != PLANE_TYPE_Y
+#endif  // ISSUE_253
+    );
 
     i += h;
   }
@@ -2714,7 +2735,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
 #if ISSUE_253
-     luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
+  luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
 #else
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
@@ -2730,7 +2751,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
-#endif // ISSUE_253
+#endif  // ISSUE_253
   assert(luma_buf != NULL);
 
   for (int plane = 0; plane < num_planes; ++plane) {

@@ -184,7 +184,7 @@ typedef struct {
   const uint16_t *luma;
 #if ISSUE_253
   const uint16_t *luma_stat;
-#endif // ISSUE_253
+#endif  // ISSUE_253
 
   int luma_stride;
 
@@ -3496,7 +3496,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   initialize_rui_for_nonsep_search(rsc, &rui);
 #if ISSUE_253
   rui.luma = rsc->luma_stat;
-#endif // ISSUE_253
+#endif  // ISSUE_253
   rui.restoration_type = RESTORE_WIENER_NONSEP;
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
@@ -5307,7 +5307,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   rsc.luma = luma_virtual;
 #else
   rsc.luma = luma;
-#endif // ISSUE_253
+#endif  // ISSUE_253
 
   rsc.wienerns_tmpbuf =
       (double *)aom_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*rsc.wienerns_tmpbuf));
@@ -5498,7 +5498,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   free(luma_buf);
 #if ISSUE_253
   free(luma_virtual_buf);
-#endif // ISSUE_253
+#endif  // ISSUE_253
   aom_free(rsc.wienerns_tmpbuf);
   aom_vector_destroy(&wienerns_stats);
   aom_vector_destroy(&unit_stack);

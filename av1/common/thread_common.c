@@ -862,7 +862,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
 #if ISSUE_253
-     luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
+  luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
 #else
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
@@ -878,7 +878,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
-#endif // ISSUE_253
+#endif  // ISSUE_253
   assert(luma_buf != NULL);
 
   const int num_planes = av1_num_planes(cm);
