@@ -2657,7 +2657,11 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     RestorationType rtype = rsi->frame_restoration_type;
     rsi->optimized_lr = optimized_lr;
 
+#if ISSUE_253
+    if (rtype == RESTORE_NONE && plane > 0) {
+#else
     if (rtype == RESTORE_NONE) {
+#endif
       continue;
     }
 
