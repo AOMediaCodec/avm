@@ -3776,28 +3776,28 @@ void av1_find_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 }
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
+static INLINE void initialize_candidate_mv(CANDIDATE_MV *cand_mv) {
+  cand_mv->this_mv.as_int = 0;
+  cand_mv->comp_mv.as_int = 0;
+  cand_mv->row_offset = OFFSET_NONSPATIAL;
+  cand_mv->col_offset = OFFSET_NONSPATIAL;
+  cand_mv->cwp_idx = CWP_EQUAL;
+}
+
 // Initialize ref_mv_stack with zero MVs.
 void av1_initialize_ref_mv_stack(
     MB_MODE_INFO *mbmi, CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE]) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) {
     for (int i = 0; i < USABLE_REF_MV_STACK_SIZE; ++i) {
-      ref_mv_stack[i].this_mv.as_int = 0;
-      ref_mv_stack[i].comp_mv.as_int = 0;
-      ref_mv_stack[i].row_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[i].col_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[i].cwp_idx = CWP_EQUAL;
+      initialize_candidate_mv(ref_mv_stack + i);
     }
     return;
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   for (int i = 0; i < MAX_REF_MV_STACK_SIZE; ++i) {
-    ref_mv_stack[i].this_mv.as_int = 0;
-    ref_mv_stack[i].comp_mv.as_int = 0;
-    ref_mv_stack[i].row_offset = OFFSET_NONSPATIAL;
-    ref_mv_stack[i].col_offset = OFFSET_NONSPATIAL;
-    ref_mv_stack[i].cwp_idx = CWP_EQUAL;
+    initialize_candidate_mv(ref_mv_stack + i);
   }
 }
 
