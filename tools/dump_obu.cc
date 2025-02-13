@@ -64,10 +64,18 @@ VideoFileType GetFileType(InputContext *ctx) {
 }
 
 bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
+#if CONFIG_MULTIVIEW_CORE
+  const VideoFileType file_type = ctx->avx_ctx->file_type[0];
+#else
   const VideoFileType file_type = ctx->avx_ctx->file_type;
+#endif
   switch (file_type) {
     case FILE_TYPE_IVF: {
+#if CONFIG_MULTIVIEW_CORE
+      if (ivf_read_frame(ctx->avx_ctx->file[0], &ctx->unit_buffer, unit_size,
+#else
       if (ivf_read_frame(ctx->avx_ctx->file, &ctx->unit_buffer, unit_size,
+#endif
                          &ctx->unit_buffer_size, NULL)) {
         return false;
       }
@@ -130,8 +138,13 @@ int main(int argc, const char *argv[]) {
 #endif
 
   input_ctx.Init();
+#if CONFIG_MULTIVIEW_CORE
+  avx_ctx.file[0] = input_file.get();
+  avx_ctx.file_type[0] = GetFileType(&input_ctx);
+#else
   avx_ctx.file = input_file.get();
   avx_ctx.file_type = GetFileType(&input_ctx);
+#endif
 
   // Note: the reader utilities will realloc the buffer using realloc() etc.
   // Can't have nice things like unique_ptr wrappers with that type of

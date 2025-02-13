@@ -213,6 +213,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .stereo_mode = ARG_DEF_ENUM(NULL, "stereo-mode", 1, "Stereo 3D video format",
                               stereo_mode_enum),
 #endif
+#if CONFIG_MULTIVIEW_CORE
+  .num_views =
+      ARG_DEF(NULL, "num-views", 1, "Number of views for multi-layered coding"),
+#endif
   .timebase = ARG_DEF(NULL, "timebase", 1,
                       "Output timestamp precision (fractional seconds)"),
   .global_error_resilient = ARG_DEF(NULL, "global-error-resilient", 1,

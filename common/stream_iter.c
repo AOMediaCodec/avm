@@ -18,15 +18,31 @@
 #include "common/y4minput.h"
 
 static int copy_reader(StreamIter *iter, aom_image_t *img) {
+#if CONFIG_MULTIVIEW_CORE
+  const int view_id = iter->view_id;
+#endif
   struct AvxInputContext *input_ctx = iter->input.avx;
+#if CONFIG_MULTIVIEW_CORE
+  FILE *f = input_ctx->file[view_id];
+  y4m_input *y4m = &input_ctx->y4m[view_id];
+#else
   FILE *f = input_ctx->file;
   y4m_input *y4m = &input_ctx->y4m;
+#endif
   int shortread = 0;
 
+#if CONFIG_MULTIVIEW_CORE
+  if (input_ctx->file_type[view_id] == FILE_TYPE_Y4M) {
+#else
   if (input_ctx->file_type == FILE_TYPE_Y4M) {
+#endif
     if (y4m_input_fetch_frame(y4m, f, img) < 1) return 0;
   } else {
+#if CONFIG_MULTIVIEW_CORE
+    shortread = read_yuv_frame(input_ctx, img, view_id);
+#else
     shortread = read_yuv_frame(input_ctx, img);
+#endif
   }
   return !shortread;
 }
@@ -34,6 +50,9 @@ static int copy_reader(StreamIter *iter, aom_image_t *img) {
 void copy_stream_iter_init(StreamIter *iter, struct AvxInputContext *input) {
   iter->input.avx = input;
   iter->reader = copy_reader;
+#if CONFIG_MULTIVIEW_CORE
+  iter->view_id = 0;
+#endif
 }
 
 static int skip_reader(StreamIter *iter, aom_image_t *raw) {
@@ -96,6 +115,9 @@ void limit_stream_iter_init(StreamIter *iter, StreamIter *input, int limit) {
   assert(limit >= 0);
   iter->input.stream = input;
   iter->current = 0;
+#if CONFIG_MULTIVIEW_CORE
+  iter->view_id = 0;
+#endif
   iter->n = limit;
   iter->reader = limit_reader;
 }

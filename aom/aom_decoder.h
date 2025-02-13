@@ -33,6 +33,7 @@ extern "C" {
 
 #include "aom/aom_codec.h"
 #include "aom/aom_frame_buffer.h"
+#include "config/aom_config.h"
 
 /*!\brief Current ABI version number
  *
@@ -75,6 +76,9 @@ typedef struct aom_codec_stream_info {
   unsigned int is_kf;                  /**< Current frame is a keyframe */
   unsigned int number_spatial_layers;  /**< Number of spatial layers */
   unsigned int number_temporal_layers; /**< Number of temporal layers */
+#if CONFIG_MULTIVIEW_CORE
+  unsigned int number_views;           /**< Number of views */
+#endif
   unsigned int is_annexb;              /**< Is Bitstream in Annex-B format */
 } aom_codec_stream_info_t;
 

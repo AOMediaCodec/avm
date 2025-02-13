@@ -40,6 +40,9 @@ struct AvxEncoderConfig {
   int limit;
   int skip_frames;
   int step_frames;
+#if CONFIG_MULTIVIEW_CORE
+  int num_views;
+#endif
   int show_psnr;
   enum TestDecodeFatality test_decode;
   int have_framerate;

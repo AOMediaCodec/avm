@@ -77,10 +77,17 @@ void die_codec(aom_codec_ctx_t *ctx, const char *s) {
   if (detail) printf("    %s\n", detail);
   exit(EXIT_FAILURE);
 }
-
+#if CONFIG_MULTIVIEW_CORE
+int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame,
+                   int view_id) {
+  assert(view_id >= 0);
+  FILE *f = input_ctx->file[view_id];
+  struct FileTypeDetectionBuffer *detect = &input_ctx->detect[view_id];
+#else
 int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame) {
   FILE *f = input_ctx->file;
   struct FileTypeDetectionBuffer *detect = &input_ctx->detect;
+#endif
   int plane = 0;
   int shortread = 0;
   const int bytespp = (yuv_frame->fmt & AOM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;

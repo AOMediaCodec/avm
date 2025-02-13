@@ -36,6 +36,9 @@ typedef struct StreamIter {
   // iterator, do not use either field.
   int current;
   int n;
+#if CONFIG_MULTIVIEW_CORE
+  int view_id;
+#endif
   // Pointer to the function that performs the read. Returns whether a frame
   // is available. If a frame is returned, it is written into *raw.
   int (*reader)(struct StreamIter *iter, aom_image_t *raw);

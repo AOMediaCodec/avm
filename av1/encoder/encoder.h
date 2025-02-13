@@ -731,6 +731,10 @@ typedef struct {
   unsigned int chroma_subsampling_x;
   // Indicates the chrome subsampling y value.
   unsigned int chroma_subsampling_y;
+#if CONFIG_MULTIVIEW_CORE
+  // Indicates number of input views.
+  unsigned int num_views;
+#endif
 } InputCfg;
 
 typedef struct {

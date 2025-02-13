@@ -703,7 +703,13 @@ typedef struct aom_codec_enc_cfg {
    * height written in write_sequence_header().
    */
   unsigned int g_forced_max_frame_height;
-
+#if CONFIG_MULTIVIEW_CORE
+  /*!\brief Number of views
+   *
+   *
+   */
+  unsigned int g_num_views;
+#endif
   /*!\brief Bit-depth of the codec
    *
    * This value identifies the bit_depth of the codec,

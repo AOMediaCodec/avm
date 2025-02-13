@@ -61,7 +61,7 @@ struct aom_codec_alg_priv {
   unsigned int is_annexb;
   int operating_point;
   int output_all_layers;
-
+  
   AVxWorker *frame_worker;
 
   aom_image_t image_with_grain;
@@ -292,6 +292,9 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   si->w = 0;
   si->h = 0;
   si->is_kf = 0;  // is_kf indicates whether the current packet contains a RAP
+#if CONFIG_MULTIVIEW_CORE
+  si->number_views = 0;
+#endif
 
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
@@ -335,6 +338,12 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
       status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
       if (status != AOM_CODEC_OK) return status;
+
+#if CONFIG_MULTIVIEW_CORE
+      si->number_views =
+          aom_rb_read_literal(&rb, 8) + 1;  // TODO: @hegilmez redesign later
+                                            // or change where this is signaled
+#endif
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
@@ -699,14 +708,26 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // show_existing_frame
     if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
         pbi->common.seq_params.enable_frame_output_order) {
+#if !CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
       if (!pbi->common.show_existing_frame)
         decrease_ref_count(pbi->output_frames[0], pool);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     } else {
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
     }
     pbi->num_output_frames = 0;
+#if CONFIG_MULTIVIEW_CORE
+    for (size_t j = 0; j < REF_FRAMES; j++) {
+      pbi->output_view_ids[j] = -1;
+    }
+#endif
+#if CONFIG_MULTIVIEW_CORE
+    for (size_t j = 0; j < REF_FRAMES; j++) {
+      pbi->display_order_hint_ids[j] = -1;
+    }
+#endif
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {
       pool->release_fb_cb(pool->cb_priv, &ctx->grain_image_frame_buffers[j]);
@@ -899,6 +920,7 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
     AV1Decoder *const pbi = frame_worker_data->pbi;
     AV1_COMMON *const cm = &pbi->common;
     CommonTileParams *const tiles = &cm->tiles;
+
     // Wait for the frame from worker thread.
     if (winterface->sync(worker)) {
       // Check if worker has received any frames.
@@ -911,6 +933,11 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
       if (av1_get_raw_frame(frame_worker_data->pbi, *index, &sd,
                             &grain_params) == 0) {
         RefCntBuffer *const output_frame_buf = pbi->output_frames[*index];
+#if CONFIG_MULTIVIEW_CORE
+        int view_id_ctx = pbi->output_view_ids[*index];
+        ctx->img.view_id = view_id_ctx;
+        ctx->img.display_order_hint = pbi->display_order_hint_ids[*index];
+#endif
         ctx->last_show_frame = output_frame_buf;
         if (ctx->need_resync) return NULL;
         aom_img_remove_metadata(&ctx->img);
@@ -969,6 +996,7 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
         img = &ctx->img;
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
+
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);

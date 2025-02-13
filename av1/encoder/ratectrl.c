@@ -1043,13 +1043,14 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
          oxcf->q_cfg.use_fixed_qp_offsets == 2);
   assert(oxcf->rc_cfg.mode == AOM_Q);
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
-
   int offset_idx = -1;
   if (update_type == KF_UPDATE) {
+#if !CONFIG_MULTIVIEW_CORE
     if (rc->frames_to_key <= 1) {
       // Image / intra-only coding: ignore offsets.
       return qp;
     }
+#endif
     offset_idx = 0;
   } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
              update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE ||

@@ -1164,7 +1164,13 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define WARP_EXTEND_CTX 3
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+#define EXTENDED_INTER_REFS_PER_FRAME 8
+#define INTER_REFS_PER_FRAME (EXTENDED_INTER_REFS_PER_FRAME + 7)
+#define EXTENDED_INTER_REFS_CONTEXT 6
+#else
 #define INTER_REFS_PER_FRAME 7
+#endif
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
@@ -1195,7 +1201,11 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define NONE_FRAME INVALID_IDX
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+#define REF_FRAMES_LOG2 4
+#else
 #define REF_FRAMES_LOG2 3
+#endif
 #define REFRESH_FRAME_ALL ((1 << REF_FRAMES) - 1)
 
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
@@ -1218,7 +1228,7 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 // Note: It includes single and compound references. So, it can take values from
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.
-typedef int8_t MV_REFERENCE_FRAME;
+typedef int16_t MV_REFERENCE_FRAME;
 
 #define MAX_LR_FLEX_SWITCHABLE_BITS 4
 

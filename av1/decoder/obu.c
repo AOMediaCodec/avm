@@ -239,6 +239,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     return 0;
   }
 
+#if CONFIG_MULTIVIEW_CORE
+  cm->number_layers =
+      aom_rb_read_literal(rb, 8) +
+      1;  // TODO: (@hegilmez) redesign later or change where this is signaled
+#endif
+
   av1_read_sequence_header(cm, rb, seq_params);
 
   av1_read_color_config(rb, seq_params, &cm->error);
@@ -1083,6 +1089,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     data += payload_size;
   }
+  
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+  FILE *const logfile = cm->fDecMultiviewLog;
+  logfile_multiview_curr_frame(cm, logfile);
+  logfile_multiview_buf_refs(cm, logfile);
+  logfile_buffer_state(cm, logfile);
+  //logfile_primary_ref_info(cm, logfile);
+#endif
 
   if (cm->error.error_code != AOM_CODEC_OK) return -1;
   return frame_decoding_finished;
