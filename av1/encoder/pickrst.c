@@ -5311,6 +5311,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     best_temp_ref_idx = -1;
     rsc.temporal_pred_flag = 0;
 #endif  // CONFIG_TEMP_LR
+    const int frame_filters_configured =
+        cpi->common.features.lr_tools_disable_mask[plane > 0] &
+                (1 << RESTORE_WIENER_NONSEP)
+            ? 0
+            : 1;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
     RestorationInfo *rsi = &cm->rst_info[plane];
@@ -5358,7 +5363,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
 #if CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_WIENER_NONSEP &&
-              is_frame_filters_enabled(rsc.plane)) {
+              is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
             // desired make a copy of stats.
@@ -5369,7 +5374,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
             frame_filter_dict = rsc.frame_filter_bank;
             frame_filter_cost = rsc.frame_filter_cost;
           }
-          if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(rsc.plane)) {
+          if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(rsc.plane) &&
+              frame_filters_configured) {
             assert(RESTORE_WIENER_NONSEP < RESTORE_SWITCHABLE);
             rsc.frame_filter_bank = frame_filter_dict;
             rsc.frame_filter_cost = frame_filter_cost;
@@ -5384,7 +5390,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           int real_r = r;
 #if CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
-              cost > rsc.frame_filters_total_cost &&
+              frame_filters_configured && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
 #if PRINT_LR_COSTS && !defined(NDEBUG)
             print_costs(cost, cost < best_cost ? '*' : ' ', r, ' ', &rsc,
@@ -5399,7 +5405,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif
           assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
-          if (r == RESTORE_PC_WIENER && is_frame_filters_enabled(plane)) {
+          if (r == RESTORE_PC_WIENER && is_frame_filters_enabled(plane) &&
+              frame_filters_configured) {
 #else
           if (r == RESTORE_PC_WIENER && plane == AOM_PLANE_Y) {
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
@@ -5421,7 +5428,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
             best_rtype = real_r;
             best_unit_size = unit_size;
 #if CONFIG_COMBINE_PC_NS_WIENER
-            if (is_frame_filters_enabled(rsc.plane)) {
+            if (is_frame_filters_enabled(rsc.plane) &&
+                frame_filters_configured) {
               best_frame_filters_state = rsc.frame_filters_on;
 #if CONFIG_TEMP_LR
               if (rsc.frame_filters_on) {
@@ -5441,7 +5449,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif                                       // CONFIG_COMBINE_PC_NS_WIENER
       }
 #if CONFIG_COMBINE_PC_NS_WIENER
-      if (is_frame_filters_enabled(rsc.plane)) {
+      if (is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
         rsc.frame_filters_on = best_frame_filters_state;
 #if CONFIG_TEMP_LR
         rsc.temporal_pred_flag = best_temp_pred_flag;
