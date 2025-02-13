@@ -3045,6 +3045,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                             ->rst_info[alternate_plane];
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+            if (!tmp_rsi.frame_filters_on) {
+              aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                               "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+            }
             av1_copy_rst_frame_filters(rsi, &tmp_rsi);
             rsi->frame_filters_initialized = 1;
 
@@ -8435,6 +8439,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_TEMP_LR
+    cm->rst_info[0].frame_filters_on = 0;
+    cm->rst_info[1].frame_filters_on = 0;
+    cm->rst_info[2].frame_filters_on = 0;
+#endif
   }
   setup_loopfilter(cm, rb);
 
