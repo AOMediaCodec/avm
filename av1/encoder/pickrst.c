@@ -5449,12 +5449,17 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif                                       // CONFIG_COMBINE_PC_NS_WIENER
       }
 #if CONFIG_COMBINE_PC_NS_WIENER
-      if (is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
+      if (is_frame_filters_enabled(rsc.plane)) {
         rsc.frame_filters_on = best_frame_filters_state;
 #if CONFIG_TEMP_LR
         rsc.temporal_pred_flag = best_temp_pred_flag;
         rsc.rst_ref_pic_idx = best_temp_ref_idx;
 #endif  // CONFIG_TEMP_LR
+        if (!frame_filters_configured) {
+          assert(best_temp_ref_idx == -1);
+          assert(best_temp_pred_flag == 0);
+          assert(best_frame_filters_state == 0);
+        }
       }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
       if (rsi->restoration_unit_size == min_unit_size ||
