@@ -4299,6 +4299,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   int64_t best_rd = INT64_MAX;
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
+  const bool is_rect = is_rect_tx(max_tx_size);
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, bs, max_tx_size)) continue;
@@ -4316,6 +4317,26 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
         txsize_sqr_up_map[cur_tx_size] == TX_64X64)
       continue;
+
+    if ((type == TX_PARTITION_HORZ_M &&
+         best_tx_partition_type == TX_PARTITION_VERT) ||
+        (type == TX_PARTITION_VERT_M &&
+         best_tx_partition_type == TX_PARTITION_HORZ)) {
+      continue;
+    }
+
+    if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
+      if ((type == TX_PARTITION_HORZ_M &&
+           best_tx_partition_type != TX_PARTITION_HORZ) ||
+          (type == TX_PARTITION_VERT_M &&
+           best_tx_partition_type != TX_PARTITION_VERT)) {
+        continue;
+      }
+
+      if (type >= TX_PARTITION_HORZ_M && !is_rect) {
+        continue;
+      }
+    }
 
     RD_STATS this_rd_stats;
     cur_rd = av1_uniform_txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs,
