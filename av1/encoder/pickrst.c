@@ -377,7 +377,13 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int plane = rsc->plane;
   const int is_uv = plane > 0;
   const RestorationInfo *rsi = &cm->rst_info[plane];
+#if ISSUE_253
+  RestorationLineBuffers *rlbs = aom_malloc(sizeof(RestorationLineBuffers));
+  if (rlbs == NULL)
+    fprintf(stderr, "rlbs buffer does not allocate successfully\n");
+#else
   RestorationLineBuffers rlbs;
+#endif
   const int bit_depth = cm->seq_params.bit_depth;
 
   const YV12_BUFFER_CONFIG *fts = &cm->cur_frame->buf;
@@ -385,12 +391,20 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   // also used in encoder.
   const int optimized_lr = 0;
   av1_loop_restoration_filter_unit(
-      limits, rui, &rsi->boundaries, &rlbs, tile_rect, rsc->tile_stripe0,
-      is_uv && cm->seq_params.subsampling_x,
+      limits, rui, &rsi->boundaries,
+#if ISSUE_253
+      rlbs,
+#else
+      &rlbs,
+#endif
+      tile_rect, rsc->tile_stripe0, is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
       cm->rst_tmpbuf, optimized_lr);
 
+#if ISSUE_253
+  if (rlbs != NULL) aom_free(rlbs);
+#endif
   return sse_restoration_unit(limits, rsc->src, rsc->dst, plane);
 }
 

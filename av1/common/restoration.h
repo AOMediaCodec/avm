@@ -440,9 +440,12 @@ typedef struct {
 // A restoration line buffer needs space for two lines plus a horizontal filter
 // margin of RESTORATION_EXTRA_HORZ on each side.
 #if ISSUE_253
-// The maximum picture widht is 8192 for LR to work properly in this software
-// implementation
-#define RESTORATION_LINEBUFFER_WIDTH (8192 * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
+// The maximum picture width is 8192 * 8 for LR to work properly in this
+// software implementation. This is one quick implementation, the buffer size
+// should be allocated based on picture width
+#define MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP (8192 * 8)
+#define RESTORATION_LINEBUFFER_WIDTH \
+  (MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
 #else
 #define RESTORATION_LINEBUFFER_WIDTH \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)

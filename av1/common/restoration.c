@@ -2037,6 +2037,12 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   int width_uv = frame_buf->crop_widths[1];
   int height_uv = frame_buf->crop_heights[1];
 
+  if (width_y > RESTORATION_LINEBUFFER_WIDTH)
+    aom_internal_error(
+        &cm->error, AOM_CODEC_ERROR,
+        "picture width is larger than 8192 * 8, need to disable "
+        "cross-component wienerns in this software implementation");
+
   int in_stride = frame_buf->strides[AOM_PLANE_Y];
   int border = WIENERNS_UV_BRD;
   int resized_luma_stride = width_uv + 2 * WIENERNS_UV_BRD;
@@ -2117,72 +2123,40 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
     if (copy_above) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
 
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
-    ? ? ? ? ? ?  // not working
-        for (int r = 0; r < height_uv; ++r) {
+    for (int r = 0; r < h_uv; ++r) {
       for (int c = 0; c < width_uv; ++c) {
-        (*luma)[r * out_stride + c] =
-            dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+        curr_luma[r * out_stride + c] =
+            curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
       }
     }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
-    ? ? ? ? ? ?              // not working
-        if (ss_x && ss_y) {  // 420
-      int r;
-      for (r = 0; r < height_y / 2; ++r) {
-        int c;
-        for (c = 0; c < width_y / 2; ++c) {
-          (*luma)[r * out_stride + c] =
-              (dgd[2 * r * in_stride + 2 * c] +
-               dgd[2 * r * in_stride + 2 * c + 1] +
-               dgd[(2 * r + 1) * in_stride + 2 * c] +
-               dgd[(2 * r + 1) * in_stride + 2 * c + 1] + 2) >>
+    if (ss_x && ss_y) {  // 420
+      for (int r = 0; r < h_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          curr_luma[r * out_stride + c] =
+              (curr_dgd[2 * r * in_stride + 2 * c] +
+               curr_dgd[2 * r * in_stride + 2 * c + 1] +
+               curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
+               curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1] + 2) >>
               2;
         }
-        // handle odd width_y
-        for (; c < width_uv; ++c) {
-          (*luma)[r * out_stride + c] =
-              (dgd[2 * r * in_stride + 2 * c] +
-               dgd[(2 * r + 1) * in_stride + 2 * c] + 1) >>
-              1;
-        }
       }
-      // handle odd height_y
-      for (; r < height_uv; ++r) {
-        int c;
-        for (c = 0; c < width_y / 2; ++c) {
-          (*luma)[r * out_stride + c] =
-              (dgd[2 * r * in_stride + 2 * c] +
-               dgd[2 * r * in_stride + 2 * c + 1] + 1) >>
-              1;
-        }
-        // handle odd height_y and width_y
-        for (; c < width_uv; ++c) {
-          (*luma)[r * out_stride + c] = dgd[2 * r * in_stride + 2 * c];
-        }
-      }
-    }
-    else if (ss_x && !ss_y) {  // 422
-      for (int r = 0; r < height_uv; ++r) {
-        int c;
-        for (c = 0; c < width_y / 2; ++c) {
-          (*luma)[r * out_stride + c] = (dgd[r * in_stride + 2 * c] +
-                                         dgd[r * in_stride + 2 * c + 1] + 1) >>
-                                        1;
-        }
-        // handle odd width_y
-        for (; c < width_uv; ++c) {
-          (*luma)[r * out_stride + c] = dgd[r * in_stride + 2 * c];
-        }
-      }
-    }
-    else if (!ss_x && !ss_y) {  // 444
-      for (int r = 0; r < height_uv; ++r) {
+    } else if (ss_x && !ss_y) {  // 422
+      for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
-          (*luma)[r * out_stride + c] = dgd[r * in_stride + c];
+          curr_luma[r * out_stride + c] =
+              (curr_dgd[r * in_stride + 2 * c] +
+               curr_dgd[r * in_stride + 2 * c + 1] + 1) >>
+              1;
         }
       }
-    }
-    else {
+    } else if (!ss_x && !ss_y) {  // 444
+      for (int r = 0; r < h_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          curr_luma[r * out_stride + c] = curr_dgd[r * in_stride + c];
+        }
+      }
+    } else {
       assert(0 && "Invalid dimensions");
     }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
@@ -2223,17 +2197,16 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
       }
     } else {
 #else
-    ? ? ? ? ? ?  // not working
-        if (ss_x && ss_y && ds_type == 1) {
-      for (int r = 0; r < height_uv; ++r) {
+    if (ss_x && ss_y && ds_type == 1) {
+      for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
-          (*luma)[r * out_stride + c] = (dgd[2 * r * in_stride + 2 * c] +
-                                         dgd[(2 * r + 1) * in_stride + 2 * c]) /
-                                        2;
+          curr_luma[r * out_stride + c] =
+              (curr_dgd[2 * r * in_stride + 2 * c] +
+               curr_dgd[(2 * r + 1) * in_stride + 2 * c]) /
+              2;
         }
       }
-    }
-    else {
+    } else {
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
       for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
