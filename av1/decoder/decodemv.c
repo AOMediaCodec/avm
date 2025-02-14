@@ -1973,19 +1973,6 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     // TODO(kslu): Rework av1_find_mv_refs to avoid having this big array
     // ref_mvs
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
-#if CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_MAX_DRL
-    for (int i = 0; i < cm->features.max_bvp_drl_bits + 1; ++i) {
-#else
-    for (int i = 0; i < MAX_REF_BV_STACK_SIZE; ++i) {
-#endif  // CONFIG_IBC_MAX_DRL
-      xd->ref_mv_stack[INTRA_FRAME][i].this_mv.as_int = 0;
-      xd->ref_mv_stack[INTRA_FRAME][i].comp_mv.as_int = 0;
-      xd->ref_mv_stack[INTRA_FRAME][i].row_offset = OFFSET_NONSPATIAL;
-      xd->ref_mv_stack[INTRA_FRAME][i].col_offset = OFFSET_NONSPATIAL;
-      xd->ref_mv_stack[INTRA_FRAME][i].cwp_idx = CWP_EQUAL;
-    }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL
