@@ -9,5 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#define ROWS 64
+#define COLS 16
+#define BITS 12
+#define OFFSET (1 << (12 - 1))
+#define SCALE 4
+#define FEATURES 12
+
+extern const uint16_t av1_intra_matrix_weights[][ROWS][COLS];
+
 void av1_intra_matrix_pred(const uint16_t *input, int mode, uint16_t *output,
                            int bd);

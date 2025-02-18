@@ -113,6 +113,8 @@ if(CONFIG_DIP)
     APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/intra_matrix.c"
     "${AOM_ROOT}/av1/common/intra_matrix.h"
     "${AOM_ROOT}/av1/common/intra_dip.cc" "${AOM_ROOT}/av1/common/intra_dip.h")
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+       "${AOM_ROOT}/av1/common/x86/intra_matrix_avx2.c")
 endif()
 
 if(CONFIG_AV1_ENCODER)
