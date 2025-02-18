@@ -100,7 +100,12 @@ extern "C" void av1_highbd_intra_dip_predictor(int mode, uint16_t *dst,
                                                int dst_stride,
                                                const uint16_t *above_row,
                                                const uint16_t *left_col,
-                                               TX_SIZE tx_size, int bd) {
+                                               TX_SIZE tx_size, int bd
+#if CONFIG_DIP_EXT_PRUNING
+                                               ,
+                                               uint16_t *intra_dip_features
+#endif  // CONFIG_DIP_EXT_PRUNING
+) {
   uint16_t ml_input[INPUT_FEATURES];
   uint16_t ml_output[64];
   const int bw_log2 = tx_size_wide_log2[tx_size];
@@ -161,6 +166,14 @@ extern "C" void av1_highbd_intra_dip_predictor(int mode, uint16_t *dst,
 
   av1_intra_matrix_pred(ml_input, iml_mode, ml_output, bd);
 
+#if CONFIG_DIP_EXT_PRUNING
+  // Collect DIP input features for ML pruning.
+  if (mode == 0) {
+    for (int i = 0; i < 11; i++) {
+      intra_dip_features[i] = ml_input[i];
+    }
+  }
+#endif  // CONFIG_DIP_EXT_PRUNING
   resample_output(dst, dst_stride, above_row, left_col, ml_output, bw_log2,
                   bh_log2, transpose);
 }

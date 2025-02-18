@@ -8425,9 +8425,10 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 // using the typedef will prevent doxygen from finding this function and
 // generating the callgraph. Once documents for AV1_COMP and MACROBLOCK are
 // added to doxygen, we can revert back to using the typedefs.
-void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
-                               struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
-                               PICK_MODE_CONTEXT *ctx, int64_t best_rd) {
+void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
+                               struct macroblock *x, struct RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
+                               int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -8451,7 +8452,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   const int64_t intra_yrd =
       (xd->tree_type == CHROMA_PART)
           ? 0
-          : av1_rd_pick_intra_sby_mode(cpi, x, &rate_y, &rate_y_tokenonly,
+          : av1_rd_pick_intra_sby_mode(cpi, td, x, &rate_y, &rate_y_tokenonly,
                                        &dist_y, &y_skip_txfm, bsize, best_rd,
                                        ctx);
 

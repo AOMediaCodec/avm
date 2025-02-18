@@ -2052,6 +2052,9 @@ typedef struct ThreadData {
 #if CONFIG_ML_PART_SPLIT
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
+  void *dip_pruning_model;
+#endif  // CONFIG_DIP_EXT_PRUNING
 } ThreadData;
 
 struct EncWorkerData;

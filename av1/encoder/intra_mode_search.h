@@ -151,6 +151,16 @@ int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
                      int mode_index);
 #endif  // CONFIG_AIMC
 
+#if CONFIG_DIP_EXT_PRUNING
+/*! \brief Holds the rate and distortion information of DIP modes.
+ */
+typedef struct {
+  uint8_t intra_dip_mode;
+  int64_t modelrd;
+} DIPModeRDInfo;
+#define TOP_DIP_INTRA_MODEL_COUNT 5
+#endif  // CONFIG_DIP_EXT_PRUNING
+
 /*!\brief Evaluate a given intra-mode for inter frames.
  *
  * \ingroup intra_mode_search
@@ -297,6 +307,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
  * but it does search palette and filter_intra.
  *
  * \param[in]    cpi                Top-level encoder structure.
+ * \param[in]    td                 Pointer to thread data
  * \param[in]    x                  Pointer to structure holding all the data
  *                                  for the current macroblock.
  * \param[in]    rate               The total rate needed to predict the current
@@ -317,11 +328,11 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
  * best_rd, otherwise returns INT64_MAX. This also updates the mbmi, the rate
  * and distortion, and the tx_type arrays in ctx.
  */
-int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
-                                   int *rate, int *rate_tokenonly,
-                                   int64_t *distortion, int *skippable,
-                                   BLOCK_SIZE bsize, int64_t best_rd,
-                                   PICK_MODE_CONTEXT *ctx);
+int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
+                                   MACROBLOCK *x, int *rate,
+                                   int *rate_tokenonly, int64_t *distortion,
+                                   int *skippable, BLOCK_SIZE bsize,
+                                   int64_t best_rd, PICK_MODE_CONTEXT *ctx);
 
 /*!\brief Perform intra-mode search on chroma channels.
  *

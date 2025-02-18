@@ -608,6 +608,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief intra_dip prediction mode (0=disable). */
   uint8_t use_intra_dip;
   uint8_t intra_dip_mode;
+#if CONFIG_DIP_EXT_PRUNING
+  /*! \brief DIP input features (downsampled edge pixels). */
+  // Top-left corner, 5 along top edge, 5 along bottom edge (11 total).
+  uint16_t intra_dip_features[11];
+#endif  // CONFIG_DIP_EXT_PRUNING
 #endif  // CONFIG_DIP
   /*! \brief Chroma from Luma: Joint sign of alpha Cb and alpha Cr */
   int8_t cfl_alpha_signs;

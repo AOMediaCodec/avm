@@ -20,6 +20,10 @@
 #include "av1/encoder/part_split_prune_tflite.h"
 #endif  // CONFIG_ML_PART_SPLIT
 
+#if CONFIG_DIP_EXT_PRUNING
+#include "av1/encoder/intra_dip_mode_prune_tflite.h"
+#endif  // CONFIG_DIP_EXT_PRUNING
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -242,7 +246,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_ML_PART_SPLIT
   av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
-
+#if CONFIG_DIP_EXT_PRUNING
+  intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
   aom_free(cpi->td.mb.palette_buffer);
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);
   aom_free(cpi->td.mb.tmp_conv_dst);

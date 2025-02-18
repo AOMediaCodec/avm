@@ -33,7 +33,12 @@ static INLINE int av1_intra_dip_has_transpose(BLOCK_SIZE bsize) {
 void av1_highbd_intra_dip_predictor(int mode, uint16_t *dst, int dst_stride,
                                     const uint16_t *above_row,
                                     const uint16_t *left_col, TX_SIZE tx_size,
-                                    int bd);
+                                    int bd
+#if CONFIG_DIP_EXT_PRUNING
+                                    ,
+                                    uint16_t *intra_dip_features
+#endif  // CONFIG_DIP_EXT_PRUNING
+);
 
 #ifdef __cplusplus
 }

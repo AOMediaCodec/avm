@@ -174,6 +174,8 @@ set_aom_config_var(CONFIG_CB1TO4_SPLIT 1 NUMBER
 set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
                    "AV2 intra SDP latency issue addressing flag")
 set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
+set_aom_config_var(CONFIG_DIP_EXT 1 "AV2 DIP Improvements.")
+set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")
 set_aom_config_var(CONFIG_TCQ_IMP 1 "AV2 TCQ improvement")

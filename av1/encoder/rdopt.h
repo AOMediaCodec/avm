@@ -51,6 +51,7 @@ struct RD_STATS;
  * search with an evaluation for intrabc.
  *
  * \param[in]    cpi            Top-level encoder structure.
+ * \param[in]    td             Pointer to thread data
  * \param[in]    x              Pointer to structure holding all the data for
                                 the current macroblock.
  * \param[in]    rd_cost        Struct to keep track of the RD information.
@@ -64,9 +65,10 @@ struct RD_STATS;
  * in this function. The rd_cost struct is also updated with the RD stats
  * corresponding to the best mode found.
  */
-void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
-                               struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
-                               PICK_MODE_CONTEXT *ctx, int64_t best_rd);
+void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
+                               struct macroblock *x, struct RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
+                               int64_t best_rd);
 
 /*!\brief AV1 inter mode selection.
  *

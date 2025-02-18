@@ -316,6 +316,15 @@ if(CONFIG_ML_PART_SPLIT)
     "${AOM_ROOT}/av1/encoder/sms_part_split_prune_tflite_model.h")
 endif()
 
+if(CONFIG_DIP_EXT_PRUNING)
+  list(
+    APPEND
+    AOM_AV1_ENCODER_SOURCES
+    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.h"
+    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.cc"
+    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_weights.cc")
+endif()
+
 list(
   APPEND AOM_AV1_COMMON_INTRIN_SSE2 "${AOM_ROOT}/av1/common/cdef_block_sse2.c"
   "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"

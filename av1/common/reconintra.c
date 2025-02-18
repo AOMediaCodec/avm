@@ -1900,7 +1900,12 @@ static void build_intra_predictors_high(
 #else
                                    above_row, left_col,
 #endif
-                                   tx_size, xd->bd);
+                                   tx_size, xd->bd
+#if CONFIG_DIP_EXT_PRUNING
+                                   ,
+                                   mbmi->intra_dip_features
+#endif  // CONFIG_DIP_EXT_PRUNING
+    );
     return;
   }
 #endif  // CONFIG_DIP
