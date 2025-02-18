@@ -4523,7 +4523,7 @@ static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
 // Inverse secondary transform
 void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
-                    const int size) {
+                    const int size, const int bd) {
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -4577,6 +4577,8 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   }
   int *out = dst;
   __m256i *tmpBlock = (__m256i *)out;
+  const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+  const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
   for (int j = 0; j < reduced_width; j += 8, tmpBlock++) {
     __m256i tmp = _mm256_loadu_si256(tmpBlock);
 #if CONFIG_E194_FLEX_SECTX
@@ -4584,6 +4586,7 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
 #else
     tmp = _mm256_srai_epi32(_mm256_add_epi32(tmp, round), 7);
 #endif  // CONFIG_E194_FLEX_SECTX
+    tmp = _mm256_min_epi32(_mm256_max_epi32(tmp, min_value), max_value);
     _mm256_storeu_si256(tmpBlock, tmp);
   }
 }

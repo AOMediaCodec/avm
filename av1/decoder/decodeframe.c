@@ -395,7 +395,8 @@ static AOM_INLINE void inverse_cross_chroma_transform_block(
       dcb->dqcoeff_block[AOM_PLANE_V] + dcb->cb_offset[AOM_PLANE_V];
   MACROBLOCKD *const xd = &dcb->xd;
   const CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
-  av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type);
+  av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type,
+                                xd->bd);
 }
 
 static AOM_INLINE void inverse_transform_inter_block(

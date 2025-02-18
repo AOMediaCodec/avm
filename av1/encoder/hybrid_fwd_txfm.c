@@ -496,7 +496,6 @@ void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
     src_c1[i] = clamp_value(src_c1[i], 8 + bd);
     src_c2[i] = clamp_value(src_c2[i], 8 + bd);
   }
-  // TODO(kslu) add clip (and in AVX)
 }
 
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,

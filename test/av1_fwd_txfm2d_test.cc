@@ -960,7 +960,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1FwdSecTxfmTest,
 
 typedef void (*InvSTxfmFunc)(tran_low_t *src, tran_low_t *dst,
                              const PREDICTION_MODE mode, const uint8_t stx_idx,
-                             const int size);
+                             const int size, const int bd);
 class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
  public:
   AV1InvSecTxfmTest() : inv_stxfm_func_(GetParam()) {}
@@ -981,8 +981,8 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
           for (int r = 0; r < IST_8x8_HEIGHT; r++) {
             input[r] = rnd(2) ? rnd(coeff_range) : -rnd(coeff_range);
           }
-          inv_stxfm_c(input, ref_output, set_id, stx, sb_size);
-          inv_stxfm_func_(input, output, set_id, stx, sb_size);
+          inv_stxfm_c(input, ref_output, set_id, stx, sb_size, bd);
+          inv_stxfm_func_(input, output, set_id, stx, sb_size, bd);
 #if CONFIG_E124_IST_REDUCE_METHOD4
           int check_rows = (sb_size == 0) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
 #else
@@ -1025,7 +1025,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
 
       aom_usec_timer_start(&test_timer);
       for (int i = 0; i < knum_loops; ++i) {
-        inv_stxfm_func_(input, output, 0, 0, sb_size);
+        inv_stxfm_func_(input, output, 0, 0, sb_size, bd);
       }
       aom_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =

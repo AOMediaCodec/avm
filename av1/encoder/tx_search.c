@@ -1305,7 +1305,8 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           x->plane[AOM_PLANE_V].dqcoeff + BLOCK_OFFSET(block);
       const int max_chroma_eob = AOMMAX(x->plane[AOM_PLANE_U].eobs[block],
                                         x->plane[AOM_PLANE_V].eobs[block]);
-      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type);
+      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type,
+                                    xd->bd);
       inverse_transform_block_facade(
           x, AOM_PLANE_U, block, blk_row, blk_col, max_chroma_eob,
 #if CONFIG_NEW_TX_PARTITION
@@ -1516,7 +1517,7 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(&cpi->common, PLANE_TYPE_UV));
   av1_inv_cross_chroma_tx_block(tmp_dqcoeff_c1, tmp_dqcoeff_c2, tx_size,
-                                cctx_type);
+                                cctx_type, xd->bd);
   av1_inverse_transform_block(
       xd, tmp_dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, recon_c1, MAX_TX_SIZE,
       max_chroma_eob,
