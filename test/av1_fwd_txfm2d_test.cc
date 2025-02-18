@@ -772,8 +772,10 @@ void FwdCctxTest::RunTest(int isRandom) {
           }
           memcpy(coeff_c1_test_, coeff_c1_ref_, coeff_alloc_size_);
           memcpy(coeff_c2_test_, coeff_c2_ref_, coeff_alloc_size_);
-          params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type, bd);
-          params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type, bd);
+          params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type,
+                           bd);
+          params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type,
+                           bd);
 
           for (int i = 0; i < ncoeffs; i++) {
             EXPECT_EQ(coeff_c1_ref_[i], coeff_c1_test_[i])
