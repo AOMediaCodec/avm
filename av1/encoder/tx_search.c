@@ -154,6 +154,8 @@ static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
 }
 
 #if !CONFIG_NEW_TX_PARTITION
+// TODO(any) This feature seems to be broken now. Fix this feature or remove it.
+#define USE_INTER_TXB_HASH 0
 static const RD_RECORD_IDX_NODE rd_record_tree_8x8[] = {
   { 1, { 0 } },
 };
@@ -5095,12 +5097,12 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // up TX size/type search.
   TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
   int found_rd_info = 0;
-#if !CONFIG_NEW_TX_PARTITION
+#if !CONFIG_NEW_TX_PARTITION && USE_INTER_TXB_HASH
   if (ref_best_rd != INT64_MAX && within_border &&
       cpi->sf.tx_sf.use_inter_txb_hash) {
     found_rd_info = find_tx_size_rd_records(x, bsize, matched_rd_info);
   }
-#endif  // !CONFIG_NEW_TX_PARTITION
+#endif  // !CONFIG_NEW_TX_PARTITION && USE_INTER_TXB_HASH
 
   const int64_t rd =
       select_tx_size_and_type(cpi, x, rd_stats, bsize, ref_best_rd,
