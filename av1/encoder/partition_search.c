@@ -2593,16 +2593,17 @@ static void update_partition_stats(
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
       mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma,
       chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
-    assert(partition == derived_partition &&
-           "Partition does not match normatively derived partition.");
-    return;
-  }
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                         mi_row, mi_col, ss_x, ss_y, bsize,
                                         chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
+    assert(partition == derived_partition &&
+           "Partition does not match normatively derived partition.");
+    return;
+  }
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
     assert(partition == derived_partition);
@@ -3487,18 +3488,6 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
                                            int mi_col, BLOCK_SIZE bsize,
                                            PARTITION_TREE *ptree) {
   if (ptree) {
-#ifndef NDEBUG
-#if CONFIG_EXT_RECUR_PARTITIONS
-    const bool ss_x = cm->cur_frame->buf.subsampling_x;
-    const bool ss_y = cm->cur_frame->buf.subsampling_y;
-    const PARTITION_TYPE derived_partition =
-        av1_get_normative_forced_partition_type(
-            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-            /* ptree_luma= */ NULL, &ptree->chroma_ref_info);
-    assert(IMPLIES(derived_partition != PARTITION_INVALID,
-                   ptree->partition == derived_partition));
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#endif  // NDEBUG
     return ptree->partition;
   }
   if (bsize >= BLOCK_8X8) {
@@ -3521,14 +3510,15 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
       &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma,
       chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
-    return;  // keep signaling costs zero.
-  }
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
+    return;  // keep signaling costs zero.
+  }
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
     return;  // keep signaling costs zero.
@@ -4220,7 +4210,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 #if CONFIG_EXTENDED_SDP
     REGION_TYPE cur_region_type,
 #endif  // CONFIG_EXTENDED_SDP
-    const CHROMA_REF_INFO *chroma_ref_info) {
+    const CHROMA_REF_INFO *chroma_ref_info, const bool *partition_allowed) {
   // Partition types forced by bitstream syntax.
   const MACROBLOCKD *xd = &x->e_mbd;
   const bool ss_x = cm->seq_params.subsampling_x;
@@ -4229,7 +4219,8 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
       av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
                                               ptree_luma, chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
     return derived_partition;
   }
 
@@ -4251,7 +4242,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 static AOM_INLINE void init_allowed_partitions(
     const AV1_COMMON *const cm, PartitionSearchState *part_search_state,
     const PartitionCfg *part_cfg, const CHROMA_REF_INFO *chroma_ref_info,
-    TREE_TYPE tree_type) {
+    TREE_TYPE tree_type, const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row;
   const int mi_col = blk_params->mi_col;
@@ -4262,11 +4253,6 @@ static AOM_INLINE void init_allowed_partitions(
                           !(blk_params->has_rows && blk_params->has_cols);
 
   part_search_state->do_rectangular_split = allow_rect;
-
-  bool partition_allowed[ALL_PARTITION_TYPES];
-  init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
-                                        mi_row, mi_col, ss_x, ss_y, bsize,
-                                        chroma_ref_info);
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
@@ -4440,15 +4426,23 @@ static void init_partition_search_state_params(
   av1_zero(part_search_state->prune_partition_4a);
   av1_zero(part_search_state->prune_partition_4b);
 
+  const bool ss_x = cm->seq_params.subsampling_x;
+  const bool ss_y = cm->seq_params.subsampling_y;
+  bool partition_allowed[ALL_PARTITION_TYPES];
+  init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
+                                        mi_row, mi_col, ss_x, ss_y, bsize,
+                                        &pc_tree->chroma_ref_info);
+
   part_search_state->forced_partition = get_forced_partition_type(
       cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
 #if CONFIG_EXTENDED_SDP
       (pc_tree ? pc_tree->region_type : MIXED_INTER_INTRA_REGION),
 #endif  // CONFIG_EXTENDED_SDP
-      &pc_tree->chroma_ref_info);
+      &pc_tree->chroma_ref_info, partition_allowed);
 
   init_allowed_partitions(cm, part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, tree_type);
+                          &pc_tree->chroma_ref_info, tree_type,
+                          partition_allowed);
 
   if (max_recursion_depth == 0) {
     part_search_state->prune_rect_part[HORZ] =
@@ -8793,13 +8787,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
         partition_vert_allowed, &part_search_state.do_rectangular_split,
         sqr_split_ptr, prune_horz, prune_vert, pc_tree);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    part_search_state.forced_partition =
-        get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
-                                  blk_params.bsize, ptree_luma, template_tree,
-#if CONFIG_EXTENDED_SDP
-                                  pc_tree->region_type,
-#endif  // CONFIG_EXTENDED_SDP
-                                  &pc_tree->chroma_ref_info);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -8837,8 +8824,15 @@ BEGIN_PARTITION_SEARCH:
   // limitations on partition types.
   if (x->must_find_valid_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+    const bool ss_x = cm->seq_params.subsampling_x;
+    const bool ss_y = cm->seq_params.subsampling_y;
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
+                                          mi_row, mi_col, ss_x, ss_y, bsize,
+                                          &pc_tree->chroma_ref_info);
     init_allowed_partitions(cm, &part_search_state, &cpi->oxcf.part_cfg,
-                            &pc_tree->chroma_ref_info, xd->tree_type);
+                            &pc_tree->chroma_ref_info, xd->tree_type,
+                            partition_allowed);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

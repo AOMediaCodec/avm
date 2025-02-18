@@ -2238,14 +2238,16 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
       &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
       ptree_luma, &ptree->chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
-    return derived_partition;
-  }
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         &ptree->chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
+    return derived_partition;
+  }
+
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
     return derived_partition;
