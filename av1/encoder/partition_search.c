@@ -2591,8 +2591,7 @@ static void update_partition_stats(
   const bool ss_y = xd->plane[1].subsampling_y;
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
-      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma,
-      chroma_ref_info);
+      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
@@ -3357,8 +3356,7 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
   // Handle boundary for first partition.
   PARTITION_TYPE implied_first_partition;
   const bool is_first_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-      chroma_ref_info, &implied_first_partition);
+      &cm->mi_params, mi_row, mi_col, bsize, &implied_first_partition);
 
   if (!is_first_part_implied &&
       (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
@@ -3418,9 +3416,8 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
   {
     PARTITION_TYPE implied_second_first_partition;
     const bool is_second_first_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col,
-        subsize_lookup[first_partition][bsize],
-        &ptree->sub_tree[0]->chroma_ref_info, &implied_second_first_partition);
+        &cm->mi_params, mi_row, mi_col, subsize_lookup[first_partition][bsize],
+        &implied_second_first_partition);
     assert(IMPLIES(is_second_first_part_implied,
                    implied_second_first_partition == second_partition));
   }
@@ -3432,9 +3429,9 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
         (second_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
     PARTITION_TYPE implied_second_second_partition;
     const bool is_second_second_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, tree_type, ss_x, ss_y, mi_row_second_second,
-        mi_col_second_second, subsize_lookup[first_partition][bsize],
-        &ptree->sub_tree[0]->chroma_ref_info, &implied_second_second_partition);
+        &cm->mi_params, mi_row_second_second, mi_col_second_second,
+        subsize_lookup[first_partition][bsize],
+        &implied_second_second_partition);
     assert(IMPLIES(is_second_second_part_implied,
                    implied_second_second_partition == second_partition));
   }
@@ -3508,8 +3505,7 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   memset(partition_cost, 0, ALL_PARTITION_TYPES * sizeof(*partition_cost));
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
-      &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma,
-      chroma_ref_info);
+      &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
@@ -4210,7 +4206,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 #if CONFIG_EXTENDED_SDP
     REGION_TYPE cur_region_type,
 #endif  // CONFIG_EXTENDED_SDP
-    const CHROMA_REF_INFO *chroma_ref_info, const bool *partition_allowed) {
+    const bool *partition_allowed) {
   // Partition types forced by bitstream syntax.
   const MACROBLOCKD *xd = &x->e_mbd;
   const bool ss_x = cm->seq_params.subsampling_x;
@@ -4218,7 +4214,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
-                                              ptree_luma, chroma_ref_info);
+                                              ptree_luma);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
     return derived_partition;
@@ -4240,15 +4236,10 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 }
 
 static AOM_INLINE void init_allowed_partitions(
-    const AV1_COMMON *const cm, PartitionSearchState *part_search_state,
-    const PartitionCfg *part_cfg, const CHROMA_REF_INFO *chroma_ref_info,
-    TREE_TYPE tree_type, const bool *partition_allowed) {
+    PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
+    const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const int mi_row = blk_params->mi_row;
-  const int mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
-  const bool ss_x = part_search_state->ss_x;
-  const bool ss_y = part_search_state->ss_y;
   const bool allow_rect = part_cfg->enable_rect_partitions ||
                           !(blk_params->has_rows && blk_params->has_cols);
 
@@ -4438,10 +4429,9 @@ static void init_partition_search_state_params(
 #if CONFIG_EXTENDED_SDP
       (pc_tree ? pc_tree->region_type : MIXED_INTER_INTRA_REGION),
 #endif  // CONFIG_EXTENDED_SDP
-      &pc_tree->chroma_ref_info, partition_allowed);
+      partition_allowed);
 
-  init_allowed_partitions(cm, part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, tree_type,
+  init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
                           partition_allowed);
 
   if (max_recursion_depth == 0) {
@@ -8830,8 +8820,7 @@ BEGIN_PARTITION_SEARCH:
     init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                           mi_row, mi_col, ss_x, ss_y, bsize,
                                           &pc_tree->chroma_ref_info);
-    init_allowed_partitions(cm, &part_search_state, &cpi->oxcf.part_cfg,
-                            &pc_tree->chroma_ref_info, xd->tree_type,
+    init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg,
                             partition_allowed);
 #else
     reset_part_limitations(cpi, &part_search_state);
