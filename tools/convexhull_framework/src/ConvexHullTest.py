@@ -22,7 +22,7 @@ from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, ParseDecLogFile, \
      Interpolate_Bilinear, Interpolate_PCHIP, convex_hull, DeleteFile, md5, get_total_frame
 from ScalingTest import Run_Scaling_Test
-from Config import LogLevels, FrameNum, QPs, QualityList, WorkPath, \
+from Config import LogLevels, QPs, QualityList, WorkPath, \
      Path_RDResults, DnScalingAlgos, UpScalingAlgos, \
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, \
      EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
@@ -67,6 +67,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
     Utils.Logger.info("start encode %s" % clip.file_name)
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
                    DnScaleRatio]
+    total_frame = get_total_frame('AS', clip)
     for i in range(len(DnScaledRes)):
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
@@ -74,7 +75,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
         dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
                                          ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
+            dnscalyuv = DownScaling(ScaleMethod, clip, total_frame, DnScaledW, DnScaledH,
                                     Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
                        clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
@@ -90,14 +91,14 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
 
             #encode and upscaling
             reconyuv = Run_EncDec_Upscale(EncodeMethod, CodecName, EncodePreset,
-                                          ds_clip, 'AS', QP, FrameNum['AS'],
+                                          ds_clip, 'AS', QP, total_frame,
                                           clip.width, clip.height, Path_Bitstreams,
                                           Path_DecodedYuv, Path_DecUpScaleYuv,
                                           Path_CfgFiles, Path_PerfLog, Path_EncLog, Path_DecLog,
                                           upScalAlgo, ScaleMethod, SaveMemory, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
-            CalculateQualityMetric(clip.file_path, FrameNum['AS'], reconyuv,
+            CalculateQualityMetric(clip.file_path, total_frame, reconyuv,
                                    clip.fmt, clip.width, clip.height,
                                    clip.bit_depth, Path_QualityLog, Path_VmafLog, LogCmdOnly)
             if SaveMemory:
@@ -115,6 +116,7 @@ def Run_Parallel_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogC
         Utils.Logger.info("start encode %s" % clip.file_name)
         DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
                        DnScaleRatio]
+        total_frame = get_total_frame('AS', clip)
         for i in range(len(DnScaledRes)):
             DnScaledW = DnScaledRes[i][0]
             DnScaledH = DnScaledRes[i][1]
@@ -122,7 +124,7 @@ def Run_Parallel_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogC
             dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
                                              ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
             if not os.path.isfile(dnscalyuv):
-                dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
+                dnscalyuv = DownScaling(ScaleMethod, clip, total_frame, DnScaledW, DnScaledH,
                                         Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
             ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
                            clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
@@ -172,7 +174,7 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
         os.makedirs(Path_RDResults)
 
     QPSet = QPs['AS']
-    total_frames = FrameNum['AS']
+    total_frames = get_total_frame('AS', clip)
 
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
