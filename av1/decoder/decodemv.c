@@ -1528,9 +1528,9 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
     return;
 
-  // No need to read transform type for lossless mode(qindex==0).
-  const int qindex = xd->qindex[mbmi->segment_id];
-  if (qindex == 0) return;
+  // No need to read transform type for lossless mode
+  if (xd->lossless[mbmi->segment_id]) return;
+
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >
       1) {
@@ -1680,9 +1680,7 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
     return;
 
-  // No need to read transform type for lossless mode(qindex==0).
-  const int qindex = xd->qindex[mbmi->segment_id];
-  if (qindex == 0) return;
+  assert(!xd->lossless[mbmi->segment_id]);
 
   CctxType cctx_type = CCTX_NONE;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1742,9 +1740,9 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
     return;
 
-  // No need to read transform type for lossless mode(qindex==0).
-  const int qindex = xd->qindex[mbmi->segment_id];
-  if (qindex == 0) return;
+  // No need to read transform type for lossless mode
+  if (xd->lossless[mbmi->segment_id]) return;
+
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >
       1) {
