@@ -31,16 +31,16 @@ void av1_dip_matrix_multiplication_avx2(const uint16_t *A, const uint16_t *B,
   __m256i negsum = _mm256_madd_epi16(in0, in_mask);
   negsum = _mm256_hadd_epi32(negsum, negsum);
   negsum = _mm256_hadd_epi32(negsum, negsum);
-  negsum = _mm256_slli_epi32(negsum, BITS - 2);
-  __m128i offset = _mm_set1_epi32(OFFSET >> 2);
+  negsum = _mm256_slli_epi32(negsum, DIP_BITS - 2);
+  __m128i offset = _mm_set1_epi32(DIP_OFFSET >> 2);
   __m128i maxval = _mm_set1_epi32((1 << bd) - 1);
   __m128i zero = _mm_setzero_si128();
 
-  for (int i = 0; i < ROWS; i += 4) {
-    __m256i row0 = _mm256_lddqu_si256((__m256i *)&A[i * COLS]);
-    __m256i row1 = _mm256_lddqu_si256((__m256i *)&A[(i + 1) * COLS]);
-    __m256i row2 = _mm256_lddqu_si256((__m256i *)&A[(i + 2) * COLS]);
-    __m256i row3 = _mm256_lddqu_si256((__m256i *)&A[(i + 3) * COLS]);
+  for (int i = 0; i < DIP_ROWS; i += 4) {
+    __m256i row0 = _mm256_lddqu_si256((__m256i *)&A[i * DIP_COLS]);
+    __m256i row1 = _mm256_lddqu_si256((__m256i *)&A[(i + 1) * DIP_COLS]);
+    __m256i row2 = _mm256_lddqu_si256((__m256i *)&A[(i + 2) * DIP_COLS]);
+    __m256i row3 = _mm256_lddqu_si256((__m256i *)&A[(i + 3) * DIP_COLS]);
     __m256i m0 = _mm256_madd_epi16(row0, in0);
     __m256i m1 = _mm256_madd_epi16(row1, in0);
     __m256i m2 = _mm256_madd_epi16(row2, in0);
@@ -53,7 +53,7 @@ void av1_dip_matrix_multiplication_avx2(const uint16_t *A, const uint16_t *B,
     __m128i sum0_hi = _mm256_extracti128_si256(sum0, 1);
     __m128i sum1 = _mm_add_epi32(sum0_lo, sum0_hi);
     sum1 = _mm_add_epi32(sum1, offset);
-    sum1 = _mm_srai_epi32(sum1, BITS - 2);
+    sum1 = _mm_srai_epi32(sum1, DIP_BITS - 2);
     sum1 = _mm_min_epi32(sum1, maxval);
     sum1 = _mm_max_epi32(sum1, zero);
     __m128i out0 = _mm_packus_epi32(sum1, sum1);
