@@ -3725,6 +3725,7 @@ void av1_initialize_warp_wrl_list(
     uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]) {
   for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ref_frame++) {
     for (int warp_idx = 0; warp_idx < MAX_WARP_REF_CANDIDATES; warp_idx++) {
+      warp_param_stack[ref_frame][warp_idx].wm_params = default_warp_params;
       warp_param_stack[ref_frame][warp_idx].wm_params.invalid = 1;
     }
     valid_num_warp_candidates[ref_frame] = 0;
@@ -3844,6 +3845,10 @@ void av1_find_mv_refs(
   if (mi->skip_mode) {
     SKIP_MODE_MVP_LIST *skip_list =
         (SKIP_MODE_MVP_LIST *)&(xd->skip_mvp_candidate_list);
+    memset(skip_list->ref_frame0, 0,
+           USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame0[0]));
+    memset(skip_list->ref_frame1, 0,
+           USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame1[0]));
     av1_initialize_ref_mv_stack(skip_list->ref_mv_stack,
                                 USABLE_REF_MV_STACK_SIZE);
     setup_ref_mv_list(
