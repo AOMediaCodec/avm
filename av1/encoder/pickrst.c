@@ -5449,7 +5449,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif                                       // CONFIG_COMBINE_PC_NS_WIENER
       }
 #if CONFIG_COMBINE_PC_NS_WIENER
-      if (is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
+      if (is_frame_filters_enabled(rsc.plane)) {
         rsc.frame_filters_on = best_frame_filters_state;
 #if CONFIG_TEMP_LR
         rsc.temporal_pred_flag = best_temp_pred_flag;
