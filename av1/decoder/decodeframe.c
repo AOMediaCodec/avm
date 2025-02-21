@@ -3472,6 +3472,8 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
           wienerns_info,
           av1_constref_from_wienerns_bank(bank, ref_for_class[c_id], c_id),
           c_id);
+      if (bank->bank_size_for_class[c_id] == 0)
+        av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
       continue;
     }
     const int ref = ref_for_class[c_id];

@@ -4626,7 +4626,11 @@ static AOM_INLINE void write_wienerns_filter(
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    if (skip_filter_write_for_class[c_id]) continue;
+    if (skip_filter_write_for_class[c_id]) {
+      if (bank->bank_size_for_class[c_id] == 0)
+        av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
+      continue;
+    }
     const int ref = ref_for_class[c_id];
     const WienerNonsepInfo *ref_wienerns_info =
         av1_constref_from_wienerns_bank(bank, ref, c_id);
