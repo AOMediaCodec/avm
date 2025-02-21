@@ -14,7 +14,7 @@
 #define DIP_BITS 12
 #define DIP_OFFSET (1 << (12 - 1))
 #define DIP_SCALE 4
-#define DIP_FEATURES 12
+#define DIP_FEATURES 11
 
 extern const uint16_t av1_intra_matrix_weights[][DIP_ROWS][DIP_COLS];
 
