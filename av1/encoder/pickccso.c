@@ -427,8 +427,8 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
                      (x >> log2_filter_unit_size_x)] = ssd;
       *total_distortion += ssd;
     }
-    org += (org_stride << log2_filter_unit_size_x);
-    rec16 += (rec_stride << log2_filter_unit_size_x);
+    org += (org_stride << log2_filter_unit_size_y);
+    rec16 += (rec_stride << log2_filter_unit_size_y);
   }
 }
 
