@@ -687,13 +687,12 @@ void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
 
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
   // Allocate based on the MIN_TX_SIZE, which is a 4x4 block.
+  (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     int w = mi_params->mi_cols << MI_SIZE_LOG2;
     int h = mi_params->mi_rows << MI_SIZE_LOG2;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
-    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->tx_skip[plane] = aom_calloc(rows * stride, sizeof(uint8_t));
@@ -711,7 +710,6 @@ void av1_set_txk_skip_array_stride(CommonModeInfoParams *mi_params,
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     int w = mi_params->mi_cols << MI_SIZE_LOG2;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
-    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->tx_skip_stride[plane] = stride;
   }
@@ -840,13 +838,15 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
 }
 
 void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
+  (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-    int w = cm->superres_upscaled_width;
+    // Allocate for the maximum possible value of cm->superres_upscaled_width,
+    // which is the coded frame width * 2, instead of just
+    // cm->superres_upscaled_width
+    int w = (mi_params->mi_cols << MI_SIZE_LOG2) * 2;
     int h = cm->superres_upscaled_height;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
-    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->wiener_class_id[plane] =
@@ -857,10 +857,13 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
 
 void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV1_COMMON *cm) {
+  (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-    int w = cm->superres_upscaled_width;
+    // Allocate for the maximum possible value of cm->superres_upscaled_width,
+    // which is the coded frame width * 2, instead of just
+    // cm->superres_upscaled_width
+    int w = (mi_params->mi_cols << MI_SIZE_LOG2) * 2;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
-    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->wiener_class_id_stride[plane] = stride;
   }
