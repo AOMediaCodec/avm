@@ -2987,6 +2987,15 @@ void make_inter_pred_of_nxn(
   int wms_stride = bw / affine_sub_bw;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
 
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int row_start =
+      plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  const int col_start =
+      plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+
   int *vx = &vxy_bufs[vxy_size * ref];
   int *vy = &vxy_bufs[vxy_size * (2 + ref)];
 
@@ -3012,8 +3021,10 @@ void make_inter_pred_of_nxn(
       inter_pred_params->warp_bd_box_damr.y1 = cm->height;
 #endif  // CONFIG_WARP_BD_BOX
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-      const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
-      const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
+      const int x = mi_x + MI_SIZE * col_start +
+                    i * (1 << inter_pred_params->subsampling_x);
+      const int y = mi_y + MI_SIZE * row_start +
+                    j * (1 << inter_pred_params->subsampling_y);
       if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                               cm->mi_params.mi_rows, build_for_decode)) {
         n_blocks++;
@@ -5382,9 +5393,15 @@ static void build_inter_predictors_8x8_and_bigger(
     assert(bh % refinemv_sb_size_height == 0);
     for (int h = 0; h < bh; h += refinemv_sb_size_height) {
       for (int w = 0; w < bw; w += refinemv_sb_size_width) {
+        const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+        const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+        int row_start =
+            plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+        int col_start =
+            plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-        const int x = mi_x + w * (1 << pd->subsampling_x);
-        const int y = mi_y + h * (1 << pd->subsampling_y);
+        const int x = mi_x + MI_SIZE * col_start + w * (1 << pd->subsampling_x);
+        const int y = mi_y + MI_SIZE * row_start + h * (1 << pd->subsampling_y);
         if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
@@ -5393,12 +5410,6 @@ static void build_inter_predictors_8x8_and_bigger(
         uint16_t *dst_buf = dst + h * dst_stride + w;
         xd->tmp_conv_dst = tmp_conv_dst + h * MAX_SB_SIZE + w;
 
-        const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-        const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-        int row_start =
-            plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
-        int col_start =
-            plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
         MV luma_refined_mv[2] = { { mi->mv[0].as_mv.row, mi->mv[0].as_mv.col },
                                   { mi->mv[1].as_mv.row,
                                     mi->mv[1].as_mv.col } };
@@ -5420,8 +5431,10 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_SUBBLK_PAD
         // sub_mi_x, and sub_mi_y are the top-left position of the luma samples
         // of the sub-block
-        const int sub_mi_x = mi_x + w * (1 << pd->subsampling_x);
-        const int sub_mi_y = mi_y + h * (1 << pd->subsampling_y);
+        const int sub_mi_x =
+            mi_x + MI_SIZE * col_start + w * (1 << pd->subsampling_x);
+        const int sub_mi_y =
+            mi_y + MI_SIZE * row_start + h * (1 << pd->subsampling_y);
         av1_get_reference_area_with_padding(
             cm, xd, plane, mi, mi_mv, refinemv_sb_size_width,
             refinemv_sb_size_height, sub_mi_x, sub_mi_y, ref_area, pu_width,
@@ -5435,9 +5448,9 @@ static void build_inter_predictors_8x8_and_bigger(
             build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
             refinemv_sb_size_width, refinemv_sb_size_height,
-            mi_x + w * (1 << pd->subsampling_x),
-            mi_y + h * (1 << pd->subsampling_y), mc_buf, mi_mv,
-            calc_subpel_params_func, dst_buf, dst_stride,
+            mi_x + MI_SIZE * col_start + w * (1 << pd->subsampling_x),
+            mi_y + MI_SIZE * row_start + h * (1 << pd->subsampling_y), mc_buf,
+            mi_mv, calc_subpel_params_func, dst_buf, dst_stride,
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
             w, h,
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
