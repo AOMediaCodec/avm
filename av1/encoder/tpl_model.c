@@ -1112,7 +1112,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
           get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+#if CONFIG_KEY_OVERLAY
+                             cpi->gf_group.max_layer_depth, 0);
+#else
                              cpi->gf_group.max_layer_depth);
+#endif  // CONFIG_KEY_OVERLAY
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -1207,7 +1211,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
           get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+#if CONFIG_KEY_OVERLAY
+                             cpi->gf_group.max_layer_depth, 0);
+#else
                              cpi->gf_group.max_layer_depth);
+#endif  // CONFIG_KEY_OVERLAY
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {

@@ -392,17 +392,21 @@ const subgop_config_str_preset_map_type subgop_config_str_preset_map[] = {
 };
 
 static struct av1_extracfg default_extra_cfg = {
-  0,              // cpu_used
-  1,              // enable_auto_alt_ref
-  0,              // enable_auto_bwd_ref
-  0,              // noise_sensitivity
-  0,              // sharpness
-  0,              // static_thresh
-  1,              // row_mt
-  0,              // tile_columns
-  0,              // tile_rows
-  1,              // enable_tpl_model
-  1,              // enable_keyframe_filtering
+  0,  // cpu_used
+  1,  // enable_auto_alt_ref
+  0,  // enable_auto_bwd_ref
+  0,  // noise_sensitivity
+  0,  // sharpness
+  0,  // static_thresh
+  1,  // row_mt
+  0,  // tile_columns
+  0,  // tile_rows
+  1,  // enable_tpl_model
+#if CONFIG_KEY_OVERLAY
+  2,  // enable_keyframe_filtering
+#else
+  1,    // enable_keyframe_filtering
+#endif            // CONFIG_KEY_OVERLAY
   7,              // arnr_max_frames
   5,              // arnr_strength
   0,              // min_gf_interval; 0 -> default decision
@@ -1646,7 +1650,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
+
+#if CONFIG_KEY_OVERLAY
+  kf_cfg->enable_keyframe_filtering =
+      kf_cfg->fwd_kf_enabled ? AOMMIN(extra_cfg->enable_keyframe_filtering, 1)
+                             : extra_cfg->enable_keyframe_filtering;
+#else
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
+#endif  // CONFIG_KEY_OVERLAY
+
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
   kf_cfg->enable_intrabc_ext = extra_cfg->enable_intrabc_ext;
@@ -3058,9 +3070,24 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
+
+#if CONFIG_KEY_OVERLAY
+      // Currently, "enable_keyframe_filtering > 1" is the only exception case
+      // in AVM. Later, if more cases arise, this condition can be made general
+      // based on frame type.
+      const int valid_ref_case =
+          (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) &&
+          (cm->cur_frame->frame_type == INTER_FRAME);
+      ref_poc[ref_idx] =
+          ((ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) &&
+           !valid_ref_case)
+              ? -1
+              : ref_poc[ref_idx];
+#else
       ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
                              ? -1
                              : ref_poc[ref_idx];
+#endif  // CONFIG_KEY_OVERLAY
     }
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);

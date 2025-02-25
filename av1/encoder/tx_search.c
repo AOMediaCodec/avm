@@ -2364,8 +2364,17 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     int i;
 
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
+#if CONFIG_KEY_OVERLAY
+      // TODO(yunqing): adjust the thresholds.
+      static const int thresh_arr[2][FRAME_UPDATE_TYPES] = {
+        { 10, 15, 15, 10, 15, 15, 15, 0, 0 },
+        { 10, 17, 17, 10, 17, 17, 17, 0, 0 }
+      };
+#else
       static const int thresh_arr[2][7] = { { 10, 15, 15, 10, 15, 15, 15 },
                                             { 10, 17, 17, 10, 17, 17, 17 } };
+#endif  // CONFIG_KEY_OVERLAY
+
       const int thresh =
           thresh_arr[cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats - 1]
                     [update_type];

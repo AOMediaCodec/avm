@@ -31,6 +31,9 @@
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/firstpass.h"
+#if CONFIG_KEY_OVERLAY
+#include "av1/encoder/gop_structure.h"
+#endif  // CONFIG_KEY_OVERLAY
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
@@ -151,6 +154,15 @@ static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
   if (get_frame_update_type(gf_group) != ARF_UPDATE &&
       get_frame_update_type(gf_group) != KFFLT_UPDATE)
     return;
+
+#if CONFIG_KEY_OVERLAY
+  if (get_frame_update_type(gf_group) == KFFLT_UPDATE) {
+    // Key overlay is always used to ensure good visual quality.
+    gf_group->show_existing_alt_ref = 0;
+    return;
+  }
+#endif  // CONFIG_KEY_OVERLAY
+
   if (!enable_overlay)
     gf_group->show_existing_alt_ref = 1;
   else
@@ -481,7 +493,11 @@ static struct lookahead_entry *choose_frame_source(
   // If this is a key frame and keyframe filtering is enabled with overlay,
   // then do not pop.
   if (pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
+#if CONFIG_KEY_OVERLAY
+      gf_group->update_type[gf_group->index] == KFFLT_UPDATE &&
+#else
       cpi->rc.frames_to_key == 0 && cpi->rc.frames_till_gf_update_due == 0 &&
+#endif  // CONFIG_KEY_OVERLAY
       !is_stat_generation_stage(cpi) && cpi->lookahead) {
     if (cpi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
         (*flush ||
@@ -506,6 +522,10 @@ static struct lookahead_entry *choose_frame_source(
         av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
     if (source != NULL) {
       cm->showable_frame = 1;
+#if CONFIG_KEY_OVERLAY
+      if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE)
+        cm->showable_frame = 0;
+#endif  // CONFIG_KEY_OVERLAY
     }
   }
   return source;
@@ -802,9 +822,18 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     int allow_kf_filtering =
         oxcf->kf_cfg.enable_keyframe_filtering &&
         !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
+#if CONFIG_KEY_OVERLAY
+        has_enough_frames_for_key_filtering(cpi->rc.frames_to_key,
+                                            oxcf->algo_cfg.arnr_max_frames,
+                                            oxcf->gf_cfg.lag_in_frames) &&
+        (!is_lossless_requested(&oxcf->rc_cfg) ||
+         oxcf->kf_cfg.enable_keyframe_filtering > 1);
+#else
         cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
         !is_lossless_requested(&oxcf->rc_cfg) &&
         oxcf->algo_cfg.arnr_max_frames > 0;
+#endif  // CONFIG_KEY_OVERLAY
+
     if (allow_kf_filtering) {
       const double y_noise_level = av1_estimate_noise_from_single_plane(
           frame_input->source, 0, cm->seq_params.bit_depth);
@@ -830,9 +859,11 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       av1_frame_init_quantizer(cpi);
       av1_setup_past_independence(cm);
 
+#if !CONFIG_KEY_OVERLAY
       if (gf_group->update_type[gf_group->index] == KEY_FRAME &&
           !cpi->no_show_fwd_kf)
         cm->current_frame.frame_number = 0;
+#endif  // !CONFIG_KEY_OVERLAY
 
       if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
         // fwd kf

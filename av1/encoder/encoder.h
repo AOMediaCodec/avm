@@ -105,7 +105,16 @@ enum {
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
 static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+#if CONFIG_KEY_OVERLAY
+                                     int max_layer_depth, int is_key_overlay) {
+#else
                                      int max_layer_depth) {
+#endif  // CONFIG_KEY_OVERLAY
+
+#if CONFIG_KEY_OVERLAY
+  if (is_key_overlay) return max_layer_depth;
+#endif  // CONFIG_KEY_OVERLAY
+
   if (frame_order == 0) {
     // Keyframe case
     return 1;

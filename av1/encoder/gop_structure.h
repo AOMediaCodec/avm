@@ -66,6 +66,23 @@ void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
                             GF_GROUP *gf_group, int is_key_frame, int use_arf,
                             int64_t gf_group_bits);
 
+#if CONFIG_KEY_OVERLAY
+/*!\brief Check if there are enough frames for key filtering
+ *
+ * \param[in]   frames_to_key   Number of frames to the next Key frame
+ * \param[in]   arnr_max_frames Maximum number of frames used
+ * \param[in]   lag_in_frames   Lagged frames allowed
+ *
+ * \return 1 if there are enough frames available else 0
+ */
+static INLINE int has_enough_frames_for_key_filtering(int frames_to_key,
+                                                      int arnr_max_frames,
+                                                      int lag_in_frames) {
+  return (arnr_max_frames > 0 && lag_in_frames > 0 &&
+          frames_to_key > arnr_max_frames);
+}
+#endif  // CONFIG_KEY_OVERLAY
+
 /*!\cond */
 int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
                        FRAME_INFO *frame_info, int offset, int f_frames,

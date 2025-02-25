@@ -330,12 +330,20 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "RDO based on frame temporal dependency "
                               "(0: off, 1: backward source based). "
                               "This is required for deltaq mode."),
+#if CONFIG_KEY_OVERLAY
+  .enable_keyframe_filtering =
+      ARG_DEF(NULL, "enable-keyframe-filtering", 1,
+              "Apply temporal filtering on key frame"
+              "(0: no filter, 1: filter without overlay, "
+              "2: filter with overlay (default)) "),
+#else
   .enable_keyframe_filtering = ARG_DEF(
       NULL, "enable-keyframe-filtering", 1,
       "Apply temporal filtering on key frame"
       "(0: no filter, 1: filter without overlay (default), "
       "2: filter with overlay - experimental, may break random access in "
       "players.)"),
+#endif  // CONFIG_KEY_OVERLAY
   .tile_width = ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)"),
   .tile_height =
       ARG_DEF(NULL, "tile-height", 1, "Tile heights (command separated)"),
