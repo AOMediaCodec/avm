@@ -45,6 +45,7 @@
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
+#include "av1/common/secondary_tx.h"
 #include "av1/common/seg_common.h"
 #include "av1/common/tile_common.h"
 

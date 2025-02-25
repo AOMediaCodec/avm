@@ -80,6 +80,7 @@ list(
   "${AOM_ROOT}/av1/common/scale.h"
   "${AOM_ROOT}/av1/common/scan.c"
   "${AOM_ROOT}/av1/common/scan.h"
+  "${AOM_ROOT}/av1/common/secondary_tx.h"
   "${AOM_ROOT}/av1/common/seg_common.c"
   "${AOM_ROOT}/av1/common/seg_common.h"
   "${AOM_ROOT}/av1/common/thread_common.c"

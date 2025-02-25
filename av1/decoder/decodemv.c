@@ -27,6 +27,7 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
+#include "av1/common/secondary_tx.h"
 #include "av1/common/seg_common.h"
 #include "av1/common/warped_motion.h"
 

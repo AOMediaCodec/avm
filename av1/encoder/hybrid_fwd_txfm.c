@@ -17,6 +17,7 @@
 #include "av1/common/idct.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/common/scan.h"
+#include "av1/common/secondary_tx.h"
 
 /* 4-point reversible, orthonormal Walsh-Hadamard in 3.5 adds, 0.5 shifts per
    pixel. */

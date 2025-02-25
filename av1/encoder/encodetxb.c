@@ -19,6 +19,7 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/scan.h"
+#include "av1/common/secondary_tx.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/common/cost.h"
 #include "av1/encoder/encodeframe.h"

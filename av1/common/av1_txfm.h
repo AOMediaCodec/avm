@@ -21,6 +21,7 @@
 
 #include "av1/common/enums.h"
 #include "av1/common/blockd.h"
+#include "av1/common/secondary_tx.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
 
