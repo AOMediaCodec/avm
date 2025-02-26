@@ -3330,8 +3330,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                 BLOCK_SIZE final_bsize,
-                                 PARTITION_TREE *ptree) {
+                                 BLOCK_SIZE final_bsize, PARTITION_TREE *ptree,
+                                 const PARTITION_TREE *ptree_luma) {
   assert(block_size_high[bsize] == block_size_wide[bsize]);
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
@@ -3353,32 +3353,42 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
   const CHROMA_REF_INFO *chroma_ref_info = &ptree->chroma_ref_info;
 
-  // Handle boundary for first partition.
-  PARTITION_TYPE implied_first_partition;
-  const bool is_first_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, mi_row, mi_col, bsize, &implied_first_partition);
-
-  if (!is_first_part_implied &&
-      (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
-      (block_size_high[bsize] <= block_size_high[final_bsize])) {
-    ptree->partition = PARTITION_NONE;
-    return;
-  }
-
   // In general, we simulate SPLIT partition as HORZ followed by VERT partition.
   // But in case first partition is implied to be VERT, we are forced to use
   // VERT followed by HORZ.
   PARTITION_TYPE first_partition = PARTITION_INVALID;
-  if (is_first_part_implied) {
-    first_partition = implied_first_partition;
-  } else if (check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize,
-                                        mi_row, mi_col, ss_x, ss_y,
-                                        chroma_ref_info)) {
-    first_partition = PARTITION_HORZ;
-  } else if (check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize,
-                                        mi_row, mi_col, ss_x, ss_y,
-                                        chroma_ref_info)) {
-    first_partition = PARTITION_VERT;
+  {
+    PARTITION_TYPE implied_first_partition = PARTITION_INVALID;
+    const PARTITION_TYPE derived_partition =
+        av1_get_normative_forced_partition_type(&cm->mi_params, tree_type, ss_x,
+                                                ss_y, mi_row, mi_col, bsize,
+                                                ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
+                                          mi_row, mi_col, ss_x, ss_y, bsize,
+                                          chroma_ref_info);
+    if (derived_partition != PARTITION_INVALID &&
+        partition_allowed[derived_partition]) {
+      assert(derived_partition == PARTITION_HORZ ||
+             derived_partition == PARTITION_VERT ||
+             derived_partition == PARTITION_SPLIT);
+      implied_first_partition = derived_partition;
+    }
+    if (implied_first_partition != PARTITION_INVALID) {
+      first_partition = implied_first_partition;
+    } else if (partition_allowed[PARTITION_NONE] &&
+               (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
+               (block_size_high[bsize] <= block_size_high[final_bsize])) {
+      ptree->partition = PARTITION_NONE;
+      return;
+    } else if (partition_allowed[PARTITION_SPLIT]) {
+      first_partition = PARTITION_SPLIT;
+    } else if (partition_allowed[PARTITION_HORZ]) {
+      first_partition = PARTITION_HORZ;
+    } else if (partition_allowed[PARTITION_VERT]) {
+      first_partition = PARTITION_VERT;
+    }
   }
   assert(first_partition != PARTITION_INVALID);
 
@@ -3387,6 +3397,8 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
   const int hbs_h = mi_size_high[bsize] >> 1;
 
   ptree->partition = first_partition;
+  const int track_ptree_luma =
+      is_luma_chroma_share_same_partition(tree_type, ptree_luma, bsize);
 
   if (first_partition == PARTITION_SPLIT) {
     ptree->partition = first_partition;
@@ -3395,13 +3407,17 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
     ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
     ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
     build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]);
+                         ptree->sub_tree[0],
+                         track_ptree_luma ? ptree_luma->sub_tree[0] : NULL);
     build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]);
+                         final_bsize, ptree->sub_tree[1],
+                         track_ptree_luma ? ptree_luma->sub_tree[1] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[2]);
+                         final_bsize, ptree->sub_tree[2],
+                         track_ptree_luma ? ptree_luma->sub_tree[2] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[3]);
+                         final_bsize, ptree->sub_tree[3],
+                         track_ptree_luma ? ptree_luma->sub_tree[3] : NULL);
     return;
   }
 
@@ -3413,27 +3429,43 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
 #ifndef NDEBUG
   // Boundary sanity checks for 2nd partitions.
+  const BLOCK_SIZE subsize_of_first_partition =
+      subsize_lookup[first_partition][bsize];
   {
-    PARTITION_TYPE implied_second_first_partition;
-    const bool is_second_first_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, mi_row, mi_col, subsize_lookup[first_partition][bsize],
-        &implied_second_first_partition);
-    assert(IMPLIES(is_second_first_part_implied,
-                   implied_second_first_partition == second_partition));
+    const PARTITION_TYPE derived_second_first_partition =
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col,
+            subsize_of_first_partition, ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, tree_type, mi_row, mi_col, ss_x, ss_y,
+        subsize_of_first_partition, chroma_ref_info);
+    if (derived_second_first_partition != PARTITION_INVALID &&
+        partition_allowed[derived_second_first_partition]) {
+      assert(second_partition == derived_second_first_partition);
+    }
   }
 
-  {
+  {  // TODO(now): should be opposite?
     const int mi_row_second_second =
         (second_partition == PARTITION_HORZ) ? mi_row + hbs_h : mi_row;
     const int mi_col_second_second =
         (second_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
-    PARTITION_TYPE implied_second_second_partition;
-    const bool is_second_second_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, mi_row_second_second, mi_col_second_second,
-        subsize_lookup[first_partition][bsize],
-        &implied_second_second_partition);
-    assert(IMPLIES(is_second_second_part_implied,
-                   implied_second_second_partition == second_partition));
+    const PARTITION_TYPE derived_second_second_partition =
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row_second_second,
+            mi_col_second_second, subsize_of_first_partition, ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, tree_type, mi_row_second_second,
+        mi_col_second_second, ss_x, ss_y, subsize_of_first_partition,
+        chroma_ref_info);
+    if (derived_second_second_partition != PARTITION_INVALID &&
+        partition_allowed[derived_second_second_partition]) {
+      assert(second_partition == derived_second_second_partition);
+    }
   }
 #endif  // NDEBUG
 
@@ -3445,38 +3477,59 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
   ptree->sub_tree[1]->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
   ptree->sub_tree[1]->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
 
+  const int track_subtree0_luma =
+      track_ptree_luma && is_luma_chroma_share_same_partition(
+                              tree_type, ptree_luma->sub_tree[0], bsize);
+  const int track_subtree1_luma =
+      track_ptree_luma && is_luma_chroma_share_same_partition(
+                              tree_type, ptree_luma->sub_tree[1], bsize);
   if (first_partition == PARTITION_HORZ) {
     assert(second_partition == PARTITION_VERT);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[0]->sub_tree[1]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[1]);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[0],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[1],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[0],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[1],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   } else {
     assert(first_partition == PARTITION_VERT);
     assert(second_partition == PARTITION_HORZ);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[0]->sub_tree[1]);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[1]);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[0],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[1],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[0],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[1],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   }
 }
 
-void av1_build_partition_tree_fixed_partitioning(AV1_COMMON *const cm,
-                                                 TREE_TYPE tree_type,
-                                                 int mi_row, int mi_col,
-                                                 BLOCK_SIZE bsize,
-                                                 PARTITION_TREE *ptree) {
+void av1_build_partition_tree_fixed_partitioning(
+    AV1_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
   const BLOCK_SIZE sb_size = cm->sb_size;
 
-  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, bsize, ptree);
+  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, bsize, ptree,
+                       ptree_luma);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

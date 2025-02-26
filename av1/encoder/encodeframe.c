@@ -805,7 +805,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col, bsize,
-          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+          xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       PC_TREE *const pc_root =
           av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
@@ -843,7 +844,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col, bsize,
-          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+          xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                            &dummy_rate, &dummy_dist, 1,
