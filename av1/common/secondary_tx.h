@@ -29521,4 +29521,4 @@ static const int16_t
 }  // extern "C"
 #endif
 
-#endif  // AOM_AV1_COMMON_COMMON_DATA_H_
+#endif  // AOM_AV1_COMMON_SECONDARY_TX_H_
