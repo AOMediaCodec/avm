@@ -1096,6 +1096,10 @@ struct CommonModeInfoParams {
    */
   uint8_t *wiener_class_id[MAX_MB_PLANE];
   /*!
+   * wiener_class_id buffer allocated for each 4x4 block
+   */
+  uint32_t wiener_class_id_buf_size[MAX_MB_PLANE];
+  /*!
    * wiener_class_id stride
    */
   uint32_t wiener_class_id_stride[MAX_MB_PLANE];

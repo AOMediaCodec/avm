@@ -709,8 +709,16 @@ void av1_set_txk_skip_array_stride(CommonModeInfoParams *mi_params,
   (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     int w = mi_params->mi_cols << MI_SIZE_LOG2;
+    int h = mi_params->mi_rows << MI_SIZE_LOG2;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    if (rows * stride > (int)mi_params->tx_skip_buf_size[plane]) {
+      aom_free(mi_params->tx_skip[plane]);
+      mi_params->tx_skip[plane] = aom_calloc(rows * stride, sizeof(uint8_t));
+      mi_params->tx_skip_buf_size[plane] = rows * stride;
+    }
     mi_params->tx_skip_stride[plane] = stride;
   }
 }
@@ -851,6 +859,7 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->wiener_class_id[plane] =
         aom_calloc(rows * stride, sizeof(uint8_t));
+    mi_params->wiener_class_id_buf_size[plane] = rows * stride;
     mi_params->wiener_class_id_stride[plane] = stride;
   }
 }
@@ -863,8 +872,17 @@ void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
     // which is the coded frame width * 2, instead of just
     // cm->superres_upscaled_width
     int w = (mi_params->mi_cols << MI_SIZE_LOG2) * 2;
+    int h = cm->superres_upscaled_height;
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    if (rows * stride > (int)mi_params->wiener_class_id_buf_size[plane]) {
+      aom_free(mi_params->wiener_class_id[plane]);
+      mi_params->wiener_class_id[plane] =
+          aom_calloc(rows * stride, sizeof(uint8_t));
+      mi_params->wiener_class_id_buf_size[plane] = rows * stride;
+    }
     mi_params->wiener_class_id_stride[plane] = stride;
   }
 }
