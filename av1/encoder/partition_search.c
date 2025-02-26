@@ -3447,11 +3447,11 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
     }
   }
 
-  {  // TODO(now): should be opposite?
+  {
     const int mi_row_second_second =
-        (second_partition == PARTITION_HORZ) ? mi_row + hbs_h : mi_row;
+        (first_partition == PARTITION_HORZ) ? mi_row + hbs_h : mi_row;
     const int mi_col_second_second =
-        (second_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
+        (first_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
     const PARTITION_TYPE derived_second_second_partition =
         av1_get_normative_forced_partition_type(
             &cm->mi_params, tree_type, ss_x, ss_y, mi_row_second_second,
