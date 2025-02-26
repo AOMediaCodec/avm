@@ -3372,6 +3372,7 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
         partition_allowed[derived_partition]) {
       assert(derived_partition == PARTITION_HORZ ||
              derived_partition == PARTITION_VERT ||
+             derived_partition == PARTITION_NONE ||
              derived_partition == PARTITION_SPLIT);
       implied_first_partition = derived_partition;
     }
@@ -3380,8 +3381,7 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
     } else if (partition_allowed[PARTITION_NONE] &&
                (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
                (block_size_high[bsize] <= block_size_high[final_bsize])) {
-      ptree->partition = PARTITION_NONE;
-      return;
+      first_partition = PARTITION_NONE;
     } else if (partition_allowed[PARTITION_SPLIT]) {
       first_partition = PARTITION_SPLIT;
     } else if (partition_allowed[PARTITION_HORZ]) {
@@ -3391,6 +3391,11 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
     }
   }
   assert(first_partition != PARTITION_INVALID);
+
+  if (first_partition == PARTITION_NONE) {
+    ptree->partition = first_partition;
+    return;
+  }
 
   const BLOCK_SIZE subsize = subsize_lookup[PARTITION_SPLIT][bsize];
   const int hbs_w = mi_size_wide[bsize] >> 1;
