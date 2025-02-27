@@ -66,7 +66,7 @@ static uint8_t *tcq_levels_cur(const tcq_levels_t *lev, int st) {
 }
 
 static AOM_INLINE void init_tcq_decision(tcq_node_t *decision) {
-  static const tcq_node_t def = { INT64_MAX >> 10, INT32_MAX >> 1, -1, -2 };
+  static const tcq_node_t def = { INT64_MAX >> 10, 0, -1, -2 };
   for (int state = 0; state < TCQ_N_STATES; state++) {
     memcpy(&decision[state], &def, sizeof(def));
   }
@@ -307,10 +307,10 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
 
 // Compare and update nodes info for current position, only used by pos eob - 1
 static void update_node_eob(int64_t rdCost, int64_t distA, int64_t distB,
-                            int64_t rdmult, int rateA, int rateB, int rate_zero,
+                            int64_t rdmult, int rateA, int rateB,
                             tran_low_t absA, tran_low_t absB, int limits,
                             int prev_rate, int prev_state,
-                            tcq_node_t *decision_02, tcq_node_t *decision_1) {
+                            tcq_node_t *decision_0, tcq_node_t *decision_1) {
   (void)limits;
   int parityA = 0;
   int parityB = 1;
@@ -318,10 +318,8 @@ static void update_node_eob(int64_t rdCost, int64_t distA, int64_t distB,
   assert(parityB == tcq_parity(absB));
   int64_t costA = rdCost + RDCOST(rdmult, rateA, distA);
   int64_t costB = rdCost + RDCOST(rdmult, rateB, distB);
-  int64_t cost_zero = rdCost + RDCOST(rdmult, rate_zero, 0);
   rateA += prev_rate;
   rateB += prev_rate;
-  rate_zero += prev_rate;
   if (parityA) {
     if (costA < decision_1->rdCost) {
       decision_1->rdCost = costA;
@@ -330,11 +328,11 @@ static void update_node_eob(int64_t rdCost, int64_t distA, int64_t distB,
       decision_1->absLevel = absA;
     }
   } else {
-    if (costA < decision_02->rdCost) {
-      decision_02->rdCost = costA;
-      decision_02->rate = rateA;
-      decision_02->prevId = prev_state;
-      decision_02->absLevel = absA;
+    if (costA < decision_0->rdCost) {
+      decision_0->rdCost = costA;
+      decision_0->rate = rateA;
+      decision_0->prevId = prev_state;
+      decision_0->absLevel = absA;
     }
   }
 
@@ -346,18 +344,12 @@ static void update_node_eob(int64_t rdCost, int64_t distA, int64_t distB,
       decision_1->absLevel = absB;
     }
   } else {
-    if (costB < decision_02->rdCost) {
-      decision_02->rdCost = costB;
-      decision_02->rate = rateB;
-      decision_02->prevId = prev_state;
-      decision_02->absLevel = absB;
+    if (costB < decision_0->rdCost) {
+      decision_0->rdCost = costB;
+      decision_0->rate = rateB;
+      decision_0->prevId = prev_state;
+      decision_0->absLevel = absB;
     }
-  }
-  if (cost_zero < decision_02->rdCost) {
-    decision_02->rdCost = cost_zero;
-    decision_02->rate = rate_zero;
-    decision_02->prevId = prev_state;
-    decision_02->absLevel = 0;
   }
 }
 
@@ -366,7 +358,7 @@ static void update_node_general(int64_t costA, int64_t costB, int64_t cost_zero,
                                 int rateA, int rateB, int rate_zero,
                                 tran_low_t absA, tran_low_t absB, int limits,
                                 int prev_rate, int prev_state,
-                                tcq_node_t *decision_02,
+                                tcq_node_t *decision_0,
                                 tcq_node_t *decision_1) {
   assert(tcq_parity(absA) == 0);
   assert(tcq_parity(absB) == 1);
@@ -377,16 +369,16 @@ static void update_node_general(int64_t costA, int64_t costB, int64_t cost_zero,
   rateB += prev_rate;
   rate_zero += prev_rate;
 
-  if (cost_zero < costA && cost_zero < decision_02->rdCost + even_bias) {
-    decision_02->rdCost = cost_zero;
-    decision_02->rate = rate_zero;
-    decision_02->prevId = prev_state;
-    decision_02->absLevel = 0;
-  } else if (costA < decision_02->rdCost + even_bias) {
-    decision_02->rdCost = costA;
-    decision_02->rate = rateA;
-    decision_02->prevId = prev_state;
-    decision_02->absLevel = absA;
+  if (cost_zero < costA && cost_zero < decision_0->rdCost + even_bias) {
+    decision_0->rdCost = cost_zero;
+    decision_0->rate = rate_zero;
+    decision_0->prevId = prev_state;
+    decision_0->absLevel = 0;
+  } else if (costA < decision_0->rdCost + even_bias) {
+    decision_0->rdCost = costA;
+    decision_0->rate = rateA;
+    decision_0->prevId = prev_state;
+    decision_0->absLevel = absA;
   }
 
   if (costB < decision_1->rdCost) {
@@ -399,13 +391,13 @@ static void update_node_general(int64_t costA, int64_t costB, int64_t cost_zero,
 
 // Evaluate NEW_EOB at the current position
 static void decide_eob(int64_t costA, int64_t costB, int rateA, int rateB,
-                       tran_low_t absA, tran_low_t absB,
-                       tcq_node_t *decision_02, tcq_node_t *decision_1) {
-  if (costA < decision_02->rdCost) {
-    decision_02->rdCost = costA;
-    decision_02->rate = rateA;
-    decision_02->prevId = -1;
-    decision_02->absLevel = absA;
+                       tran_low_t absA, tran_low_t absB, tcq_node_t *decision_0,
+                       tcq_node_t *decision_1) {
+  if (costA < decision_0->rdCost) {
+    decision_0->rdCost = costA;
+    decision_0->rate = rateA;
+    decision_0->prevId = -1;
+    decision_0->absLevel = absA;
   }
   if (costB < decision_1->rdCost) {
     decision_1->rdCost = costB;
@@ -614,9 +606,8 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos,
   const int state0 = 0;
   const int state1 = 4;
   update_node_eob(0, pqData.deltaDist[0], pqData.deltaDist[2], rdmult,
-                  rate_Q0_a, rate_Q0_b, INT32_MAX >> 1, pqData.absLevel[0],
-                  pqData.absLevel[2], limits, 0, -1, &decision[state0],
-                  &decision[state1]);
+                  rate_Q0_a, rate_Q0_b, pqData.absLevel[0], pqData.absLevel[2],
+                  limits, 0, -1, &decision[state0], &decision[state1]);
 
   uint8_t *levels0 = tcq_levels_cur(tcq_lev, state0);
   uint8_t *levels1 = tcq_levels_cur(tcq_lev, state1);
@@ -1221,7 +1212,7 @@ int av1_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
                          int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
                          int *min_rate, int64_t *min_cost) {
   int64_t min_path_cost = INT64_MAX;
-  int trel_min_rate = INT32_MAX;
+  int trel_min_rate = 0;
   int prev_id = -2;
   for (int state = 0; state < TCQ_N_STATES; state++) {
     const tcq_node_t *decision = &trellis[state];
@@ -1478,7 +1469,7 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   free(mem_tcq);
 
   // find best path
-  int min_rate = INT32_MAX;
+  int min_rate = 0;
   int64_t min_path_cost = INT64_MAX;
   eob = av1_find_best_path(trellis, scan, dequant, iqmatrix, tcoeff,
                            first_scan_pos, log_scale, qcoeff, dqcoeff,
