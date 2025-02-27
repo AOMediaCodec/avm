@@ -1519,7 +1519,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   tool_cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   if (tool_cfg->enable_avg_cdf) {
-    if (extra_cfg->tile_columns <= 1 && extra_cfg->tile_rows <= 1) {
+    if (extra_cfg->tile_columns == 0 && extra_cfg->tile_rows == 0) {
       tool_cfg->avg_cdf_type = 0;
     } else {
       tool_cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
