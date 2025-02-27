@@ -751,6 +751,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
+  part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
@@ -1102,6 +1103,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       // on b2 testset. Disable this for now until we figure out how to avoid
       // the loss.
       // sf->part_sf.end_part_search_after_consec_failures = 1;
+      sf->part_sf.prune_part_4b_with_part_4a = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 4:
       sf->part_sf.prune_ext_part_with_part_rect = 1;

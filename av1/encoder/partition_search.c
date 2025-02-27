@@ -9359,6 +9359,15 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
                              multi_pass_mode, ext_recur_depth);
 
+    if (cpi->sf.part_sf.prune_part_4b_with_part_4a) {
+      if (part_search_state.partition_4a_allowed[HORZ] &&
+          !part_search_state.prune_partition_4a[HORZ] &&
+          part_search_state.found_best_partition &&
+          pc_tree->partitioning != PARTITION_HORZ_4A) {
+        part_search_state.prune_partition_4b[HORZ] = true;
+      }
+    }
+
     // PARTITION_HORZ_4B
     search_partition_horz_4b(&part_search_state, cpi, td, tile_data, tp,
                              &best_rdc, pc_tree,
@@ -9378,6 +9387,15 @@ BEGIN_PARTITION_SEARCH:
                              &level_banks,
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
                              multi_pass_mode, ext_recur_depth);
+
+    if (cpi->sf.part_sf.prune_part_4b_with_part_4a) {
+      if (part_search_state.partition_4a_allowed[VERT] &&
+          !part_search_state.prune_partition_4a[VERT] &&
+          part_search_state.found_best_partition &&
+          pc_tree->partitioning != PARTITION_VERT_4A) {
+        part_search_state.prune_partition_4b[VERT] = true;
+      }
+    }
 
     // PARTITION_VERT_4B
     search_partition_vert_4b(&part_search_state, cpi, td, tile_data, tp,

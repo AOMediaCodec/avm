@@ -508,6 +508,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_VERT_4A/4B based on PARTITION_VERT_3 search result.
   int prune_part_4_with_part_3;
 
+  // Prunes PARTITION_HORZ/VERT_4B based on PARTITION_HORZ/VERT_4A result.
+  int prune_part_4b_with_part_4a;
+
   int two_pass_partition_search;
 
   // Prunes rect partition with ml model
