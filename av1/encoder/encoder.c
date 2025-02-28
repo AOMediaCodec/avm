@@ -4049,6 +4049,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;
 #endif
+#if CONFIG_MORPH_PRED
+  features->enable_intra_bawp = seq_params->enable_bawp;
+#endif  // CONFIG_MORPH_PRED
   features->enable_cwp = seq_params->enable_cwp;
 
 #if CONFIG_D071_IMP_MSK_BLD

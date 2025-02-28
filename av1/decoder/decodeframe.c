@@ -8476,6 +8476,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   else
     features->enable_bawp = 0;
 #endif  // CONFIG_BAWP
+#if CONFIG_MORPH_PRED
+  features->enable_intra_bawp = seq_params->enable_bawp;
+#endif  // CONFIG_MORPH_PRED
 
   features->enable_cwp = seq_params->enable_cwp;
   features->allow_warpmv_mode = 0;

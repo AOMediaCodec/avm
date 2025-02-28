@@ -893,6 +893,19 @@ typedef struct {
    */
   bool enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_MORPH_PRED
+  /*!
+   * Enables/disables intra BAWP (Morph Pred)
+   * In the current implementation, both |enable_bawp| and
+   * |enable_intra_bawp| are controlled by command line
+   * control flag |enable_bawp|.
+   * Becaseu both CONFIG_BAWP and CONFIG_MORPH_PRED share (almost) the same
+   * linear derivation process.
+   * Eventually CONFIG flags will be merged. It makes sense to use only
+   * one command line control flag for BAWP.
+   */
+  bool enable_intra_bawp;
+#endif  // CONFIG_MORPH_PRED
   /*!
    * Enables/disables compound weighted prediction
    */

@@ -3495,16 +3495,25 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    uint16_t *ref_top, uint16_t *ref_left,
                                    int ref_stride, int ref, int plane, int bw,
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
-                                   int bh, const struct scale_factors *sf) {
+                                   int bh, const struct scale_factors *sf)
 #else   // CONFIG_BAWP_ACROSS_SCALES_FIX
-                                   int bh) {
+                                   int bh)
 #endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
+{
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_MORPH_PRED
+#if CONFIG_BAWP_CHROMA
+  if (!mbmi->morph_pred) assert(mbmi->bawp_flag[0] >= 1);
+#else
+  if (!mbmi->morph_pred) assert(mbmi->bawp_flag == 1);
+#endif  // CONFIG_BAWP_CHROMA
+#else
 #if CONFIG_BAWP_CHROMA
   assert(mbmi->bawp_flag[0] >= 1);
 #else
   assert(mbmi->bawp_flag == 1);
 #endif  // CONFIG_BAWP_CHROMA
+#endif  // CONFIG_MORPH_PRED
   // only integer position of reference, may need to consider
   // fractional position of ref samples
   int count = 0;
@@ -3539,7 +3548,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     const int delta_w = width - bw;
 
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
-    if (sf->x_scale_fp != REF_NO_SCALE) {
+    if (sf != NULL && sf->x_scale_fp != REF_NO_SCALE) {
       for (int i = 0; i < bw; i++) {
         int idx = scaled_x_gen(i, sf);
         ref_pad[i] = ref_top[idx];
@@ -3577,7 +3586,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     const int delta = height - bh;
 
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
-    if (sf->y_scale_fp != REF_NO_SCALE) {
+    if (sf != NULL && sf->y_scale_fp != REF_NO_SCALE) {
       for (int i = 0; i < bh; i++) {
         int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
         ref_pad[i] = ref_left[ref_left_tmp_idx];
@@ -3615,7 +3624,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #else
   if (xd->up_available) {
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
-    if (sf->x_scale_fp != REF_NO_SCALE) {
+    if (sf != NULL && sf->x_scale_fp != REF_NO_SCALE) {
       for (int i = 0; i < bw; i++) {
         int idx = scaled_x_gen(i, sf);
         sum_x += ref_top[idx];
@@ -3639,7 +3648,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 
   if (xd->left_available) {
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
-    if (sf->y_scale_fp != REF_NO_SCALE) {
+    if (sf != NULL && sf->y_scale_fp != REF_NO_SCALE) {
       for (int i = 0; i < bh; i++) {
         int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
         sum_x += ref_left[ref_left_tmp_idx];
@@ -3848,10 +3857,11 @@ void av1_build_one_bawp_inter_predictor(
 #endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
 #if CONFIG_EXPLICIT_BAWP
 #if CONFIG_BAWP_CHROMA
-    if (mbmi->bawp_flag[0] > 1 && plane == 0) {
+    if (mbmi->bawp_flag[0] > 1 && plane == 0)
 #else
-    if (mbmi->bawp_flag > 1) {
+    if (mbmi->bawp_flag > 1)
 #endif  // CONFIG_BAWP_CHROMA
+    {
       const int first_ref_dist =
           cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
       const int bawp_scale_table[3][EXPLICIT_BAWP_SCALE_CNT] = { { -1, 1 },
@@ -6647,40 +6657,42 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_MORPH_PRED
-// Let the dst buffer point to the given position (x, y) in the src buffer.
-static void set_buffer(struct buf_2d *dst, uint16_t *src, int width, int height,
-                       int stride, int x, int y) {
-  dst->buf = src + y * stride + x;
-  dst->buf0 = src;
-  dst->width = width;
-  dst->height = height;
-  dst->stride = stride;
-}
-
-static bool fetch_neighbor_recon_regions(
-    const AV1_COMMON *const cm, MACROBLOCKD *const xd, const BLOCK_SIZE bsize,
-    const int mi_row, const int mi_col, struct buf_2d *cur_template_recon,
-    struct buf_2d *ref_template_recon, int *template_width,
-    int *template_height) {
+bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                          const BLOCK_SIZE bsize, const int mi_row,
+                          const int mi_col) {
+  // Predictor, i.e., the reconstructed block found from intrabc.
+  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+  uint16_t *const dst = pd->dst.buf;
+  const int dst_stride = pd->dst.stride;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
   FULLPEL_MV dv = get_fullmv_from_mv(&mbmi->mv[0].as_mv);
-  const int tgt_width = TEMPLATE_SIZE;
-  const int tgt_height = TEMPLATE_SIZE;
   const int cur_x = mi_col * MI_SIZE;
   const int cur_y = mi_row * MI_SIZE;
-  const int cur_tmplt_x = AOMMAX(cur_x - tgt_width, 0);
-  const int cur_tmplt_y = AOMMAX(cur_y - tgt_height, 0);
-  const int ref_tmplt_x = AOMMAX(cur_x + dv.col - tgt_width, 0);
-  const int ref_tmplt_y = AOMMAX(cur_y + dv.row - tgt_height, 0);
+  if (cur_x >= cm->width || cur_y >= cm->height) return false;
 
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  int ref_w = bw;
+  int ref_h = bh;
+  if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
+  if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
+
+  const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
+  const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
+  const int ref_x = cur_x + dv.col;
+  const int ref_y = cur_y + dv.row;
+  const int ref_tmplt_x = ref_x - BAWP_REF_LINES;
+  const int ref_tmplt_y = ref_y - BAWP_REF_LINES;
+  assert(cur_tmplt_x + ref_w < cm->width);
+  assert(cur_tmplt_y + ref_h < cm->height);
+  if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= cm->width ||
+      ref_y + ref_h >= cm->height) {
+    return false;
+  }
   // Restriction: the reference block's template can't be outside the local
   // 64x64 block for local intra block copy.
   // If local intra block copy extends to 128x128, one has to change the
   // restrictions here to make it match.
-  const int ref_x = AOMMAX(cur_x + dv.col, 0);
-  const int ref_y = AOMMAX(cur_y + dv.row, 0);
   const int is_same_unit_x = (cur_x >> 6) == (ref_x >> 6);
   const int is_same_unit_y = (cur_y >> 6) == (ref_y >> 6);
   if (is_same_unit_x && is_same_unit_y) {
@@ -6696,137 +6708,41 @@ static bool fetch_neighbor_recon_regions(
   const int tile_left_edge = tile->mi_col_start * MI_SIZE;
   if (ref_tmplt_x < tile_left_edge) return false;
   // Is the bottom right inside the current tile?
-  const int ref_bottom_edge = cur_y + dv.row + bh;
+  const int ref_bottom_edge = ref_y + bh;
   const int tile_bottom_edge = tile->mi_row_end * MI_SIZE;
   if (ref_bottom_edge > tile_bottom_edge) return false;
-  const int ref_right_edge = cur_x + dv.col + bw;
+  const int ref_right_edge = ref_x + bw;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE;
   if (ref_right_edge > tile_right_edge) return false;
   // The current block's template can't be outside the current tile too.
   if (cur_tmplt_y < tile_top_edge) return false;
   if (cur_tmplt_x < tile_left_edge) return false;
 
-  const int cur_tmplt_width = cur_x - cur_tmplt_x;
-  const int cur_tmplt_height = cur_y - cur_tmplt_y;
-  const int ref_tmplt_width = cur_x + dv.col - ref_tmplt_x;
-  const int ref_tmplt_height = cur_y + dv.row - ref_tmplt_y;
-  if (cur_tmplt_width <= 0 || cur_tmplt_height <= 0 || ref_tmplt_width <= 0 ||
-      ref_tmplt_height <= 0) {
-    return false;
-  }
-
-  *template_width = AOMMIN(cur_tmplt_width, ref_tmplt_width);
-  *template_height = AOMMIN(cur_tmplt_height, ref_tmplt_height);
-  const YV12_BUFFER_CONFIG *const recon_buffer = &cm->cur_frame->buf;
-  set_buffer(cur_template_recon, recon_buffer->buffers[0], *template_width,
-             *template_height, recon_buffer->strides[0], cur_tmplt_x,
-             cur_tmplt_y);
-  set_buffer(ref_template_recon, recon_buffer->buffers[0], *template_width,
-             *template_height, recon_buffer->strides[0], ref_tmplt_x,
-             ref_tmplt_y);
-  return true;
-}
-
-static bool derive_linear_params_from_template(
-    const AV1_COMMON *const cm, const int mi_row, const int mi_col,
-    const uint16_t *src, const int src_stride, const uint16_t *pred,
-    const int pred_stride, const int width, const int height,
-    const int template_width, const int template_height, int *alpha,
-    int *beta) {
-  const uint16_t *src_ptr = src;
-  const uint16_t *pred_ptr = pred;
-  int sum_x = 0;
-  int sum_y = 0;
-  int sum_xy = 0;
-  int sum_xx = 0;
-  int count = 0;
-  const int frame_width = cm->width;
-  const int frame_height = cm->height;
-  const int x_start = mi_col * MI_SIZE;
-  const int y_start = mi_row * MI_SIZE;
-  if (x_start >= frame_width || y_start >= frame_height) return false;
-
-  int x_max = template_width + AOMMIN(width, frame_width - x_start);
-  int y_max = AOMMIN(template_height, frame_height - y_start);
-
-  for (int y = 0; y < y_max; ++y) {
-    for (int x = 0; x < x_max; ++x) {
-      sum_x += pred_ptr[x];
-      sum_y += src_ptr[x];
-      sum_xy += src_ptr[x] * pred_ptr[x];
-      sum_xx += pred_ptr[x] * pred_ptr[x];
+  uint16_t *recon_buf = xd->plane[0].dst.buf;
+  uint16_t *recon_top = dst - BAWP_REF_LINES * dst_stride;
+  uint16_t *recon_left = dst - BAWP_REF_LINES;
+  uint16_t *ref_buf = recon_buf + dv.row * dst_stride + dv.col;
+  uint16_t *ref_top = ref_buf - BAWP_REF_LINES * dst_stride;
+  uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+  derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
+                         ref_left, dst_stride, /*ref=*/0, /*plane=*/0, ref_w,
+                         ref_h,
+                         /*sf=*/NULL);
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
+  derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
+                         ref_left, dst_stride, /*ref=*/0, /*plane=*/0, ref_w,
+                         ref_h);
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
+  int16_t alpha = mbmi->bawp_alpha[0][0];
+  int32_t beta = mbmi->bawp_beta[0][0];
+  const int shift = 8;
+  for (int j = 0; j < bh; ++j) {
+    for (int i = 0; i < bw; ++i) {
+      dst[j * dst_stride + i] = clip_pixel_highbd(
+          (dst[j * dst_stride + i] * alpha + beta) >> shift, xd->bd);
     }
-    count += x_max;
-    src_ptr += src_stride;
-    pred_ptr += pred_stride;
   }
-  x_max = AOMMIN(template_width, frame_width - x_start);
-  y_max = AOMMIN(height, frame_height - y_start);
-  for (int y = 0; y < y_max; ++y) {
-    for (int x = 0; x < x_max; ++x) {
-      sum_x += pred_ptr[x];
-      sum_y += src_ptr[x];
-      sum_xy += src_ptr[x] * pred_ptr[x];
-      sum_xx += pred_ptr[x] * pred_ptr[x];
-    }
-    count += x_max;
-    src_ptr += src_stride;
-    pred_ptr += pred_stride;
-  }
-  if (count == 0) return false;
-
-  *alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx, sum_xy, count,
-                                          MORPH_FIT_SHIFT);
-  *beta = derive_linear_parameters_beta(sum_x, sum_y, count, MORPH_FIT_SHIFT,
-                                        *alpha);
-  return true;
-}
-
-void av1_build_linear_predictor(uint16_t *dst, const int dst_stride,
-                                const int width, const int height,
-                                const int alpha, const int beta,
-                                const int bit_depth) {
-  const int alpha_shift = alpha;
-  const int beta_shift = beta;
-  for (int y = 0; y < height; ++y) {
-    for (int x = 0; x < width; ++x) {
-      dst[x] = clip_pixel_highbd(
-          ROUND_POWER_OF_TWO_SIGNED(alpha_shift * dst[x] + beta_shift,
-                                    MORPH_FIT_SHIFT),
-          bit_depth);
-    }
-    dst += dst_stride;
-  }
-}
-
-bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
-                          const BLOCK_SIZE bsize, const int mi_row,
-                          const int mi_col) {
-  // Predictor, i.e., the reconstructed block found from intrabc.
-  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
-  uint16_t *const dst = pd->dst.buf;
-  const int dst_stride = pd->dst.stride;
-  const int width = block_size_wide[bsize];
-  const int height = block_size_high[bsize];
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  mbmi->morph_alpha = 0;
-  mbmi->morph_beta = 0;
-  struct buf_2d cur_template_recon;
-  struct buf_2d ref_template_recon;
-  int template_width = width >> 1;
-  int template_height = height >> 1;
-  const bool valid_region = fetch_neighbor_recon_regions(
-      cm, xd, bsize, mi_row, mi_col, &cur_template_recon, &ref_template_recon,
-      &template_width, &template_height);
-  if (!valid_region) return false;
-
-  const bool valid_params = derive_linear_params_from_template(
-      cm, mi_row, mi_col, cur_template_recon.buf, cur_template_recon.stride,
-      ref_template_recon.buf, ref_template_recon.stride, width, height,
-      template_width, template_height, &mbmi->morph_alpha, &mbmi->morph_beta);
-  if (!valid_params) return false;
-  av1_build_linear_predictor(dst, dst_stride, width, height, mbmi->morph_alpha,
-                             mbmi->morph_beta, xd->bd);
   return true;
 }
 #endif  // CONFIG_MORPH_PRED
