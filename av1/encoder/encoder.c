@@ -893,7 +893,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       CHECK_MEM_ERROR(cm, x->tmp_pred_bufs[i],
                       aom_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
                                            sizeof(*x->tmp_pred_bufs[i])));
-      x->e_mbd.tmp_obmc_bufs[i] = x->tmp_pred_bufs[i];
     }
   }
 
@@ -1239,8 +1238,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
-  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
-
   for (int x = 0; x < 2; x++)
     for (int y = 0; y < 2; y++)
       CHECK_MEM_ERROR(
@@ -1385,7 +1382,6 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     for (int j = 0; j < 2; ++j) {
       aom_free(thread_data->td->tmp_pred_bufs[j]);
     }
-    release_obmc_buffers(&thread_data->td->obmc_buffer);
     aom_free(thread_data->td->vt64x64);
 
     aom_free(thread_data->td->mb.inter_modes_info);

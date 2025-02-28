@@ -955,19 +955,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-  if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
-#if CONFIG_D149_CTX_MODELING_OPT
-    int use_obmc =
-        aom_read_symbol(r, xd->tile_ctx->obmc_cdf, 2, ACCT_INFO("use_obmc"));
-#else
-    int use_obmc = aom_read_symbol(r, xd->tile_ctx->obmc_cdf[bsize], 2,
-                                   ACCT_INFO("use_obmc"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-    if (use_obmc) {
-      return OBMC_CAUSAL;
-    }
-  }
-
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -4181,7 +4168,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
       }
-      av1_count_overlappable_neighbors(cm, xd);
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
       int is_warpmv_warp_causal =
           ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);

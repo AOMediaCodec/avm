@@ -29,8 +29,6 @@ extern "C" {
 extern const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL]
                                       [TX_TYPES];
 
-extern const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL];
-
 extern const int default_warped_probs[FRAME_UPDATE_TYPES];
 
 extern const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
@@ -557,76 +555,6 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x32x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x4x4d)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#define HIGHBD_OBFP(BT, OSDF, OVF, OSVF) \
-  cpi->fn_ptr[BT].osdf = OSDF;           \
-  cpi->fn_ptr[BT].ovf = OVF;             \
-  cpi->fn_ptr[BT].osvf = OSVF;
-
-#define HIGHBD_OBFP_WRAPPER(WIDTH, HEIGHT, BD)                   \
-  HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                          \
-              aom_highbd_obmc_sad##WIDTH##x##HEIGHT##_bits##BD,  \
-              aom_highbd_##BD##_obmc_variance##WIDTH##x##HEIGHT, \
-              aom_highbd_##BD##_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
-
-#define LOWBD_OBFP_WRAPPER(WIDTH, HEIGHT)                    \
-  HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                      \
-              aom_highbd_obmc_sad##WIDTH##x##HEIGHT##_bits8, \
-              aom_highbd_obmc_variance##WIDTH##x##HEIGHT,    \
-              aom_highbd_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
-
-#define MAKE_OBFP_SAD_WRAPPER(fnname)                                      \
-  static unsigned int fnname##_bits8(const uint16_t *ref, int ref_stride,  \
-                                     const int32_t *wsrc,                  \
-                                     const int32_t *msk) {                 \
-    return fnname(ref, ref_stride, wsrc, msk);                             \
-  }                                                                        \
-  static unsigned int fnname##_bits10(const uint16_t *ref, int ref_stride, \
-                                      const int32_t *wsrc,                 \
-                                      const int32_t *msk) {                \
-    return fnname(ref, ref_stride, wsrc, msk) >> 2;                        \
-  }                                                                        \
-  static unsigned int fnname##_bits12(const uint16_t *ref, int ref_stride, \
-                                      const int32_t *wsrc,                 \
-                                      const int32_t *msk) {                \
-    return fnname(ref, ref_stride, wsrc, msk) >> 4;                        \
-  }
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad256x256)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad256x128)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x256)
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x128)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x128)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x32)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x32)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x16)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x32)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x16)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x8)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x16)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x8)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x4)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad4x8)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad4x4)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad4x16)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x4)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x32)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x8)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x16)
-#if CONFIG_EXT_RECUR_PARTITIONS
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x8)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad4x64)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x4)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad4x32)
-MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x4)
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
 static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   switch (cm->seq_params.bit_depth) {
@@ -697,41 +625,6 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(4, 32, 8)
       HIGHBD_MBFP_WRAPPER(64, 4, 8)
       HIGHBD_MBFP_WRAPPER(4, 64, 8)
-
-      LOWBD_OBFP_WRAPPER(256, 256)
-      LOWBD_OBFP_WRAPPER(256, 128)
-      LOWBD_OBFP_WRAPPER(128, 256)
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-      LOWBD_OBFP_WRAPPER(128, 128)
-      LOWBD_OBFP_WRAPPER(128, 64)
-      LOWBD_OBFP_WRAPPER(64, 128)
-      LOWBD_OBFP_WRAPPER(64, 64)
-      LOWBD_OBFP_WRAPPER(64, 32)
-      LOWBD_OBFP_WRAPPER(32, 64)
-      LOWBD_OBFP_WRAPPER(32, 32)
-      LOWBD_OBFP_WRAPPER(32, 16)
-      LOWBD_OBFP_WRAPPER(16, 32)
-      LOWBD_OBFP_WRAPPER(16, 16)
-      LOWBD_OBFP_WRAPPER(8, 16)
-      LOWBD_OBFP_WRAPPER(16, 8)
-      LOWBD_OBFP_WRAPPER(8, 8)
-      LOWBD_OBFP_WRAPPER(4, 8)
-      LOWBD_OBFP_WRAPPER(8, 4)
-      LOWBD_OBFP_WRAPPER(4, 4)
-      LOWBD_OBFP_WRAPPER(64, 16)
-      LOWBD_OBFP_WRAPPER(16, 64)
-      LOWBD_OBFP_WRAPPER(32, 8)
-      LOWBD_OBFP_WRAPPER(8, 32)
-      LOWBD_OBFP_WRAPPER(16, 4)
-      LOWBD_OBFP_WRAPPER(4, 16)
-#if CONFIG_EXT_RECUR_PARTITIONS
-      LOWBD_OBFP_WRAPPER(64, 8)
-      LOWBD_OBFP_WRAPPER(8, 64)
-      LOWBD_OBFP_WRAPPER(32, 4)
-      LOWBD_OBFP_WRAPPER(4, 32)
-      LOWBD_OBFP_WRAPPER(64, 4)
-      LOWBD_OBFP_WRAPPER(4, 64)
-
       HIGHBD_SDSFP_WRAPPER(256, 256, 8)
       HIGHBD_SDSFP_WRAPPER(256, 128, 8)
       HIGHBD_SDSFP_WRAPPER(128, 256, 8)
@@ -832,41 +725,8 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(4, 32, 10)
       HIGHBD_MBFP_WRAPPER(64, 4, 10)
       HIGHBD_MBFP_WRAPPER(4, 64, 10)
-
-      HIGHBD_OBFP_WRAPPER(256, 256, 10)
-      HIGHBD_OBFP_WRAPPER(256, 128, 10)
-      HIGHBD_OBFP_WRAPPER(128, 256, 10)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      HIGHBD_OBFP_WRAPPER(128, 128, 10)
-      HIGHBD_OBFP_WRAPPER(128, 64, 10)
-      HIGHBD_OBFP_WRAPPER(64, 128, 10)
-      HIGHBD_OBFP_WRAPPER(64, 64, 10)
-      HIGHBD_OBFP_WRAPPER(64, 32, 10)
-      HIGHBD_OBFP_WRAPPER(32, 64, 10)
-      HIGHBD_OBFP_WRAPPER(32, 32, 10)
-      HIGHBD_OBFP_WRAPPER(32, 16, 10)
-      HIGHBD_OBFP_WRAPPER(16, 32, 10)
-      HIGHBD_OBFP_WRAPPER(16, 16, 10)
-      HIGHBD_OBFP_WRAPPER(8, 16, 10)
-      HIGHBD_OBFP_WRAPPER(16, 8, 10)
-      HIGHBD_OBFP_WRAPPER(8, 8, 10)
-      HIGHBD_OBFP_WRAPPER(4, 8, 10)
-      HIGHBD_OBFP_WRAPPER(8, 4, 10)
-      HIGHBD_OBFP_WRAPPER(4, 4, 10)
-      HIGHBD_OBFP_WRAPPER(64, 16, 10)
-      HIGHBD_OBFP_WRAPPER(16, 64, 10)
-      HIGHBD_OBFP_WRAPPER(32, 8, 10)
-      HIGHBD_OBFP_WRAPPER(8, 32, 10)
-      HIGHBD_OBFP_WRAPPER(16, 4, 10)
-      HIGHBD_OBFP_WRAPPER(4, 16, 10)
 #if CONFIG_EXT_RECUR_PARTITIONS
-      HIGHBD_OBFP_WRAPPER(64, 8, 10)
-      HIGHBD_OBFP_WRAPPER(8, 64, 10)
-      HIGHBD_OBFP_WRAPPER(32, 4, 10)
-      HIGHBD_OBFP_WRAPPER(4, 32, 10)
-      HIGHBD_OBFP_WRAPPER(64, 4, 10)
-      HIGHBD_OBFP_WRAPPER(4, 64, 10)
-
       HIGHBD_SDSFP_WRAPPER(256, 256, 10)
       HIGHBD_SDSFP_WRAPPER(256, 128, 10)
       HIGHBD_SDSFP_WRAPPER(128, 256, 10)
@@ -967,41 +827,6 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(4, 32, 12)
       HIGHBD_MBFP_WRAPPER(64, 4, 12)
       HIGHBD_MBFP_WRAPPER(4, 64, 12)
-
-      HIGHBD_OBFP_WRAPPER(256, 256, 12)
-      HIGHBD_OBFP_WRAPPER(256, 128, 12)
-      HIGHBD_OBFP_WRAPPER(128, 256, 12)
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-      HIGHBD_OBFP_WRAPPER(128, 128, 12)
-      HIGHBD_OBFP_WRAPPER(128, 64, 12)
-      HIGHBD_OBFP_WRAPPER(64, 128, 12)
-      HIGHBD_OBFP_WRAPPER(64, 64, 12)
-      HIGHBD_OBFP_WRAPPER(64, 32, 12)
-      HIGHBD_OBFP_WRAPPER(32, 64, 12)
-      HIGHBD_OBFP_WRAPPER(32, 32, 12)
-      HIGHBD_OBFP_WRAPPER(32, 16, 12)
-      HIGHBD_OBFP_WRAPPER(16, 32, 12)
-      HIGHBD_OBFP_WRAPPER(16, 16, 12)
-      HIGHBD_OBFP_WRAPPER(8, 16, 12)
-      HIGHBD_OBFP_WRAPPER(16, 8, 12)
-      HIGHBD_OBFP_WRAPPER(8, 8, 12)
-      HIGHBD_OBFP_WRAPPER(4, 8, 12)
-      HIGHBD_OBFP_WRAPPER(8, 4, 12)
-      HIGHBD_OBFP_WRAPPER(4, 4, 12)
-      HIGHBD_OBFP_WRAPPER(64, 16, 12)
-      HIGHBD_OBFP_WRAPPER(16, 64, 12)
-      HIGHBD_OBFP_WRAPPER(32, 8, 12)
-      HIGHBD_OBFP_WRAPPER(8, 32, 12)
-      HIGHBD_OBFP_WRAPPER(16, 4, 12)
-      HIGHBD_OBFP_WRAPPER(4, 16, 12)
-#if CONFIG_EXT_RECUR_PARTITIONS
-      HIGHBD_OBFP_WRAPPER(64, 8, 12)
-      HIGHBD_OBFP_WRAPPER(8, 64, 12)
-      HIGHBD_OBFP_WRAPPER(32, 4, 12)
-      HIGHBD_OBFP_WRAPPER(4, 32, 12)
-      HIGHBD_OBFP_WRAPPER(64, 4, 12)
-      HIGHBD_OBFP_WRAPPER(4, 64, 12)
-
       HIGHBD_SDSFP_WRAPPER(256, 256, 12)
       HIGHBD_SDSFP_WRAPPER(256, 128, 12)
       HIGHBD_SDSFP_WRAPPER(128, 256, 12)
@@ -1046,10 +871,6 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
   FrameProbInfo *const frame_probs = &cpi->frame_probs;
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
     av1_copy(frame_probs->tx_type_probs, default_tx_type_probs);
-  }
-  if (!cpi->sf.inter_sf.disable_obmc &&
-      cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
-    av1_copy(frame_probs->obmc_probs, default_obmc_probs);
   }
   if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||
       cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
@@ -1193,8 +1014,6 @@ void av1_setup_frame(AV1_COMP *cpi);
 BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi);
 
 void av1_apply_active_map(AV1_COMP *cpi);
-
-uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
 

@@ -756,14 +756,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_D149_CTX_MODELING_OPT
-    av1_cost_tokens_from_cdf(mode_costs->obmc_cost, fc->obmc_cdf, NULL);
-#else
-    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);
-    }
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     for (i = 0; i < WARP_CAUSAL_MODE_CTX; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost[i],

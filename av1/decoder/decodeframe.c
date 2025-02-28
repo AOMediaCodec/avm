@@ -62,7 +62,6 @@
 #include "av1/common/tile_common.h"
 #include "av1/common/tip.h"
 #include "av1/common/warped_motion.h"
-#include "av1/common/obmc.h"
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/decodemv.h"
 #include "av1/decoder/decoder.h"
@@ -960,8 +959,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
-                                       MB_MODE_INFO *mi, int build_for_obmc,
-                                       int bw, int bh, int mi_x, int mi_y
+                                       MB_MODE_INFO *mi, int bw, int bh,
+                                       int mi_x, int mi_y
 #if CONFIG_REFINEMV
                                        ,
                                        int build_for_refine_mv_only
@@ -974,7 +973,6 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm,
 #if CONFIG_REFINEMV
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-                             build_for_obmc,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
                              1 /* build_for_decode */,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -1012,7 +1010,7 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
-    dec_build_inter_predictors(cm, dcb, plane, xd->mi[0], 0,
+    dec_build_inter_predictors(cm, dcb, plane, xd->mi[0],
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y
 #if CONFIG_REFINEMV
@@ -1049,153 +1047,6 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
     av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
   }
 #endif  // CONFIG_MORPH_PRED
-}
-
-static INLINE void dec_build_prediction_by_above_pred(
-    MACROBLOCKD *const xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
-    int dir, MB_MODE_INFO *above_mbmi, void *fun_ctxt, const int num_planes) {
-  struct build_prediction_ctxt *ctxt = (struct build_prediction_ctxt *)fun_ctxt;
-  const int above_mi_col = xd->mi_col + rel_mi_col;
-  int mi_x, mi_y;
-  MB_MODE_INFO backup_mbmi = *above_mbmi;
-
-  (void)rel_mi_row;
-  (void)dir;
-
-  av1_setup_build_prediction_by_above_pred(xd, rel_mi_col, op_mi_size,
-                                           &backup_mbmi, ctxt, num_planes);
-  mi_x = above_mi_col << MI_SIZE_LOG2;
-  mi_y = xd->mi_row << MI_SIZE_LOG2;
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-
-  for (int j = 0; j < num_planes; ++j) {
-    const struct macroblockd_plane *pd = &xd->plane[j];
-    int bw = (op_mi_size * MI_SIZE) >> pd->subsampling_x;
-    int bh = clamp(block_size_high[bsize] >> (pd->subsampling_y + 1), 4,
-                   block_size_high[BLOCK_64X64] >> (pd->subsampling_y + 1));
-
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
-    dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
-#if CONFIG_REFINEMV
-                               ,
-                               0
-#endif  // CONFIG_REFINEMV
-    );
-  }
-}
-
-static AOM_INLINE void dec_build_prediction_by_above_preds(
-    const AV1_COMMON *cm, DecoderCodingBlock *dcb,
-    uint16_t *tmp_buf[MAX_MB_PLANE], int tmp_width[MAX_MB_PLANE],
-    int tmp_height[MAX_MB_PLANE], int tmp_stride[MAX_MB_PLANE]) {
-  MACROBLOCKD *const xd = &dcb->xd;
-  if (!xd->up_available) return;
-
-  // Adjust mb_to_bottom_edge to have the correct value for the OBMC
-  // prediction block. This is half the height of the original block,
-  // except for 128-wide blocks, where we only use a height of 32.
-  const int this_height = xd->height * MI_SIZE;
-  const int pred_height = AOMMIN(this_height / 2, 32);
-  xd->mb_to_bottom_edge += GET_MV_SUBPEL(this_height - pred_height);
-  struct build_prediction_ctxt ctxt = {
-    cm, tmp_buf, tmp_width, tmp_height, tmp_stride, xd->mb_to_right_edge, dcb
-  };
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-  foreach_overlappable_nb_above(
-      cm, xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
-      dec_build_prediction_by_above_pred, &ctxt, false);
-
-  xd->mb_to_left_edge = -GET_MV_SUBPEL(xd->mi_col * MI_SIZE);
-  xd->mb_to_right_edge = ctxt.mb_to_far_edge;
-  xd->mb_to_bottom_edge -= GET_MV_SUBPEL(this_height - pred_height);
-}
-
-static INLINE void dec_build_prediction_by_left_pred(
-    MACROBLOCKD *const xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
-    int dir, MB_MODE_INFO *left_mbmi, void *fun_ctxt, const int num_planes) {
-  struct build_prediction_ctxt *ctxt = (struct build_prediction_ctxt *)fun_ctxt;
-  const int left_mi_row = xd->mi_row + rel_mi_row;
-  int mi_x, mi_y;
-  MB_MODE_INFO backup_mbmi = *left_mbmi;
-
-  (void)rel_mi_col;
-  (void)dir;
-
-  av1_setup_build_prediction_by_left_pred(xd, rel_mi_row, op_mi_size,
-                                          &backup_mbmi, ctxt, num_planes);
-  mi_x = xd->mi_col << MI_SIZE_LOG2;
-  mi_y = left_mi_row << MI_SIZE_LOG2;
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-
-  for (int j = 0; j < num_planes; ++j) {
-    const struct macroblockd_plane *pd = &xd->plane[j];
-    int bw = clamp(block_size_wide[bsize] >> (pd->subsampling_x + 1), 4,
-                   block_size_wide[BLOCK_64X64] >> (pd->subsampling_x + 1));
-    int bh = (op_mi_size << MI_SIZE_LOG2) >> pd->subsampling_y;
-
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
-    dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
-#if CONFIG_REFINEMV
-                               ,
-                               0
-#endif  // CONFIG_REFINEMV
-    );
-  }
-}
-
-static AOM_INLINE void dec_build_prediction_by_left_preds(
-    const AV1_COMMON *cm, DecoderCodingBlock *dcb,
-    uint16_t *tmp_buf[MAX_MB_PLANE], int tmp_width[MAX_MB_PLANE],
-    int tmp_height[MAX_MB_PLANE], int tmp_stride[MAX_MB_PLANE]) {
-  MACROBLOCKD *const xd = &dcb->xd;
-  if (!xd->left_available) return;
-
-  // Adjust mb_to_right_edge to have the correct value for the OBMC
-  // prediction block. This is half the width of the original block,
-  // except for 128-wide blocks, where we only use a width of 32.
-  const int this_width = xd->width * MI_SIZE;
-  const int pred_width = AOMMIN(this_width / 2, 32);
-  xd->mb_to_right_edge += GET_MV_SUBPEL(this_width - pred_width);
-
-  struct build_prediction_ctxt ctxt = {
-    cm, tmp_buf, tmp_width, tmp_height, tmp_stride, xd->mb_to_bottom_edge, dcb
-  };
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-  foreach_overlappable_nb_left(cm, xd,
-                               max_neighbor_obmc[mi_size_high_log2[bsize]],
-                               dec_build_prediction_by_left_pred, &ctxt);
-
-  xd->mb_to_top_edge = -GET_MV_SUBPEL(xd->mi_row * MI_SIZE);
-  xd->mb_to_right_edge -= GET_MV_SUBPEL(this_width - pred_width);
-  xd->mb_to_bottom_edge = ctxt.mb_to_far_edge;
-}
-
-static AOM_INLINE void dec_build_obmc_inter_predictors_sb(
-    const AV1_COMMON *cm, DecoderCodingBlock *dcb) {
-  const int num_planes = av1_num_planes(cm);
-  uint16_t *dst_buf1[MAX_MB_PLANE], *dst_buf2[MAX_MB_PLANE];
-  int dst_stride1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-  int dst_stride2[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-  int dst_width1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-  int dst_width2[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-  int dst_height1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-  int dst_height2[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-
-  MACROBLOCKD *const xd = &dcb->xd;
-  av1_setup_obmc_dst_bufs(xd, dst_buf1, dst_buf2);
-
-  dec_build_prediction_by_above_preds(cm, dcb, dst_buf1, dst_width1,
-                                      dst_height1, dst_stride1);
-  dec_build_prediction_by_left_preds(cm, dcb, dst_buf2, dst_width2, dst_height2,
-                                     dst_stride2);
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes, &xd->mi[0]->chroma_ref_info);
-  av1_build_obmc_inter_prediction(cm, xd, dst_buf1, dst_stride1, dst_buf2,
-                                  dst_stride2);
 }
 
 static AOM_INLINE void cfl_store_inter_block(AV1_COMMON *const cm,
@@ -1237,9 +1088,6 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   }
 
   dec_build_inter_predictor(cm, dcb, mi_row, mi_col, bsize);
-  if (mbmi->motion_mode == OBMC_CAUSAL) {
-    dec_build_obmc_inter_predictors_sb(cm, dcb);
-  }
 
 #if CONFIG_MISMATCH_DEBUG
   const int plane_start = get_partition_plane_start(xd->tree_type);
@@ -5334,9 +5182,6 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
   td->dcb.xd.opfl_vxy_bufs = td->opfl_vxy_bufs;
   td->dcb.xd.opfl_gxy_bufs = td->opfl_gxy_bufs;
   td->dcb.xd.opfl_dst_bufs = td->opfl_dst_bufs;
-  for (int j = 0; j < 2; ++j) {
-    td->dcb.xd.tmp_obmc_bufs[j] = td->tmp_obmc_bufs[j];
-  }
 
   for (tile_row = tile_rows_start; tile_row < tile_rows_end; ++tile_row) {
     const int row = inv_row_order ? tile_rows - 1 - tile_row : tile_row;
@@ -5904,10 +5749,6 @@ void av1_free_mc_tmp_buf(ThreadData *thread_data) {
 
   aom_free(thread_data->tmp_conv_dst);
   thread_data->tmp_conv_dst = NULL;
-  for (int i = 0; i < 2; ++i) {
-    aom_free(thread_data->tmp_obmc_bufs[i]);
-    thread_data->tmp_obmc_bufs[i] = NULL;
-  }
 }
 
 // Free-up the temporary buffers created for DMVR and OPFL processing.
@@ -5958,12 +5799,6 @@ static AOM_INLINE void allocate_mc_tmp_buf(AV1_COMMON *const cm,
   CHECK_MEM_ERROR(cm, thread_data->tmp_conv_dst,
                   aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
                                        sizeof(*thread_data->tmp_conv_dst)));
-  for (int i = 0; i < 2; ++i) {
-    CHECK_MEM_ERROR(
-        cm, thread_data->tmp_obmc_bufs[i],
-        aom_memalign(16, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                             sizeof(*thread_data->tmp_obmc_bufs[i])));
-  }
 }
 
 static AOM_INLINE void reset_dec_workers(AV1Decoder *pbi,
@@ -5985,10 +5820,6 @@ static AOM_INLINE void reset_dec_workers(AV1Decoder *pbi,
     thread_data->td->dcb.xd.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
     thread_data->td->dcb.xd.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
 
-    for (int j = 0; j < 2; ++j) {
-      thread_data->td->dcb.xd.tmp_obmc_bufs[j] =
-          thread_data->td->tmp_obmc_bufs[j];
-    }
     winterface->sync(worker);
 
     worker->hook = worker_hook;

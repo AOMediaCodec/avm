@@ -517,9 +517,6 @@ typedef struct MB_MODE_INFO {
 #else
   uint8_t num_proj_ref;
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-  /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
-   * mode. */
-  uint8_t overlappable_neighbors[2];
   /*! \brief The parameters used in warp motion mode. */
   WarpedMotionParams wm_params[2];
 #if CONFIG_AFFINE_REFINEMENT
@@ -2770,17 +2767,6 @@ typedef struct macroblockd {
    * during the OPFL/DMVR.
    */
   uint16_t *opfl_dst_bufs;
-  /*!
-   * Temporary buffers used to build OBMC prediction by above (index 0) and left
-   * (index 1) predictors respectively.
-   * tmp_obmc_bufs[i][p * MAX_SB_SQUARE] is the buffer used for plane 'p'.
-   * There are pointers to actual buffers allocated elsewhere: e.g.
-   * - In decoder, 'pbi->td.tmp_obmc_bufs' or
-   * 'pbi->thread_data[t].td->xd.tmp_conv_dst' and
-   * -In encoder, 'x->tmp_pred_bufs' or
-   * 'cpi->tile_thr_data[t].td->mb.tmp_pred_bufs'.
-   */
-  uint16_t *tmp_obmc_bufs[2];
 
   /*!
    *  Temporary buffer used for upsampled prediction.
@@ -4507,30 +4493,6 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
 static INLINE int is_motion_variation_allowed_compound(
     const MB_MODE_INFO *mbmi) {
   return !has_second_ref(mbmi);
-}
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4, 4 };
-#else
-// input: log2 of length, 0(4), 1(8), ...
-static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4 };
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
-  return !(mbmi->overlappable_neighbors[0] == 0 &&
-           mbmi->overlappable_neighbors[1] == 0);
-}
-
-static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
-                                           int tree_type) {
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-
-#if CONFIG_IBC_SR_EXT
-  return (is_inter_block(mbmi, tree_type) &&
-          !is_intrabc_block(mbmi, tree_type));
-#else
-  return (is_inter_block(mbmi, tree_type));
-#endif  // CONFIG_IBC_SR_EXT
 }
 
 #if CONFIG_BAWP

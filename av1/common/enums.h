@@ -989,7 +989,6 @@ enum {
 enum {
   SIMPLE_TRANSLATION,
   INTERINTRA,
-  OBMC_CAUSAL,    // 2-sided OBMC
   WARPED_CAUSAL,  // Warp estimation from spatial MVs
   WARP_DELTA,     // Directly-signaled warp model
   WARP_EXTEND,    // Extension of an existing warp model into another block

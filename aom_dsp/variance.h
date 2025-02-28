@@ -71,18 +71,6 @@ typedef unsigned int (*aom_masked_subpixvariance_fn_t)(
     const uint16_t *ref, int ref_stride, const uint16_t *second_pred,
     const uint8_t *msk, int msk_stride, int invert_mask, unsigned int *sse);
 
-typedef unsigned int (*aom_obmc_sad_fn_t)(const uint16_t *pred, int pred_stride,
-                                          const int32_t *wsrc,
-                                          const int32_t *msk);
-typedef unsigned int (*aom_obmc_variance_fn_t)(const uint16_t *pred,
-                                               int pred_stride,
-                                               const int32_t *wsrc,
-                                               const int32_t *msk,
-                                               unsigned int *sse);
-typedef unsigned int (*aom_obmc_subpixvariance_fn_t)(
-    const uint16_t *pred, int pred_stride, int xoffset, int yoffset,
-    const int32_t *wsrc, const int32_t *msk, unsigned int *sse);
-
 typedef struct aom_variance_vtable {
   aom_sad_fn_t sdf;
   // Same as normal sad, but downsample the rows by a factor of 2.
@@ -96,9 +84,6 @@ typedef struct aom_variance_vtable {
   aom_sad_multi_d_fn_t sdsx4df;
   aom_masked_sad_fn_t msdf;
   aom_masked_subpixvariance_fn_t msvf;
-  aom_obmc_sad_fn_t osdf;
-  aom_obmc_variance_fn_t ovf;
-  aom_obmc_subpixvariance_fn_t osvf;
   aom_dist_wtd_sad_avg_fn_t jsdaf;
   aom_dist_wtd_subp_avg_variance_fn_t jsvaf;
 } aom_variance_fn_ptr_t;

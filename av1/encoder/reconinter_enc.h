@@ -59,20 +59,6 @@ void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
                                        const MV *src_mv,
                                        InterPredParams *inter_pred_params);
 
-void av1_build_prediction_by_above_preds(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                         uint16_t *tmp_buf[MAX_MB_PLANE],
-                                         int tmp_width[MAX_MB_PLANE],
-                                         int tmp_height[MAX_MB_PLANE],
-                                         int tmp_stride[MAX_MB_PLANE]);
-
-void av1_build_prediction_by_left_preds(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                        uint16_t *tmp_buf[MAX_MB_PLANE],
-                                        int tmp_width[MAX_MB_PLANE],
-                                        int tmp_height[MAX_MB_PLANE],
-                                        int tmp_stride[MAX_MB_PLANE]);
-
-void av1_build_obmc_inter_predictors_sb(const AV1_COMMON *cm, MACROBLOCKD *xd);
-
 void av1_build_inter_predictor_single_buf_y(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                             int ref, uint16_t *ext_dst,
                                             int ext_dst_stride);

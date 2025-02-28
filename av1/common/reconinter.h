@@ -527,10 +527,6 @@ static INLINE void highbd_inter_predictor(
   }
 }
 
-void av1_modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi);
-int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
-                               const struct macroblockd_plane *pd, int dir);
-
 static INLINE int is_interinter_compound_used(COMPOUND_TYPE type,
                                               BLOCK_SIZE sb_type) {
   const int comp_allowed = is_comp_ref_allowed(sb_type);
@@ -597,7 +593,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-                                int build_for_obmc,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
                                 int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -1428,29 +1423,6 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
   return 1;
 }
 
-// Sets up buffers 'dst_buf1' and 'dst_buf2' from relevant buffers in 'xd' for
-// subsequent use in OBMC prediction.
-void av1_setup_obmc_dst_bufs(MACROBLOCKD *xd, uint16_t **dst_buf1,
-                             uint16_t **dst_buf2);
-
-void av1_setup_build_prediction_by_above_pred(
-    MACROBLOCKD *xd, int rel_mi_col, uint8_t above_mi_width,
-    MB_MODE_INFO *above_mbmi, struct build_prediction_ctxt *ctxt,
-    const int num_planes);
-void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
-                                             uint8_t left_mi_height,
-                                             MB_MODE_INFO *left_mbmi,
-                                             struct build_prediction_ctxt *ctxt,
-                                             const int num_planes);
-void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                     uint16_t *above[MAX_MB_PLANE],
-                                     int above_stride[MAX_MB_PLANE],
-                                     uint16_t *left[MAX_MB_PLANE],
-                                     int left_stride[MAX_MB_PLANE]);
-
-const uint8_t *av1_get_obmc_mask(int length);
-void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd);
-
 #define MASK_MASTER_SIZE ((MAX_WEDGE_SIZE) << 1)
 #define MASK_MASTER_STRIDE (MASK_MASTER_SIZE)
 
@@ -1504,7 +1476,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpTypesAllowed *const warp_types,
                    const WarpedMotionParams *const gm_params, int ref,
-                   int build_for_obmc, const struct scale_factors *const sf,
+                   const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
 // derive the context of the mpp_flag

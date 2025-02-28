@@ -257,7 +257,6 @@ const map_entry prediction_mode_map[] = { ENUM(DC_PRED),
 const map_entry motion_mode_map[] = {
   ENUM(SIMPLE_TRANSLATION),
   ENUM(INTERINTRA),
-  ENUM(OBMC_CAUSAL),    // 2-sided OBMC
   ENUM(WARPED_CAUSAL),  // 2-sided WARPED
   ENUM(WARP_DELTA),
   ENUM(WARP_EXTEND),  // Extension of an existing warp model into another block

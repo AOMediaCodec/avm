@@ -598,11 +598,6 @@ typedef struct MV_SPEED_FEATURES {
   // Use the rd cost around the best FULLPEL_MV to speed up subpel search
   int use_fullpel_costlist;
 
-  // Set the full pixel search level of obmc
-  // 0: obmc_full_pixel_diamond
-  // 1: obmc_refining_search_sad (faster)
-  int obmc_full_pixel_search_level;
-
   // Accurate full pixel motion search based on TPL stats.
   int full_pixel_search_level;
 
@@ -611,7 +606,6 @@ typedef struct MV_SPEED_FEATURES {
   int use_downsampled_sad;
 
   // Method to use for refining WARPED_CAUSAL motion vectors
-  // TODO(rachelbarker): Can this be unified with OBMC in some way?
   WARP_SEARCH_METHOD warp_search_method;
 
   // Maximum number of iterations in WARPED_CAUSAL refinement search
@@ -742,12 +736,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Values are 0 (not used) , 1 - 3 with progressively increasing
   // aggressiveness
   int prune_motion_mode_level;
-
-  // Prune obmc search using previous frame stats.
-  int prune_obmc_prob_thresh;
-
-  // Disable obmc.
-  int disable_obmc;
 
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
@@ -1051,10 +1039,7 @@ typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // enable early termination than 4-pel precision
   int terminate_early_4_pel_precision;
 
-  // fast_obmc_search for low precisions
-  int low_prec_obmc_full_pixel_search_level;
-
-  // fast_obmc_search for low precisions
+  // Skip similar ref mvs.
   int skip_similar_ref_mv;
 
   // Skip RDO of the repeated newMV for lower precisions.

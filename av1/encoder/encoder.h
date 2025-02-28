@@ -1248,13 +1248,6 @@ static INLINE int is_lossless_requested(const RateControlCfg *const rc_cfg) {
  */
 typedef struct {
   /*!
-   * obmc_probs[i][j] is the probability of OBMC being the best motion mode for
-   * jth block size and ith frame update type, averaged over past frames. If
-   * obmc_probs[i][j] < thresh, then OBMC search is pruned.
-   */
-  int obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL];
-
-  /*!
    * warped_probs[i] is the probability of warped motion being the best motion
    * mode for ith frame update type, averaged over past frames. If
    * warped_probs[i] < thresh, then warped motion search is pruned.
@@ -1630,11 +1623,6 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int compound_type[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_D149_CTX_MODELING_OPT
-  unsigned int obmc[2];
-#else
-  unsigned int obmc[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int warped_causal[WARP_CAUSAL_MODE_CTX][2];
 #else
@@ -1995,7 +1983,6 @@ typedef struct RD_COUNTS {
   int compound_ref_used_flag;
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];
-  int obmc_used[BLOCK_SIZES_ALL][2];
   int warped_used[2];
 } RD_COUNTS;
 
@@ -2011,7 +1998,6 @@ typedef struct ThreadData {
   BLOCK_SIZE sb_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   uint32_t *hash_value_buffer[2][2];
-  OBMCBuffer obmc_buffer;
   PALETTE_BUFFER *palette_buffer;
   CompoundTypeRdBuffers comp_rd_buffer;
   CONV_BUF_TYPE *tmp_conv_dst;

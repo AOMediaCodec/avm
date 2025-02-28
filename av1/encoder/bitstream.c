@@ -881,20 +881,6 @@ static AOM_INLINE void write_motion_mode(
     }
   }
 
-  if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
-    aom_write_symbol(w, motion_mode == OBMC_CAUSAL,
-#if CONFIG_D149_CTX_MODELING_OPT
-                     xd->tile_ctx->obmc_cdf,
-#else
-                     xd->tile_ctx->obmc_cdf[bsize],
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-                     2);
-
-    if (motion_mode == OBMC_CAUSAL) {
-      return;
-    }
-  }
-
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP

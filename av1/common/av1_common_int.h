@@ -4903,17 +4903,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     }
   }
 
-  bool motion_variation_allowed =
-      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
-      is_inter_mode(mbmi->mode) && is_motion_variation_allowed_compound(mbmi);
-
-  bool obmc_allowed =
-      motion_variation_allowed && check_num_overlappable_neighbors(mbmi);
-
-  if (obmc_allowed) {
-    allowed_motion_modes |= (1 << OBMC_CAUSAL);
-  }
-
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_COMPOUND_WARP_CAUSAL
   const int allow_compound_warp_causal_motion =
@@ -4934,6 +4923,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #else
+  bool motion_variation_allowed =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_inter_mode(mbmi->mode) && is_motion_variation_allowed_compound(mbmi);
   // From here on, all modes are warped, so have some common criteria:
   const int allow_warped_motion =
       motion_variation_allowed &&
@@ -4960,7 +4952,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       (mbmi->num_proj_ref[0] >= 1 &&
        (!has_second_ref(mbmi) || mbmi->num_proj_ref[1] >= 1))
 #else
-  if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1
+  if (allow_warped_motion && mbmi->num_proj_ref >= 1
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
       && mbmi->mode != NEARMV) {
     allowed_motion_modes |= (1 << WARPED_CAUSAL);

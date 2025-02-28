@@ -1552,7 +1552,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_zero(*td->counts);
   av1_zero(rdc->comp_pred_diff);
   av1_zero(rdc->tx_type_used);
-  av1_zero(rdc->obmc_used);
   av1_zero(rdc->warped_used);
 
 #if CONFIG_CCSO_IMPROVE
@@ -1849,22 +1848,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         if (j == 0) prob += left;
         frame_probs->tx_type_probs[update_type][i][j] = prob;
       }
-    }
-  }
-
-  // TODO(rachelbarker): Improve pruning logic in phase 2
-  if (!cpi->sf.inter_sf.disable_obmc &&
-      cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-
-    for (i = 0; i < BLOCK_SIZES_ALL; i++) {
-      int sum = 0;
-      for (int j = 0; j < 2; j++) sum += cpi->td.rd_counts.obmc_used[i][j];
-
-      const int new_prob =
-          sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
-      frame_probs->obmc_probs[update_type][i] =
-          (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
     }
   }
 

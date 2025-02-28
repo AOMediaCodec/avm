@@ -1419,20 +1419,6 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   /* motion_var and warped_motion experiments */
-#if CONFIG_D149_CTX_MODELING_OPT
-  cts_each_dim[0] = 2;
-  optimize_cdf_table(&fc.obmc[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_obmc_cdf[CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Inter");
-#else
-  cts_each_dim[0] = BLOCK_SIZES_ALL;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.obmc[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   cts_each_dim[0] = WARP_CAUSAL_MODE_CTX;

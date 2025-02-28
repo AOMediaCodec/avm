@@ -3,9 +3,6 @@
 # For documentation of the format, see:
 # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html#issue-suppression
 
-# aom_dsp/x86/obmc_intrinsic_sse4.h
-alignment:obmc_variance_w4
-
 # av1/encoder/x86/pickrst_sse4.c
 alignment:acc_stat_highbd_win7_one_line_sse4_1
 alignment:acc_stat_highbd_win5_one_line_sse4_1

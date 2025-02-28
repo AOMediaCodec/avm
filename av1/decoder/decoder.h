@@ -140,7 +140,6 @@ typedef struct ThreadData {
   // Temporary buffers used to store intermediate prediction data calculated
   // during the OPFL/DMVR.
   uint16_t *opfl_dst_bufs;
-  uint16_t *tmp_obmc_bufs[2];
 
   decode_block_visitor_fn_t read_coeffs_tx_intra_block_visit;
   decode_block_visitor_fn_t predict_and_recon_intra_block_visit;

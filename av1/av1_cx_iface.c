@@ -77,7 +77,6 @@ struct av1_extracfg {
   unsigned int enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
   unsigned int force_video_mode;
-  unsigned int enable_obmc;
   unsigned int enable_trellis_quant;
   unsigned int enable_qm;
   unsigned int qm_y;
@@ -437,7 +436,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable_lf_sub_pu
 #endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
-  0,                            // enable_obmc
   3,                            // enable_trellis_quant
   0,                            // enable_qm
   DEFAULT_QM_Y,                 // qm_y
@@ -1081,7 +1079,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
-  cfg->enable_obmc = extra_cfg->enable_obmc;
   cfg->enable_palette = extra_cfg->enable_palette;
   cfg->enable_intrabc = extra_cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1224,7 +1221,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
   extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
-  extra_cfg->enable_obmc = cfg->enable_obmc;
   extra_cfg->enable_palette = cfg->enable_palette;
   extra_cfg->enable_intrabc = cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1787,9 +1783,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (extra_cfg->enable_interintra_comp) {
     seq_enabled_motion_modes |= (1 << INTERINTRA);
   }
-  if (extra_cfg->enable_obmc) {
-    seq_enabled_motion_modes |= (1 << OBMC_CAUSAL);
-  }
   if (extra_cfg->enable_warped_motion) {
     if (extra_cfg->enable_warped_causal) {
       seq_enabled_motion_modes |= (1 << WARPED_CAUSAL);
@@ -2289,13 +2282,6 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.force_video_mode = CAST(AV1E_SET_FORCE_VIDEO_MODE, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static aom_codec_err_t ctrl_set_enable_obmc(aom_codec_alg_priv_t *ctx,
-                                            va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_obmc = CAST(AV1E_SET_ENABLE_OBMC, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3939,9 +3925,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_video_mode,
                               argv, err_string)) {
     extra_cfg.force_video_mode = arg_parse_uint_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_obmc, argv,
-                              err_string)) {
-    extra_cfg.enable_obmc = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_trellis_quant,
                               argv, err_string)) {
     extra_cfg.enable_trellis_quant = arg_parse_uint_helper(&arg, err_string);
@@ -4445,7 +4428,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_CDEF, ctrl_set_enable_cdef },
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
-  { AV1E_SET_ENABLE_OBMC, ctrl_set_enable_obmc },
   { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
   { AV1E_SET_ENABLE_QM, ctrl_set_enable_qm },
   { AV1E_SET_QM_Y, ctrl_set_qm_y },
@@ -4674,7 +4656,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_LF_SUB_PU
         1,
 #endif  // CONFIG_LF_SUB_PU
-        1, 1,   1,   1,
+        1, 1,   1,
 #if CONFIG_SIX_PARAM_WARP_DELTA
         1,
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA

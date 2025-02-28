@@ -109,32 +109,6 @@ static AOM_INLINE void realloc_segmentation_maps(AV1_COMP *cpi) {
                   aom_calloc(mi_params->mi_rows * mi_params->mi_cols, 1));
 }
 
-static AOM_INLINE void alloc_obmc_buffers(OBMCBuffer *obmc_buffer,
-                                          AV1_COMMON *cm) {
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->wsrc,
-      (int32_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*obmc_buffer->wsrc)));
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->mask,
-      (int32_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*obmc_buffer->mask)));
-  CHECK_MEM_ERROR(cm, obmc_buffer->above_pred,
-                  (uint16_t *)aom_memalign(16, MAX_MB_PLANE * MAX_SB_SQUARE));
-  CHECK_MEM_ERROR(cm, obmc_buffer->left_pred,
-                  (uint16_t *)aom_memalign(16, MAX_MB_PLANE * MAX_SB_SQUARE));
-}
-
-static AOM_INLINE void release_obmc_buffers(OBMCBuffer *obmc_buffer) {
-  aom_free(obmc_buffer->mask);
-  aom_free(obmc_buffer->above_pred);
-  aom_free(obmc_buffer->left_pred);
-  aom_free(obmc_buffer->wsrc);
-
-  obmc_buffer->mask = NULL;
-  obmc_buffer->above_pred = NULL;
-  obmc_buffer->left_pred = NULL;
-  obmc_buffer->wsrc = NULL;
-}
-
 static AOM_INLINE void alloc_compound_type_rd_buffers(
     AV1_COMMON *const cm, CompoundTypeRdBuffers *const bufs) {
   CHECK_MEM_ERROR(
@@ -200,8 +174,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_close_vmaf_model_rc(cpi->vmaf_info.vmaf_model);
 #endif
 #endif
-
-  release_obmc_buffers(&cpi->td.mb.obmc_buffer);
 
   aom_free(cpi->td.mb.inter_modes_info);
   cpi->td.mb.inter_modes_info = NULL;

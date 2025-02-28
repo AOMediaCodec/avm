@@ -253,7 +253,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->refinemv_flag_cdf, REFINEMV_NUM_MODES);
 #endif  // CONFIG_REFINEMV
 
-  RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);

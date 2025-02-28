@@ -221,11 +221,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    if (is_720p_or_larger) {
-      sf->inter_sf.prune_obmc_prob_thresh = 16;
-    } else {
-      sf->inter_sf.prune_obmc_prob_thresh = 8;
-    }
 
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
@@ -253,8 +248,6 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
     }
-
-    sf->inter_sf.prune_obmc_prob_thresh = 16;
   }
 
   if (speed >= 5) {
@@ -315,7 +308,6 @@ static void set_good_speed_features_framesize_independent(
 
   if (cm->seq_params.enable_flex_mvres) {
     sf->flexmv_sf.terminate_early_4_pel_precision = 1;
-    sf->flexmv_sf.low_prec_obmc_full_pixel_search_level = 1;
     sf->flexmv_sf.skip_similar_ref_mv = 1;
     sf->flexmv_sf.skip_repeated_newmv_low_prec = 1;
     sf->flexmv_sf.fast_mv_refinement = 1;
@@ -413,7 +405,6 @@ static void set_good_speed_features_framesize_independent(
     } else {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
     }
-    sf->mv_sf.obmc_full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
@@ -570,7 +561,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_compound_using_neighbors = 2;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.disable_smooth_interintra = 1;
-    sf->inter_sf.disable_obmc = 1;
     sf->inter_sf.disable_onesided_comp = 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
@@ -764,7 +754,6 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->full_pixel_search_level = 0;
   mv_sf->auto_mv_step_size = 0;
   mv_sf->exhaustive_searches_thresh = 0;
-  mv_sf->obmc_full_pixel_search_level = 0;
   mv_sf->prune_mesh_search = 0;
   mv_sf->reduce_search_range = 0;
   mv_sf->search_method = NSTEP;
@@ -788,7 +777,6 @@ static AOM_INLINE void init_flexmv_sf(
   flexmv_sf->do_not_search_4_pel_precision = 0;
   flexmv_sf->do_not_search_8_pel_precision = 0;
   flexmv_sf->terminate_early_4_pel_precision = 0;
-  flexmv_sf->low_prec_obmc_full_pixel_search_level = 0;
   flexmv_sf->skip_similar_ref_mv = 0;
   flexmv_sf->skip_repeated_newmv_low_prec = 0;
   flexmv_sf->fast_mv_refinement = 0;
@@ -830,8 +818,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
-  inter_sf->prune_obmc_prob_thresh = 0;
-  inter_sf->disable_obmc = 0;
   inter_sf->disable_interinter_wedge = 0;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
@@ -1176,9 +1162,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
     if (sf->inter_sf.disable_wedge_interintra_search) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
-    }
-    if (sf->inter_sf.disable_obmc) {
-      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << OBMC_CAUSAL);
     }
 #if CONFIG_DIP
     if (sf->intra_sf.skip_intra_dip_search) {

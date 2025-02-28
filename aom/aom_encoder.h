@@ -462,10 +462,6 @@ typedef struct cfg_options {
    */
   unsigned int enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
-  /*!\brief enable OBMC
-   *
-   */
-  unsigned int enable_obmc;
   /*!\brief enable local warped motion
    *
    */

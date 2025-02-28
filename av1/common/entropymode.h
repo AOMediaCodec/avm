@@ -363,11 +363,6 @@ typedef struct frame_contexts {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS]
                                   [CDF_SIZE(INTERINTRA_MODES)];
-#if CONFIG_D149_CTX_MODELING_OPT
-  aom_cdf_prob obmc_cdf[CDF_SIZE(2)];
-#else
-  aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   aom_cdf_prob warped_causal_cdf[WARP_CAUSAL_MODE_CTX][CDF_SIZE(2)];
 #else

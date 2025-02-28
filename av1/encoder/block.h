@@ -508,33 +508,6 @@ typedef struct {
   int cwp_idx;
 } COMP_RD_STATS;
 
-/*! \brief Contains buffers used to speed up rdopt for obmc.
- *
- * See the comments for calc_target_weighted_pred for details.
- */
-typedef struct {
-  /*! \brief A new source weighted with the above and left predictors.
-   *
-   * Used to efficiently construct multiple obmc predictors during rdopt.
-   */
-  int32_t *wsrc;
-  /*! \brief A new mask constructed from the original horz/vert mask.
-   *
-   * \copydetails wsrc
-   */
-  int32_t *mask;
-  /*! \brief Prediction from the up predictor.
-   *
-   * Used to build the obmc predictor.
-   */
-  uint16_t *above_pred;
-  /*! \brief Prediction from the up predictor.
-   *
-   * \copydetails above_pred
-   */
-  uint16_t *left_pred;
-} OBMCBuffer;
-
 /*! \brief Contains color maps used in palette mode.
  */
 typedef struct {
@@ -1269,13 +1242,6 @@ typedef struct {
    * \name Inter Costs: Motion Modes/Filters
    ****************************************************************************/
   /**@{*/
-  //! obmc_cost
-#if CONFIG_D149_CTX_MODELING_OPT
-  int obmc_cost[2];
-#else
-  int obmc_cost[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
   //! warped_causal_cost
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   int warped_causal_cost[WARP_CAUSAL_MODE_CTX][2];
@@ -1738,8 +1704,6 @@ typedef struct macroblock {
   //! Offset of current coding block's coeff buffer relative to the sb.
   int cb_offset[MAX_MB_PLANE];
 
-  //! Modified source and masks used for fast OBMC search.
-  OBMCBuffer obmc_buffer;
   //! Buffer to store the best palette map.
   PALETTE_BUFFER *palette_buffer;
   //! Buffer used for compound_type_rd().
@@ -1757,11 +1721,7 @@ typedef struct macroblock {
   /*! \brief Temporary buffer to hold prediction.
    *
    * Points to a buffer that is used to hold temporary prediction results. This
-   * is used in two ways:
-   * - This is a temporary buffer used to pingpong the prediction in
-   *   handle_inter_mode.
-   * - xd->tmp_obmc_bufs also points to this buffer, and is used in ombc
-   *   prediction.
+   * is used to pingpong the prediction in handle_inter_mode.
    */
   uint16_t *tmp_pred_bufs[2];
 

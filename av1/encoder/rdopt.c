@@ -33,7 +33,6 @@
 #include "av1/common/entropymode.h"
 #include "av1/common/idct.h"
 #include "av1/common/mvref_common.h"
-#include "av1/common/obmc.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
@@ -2554,18 +2553,6 @@ static int64_t motion_mode_rd(
               mbmi->mode == WARPMV,
               mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal));
 
-          // Do not search OBMC if the probability of selecting it is below a
-          // predetermined threshold for this update_type and block size.
-          const FRAME_UPDATE_TYPE update_type =
-              get_frame_update_type(&cpi->gf_group);
-          const int prune_obmc =
-              cpi->frame_probs.obmc_probs[update_type][bsize] <
-              cpi->sf.inter_sf.prune_obmc_prob_thresh;
-          bool enable_obmc =
-              (cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL)) != 0;
-          if ((!enable_obmc || cpi->sf.inter_sf.disable_obmc || prune_obmc) &&
-              mbmi->motion_mode == OBMC_CAUSAL)
-            continue;
           if (is_warp_mode(mbmi->motion_mode)) {
             mbmi->interp_fltr = av1_unswitchable_filter(interp_filter);
           }
@@ -2615,22 +2602,6 @@ static int64_t motion_mode_rd(
             }  // if (is_mvd_sign_derive_allowed(cm, xd, mbmi))
 #endif
 
-          } else if (mbmi->motion_mode == OBMC_CAUSAL) {
-            // OBMC_CAUSAL not allowed for compound prediction
-            assert(!is_comp_pred);
-            if (this_mode == NEWMV) {
-              av1_single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, INT_MAX,
-                                       NULL, &mbmi->mv[0], NULL);
-              tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
-            }
-            // Build the inter predictor by blending the predictor
-            // corresponding to this MV, and the neighboring blocks using the
-            // OBMC model
-            av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst,
-                                          bsize, 0, av1_num_planes(cm) - 1);
-            av1_build_obmc_inter_prediction(
-                cm, xd, args->above_pred_buf, args->above_pred_stride,
-                args->left_pred_buf, args->left_pred_stride);
           } else if (mbmi->motion_mode == WARPED_CAUSAL) {
             int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
 #if CONFIG_COMPOUND_WARP_CAUSAL
@@ -3278,19 +3249,6 @@ static int64_t motion_mode_rd(
               // Note(rachelbarker): Costs for other interintra-related
               // signaling are already accounted for by
               // `av1_handle_inter_intra_mode`
-              continue_motion_mode_signaling = false;
-            }
-          }
-
-          if (continue_motion_mode_signaling &&
-              allowed_motion_modes & (1 << OBMC_CAUSAL)) {
-            rd_stats->rate +=
-#if CONFIG_D149_CTX_MODELING_OPT
-                mode_costs->obmc_cost[motion_mode == OBMC_CAUSAL];
-#else
-              mode_costs->obmc_cost[bsize][motion_mode == OBMC_CAUSAL];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-            if (motion_mode == OBMC_CAUSAL) {
               continue_motion_mode_signaling = false;
             }
           }
@@ -6512,7 +6470,7 @@ static int64_t handle_inter_mode(
                          (rd_stats->rate == base_rate && rate_mv == 0)));
 #endif  // CONFIG_REFINEMV
         // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
-        // OBMC_CAUSAL or WARPED_CAUSAL or WARP_EXTEND or WARP_DELTA
+        // WARPED_CAUSAL or WARP_EXTEND or WARP_DELTA
                   ret_val = motion_mode_rd(cpi, tile_data, x, bsize, rd_stats,
                                            rd_stats_y, rd_stats_uv, args,
                                            ref_best_rd, skip_rd,
@@ -8060,11 +8018,6 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
 }
 
-static AOM_INLINE void calc_target_weighted_pred(
-    const AV1_COMMON *cm, const MACROBLOCK *x, const MACROBLOCKD *xd,
-    const uint16_t *above, int above_stride, const uint16_t *left,
-    int left_stride);
-
 #if CONFIG_SKIP_MODE_ENHANCEMENT
 /*!\brief Search for the best skip mode
  *
@@ -8870,8 +8823,6 @@ static AOM_INLINE void refine_winner_mode_tx(
         const int mi_col = xd->mi_col;
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);
-        if (mbmi->motion_mode == OBMC_CAUSAL)
-          av1_build_obmc_inter_predictors_sb(cm, xd);
 
         av1_subtract_plane(x, bsize, 0
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -9094,16 +9045,6 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
       ~(sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]]);
 }
 
-static AOM_INLINE void init_neighbor_pred_buf(
-    const OBMCBuffer *const obmc_buffer, HandleInterModeArgs *const args) {
-  args->above_pred_buf[0] = obmc_buffer->above_pred;
-  args->above_pred_buf[1] = obmc_buffer->above_pred + (MAX_SB_SQUARE >> 1);
-  args->above_pred_buf[2] = obmc_buffer->above_pred + MAX_SB_SQUARE;
-  args->left_pred_buf[0] = obmc_buffer->left_pred;
-  args->left_pred_buf[1] = obmc_buffer->left_pred + (MAX_SB_SQUARE >> 1);
-  args->left_pred_buf[2] = obmc_buffer->left_pred + MAX_SB_SQUARE;
-}
-
 static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
                                       const MV_REFERENCE_FRAME ref_frame) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -9177,7 +9118,7 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
-    const AV1_COMP *cpi, MACROBLOCK *x, HandleInterModeArgs *args,
+    const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_SAME_REF_COMPOUND
     BLOCK_SIZE bsize, mode_skip_mask_t *mode_skip_mask,
     uint64_t skip_ref_frame_mask,
@@ -9192,14 +9133,10 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   unsigned char segment_id = mbmi->segment_id;
 
-  init_neighbor_pred_buf(&x->obmc_buffer, args);
-
   av1_collect_neighbors_ref_counts(xd);
   estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
   x->best_pred_mv_sad = INT_MAX;
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
@@ -9288,37 +9225,6 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
       // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
       av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
-    }
-  }
-
-  av1_count_overlappable_neighbors(cm, xd);
-  const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-  const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
-                         cpi->sf.inter_sf.prune_obmc_prob_thresh;
-  bool enable_obmc =
-      (cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL)) != 0;
-
-  if (enable_obmc && !cpi->sf.inter_sf.disable_obmc && !prune_obmc) {
-    if (check_num_overlappable_neighbors(mbmi) &&
-        is_motion_variation_allowed_bsize(bsize, mi_row, mi_col)) {
-      int dst_width1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-      int dst_width2[MAX_MB_PLANE] = { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1,
-                                       MAX_SB_SIZE >> 1 };
-      int dst_height1[MAX_MB_PLANE] = { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1,
-                                        MAX_SB_SIZE >> 1 };
-      int dst_height2[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
-      av1_build_prediction_by_above_preds(cm, xd, args->above_pred_buf,
-                                          dst_width1, dst_height1,
-                                          args->above_pred_stride);
-      av1_build_prediction_by_left_preds(cm, xd, args->left_pred_buf,
-                                         dst_width2, dst_height2,
-                                         args->left_pred_stride);
-      const int num_planes = av1_num_planes(cm);
-      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                           num_planes, &mbmi->chroma_ref_info);
-      calc_target_weighted_pred(
-          cm, x, xd, args->above_pred_buf[0], args->above_pred_stride[0],
-          args->left_pred_buf[0], args->left_pred_stride[0]);
     }
   }
 
@@ -10519,9 +10425,6 @@ static void tx_search_best_inter_candidates(
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
 #endif
                                   0, av1_num_planes(cm) - 1);
-    if (mbmi->motion_mode == OBMC_CAUSAL) {
-      av1_build_obmc_inter_predictors_sb(cm, xd);
-    }
 
     // Initialize RD stats
     RD_STATS rd_stats;
@@ -10666,10 +10569,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   };
 
   HandleInterModeArgs args = {
-    { NULL },
-    { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE },
-    { NULL },
-    { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1 },
     NULL,
     NULL,
     NULL,
@@ -10848,7 +10747,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   mbmi->mode = NEARMV;
 #endif
   // init params, set frame modes, speed features
-  set_params_rd_pick_inter_mode(cpi, x, &args, bsize, &mode_skip_mask,
+  set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
                                 skip_ref_frame_mask, ref_costs_single,
                                 ref_costs_comp, yv12_mb);
 
@@ -11806,7 +11705,6 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 
-  av1_count_overlappable_neighbors(cm, xd);
 #if CONFIG_COMPOUND_WARP_CAUSAL
   if (is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(cm,
@@ -11919,171 +11817,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
 /*!\cond */
 struct calc_target_weighted_pred_ctxt {
-  const OBMCBuffer *obmc_buffer;
   const uint16_t *tmp;
   int tmp_stride;
   int overlap;
 };
 /*!\endcond */
-
-static INLINE void calc_target_weighted_pred_above(
-    MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
-    int dir, MB_MODE_INFO *nb_mi, void *fun_ctxt, const int num_planes) {
-  (void)nb_mi;
-  (void)num_planes;
-  (void)rel_mi_row;
-  (void)dir;
-
-  struct calc_target_weighted_pred_ctxt *ctxt =
-      (struct calc_target_weighted_pred_ctxt *)fun_ctxt;
-
-  const int bw = xd->width << MI_SIZE_LOG2;
-  const uint8_t *const mask1d = av1_get_obmc_mask(ctxt->overlap);
-
-  int32_t *wsrc = ctxt->obmc_buffer->wsrc + (rel_mi_col * MI_SIZE);
-  int32_t *mask = ctxt->obmc_buffer->mask + (rel_mi_col * MI_SIZE);
-  const uint16_t *tmp = ctxt->tmp + rel_mi_col * MI_SIZE;
-
-  for (int row = 0; row < ctxt->overlap; ++row) {
-    const uint8_t m0 = mask1d[row];
-    const uint8_t m1 = AOM_BLEND_A64_MAX_ALPHA - m0;
-    for (int col = 0; col < op_mi_size * MI_SIZE; ++col) {
-      wsrc[col] = m1 * tmp[col];
-      mask[col] = m0;
-    }
-    wsrc += bw;
-    mask += bw;
-    tmp += ctxt->tmp_stride;
-  }
-}
-
-static INLINE void calc_target_weighted_pred_left(
-    MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
-    int dir, MB_MODE_INFO *nb_mi, void *fun_ctxt, const int num_planes) {
-  (void)nb_mi;
-  (void)num_planes;
-  (void)rel_mi_col;
-  (void)dir;
-
-  struct calc_target_weighted_pred_ctxt *ctxt =
-      (struct calc_target_weighted_pred_ctxt *)fun_ctxt;
-
-  const int bw = xd->width << MI_SIZE_LOG2;
-  const uint8_t *const mask1d = av1_get_obmc_mask(ctxt->overlap);
-
-  int32_t *wsrc = ctxt->obmc_buffer->wsrc + (rel_mi_row * MI_SIZE * bw);
-  int32_t *mask = ctxt->obmc_buffer->mask + (rel_mi_row * MI_SIZE * bw);
-  const uint16_t *tmp = ctxt->tmp + (rel_mi_row * MI_SIZE * ctxt->tmp_stride);
-
-  for (int row = 0; row < op_mi_size * MI_SIZE; ++row) {
-    for (int col = 0; col < ctxt->overlap; ++col) {
-      const uint8_t m0 = mask1d[col];
-      const uint8_t m1 = AOM_BLEND_A64_MAX_ALPHA - m0;
-      wsrc[col] = (wsrc[col] >> AOM_BLEND_A64_ROUND_BITS) * m0 +
-                  (tmp[col] << AOM_BLEND_A64_ROUND_BITS) * m1;
-      mask[col] = (mask[col] >> AOM_BLEND_A64_ROUND_BITS) * m0;
-    }
-    wsrc += bw;
-    mask += bw;
-    tmp += ctxt->tmp_stride;
-  }
-}
-
-// This function has a structure similar to av1_build_obmc_inter_prediction
-//
-// The OBMC predictor is computed as:
-//
-//  PObmc(x,y) =
-//    AOM_BLEND_A64(Mh(x),
-//                  AOM_BLEND_A64(Mv(y), P(x,y), PAbove(x,y)),
-//                  PLeft(x, y))
-//
-// Scaling up by AOM_BLEND_A64_MAX_ALPHA ** 2 and omitting the intermediate
-// rounding, this can be written as:
-//
-//  AOM_BLEND_A64_MAX_ALPHA * AOM_BLEND_A64_MAX_ALPHA * Pobmc(x,y) =
-//    Mh(x) * Mv(y) * P(x,y) +
-//      Mh(x) * Cv(y) * Pabove(x,y) +
-//      AOM_BLEND_A64_MAX_ALPHA * Ch(x) * PLeft(x, y)
-//
-// Where :
-//
-//  Cv(y) = AOM_BLEND_A64_MAX_ALPHA - Mv(y)
-//  Ch(y) = AOM_BLEND_A64_MAX_ALPHA - Mh(y)
-//
-// This function computes 'wsrc' and 'mask' as:
-//
-//  wsrc(x, y) =
-//    AOM_BLEND_A64_MAX_ALPHA * AOM_BLEND_A64_MAX_ALPHA * src(x, y) -
-//      Mh(x) * Cv(y) * Pabove(x,y) +
-//      AOM_BLEND_A64_MAX_ALPHA * Ch(x) * PLeft(x, y)
-//
-//  mask(x, y) = Mh(x) * Mv(y)
-//
-// These can then be used to efficiently approximate the error for any
-// predictor P in the context of the provided neighbouring predictors by
-// computing:
-//
-//  error(x, y) =
-//    wsrc(x, y) - mask(x, y) * P(x, y) / (AOM_BLEND_A64_MAX_ALPHA ** 2)
-//
-static AOM_INLINE void calc_target_weighted_pred(
-    const AV1_COMMON *cm, const MACROBLOCK *x, const MACROBLOCKD *xd,
-    const uint16_t *above, int above_stride, const uint16_t *left,
-    int left_stride) {
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-  const int bw = xd->width << MI_SIZE_LOG2;
-  const int bh = xd->height << MI_SIZE_LOG2;
-  const OBMCBuffer *obmc_buffer = &x->obmc_buffer;
-  int32_t *mask_buf = obmc_buffer->mask;
-  int32_t *wsrc_buf = obmc_buffer->wsrc;
-
-  const int src_scale = AOM_BLEND_A64_MAX_ALPHA * AOM_BLEND_A64_MAX_ALPHA;
-
-  // plane 0 should not be sub-sampled
-  assert(xd->plane[0].subsampling_x == 0);
-  assert(xd->plane[0].subsampling_y == 0);
-
-  av1_zero_array(wsrc_buf, bw * bh);
-  for (int i = 0; i < bw * bh; ++i) mask_buf[i] = AOM_BLEND_A64_MAX_ALPHA;
-
-  // handle above row
-  if (xd->up_available) {
-    const int overlap =
-        AOMMIN(block_size_high[bsize], block_size_high[BLOCK_64X64]) >> 1;
-    struct calc_target_weighted_pred_ctxt ctxt = { obmc_buffer, above,
-                                                   above_stride, overlap };
-    foreach_overlappable_nb_above(
-        cm, (MACROBLOCKD *)xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
-        calc_target_weighted_pred_above, &ctxt, false);
-  }
-
-  for (int i = 0; i < bw * bh; ++i) {
-    wsrc_buf[i] *= AOM_BLEND_A64_MAX_ALPHA;
-    mask_buf[i] *= AOM_BLEND_A64_MAX_ALPHA;
-  }
-
-  // handle left column
-  if (xd->left_available) {
-    const int overlap =
-        AOMMIN(block_size_wide[bsize], block_size_wide[BLOCK_64X64]) >> 1;
-    struct calc_target_weighted_pred_ctxt ctxt = { obmc_buffer, left,
-                                                   left_stride, overlap };
-    foreach_overlappable_nb_left(cm, (MACROBLOCKD *)xd,
-                                 max_neighbor_obmc[mi_size_high_log2[bsize]],
-                                 calc_target_weighted_pred_left, &ctxt);
-  }
-
-  const uint16_t *src = x->plane[0].src.buf;
-
-  for (int row = 0; row < bh; ++row) {
-    for (int col = 0; col < bw; ++col) {
-      wsrc_buf[col] = src[col] * src_scale - wsrc_buf[col];
-    }
-    wsrc_buf += bw;
-    src += x->plane[0].src.stride;
-  }
-}
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
    low bit-depth arrays. */

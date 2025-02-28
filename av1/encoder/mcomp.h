@@ -125,10 +125,6 @@ typedef struct {
   const uint8_t *mask;
   int mask_stride;
   int inv_mask;
-
-  // The weighted source and mask used by OBMC
-  const int32_t *wsrc;
-  const int32_t *obmc_mask;
 } MSBuffers;
 
 static INLINE void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
@@ -231,8 +227,6 @@ typedef struct {
   int fine_search_interval;
 
   int is_intra_mode;
-
-  int fast_obmc_search;
 
   // For calculating mv cost
   MV_COST_PARAMS mv_cost_params;
@@ -376,10 +370,6 @@ int av1_intrabc_hash_search(const struct AV1_COMP *cpi, const MACROBLOCKD *xd,
                             const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                             IntraBCHashInfo *intrabc_hash_info,
                             FULLPEL_MV *best_mv);
-
-int av1_obmc_full_pixel_search(const FULLPEL_MV start_mv,
-                               const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                               const int step_param, FULLPEL_MV *best_mv);
 
 static INLINE int av1_is_fullmv_in_range(const FullMvLimits *mv_limits,
                                          FULLPEL_MV mv,
@@ -532,7 +522,6 @@ extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_more;
 extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_evenmore;
 extern fractional_mv_step_fp av1_return_max_sub_pixel_mv;
 extern fractional_mv_step_fp av1_return_min_sub_pixel_mv;
-extern fractional_mv_step_fp av1_find_best_obmc_sub_pixel_tree_up;
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
