@@ -28,7 +28,11 @@ typedef struct single_mv_candidate {
 #endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_MVP_SIMPLIFY
+#if CONFIG_TMVP_SIMPLIFICATION
+#define TMVP_SEARCH_COUNT 2
+#else
 #define TMVP_SEARCH_COUNT 5
+#endif  // CONFIG_TMVP_SIMPLIFICATION
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define SMVP_COL_SEARCH_COUNT 2
 #else
@@ -2541,15 +2545,17 @@ static AOM_INLINE void add_tmvp_candidate(
 
 #if CONFIG_MVP_SIMPLIFY
     const MVP_UNIT_STATUS tmvp_units_status[TMVP_SEARCH_COUNT] = {
-      { (blk_row_end - step_h > 0 && blk_col_end - step_w > 0),
-        blk_row_end - step_h, blk_col_end - step_w },
-      { (blk_row_end - step_h > 0 && blk_col_end - step_w == 0),
-        blk_row_end - step_h, 0 },
-      { (blk_row_end - step_h > 1 && blk_col_end - step_w > 1),
-        blk_row_end >> 1, blk_col_end >> 1 },
-      { (blk_row_end - step_h == 0 && blk_col_end - step_w > 0), 0,
+      { blk_row_end >= step_h && blk_col_end >= step_w, blk_row_end - step_h,
         blk_col_end - step_w },
-      { (blk_row_end - step_h >= 0 && blk_col_end - step_w >= 0), 0, 0 },
+#if !CONFIG_TMVP_SIMPLIFICATION
+      { blk_col_end >= 2 * step_w, blk_row_end - step_h, 0 },
+#endif  // !CONFIG_TMVP_SIMPLIFICATION
+      { (blk_row_end >= 3 * step_h) || (blk_col_end >= 3 * step_w),
+        blk_row_end >> 1, blk_col_end >> 1 },
+#if !CONFIG_TMVP_SIMPLIFICATION
+      { blk_row_end >= 2 * step_h, 0, blk_col_end - step_w },
+      { (blk_row_end >= 2 * step_h) && (blk_col_end >= 2 * step_w), 0, 0 },
+#endif  // !CONFIG_TMVP_SIMPLIFICATION
     };
 
     for (int iter = 0; iter < TMVP_SEARCH_COUNT; ++iter) {
