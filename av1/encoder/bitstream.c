@@ -2280,7 +2280,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
         write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     }
   }
-
   // Palette.
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
     write_palette_mode_info(cm, xd, mbmi, w);
@@ -3512,6 +3511,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->sb_type[plane], plane, xd, NULL, NULL,
                                &rows, &cols);
       assert(*tok < tok_end);
+
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
       const struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -3743,9 +3743,16 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 static AOM_INLINE void write_modes_sb(
     AV1_COMP *const cpi, const TileInfo *const tile, aom_writer *const w,
     const TokenExtra **tok, const TokenExtra *const tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    const TokenExtra **tok_chroma, const TokenExtra *const tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    PARTITION_TREE *ptree_luma,
+#else
     const PARTITION_TREE *ptree_luma,
+#endif  //  CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
   AV1_COMMON *cm = &cpi->common;
@@ -3767,6 +3774,37 @@ static AOM_INLINE void write_modes_sb(
   if (subsize == BLOCK_INVALID) return;
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp && bsize == BLOCK_64X64)
+          ? 2
+          : 1;
+  if (total_loop_num == 2 && xd->tree_type == SHARED_PART) {
+    xd->tree_type = LUMA_PART;
+    write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                   tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                   ptree, ptree_luma, mi_row, mi_col, bsize);
+    xd->tree_type = CHROMA_PART;
+    assert(ptree_luma);
+
+    write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                   tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                   ptree_luma,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                   ptree,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                   mi_row, mi_col, bsize);
+    xd->tree_type = SHARED_PART;
+    return;
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end =
@@ -3798,12 +3836,14 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_EXT_RECUR_PARTITIONS
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
                   w);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
   const int track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
   if (!track_ptree_luma) {
     ptree_luma = NULL;
   }
   assert(IMPLIES(track_ptree_luma, ptree_luma));
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3824,17 +3864,40 @@ static AOM_INLINE void write_modes_sb(
     }
   }
 #endif  // CONFIG_EXTENDED_SDP
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
   switch (partition) {
     case PARTITION_NONE:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(
+          cpi, tile, w,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma
+                                                              : tok,
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
+                                                              : tok_end,
+#else
+          tok, tok_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          mi_row, mi_col);
       break;
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + hbs_h < mi_params->mi_rows) {
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[1],
                        get_partition_subtree_const(ptree_luma, 1),
                        mi_row + hbs_h, mi_col, subsize);
       }
@@ -3846,11 +3909,19 @@ static AOM_INLINE void write_modes_sb(
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + hbs_w < mi_params->mi_cols) {
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[1],
                        get_partition_subtree_const(ptree_luma, 1), mi_row,
                        mi_col + hbs_w, subsize);
       }
@@ -3865,19 +3936,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
                      mi_col, bsize_med);
       if (mi_row + 3 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2),
                      mi_row + 3 * ebs_h, mi_col, bsize_big);
       if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3),
                      mi_row + 7 * ebs_h, mi_col, subsize);
       break;
@@ -3886,19 +3973,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
                      mi_col, bsize_big);
       if (mi_row + 5 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2),
                      mi_row + 5 * ebs_h, mi_col, bsize_med);
       if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3),
                      mi_row + 7 * ebs_h, mi_col, subsize);
       break;
@@ -3907,19 +4010,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + ebs_w, bsize_med);
       if (mi_col + 3 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row,
                      mi_col + 3 * ebs_w, bsize_big);
       if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row,
                      mi_col + 7 * ebs_w, subsize);
       break;
@@ -3928,19 +4047,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + ebs_w, bsize_big);
       if (mi_col + 5 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row,
                      mi_col + 5 * ebs_w, bsize_med);
       if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row,
                      mi_col + 7 * ebs_w, subsize);
       break;
@@ -3963,22 +4098,42 @@ static AOM_INLINE void write_modes_sb(
           if (this_mi_col >= cm->mi_params.mi_cols) break;
         }
 
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[i],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[i],
                        get_partition_subtree_const(ptree_luma, i), this_mi_row,
                        this_mi_col, this_bsize);
       }
       break;
     case PARTITION_SPLIT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + hbs_w, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row + hbs_h,
                      mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
                      mi_col + hbs_w, subsize);
       break;
@@ -4036,7 +4191,16 @@ static AOM_INLINE void write_modes_sb(
       ptree->region_type == INTRA_REGION) {
     // run chroma part in luma region
     xd->tree_type = CHROMA_PART;
-    write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+    write_modes_b(
+        cpi, tile, w,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma : tok,
+        (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
+                                                            : tok_end,
+#else
+        tok, tok_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+        mi_row, mi_col);
     // reset back to shared part
     xd->tree_type = SHARED_PART;
   }
@@ -4071,11 +4235,21 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
     const int sb_row_in_tile =
         (mi_row - tile->mi_row_start) >> cm->mib_size_log2;
+
     const TokenExtra *tok =
         cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].start;
     const TokenExtra *tok_end =
         tok + cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].count;
 
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+
+    const TokenExtra *tok_chroma =
+        cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].start_chroma;
+    const TokenExtra *tok_end_chroma =
+        tok_chroma +
+        cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].count_chroma;
+    assert(tok_end < tok_chroma);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     av1_zero_left_context(xd);
 
     for (int mi_col = mi_col_start; mi_col < mi_col_end;
@@ -4083,18 +4257,34 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
       av1_reset_is_mi_coded_map(xd, cm->mib_size);
       xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+      xd->tree_type = SHARED_PART;
+      const int intra_sdp_enabled =
+          (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+           cm->seq_params.enable_sdp);
+#else
       const int total_loop_num =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
            cm->seq_params.enable_sdp)
               ? 2
               : 1;
       xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
       write_modes_sb(cpi, tile, w, &tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     &tok_chroma, tok_end_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
                      xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     (intra_sdp_enabled ? xd->sbi->ptree_root[1] : NULL),
+#else
                      NULL,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                      mi_row, mi_col, cm->sb_size);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
       if (total_loop_num == 2) {
         xd->tree_type = CHROMA_PART;
         write_modes_sb(cpi, tile, w, &tok, tok_end,
@@ -4105,7 +4295,11 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
                        mi_row, mi_col, cm->sb_size);
         xd->tree_type = SHARED_PART;
       }
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
     }
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    assert(tok_chroma == tok_end_chroma);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     assert(tok == tok_end);
   }
 }

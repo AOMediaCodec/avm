@@ -40,6 +40,14 @@ typedef struct {
 typedef struct {
   TokenExtra *start;
   unsigned int count;
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  // start chroma is the pointer intial location of
+  // palette information for chroma.
+  // count chroma will store number of
+  // palette information (at sample level) stored for chroma.
+  TokenExtra *start_chroma;
+  unsigned int count_chroma;
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 } TokenList;
 
 typedef struct {

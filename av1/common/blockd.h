@@ -4678,7 +4678,11 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+static AOM_INLINE PARTITION_TREE *get_partition_subtree_const(
+#else
 static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const PARTITION_TREE *partition_tree, int idx) {
   if (!partition_tree) {
     return NULL;
