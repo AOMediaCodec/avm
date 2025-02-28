@@ -4048,11 +4048,43 @@ static void build_inter_predictors_sub8x8(
 }
 
 #if CONFIG_REFINEMV
-// Padding if the pixel position falls outside of the defined reference area
-static void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
-                                          uint16_t *dst, int dst_stride, int x0,
-                                          int y0, int b_w, int b_h,
-                                          const ReferenceArea *ref_area) {
+static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,
+                                          int count) {
+  while (count >= 8) {
+    dst[0] = value;
+    dst[1] = value;
+    dst[2] = value;
+    dst[3] = value;
+    dst[4] = value;
+    dst[5] = value;
+    dst[6] = value;
+    dst[7] = value;
+    dst += 8;
+    count -= 8;
+  }
+  while (count >= 4) {
+    dst[0] = value;
+    dst[1] = value;
+    dst[2] = value;
+    dst[3] = value;
+    dst += 4;
+    count -= 4;
+  }
+  while (count > 0) {
+    *dst++ = value;
+    count--;
+  }
+}
+
+void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
+                                   uint16_t *dst, int dst_stride, int x0,
+                                   int y0, int b_w, int b_h,
+                                   const ReferenceArea *ref_area) {
+  const int ref_x0 = ref_area->pad_block.x0;
+  const int ref_y0 = ref_area->pad_block.y0;
+  const int ref_x1 = ref_area->pad_block.x1;
+  const int ref_y1 = ref_area->pad_block.y1;
+
   // Get a pointer to the start of the real data for this row.
   const uint16_t *ref_row = src - x0 - y0 * src_stride;
 
@@ -4063,34 +4095,27 @@ static void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
   else
     ref_row += ref_area->pad_block.y0 * src_stride;
 
+  int left = x0 < ref_x0 ? ref_x0 - x0 : 0;
+  if (left > b_w) left = b_w;
+  int right = (x0 + b_w > ref_x1) ? (x0 + b_w - ref_x1) : 0;
+  if (right > b_w) right = b_w;
+  const int copy = b_w - left - right;
+
   do {
-    int right = 0, copy;
-    int left = x0 < ref_area->pad_block.x0 ? ref_area->pad_block.x0 - x0 : 0;
-
-    if (left > b_w) left = b_w;
-
-    if (x0 + b_w > ref_area->pad_block.x1)
-      right = x0 + b_w - ref_area->pad_block.x1;
-
-    if (right > b_w) right = b_w;
-
-    copy = b_w - left - right;
-
-    if (left) aom_memset16(dst, ref_row[ref_area->pad_block.x0], left);
-
+    if (left)
+      aom_memset16_optimized(dst, ref_row[ref_area->pad_block.x0], left);
     if (copy) memcpy(dst + left, ref_row + x0 + left, copy * sizeof(uint16_t));
-
     if (right)
-      aom_memset16(dst + left + copy, ref_row[ref_area->pad_block.x1 - 1],
-                   right);
+      aom_memset16_optimized(dst + left + copy,
+                             ref_row[ref_area->pad_block.x1 - 1], right);
 
     dst += dst_stride;
     ++y0;
 
-    if (y0 > ref_area->pad_block.y0 && y0 < ref_area->pad_block.y1)
-      ref_row += src_stride;
+    if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
   } while (--b_h);
 }
+
 // check if padding is required during motion compensation
 // return 1 means reference pixel is outside of the reference range and padding
 // is required return 0 means no padding.
@@ -4153,7 +4178,6 @@ static void refinemv_extend_mc_border(
   if (update_extend_mc_border_params(sf, pre_buf, scaled_mv, &block,
                                      subpel_x_mv, subpel_y_mv, do_warp,
                                      is_intrabc, &x_pad, &y_pad, ref_area)) {
-    // printf(" Out of border \n");
     // Get reference block pointer.
     const uint16_t *const buf_ptr =
         pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
