@@ -29,12 +29,18 @@ extern "C" {
 #define DF_TWO_PARAM 0
 #define DF_DUAL 1
 
+#if CONFIG_DF_PAR_BITS
+#define DF_PAR_BITS 3
+#else
 #define DF_PAR_BITS 5
+#endif  // CONFIG_DF_PAR_BITS
 #define DF_DELTA_SCALE 8
 #define DF_SEARCH_STEP_SIZE 2
+#if !CONFIG_DF_PAR_BITS
 #define DF_PAR_OFFSET (1 << (DF_PAR_BITS - 1))
 #define DF_PAR_MIN_VAL (-(1 << (DF_PAR_BITS - 1)))
 #define DF_PAR_MAX_VAL ((1 << (DF_PAR_BITS - 1)) - 1)
+#endif  // !CONFIG_DF_PAR_BITS
 
 #define DF_FILT26 1
 #define DF_CHROMA_WIDE 1

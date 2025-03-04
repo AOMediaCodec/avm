@@ -1325,6 +1325,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
                      &cm->quant_params);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
 
+#if CONFIG_DF_PAR_BITS
+  cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
+#endif  // CONFIG_DF_PAR_BITS
   av1_loop_filter_init(cm);
   cm->superres_scale_denominator = SCALE_NUMERATOR;
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;

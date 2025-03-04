@@ -73,9 +73,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -3608,12 +3608,21 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   }
   //  lf->sharpness_level = 0;
 
+#if CONFIG_DF_PAR_BITS
+  const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
+  const uint8_t df_par_offset = 1 << (df_par_bits - 1);
+#endif  // CONFIG_DF_PAR_BITS
+
 #if DF_DUAL
   if (lf->filter_level[0]) {
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[0] =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
           aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_luma[0] = 0;
     }
@@ -3621,7 +3630,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma[0] =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
           aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma[0] = 0;
     }
@@ -3636,7 +3649,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[1] =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
           aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_luma[1] = lf->delta_q_luma[0];
     }
@@ -3644,7 +3661,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma[1] =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
           aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma[1] = lf->delta_side_luma[0];
     }
@@ -3659,7 +3680,12 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level[0] || lf->filter_level[1]) {
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
-      lf->delta_q_luma = aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+      lf->delta_q_luma =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
+          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_luma = 0;
     }
@@ -3667,7 +3693,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
           aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma = 0;
     }
@@ -3683,14 +3713,24 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_u) {
     int u_delta_q = aom_rb_read_bit(rb);
     if (u_delta_q) {
-      lf->delta_q_u = aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+      lf->delta_q_u =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
+          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_u = 0;
     }
 #if DF_TWO_PARAM
     int u_delta_side = aom_rb_read_bit(rb);
     if (u_delta_side) {
-      lf->delta_side_u = aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+      lf->delta_side_u =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
+          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_u = 0;
     }
@@ -3704,14 +3744,24 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_v) {
     int v_delta_q = aom_rb_read_bit(rb);
     if (v_delta_q) {
-      lf->delta_q_v = aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+      lf->delta_q_v =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
+          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_v = 0;
     }
 #if DF_TWO_PARAM
     int v_delta_side = aom_rb_read_bit(rb);
     if (v_delta_side) {
-      lf->delta_side_v = aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+      lf->delta_side_v =
+#if CONFIG_DF_PAR_BITS
+          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+#else
+          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
+#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_v = 0;
     }
@@ -4289,8 +4339,7 @@ static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
     BLOCK_256X256,
 #endif
-    BLOCK_128X128,
-    BLOCK_64X64
+    BLOCK_128X128, BLOCK_64X64
   };
   int index = 0;
   bool bit = aom_rb_read_bit(rb);
@@ -4791,7 +4840,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }
@@ -6858,6 +6907,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
     seq_params->enable_global_motion = aom_rb_read_bit(rb);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#if CONFIG_DF_PAR_BITS
+  seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2);
+#endif  // CONFIG_DF_PAR_BITS
 #if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFRESH_FLAG

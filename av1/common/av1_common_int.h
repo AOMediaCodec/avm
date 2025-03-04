@@ -454,7 +454,7 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
 #else
-  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
@@ -710,6 +710,10 @@ typedef struct SequenceHeader {
   uint8_t display_model_info_present_flag;
   AV1_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
+
+#if CONFIG_DF_PAR_BITS
+  uint8_t df_par_bits_minus2;
+#endif  // CONFIG_DF_PAR_BITS
 
   // IMPORTANT: the op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
