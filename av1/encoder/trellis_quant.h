@@ -37,9 +37,12 @@ typedef struct tcq_node_t {
 } tcq_node_t;
 
 typedef struct tcq_ctx_t {
-  uint8_t ctx[MAX_DIAG];
-  uint8_t lev[MAX_DIAG];
-  int8_t orig_id;
+  uint8_t lev_new[MAX_DIAG + 8][TCQ_MAX_STATES];
+  uint8_t mag_base[MAX_DIAG + 8][TCQ_MAX_STATES];
+  uint8_t mag_mid[MAX_DIAG + 8][TCQ_MAX_STATES];
+  uint8_t ctx[MAX_DIAG + 8][TCQ_MAX_STATES];
+  int8_t prev_st[MAX_DIAG + 8][TCQ_MAX_STATES];
+  int8_t orig_st[TCQ_MAX_STATES];
 } tcq_ctx_t;
 
 typedef struct tcq_lf_ctx_t {

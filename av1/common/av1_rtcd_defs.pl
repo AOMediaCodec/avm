@@ -375,8 +375,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/av1_decide_states avx2/;
     add_proto qw/void av1_pre_quant/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
     specialize qw/av1_pre_quant avx2/;
-    add_proto qw/void av1_calc_diag_ctx/, "int scan_hi, int scan_lo, int bwl, const uint8_t *prev_levels, const int16_t* scan, uint8_t *ctx";
-    specialize qw/av1_calc_diag_ctx avx2/;
 
     add_proto qw/void av1_get_rate_dist_def_luma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_def_luma avx2/;
@@ -386,19 +384,16 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/av1_get_rate_dist_lf_luma avx2/;
     add_proto qw/void av1_get_rate_dist_lf_chroma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int plane, int coeff_sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_lf_chroma avx2/;
-
-    add_proto qw/void av1_update_states/, "struct tcq_node_t *decision, int scan_idx, const struct tcq_ctx_t *cur_ctx, struct tcq_ctx_t *nxt_ctx";
+    add_proto qw/void av1_update_states/, "const struct tcq_node_t *decision, int col, struct tcq_ctx_t *tcq_ctx";
     specialize qw/av1_update_states avx2/;
-    add_proto qw/void av1_init_lf_ctx/, "const uint8_t *lev, int scan_hi, int bwl, struct tcq_lf_ctx_t *lf_ctx";
-    specialize qw/av1_init_lf_ctx avx2/;
-    add_proto qw/void av1_calc_lf_ctx_st8/, "const struct tcq_lf_ctx_t *lf_ctx, int scan_pos, struct tcq_coeff_ctx_t *coeff_ctx";
-    specialize qw/av1_calc_lf_ctx_st8 avx2/;
-    add_proto qw/void av1_update_lf_ctx/, "const struct tcq_node_t *decision, struct tcq_lf_ctx_t *lf_ctx";
-    specialize qw/av1_update_lf_ctx avx2/;
     add_proto qw/void av1_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
     specialize qw/av1_calc_block_eob_rate avx2/;
     add_proto qw/int av1_find_best_path/, "const struct tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
     specialize qw/av1_find_best_path avx2/;
+    add_proto qw/void av1_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
+    specialize qw/av1_get_coeff_ctx avx2/;
+    add_proto qw/void av1_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
+    specialize qw/av1_update_nbr_diagonal avx2/;
   }
 
   # fdct functions

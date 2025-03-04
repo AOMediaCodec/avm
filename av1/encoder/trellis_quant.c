@@ -72,6 +72,23 @@ static AOM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   }
 }
 
+static AOM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx) {
+  static const int8_t init_st[4][TCQ_MAX_STATES] = {
+    { 0, 1, 2, 3, 4, 5, 6, 7 },
+    { 0, 1, 2, 3, 4, 5, 6, 7 },
+    { 0, 1, 2, 3, 4, 5, 6, 7 },
+    { 0, 1, 2, 3, 4, 5, 6, 7 },
+  };
+  memset(&tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
+  memset(&tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
+  memset(&tcq_ctx->ctx, 0, sizeof(tcq_ctx->ctx));
+  memset(&tcq_ctx->lev_new, 0, sizeof(tcq_ctx->lev_new));
+  int n_elem = sizeof(tcq_ctx->prev_st) / sizeof(tcq_ctx->prev_st[0]);
+  for (int i = 0; i < n_elem; i += 4) {
+    memcpy(tcq_ctx->prev_st[i], init_st, sizeof(init_st));
+  }
+}
+
 // Update context buffer for the current node
 static AOM_INLINE void set_levels_buf(int prevId, int absLevel, uint8_t *levels,
                                       const int16_t *scan, const int eob_minus1,
@@ -225,8 +242,8 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                      int diag_ctx, int plane,
                                      const LV_MAP_COEFF_COST *txb_costs,
                                      int q_i, int t_sign, int sign) {
-  int base_ctx = diag_ctx + (coeff_ctx & 15);
-  int mid_ctx = coeff_ctx >> 4;
+  int base_ctx = (diag_ctx & 255) + (coeff_ctx & 15);
+  int mid_ctx = (diag_ctx >> 8) + (coeff_ctx >> 4);
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   int cost = base_cost_ptr[base_ctx][q_i][AOMMIN(abs_qc, 3)];
@@ -541,14 +558,84 @@ static int get_coeff_cost(int ci, tran_low_t abs_qc, int sign, int coeff_ctx,
                                 plane, limits, q_i);
 }
 
+// Update neighbor coeff magnitudes state for current diagonal.
+void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
+                               int bwl) {
+  // Temp storage for next diagonal ctx, with padding.
+  uint8_t next_base_mag[32 + 8][TCQ_MAX_STATES];
+  uint8_t next_mid_mag[32 + 8][TCQ_MAX_STATES];
+  uint8_t(*next_base)[TCQ_MAX_STATES] = &next_base_mag[4];
+  uint8_t(*next_mid)[TCQ_MAX_STATES] = &next_mid_mag[4];
+
+  int idx_start = col;
+  int idx_end = 1 << bwl;
+  for (int st = 0; st < TCQ_MAX_STATES; st++) {
+    // Copy original coeff context from previous diagonal.
+    int orig_st = tcq_ctx->orig_st[st];
+    if (orig_st < 0) {
+      for (int i = 0; i < 32; i++) {
+        next_base[i][st] = 0;
+        next_mid[i][st] = 0;
+      }
+    } else {
+      for (int i = 0; i < 32; i++) {
+        next_base[i][st] = tcq_ctx->mag_base[i][orig_st];
+        next_mid[i][st] = tcq_ctx->mag_mid[i][orig_st];
+      }
+    }
+  }
+  memset(tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
+  memset(tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
+  int diag = row + col;
+  int max1 = diag < 5 ? 5 : 3;
+  int max2 = diag < 6 ? 5 : 3;
+  for (int st = 0; st < TCQ_MAX_STATES; st++) {
+    // Update neighbor magnitudes
+    int st1 = st;
+    for (int i = idx_start; st1 >= 0 && i < idx_end; i++) {
+      int lev = tcq_ctx->lev_new[i][st1];
+      st1 = tcq_ctx->prev_st[i][st1];
+      // Update base positions {1, 0}, {0, 1}
+      int base1 = AOMMIN(lev, max1);
+      next_base[i][st] += base1;
+      next_base[i - 1][st] += base1;
+      // Update mid positions {1, 0}, {0, 1}
+      next_mid[i][st] += lev;
+      next_mid[i - 1][st] += lev;
+      // Update base positions {2, 0}, {1. 1}, {0, 2}
+      int base2 = AOMMIN(lev, max2);
+      tcq_ctx->mag_base[i][st] += base2;
+      tcq_ctx->mag_base[i - 1][st] += base2;
+      tcq_ctx->mag_base[i - 2][st] += base2;
+      // Update mid position {1, 1}
+      tcq_ctx->mag_mid[i - 1][st] = lev;
+    }
+  }
+  // Calc next context info
+  memset(tcq_ctx->ctx, 0, sizeof(tcq_ctx->ctx));
+  static const int8_t max_tbl[6] = { 0, 8, 6, 4, 4, 4 };
+  int base_max = max_tbl[AOMMIN(diag, 5)];
+  for (int st = 0; st < TCQ_MAX_STATES; st++) {
+    for (int i = 0; i < 32; i++) {
+      int base_ctx = next_base[i][st];
+      int mid_ctx = next_mid[i][st];
+      base_ctx = AOMMIN((base_ctx + 1) >> 1, base_max);
+      mid_ctx = AOMMIN((mid_ctx + 1) >> 1, 6);
+      tcq_ctx->ctx[i][st] = (mid_ctx << 4) + base_ctx;
+    }
+    // Reset original state to prepare for next diagonal.
+    tcq_ctx->orig_st[st] = st;
+  }
+}
+
 // Process the first position
 void trellis_first_pos(const tcq_param_t *p, int scan_pos,
-                       tcq_levels_t *tcq_lev, tcq_node_t *trellis) {
+                       tcq_levels_t *tcq_lev, tcq_ctx_t *tcq_ctx,
+                       tcq_node_t *trellis) {
   int plane = p->plane;
   TX_SIZE tx_size = p->tx_size;
   TX_CLASS tx_class = p->tx_class;
   int log_scale = p->log_scale;
-  int sharpness = p->sharpness;
   int64_t rdmult = p->rdmult;
   const int16_t *scan = p->scan;
   const int32_t *tmp_sign = p->tmp_sign;
@@ -609,12 +696,28 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos,
                   rate_Q0_a, rate_Q0_b, pqData.absLevel[0], pqData.absLevel[2],
                   limits, 0, -1, &decision[state0], &decision[state1]);
 
-  uint8_t *levels0 = tcq_levels_cur(tcq_lev, state0);
-  uint8_t *levels1 = tcq_levels_cur(tcq_lev, state1);
-  set_levels_buf(decision[state0].prevId, decision[state0].absLevel, levels0,
-                 scan, scan_pos, scan_pos, bwl, sharpness);
-  set_levels_buf(decision[state1].prevId, decision[state1].absLevel, levels1,
-                 scan, scan_pos, scan_pos, bwl, sharpness);
+  if (tcq_ctx) {
+    for (int i = 0; i < TCQ_MAX_STATES; i++) {
+      tcq_ctx->orig_st[i] = i;
+      tcq_ctx->prev_st[col][i] = -1;
+      tcq_ctx->lev_new[col][i] = 0;
+    }
+    tcq_ctx->lev_new[col][state0] =
+        AOMMIN(decision[state0].absLevel, MAX_VAL_BR_CTX);
+    tcq_ctx->lev_new[col][state1] =
+        AOMMIN(decision[state1].absLevel, MAX_VAL_BR_CTX);
+    if ((col == 0 && row != 0) || row == height - 1) {
+      av1_update_nbr_diagonal(tcq_ctx, row, col, bwl);
+    }
+  }
+  if (tcq_lev) {
+    uint8_t *levels0 = tcq_levels_cur(tcq_lev, state0);
+    uint8_t *levels1 = tcq_levels_cur(tcq_lev, state1);
+    set_levels_buf(decision[state0].prevId, decision[state0].absLevel, levels0,
+                   scan, scan_pos, scan_pos, bwl, 0);
+    set_levels_buf(decision[state1].prevId, decision[state1].absLevel, levels1,
+                   scan, scan_pos, scan_pos, bwl, 0);
+  }
 }
 
 void av1_get_rate_dist_def_luma_c(const struct LV_MAP_COEFF_COST *txb_costs,
@@ -633,7 +736,7 @@ void av1_get_rate_dist_def_luma_c(const struct LV_MAP_COEFF_COST *txb_costs,
     int q_i = tcq_quant(i);
     int a0 = q_i;
     int a1 = a0 + 2;
-    int base_ctx = diag_ctx + (coeff_ctx->coef[i] & 15);
+    int base_ctx = (diag_ctx & 15) + (coeff_ctx->coef[i] & 15);
     int cost0 = get_coeff_cost_def(absLevel[a0], coeff_ctx->coef[i], diag_ctx,
                                    plane, txb_costs, q_i, t_sign, sign);
     int cost1 = get_coeff_cost_def(absLevel[a1], coeff_ctx->coef[i], diag_ctx,
@@ -666,7 +769,7 @@ void av1_get_rate_dist_def_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
     int q_i = tcq_quant(i);
     int a0 = q_i;
     int a1 = a0 + 2;
-    int base_ctx = diag_ctx + (coeff_ctx->coef[i] & 15);
+    int base_ctx = (diag_ctx & 15) + (coeff_ctx->coef[i] & 15);
     int cost0 = get_coeff_cost_def(absLevel[a0], coeff_ctx->coef[i], diag_ctx,
                                    plane, txb_costs, q_i, t_sign, sign);
     int cost1 = get_coeff_cost_def(absLevel[a1], coeff_ctx->coef[i], diag_ctx,
@@ -702,8 +805,8 @@ void av1_get_rate_dist_lf_luma_c(const struct LV_MAP_COEFF_COST *txb_costs,
     int q_i = tcq_quant(i);
     int a0 = q_i;
     int a1 = a0 + 2;
-    base_ctx = (coeff_ctx->coef[i] & 15) + diag_ctx;
-    mid_ctx = coeff_ctx->coef[i] >> 4;
+    base_ctx = (coeff_ctx->coef[i] & 15) + (diag_ctx & 255);
+    mid_ctx = (coeff_ctx->coef[i] >> 4) + (diag_ctx >> 8);
     int cost0 = get_coeff_cost(blk_pos, absLevel[a0], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
                                tmp_sign, plane, 1, q_i);
@@ -740,8 +843,8 @@ void av1_get_rate_dist_lf_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
     int q_i = tcq_quant(i);
     int a0 = q_i;
     int a1 = a0 + 2;
-    base_ctx = (coeff_ctx->coef[i] & 15) + diag_ctx;
-    mid_ctx = coeff_ctx->coef[i] >> 4;
+    base_ctx = (coeff_ctx->coef[i] & 15) + (diag_ctx & 255);
+    mid_ctx = (coeff_ctx->coef[i] >> 4) + (diag_ctx >> 8);
     int cost0 = get_coeff_cost(blk_pos, absLevel[a0], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
                                tmp_sign, plane, 1, q_i);
@@ -762,212 +865,50 @@ void av1_get_rate_dist_lf_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
                                     bwl, tx_class, t_sign, plane);
 }
 
-void av1_calc_diag_ctx_c(int scan_hi, int scan_lo, int bwl,
-                         const uint8_t *prev_levels, const int16_t *scan,
-                         uint8_t *ctx) {
-  for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
-    int blk_pos = scan[scan_pos];
-    int coeff_mag = get_nz_mag(prev_levels + get_padded_idx(blk_pos, bwl), bwl,
-                               TX_CLASS_2D);
-    int coeff_ctx = AOMMIN((coeff_mag + 1) >> 1, 4);
-    int br_ctx = get_br_ctx(prev_levels, blk_pos, bwl, 0);
-    ctx[scan_pos - scan_lo] = (br_ctx << 4) | coeff_ctx;
-  }
-}
-
-void av1_update_states_c(tcq_node_t *decision, int scan_idx,
-                         const struct tcq_ctx_t *cur_ctx,
-                         struct tcq_ctx_t *nxt_ctx) {
+void av1_update_states_c(const tcq_node_t *decision, int col,
+                         struct tcq_ctx_t *tcq_ctx) {
+  int8_t tmp_orig_st[TCQ_N_STATES];
+  memcpy(tmp_orig_st, tcq_ctx->orig_st, sizeof(tcq_ctx->orig_st));
   for (int i = 0; i < TCQ_N_STATES; i++) {
     int prevId = decision[i].prevId;
     int absLevel = decision[i].absLevel;
-    if (prevId >= 0) {
-      memcpy(&nxt_ctx[i], &cur_ctx[prevId], sizeof(tcq_ctx_t));
+    tcq_ctx->lev_new[col][i] = AOMMIN(absLevel, MAX_VAL_BR_CTX);
+    tcq_ctx->prev_st[col][i] = prevId;
+    if (prevId < 0) {
+      tcq_ctx->orig_st[i] = -1;
     } else {
-      // New EOB; reset contexts
-      memset(&nxt_ctx[i], 0, sizeof(tcq_ctx_t));
-      nxt_ctx[i].orig_id = -1;
+      tcq_ctx->orig_st[i] = tmp_orig_st[prevId];
     }
-    nxt_ctx[i].lev[scan_idx] = AOMMIN(absLevel, INT8_MAX);
   }
 }
 
-static void update_levels_diagonal(tcq_levels_t *tcq_lev, const int16_t *scan,
-                                   int bufsize, int bwl, int scan_hi,
-                                   int scan_lo, const tcq_ctx_t *tcq_ctx) {
+void av1_get_coeff_ctx_c(const struct tcq_ctx_t *tcq_ctx, int col,
+                         struct tcq_coeff_ctx_t *coeff_ctx) {
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int orig_id = tcq_ctx[i].orig_id;
-    uint8_t *cur_lev = tcq_levels_cur(tcq_lev, i);
-    uint8_t *prev_lev = tcq_levels_prev(tcq_lev, orig_id);
-    if (orig_id >= 0) {
-      memcpy(cur_lev, prev_lev, bufsize);
-    } else {
-      memset(cur_lev, 0, bufsize);
-    }
-    for (int sc = scan_lo; sc <= scan_hi; sc++) {
-      int lev = tcq_ctx[i].lev[sc - scan_lo];
-      cur_lev[get_padded_idx(scan[sc], bwl)] = lev;
-    }
+    int orig_st = tcq_ctx->orig_st[i];
+    coeff_ctx->coef[i] = orig_st == -1 ? 0 : tcq_ctx->ctx[col][orig_st];
   }
 }
 
-// TCQ 8-state for a diagonal in non-lf region for 2D Luma
+// Get diagonal context for 2D luma block
+static AOM_INLINE int get_diag_ctx(int lf, int blk_pos, int scan_pos, int bwl) {
+  int diag_ctx;
+  if (lf) {
+    diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
+    if (scan_pos > 0) {
+      diag_ctx += 7 << 8;
+    }
+  } else {
+    diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
+  }
+  return diag_ctx;
+}
+
+// TCQ 8-state for a 2D luma block.
 static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
-                                      int scan_lo, tcq_levels_t *tcq_lev,
-                                      tcq_ctx_t tcq_ctx[2 * TCQ_MAX_STATES],
+                                      int scan_lo, tcq_ctx_t *tcq_ctx,
                                       tcq_node_t *trellis) {
   int plane = p->plane;
-  TX_SIZE tx_size = p->tx_size;
-  TX_CLASS tx_class = p->tx_class;
-  int log_scale = p->log_scale;
-  int try_eob = p->sharpness == 0;
-  int64_t rdmult = p->rdmult;
-  const int16_t *scan = p->scan;
-  const tran_low_t *tcoeff = p->tcoeff;
-  const int32_t *quant = p->quant;
-  const int32_t *dequant = p->dequant;
-  const qm_val_t *iqmatrix = p->iqmatrix;
-  const uint16_t *block_eob_rate = p->block_eob_rate;
-  const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
-  const int bwl = get_txb_bwl(tx_size);
-  const int height = get_txb_high(tx_size);
-  const int pos0 = scan[scan_hi];
-  const int diag_ctx = get_nz_map_ctx_from_stats(0, pos0, bwl, TX_CLASS_2D, 0);
-
-  assert(plane == 0);
-  assert(tx_class == TX_CLASS_2D);
-  (void)plane;
-
-  // Precompute base and mid ctx values, as they are independent across
-  // the diagonal pass.
-  tcq_levels_swap(tcq_lev);
-
-  int i_ctx = scan_hi & 1;
-  tcq_ctx_t *cur_ctx = &tcq_ctx[i_ctx ? TCQ_MAX_STATES : 0];
-  tcq_ctx_t *nxt_ctx = &tcq_ctx[i_ctx ? 0 : TCQ_MAX_STATES];
-
-  for (int i = 0; i < TCQ_N_STATES; i++) {
-    uint8_t *prev_levels = tcq_levels_prev(tcq_lev, i);
-    av1_calc_diag_ctx(scan_hi, scan_lo, bwl, prev_levels, scan, cur_ctx[i].ctx);
-    cur_ctx[i].orig_id = i;
-  }
-
-  for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
-    const int blk_pos = scan[scan_pos];
-    tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
-    tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
-
-    prequant_t pqData;
-    int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
-    av1_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                  scan_pos);
-
-    // init state
-    init_tcq_decision(decision);
-    const int limits = 0;
-
-    // calculate rate distortion
-    tcq_coeff_ctx_t coeff_ctx;
-    for (int i = 0; i < TCQ_N_STATES; i++) {
-      coeff_ctx.coef[i] = cur_ctx[i].ctx[scan_pos - scan_lo];
-    }
-    int eob_ctx = get_lower_levels_ctx_eob(bwl, height, scan_pos);
-    coeff_ctx.coef_eob = eob_ctx;
-    int eob_rate = block_eob_rate[scan_pos];
-
-    tcq_rate_t rd;
-    av1_get_rate_dist_def_luma(txb_costs, &pqData, &coeff_ctx, blk_pos, bwl,
-                               tx_class, diag_ctx, eob_rate, &rd);
-
-    av1_decide_states(prev_decision, &rd, &pqData, limits, try_eob, rdmult,
-                      decision);
-
-    av1_update_states(decision, scan_pos - scan_lo, cur_ctx, nxt_ctx);
-
-    // Swap cur/nxt context.
-    tcq_ctx_t *tmp = cur_ctx;
-    cur_ctx = nxt_ctx;
-    nxt_ctx = tmp;
-  }
-
-  update_levels_diagonal(tcq_lev, scan, tcq_lev->bufsize, bwl, scan_hi, scan_lo,
-                         cur_ctx);
-}
-
-void av1_init_lf_ctx_c(const uint8_t *lev, int scan_hi, int bwl,
-                       struct tcq_lf_ctx_t *lf_ctx) {
-  // Sample locations outside of the LF region that are needed
-  // to calculate LF neighbor contexts.
-  const uint8_t diag_scan[21] = { 0x00, 0x10, 0x01, 0x20, 0x11, 0x02, 0x30,
-                                  0x21, 0x12, 0x03, 0x40, 0x31, 0x22, 0x13,
-                                  0x04, 0x50, 0x41, 0x32, 0x23, 0x14, 0x05 };
-
-  for (int st = 0; st < 1; st++) {
-    memset(lf_ctx[st].last, 0, sizeof(lf_ctx[st].last));
-    for (int i = 0; i < 11; i++) {
-      int row_col = diag_scan[scan_hi + 1 + i];
-      int row = row_col >> 4;
-      int col = row_col & 15;
-      int blk_pos = (row << bwl) + col;
-      lf_ctx[st].last[i] = lev[get_padded_idx(blk_pos, bwl)];
-    }
-  }
-}
-
-void av1_calc_lf_ctx_st8_c(const struct tcq_lf_ctx_t *lf_ctx, int scan_pos,
-                           struct tcq_coeff_ctx_t *coeff_ctx) {
-  static const int8_t kMaxCtx[16] = { 8, 6, 6, 4, 4, 4, 4, 4,
-                                      4, 4, 4, 4, 4, 4, 4, 4 };
-  static const int8_t kScanDiag[MAX_LF_SCAN] = { 0, 1, 1, 2, 2, 2, 3, 3, 3, 3 };
-  static const int8_t kNbrMask[4][11] = {
-    { 3, 3, 1, 3, 1, 0, 0, 0, 0, 0, 0 },  // diag 0
-    { 0, 3, 3, 0, 1, 3, 1, 0, 0, 0, 0 },  // diag 1
-    { 0, 0, 3, 3, 0, 0, 1, 3, 1, 0, 0 },  // diag 2
-    { 0, 0, 0, 3, 3, 0, 0, 0, 1, 3, 1 },  // diag 3
-  };
-
-  for (int st = 0; st < TCQ_N_STATES; st++) {
-    int diag = kScanDiag[scan_pos];
-    int base = 0;
-    int mid = 0;
-    for (int i = 0; i < 11; i++) {
-      int mask = kNbrMask[diag][i];
-      if (mask) {
-        base += AOMMIN(lf_ctx[st].last[i], 5);
-        if (mask >> 1) {
-          mid += AOMMIN(lf_ctx[st].last[i], MAX_VAL_BR_CTX);
-        }
-      }
-    }
-    int base_ctx = AOMMIN((base + 1) >> 1, kMaxCtx[scan_pos]);
-    int mid_ctx = AOMMIN((mid + 1) >> 1, 6) + ((scan_pos == 0) ? 0 : 7);
-    coeff_ctx->coef[st] = base_ctx + (mid_ctx << 4);
-  }
-}
-
-void av1_update_lf_ctx_c(const struct tcq_node_t *decision,
-                         struct tcq_lf_ctx_t *lf_ctx) {
-  tcq_lf_ctx_t save[TCQ_MAX_STATES];
-  memcpy(save, lf_ctx, sizeof(tcq_lf_ctx_t) * TCQ_N_STATES);
-
-  for (int st = 0; st < TCQ_N_STATES; st++) {
-    int absLevel = decision[st].absLevel;
-    int prevId = decision[st].prevId;
-    int new_eob = prevId < 0;
-    if (new_eob) {
-      memset(lf_ctx[st].last, 0, sizeof(lf_ctx[st].last));
-    } else {
-      for (int i = 15; i > 0; i--) {
-        lf_ctx[st].last[i] = save[prevId].last[i - 1];
-      }
-    }
-    lf_ctx[st].last[0] = AOMMIN(absLevel, INT8_MAX);
-  }
-}
-
-// TCQ 8-state in lf region for 2D Luma
-static void trellis_loop_lf_st8(const tcq_param_t *p, int scan_hi, int scan_lo,
-                                tcq_levels_t *tcq_lev, tcq_node_t *trellis) {
   TX_SIZE tx_size = p->tx_size;
   TX_CLASS tx_class = p->tx_class;
   int log_scale = p->log_scale;
@@ -984,48 +925,92 @@ static void trellis_loop_lf_st8(const tcq_param_t *p, int scan_hi, int scan_lo,
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   const int bwl = get_txb_bwl(tx_size);
   const int height = get_txb_high(tx_size);
-  assert(p->plane == 0);
-  assert(tx_class == TX_CLASS_2D);
+  const int pos0 = scan[scan_hi];
+  const int lf = scan_lo < 10;
+  int diag_ctx = get_diag_ctx(lf, pos0, scan_lo, bwl);
 
-  tcq_lf_ctx_t lf_ctx[TCQ_MAX_STATES];
-  for (int i = 0; i < TCQ_N_STATES; i++) {
-    uint8_t *lev = tcq_levels_cur(tcq_lev, i);
-    av1_init_lf_ctx(lev, scan_hi, bwl, &lf_ctx[i]);
+  assert(plane == 0);
+  assert(tx_class == TX_CLASS_2D);
+  (void)plane;
+
+  int blk_pos_inc = (1 << bwl) - 1;
+  int blk_pos = pos0;
+  int row = blk_pos >> bwl;
+  int col = blk_pos - (row << bwl);
+
+  // Separate default / lf loops for speed.
+  if (lf) {
+    for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
+      tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
+      tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
+
+      prequant_t pqData;
+      int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
+      av1_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                    scan_pos);
+
+      // init state
+      init_tcq_decision(decision);
+      const int coeff_sign = tcoeff[blk_pos] < 0;
+
+      // Get coeff contexts
+      tcq_coeff_ctx_t coeff_ctx;
+      av1_get_coeff_ctx(tcq_ctx, col, &coeff_ctx);
+      coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      int eob_rate = block_eob_rate[scan_pos];
+
+      // Calculate rate and distortion.
+      tcq_rate_t rd;
+      av1_get_rate_dist_lf_luma(txb_costs, &pqData, &coeff_ctx, blk_pos,
+                                diag_ctx, eob_rate, txb_ctx->dc_sign_ctx,
+                                tmp_sign, bwl, tx_class, coeff_sign, &rd);
+
+      av1_decide_states(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                        decision);
+
+      av1_update_states(decision, col, tcq_ctx);
+
+      blk_pos += blk_pos_inc;
+      col--;
+      row++;
+    }
+  } else {
+    for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
+      tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
+      tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
+
+      prequant_t pqData;
+      int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
+      av1_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                    scan_pos);
+
+      // init state
+      init_tcq_decision(decision);
+
+      // Get coeff contexts
+      tcq_coeff_ctx_t coeff_ctx;
+      av1_get_coeff_ctx(tcq_ctx, col, &coeff_ctx);
+      coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      int eob_rate = block_eob_rate[scan_pos];
+
+      // Calculate rate and distortion.
+      tcq_rate_t rd;
+      av1_get_rate_dist_def_luma(txb_costs, &pqData, &coeff_ctx, blk_pos, bwl,
+                                 tx_class, diag_ctx, eob_rate, &rd);
+
+      av1_decide_states(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                        decision);
+
+      av1_update_states(decision, col, tcq_ctx);
+
+      blk_pos += blk_pos_inc;
+      col--;
+      row++;
+    }
   }
 
-  for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
-    int blk_pos = scan[scan_pos];
-
-    tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
-    tcq_node_t *prd = &decision[TCQ_N_STATES];
-
-    prequant_t pqData;
-    int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
-    av1_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                  scan_pos);
-
-    // init state
-    init_tcq_decision(decision);
-    const int coeff_sign = tcoeff[blk_pos] < 0;
-    const int limits = 1;  // Always in LF region.
-
-    // calculate contexts
-    tcq_coeff_ctx_t coeff_ctx;
-    int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
-    int eob_ctx = get_lower_levels_ctx_eob(bwl, height, scan_pos);
-    int eob_rate = block_eob_rate[scan_pos];
-    coeff_ctx.coef_eob = eob_ctx;
-    av1_calc_lf_ctx_st8(lf_ctx, scan_pos, &coeff_ctx);
-
-    // calculate rate distortion
-    tcq_rate_t rd;
-    av1_get_rate_dist_lf_luma(txb_costs, &pqData, &coeff_ctx, blk_pos, diag_ctx,
-                              eob_rate, txb_ctx->dc_sign_ctx, tmp_sign, bwl,
-                              tx_class, coeff_sign, &rd);
-
-    av1_decide_states(prd, &rd, &pqData, limits, try_eob, rdmult, decision);
-
-    av1_update_lf_ctx(decision, lf_ctx);
+  if (scan_hi != 0) {
+    av1_update_nbr_diagonal(tcq_ctx, row - 1, col + 1, bwl);
   }
 }
 
@@ -1093,6 +1078,9 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
     if (limits) {
       if (plane == 0) {
         int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
+        if (scan_pos) {
+          diag_ctx += 7 << 8;
+        }
         for (int i = 0; i < TCQ_N_STATES; i++) {
           int base_ctx =
               get_lower_levels_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
@@ -1111,10 +1099,10 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
               get_br_lf_ctx_chroma(prev_levels[i], blk_pos, bwl, tx_class);
           coeff_ctx.coef[i] = base_ctx - diag_ctx + (br_ctx << 4);
         }
-        av1_get_rate_dist_lf_chroma(txb_costs, &pqData, &coeff_ctx, blk_pos,
-                                    diag_ctx, eob_rate, txb_ctx->dc_sign_ctx,
-                                    tmp_sign, bwl, tx_class, plane, coeff_sign,
-                                    &rd);
+        av1_get_rate_dist_lf_chroma_c(txb_costs, &pqData, &coeff_ctx, blk_pos,
+                                      diag_ctx, eob_rate, txb_ctx->dc_sign_ctx,
+                                      tmp_sign, bwl, tx_class, plane,
+                                      coeff_sign, &rd);
       }
     } else {
       if (plane == 0) {
@@ -1392,27 +1380,10 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                     2) >>
                    rshift;
 
-  // getting context from previous level buf, updating levels on current level
-  // buf. initialization all value by 0, since we update every position.
-  int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
-  int mem_tcq_sz = sizeof(uint8_t) * bufsize * (2 << TCQ_N_STATES_LOG);
-  uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
-  if (!mem_tcq) {
-    exit(1);
-  }
-  if (eob > 1) {
-    memset(mem_tcq, 0, mem_tcq_sz);
-  }
-  tcq_levels_t tcq_lev;
-  tcq_levels_init(&tcq_lev, mem_tcq, bufsize);
-
   int si = eob - 1;
   // populate trellis
   assert(si < MAX_TRELLIS);
   tcq_node_t trellis[MAX_TRELLIS * TCQ_MAX_STATES];
-
-  // Ping-pong buffers for diagonal contexts.
-  tcq_ctx_t tcq_ctx[2 * TCQ_MAX_STATES];
 
   // Precalc block eob rate.
   uint16_t block_eob_rate[MAX_TRELLIS];
@@ -1440,33 +1411,54 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   // Start of TCQ
   int first_scan_pos = si;
-  // Process the first position
-  trellis_first_pos(&param, first_scan_pos, &tcq_lev, trellis);
-
   int scan_hi = first_scan_pos - 1;
+  int is_luma_2d = plane == 0 && tx_class == TX_CLASS_2D;
 
-  if (scan_hi >= 0) {
-    if (plane == 0 && tx_class == TX_CLASS_2D) {
-      // Speed-up version for 2D Luma by exploiting parallelism
-      // Process non-lf region diagonal-by-diagonal followed by lf regsion
-      const int scan_lf_start = 9;
-      while (scan_hi > scan_lf_start) {
-        int blk_pos = scan[scan_hi];
-        int row = blk_pos >> bwl;
-        int col = blk_pos - (row << bwl);
-        int inc = AOMMIN(height - 1 - row, col);
-        int scan_lo = AOMMAX(scan_lf_start + 1, scan_hi - inc);
-        trellis_loop_diagonal_st8(&param, scan_hi, scan_lo, &tcq_lev, tcq_ctx,
-                                  trellis);
-        scan_hi = scan_lo - 1;
-      }
-      trellis_loop_lf_st8(&param, scan_hi, 0, &tcq_lev, trellis);
-    } else {
+  // Use faster path for 2D-luma blocks.
+  // Otherwise, use generic trellis code.
+  if (is_luma_2d) {
+    // Buffers for diagonal contexts.
+    tcq_ctx_t tcq_ctx;
+    init_tcq_ctx(&tcq_ctx);
+
+    // Process the first position
+    trellis_first_pos(&param, first_scan_pos, 0, &tcq_ctx, trellis);
+
+    // Speed-up version for 2D Luma by exploiting parallelism
+    // Process coeffs diagonal-by-diagonal.
+    while (scan_hi >= 0) {
+      int blk_pos = scan[scan_hi];
+      int row = blk_pos >> bwl;
+      int col = blk_pos - (row << bwl);
+      int inc = AOMMIN(height - 1 - row, col);
+      int scan_lo = scan_hi - inc;
+      trellis_loop_diagonal_st8(&param, scan_hi, scan_lo, &tcq_ctx, trellis);
+      scan_hi = scan_lo - 1;
+    }
+  } else {
+    // Coeff level buffers.
+    int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
+    int mem_tcq_sz = sizeof(uint8_t) * bufsize * (2 << TCQ_N_STATES_LOG);
+    uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
+    if (!mem_tcq) {
+      exit(1);
+    }
+    if (eob > 1) {
+      memset(mem_tcq, 0, mem_tcq_sz);
+    }
+    tcq_levels_t tcq_lev;
+    tcq_levels_init(&tcq_lev, mem_tcq, bufsize);
+
+    // Process the first position
+    trellis_first_pos(&param, first_scan_pos, &tcq_lev, 0, trellis);
+
+    if (scan_hi >= 0) {
+      // Generic trellis loop
       trellis_loop(&param, first_scan_pos, scan_hi, 0, &tcq_lev, trellis);
     }
-  }
 
-  free(mem_tcq);
+    free(mem_tcq);
+  }
 
   // find best path
   int min_rate = 0;
