@@ -406,6 +406,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-uneven-4way-partitions", 1,
               "Enable 1:2:4:1 and 1:4:2:1 partitions "
               "(0: false, 1: true (default))"),
+#if CONFIG_MAX_PB_RATIO
+  .max_partition_aspect_ratio =
+      ARG_DEF(NULL, "max-pb-aspect-ratio", 1,
+              "max partition block aspect ratio. Can be 2, 4, or 8 (default) "),
+#endif  // CONFIG_MAX_PB_RATIO
   .disable_ml_transform_speed_features =
       ARG_DEF(NULL, "disable-ml-transform-speed-features", 1,
               "Disable ML transform speed features "

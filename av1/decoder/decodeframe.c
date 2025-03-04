@@ -1683,6 +1683,18 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
                                           PARTITION_TREE *parent, int index) {
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
+#if CONFIG_MAX_PB_RATIO
+  const int max_aspect_ratio =
+      1 << (pbi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+  const int blk_w = block_size_wide[bsize];
+  const int blk_h = block_size_high[bsize];
+  if (blk_w > blk_h * max_aspect_ratio && blk_h > blk_w * max_aspect_ratio) {
+    aom_internal_error(
+        xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+        "Block size %dx%d violates aspect ratio constraint of %d", blk_w, blk_h,
+        max_aspect_ratio);
+  }
+#endif  // CONFIG_MAX_PB_RATIO
   decode_mbmi_block(pbi, dcb, mi_row, mi_col, r, partition, bsize, parent,
                     index);
 
@@ -1871,6 +1883,18 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
   (void)partition;
   (void)parent;
   (void)index;
+#if CONFIG_MAX_PB_RATIO
+  const int max_aspect_ratio =
+      1 << (pbi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+  const int blk_w = block_size_wide[bsize];
+  const int blk_h = block_size_high[bsize];
+  if (blk_w > blk_h * max_aspect_ratio && blk_h > blk_w * max_aspect_ratio) {
+    aom_internal_error(
+        td->dcb.xd.error_info, AOM_CODEC_CORRUPT_FRAME,
+        "Block size %dx%d violates aspect ratio constraint of %d", blk_w, blk_h,
+        max_aspect_ratio);
+  }
+#endif  // CONFIG_MAX_PB_RATIO
   set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize);
   decode_token_recon_block(pbi, td, r, partition, bsize);
 }
@@ -6847,6 +6871,12 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
   else
     seq_params->enable_uneven_4way_partitions = 0;
+#if CONFIG_MAX_PB_RATIO
+  seq_params->max_pb_aspect_ratio_log2_m1 = 2;
+  if (aom_rb_read_bit(rb)) {
+    seq_params->max_pb_aspect_ratio_log2_m1 = aom_rb_read_bit(rb);
+  }
+#endif  // CONFIG_MAX_PB_RATIO
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->enable_global_motion = 0;

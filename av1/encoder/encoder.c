@@ -449,6 +449,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
   seq->enable_uneven_4way_partitions =
       oxcf->part_cfg.enable_uneven_4way_partitions;
+#if CONFIG_MAX_PB_RATIO
+  const int max_ratio = oxcf->part_cfg.max_partition_aspect_ratio;
+  seq->max_pb_aspect_ratio_log2_m1 =
+      max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);
+#endif  // CONFIG_MAX_PB_RATIO
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;

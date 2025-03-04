@@ -291,10 +291,18 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ext_partitions;
+
   /*!\brief enable txfm partitions
    *
    */
   unsigned int enable_tx_partition;
+
+#if CONFIG_MAX_PB_RATIO
+  /*!\brief maximum partition block aspect ratio
+   */
+  unsigned int max_partition_aspect_ratio;
+#endif  // CONFIG_MAX_PB_RATIO
+
   /*!\brief disable ml-based speed-up for transform search
    *
    */

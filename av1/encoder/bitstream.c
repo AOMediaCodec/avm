@@ -5988,6 +5988,12 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
   if (seq_params->enable_ext_partitions)
     aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions);
+#if CONFIG_MAX_PB_RATIO
+  aom_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1 < 2);
+  if (seq_params->max_pb_aspect_ratio_log2_m1 < 2) {
+    aom_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1);
+  }
+#endif  // CONFIG_MAX_PB_RATIO
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {
     assert(seq_params->enable_global_motion == 0);

@@ -123,6 +123,9 @@ struct av1_extracfg {
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_uneven_4way_partitions;  // enable 1:2:4:1 and 1:4:2:1 partitions
                                       // for sequence
+#if CONFIG_MAX_PB_RATIO
+  int max_partition_aspect_ratio;
+#endif                                      // CONFIG_MAX_PB_RATIO
   int disable_ml_transform_speed_features;  // disable all ml transform speedups
   int enable_sdp;           // enable semi-decoupled partitioning
   int enable_extended_sdp;  // enable inter semi-decoupled partitioning
@@ -475,11 +478,14 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable txfm partition
   1,                            // enable rectangular partitions
   1,                            // enable 1:4 and 4:1 partitions
-  0,                            // disable ml based transform speed features
-  1,                            // enable semi-decoupled partitioning
-  1,  // enable semi-decoupled partitioning for inter frame
-  1,  // enable multiple reference line selection
-  1,  // enable temporal interpolated prediction (TIP)
+#if CONFIG_MAX_PB_RATIO
+  8,
+#endif  // CONFIG_MAX_PB_RATIO
+  0,    // disable ml based transform speed features
+  1,    // enable semi-decoupled partitioning
+  1,    // enable semi-decoupled partitioning for inter frame
+  1,    // enable multiple reference line selection
+  1,    // enable temporal interpolated prediction (TIP)
   1,    // enable mv trajectory tracking
 #if CONFIG_MV_RANGE_EXTENSION
   0,    // enable a large motion search window
@@ -899,6 +905,15 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   else
     RANGE_CHECK(extra_cfg, max_partition_size, 4, 256);
   RANGE_CHECK_HI(extra_cfg, min_partition_size, extra_cfg->max_partition_size);
+#if CONFIG_MAX_PB_RATIO
+  if (extra_cfg->max_partition_aspect_ratio != 2 &&
+      extra_cfg->max_partition_aspect_ratio != 4 &&
+      extra_cfg->max_partition_aspect_ratio != 8) {
+    ERROR(
+        "Specified max partition block ratio is invalid. It can only be 2, 4, "
+        "or 8.");
+  }
+#endif  // CONFIG_MAX_PB_RATIO
 
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
     const int level_idx = extra_cfg->target_seq_level_idx[i];
@@ -998,6 +1013,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_tx_partition = extra_cfg->enable_tx_partition;
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_uneven_4way_partitions = extra_cfg->enable_uneven_4way_partitions;
+#if CONFIG_MAX_PB_RATIO
+  cfg->max_partition_aspect_ratio = extra_cfg->max_partition_aspect_ratio;
+#endif  // CONFIG_MAX_PB_RATIO
   cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
   cfg->enable_sdp = extra_cfg->enable_sdp;
@@ -1137,6 +1155,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->use_ml_erp_pruning = cfg->use_ml_erp_pruning;
   extra_cfg->enable_ext_partitions = cfg->enable_ext_partitions;
   extra_cfg->enable_tx_partition = cfg->enable_tx_partition;
+#if CONFIG_MAX_PB_RATIO
+  extra_cfg->max_partition_aspect_ratio = cfg->max_partition_aspect_ratio;
+#endif  // CONFIG_MAX_PB_RATIO
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_extended_sdp = cfg->enable_extended_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
@@ -1809,6 +1830,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   part_cfg->enable_uneven_4way_partitions =
       extra_cfg->enable_uneven_4way_partitions;
+#if CONFIG_MAX_PB_RATIO
+  part_cfg->max_partition_aspect_ratio = extra_cfg->max_partition_aspect_ratio;
+#endif  // CONFIG_MAX_PB_RATIO
   part_cfg->enable_sdp =
       tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_sdp;
   part_cfg->enable_extended_sdp =
@@ -4137,6 +4161,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tx_partition,
                               argv, err_string)) {
     extra_cfg.enable_tx_partition = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_MAX_PB_RATIO
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.max_partition_aspect_ratio,
+                              argv, err_string)) {
+    extra_cfg.max_partition_aspect_ratio =
+        arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_MAX_PB_RATIO
   } else if (arg_match_helper(
                  &arg,
                  &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
@@ -4732,6 +4763,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,    // use_ml_erp_pruning
         1,    // enable_ext_partitions
         1,    // enable_tx_partition
+#if CONFIG_MAX_PB_RATIO
+        8,  // max_partition_aspect_ratio
+#endif      // CONFIG_MAX_PB_RATIO
         0,   1, 1, /*extended sdp*/ 1,
         1,
         1,  // MV traj

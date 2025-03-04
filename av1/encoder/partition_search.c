@@ -4274,6 +4274,17 @@ static void none_partition_search(
   const BLOCK_SIZE bsize = blk_params.bsize;
   assert(bsize < BLOCK_SIZES_ALL);
 
+#if CONFIG_MAX_PB_RATIO
+  // Skip when the aspect ratio is invalid.
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int max_aspect_ratio =
+      1 << (cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+  if (bw > bh * max_aspect_ratio || bh > bw * max_aspect_ratio) {
+    return;
+  }
+#endif  // CONFIG_MAX_PB_RATIO
+
   if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_NONE)) {
     return;
   }

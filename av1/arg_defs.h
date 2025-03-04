@@ -154,6 +154,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_tx_partition;
   arg_def_t enable_rect_partitions;
   arg_def_t enable_uneven_4way_partitions;
+#if CONFIG_MAX_PB_RATIO
+  arg_def_t max_partition_aspect_ratio;
+#endif  // CONFIG_MAX_PB_RATIO
   arg_def_t disable_ml_transform_speed_features;
   arg_def_t enable_sdp;
   arg_def_t enable_extended_sdp;

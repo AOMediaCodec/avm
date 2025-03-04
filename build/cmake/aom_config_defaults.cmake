@@ -447,6 +447,9 @@ set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
 
+set_aom_config_var(CONFIG_MAX_PB_RATIO 1
+                   "Enable max partition block aspect ratio constraint")
+
 set_aom_config_var(CONFIG_IST_SET_FLAG 1
                    "AV2 experiment flag to signal Secondary Tx set ID.")
 

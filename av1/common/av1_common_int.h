@@ -665,6 +665,9 @@ typedef struct SequenceHeader {
   uint8_t enable_parity_hiding;      // To turn on/off PAR_HIDING
   uint8_t enable_ext_partitions;     // enable extended partitions
   uint8_t enable_uneven_4way_partitions;  // enable uneven 4way partition
+#if CONFIG_MAX_PB_RATIO
+  uint8_t max_pb_aspect_ratio_log2_m1;  // Can be 0, 1, or 2.
+#endif                                  // CONFIG_MAX_PB_RATIO
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   bool enable_global_motion;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
@@ -3764,6 +3767,23 @@ static AOM_INLINE bool is_chroma_ref_within_boundary(
           mi_col + chroma_ref_col_offset < cm->mi_params.mi_cols);
 }
 
+#if CONFIG_MAX_PB_RATIO
+static bool check_partition_aspect_ratio(BLOCK_SIZE bsize,
+                                         PARTITION_TYPE partition,
+                                         int max_aspect_ratio) {
+  const BLOCK_SIZE sub_bsize = get_partition_subsize(bsize, partition);
+  if (sub_bsize == BLOCK_INVALID) return false;
+  const int bw = block_size_wide[sub_bsize];
+  const int bh = block_size_high[sub_bsize];
+  if (bw > bh * max_aspect_ratio || bh > bw * max_aspect_ratio) {
+    if (partition == PARTITION_NONE) return false;
+    // 8:1 are not splittable.
+    if (bw >= bh * 8 || bh >= bw * 8) return false;
+  }
+  return true;
+}
+#endif  // CONFIG_MAX_PB_RATIO
+
 // Initialize allowed partition types for the coding block.
 static AOM_INLINE void init_allowed_partitions_for_signaling(
     bool *partition_allowed, const AV1_COMMON *const cm, TREE_TYPE tree_type,
@@ -3778,6 +3798,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   int num_allowed_partitions = 0;
   const RECT_PART_TYPE implied_rect_type =
       rect_type_implied_by_bsize(bsize, tree_type);
+#if CONFIG_MAX_PB_RATIO
+  const int max_aspect_ratio =
+      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+#endif  // CONFIG_MAX_PB_RATIO
 
   const int is_horz_size_valid =
       is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
@@ -3885,6 +3909,20 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   partition_allowed[PARTITION_SPLIT] =
       is_square_split_eligible(bsize, cm->sb_size);
   num_allowed_partitions += partition_allowed[PARTITION_SPLIT];
+
+#if CONFIG_MAX_PB_RATIO
+  // Validate partition modes based on aspect ratio  constraints.
+  if (max_aspect_ratio < 16) {
+    num_allowed_partitions = 0;
+    for (PARTITION_TYPE p = PARTITION_NONE; p < ALL_PARTITION_TYPES; ++p) {
+      partition_allowed[p] =
+          partition_allowed[p] &&
+          check_partition_aspect_ratio(bsize, p, max_aspect_ratio);
+      num_allowed_partitions += partition_allowed[p];
+    }
+  }
+#endif  // CONFIG_MAX_PB_RATIO
+
   if (num_allowed_partitions == 0) {
     partition_allowed[PARTITION_NONE] = 1;
   }
