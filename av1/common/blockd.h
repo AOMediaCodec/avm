@@ -2070,6 +2070,7 @@ static inline void print_match_indices(int plane, int num_classes,
 // Need two of the WIENERNS_TAPS_MAX to store potential center taps. Adjust
 // accordingly.
 #define WIENERNS_TAPS_MAX 32
+#define WIENERNS_SIGNALED_TAPS_MAX 18
 // Special symbol to indicate the set of all classes.
 #define ALL_WIENERNS_CLASSES -17
 /*!

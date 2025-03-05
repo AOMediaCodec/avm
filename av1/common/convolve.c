@@ -813,6 +813,34 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
   // End core-functionality.
 }
 
+void av1_convolve_mixedsymmetric_highbd_c(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *nsfilter,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  assert(nsfilter->asymmetric > 0);
+  assert(!nsfilter->strict_bounds);
+  assert(!nsfilter->subtract_center);
+  for (int i = block_row_begin; i < block_row_end; ++i) {
+    for (int j = block_col_begin; j < block_col_end; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int ir = i + r;
+        const int jc = j + c;
+        int16_t sample = (int16_t)dgd[(ir)*stride + (jc)];
+        tmp += filter[pos] * sample;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}
+
 // Same as av1_convolve_symmetric_highbd_c except for the subtraction of the
 // center-pixel and the addition of an offset.
 void av1_convolve_symmetric_subtract_center_highbd_c(
@@ -879,8 +907,8 @@ void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
                                 int stride, const NonsepFilterConfig *nsfilter,
                                 const int16_t *filter, uint16_t *dst,
                                 int dst_stride, int bit_depth) {
-  if (USE_CONV_SYM_VERSIONS && nsfilter->symmetric) {
-    assert(nsfilter->strict_bounds == false);
+  const int is_sym = (nsfilter->asymmetric == 0);
+  if (USE_CONV_SYM_VERSIONS && !nsfilter->strict_bounds && is_sym) {
     if (nsfilter->subtract_center)
       av1_convolve_symmetric_subtract_center_highbd(
           dgd, stride, nsfilter, filter, dst, dst_stride, bit_depth, 0, height,
@@ -889,6 +917,14 @@ void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
       av1_convolve_symmetric_highbd(dgd, stride, nsfilter, filter, dst,
                                     dst_stride, bit_depth, 0, height, 0, width);
     return;
+  }
+  if (!is_sym && !nsfilter->strict_bounds) {
+    if (!nsfilter->subtract_center) {
+      av1_convolve_mixedsymmetric_highbd(dgd, stride, nsfilter, filter, dst,
+                                         dst_stride, bit_depth, 0, height, 0,
+                                         width);
+      return;
+    }
   }
   for (int i = 0; i < height; ++i) {
     for (int j = 0; j < width; ++j) {
@@ -1398,10 +1434,10 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
                                      const NonsepFilterConfig *nsfilter,
                                      const int16_t *filter, uint16_t *dst,
                                      int dst_stride, int bit_depth) {
-  if (USE_CONV_SYM_VERSIONS && nsfilter->symmetric) {
+  if (USE_CONV_SYM_VERSIONS && nsfilter->asymmetric == 0 &&
+      nsfilter->asymmetric2 == (nsfilter->num_pixels2 & ~1)) {
     // Note nsfilter->symmetric2  does not matter since the functions
     // below assume config2 to be already not symmetric
-    assert(!nsfilter->symmetric2);
     assert(nsfilter->strict_bounds == false);
     if (nsfilter->subtract_center)
       av1_convolve_symmetric_dual_subtract_center_highbd_c(

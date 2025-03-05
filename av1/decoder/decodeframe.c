@@ -3331,21 +3331,29 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 
     const int beg_feat = 0;
     int end_feat = nsfilter_params->ncoeffs;
-    if (end_feat > 6) {
+    int ncoeffs1, ncoeffs2;
+    int ncoeffs =
+        config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
+    assert(nsfilter_params->ncoeffs == ncoeffs);
+    int s = 0;
+    for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
       const int filter_length_bit =
           aom_read_symbol(rb, xd->tile_ctx->wienerns_length_cdf[is_uv], 2,
                           ACCT_INFO("wienerns_length"));
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
+      s += filter_length_bit;
+      if (!filter_length_bit) break;
     }
     assert((end_feat & 1) == 0);
 
-    int uv_sym = 0;
-    if (is_uv && end_feat > 6) {
-      uv_sym = aom_read_symbol(rb, xd->tile_ctx->wienerns_uv_sym_cdf, 2,
-                               ACCT_INFO("wienerns_uv_sym"));
+    int sym = 1;
+    if (!skip_sym_bit(nsfilter_params, s)) {
+      assert(is_uv);
+      sym = aom_read_symbol(rb, xd->tile_ctx->wienerns_uv_sym_cdf, 2,
+                            ACCT_INFO("wienerns_uv_sym"));
     }
 
     for (int i = beg_feat; i < end_feat; ++i) {
+      if (!nsfilter_params->subset_config[s][i]) continue;
       wienerns_info_nsfilter[i] =
           aom_read_4part_wref(
               rb,
@@ -3356,7 +3364,11 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
               wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID],
               ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
-      if (uv_sym && i >= 6) {
+      const int is_asym_coeff =
+          (i < nsfilter_params->nsfilter_config.asymmetric ||
+           (i >= ncoeffs1 &&
+            i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
+      if (sym && is_asym_coeff) {
         // Fill in symmetrical tap without reading it
         wienerns_info_nsfilter[i + 1] = wienerns_info_nsfilter[i];
         i++;
@@ -3422,21 +3434,29 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 
     const int beg_feat = 0;
     int end_feat = nsfilter_params->ncoeffs;
-    if (end_feat > 6) {
+    int ncoeffs1, ncoeffs2;
+    int ncoeffs =
+        config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
+    assert(nsfilter_params->ncoeffs == ncoeffs);
+    int s = 0;
+    for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
       const int filter_length_bit =
           aom_read_symbol(rb, xd->tile_ctx->wienerns_length_cdf[is_uv], 2,
                           ACCT_INFO("wienerns_length"));
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
+      s += filter_length_bit;
+      if (!filter_length_bit) break;
     }
     assert((end_feat & 1) == 0);
 
-    int uv_sym = 0;
-    if (is_uv && end_feat > 6) {
-      uv_sym = aom_read_symbol(rb, xd->tile_ctx->wienerns_uv_sym_cdf, 2,
-                               ACCT_INFO("wienerns_uv_sym"));
+    int sym = 1;
+    if (!skip_sym_bit(nsfilter_params, s)) {
+      assert(is_uv);
+      sym = aom_read_symbol(rb, xd->tile_ctx->wienerns_uv_sym_cdf, 2,
+                            ACCT_INFO("wienerns_uv_sym"));
     }
 
     for (int i = beg_feat; i < end_feat; ++i) {
+      if (!nsfilter_params->subset_config[s][i]) continue;
       wienerns_info_nsfilter[i] =
           aom_read_4part_wref(
               rb,
@@ -3447,7 +3467,11 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
               wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID],
               ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
-      if (uv_sym && i >= 6) {
+      const int is_asym_coeff =
+          (i < nsfilter_params->nsfilter_config.asymmetric ||
+           (i >= ncoeffs1 &&
+            i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
+      if (sym && is_asym_coeff) {
         // Fill in symmetrical tap without reading it
         wienerns_info_nsfilter[i + 1] = wienerns_info_nsfilter[i];
         i++;

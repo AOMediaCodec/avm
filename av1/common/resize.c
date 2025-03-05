@@ -1209,7 +1209,7 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
     // Determine the limits of this tile column in both the source
     // and destination images.
     // Note: The actual location which we start sampling from is
-    // (downscaled_x0 - 1 + (x0_qn/2^14)), and this quantity increases
+    // (downscaled_x0 - 1 + (x0_qn/2^14)), and this quanti ty increases
     // by exactly dst_width * (x_step_qn/2^14) pixels each iteration.
     const int downscaled_x0 = tile_col.mi_col_start << (MI_SIZE_LOG2 - ss_x);
     const int downscaled_x1 = tile_col.mi_col_end << (MI_SIZE_LOG2 - ss_x);

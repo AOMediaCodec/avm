@@ -4849,32 +4849,56 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
 
     const int beg_feat = 0;
     int end_feat = nsfilter_params->ncoeffs;
-    if (end_feat > 6) {
-      // Decide whether to signal a short (0) or long (1) filter
-      int filter_length_bit = 0;
-      for (int i = 6; i < end_feat; i++) {
-        if (wienerns_info_nsfilter[i] != 0) {
-          filter_length_bit = 1;
+    int ncoeffs1, ncoeffs2;
+    int ncoeffs =
+        config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
+    assert(nsfilter_params->ncoeffs == ncoeffs);
+    int s;
+    for (s = 0; s < nsfilter_params->nsubsets; ++s) {
+      int i;
+      for (i = 0; i < end_feat; ++i) {
+        if (nsfilter_params->subset_config[s][i] == 0 &&
+            wienerns_info_nsfilter[i] != 0)
           break;
-        }
       }
+      if (i == end_feat) break;
+    }
+    assert(s < nsfilter_params->nsubsets);
+    int s_ = s;
+    for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
+      const int filter_length_bit = (s_ > 0);
       aom_write_symbol(wb, filter_length_bit,
                        xd->tile_ctx->wienerns_length_cdf[is_uv], 2);
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
+      if (!filter_length_bit) break;
+      s_--;
     }
     assert((end_feat & 1) == 0);
 
-    int uv_sym = 0;
-    if (is_uv && end_feat > 6) {
-      uv_sym = 1;
-      for (int i = 6; i < end_feat; i += 2) {
-        if (wienerns_info_nsfilter[i + 1] != wienerns_info_nsfilter[i])
-          uv_sym = 0;
+    int sym = 1;
+    if (!skip_sym_bit(nsfilter_params, s)) {
+      for (int i = beg_feat; i < end_feat; i++) {
+        if (!nsfilter_params->subset_config[s][i]) continue;
+        const int is_asym_coeff =
+            (i < nsfilter_params->nsfilter_config.asymmetric ||
+             (i >= ncoeffs1 &&
+              i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
+        if (!is_asym_coeff) continue;
+        if (wienerns_info_nsfilter[i + 1] != wienerns_info_nsfilter[i]) {
+          sym = 0;
+          break;
+        }
+        i++;
       }
-      aom_write_symbol(wb, uv_sym, xd->tile_ctx->wienerns_uv_sym_cdf, 2);
+      assert(is_uv);
+      aom_write_symbol(wb, sym, xd->tile_ctx->wienerns_uv_sym_cdf, 2);
     }
 
     for (int i = beg_feat; i < end_feat; ++i) {
+      if (!nsfilter_params->subset_config[s][i]) continue;
+      const int is_asym_coeff =
+          (i < nsfilter_params->nsfilter_config.asymmetric ||
+           (i >= ncoeffs1 &&
+            i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
       aom_write_4part_wref(
           wb,
           ref_wienerns_info_nsfilter[i] -
@@ -4884,7 +4908,7 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
           xd->tile_ctx->wienerns_4part_cdf[wienerns_coeffs[i - beg_feat]
                                                           [WIENERNS_PAR_ID]],
           wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]);
-      if (uv_sym && i >= 6) {
+      if (sym && is_asym_coeff) {
         // Don't code symmetrical taps
         assert(wienerns_info_nsfilter[i + 1] == wienerns_info_nsfilter[i]);
         i += 1;
@@ -4936,32 +4960,56 @@ static AOM_INLINE void write_wienerns_filter(
 
     const int beg_feat = 0;
     int end_feat = nsfilter_params->ncoeffs;
-    if (end_feat > 6) {
-      // Decide whether to signal a short (0) or long (1) filter
-      int filter_length_bit = 0;
-      for (int i = 6; i < end_feat; i++) {
-        if (wienerns_info_nsfilter[i] != 0) {
-          filter_length_bit = 1;
+    int ncoeffs1, ncoeffs2;
+    int ncoeffs =
+        config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
+    assert(nsfilter_params->ncoeffs == ncoeffs);
+    int s;
+    for (s = 0; s < nsfilter_params->nsubsets; ++s) {
+      int i;
+      for (i = 0; i < end_feat; ++i) {
+        if (nsfilter_params->subset_config[s][i] == 0 &&
+            wienerns_info_nsfilter[i] != 0)
           break;
-        }
       }
+      if (i == end_feat) break;
+    }
+    assert(s < nsfilter_params->nsubsets);
+    int s_ = s;
+    for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
+      const int filter_length_bit = (s_ > 0);
       aom_write_symbol(wb, filter_length_bit,
                        xd->tile_ctx->wienerns_length_cdf[is_uv], 2);
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
+      if (!filter_length_bit) break;
+      s_--;
     }
     assert((end_feat & 1) == 0);
 
-    int uv_sym = 0;
-    if (is_uv && end_feat > 6) {
-      uv_sym = 1;
-      for (int i = 6; i < end_feat; i += 2) {
-        if (wienerns_info_nsfilter[i + 1] != wienerns_info_nsfilter[i])
-          uv_sym = 0;
+    int sym = 1;
+    if (!skip_sym_bit(nsfilter_params, s)) {
+      for (int i = beg_feat; i < end_feat; i++) {
+        if (!nsfilter_params->subset_config[s][i]) continue;
+        const int is_asym_coeff =
+            (i < nsfilter_params->nsfilter_config.asymmetric ||
+             (i >= ncoeffs1 &&
+              i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
+        if (!is_asym_coeff) continue;
+        if (wienerns_info_nsfilter[i + 1] != wienerns_info_nsfilter[i]) {
+          sym = 0;
+          break;
+        }
+        i++;
       }
-      aom_write_symbol(wb, uv_sym, xd->tile_ctx->wienerns_uv_sym_cdf, 2);
+      assert(is_uv);
+      aom_write_symbol(wb, sym, xd->tile_ctx->wienerns_uv_sym_cdf, 2);
     }
 
     for (int i = beg_feat; i < end_feat; ++i) {
+      if (!nsfilter_params->subset_config[s][i]) continue;
+      const int is_asym_coeff =
+          (i < nsfilter_params->nsfilter_config.asymmetric ||
+           (i >= ncoeffs1 &&
+            i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
       aom_write_4part_wref(
           wb,
           ref_wienerns_info_nsfilter[i] -
@@ -4971,7 +5019,7 @@ static AOM_INLINE void write_wienerns_filter(
           xd->tile_ctx->wienerns_4part_cdf[wienerns_coeffs[i - beg_feat]
                                                           [WIENERNS_PAR_ID]],
           wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]);
-      if (uv_sym && i >= 6) {
+      if (sym && is_asym_coeff) {
         // Don't code symmetrical taps
         assert(wienerns_info_nsfilter[i + 1] == wienerns_info_nsfilter[i]);
         i += 1;

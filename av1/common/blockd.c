@@ -559,10 +559,10 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
 
-  assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
+  const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
+  if (!nopcw) assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
   const int num_feat = nsfilter_params->ncoeffs;
 
-  const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   memset(frame_filter_dictionary, 0,
          max_dictionary_size(nopcw) * sizeof(*frame_filter_dictionary));
   const int max_predictors = num_dictionary_slots(num_classes, nopcw);

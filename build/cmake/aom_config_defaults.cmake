@@ -149,6 +149,9 @@ set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
+set_aom_config_var(
+  CONFIG_WIENERNS_9x9 1
+  "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
                    "AV2 enable improved identity transform coding.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
