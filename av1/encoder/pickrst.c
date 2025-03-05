@@ -1255,10 +1255,10 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->base_qindex = rsc->cm->quant_params.base_qindex;
   if (rsc->plane != AOM_PLANE_Y)
     rui->qindex_offset = rsc->plane == AOM_PLANE_U
-                             ? rsc->cm->quant_params.u_dc_delta_q
-                             : rsc->cm->quant_params.v_dc_delta_q;
+                             ? rsc->cm->quant_params.u_ac_delta_q
+                             : rsc->cm->quant_params.v_ac_delta_q;
   else
-    rui->qindex_offset = rsc->cm->quant_params.y_dc_delta_q;
+    rui->qindex_offset = 0;
   rui->luma = rsc->luma;
   rui->luma_stride = rsc->luma_stride;
   rui->plane = rsc->plane;
@@ -4455,10 +4455,10 @@ const uint8_t *get_class_converter(const RestSearchCtxt *rsc,
   int qindex_offset = 0;
   if (rsc->plane != AOM_PLANE_Y)
     qindex_offset = rsc->plane == AOM_PLANE_U
-                        ? rsc->cm->quant_params.u_dc_delta_q
-                        : rsc->cm->quant_params.v_dc_delta_q;
+                        ? rsc->cm->quant_params.u_ac_delta_q
+                        : rsc->cm->quant_params.v_ac_delta_q;
   else
-    qindex_offset = rsc->cm->quant_params.y_dc_delta_q;
+    qindex_offset = 0;
   const int set_index =
       get_filter_set_index(rsc->cm->quant_params.base_qindex + qindex_offset);
   return get_converter(set_index, num_stats_classes, num_target_classes);

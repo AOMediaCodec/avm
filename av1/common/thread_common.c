@@ -898,10 +898,10 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
     if (plane != AOM_PLANE_Y)
       ctxt[plane].qindex_offset = plane == AOM_PLANE_U
-                                      ? cm->quant_params.u_dc_delta_q
-                                      : cm->quant_params.v_dc_delta_q;
+                                      ? cm->quant_params.u_ac_delta_q
+                                      : cm->quant_params.v_ac_delta_q;
     else
-      ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
+      ctxt[plane].qindex_offset = 0;
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
