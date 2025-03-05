@@ -5106,6 +5106,10 @@ static AOM_INLINE int model_based_tx_search_prune(const AV1_COMP *cpi,
 
 void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                                         uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
                                          int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
@@ -5115,6 +5119,11 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // If modeled RD cost is a lot worse than the best so far, terminate early.
   if (cpi->sf.tx_sf.model_based_prune_tx_search_level &&
+#if CONFIG_MOTION_MODE_RD_PRUNE
+      enable_modelrd_tx_prune &&
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+
       ref_best_rd != INT64_MAX) {
     if (model_based_tx_search_prune(cpi, x, bsize, ref_best_rd)) return;
   }
@@ -5482,7 +5491,12 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
 
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-                    RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd) {
+                    RD_STATS *rd_stats_uv, int mode_rate,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                    uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+                    int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int skip_ctx = av1_get_skip_txfm_context(xd);
@@ -5516,7 +5530,12 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   );
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       !xd->lossless[mbmi->segment_id]) {
-    av1_pick_recursive_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, rd_thresh);
+    av1_pick_recursive_tx_size_type_yrd(cpi, x, rd_stats_y, bsize,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                                        enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+                                        rd_thresh);
 #if CONFIG_COLLECT_RD_STATS == 2
     PrintPredictionUnitStats(cpi, tile_data, x, rd_stats_y, bsize);
 #endif  // CONFIG_COLLECT_RD_STATS == 2

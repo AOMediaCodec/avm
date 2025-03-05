@@ -328,6 +328,10 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
  */
 void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                                         uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
                                          int64_t ref_best_rd);
 
 /*!\brief Uniform transform size and type search.
@@ -429,7 +433,12 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
  */
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-                    RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd);
+                    RD_STATS *rd_stats_uv, int mode_rate,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                    uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+                    int64_t ref_best_rd);
 
 #ifdef __cplusplus
 }  // extern "C"
