@@ -1237,10 +1237,10 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->base_qindex = rsc->cm->quant_params.base_qindex;
   if (rsc->plane != AOM_PLANE_Y)
     rui->qindex_offset = rsc->plane == AOM_PLANE_U
-                             ? rsc->cm->quant_params.u_dc_delta_q
-                             : rsc->cm->quant_params.v_dc_delta_q;
+                             ? rsc->cm->quant_params.u_ac_delta_q
+                             : rsc->cm->quant_params.v_ac_delta_q;
   else
-    rui->qindex_offset = rsc->cm->quant_params.y_dc_delta_q;
+    rui->qindex_offset = 0;
   rui->luma = rsc->luma;
   rui->luma_stride = rsc->luma_stride;
   rui->plane = rsc->plane;
