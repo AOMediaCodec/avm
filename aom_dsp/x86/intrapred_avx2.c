@@ -2994,7 +2994,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi16(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm_set1_epi16(above[max_base_x - 1]);
   max_base_x128 = _mm_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3060,7 +3060,7 @@ highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(int N, __m128i *dst,
 
   __m256i rnding = _mm256_set1_epi32(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm_set1_epi16(above[max_base_x - 1]);
   max_base_x128 = _mm_set1_epi32(max_base_x);
 
   int x = dx * (1 + mrl_index);
@@ -3155,7 +3155,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_8xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi16(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3222,7 +3222,7 @@ highbd_dr_prediction_32bit_z1_8xN_internal_idif_avx2(int N, __m128i *dst,
 
   __m256i rnding = _mm256_set1_epi32(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi32(max_base_x);
 
   int shift_i;
@@ -3324,7 +3324,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_16xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi16(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3387,7 +3387,7 @@ highbd_dr_prediction_32bit_z1_16xN_internal_idif_avx2(int N, __m256i *dstvec,
 
   __m256i rnding = _mm256_set1_epi32(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3506,7 +3506,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_32xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi16(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3587,7 +3587,7 @@ highbd_dr_prediction_32bit_z1_32xN_internal_idif_avx2(int N, __m256i *dstvec,
 
   __m256i rnding = _mm256_set1_epi32(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3721,7 +3721,7 @@ static void highbd_dr_prediction_z1_64xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi16(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
@@ -3800,7 +3800,7 @@ static void highbd_dr_prediction_32bit_z1_64xN_internal_idif_avx2(
 
   __m256i rnding = _mm256_set1_epi32(1 << (POWER_DR_INTERP_FILTER - 1));
 
-  a_mbase_x = _mm256_set1_epi16(above[max_base_x]);
+  a_mbase_x = _mm256_set1_epi16(above[max_base_x - 1]);
   max_base_x256 = _mm256_set1_epi16(max_base_x);
 
   int shift_i;
