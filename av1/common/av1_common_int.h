@@ -421,6 +421,30 @@ typedef struct BufferPool {
 
 /*!\endcond */
 
+#if LUTF
+#if LUTF_TEST
+typedef struct {
+    int lutf_decoder;
+    int lutf_enable;
+
+    int lutf_slice_qpIdx;
+    int lutf_slice_scaleIdx;
+
+    int lutf_block_size;
+    int lutf_block_num_h;
+    int lutf_block_num_w;
+    int lutf_block_num;
+    int lutf_block_filterMode[2400];     // TODO_KD: maximum number of blocks is 600
+
+    uint16_t* lapPnt[4];                // TODO_KD: maximum number of direction is 4
+    uint32_t* clsPnt[4];                // TODO_KD: maximum number of classes is 4
+    int16_t* tgtPnt[8];                 // TODO_KD: maximum number of optimized QPs is 8
+    uint16_t* inpPnt;
+    uint16_t* inpPlsPnt;
+} LutfInfo;
+#endif  //
+#endif  //
+
 /*!\brief Parameters related to CDEF */
 typedef struct {
   int cdef_damping;                       /*!< CDEF damping factor */
@@ -1695,6 +1719,12 @@ typedef struct AV1Common {
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
   /**@}*/
+
+#if LUTF
+#if LUTF_TEST
+  LutfInfo lutf_info;
+#endif  //
+#endif  //
 
   /*!
    * CDEF (Constrained Directional Enhancement Filter) parameters.

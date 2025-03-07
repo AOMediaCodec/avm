@@ -613,6 +613,22 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   specialize qw/cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
 }
 
+add_proto qw/void lutfIntraBlockProcess/, "const int iMin, const int iMax, const int jMin, const int jMax,
+                      const int sb_size, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
+                      const uint32_t* clsPnt, int16_t* tgtPnt, uint16_t* const lapPnt[4],
+                      const int pxlShift, const int refDstIdx";
+specialize qw/lutfIntraBlockProcess avx2/;
+
+add_proto qw/void lutfInterBlockProcess/, "const int iMin, const int iMax, const int jMin, const int jMax,
+                      const int sb_size, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
+                      const uint32_t* clsPnt, int16_t* tgtPnt, uint16_t* const lapPnt[4],
+                      const int pxlShift, const int refDstIdx";
+specialize qw/lutfInterBlockProcess avx2/;
+
+add_proto qw/void lutfCompensationBlockProcess/, "uint16_t* recPnt, const int recStride, const int16_t* tgtPnt,
+    					      const int tgtStride, const int tgt_shift, const int scale, const int pxlMax, const int blkHeight, const int blkWidth";
+specialize qw/lutfCompensationBlockProcess avx2/;
+
 # Cross-component Sample Offset
 add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
 specialize qw/ccso_filter_block_hbd_wo_buf avx2/;

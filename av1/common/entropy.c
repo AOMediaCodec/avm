@@ -389,6 +389,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     RESET_CDF_COUNTER(fc->ccso_cdf[plane], 2);
   }
 #endif  // CONFIG_CCSO_IMPROVE
+
+#if LUTF_TEST
+  RESET_CDF_COUNTER(fc->lutf_cdf, 2);
+#endif  //
+
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);

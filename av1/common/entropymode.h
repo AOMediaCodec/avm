@@ -536,6 +536,11 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob ccso_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_CCSO_IMPROVE
+
+#if LUTF_TEST
+  aom_cdf_prob lutf_cdf[CDF_SIZE(2)];
+#endif  //
+
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_length_cdf[2][CDF_SIZE(2)];

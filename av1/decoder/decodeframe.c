@@ -40,6 +40,11 @@
 
 #include "av1/common/alloccommon.h"
 #include "av1/common/cdef.h"
+
+#if LUTF
+#include "av1/common/lutf.h"
+#endif  //
+
 #include "av1/common/ccso.h"
 #include "av1/common/cfl.h"
 #if CONFIG_INSPECTION
@@ -3754,6 +3759,29 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   lf->mode_ref_delta_update = 0;
   lf->mode_ref_delta_enabled = 0;
 }
+
+#if LUTF
+#if LUTF_TEST
+static AOM_INLINE void setup_lutf(AV1_COMMON* cm,
+    struct aom_read_bit_buffer* rb) {
+    if (is_global_intrabc_allowed(cm)) return;
+    cm->lutf_info.lutf_decoder = 1;
+    lutfOpen(cm);
+    cm->lutf_info.lutf_enable = aom_rb_read_bit(rb);
+    if (cm->lutf_info.lutf_enable)
+    {
+#if LUTF_RDO_BLOCK_ONOFF
+        if (cm->lutf_info.lutf_block_num > 1)
+        {
+            cm->lutf_info.lutf_enable += aom_rb_read_bit(rb);
+        }
+#endif  //
+        cm->lutf_info.lutf_slice_qpIdx = aom_rb_read_literal(rb, LUTF_RDO_QP_NUM_LOG2);
+        cm->lutf_info.lutf_slice_scaleIdx = aom_rb_read_literal(rb, LUTF_RDO_SCALE_NUM_LOG2);
+    }
+}
+#endif  //
+#endif  //
 
 static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
@@ -8266,6 +8294,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
+
+#if LUTF
+#if LUTF_TEST
+    cm->lutf_info.lutf_enable = 0;
+#endif  //
+#endif  //
+
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
@@ -8437,6 +8472,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
   setup_loopfilter(cm, rb);
+
+#if LUTF
+#if LUTF_TEST
+  if (!features->coded_lossless)
+  {
+      setup_lutf(cm, rb);
+  }
+#endif  //
+#endif  //
 
   if (!features->coded_lossless && seq_params->enable_cdef) {
     setup_cdef(cm, rb);
@@ -8759,6 +8803,20 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
 }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
+#if LUTF
+#if LUTF_TEST
+void av1_lutf_frame_dec(AV1_COMMON* cm)
+{
+    if (cm->lutf_info.lutf_enable)
+    {
+        lutfFilter(cm);
+        lutfCompensate(cm);
+    }
+    lutfClose(cm);
+}
+#endif  //
+#endif  //
+
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
                                     const uint8_t **p_data_end, int start_tile,
@@ -8810,6 +8868,26 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   }
 
   if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
+
+#if LUTF
+#if LUTF_TEST
+    const int do_lutf = cm->lutf_info.lutf_enable;
+
+    if (do_lutf)
+    {
+      if (LUTF_TEST_INP_LOC == 0)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 0)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+    }
+#endif	//
+#endif  //
+
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1
 #if CONFIG_LF_SUB_PU
@@ -8880,6 +8958,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_superres = av1_superres_scaled(cm);
 
     const int optimized_loop_restoration =
+#if LUTF
+#if LUTF_TEST
+        !do_lutf &&
+#endif  //
+#endif  //
         !use_ccso && !do_cdef && !do_superres;
 
     if (!optimized_loop_restoration) {
@@ -8887,16 +8970,72 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 0);
 
+#if LUTF
+#if LUTF_TEST
+      if (LUTF_TEST_INP_LOC == 1)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 1)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+#endif	//
+#endif  //
+
       if (do_cdef) {
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
       }
+
+#if LUTF
+#if LUTF_TEST
+      if (LUTF_TEST_INP_LOC == 2)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 2)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+#endif	//
+#endif  //
 
       if (use_ccso) {
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
         aom_free(ext_rec_y);
       }
 
+#if LUTF
+#if LUTF_TEST
+      if (LUTF_TEST_INP_LOC == 3)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 3)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+#endif	//
+#endif  //
+
       superres_post_decode(pbi);
+
+#if LUTF
+#if LUTF_TEST
+      if (LUTF_TEST_INP_LOC == 4)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 4)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+#endif	//
+#endif  //
 
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
@@ -8916,6 +9055,21 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                             &pbi->lr_ctxt);
         }
       }
+
+#if LUTF
+#if LUTF_TEST
+      if (LUTF_TEST_INP_LOC == 5)
+      {
+          lutfCpyInpFrm(cm);
+      }
+      if (LUTF_TEST_OUT_LOC == 5)
+      {
+          av1_lutf_frame_dec(cm);
+          lutfDelInpFrm(cm);
+      }
+#endif	//
+#endif  //
+
     } else {
       // In no cdef and no superres case. Provide an optimized version of
       // loop_restoration_filter.

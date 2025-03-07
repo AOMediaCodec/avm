@@ -1702,6 +1702,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->ccso_cdf[plane], ctx_tr->ccso_cdf[plane], 2);
 #endif  // CONFIG_CCSO_IMPROVE
   }
+
+#if LUTF
+#if LUTF_TEST
+  AVERAGE_CDF(ctx_left->lutf_cdf, ctx_tr->lutf_cdf, 2);
+#endif  //
+#endif  //
+
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
