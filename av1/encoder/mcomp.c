@@ -359,10 +359,10 @@ int opfl_refine_fullpel_mv_one_sided(
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
   if (bw < 8)
-    av1_copy_pred_array_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
+    av1_copy_pred_array_highbd_c(dst0, dst1, bw, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
                                  1);
   else
-    av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
+    av1_copy_pred_array_highbd(dst0, dst1, bw, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
                                1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
@@ -3247,11 +3247,10 @@ static INLINE int estimated_pref_error(
 #if !CONFIG_IBC_SUBPEL_PRECISION
 static
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
-    int
-    upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
-                         const MV *this_mv,
-                         const SUBPEL_SEARCH_VAR_PARAMS *var_params,
-                         unsigned int *sse) {
+    int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                             const MV *this_mv,
+                             const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+                             unsigned int *sse) {
   const aom_variance_fn_ptr_t *vfp = var_params->vfp;
   const SUBPEL_SEARCH_TYPE subpel_search_type = var_params->subpel_search_type;
 

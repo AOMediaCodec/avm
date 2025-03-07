@@ -564,8 +564,8 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                               int16_t *gx0, int16_t *gy0, int16_t *gx1,
                               int16_t *gy1, int *vx0, int *vy0, int *vx1,
                               int *vy1, uint16_t *dst0, uint16_t *dst1,
-                              int do_pred, int use_4x4, MV *best_mv_ref,
-                              int pu_width, int pu_height);
+                              int dst_stride, int do_pred, int use_4x4,
+                              MV *best_mv_ref, int pu_width, int pu_height);
 
 // With the refined MVs, generate the inter prediction for the block.
 void av1_opfl_rebuild_inter_predictor(
@@ -896,7 +896,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          uint16_t **mc_buf, const MV mv[2],
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
-                         uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
+                         uint16_t *dst_ref1, uint16_t **dst_ref0_ptr,
+                         uint16_t **dst_ref1_ptr, MV *best_mv_ref, int pu_width,
                          int pu_height, ReferenceArea ref_area[2]);
 
 // check if padding is required during motion compensation

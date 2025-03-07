@@ -635,6 +635,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->morph_pred = 0;
 
+  uint16_t *refinemv_ref0 = NULL;
+  uint16_t *refinemv_ref1 = NULL;
+
   MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
                         { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
 
@@ -648,7 +651,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
     apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf, mv,
                         calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
-                        dst_ref0, dst_ref1, best_mv_ref, bw, bh, ref_area);
+                        dst_ref0, dst_ref1, &refinemv_ref0, &refinemv_ref1,
+                        best_mv_ref, bw, bh, ref_area);
     REFINEMV_SUBMB_INFO *refinemv_subinfo = &xd->refinemv_subinfo[0];
     fill_subblock_refine_mv(refinemv_subinfo, bw, bh, best_mv_ref[0],
                             best_mv_ref[1]);
@@ -672,6 +676,19 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   dst0 = cm->dst0_16_tip;
   dst1 = cm->dst1_16_tip;
+  int do_pred = 1;
+  int opfl_dst_stride = bw;
+  if (refinemv_ref0 != NULL && refinemv_ref1 != NULL) {
+    dst0 = refinemv_ref0;
+    dst1 = refinemv_ref1;
+#if CONFIG_SUBBLK_REF_EXT
+    opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
+                      2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
+#else
+    opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES;
+#endif  // CONFIG_SUBBLK_REF_EXT
+    do_pred = 0;
+  }
 
   int do_opfl = (opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
@@ -689,14 +706,18 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   const int use_4x4 = 0;
   if (do_opfl) {
-    InterPredParams params0, params1;
-    av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
-                                   mc_buf, &params0, calc_subpel_params_func, 0,
-                                   dst0, &best_mv_ref[0], bw, bh);
-    av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
-                                   mc_buf, &params1, calc_subpel_params_func, 1,
-                                   dst1, &best_mv_ref[1], bw, bh);
-    const unsigned int sad = get_highbd_sad(dst0, bw, dst1, bw, bd, 8, 8);
+    if (do_pred) {
+      assert(opfl_dst_stride == bw);
+      InterPredParams params0, params1;
+      av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
+                                     mc_buf, &params0, calc_subpel_params_func,
+                                     0, dst0, &best_mv_ref[0], bw, bh);
+      av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
+                                     mc_buf, &params1, calc_subpel_params_func,
+                                     1, dst1, &best_mv_ref[1], bw, bh);
+    }
+    const unsigned int sad =
+        get_highbd_sad(dst0, opfl_dst_stride, dst1, opfl_dst_stride, bd, 8, 8);
     if (sad < sad_thres) {
       do_opfl = 0;
     }
@@ -716,9 +737,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     av1_get_optflow_based_mv(cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x,
                              mi_y, 0 /* build_for_decode */, mc_buf,
                              calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0,
-                             vy0, vx1, vy1, dst0, dst1, 0, use_4x4, best_mv_ref,
-                             bw, bh);
-
+                             vy0, vx1, vy1, dst0, dst1, opfl_dst_stride, 0,
+                             use_4x4, best_mv_ref, bw, bh);
     xd->opfl_vxy_bufs[0] = *vx0;
     xd->opfl_vxy_bufs[N_OF_OFFSETS * 1] = *vx1;
     xd->opfl_vxy_bufs[N_OF_OFFSETS * 2] = *vy0;
@@ -811,21 +831,25 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_SUBBLK_REF_EXT
   uint16_t
-      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+      dst0_16_refinemv[2 *
+                       (REFINEMV_SUBBLOCK_WIDTH +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                        (REFINEMV_SUBBLOCK_HEIGHT +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
   uint16_t
-      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+      dst1_16_refinemv[2 *
+                       (REFINEMV_SUBBLOCK_WIDTH +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                        (REFINEMV_SUBBLOCK_HEIGHT +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 #else
   uint16_t
-      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+      dst0_16_refinemv[2 *
+                       (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
                        (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
   uint16_t
-      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+      dst1_16_refinemv[2 *
+                       (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
                        (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
 #endif  // CONFIG_SUBBLK_REF_EXT
 

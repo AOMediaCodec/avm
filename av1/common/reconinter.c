@@ -1141,18 +1141,19 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
 }
 
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
-    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh, int d0, int d1, int bd, int centered) {
+    const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
+    int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered) {
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       // To avoid overflow, we clamp d0*P0-d1*P1 and P0-P1.
-      int32_t tmp_dst =
-          d0 * (int32_t)src1[i * bw + j] - d1 * (int32_t)src2[i * bw + j];
+      int32_t tmp_dst = d0 * (int32_t)src1[i * src_stride + j] -
+                        d1 * (int32_t)src2[i * src_stride + j];
       if (centered) tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, 1);
       tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, bd - 8);
       dst1[i * bw + j] = clamp(tmp_dst, -OPFL_PRED_MAX, OPFL_PRED_MAX);
       if (dst2) {
-        tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
+        tmp_dst = (int32_t)src1[i * src_stride + j] -
+                  (int32_t)src2[i * src_stride + j];
         tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, bd - 8);
         dst2[i * bw + j] = clamp(tmp_dst, -OPFL_PRED_MAX, OPFL_PRED_MAX);
       }
@@ -1161,10 +1162,11 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
 }
 
 void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
-                                  int16_t *dst1, int16_t *dst2, int bw, int bh,
-                                  int d0, int d1, int bd, int centered) {
-  compute_pred_using_interp_grad_highbd(src1, src2, dst1, dst2, bw, bh, d0, d1,
-                                        bd, centered);
+                                  int src_stride, int16_t *dst1, int16_t *dst2,
+                                  int bw, int bh, int d0, int d1, int bd,
+                                  int centered) {
+  compute_pred_using_interp_grad_highbd(src1, src2, src_stride, dst1, dst2, bw,
+                                        bh, d0, d1, bd, centered);
 }
 
 void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
@@ -1175,8 +1177,8 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                               int16_t *gx0, int16_t *gy0, int16_t *gx1,
                               int16_t *gy1, int *vx0, int *vy0, int *vx1,
                               int *vy1, uint16_t *dst0, uint16_t *dst1,
-                              int do_pred, int use_4x4, MV *best_mv_ref,
-                              int pu_width, int pu_height) {
+                              int dst_stride, int do_pred, int use_4x4,
+                              MV *best_mv_ref, int pu_width, int pu_height) {
   const int target_prec = MV_REFINE_PREC_BITS;
   const int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
   int n_blocks = (bw / n) * (bh / n);
@@ -1224,9 +1226,12 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   }
 
   if (d0 == 0 || d1 == 0) {
-    // Though OPFL is disabled when the distance from either of the reference
-    // frames is zero, the MV offset buffers are still used to update the
-    // mv_delta buffer. Hence, memset the MV offset buffers vx and vy to zero.
+    // Though OPFL is disabled when the
+    // distance from either of the reference
+    // frames is zero, the MV offset buffers
+    // are still used to update the mv_delta
+    // buffer. Hence, memset the MV offset
+    // buffers vx and vy to zero.
     av1_zero_array(vx0, n_blocks);
     av1_zero_array(vx1, n_blocks);
     av1_zero_array(vy0, n_blocks);
@@ -1249,17 +1254,21 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 
   int grad_prec_bits;
 
-  // Compute gradients of P0 and P1 with interpolation
+  // Compute gradients of P0 and P1 with
+  // interpolation
   (void)gx1;
   (void)gy1;
 
-  // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
+  // Compute tmp1 = P0 - P1 and gradients of
+  // tmp0 = d0 * P0 - d1 * P1
   const int tmp_w = (mbmi->ref_frame[0] == TIP_FRAME) ? bw : MAX_SB_SIZE;
   const int tmp_h = (mbmi->ref_frame[0] == TIP_FRAME) ? bh : MAX_SB_SIZE;
   int16_t *tmp0 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
   int16_t *tmp1 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
-  av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1, xd->bd, 0);
-  // Buffers gx0 and gy0 are used to store the gradients of tmp0
+  av1_copy_pred_array_highbd(dst0, dst1, dst_stride, tmp0, tmp1, bw, bh, d0, d1,
+                             xd->bd, 0);
+  // Buffers gx0 and gy0 are used to store the
+  // gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
 
   n_blocks = av1_opfl_mv_refinement_nxn(
@@ -1304,7 +1313,8 @@ int is_out_of_frame_block(const InterPredParams *inter_pred_params,
   return 0;
 }
 
-// Equation of line: f(x, y) = a[0]*(x - a[2]*w/8) + a[1]*(y - a[3]*h/8) = 0
+// Equation of line: f(x, y) = a[0]*(x -
+// a[2]*w/8) + a[1]*(y - a[3]*h/8) = 0
 void av1_init_wedge_masks() {
   init_wedge_master_masks();
   init_wedge_masks();
@@ -1339,9 +1349,11 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
   const INTERINTER_COMPOUND_DATA *comp_data = &inter_pred_params->mask_comp;
   BLOCK_SIZE sb_type = inter_pred_params->sb_type;
 
-  // We're going to call av1_make_inter_predictor to generate a prediction into
-  // a temporary buffer, then will blend that temporary buffer with that from
-  // the other reference.
+  // We're going to call
+  // av1_make_inter_predictor to generate a
+  // prediction into a temporary buffer, then
+  // will blend that temporary buffer with
+  // that from the other reference.
   DECLARE_ALIGNED(32, uint16_t, tmp_buf[MAX_SB_SQUARE]);
 
   const int tmp_buf_stride = MAX_SB_SIZE;
@@ -1352,7 +1364,8 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
   inter_pred_params->conv_params.dst_stride = tmp_buf_stride;
   assert(inter_pred_params->conv_params.do_average == 0);
 
-  // This will generate a prediction in tmp_buf for the second reference
+  // This will generate a prediction in
+  // tmp_buf for the second reference
   av1_make_inter_predictor(pre, pre_stride, tmp_buf, MAX_SB_SIZE,
                            inter_pred_params, subpel_params);
 
@@ -1365,7 +1378,8 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
         inter_pred_params->bit_depth);
   }
 
-  // Mask is generated from luma and reuse for chroma
+  // Mask is generated from luma and reuse for
+  // chroma
   const int generate_mask_for_this_plane =
       (!inter_pred_params->conv_params.plane ||
        comp_data->type == COMPOUND_AVERAGE);
@@ -1414,8 +1428,9 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
   inter_pred_params->conv_params.dst_stride = org_dst_stride;
 }
 
-// Makes the interpredictor for the region by dividing it up into nxn blocks
-// and running the interpredictor code on each one.
+// Makes the interpredictor for the region by
+// dividing it up into nxn blocks and running
+// the interpredictor code on each one.
 void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
                             int_mv *const mv_refined,
                             InterPredParams *inter_pred_params, MACROBLOCKD *xd,
@@ -1542,7 +1557,8 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
                                  inter_pred_params, subpel_params);
       }
 
-      // Restored to original inter_pred_params
+      // Restored to original
+      // inter_pred_params
       if (use_bacp && inter_pred_params->mask_comp.type == COMPOUND_AVERAGE) {
         inter_pred_params->conv_params.do_average = stored_do_average;
         inter_pred_params->comp_mode = stored_comp_mode;
@@ -1566,7 +1582,8 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
   inter_pred_params->conv_params.dst = orig_conv_dst;
 }
 
-// Use a second pass of motion compensation to rebuild inter predictor
+// Use a second pass of motion compensation to
+// rebuild inter predictor
 void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
@@ -1631,10 +1648,12 @@ void av1_build_one_inter_predictor(
 }
 
 #if CONFIG_BAWP_ACROSS_SCALES
-// The below functions are used for scaling X, Y position
-// for BAWP with across scale prediction
-// In future, more generalized implementations for all inter-coding tools
-// are required for supporting across scale prediction
+// The below functions are used for scaling X,
+// Y position for BAWP with across scale
+// prediction In future, more generalized
+// implementations for all inter-coding tools
+// are required for supporting across scale
+// prediction
 static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
   const int64_t tval = (int64_t)val * sf->x_scale_fp;
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
@@ -1645,39 +1664,49 @@ static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
 }
 #endif  // CONFIG_BAWP_ACROSS_SCALES
-// Derive the scaling factor and offset of block adaptive weighted prediction
-// mode. One row from the top boundary and one column from the left boundary
-// are used in the less square error process.
+        // Derive the scaling factor and offset of
+        // block adaptive weighted prediction mode.
+        // One row from the top boundary and one
+        // column from the left boundary are used in
+        // the less square error process.
 
-// The bellow arrays are used to map the number of BAWP reference samples to a
-// 2^N number for each side (left or above).
+// The bellow arrays are used to map the
+// number of BAWP reference samples to a 2^N
+// number for each side (left or above).
 static const uint8_t blk_size_log2_bawp[BAWP_MAX_REF_NUMB + 1] = {
   0, 0, 0, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4
 };
 static const uint8_t log_to_blk_size[5] = { 0, 2, 4, 8, 16 };
 
-// The below function is used to allocate the number of reference samples for
-// the left and above based on the availablity of the left and above and the
-// total number of available samples. The final number should be 0, 4, 8, 16 or
-// 32 in total.
+// The below function is used to allocate the
+// number of reference samples for the left
+// and above based on the availablity of the
+// left and above and the total number of
+// available samples. The final number should
+// be 0, 4, 8, 16 or 32 in total.
 static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
                                            int width, int height, int *numb_up,
                                            int *numb_left) {
-  // If the number of adjusted number of samples is zero, set the availability
-  // to be false
+  // If the number of adjusted number of
+  // samples is zero, set the availability to
+  // be false
   const bool above_available = width ? above_valid : false;
   const bool left_available = height ? left_valid : false;
 
-  // If both left and above references are availalbe, the numbers of reference
-  // samples in each side are calculated based on the clamped width and clamped
-  // height. Else, only the reference samples in the available side is used.
+  // If both left and above references are
+  // availalbe, the numbers of reference
+  // samples in each side are calculated based
+  // on the clamped width and clamped height.
+  // Else, only the reference samples in the
+  // available side is used.
 
   *numb_up = -1;
   *numb_left = -1;
   if (above_available && left_available) {
     if (width == 16 && height == 16) {
       *numb_up = 16;
-      *numb_left = 16;  // Using 32 samples in total for 16x16
+      *numb_left = 16;  // Using 32 samples in
+                        // total for 16x16
     } else if (width > 4 && height > 4) {
       *numb_up = 8;
       *numb_left = 8;  // (16) 8x8, 8x16, 16x8
@@ -1715,20 +1744,25 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 {
   MB_MODE_INFO *mbmi = xd->mi[0];
   if (!mbmi->morph_pred) assert(mbmi->bawp_flag[0] >= 1);
-  // only integer position of reference, may need to consider
-  // fractional position of ref samples
+  // only integer position of reference, may
+  // need to consider fractional position of
+  // ref samples
   int count = 0;
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
   const int max_numb_each_size =
       plane ? (BAWP_MAX_REF_NUMB >> 1) : BAWP_MAX_REF_NUMB;
-  // Clamp the bw and bh to use up to 16 samples in the left and above
+  // Clamp the bw and bh to use up to 16
+  // samples in the left and above
   bw = AOMMIN(bw, max_numb_each_size);
   bh = AOMMIN(bh, max_numb_each_size);
 
-  // Make the number of samples in each side to 4, 8, or 16 by padding. If the
-  // number of sample in a side is smaller than 3, dont use the reference in
-  // this side (set the corresponding elements in blk_size_log2_bawp to zero).
+  // Make the number of samples in each side
+  // to 4, 8, or 16 by padding. If the number
+  // of sample in a side is smaller than 3,
+  // dont use the reference in this side (set
+  // the corresponding elements in
+  // blk_size_log2_bawp to zero).
   const int log2_width = blk_size_log2_bawp[bw];
   const int width = log_to_blk_size[log2_width];
 
@@ -1763,7 +1797,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #if CONFIG_BAWP_ACROSS_SCALES
     }
 #endif  // CONFIG_BAWP_ACROSS_SCALES
-    // Padding
+        // Padding
     if (delta_w > 0) {
       for (int i = 0; i < delta_w; i++) {
         ref_pad[i + bw] = ref_pad[i];
@@ -1806,7 +1840,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #if CONFIG_BAWP_ACROSS_SCALES
     }
 #endif  // CONFIG_BAWP_ACROSS_SCALES
-    // Padding
+        // Padding
     if (delta > 0) {
       for (int i = 0; i < delta; i++) {
         ref_pad[i + bh] = ref_pad[i];
@@ -1863,7 +1897,8 @@ void av1_make_bawp_block_c(uint16_t *dst, int dst_stride, int16_t alpha,
   }
 }
 
-// generate inter prediction of a block coded in bwap mode enabled
+// generate inter prediction of a block coded
+// in bwap mode enabled
 void av1_build_one_bawp_inter_predictor(
     uint16_t *dst, int dst_stride, const MV *const src_mv,
     InterPredParams *inter_pred_params, const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -1961,7 +1996,8 @@ void av1_build_one_bawp_inter_predictor(
     uint16_t *recon_top = recon_buf - BAWP_REF_LINES * recon_stride;
     uint16_t *recon_left = recon_buf - BAWP_REF_LINES;
 
-    // the picture boundary limitation to be checked.
+    // the picture boundary limitation to be
+    // checked.
 #if CONFIG_BAWP_ACROSS_SCALES
     int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
@@ -2024,8 +2060,10 @@ void av1_build_one_bawp_inter_predictor(
 
 // True if the following hold:
 //  1. Not intrabc
-//  2. At least one dimension is size 4 with subsampling
-//  3. If sub-sampled, none of the previous blocks around the sub-sample
+//  2. At least one dimension is size 4 with
+//  subsampling
+//  3. If sub-sampled, none of the previous
+//  blocks around the sub-sample
 //     are intrabc or inter-blocks
 static bool is_sub8x8_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                             const MB_MODE_INFO *mi, int plane, int is_intrabc) {
@@ -2100,10 +2138,13 @@ static void build_inter_predictors_sub8x8(
   const int plane_mi_width = mi_size_wide[plane_bsize];
   assert(!is_intrabc_block(mi, xd->tree_type));
 
-  // For sub8x8 chroma blocks, we may be covering more than one luma block's
-  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
-  // the top-left corner of the prediction source - the correct top-left corner
-  // is at (pre_x, pre_y).
+  // For sub8x8 chroma blocks, we may be
+  // covering more than one luma block's worth
+  // of pixels. Thus (mi_x, mi_y) may not be
+  // the correct coordinates for the top-left
+  // corner of the prediction source - the
+  // correct top-left corner is at (pre_x,
+  // pre_y).
   const int row_start =
       plane ? (mi->chroma_ref_info.mi_row_chroma_base - xd->mi_row) : 0;
   const int col_start =
@@ -2119,7 +2160,8 @@ static void build_inter_predictors_sub8x8(
   const int mb_to_bottom_edge_start = xd->mb_to_bottom_edge;
   const int mb_to_right_edge_start = xd->mb_to_right_edge;
 
-  // Row progress keeps track of which mi block in the row has been set.
+  // Row progress keeps track of which mi
+  // block in the row has been set.
   SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
   assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
@@ -2150,14 +2192,20 @@ static void build_inter_predictors_sub8x8(
       xd->mb_to_right_edge =
           GET_MV_SUBPEL((cm->mi_params.mi_cols - mi_width - col) * MI_SIZE);
 
-      // The flag here is a block of mi_width many 1s offset by the mi_col.
-      // For example, if the current mi_col is 2, and the mi_width is 2, then
-      // the flag will be 00110000. We or this with row_progress to update the
-      // blocks that have been coded.
-      // Note that because we are always coding in a causal order, we could
-      // technically simplify the bitwise operation, and use the flag 11110000
-      // in the above example instead. However, we are not taking this approach
-      // here to keep the logic simpler.
+      // The flag here is a block of mi_width
+      // many 1s offset by the mi_col. For
+      // example, if the current mi_col is 2,
+      // and the mi_width is 2, then the flag
+      // will be 00110000. We or this with
+      // row_progress to update the blocks
+      // that have been coded. Note that
+      // because we are always coding in a
+      // causal order, we could technically
+      // simplify the bitwise operation, and
+      // use the flag 11110000 in the above
+      // example instead. However, we are not
+      // taking this approach here to keep the
+      // logic simpler.
       const SUB_8_BITMASK_T set_flag =
           ((SUB_8_BITMASK_ON << (SUB_8_BITMASK_SIZE - mi_width)) &
            SUB_8_BITMASK_ON) >>
@@ -2171,7 +2219,8 @@ static void build_inter_predictors_sub8x8(
       const int chroma_height = block_size_high[bsize] >> ss_y;
       const int pixel_row = (MI_SIZE * mi_row >> ss_y);
       const int pixel_col = (MI_SIZE * mi_col >> ss_x);
-      // TODO(yuec): enabling compound prediction in none sub8x8 mbs in the
+      // TODO(yuec): enabling compound
+      // prediction in none sub8x8 mbs in the
       // group
       bool is_compound = 0;
       struct buf_2d *const dst_buf = &pd->dst;
@@ -2236,7 +2285,8 @@ static void build_inter_predictors_sub8x8(
 AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
                                        uint16_t *dst, int dst_stride, int x,
                                        int y, int b_w, int b_h, int w, int h) {
-  // Get a pointer to the start of the real data for this row.
+  // Get a pointer to the start of the real
+  // data for this row.
   const uint16_t *ref_row = src - x - y * src_stride;
 
   if (y >= h)
@@ -2268,7 +2318,8 @@ AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
     if (y > 0 && y < h) ref_row += src_stride;
   } while (--b_h);
 }
-/* Extend MC border for support SB in BRU optimized decoder */
+/* Extend MC border for support SB in BRU
+ * optimized decoder */
 void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
                           BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src) {
   const int org_bw = mi_size_wide[bsize];
@@ -2303,13 +2354,17 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
     block.y1 += AOM_INTERP_EXTEND;
     if (block.x0 < 0 || block.x1 > frame_W - 1 || block.y0 < 0 ||
         block.y1 > frame_H - 1) {
-      // BRU extend border should not touch any pixel in the frame , but only in
-      // the extend region if block - AOM_INTERP_EXTEND >= 0, means this is not
-      // on the top/left border, then reset to current block
+      // BRU extend border should not touch
+      // any pixel in the frame , but only in
+      // the extend region if block -
+      // AOM_INTERP_EXTEND >= 0, means this is
+      // not on the top/left border, then
+      // reset to current block
       if (block.x0 >= 0) block.x0 = block_cur.x0;
       if (block.y0 >= 0) block.y0 = block_cur.y0;
-      // if block + AOM_INTERP_EXTEND <= W/H, means this is not on the
-      // bottom/right border, then reset to current block
+      // if block + AOM_INTERP_EXTEND <= W/H,
+      // means this is not on the bottom/right
+      // border, then reset to current block
       if (block.x1 <= frame_W) block.x1 = block_cur.x1;
       if (block.y1 <= frame_H) block.y1 = block_cur.y1;
 
@@ -2367,7 +2422,8 @@ void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
   const int ref_x1 = ref_area->pad_block.x1;
   const int ref_y1 = ref_area->pad_block.y1;
 
-  // Get a pointer to the start of the real data for this row.
+  // Get a pointer to the start of the real
+  // data for this row.
   const uint16_t *ref_row = src - x0 - y0 * src_stride;
 
   if (y0 >= ref_area->pad_block.y1)
@@ -2398,9 +2454,11 @@ void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
   } while (--b_h);
 }
 
-// check if padding is required during motion compensation
-// return 1 means reference pixel is outside of the reference range and padding
-// is required return 0 means no padding.
+// check if padding is required during motion
+// compensation return 1 means reference pixel
+// is outside of the reference range and
+// padding is required return 0 means no
+// padding.
 int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    struct buf_2d *const pre_buf, MV32 scaled_mv,
                                    PadBlock *block, int subpel_x_mv,
@@ -2412,8 +2470,9 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
   int frame_height = pre_buf->height;
 
   // Do border extension if there is motion or
-  // width/height is not a multiple of 8 pixels.
-  // Extension is needed in optical flow refinement to obtain MV offsets
+  // width/height is not a multiple of 8
+  // pixels. Extension is needed in optical
+  // flow refinement to obtain MV offsets
   (void)scaled_mv;
   if (!is_intrabc && !do_warp) {
     if (subpel_x_mv || (sf->x_step_q4 != SUBPEL_SHIFTS)) {
@@ -2428,14 +2487,16 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
       *y_pad = 1;
     }
 
-    // Skip border extension if block is inside the frame.
+    // Skip border extension if block is
+    // inside the frame.
     if (block->x0 < 0 || block->x1 > frame_width - 1 || block->y0 < 0 ||
         block->y1 > frame_height - 1) {
       return 1;
     }
 
     if (ref_area) {
-      // Skip border extension if block is in the reference area.
+      // Skip border extension if block is in
+      // the reference area.
       if (block->x0 < ref_area->pad_block.x0 ||
           block->x1 > ref_area->pad_block.x1 ||
           block->y0 < ref_area->pad_block.y0 ||
@@ -2447,9 +2508,10 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
   return 0;
 };
 
-// perform padding of the motion compensated block if requires.
-// Padding is performed if the motion compensated block is partially out of the
-// reference area.
+// perform padding of the motion compensated
+// block if requires. Padding is performed if
+// the motion compensated block is partially
+// out of the reference area.
 static void refinemv_extend_mc_border(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock block, int subpel_x_mv, int subpel_y_mv,
@@ -2522,11 +2584,13 @@ void dec_calc_subpel_params(const MV *const src_mv,
     subpel_params->xs = sf->x_step_q4;
     subpel_params->ys = sf->y_step_q4;
 
-    // Get reference block top left coordinate.
+    // Get reference block top left
+    // coordinate.
     block->x0 = pos_x >> SCALE_SUBPEL_BITS;
     block->y0 = pos_y >> SCALE_SUBPEL_BITS;
 
-    // Get reference block bottom right coordinate.
+    // Get reference block bottom right
+    // coordinate.
     block->x1 =
         ((pos_x + (inter_pred_params->block_width - 1) * subpel_params->xs) >>
          SCALE_SUBPEL_BITS) +
@@ -2558,13 +2622,15 @@ void dec_calc_subpel_params(const MV *const src_mv,
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
 
-    // Get reference block top left coordinate.
+    // Get reference block top left
+    // coordinate.
     pos_x += mv_q4.col;
     pos_y += mv_q4.row;
     block->x0 = pos_x >> SUBPEL_BITS;
     block->y0 = pos_y >> SUBPEL_BITS;
 
-    // Get reference block bottom right coordinate.
+    // Get reference block bottom right
+    // coordinate.
     block->x1 =
         (pos_x >> SUBPEL_BITS) + (inter_pred_params->block_width - 1) + 1;
     block->y1 =
@@ -2847,15 +2913,19 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          uint16_t **mc_buf, const MV mv[2],
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
-                         uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
+                         uint16_t *dst_ref1, uint16_t **dst_ref0_ptr,
+                         uint16_t **dst_ref1_ptr, MV *best_mv_ref, int pu_width,
                          int pu_height, ReferenceArea ref_area[2]) {
   // initialize basemv as best MV
   best_mv_ref[0] = mv[0];
   best_mv_ref[1] = mv[1];
 
-  // Check if any component of the MV exceed maximum value
-  // If any of the MV components exceed the maximum value, do not refine mv
-  const int max_sr = 2;  // Maximum search range at unit of 1-pel
+  // Check if any component of the MV exceed
+  // maximum value If any of the MV components
+  // exceed the maximum value, do not refine
+  // mv
+  const int max_sr = 2;  // Maximum search range at unit of
+                         // 1-pel
   for (int k = 0; k < 2; k++) {
     for (int comp = 0; comp < 2; comp++) {
       int val = comp == 0 ? mv[k].row : mv[k].col;
@@ -2875,6 +2945,14 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   bh += 2 * SUBBLK_REF_EXT_LINES;
 #endif  // CONFIG_SUBBLK_REF_EXT
 
+  const int dsts_offset = (REFINEMV_SUBBLOCK_WIDTH +
+                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                          (REFINEMV_SUBBLOCK_HEIGHT +
+                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES));
+  uint16_t *dsts0[2] = { dst_ref0, dst_ref0 + dsts_offset };
+  uint16_t *dsts1[2] = { dst_ref1, dst_ref1 + dsts_offset };
+  int dsts_cur = 0;
+
   const MV center_mvs[2] = { best_mv_ref[0], best_mv_ref[1] };
   assert(mi->refinemv_flag < REFINEMV_NUM_MODES);
   assert(cm->seq_params.enable_refinemv);
@@ -2883,7 +2961,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                  cm->seq_params.enable_tip_refinemv));
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
-  // Generate MV independent inter_pred_params for both references
+  // Generate MV independent inter_pred_params
+  // for both references
   InterPredParams inter_pred_params[2];
   for (int ref = 0; ref < 2; ref++) {
     const int is_compound = 0;
@@ -2920,8 +2999,9 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   int switchable_refinemv_flags =
       (mi->ref_frame[0] != TIP_FRAME) && switchable_refinemv_flag(cm, mi);
 
-  // If we signal the refinemv_flags we do not select sad0
-  // Set sad0 a large value so that it does not be selected
+  // If we signal the refinemv_flags we do not
+  // select sad0 Set sad0 a large value so
+  // that it does not be selected
 #if CONFIG_SUBBLK_REF_EXT
   const int dst_stride = REFINEMV_SUBBLOCK_WIDTH +
                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
@@ -2934,6 +3014,13 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
         xd, mi_x, mi_y, mc_buf, calc_subpel_params_func, dst_ref0, dst_ref1,
         dst_stride, center_mvs[0], center_mvs[1], inter_pred_params);
     sad0 = get_refinemv_sad(dst_ref0, dst_ref1, dst_stride, bw, bh, xd->bd);
+    *dst_ref0_ptr =
+        dst_ref0 + SUBBLK_REF_EXT_LINES * dst_stride + SUBBLK_REF_EXT_LINES;
+    *dst_ref1_ptr =
+        dst_ref1 + SUBBLK_REF_EXT_LINES * dst_stride + SUBBLK_REF_EXT_LINES;
+    dsts_cur = !dsts_cur;
+    dst_ref0 = dsts0[dsts_cur];
+    dst_ref1 = dsts1[dsts_cur];
   }
 #if !CONFIG_SUBBLK_REF_EXT
   assert(IMPLIES(mi->ref_frame[0] == TIP_FRAME, bw == 8 && bh == 8));
@@ -2964,9 +3051,12 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   };
 
   MV best_offset = { 0, 0 };
-  // Prediction is generated at once for (bw+4) x (bh+4) block, by extending 2
-  // samples (search range of the refinement stage) on each side. Later, the
-  // prediction buffers are appropriately offset for SAD calculation.
+  // Prediction is generated at once for
+  // (bw+4) x (bh+4) block, by extending 2
+  // samples (search range of the refinement
+  // stage) on each side. Later, the
+  // prediction buffers are appropriately
+  // offset for SAD calculation.
   const int ext_bw = bw + 4;
   const int ext_bh = bh + 4;
   for (int ref = 0; ref < 2; ref++) {
@@ -2998,6 +3088,12 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     if (this_sad < min_sad) {
       min_sad = this_sad;
       best_offset = offset;
+      if (dst_ref0_ptr != NULL && dst_ref1_ptr != NULL) {
+        *dst_ref0_ptr = dst_ref0_offset + SUBBLK_REF_EXT_LINES * dst_stride +
+                        SUBBLK_REF_EXT_LINES;
+        *dst_ref1_ptr = dst_ref1_offset + SUBBLK_REF_EXT_LINES * dst_stride +
+                        SUBBLK_REF_EXT_LINES;
+      }
     }
   }
 
@@ -3015,8 +3111,9 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                    best_mv_ref[1].col == center_mvs[1].col)));
 }
 
-// This function consolidates the refinemv enabling check for both TIP ref mode
-// blocks and non-TIP ref mode blocks.
+// This function consolidates the refinemv
+// enabling check for both TIP ref mode blocks
+// and non-TIP ref mode blocks.
 static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int tip_ref_frame) {
@@ -3049,7 +3146,8 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
   }
 }
 
-// check if the refinemv mode is allowed for a given block
+// check if the refinemv mode is allowed for a
+// given block
 static INLINE int is_mv_refine_allowed(const AV1_COMMON *cm,
                                        const MB_MODE_INFO *mbmi, int plane) {
   if (plane != 0) return 0;
@@ -3058,42 +3156,48 @@ static INLINE int is_mv_refine_allowed(const AV1_COMMON *cm,
   return 1;
 }
 
-// Calculate the SAD of 2 compound prediction blocks and use it to decide
-// whether or not to skip the optical flow MV refinement for the TIP block.
+// Calculate the SAD of 2 compound prediction
+// blocks and use it to decide whether or not
+// to skip the optical flow MV refinement for
+// the TIP block.
 static AOM_INLINE int skip_opfl_refine_with_tip(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, int bw, int bh,
     int pu_width, int pu_height, int mi_x, int mi_y, uint16_t **mc_buf,
     MV best_mv_ref[2], CalcSubpelParamsFunc calc_subpel_params_func,
-    uint16_t *dst0, uint16_t *dst1) {
-  MB_MODE_INFO mbmi;
-  memset(&mbmi, 0, sizeof(mbmi));
-  mbmi.mv[0].as_mv = best_mv_ref[0];
-  mbmi.mv[1].as_mv = best_mv_ref[1];
-  mbmi.ref_frame[0] = TIP_FRAME;
-  mbmi.ref_frame[1] = NONE_FRAME;
-  mbmi.interp_fltr = cm->tip_interp_filter;
-  mbmi.use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-  mbmi.use_intrabc[0] = 0;
-  mbmi.mode = NEWMV;
-  mbmi.motion_mode = SIMPLE_TRANSLATION;
-  mbmi.sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
-  mbmi.interinter_comp.type = COMPOUND_AVERAGE;
-  mbmi.max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-  mbmi.pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-  mbmi.morph_pred = 0;
+    uint16_t *dst0, uint16_t *dst1, int dst_stride, int do_pred) {
+  if (do_pred) {
+    MB_MODE_INFO mbmi;
+    memset(&mbmi, 0, sizeof(mbmi));
+    mbmi.mv[0].as_mv = best_mv_ref[0];
+    mbmi.mv[1].as_mv = best_mv_ref[1];
+    mbmi.ref_frame[0] = TIP_FRAME;
+    mbmi.ref_frame[1] = NONE_FRAME;
+    mbmi.interp_fltr = cm->tip_interp_filter;
+    mbmi.use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+    mbmi.use_intrabc[0] = 0;
+    mbmi.mode = NEWMV;
+    mbmi.motion_mode = SIMPLE_TRANSLATION;
+    mbmi.sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
+    mbmi.interinter_comp.type = COMPOUND_AVERAGE;
+    mbmi.max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+    mbmi.pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+    mbmi.morph_pred = 0;
 
-  InterPredParams params0, params1;
-  av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,
-                                 mc_buf, &params0, calc_subpel_params_func, 0,
-                                 dst0, &best_mv_ref[0], pu_width, pu_height);
-  av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,
-                                 mc_buf, &params1, calc_subpel_params_func, 1,
-                                 dst1, &best_mv_ref[1], pu_width, pu_height);
+    assert(dst_stride == bw);
+    InterPredParams params0, params1;
+    av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,
+                                   mc_buf, &params0, calc_subpel_params_func, 0,
+                                   dst0, &best_mv_ref[0], pu_width, pu_height);
+    av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,
+                                   mc_buf, &params1, calc_subpel_params_func, 1,
+                                   dst1, &best_mv_ref[1], pu_width, pu_height);
+  }
   const int bd = cm->seq_params.bit_depth;
   const unsigned int sad_thres =
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT ? 15 : 6;
 
-  const unsigned int sad = get_highbd_sad(dst0, bw, dst1, bw, bd, 8, 8);
+  const unsigned int sad =
+      get_highbd_sad(dst0, dst_stride, dst1, dst_stride, bd, 8, 8);
 
   return (sad < sad_thres);
 }
@@ -3133,6 +3237,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> pd->subsampling_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> pd->subsampling_y;
 
+  uint16_t *refinemv_ref0 = NULL;
+  uint16_t *refinemv_ref1 = NULL;
+
   int apply_refinemv = is_mv_refine_allowed(cm, mi, plane);
 
   MV best_mv_ref[2] = { mi_mv[0], mi_mv[1] };
@@ -3143,15 +3250,19 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
     apply_mv_refinement(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf, mi_mv,
                         calc_subpel_params_func, pre_x, pre_y, dst_ref0,
-                        dst_ref1, best_mv_ref, pu_width, pu_height, ref_area);
+                        dst_ref1, &refinemv_ref0, &refinemv_ref1, best_mv_ref,
+                        pu_width, pu_height, ref_area);
     if (sb_refined_mv) {
-      // store the DMVR refined MV so that chroma can use it
+      // store the DMVR refined MV so that
+      // chroma can use it
       sb_refined_mv[0] = best_mv_ref[0];
       sb_refined_mv[1] = best_mv_ref[1];
     }
     assert(IMPLIES(plane, !build_for_refine_mv_only));
-    // if build_for_refine_mv_only is non-zero, we build only to get the
-    // refinemv values The actual prediction values are not necessary
+    // if build_for_refine_mv_only is
+    // non-zero, we build only to get the
+    // refinemv values The actual prediction
+    // values are not necessary
     if (build_for_refine_mv_only) {
       return;
     }
@@ -3173,8 +3284,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
 
-  // Optical flow refinement with masked comp types or with non-sharp
-  // interpolation filter should only exist in REFINE_ALL.
+  // Optical flow refinement with masked comp
+  // types or with non-sharp interpolation
+  // filter should only exist in REFINE_ALL.
   assert(IMPLIES(
       use_optflow_refinement && mi->interinter_comp.type != COMPOUND_AVERAGE,
       cm->features.opfl_refine_type == REFINE_ALL));
@@ -3184,7 +3296,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
   const int n_blocks = (bw / n) * (bh / n);
 
-  // optical flow refined MVs in a subblock (16x16) unit
+  // optical flow refined MVs in a subblock
+  // (16x16) unit
   int_mv mv_refined_sb[4 * 2];
   memset(mv_refined_sb, 0, 4 * 2 * sizeof(int_mv));
   const int opfl_mv_stride = pu_width / n;
@@ -3194,13 +3307,15 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   const int sb_cols = bw / n;
 
   if (use_optflow_refinement && plane == 0) {
-    // Pointers to hold optical flow MV offsets in a subblock unit.
+    // Pointers to hold optical flow MV
+    // offsets in a subblock unit.
     int vx0_sb[4] = { 0 };
     int vx1_sb[4] = { 0 };
     int vy0_sb[4] = { 0 };
     int vy1_sb[4] = { 0 };
 
-    // Pointers to hold gradient and dst buffers.
+    // Pointers to hold gradient and dst
+    // buffers.
     int16_t *gx0 = xd->opfl_gxy_bufs;
     int16_t *gx1 = xd->opfl_gxy_bufs + (MAX_SB_SQUARE * 1);
     int16_t *gy0 = xd->opfl_gxy_bufs + (MAX_SB_SQUARE * 2);
@@ -3210,16 +3325,31 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     const MV mv0 = best_mv_ref[0];
     const MV mv1 = best_mv_ref[1];
 
-    // Refine MV using optical flow. The final output MV will be in 1/16
-    // precision.
+    // Refine MV using optical flow. The final
+    // output MV will be in 1/16 precision.
     uint16_t *dst0 = xd->opfl_dst_bufs;
     uint16_t *dst1 = xd->opfl_dst_bufs + MAX_SB_SQUARE;
+    int do_pred = 1;
+    int opfl_dst_stride = bw;
+    if (refinemv_ref0 != NULL && refinemv_ref1 != NULL) {
+      dst0 = refinemv_ref0;
+      dst1 = refinemv_ref1;
+#if CONFIG_SUBBLK_REF_EXT
+      opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
+                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
+#else
+      opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES;
+#endif  // CONFIG_SUBBLK_REF_EXT
+      do_pred = 0;
+    }
+
     if (tip_ref_frame) {
       use_optflow_refinement = !skip_opfl_refine_with_tip(
           cm, xd, plane, bw, bh, pu_width, pu_height, mi_x, mi_y, mc_buf,
-          best_mv_ref, calc_subpel_params_func, dst0, dst1);
+          best_mv_ref, calc_subpel_params_func, dst0, dst1, opfl_dst_stride,
+          do_pred);
+      do_pred = 0;
     }
-    int do_pred = tip_ref_frame ? 0 : 1;
     if (use_optflow_refinement) {
       for (int mvi = 0; mvi < n_blocks; mvi++) {
         mv_refined_sb[mvi * 2].as_mv = mv0;
@@ -3228,8 +3358,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       av1_get_optflow_based_mv(
           cm, xd, plane, mi, mv_refined_sb, bw, bh, mi_x, mi_y,
           build_for_decode, mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
-          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, use_4x4, do_pred,
-          best_mv_ref, pu_width, pu_height);
+          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, opfl_dst_stride, use_4x4,
+          do_pred, best_mv_ref, pu_width, pu_height);
       for (int i = 0; i < sb_rows; i++) {
         for (int j = 0; j < sb_cols; j++) {
           int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
@@ -3237,7 +3367,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           mv_refined[2 * mvidx].as_mv = mv_refined_sb[2 * mvidx_sb].as_mv;
           mv_refined[2 * mvidx + 1].as_mv =
               mv_refined_sb[2 * mvidx_sb + 1].as_mv;
-          // Store subblock MV delta at the prediction block level
+          // Store subblock MV delta at the
+          // prediction block level
           opfl_vxy_bufs[mvidx] = vx0_sb[mvidx_sb];
           opfl_vxy_bufs[N_OF_OFFSETS * 1 + mvidx] = vx1_sb[mvidx_sb];
           opfl_vxy_bufs[N_OF_OFFSETS * 2 + mvidx] = vy0_sb[mvidx_sb];
@@ -3291,7 +3422,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     if (is_compound) av1_init_comp_mode(&inter_pred_params);
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
-        &bacp_block_data[0];  // Always point to the first ref
+        &bacp_block_data[0];  // Always point
+                              // to the first
+                              // ref
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
 
@@ -3337,7 +3470,8 @@ static void build_inter_predictors_8x8_and_bigger(
     bool *ext_warp_used, int_mv *mv_refined,
     REFINEMV_SUBMB_INFO *block_refinemv_subinfo, int *opfl_vxy_bufs) {
 #if CONFIG_COMPOUND_4XN
-  // In case of chroma, even for 4xN and Nx4 blocks, single prediction is used.
+  // In case of chroma, even for 4xN and Nx4
+  // blocks, single prediction is used.
   int singleref_for_compound =
       plane && has_second_ref(mi) &&
       is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART]);
@@ -3394,24 +3528,24 @@ static void build_inter_predictors_8x8_and_bigger(
         AOMMIN(REFINEMV_SUBBLOCK_HEIGHT >> pd->subsampling_y, bh);
 #if CONFIG_SUBBLK_REF_EXT
     uint16_t
-        dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+        dst0_16_refinemv[2 *
+                         (REFINEMV_SUBBLOCK_WIDTH +
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                          (REFINEMV_SUBBLOCK_HEIGHT +
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
     uint16_t
-        dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+        dst1_16_refinemv[2 *
+                         (REFINEMV_SUBBLOCK_WIDTH +
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                          (REFINEMV_SUBBLOCK_HEIGHT +
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 #else
-    uint16_t
-        dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-                         (REFINEMV_SUBBLOCK_HEIGHT +
-                          2 * DMVR_SEARCH_EXT_LINES)];
-    uint16_t
-        dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-                         (REFINEMV_SUBBLOCK_HEIGHT +
-                          2 * DMVR_SEARCH_EXT_LINES)];
+    uint16_t dst0_16_refinemv
+        [2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+         (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
+    uint16_t dst1_16_refinemv
+        [2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+         (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
 #endif  // CONFIG_SUBBLK_REF_EXT
 
     ReferenceArea ref_area[2];
@@ -3450,15 +3584,17 @@ static void build_inter_predictors_8x8_and_bigger(
         if (plane != 0) {
           int luma_h = (h << pd->subsampling_y);
           int luma_w = (w << pd->subsampling_x);
-          REFINEMV_SUBMB_INFO *refinemv_subinfo =
+          REFINEMV_SUBMB_INFO
+          *refinemv_subinfo =
               &block_refinemv_subinfo[(luma_h >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
                                       (luma_w >> MI_SIZE_LOG2)];
           chroma_refined_mv[0] = refinemv_subinfo->refinemv[0].as_mv;
           chroma_refined_mv[1] = refinemv_subinfo->refinemv[1].as_mv;
         }
 #if CONFIG_SUBBLK_PAD
-        // sub_mi_x, and sub_mi_y are the top-left position of the luma samples
-        // of the sub-block
+        // sub_mi_x, and sub_mi_y are the
+        // top-left position of the luma
+        // samples of the sub-block
         const int sub_mi_x = mi_x + w * (1 << pd->subsampling_x);
         const int sub_mi_y = mi_y + h * (1 << pd->subsampling_y);
         const int comp_bw = tip_ref_frame ? (refinemv_sb_size_width >> ss_x)
@@ -3481,7 +3617,8 @@ static void build_inter_predictors_8x8_and_bigger(
             build_for_refine_mv_only, ref_area, mv_refined, opfl_vxy_bufs);
 
         if (plane == 0) {
-          REFINEMV_SUBMB_INFO *refinemv_subinfo =
+          REFINEMV_SUBMB_INFO
+          *refinemv_subinfo =
               &block_refinemv_subinfo[(h >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
                                       (w >> MI_SIZE_LOG2)];
           fill_subblock_refine_mv(refinemv_subinfo, refinemv_sb_size_width,
@@ -3526,13 +3663,15 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
 
-  // Optical flow refinement with masked comp types or with non-sharp
-  // interpolation filter should only exist in REFINE_ALL.
+  // Optical flow refinement with masked comp
+  // types or with non-sharp interpolation
+  // filter should only exist in REFINE_ALL.
   assert(IMPLIES(
       use_optflow_refinement && mi->interinter_comp.type != COMPOUND_AVERAGE,
       cm->features.opfl_refine_type == REFINE_ALL));
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
-  // In REFINE_ALL mode, refinement should be used whenever applicable
+  // In REFINE_ALL mode, refinement should be
+  // used whenever applicable
 #if CONFIG_COMPOUND_4XN
   assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
                      !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, xd, mi),
@@ -3558,7 +3697,8 @@ static void build_inter_predictors_8x8_and_bigger(
   // Pointers to gradient and dst buffers
 
   if (use_optflow_refinement && plane == 0) {
-    // Pointers to hold optical flow MV offsets.
+    // Pointers to hold optical flow MV
+    // offsets.
     int *vx0 = opfl_vxy_bufs;
     int *vx1 = opfl_vxy_bufs + (N_OF_OFFSETS * 1);
     int *vy0 = opfl_vxy_bufs + (N_OF_OFFSETS * 2);
@@ -3575,15 +3715,16 @@ static void build_inter_predictors_8x8_and_bigger(
     // Initialize refined mv
     const MV mv0 = best_mv_ref[0];
     const MV mv1 = best_mv_ref[1];
-    // Refine MV using optical flow. The final output MV will be in 1/16
-    // precision.
+    // Refine MV using optical flow. The final
+    // output MV will be in 1/16 precision.
     uint16_t *dst0 = xd->opfl_dst_bufs;
     uint16_t *dst1 = xd->opfl_dst_bufs + MAX_SB_SQUARE;
 
     if (tip_ref_frame) {
       use_optflow_refinement = !skip_opfl_refine_with_tip(
           cm, xd, plane, bw, bh, pu_width, pu_height, mi_x, mi_y, mc_buf,
-          best_mv_ref, calc_subpel_params_func, dst0, dst1);
+          best_mv_ref, calc_subpel_params_func, dst0, dst1, bw,
+          /*do_pred=*/1);
     }
     if (use_optflow_refinement) {
       int do_pred = tip_ref_frame ? 0 : 1;
@@ -3591,10 +3732,11 @@ static void build_inter_predictors_8x8_and_bigger(
         mv_refined[mvi * 2].as_mv = mv0;
         mv_refined[mvi * 2 + 1].as_mv = mv1;
       }
-      av1_get_optflow_based_mv(
-          cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y, build_for_decode,
-          mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0, vy0, vx1,
-          vy1, dst0, dst1, use_4x4, do_pred, best_mv_ref, pu_width, pu_height);
+      av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
+                               mi_y, build_for_decode, mc_buf,
+                               calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0,
+                               vy0, vx1, vy1, dst0, dst1, bw, use_4x4, do_pred,
+                               best_mv_ref, pu_width, pu_height);
     }
   }
 
@@ -3643,7 +3785,9 @@ static void build_inter_predictors_8x8_and_bigger(
     if (is_compound) av1_init_comp_mode(&inter_pred_params);
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
-        &bacp_block_data[0];  // Always point to the first ref
+        &bacp_block_data[0];  // Always point
+                              // to the first
+                              // ref
 
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
@@ -3667,9 +3811,12 @@ static void build_inter_predictors_8x8_and_bigger(
       const int_mv warp_mv = get_int_warp_mv_for_fb(
           xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
           (mi_y >> MI_SIZE_LOG2));
-      // printf("warpmv (%d, %d), loc (%d, %d)\n", warp_mv.as_mv.col,
-      //        warp_mv.as_mv.row, mi_x, mi_y);
-      // printf("precision %d\n", mi->pb_mv_precision);
+      // printf("warpmv (%d, %d), loc (%d,
+      // %d)\n", warp_mv.as_mv.col,
+      //        warp_mv.as_mv.row, mi_x,
+      //        mi_y);
+      // printf("precision %d\n",
+      // mi->pb_mv_precision);
 
       int warp_bd_box_mem_stride = MAX_WARP_BD_SIZE;
       for (int sub_mi_y = pre_y; sub_mi_y < pre_y + pu_height; sub_mi_y += 4) {
@@ -3754,8 +3901,9 @@ static void build_inter_predictors_8x8_and_bigger(
   }
 }
 
-// This function consolidates the prediction process of the TIP ref mode block
-// and the non-TIP ref mode block.
+// This function consolidates the prediction
+// process of the TIP ref mode block and the
+// non-TIP ref mode block.
 static void build_inter_predictors_8x8_and_bigger_facade(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const BUFFER_SET *dst_orig, int build_for_decode, int bw, int bh, int mi_x,
@@ -3770,8 +3918,10 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   uint16_t *const dst = dst_buf->buf;
 
   if (tip_ref_frame) {
-    // TMVP_MI_SIZE_UV is the block size in luma unit for Chroma
-    // TIP interpolation, will convert to the step size in TMVP 8x8 unit
+    // TMVP_MI_SIZE_UV is the block size in
+    // luma unit for Chroma TIP interpolation,
+    // will convert to the step size in TMVP
+    // 8x8 unit
     const int unit_blk_size = (plane == 0) ? TMVP_MI_SIZE : TMVP_MI_SIZE_UV;
     const int end_pixel_row = mi_y + (xd->height << MI_SIZE_LOG2);
     const int end_pixel_col = mi_x + (xd->width << MI_SIZE_LOG2);
@@ -3815,8 +3965,8 @@ static void build_inter_predictors_8x8_and_bigger_facade(
         tip_mv[0] = tip_mv_tmp[0].as_mv;
         tip_mv[1] = tip_mv_tmp[1].as_mv;
         if (plane == 0) {
-          REFINEMV_SUBMB_INFO *refinemv_subinfo =
-              &xd->refinemv_subinfo[refinemv_offset];
+          REFINEMV_SUBMB_INFO
+          *refinemv_subinfo = &xd->refinemv_subinfo[refinemv_offset];
           fill_subblock_refine_mv(refinemv_subinfo, unit_blk_size,
                                   unit_blk_size, tip_mv[0], tip_mv[1]);
           xd->opfl_vxy_bufs[opfl_vxy_offset] = 0;
@@ -3881,8 +4031,9 @@ void av1_setup_dst_planes(struct macroblockd_plane *planes,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
                           const int plane_start, const int plane_end,
                           const CHROMA_REF_INFO *chroma_ref_info) {
-  // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
-  // the static analysis warnings.
+  // We use AOMMIN(num_planes, MAX_MB_PLANE)
+  // instead of num_planes to quiet the static
+  // analysis warnings.
   for (int i = plane_start; i < AOMMIN(plane_end, MAX_MB_PLANE); ++i) {
     struct macroblockd_plane *const pd = &planes[i];
     const int is_uv = i > 0;
@@ -3907,8 +4058,9 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const struct scale_factors *sf, const int num_planes,
                           const CHROMA_REF_INFO *chroma_ref_info) {
   if (src != NULL) {
-    // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
-    // the static analysis warnings.
+    // We use AOMMIN(num_planes, MAX_MB_PLANE)
+    // instead of num_planes to quiet the
+    // static analysis warnings.
     for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
       struct macroblockd_plane *const pd = &xd->plane[i];
       const int is_uv = i > 0;
@@ -4090,7 +4242,8 @@ void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
 }
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-// Function to check if precision need to be signaled or not
+// Function to check if precision need to be
+// signaled or not
 int is_intraBC_bv_precision_active(const AV1_COMMON *const cm,
                                    const int intrabc_mode) {
   assert(IMPLIES(!cm->features.allow_screen_content_tools,
@@ -4240,9 +4393,10 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
 }
 
 // Copy mv0 and mv1 to the sub-blocks
-// submi is the top-left corner of the sub-block need to fill
-// bw is the block width in the unit of pixel
-// bh is the block height in unit of pixel
+// submi is the top-left corner of the
+// sub-block need to fill bw is the block
+// width in the unit of pixel bh is the block
+// height in unit of pixel
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1) {
   const int stride = MAX_MIB_SIZE;
@@ -4261,7 +4415,8 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_F054_PIC_BOUNDARY
   (void)cm;
 #endif  // CONFIG_F054_PIC_BOUNDARY
-  // Predictor, i.e., the reconstructed block found from intrabc.
+        // Predictor, i.e., the reconstructed block
+        // found from intrabc.
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   uint16_t *const dst = pd->dst.buf;
   const int dst_stride = pd->dst.stride;
@@ -4307,9 +4462,11 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
     return false;
   }
 #if !CONFIG_LOCAL_INTRABC_BAWP
-  // Restriction: the reference block's template can't be outside the local
-  // 64x64 block for local intra block copy.
-  // If local intra block copy extends to 128x128, one has to change the
+  // Restriction: the reference block's
+  // template can't be outside the local 64x64
+  // block for local intra block copy. If
+  // local intra block copy extends to
+  // 128x128, one has to change the
   // restrictions here to make it match.
   const int is_same_unit_x = (cur_x >> 6) == (ref_x >> 6);
   const int is_same_unit_y = (cur_y >> 6) == (ref_y >> 6);
@@ -4318,22 +4475,26 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
     if (ref_y > 0 && (ref_y % 64 == 0)) return false;
   }
 #endif  // !CONFIG_LOCAL_INTRABC_BAWP
-  // Restriction: the reference block's template can't be outside the current
-  // tile.
+        // Restriction: the reference block's
+        // template can't be outside the current
+        // tile.
   const TileInfo *const tile = &xd->tile;
-  // Is the source top-left inside the current tile?
+  // Is the source top-left inside the current
+  // tile?
   const int tile_top_edge = tile->mi_row_start * MI_SIZE;
   if (ref_tmplt_y < tile_top_edge) return false;
   const int tile_left_edge = tile->mi_col_start * MI_SIZE;
   if (ref_tmplt_x < tile_left_edge) return false;
-  // Is the bottom right inside the current tile?
+  // Is the bottom right inside the current
+  // tile?
   const int ref_bottom_edge = ref_y + bh;
   const int tile_bottom_edge = tile->mi_row_end * MI_SIZE;
   if (ref_bottom_edge > tile_bottom_edge) return false;
   const int ref_right_edge = ref_x + bw;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE;
   if (ref_right_edge > tile_right_edge) return false;
-  // The current block's template can't be outside the current tile too.
+  // The current block's template can't be
+  // outside the current tile too.
   if (cur_tmplt_y < tile_top_edge) return false;
   if (cur_tmplt_x < tile_left_edge) return false;
 
@@ -4345,8 +4506,8 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
 #if CONFIG_BAWP_ACROSS_SCALES
   derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
-                         ref_left, dst_stride, /*ref=*/0, /*plane=*/0, ref_w,
-                         ref_h,
+                         ref_left, dst_stride,
+                         /*ref=*/0, /*plane=*/0, ref_w, ref_h,
                          /*sf=*/NULL);
 #else   // CONFIG_BAWP_ACROSS_SCALES
   derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
