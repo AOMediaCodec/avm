@@ -256,6 +256,9 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
           const int ref_frame_order_hint = ref_order_hints[ref_frame[idx]];
           if (ref_frame_order_hint == target_order_hint) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+            fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
@@ -1513,6 +1516,13 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
         }
       }
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
       tpl_mv++;
     }

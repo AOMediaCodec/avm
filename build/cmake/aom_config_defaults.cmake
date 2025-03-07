@@ -385,6 +385,8 @@ set_aom_config_var(
   CONFIG_MRLS_IMPROVE 1
   "Enable MRLS improvement to enable two reference lines for intra prediction")
 
+set_aom_config_var(CONFIG_TMVP_MV_COMPRESSION 1 "Enable to compress TMVP MV")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

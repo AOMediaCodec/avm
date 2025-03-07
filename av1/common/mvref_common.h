@@ -31,11 +31,16 @@ extern "C" {
 #define MVREF_ROW_COLS 3
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_TMVP_MV_COMPRESSION
+// Set the upper limit of the motion vector component magnitude.
+#define REFMVS_LIMIT ((1 << 11) - 1)
+#else
 // Set the upper limit of the motion vector component magnitude.
 // This would make a motion vector fit in 26 bits. Plus 3 bits for the
 // reference frame index. A tuple of motion vector can hence be stored within
 // 32 bit range for efficient load/store operations.
 #define REFMVS_LIMIT ((1 << 12) - 1)
+#endif  // CONFIG_TMVP_MV_COMPRESSION
 
 typedef struct position {
   int row;

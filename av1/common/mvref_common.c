@@ -260,6 +260,13 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -353,6 +360,13 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -514,6 +528,13 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -598,6 +619,13 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -4431,6 +4459,9 @@ static int motion_field_projection_start_target(
             ref_order_hints[mv_ref->ref_frame[mv_idx]];
         if (ref_frame_order_hint == target_order_hint) {
           MV ref_mv = mv_ref->mv[mv_idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+          fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           int scaled_blk_col = blk_col;
           int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
@@ -4647,7 +4678,9 @@ static int motion_field_projection_side(AV1_COMMON *cm,
       const MV_REFERENCE_FRAME ref_frame = mv_ref->ref_frame[side_idx];
       if (is_inter_ref_frame(ref_frame)) {
         MV ref_mv = mv_ref->mv[side_idx].as_mv;
-
+#if CONFIG_TMVP_MV_COMPRESSION
+        fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         int scaled_blk_col = blk_col;
         int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
@@ -5139,8 +5172,15 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
             abs((int)buf->display_order_hint -
                 (int)buf->ref_display_order_hint[mv_ref->ref_frame[side]]);
         if (dist != 0) {
+#if CONFIG_TMVP_MV_COMPRESSION
+          MV ref_mv = mv_ref->mv[side].as_mv;
+          fetch_mv_from_tmvp(&ref_mv);
+          avg_row += abs(ref_mv.row * 2 / dist);
+          avg_col += abs(ref_mv.col * 2 / dist);
+#else
           avg_row += abs(mv_ref->mv[side].as_mv.row * 2 / dist);
           avg_col += abs(mv_ref->mv[side].as_mv.col * 2 / dist);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           count++;
         }
       }
@@ -5298,6 +5338,9 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                           ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
           if (pos_valid) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+            fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
@@ -5453,6 +5496,9 @@ static int motion_field_projection(AV1_COMMON *cm,
                           ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
           if (pos_valid) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+            fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
