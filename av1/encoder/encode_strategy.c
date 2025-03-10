@@ -1155,6 +1155,27 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   const int order_offset = gf_group->arf_src_offset[gf_group->index];
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  // Here, if temporal_layer_id is set to a non-zero value (pry_level),
+  // temporal_layer_id is signaled in obu extension,
+  // and affect reference list construction in both encoder and decoder.
+  // Otherwise (if temporal_layer_id is set to 0), temporal_layer_id is
+  // not signaled and does not change the reference frame list construction.
+  cm->current_frame.order_hint = cur_frame_disp;
+  cm->current_frame.display_order_hint = cur_frame_disp;
+  cm->current_frame.pyramid_level = get_true_pyr_level(
+      cpi->gf_group.layer_depth[cpi->gf_group.index],
+#if CONFIG_KEY_OVERLAY
+      cur_frame_disp, cpi->gf_group.max_layer_depth,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
+#else
+      cur_frame_disp, cpi->gf_group.max_layer_depth);
+#endif  // CONFIG_KEY_OVERLAY
+  cm->temporal_layer_id = 0;
+  cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+
 #if CONFIG_PRIMARY_REF_FRAME_OPT
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);

@@ -980,7 +980,9 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Buffer does not contain a reconstructed frame");
     }
+#if !CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     assert(frame_to_show->ref_count > 0);
+#endif  // !CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
 

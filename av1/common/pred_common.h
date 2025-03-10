@@ -25,6 +25,9 @@ extern "C" {
 #if !CONFIG_PRIMARY_REF_FRAME_OPT
 typedef struct {
   int pyr_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  int temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
@@ -42,10 +45,20 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
-    if (buf == NULL) {
+    if (buf == NULL
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+        // If the temporal_layer_id of the reference frame is greater than
+        // the temporal_layer_id of the current frame, the reference frame
+        // is not included into the list of ref_frame_map_pairs[].
+        || buf->temporal_layer_id > cm->current_frame.temporal_layer_id
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    ) {
       ref_frame_map_pairs[map_idx].disp_order = -1;
       ref_frame_map_pairs[map_idx].pyr_level = -1;
       ref_frame_map_pairs[map_idx].base_qindex = -1;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+      ref_frame_map_pairs[map_idx].temporal_layer_id = -1;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
       continue;
     } else if (buf->ref_count > 1) {
       // Once the keyframe is coded, the slots in ref_frame_map will all
@@ -58,12 +71,18 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].disp_order = -1;
           ref_frame_map_pairs[idx2].pyr_level = -1;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+          ref_frame_map_pairs[idx2].temporal_layer_id = -1;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
           ref_frame_map_pairs[idx2].base_qindex = -1;
         }
       }
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
 #if CONFIG_PRIMARY_REF_FRAME_OPT
     ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;

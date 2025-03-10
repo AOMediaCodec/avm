@@ -4435,6 +4435,37 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
 #endif  // CONFIG_KEY_OVERLAY
 
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  cm->temporal_layer_id = 0;
+  current_frame->temporal_layer_id = cm->temporal_layer_id;
+
+  const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+  const int cur_frame_disp =
+      cpi->common.current_frame.frame_number + order_offset;
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  init_ref_map_pair(
+      &cpi->common, cm->ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+#else
+  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+  init_ref_map_pair(
+      &cpi->common, ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  if (cm->seq_params.explicit_ref_frame_map)
+    av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+  else
+    av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#else
+  if (cm->seq_params.explicit_ref_frame_map)
+    av1_get_ref_frames_enc(cm, cur_frame_disp, ref_frame_map_pairs);
+  else
+    av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
 

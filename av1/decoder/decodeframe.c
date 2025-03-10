@@ -7869,6 +7869,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_LF_SUB_PU
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -7908,6 +7911,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->cur_frame->num_ref_frames = 0;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
