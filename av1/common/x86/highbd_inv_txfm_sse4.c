@@ -6801,6 +6801,9 @@ void av1_highbd_inv_txfm_add_64x4_sse4_1(const tran_low_t *input,
 void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
                                     int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+#if CONFIG_CORE_TX
+  inv_txfm_c(input, dest, stride, txfm_param);
+#else
   const TX_SIZE tx_size = txfm_param->tx_size;
   switch (tx_size) {
     case TX_8X8:
@@ -6844,6 +6847,7 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
           txfm_param->eob, txfm_param->bd);
       break;
   }
+#endif  // CONFIG_CORE_TX
 }
 
 #if CONFIG_E194_FLEX_SECTX

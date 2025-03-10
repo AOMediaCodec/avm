@@ -1098,6 +1098,106 @@ static AOM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
          block_size_high[bsize1] > block_size_high[bsize2];
 }
 
+#if CONFIG_CORE_TX
+static const int fwd_tx_shift[TX_SIZES_ALL][2] = {
+  { 1, 10 },  // TX_4X4,    // 4x4 transform
+  { 2, 10 },  // TX_8X8,    // 8x8 transform
+  { 2, 11 },  // TX_16X16,  // 16x16 transform
+  { 3, 12 },  // TX_32X32,  // 32x32 transform
+  { 3, 14 },  // TX_64X64,  // 64x64 transform
+  { 1, 11 },  // TX_4X8,    // 4x8 transform
+  { 1, 11 },  // TX_8X4,    // 8x4 transform
+  { 1, 12 },  // TX_8X16,   // 8x16 transform
+  { 2, 11 },  // TX_16X8,   // 16x8 transform
+  { 2, 13 },  // TX_16X32,  // 16x32 transform
+  { 3, 12 },  // TX_32X16,  // 32x16 transform
+  { 3, 14 },  // TX_32X64,  // 32x64 transform
+  { 3, 14 },  // TX_64X32,  // 64x32 transform
+  { 1, 11 },  // TX_4X16,   // 4x16 transform
+  { 1, 11 },  // TX_16X4,   // 16x4 transform
+  { 1, 12 },  // TX_8X32,   // 8x32 transform
+  { 3, 10 },  // TX_32X8,   // 32x8 transform
+  { 2, 13 },  // TX_16X64,  // 16x64 transform
+  { 3, 12 },  // TX_64X16,  // 64x16 transform
+#if CONFIG_EXT_RECUR_PARTITIONS
+  { 1, 12 },  // TX_4X32,   // 4x32 transform
+  { 1, 12 },  // TX_32X4,   // 32x4 transform
+  { 2, 13 },  // TX_8X64,   // 8x64 transform
+  { 4, 11 },  // TX_64X8,   // 64x8 transform
+  { 1, 12 },  // TX_4X64,   // 4x64 transform
+  { 1, 12 },  // TX_64X4,   // 64x4 transform
+#endif        // CONFIG_EXT_RECUR_PARTITIONS
+};
+
+static const int inv_tx_shift[TX_SIZES_ALL][2] = {
+  { 7, 10 },  // TX_4X4,    // 4x4 transform
+  { 7, 11 },  // TX_8X8,    // 8x8 transform
+  { 6, 13 },  // TX_16X16,  // 16x16 transform
+  { 6, 13 },  // TX_32X32,  // 32x32 transform
+  { 6, 13 },  // TX_64X64,  // 64x64 transform
+  { 7, 10 },  // TX_4X8,    // 4x8 transform
+  { 7, 10 },  // TX_8X4,    // 8x4 transform
+  { 7, 11 },  // TX_8X16,   // 8x16 transform
+  { 7, 11 },  // TX_16X8,   // 16x8 transform
+  { 6, 12 },  // TX_16X32,  // 16x32 transformß
+  { 6, 12 },  // TX_32X16,  // 32x16 transform
+  { 6, 12 },  // TX_32X64,  // 32x64 transform
+  { 6, 12 },  // TX_64X32,  // 64x32 transform
+  { 6, 12 },  // TX_4X16,   // 4x16 transform
+  { 6, 12 },  // TX_16X4,   // 16x4 transform
+  { 6, 13 },  // TX_8X32,   // 8x32 transform
+  { 6, 13 },  // TX_32X8,   // 32x8 transform
+  { 6, 13 },  // TX_16X64,  // 16x64 transform
+  { 6, 13 },  // TX_64X16,  // 64x16 transform
+#if CONFIG_EXT_RECUR_PARTITIONS
+  { 7, 11 },  // TX_4X32,   // 4x32 transform
+  { 7, 11 },  // TX_32X4,   // 32x4 transform
+  { 6, 12 },  // TX_8X64,   // 8x64 transform
+  { 6, 12 },  // TX_64X8,   // 64x8 transform
+  { 6, 13 },  // TX_4X64,   // 4x64 transform
+  { 6, 13 },  // TX_64X4,   // 64x4 transform
+#endif        // CONFIG_EXT_RECUR_PARTITIONS
+};
+
+static const int g_hor_tx_type[TX_TYPES] = {
+  DCT2,  // DCT_DCT,            // DCT in both horizontal and vertical
+  DCT2,  // ADST_DCT,           // ADST in vertical, DCT in horizontal
+  DST7,  // DCT_ADST,           // DCT in vertical, ADST in horizontal
+  DST7,  // ADST_ADST,          // ADST in both directions
+  DCT2,  // FLIPADST_DCT,       // FLIPADST in vertical, DCT in horizontal
+  DCT8,  // DCT_FLIPADST,       // DCT in vertical, FLIPADST in horizontal
+  DCT8,  // FLIPADST_FLIPADST,  // FLIPADST in both directions
+  DCT8,  // ADST_FLIPADST,      // ADST in vertical, FLIPADST in horizontal
+  DST7,  // FLIPADST_ADST,      // FLIPADST in vertical, ADST in horizontal
+  IDT,   // IDTX,               // Identity in both directions
+  IDT,   // V_DCT,              // DCT in vertical, identity in horizontal
+  DCT2,  // H_DCT,              // Identity in vertical, DCT in horizontal
+  IDT,   // V_ADST,             // ADST in vertical, identity in horizontal
+  DST7,  // H_ADST,             // Identity in vertical, ADST in horizontal
+  IDT,   // V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
+  DCT8,  // H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
+};
+
+static const int g_ver_tx_type[TX_TYPES] = {
+  DCT2,  // DCT_DCT,            // DCT in both horizontal and vertical
+  DST7,  // ADST_DCT,           // ADST in vertical, DCT in horizontal
+  DCT2,  // DCT_ADST,           // DCT in vertical, ADST in horizontal
+  DST7,  // ADST_ADST,          // ADST in both directions
+  DCT8,  // FLIPADST_DCT,       // FLIPADST in vertical, DCT in horizontal
+  DCT2,  // DCT_FLIPADST,       // DCT in vertical, FLIPADST in horizontal
+  DCT8,  // FLIPADST_FLIPADST,  // FLIPADST in both directions
+  DST7,  // ADST_FLIPADST,      // ADST in vertical, FLIPADST in horizontal
+  DCT8,  // FLIPADST_ADST,      // FLIPADST in vertical, ADST in horizontal
+  IDT,   // IDTX,               // Identity in both directions
+  DCT2,  // V_DCT,              // DCT in vertical, identity in horizontal
+  IDT,   // H_DCT,              // Identity in vertical, DCT in horizontal
+  DST7,  // V_ADST,             // ADST in vertical, identity in horizontal
+  IDT,   // H_ADST,             // Identity in vertical, ADST in horizontal
+  DCT8,  // V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
+  IDT,   // H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
+};
+#endif  // CONFIG_CORE_TX
+
 static const int min_class_with_offset[7] = { 4, 3, 2, 0, 0, 0, 0 };
 
 #ifdef __cplusplus

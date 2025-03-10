@@ -46,9 +46,6 @@ extern const int32_t ddt8_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 extern const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // CONFIG_INTER_DDT
 #if CONFIG_ADST_TUNED
-#define USE_TUNED_ADST4 1
-#define USE_TUNED_ADST8 1
-#define USE_TUNED_ADST16 1
 #if USE_TUNED_ADST8
 // 8 point kernel: Graph Fourier Transform with self-loop of 1.5 using matrix
 // multiplication

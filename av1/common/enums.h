@@ -71,6 +71,12 @@ extern "C" {
 #define AVG_CDF_WEIGHT_NON_PRIMARY 1
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
+#if CONFIG_ADST_TUNED
+#define USE_TUNED_ADST4 1
+#define USE_TUNED_ADST8 1
+#define USE_TUNED_ADST16 1
+#endif  // CONFIG_ADST_TUNED
+
 #if CONFIG_CFL_SIMPLIFICATION
 #define NUM_REF_SAM_CFL 8
 #endif  // CONFIG_CFL_SIMPLIFICATION
@@ -756,6 +762,19 @@ enum {
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM2BYTE(TX_TYPE);
+
+#if CONFIG_CORE_TX
+enum {
+  DCT2,
+  IDT,
+  DST7,
+  DCT8,
+#if CONFIG_INTER_DDT
+  DDTX,
+  FDDT,
+#endif
+} UENUM2BYTE(TX1D_TYPE);
+#endif  // CONFIG_CORE_TX
 
 #if CONFIG_IST_REDUCTION
 #define IST_REDUCE_SET_SIZE 4  // reduced set size for IST

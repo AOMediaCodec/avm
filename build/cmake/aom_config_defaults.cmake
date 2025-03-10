@@ -335,6 +335,9 @@ set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
+# CWG-E230: On core transform for AV2
+set_aom_config_var(CONFIG_CORE_TX 1 "AV2 core transform")
+
 set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
                    "Enable to optimize txfm partition context")
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1

@@ -23,6 +23,954 @@
 #include "av1/common/idct.h"
 #include "av1/common/scan.h"
 
+#if CONFIG_CORE_TX
+#include "av1/common/txb_common.h"
+#endif  // CONFIG_CORE_TX
+
+#if CONFIG_CORE_TX
+void inv_txfm_dct2_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  int j;
+  int a[2], b[2];
+  int add = 1 << (shift - 1);
+
+  const int *tx_mat = tx_kernel_dct2_size4[INV_TXFM][0];
+
+  const int nz_line = line - skip_line;
+  for (j = 0; j < nz_line; j++) {
+    b[0] = tx_mat[1 * 4 + 0] * src[1] + tx_mat[3 * 4 + 0] * src[3];
+    b[1] = tx_mat[1 * 4 + 1] * src[1] + tx_mat[3 * 4 + 1] * src[3];
+    a[0] = tx_mat[0 * 4 + 0] * src[0] + tx_mat[2 * 4 + 0] * src[2];
+    a[1] = tx_mat[0 * 4 + 1] * src[0] + tx_mat[2 * 4 + 1] * src[2];
+
+    dst[0 * line] = clamp((a[0] + b[0] + add) >> shift, coef_min, coef_max);
+    dst[1 * line] = clamp((a[1] + b[1] + add) >> shift, coef_min, coef_max);
+    dst[2 * line] = clamp((a[1] - b[1] + add) >> shift, coef_min, coef_max);
+    dst[3 * line] = clamp((a[0] - b[0] + add) >> shift, coef_min, coef_max);
+
+    src += 4;
+    dst++;
+  }
+
+  if (skip_line) {
+    for (j = 0; j < 4; j++) {
+      memset(dst, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_dct2_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  int j, k;
+  int a[4], b[4];
+  int c[2], d[2];
+  int add = 1 << (shift - 1);
+
+  const int *tx_mat = tx_kernel_dct2_size8[INV_TXFM][0];
+
+  const int nz_line = line - skip_line;
+  for (j = 0; j < nz_line; j++) {
+    for (k = 0; k < 4; k++) {
+      b[k] = tx_mat[1 * 8 + k] * src[1] + tx_mat[3 * 8 + k] * src[3] +
+             tx_mat[5 * 8 + k] * src[5] + tx_mat[7 * 8 + k] * src[7];
+    }
+
+    d[0] = tx_mat[2 * 8 + 0] * src[2] + tx_mat[6 * 8 + 0] * src[6];
+    d[1] = tx_mat[2 * 8 + 1] * src[2] + tx_mat[6 * 8 + 1] * src[6];
+    c[0] = tx_mat[0 * 8 + 0] * src[0] + tx_mat[4 * 8 + 0] * src[4];
+    c[1] = tx_mat[0 * 8 + 1] * src[0] + tx_mat[4 * 8 + 1] * src[4];
+
+    a[0] = c[0] + d[0];
+    a[3] = c[0] - d[0];
+    a[1] = c[1] + d[1];
+    a[2] = c[1] - d[1];
+
+    for (k = 0; k < 4; k++) {
+      dst[(k)*line] = clamp((a[k] + b[k] + add) >> shift, coef_min, coef_max);
+      dst[(k + 4) * line] =
+          clamp((a[3 - k] - b[3 - k] + add) >> shift, coef_min, coef_max);
+    }
+    src += 8;
+    dst++;
+  }
+  if (skip_line) {
+    for (j = 0; j < 8; j++) {
+      memset(dst, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_dct2_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  int j, k;
+  int a[8], b[8];
+  int c[4], d[4];
+  int e[2], f[2];
+  int add = 1 << (shift - 1);
+
+  const int *tx_mat = tx_kernel_dct2_size16[INV_TXFM][0];
+
+  const int nz_line = line - skip_line;
+
+  for (j = 0; j < nz_line; j++) {
+    for (k = 0; k < 8; k++) {
+      b[k] = tx_mat[1 * 16 + k] * src[1] + tx_mat[3 * 16 + k] * src[3] +
+             tx_mat[5 * 16 + k] * src[5] + tx_mat[7 * 16 + k] * src[7] +
+             tx_mat[9 * 16 + k] * src[9] + tx_mat[11 * 16 + k] * src[11] +
+             tx_mat[13 * 16 + k] * src[13] + tx_mat[15 * 16 + k] * src[15];
+    }
+    for (k = 0; k < 4; k++) {
+      d[k] = tx_mat[2 * 16 + k] * src[2] + tx_mat[6 * 16 + k] * src[6] +
+             tx_mat[10 * 16 + k] * src[10] + tx_mat[14 * 16 + k] * src[14];
+    }
+    f[0] = tx_mat[4 * 16] * src[4] + tx_mat[12 * 16] * src[12];
+    e[0] = tx_mat[0] * src[0] + tx_mat[8 * 16] * src[8];
+    f[1] = tx_mat[4 * 16 + 1] * src[4] + tx_mat[12 * 16 + 1] * src[12];
+    e[1] = tx_mat[0 * 16 + 1] * src[0] + tx_mat[8 * 16 + 1] * src[8];
+    for (k = 0; k < 2; k++) {
+      c[k] = e[k] + f[k];
+      c[k + 2] = e[1 - k] - f[1 - k];
+    }
+    for (k = 0; k < 4; k++) {
+      a[k] = c[k] + d[k];
+      a[k + 4] = c[3 - k] - d[3 - k];
+    }
+    for (k = 0; k < 8; k++) {
+      dst[(k)*line] = clamp((a[k] + b[k] + add) >> shift, coef_min, coef_max);
+      dst[(k + 8) * line] =
+          clamp((a[7 - k] - b[7 - k] + add) >> shift, coef_min, coef_max);
+    }
+    src += 16;
+    dst++;
+  }
+  if (skip_line) {
+    for (j = 0; j < 16; j++) {
+      memset(dst, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  int j, k;
+  int a[16], b[16];
+  int c[8], d[8];
+  int e[4], f[4];
+  int g[2], h[2];
+  int add = 1 << (shift - 1);
+
+  const int *tx_mat = tx_kernel_dct2_size32[INV_TXFM][0];
+
+  const int nz_line = line - skip_line;
+
+  for (j = 0; j < nz_line; j++) {
+    for (k = 0; k < 16; k++) {
+      b[k] = tx_mat[1 * 32 + k] * src[1] + tx_mat[3 * 32 + k] * src[3] +
+             tx_mat[5 * 32 + k] * src[5] + tx_mat[7 * 32 + k] * src[7] +
+             tx_mat[9 * 32 + k] * src[9] + tx_mat[11 * 32 + k] * src[11] +
+             tx_mat[13 * 32 + k] * src[13] + tx_mat[15 * 32 + k] * src[15] +
+             tx_mat[17 * 32 + k] * src[17] + tx_mat[19 * 32 + k] * src[19] +
+             tx_mat[21 * 32 + k] * src[21] + tx_mat[23 * 32 + k] * src[23] +
+             tx_mat[25 * 32 + k] * src[25] + tx_mat[27 * 32 + k] * src[27] +
+             tx_mat[29 * 32 + k] * src[29] + tx_mat[31 * 32 + k] * src[31];
+    }
+
+    for (k = 0; k < 8; k++) {
+      d[k] = tx_mat[2 * 32 + k] * src[2] + tx_mat[6 * 32 + k] * src[6] +
+             tx_mat[10 * 32 + k] * src[10] + tx_mat[14 * 32 + k] * src[14] +
+             tx_mat[18 * 32 + k] * src[18] + tx_mat[22 * 32 + k] * src[22] +
+             tx_mat[26 * 32 + k] * src[26] + tx_mat[30 * 32 + k] * src[30];
+    }
+    for (k = 0; k < 4; k++) {
+      f[k] = tx_mat[4 * 32 + k] * src[4] + tx_mat[12 * 32 + k] * src[12] +
+             tx_mat[20 * 32 + k] * src[20] + tx_mat[28 * 32 + k] * src[28];
+    }
+    h[0] = tx_mat[8 * 32 + 0] * src[8] + tx_mat[24 * 32 + 0] * src[24];
+    h[1] = tx_mat[8 * 32 + 1] * src[8] + tx_mat[24 * 32 + 1] * src[24];
+    g[0] = tx_mat[0 * 32 + 0] * src[0] + tx_mat[16 * 32 + 0] * src[16];
+    g[1] = tx_mat[0 * 32 + 1] * src[0] + tx_mat[16 * 32 + 1] * src[16];
+
+    e[0] = g[0] + h[0];
+    e[3] = g[0] - h[0];
+    e[1] = g[1] + h[1];
+    e[2] = g[1] - h[1];
+    for (k = 0; k < 4; k++) {
+      c[k] = e[k] + f[k];
+      c[k + 4] = e[3 - k] - f[3 - k];
+    }
+    for (k = 0; k < 8; k++) {
+      a[k] = c[k] + d[k];
+      a[k + 8] = c[7 - k] - d[7 - k];
+    }
+    for (k = 0; k < 16; k++) {
+      dst[(k)*line] = clamp((a[k] + b[k] + add) >> shift, coef_min, coef_max);
+      dst[(k + 16) * line] =
+          clamp((a[15 - k] - b[15 - k] + add) >> shift, coef_min, coef_max);
+    }
+    src += 32;
+    dst++;
+  }
+
+  if (skip_line) {
+    for (j = 0; j < 32; j++) {
+      memset(dst, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  int offset = 1 << (shift - 1);
+  const int tx1d_size = 64;
+  const int *tx_mat = tx_kernel_dct2_size64[INV_TXFM][0];
+
+  int j, k;
+  int a[32], b[32];
+  int c[16], d[16];
+  int e[8], f[8];
+  int g[4], h[4];
+  int i[2], u[2];
+
+  for (j = 0; j < line - skip_line; j++) {
+    for (k = 0; k < 32; k++) {
+      b[k] = tx_mat[1 * 64 + k] * src[1] + tx_mat[3 * 64 + k] * src[3] +
+             tx_mat[5 * 64 + k] * src[5] + tx_mat[7 * 64 + k] * src[7] +
+             tx_mat[9 * 64 + k] * src[9] + tx_mat[11 * 64 + k] * src[11] +
+             tx_mat[13 * 64 + k] * src[13] + tx_mat[15 * 64 + k] * src[15] +
+             tx_mat[17 * 64 + k] * src[17] + tx_mat[19 * 64 + k] * src[19] +
+             tx_mat[21 * 64 + k] * src[21] + tx_mat[23 * 64 + k] * src[23] +
+             tx_mat[25 * 64 + k] * src[25] + tx_mat[27 * 64 + k] * src[27] +
+             tx_mat[29 * 64 + k] * src[29] + tx_mat[31 * 64 + k] * src[31];
+    }
+    for (k = 0; k < 16; k++) {
+      d[k] = tx_mat[2 * 64 + k] * src[2] + tx_mat[6 * 64 + k] * src[6] +
+             tx_mat[10 * 64 + k] * src[10] + tx_mat[14 * 64 + k] * src[14] +
+             tx_mat[18 * 64 + k] * src[18] + tx_mat[22 * 64 + k] * src[22] +
+             tx_mat[26 * 64 + k] * src[26] + tx_mat[30 * 64 + k] * src[30];
+    }
+    for (k = 0; k < 8; k++) {
+      f[k] = tx_mat[4 * 64 + k] * src[4] + tx_mat[12 * 64 + k] * src[12] +
+             tx_mat[20 * 64 + k] * src[20] + tx_mat[28 * 64 + k] * src[28];
+    }
+    for (k = 0; k < 4; k++) {
+      h[k] = tx_mat[8 * 64 + k] * src[8] + tx_mat[24 * 64 + k] * src[24];
+    }
+    u[0] = tx_mat[16 * 64 + 0] * src[16];
+    u[1] = tx_mat[16 * 64 + 1] * src[16];
+    i[0] = tx_mat[0 * 64 + 0] * src[0];
+    i[1] = tx_mat[0 * 64 + 1] * src[0];
+    for (k = 0; k < 2; k++) {
+      g[k] = i[k] + u[k];
+      g[k + 2] = i[1 - k] - u[1 - k];
+    }
+    for (k = 0; k < 4; k++) {
+      e[k] = g[k] + h[k];
+      e[k + 4] = g[3 - k] - h[3 - k];
+    }
+    for (k = 0; k < 8; k++) {
+      c[k] = e[k] + f[k];
+      c[k + 8] = e[7 - k] - f[7 - k];
+    }
+    for (k = 0; k < 16; k++) {
+      a[k] = c[k] + d[k];
+      a[k + 16] = c[15 - k] - d[15 - k];
+    }
+    for (k = 0; k < 32; k++) {
+      dst[(k)*line] =
+          clamp((a[k] + b[k] + offset) >> shift, coef_min, coef_max);
+      dst[(k + 32) * line] =
+          clamp((a[31 - k] - b[31 - k] + offset) >> shift, coef_min, coef_max);
+    }
+    src += tx1d_size;
+    dst++;
+  }
+
+  if (skip_line) {
+    for (j = 0; j < tx1d_size; j++) {
+      memset(dst, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+// ********************************** IDTX **********************************
+void inv_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 4;
+  const int scale = 128;
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      dst[j * line + i] =
+          clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
+                coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_idtx_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 8;
+  const int scale = 181;
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      dst[j * line + i] =
+          clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
+                coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_idtx_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 16;
+  const int scale = 256;
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      dst[j * line + i] =
+          clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
+                coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_idtx_size32_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 32;
+  const int scale = 362;
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      dst[j * line + i] =
+          clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
+                coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_adst_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 4;
+  const int *tx_mat = tx_kernel_adst_size4[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fdst_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 4;
+  const int *tx_mat = tx_kernel_fdst_size4[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_adst_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 8;
+  const int *tx_mat = tx_kernel_adst_size8[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fdst_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 8;
+  const int *tx_mat = tx_kernel_fdst_size8[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_adst_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 16;
+  const int *tx_mat = tx_kernel_adst_size16[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fdst_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 16;
+  const int *tx_mat = tx_kernel_fdst_size16[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+#if CONFIG_INTER_DDT
+void inv_txfm_ddtx_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 4;
+  const int *tx_mat = tx_kernel_ddtx_size4[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_ddtx_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 8;
+  const int *tx_mat = tx_kernel_ddtx_size8[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_ddtx_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 16;
+  const int *tx_mat = tx_kernel_ddtx_size16[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] * tx_mat[k * tx1d_size + j];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fddt_size4_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 4;
+  const int *tx_mat = tx_kernel_ddtx_size4[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] *
+               tx_mat[k * tx1d_size + (tx1d_size - 1 - j)];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fddt_size8_c(const int *src, int *dst, int shift, int line,
+                           int skip_line, int zero_line, const int coef_min,
+                           const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 8;
+  const int *tx_mat = tx_kernel_ddtx_size8[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] *
+               tx_mat[k * tx1d_size + (tx1d_size - 1 - j)];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+
+void inv_txfm_fddt_size16_c(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line, const int coef_min,
+                            const int coef_max) {
+  (void)zero_line;
+  const int offset = 1 << (shift - 1);
+  const int nz_line = line - skip_line;
+  const int tx1d_size = 16;
+  const int *tx_mat = tx_kernel_ddtx_size16[INV_TXFM][0];
+
+  for (int i = 0; i < nz_line; i++) {
+    for (int j = 0; j < tx1d_size; j++) {
+      int sum = 0;
+      for (int k = 0; k < tx1d_size; k++) {
+        sum += src[i * tx1d_size + k] *
+               tx_mat[k * tx1d_size + (tx1d_size - 1 - j)];
+      }
+      dst[j * line + i] =
+          clamp((int)(sum + offset) >> shift, coef_min, coef_max);
+    }
+  }
+
+  if (skip_line) {
+    for (int j = 0; j < tx1d_size; j++) {
+      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
+      dst += line;
+    }
+  }
+}
+#endif
+
+void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
+                        int skip_line, int zero_line, const int coef_min,
+                        const int coef_max, const int tx_type_index,
+                        const int size_index) {
+  switch (size_index) {
+    case 0:
+      switch (tx_type_index) {
+        case 0:
+          inv_txfm_dct2_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 1:
+          inv_txfm_idtx_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 2:
+          inv_txfm_adst_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 3:
+          inv_txfm_fdst_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 4:
+          inv_txfm_ddtx_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 5:
+          inv_txfm_fddt_size4_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        default: assert(0); break;
+      }
+      break;
+    case 1:
+      switch (tx_type_index) {
+        case 0:
+          inv_txfm_dct2_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 1:
+          inv_txfm_idtx_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 2:
+          inv_txfm_adst_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 3:
+          inv_txfm_fdst_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 4:
+          inv_txfm_ddtx_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        case 5:
+          inv_txfm_fddt_size8_c(src, dst, shift, line, skip_line, zero_line,
+                                coef_min, coef_max);
+          break;
+        default: assert(0); break;
+      }
+      break;
+    case 2:
+      switch (tx_type_index) {
+        case 0:
+          inv_txfm_dct2_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 1:
+          inv_txfm_idtx_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 2:
+          inv_txfm_adst_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 3:
+          inv_txfm_fdst_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 4:
+          inv_txfm_ddtx_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 5:
+          inv_txfm_fddt_size16_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        default: assert(0); break;
+      }
+      break;
+    case 3:
+      switch (tx_type_index) {
+        case 0:
+          inv_txfm_dct2_size32_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        case 1:
+          inv_txfm_idtx_size32_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        default: assert(0); break;
+      }
+      break;
+    case 4:
+      switch (tx_type_index) {
+        case 0:
+          inv_txfm_dct2_size64_c(src, dst, shift, line, skip_line, zero_line,
+                                 coef_min, coef_max);
+          break;
+        default: assert(0); break;
+      }
+      break;
+    default: assert(0); break;
+  }
+}
+
+void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
+                const TxfmParam *txfm_param) {
+  const TX_SIZE tx_size = txfm_param->tx_size;
+  TX_TYPE tx_type = txfm_param->tx_type;
+
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  const int intermediate_bitdepth = txfm_param->bd + 8;
+  const int rng_min = -(1 << (intermediate_bitdepth - 1));
+  const int rng_max = (1 << (intermediate_bitdepth - 1)) - 1;
+
+  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
+  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
+
+  if (txfm_param->lossless) {
+#if CONFIG_LOSSLESS_DPCM
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_inv_txfm2d_add_4x4_c(input, dest, stride, tx_type,
+#if CONFIG_INTER_DDT
+                               txfm_param->use_ddt,
+#endif  // CONFIG_INTER_DDT
+                               txfm_param->bd);
+    } else {
+      av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
+                             txfm_param->bd);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
+    assert(tx_type == DCT_DCT);
+    av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
+#endif  // CONFIG_LOSSLESS_DPCM
+    return;
+  }
+
+  int tx_type_row = g_hor_tx_type[tx_type];
+  int tx_type_col = g_ver_tx_type[tx_type];
+
+#if CONFIG_INTER_DDT
+  if (txfm_param->use_ddt) {
+    if (tx_type_row == DST7 || tx_type_row == DCT8) {
+      tx_type_row = (tx_type_row == DST7) ? DDTX : FDDT;
+    }
+    if (tx_type_col == DST7 || tx_type_col == DCT8) {
+      tx_type_col = (tx_type_col == DST7) ? DDTX : FDDT;
+    }
+  }
+#endif
+
+  int skipWidth = width > 32 ? width - 32 : 0;
+  int skipHeight = height > 32 ? height - 32 : 0;
+
+  int block[MAX_TX_SQUARE] = { 0 };
+  int tmp[MAX_TX_SQUARE] = { 0 };
+
+  const int log2width = tx_size_wide_log2[tx_size];
+  const int log2height = tx_size_high_log2[tx_size];
+  const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
+
+  if (sqrt2) {
+    for (int i = 0; i < AOMMIN(1024, width * height); i++) {
+      tmp[i] = round_shift((int64_t)input[i] * NewInvSqrt2, NewSqrt2Bits);
+    }
+  } else {
+    memcpy(tmp, input, AOMMIN(1024, width * height) * sizeof(tran_low_t));
+  }
+
+  memcpy(block, tmp, AOMMIN(1024, width * height) * sizeof(*tmp));
+
+  clamp_buf(block, AOMMIN(1024, width * height), txfm_param->bd + 8);
+
+  if (skipWidth) {
+    for (int y = 0; y < height; y++) {
+      memcpy(block + y * width, tmp + y * 32, 32 * sizeof(*tmp));
+      memset(block + y * width + 32, 0, 32 * sizeof(*tmp));
+    }
+  }
+
+  if (skipHeight) {
+    for (int y = 32; y < height; y++) {
+      memset(block + y * width, 0, width * sizeof(*tmp));
+    }
+  }
+
+  const int shift_1st = inv_tx_shift[tx_size][0];
+  const int shift_2nd = inv_tx_shift[tx_size][1];
+
+  assert(shift_1st >= 0);
+  assert(shift_2nd >= 0);
+
+  inv_transform_1d_c(block, tmp, shift_1st, height, skipHeight, skipWidth,
+                     rng_min, rng_max, tx_type_row, tx_wide_index);
+  inv_transform_1d_c(tmp, block, shift_2nd, width, 0, skipHeight, rng_min,
+                     rng_max, tx_type_col, tx_high_index);
+
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      dest[y * stride + x] = highbd_clip_pixel_add(
+          dest[y * stride + x], block[(y * width) + x], txfm_param->bd);
+    }
+  }
+}
+#endif  // CONFIG_CORE_TX
+
 int av1_get_tx_scale(const TX_SIZE tx_size) {
   const int pels = tx_size_2d[tx_size];
   // Largest possible pels is 4096 (64x64).
@@ -493,6 +1441,10 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
 void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint16_t *dest,
                                int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+
+#if CONFIG_CORE_TX
+  inv_txfm(input, dest, stride, txfm_param);
+#else
   const TX_SIZE tx_size = txfm_param->tx_size;
   switch (tx_size) {
     case TX_32X32:
@@ -577,6 +1529,7 @@ void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint16_t *dest,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: assert(0 && "Invalid transform size"); break;
   }
+#endif  // CONFIG_CORE_TX
 }
 
 #if CONFIG_LOSSLESS_DPCM

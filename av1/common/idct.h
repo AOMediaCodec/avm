@@ -14,6 +14,9 @@
 #define AOM_AV1_COMMON_IDCT_H_
 
 #include "config/aom_config.h"
+#if CONFIG_CORE_TX
+#include "config/av1_rtcd.h"
+#endif  // CONFIG_CORE_TX
 
 #include "av1/common/blockd.h"
 #include "av1/common/common.h"
@@ -29,6 +32,11 @@ typedef void (*transform_1d)(const tran_low_t *, tran_low_t *);
 typedef struct {
   transform_1d cols, rows;  // vertical and horizontal
 } transform_2d;
+
+#if CONFIG_CORE_TX
+void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
+                const TxfmParam *txfm_param);
+#endif  // CONFIG_CORE_TX
 
 #define MAX_TX_SCALE 1
 int av1_get_tx_scale(const TX_SIZE tx_size);
