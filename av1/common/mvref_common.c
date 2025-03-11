@@ -2569,6 +2569,10 @@ static AOM_INLINE void add_tmvp_candidate(
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
+  if (cm->features.allow_ref_frame_mvs == 0 ||
+      cm->seq_params.order_hint_info.enable_order_hint == 0)
+    return 0;
+
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
   if (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
