@@ -572,10 +572,10 @@ static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
   den = AOMMIN(den, MAX_FRAME_DISTANCE);
   num = num > 0 ? AOMMIN(num, MAX_FRAME_DISTANCE)
                 : AOMMAX(num, -MAX_FRAME_DISTANCE);
-  const int mv_row =
-      ROUND_POWER_OF_TWO_SIGNED(ref.row * num * div_mult[den], 14);
-  const int mv_col =
-      ROUND_POWER_OF_TWO_SIGNED(ref.col * num * div_mult[den], 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * num * div_mult[den];
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * num * div_mult[den];
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);
@@ -1332,8 +1332,10 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
 // Temporal scaling the motion vector
 static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
                                              int scale_factor) {
-  const int mv_row = ROUND_POWER_OF_TWO_SIGNED(ref.row * scale_factor, 14);
-  const int mv_col = ROUND_POWER_OF_TWO_SIGNED(ref.col * scale_factor, 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * scale_factor;
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * scale_factor;
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);
