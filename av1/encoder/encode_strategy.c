@@ -1193,14 +1193,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     if (!is_stat_generation_stage(cpi) &&
         use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
+        (frame_update_type != KF_UPDATE
 #if CONFIG_KEY_OVERLAY
-        (frame_update_type != KF_UPDATE && frame_update_type != KFFLT_UPDATE)) {
-      // get_gop_cfg_enabled_refs() should be called after key and key_overlay.
-      // Key update types are excluded, and key overlay is taken care of in
-      // use_subgop_cfg().
-#else
-        frame_update_type != KF_UPDATE) {
+         && frame_update_type != KFFLT_UPDATE
 #endif  // CONFIG_KEY_OVERLAY
+         )) {
+
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }

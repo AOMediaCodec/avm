@@ -2047,12 +2047,11 @@ static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
 
   // As key frame is not part of sub-gop configuration,
   // parameters are assigned separately.
+  if (cpi->common.current_frame.frame_type == KEY_FRAME
 #if CONFIG_KEY_OVERLAY
-  if (cpi->common.current_frame.frame_type == KEY_FRAME ||
-      gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE) {
-#else
-  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+      || gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE
 #endif  // CONFIG_KEY_OVERLAY
+  ) {
     subgop_info->size = 1;
     subgop_info->is_user_specified = 0;
     return AOM_CODEC_OK;
