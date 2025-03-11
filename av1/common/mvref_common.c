@@ -4358,6 +4358,10 @@ static int motion_field_projection_start_target(
   int ref_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
 
+  if (abs(ref_frame_offset) > MAX_FRAME_DISTANCE) {
+    return 0;
+  }
+
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
