@@ -2040,10 +2040,19 @@ static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
   const SubGOPCfg *const subgop_cfg = gf_group->subgop_cfg;
   subgop_info->gf_interval = cpi->rc.baseline_gf_interval;
   subgop_info->frames_to_key = cpi->rc.frames_to_key;
+#if CONFIG_KEY_OVERLAY
+  subgop_info->has_key_overlay =
+      gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE;
+#endif  // CONFIG_KEY_OVERLAY
 
   // As key frame is not part of sub-gop configuration,
   // parameters are assigned separately.
+#if CONFIG_KEY_OVERLAY
+  if (cpi->common.current_frame.frame_type == KEY_FRAME ||
+      gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE) {
+#else
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+#endif  // CONFIG_KEY_OVERLAY
     subgop_info->size = 1;
     subgop_info->is_user_specified = 0;
     return AOM_CODEC_OK;

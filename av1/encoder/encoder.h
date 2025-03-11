@@ -1022,6 +1022,9 @@ typedef struct {
   int gf_interval;
   int size;
   int num_steps;
+#if CONFIG_KEY_OVERLAY
+  int has_key_overlay;
+#endif  // CONFIG_KEY_OVERLAY
   SUBGOP_IN_GOP_CODE pos_code;
   SubGOPCfg subgop_cfg;
 } SubGOPInfo;
