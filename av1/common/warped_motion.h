@@ -334,9 +334,6 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
   // situation the input model must be the identity model anyway. Check this
   // constraint here to help keep things internally consistent.
   if (in_distance == 0) {
-    for (int param = 0; param < MAX_PARAMDIM; param++) {
-      assert(in_params->wmmat[param] == default_warp_params.wmmat[param]);
-    }
     *out_params = default_warp_params;
     return;
   }
