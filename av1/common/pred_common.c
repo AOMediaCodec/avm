@@ -205,12 +205,20 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 }
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
+#if CONFIG_PRIMARY_QP_FIRST
+typedef struct {
+  int idx;          // ref index
+  int qp_diff;      // QP difference of cur and ref
+  int base_qindex;  // cur QP
+  int disp_order;   // display order hint
+} RefCandidate;
+#else
 typedef struct {
   int idx;
   int disp_order;
   int base_qindex;
 } PrimaryRefCand;
-
+#endif  // CONFIG_PRIMARY_QP_FIRST
 // Check if one reference frame is better based on its distance to the current
 // frame.
 static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
@@ -227,6 +235,67 @@ static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
+#if CONFIG_PRIMARY_QP_FIRST
+// This change also include the aspect 1 from
+// CONFIG_IMPROVED_SECONDARY_REFERENC, to have a clear logic of the primary and
+// secondary reference frame.
+void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
+                                        int *ref_frame) {
+  const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
+                         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+  if (intra_only || cm->features.error_resilient_mode) {
+    ref_frame[0] = PRIMARY_REF_NONE;
+    ref_frame[1] = PRIMARY_REF_NONE;
+    return;
+  }
+
+  if (cm->tiles.large_scale) {
+    ref_frame[0] = 0;
+    ref_frame[1] = 0;
+    return;
+  }
+
+  // initialize
+  RefCandidate primary_cand = { -1, INT_MAX, -1, -1 };
+  RefCandidate secondary_cand = { -1, INT_MAX, -1, -1 };
+
+  const int current_qp = cm->quant_params.base_qindex;
+  const int cur_frame_disp = cm->current_frame.display_order_hint;
+  const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
+
+  const int n_refs = cm->ref_frames_info.num_total_refs;
+  const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
+
+  for (int i = 0; i < n_refs; i++) {
+    RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (cur_ref.disp_order == -1 || cur_ref.frame_type != INTER_FRAME) continue;
+
+    const int ref_qp = cur_ref.base_qindex;
+    const int qp_diff = abs(ref_qp - current_qp);
+
+    // comparision
+    if (qp_diff < primary_cand.qp_diff ||
+        (qp_diff == primary_cand.qp_diff &&
+         is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+                       primary_cand.disp_order))) {
+      secondary_cand = primary_cand;  // secondary pick the previous primary
+      primary_cand =
+          (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+    } else if (qp_diff < secondary_cand.qp_diff ||
+               (qp_diff == secondary_cand.qp_diff &&
+                is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+                              secondary_cand.disp_order))) {
+      secondary_cand =
+          (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+    }
+  }
+
+  // final result
+  ref_frame[0] = primary_cand.idx != -1 ? primary_cand.idx : PRIMARY_REF_NONE;
+  ref_frame[1] =
+      secondary_cand.idx != -1 ? secondary_cand.idx : PRIMARY_REF_NONE;
+}
+#else
 void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
                                         int *ref_frame) {
   const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
@@ -324,6 +393,7 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
 
   return;
 }
+#endif  // CONFIG_PRIMARY_QP_FIRST
 #else
 // Derive the primary reference frame from the reference list based on qindex
 // and frame distances.

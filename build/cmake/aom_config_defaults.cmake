@@ -543,6 +543,10 @@ set_aom_config_var(
   "Enables improved frame context initialization with frame averaging.")
 
 set_aom_config_var(
+  CONFIG_PRIMARY_QP_FIRST 1
+  "Improvements to the primary reference frame by selecting the closet QP.")
+
+set_aom_config_var(
   CONFIG_IMPROVED_SECONDARY_REFERENCE
   1
   "Enables improved secondary reference frame derivation for frame context initialization."
