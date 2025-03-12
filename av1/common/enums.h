@@ -131,11 +131,13 @@ enum {
 #define IBP_WEIGHT_SIZE (1 << IBP_WEIGHT_SIZE_LOG2)
 #endif  // CONFIG_IBP_WEIGHT
 
+#if !CONFIG_CCSO_FU_BUGFIX
 // Cross-Component Sample Offset (CCSO)
 #define CCSO_BLK_SIZE 7
 #define CCSO_PADDING_SIZE 5
 #define CCSO_BAND_NUM 128
 #define CCSO_NUM_COMPONENTS 3
+#endif
 
 #define BUGFIX_AMVD_AMVR 1
 // Supported scale modes for JOINT_NEWMV
@@ -152,6 +154,14 @@ enum {
 #define MAX_SB_SIZE (1 << MAX_SB_SIZE_LOG2)
 #define MAX_SB_SQUARE (MAX_SB_SIZE * MAX_SB_SIZE)
 #define BLOCK_128_MI_SIZE_LOG2 5
+
+#if CONFIG_CCSO_FU_BUGFIX
+// Cross-Component Sample Offset (CCSO)
+#define CCSO_BLK_SIZE MAX_SB_SIZE_LOG2
+#define CCSO_PADDING_SIZE 5
+#define CCSO_BAND_NUM 128
+#define CCSO_NUM_COMPONENTS 3
+#endif
 
 #if CONFIG_ENABLE_MHCCP
 #define MHCCP_CONTEXT_GROUP_SIZE 7
