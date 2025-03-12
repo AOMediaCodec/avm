@@ -946,7 +946,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                + bottom_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                                ) * SCALE_PX_TO_MV +
-                              dv.row;
+                              dv.row
+#if CONFIG_IBC_SUBPEL_PRECISION
+                              - has_row_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_bottom_edge = tile->mi_row_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_bottom_edge > tile_bottom_edge) return 0;
   const int src_right_edge = (mi_col * MI_SIZE + bw
@@ -954,7 +958,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                               + right_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                               ) * SCALE_PX_TO_MV +
-                             dv.col;
+                             dv.col
+#if CONFIG_IBC_SUBPEL_PRECISION
+                             - has_col_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_right_edge > tile_right_edge) return 0;
 
