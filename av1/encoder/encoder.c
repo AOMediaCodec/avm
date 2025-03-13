@@ -2335,7 +2335,7 @@ void av1_luft_optimize(AV1_COMP* cpi, AV1_COMMON* cm)
     const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
 
     int blkIdx = 0;
-    for (int yPos = 0; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
+    for (int yPos = -LUTF_TEST_STRIPE_OFF; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
     {
         int iMin = max(yPos, LUTF_TEST_PAD_SIZE);
         int iMax = min(yPos + cm->lutf_info.lutf_block_size, recHeight - LUTF_TEST_PAD_SIZE);
@@ -2516,6 +2516,7 @@ void av1_luft_frame_enc(AV1_COMP* cpi, AV1_COMMON* cm)
     lutfInfo(cm, "ENC", cm->current_frame.absolute_poc);
     if (cm->lutf_info.lutf_enable)
     {
+        lutfFilter(cm);
         lutfCompensate(cm);
     }
     lutfClose(cm);

@@ -1920,17 +1920,15 @@ static AOM_INLINE void write_lutf(AV1_COMMON* cm, MACROBLOCKD* const xd, aom_wri
     if (is_global_intrabc_allowed(cm)) return;
     if ((cm->lutf_info.lutf_enable < 2) || (cm->lutf_info.lutf_block_num <= 1)) return;
 
-    int lutf_blksize_in_mi_unit = cm->lutf_info.lutf_block_size >> MI_SIZE_LOG2;
-    int blkIdx = (xd->mi_row / lutf_blksize_in_mi_unit) * cm->lutf_info.lutf_block_num_w + (xd->mi_col / lutf_blksize_in_mi_unit);
-
-    if (((xd->mi_row % lutf_blksize_in_mi_unit) == 0) &&
-        ((xd->mi_col % lutf_blksize_in_mi_unit) == 0))
-    {
+    if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
+        for (int blkIdx = 0; blkIdx < cm->lutf_info.lutf_block_num; blkIdx++)
+        {
 #if LUTF_RDO_BLOCK_ONOFF_CODE
-        aom_write_symbol(w, cm->lutf_info.lutf_block_filterMode[blkIdx], xd->tile_ctx->lutf_cdf, 2);
+            aom_write_symbol(w, cm->lutf_info.lutf_block_filterMode[blkIdx], xd->tile_ctx->lutf_cdf, 2);
 #else   //
-        aom_write_literal(w, cm->lutf_info.lutf_block_filterMode[blkIdx], 1);
+            aom_write_literal(w, cm->lutf_info.lutf_block_filterMode[blkIdx], 1);
 #endif  //
+        }
     }
 }
 #endif  //

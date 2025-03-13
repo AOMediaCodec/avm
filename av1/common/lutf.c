@@ -189,7 +189,6 @@ int lutfPoc(AV1_COMMON* cm)
 }
 
 
-
 #if LUTF_TEST
 void lutfOpen(AV1_COMMON* cm)
 {
@@ -204,9 +203,11 @@ void lutfOpen(AV1_COMMON* cm)
     cm->lutf_info.lutf_slice_qpIdx = -1;
     cm->lutf_info.lutf_slice_scaleIdx = -1;
     cm->lutf_info.lutf_block_size = max(cm->mib_size << MI_SIZE_LOG2, LUTF_TEST_BLK_SIZE);
-    cm->lutf_info.lutf_block_num_h = 1 + ((recHeight - 1) / cm->lutf_info.lutf_block_size);
+    cm->lutf_info.lutf_block_num_h = 1 + ((recHeight + LUTF_TEST_STRIPE_OFF - 1) / cm->lutf_info.lutf_block_size);
     cm->lutf_info.lutf_block_num_w = 1 + ((recWidth - 1) / cm->lutf_info.lutf_block_size);
     cm->lutf_info.lutf_block_num = cm->lutf_info.lutf_block_num_h * cm->lutf_info.lutf_block_num_w;
+    cm->lutf_info.lutf_stripe_size = LUTF_TEST_STRIPE_SIZE;
+    cm->lutf_info.lutf_unit_size = LUTF_TEST_STRIPE_SIZE;
     if(!cm->lutf_info.lutf_decoder) {
         for (int lapChan = 0; lapChan < NUM_DIRECTIONS; lapChan++)
         {
@@ -355,24 +356,26 @@ void lutfInference(AV1_COMMON* cm)
     for (int qpIdx = qpIdx_min; qpIdx < qpIdx_max_plus_1; qpIdx++)
     {
         int blkIdx = 0;
-        for (int yPos = 0; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
+        for (int yPos = -LUTF_TEST_STRIPE_OFF; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
         {
-            int iMin = max(yPos, LUTF_TEST_PAD_SIZE);
-            int iMax = min(yPos + cm->lutf_info.lutf_block_size, recHeight - LUTF_TEST_PAD_SIZE);
-
             for (int xPos = 0; xPos < recWidth; xPos += cm->lutf_info.lutf_block_size)
             {
-                int jMin = max(xPos, LUTF_TEST_PAD_SIZE);
-                int jMax = min(xPos + cm->lutf_info.lutf_block_size, recWidth - LUTF_TEST_PAD_SIZE);
+                for (int vPos = yPos; vPos < yPos + cm->lutf_info.lutf_block_size; vPos+=cm->lutf_info.lutf_unit_size) {
+                for (int uPos = xPos; uPos < xPos + cm->lutf_info.lutf_block_size; uPos+=cm->lutf_info.lutf_unit_size) {
 
-                if (cm->lutf_info.lutf_block_filterMode[blkIdx]) {
+                int iMin = max(vPos, LUTF_TEST_PAD_SIZE);
+                int iMax = min(vPos + cm->lutf_info.lutf_unit_size, recHeight - LUTF_TEST_PAD_SIZE);
+                int jMin = max(uPos, LUTF_TEST_PAD_SIZE);
+                int jMax = min(uPos + cm->lutf_info.lutf_unit_size, recWidth - LUTF_TEST_PAD_SIZE);
+                if (cm->lutf_info.lutf_block_filterMode[blkIdx] && (iMax > iMin) && (jMax > jMin)) {
                   blk_process_fn(iMin, iMax, jMin, jMax,
-                    cm->mib_size << MI_SIZE_LOG2, qpIdx, cm->lutf_info.inpPnt, recWidth, recStride,
+                      cm->lutf_info.lutf_stripe_size, qpIdx, cm->lutf_info.inpPnt, recWidth, recStride,
                     cm->lutf_info.clsPnt[CI_TRANSPOSE], cm->lutf_info.tgtPnt[qpIdx - qpIdx_base], cm->lutf_info.lapPnt,
                     pxlShift, refDstIdx);
                 }
 
-
+                }
+                }
                 blkIdx++;
             }
         }
@@ -402,21 +405,25 @@ void lutfCompensate(AV1_COMMON* cm)
     int qpIdx = cm->lutf_info.lutf_slice_qpIdx;
     int scale = cm->lutf_info.lutf_slice_scaleIdx + 1;
     int blkIdx = 0;
-    for (int yPos = 0; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
+    for (int yPos = -LUTF_TEST_STRIPE_OFF; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
     {
-        int iMin = max(yPos, LUTF_TEST_PAD_SIZE);
-        int iMax = min(yPos + cm->lutf_info.lutf_block_size, recHeight - LUTF_TEST_PAD_SIZE);
-
         for (int xPos = 0; xPos < recWidth; xPos += cm->lutf_info.lutf_block_size)
         {
-            int jMin = max(xPos, LUTF_TEST_PAD_SIZE);
-            int jMax = min(xPos + cm->lutf_info.lutf_block_size, recWidth - LUTF_TEST_PAD_SIZE);
+            for (int vPos = yPos; vPos < yPos + cm->lutf_info.lutf_block_size; vPos+=cm->lutf_info.lutf_unit_size) {
+            for (int uPos = xPos; uPos < xPos + cm->lutf_info.lutf_block_size; uPos+=cm->lutf_info.lutf_unit_size) {
 
-            if (cm->lutf_info.lutf_block_filterMode[blkIdx])
-            {
+            int iMin = max(vPos, LUTF_TEST_PAD_SIZE);
+            int iMax = min(vPos + cm->lutf_info.lutf_unit_size, recHeight - LUTF_TEST_PAD_SIZE);
+            int jMin = max(uPos, LUTF_TEST_PAD_SIZE);
+            int jMax = min(uPos + cm->lutf_info.lutf_unit_size, recWidth - LUTF_TEST_PAD_SIZE);
+
+            if (cm->lutf_info.lutf_block_filterMode[blkIdx] && (iMax > iMin) && (jMax > jMin)) {
                 lutfCompensationBlockProcess(recPnt + iMin * recStride + jMin, recStride,
                     cm->lutf_info.tgtPnt[qpIdx] + iMin * tgtStride + jMin, tgtStride,
                     tgt_shift, scale, pxlMax, iMax - iMin, jMax - jMin);
+            }
+
+            }
             }
             blkIdx++;
         }

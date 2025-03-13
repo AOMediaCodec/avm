@@ -3,7 +3,7 @@
 
 
 static void lutfSetLapAndCls_avx2(const int iMin, const int iMax, const int jMin, const int jMax,
-    const uint16_t* recPnt, const int recStride, const int bitDepth, uint16_t aligned_lap[LUTF_NET_INP_GRD_NUM][LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE * 2 + 16],
+    const int sb_size, const uint16_t* recPnt, const int recStride, const int bitDepth, uint16_t aligned_lap[LUTF_NET_INP_GRD_NUM][LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE * 2 + 16],
     uint32_t aligned_cls[LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE + 16]){
 
     const int offset_ver = recStride, offset_dia0 = recStride + 1, offset_dia1 = recStride - 1;
@@ -14,28 +14,41 @@ static void lutfSetLapAndCls_avx2(const int iMin, const int iMax, const int jMin
     for (int j = 0; j < (jMax - jMin); j += 14) {
 
         const uint16_t* std_pos = recPnt + (iMax - iMin) * recStride + j;
+        const uint16_t* std_pos_1;
+        const uint16_t* std_pos0;
+        const uint16_t* std_pos1;
+        const uint16_t* std_pos2;
 
+        if ((iMax + LUTF_TEST_STRIPE_OFF) % sb_size == 0) {
 #if (LUTF_TEST_LINE_BUFFER >= 3)
-        const uint16_t* std_pos_1 = std_pos - recStride;
-        const uint16_t* std_pos0  = std_pos;
-        const uint16_t* std_pos1  = std_pos0 + recStride;
-        const uint16_t* std_pos2  = std_pos1 + recStride;
+            std_pos_1 = std_pos - recStride;
+            std_pos0 = std_pos;
+            std_pos1 = std_pos0 + recStride;
+            std_pos2 = std_pos1 + recStride;
 #elif (LUTF_TEST_LINE_BUFFER == 2)
-        const uint16_t* std_pos_1 = std_pos - recStride;
-        const uint16_t* std_pos0 = std_pos;
-        const uint16_t* std_pos1 = std_pos0 + recStride;
-        const uint16_t* std_pos2 = std_pos - (recStride << 2);
+            std_pos_1 = std_pos - recStride;
+            std_pos0 = std_pos;
+            std_pos1 = std_pos0 + recStride;
+            std_pos2 = std_pos - (recStride << 2);
 #elif (LUTF_TEST_LINE_BUFFER == 1)
-        const uint16_t* std_pos_1 = std_pos - recStride;
-        const uint16_t* std_pos0 = std_pos;
-        const uint16_t* std_pos1 = std_pos_1 - (recStride << 1);
-        const uint16_t* std_pos2 = std_pos1 - recStride;
+            std_pos_1 = std_pos - recStride;
+            std_pos0 = std_pos;
+            std_pos1 = std_pos_1 - (recStride << 1);
+            std_pos2 = std_pos1 - recStride;
 #else
-        const uint16_t* std_pos_1 = std_pos - recStride;
-        const uint16_t* std_pos0 = std_pos_1 - recStride;
-        const uint16_t* std_pos1 = std_pos0 - recStride;
-        const uint16_t* std_pos2 = std_pos1 - recStride;
+            std_pos_1 = std_pos - recStride;
+            std_pos0 = std_pos_1 - recStride;
+            std_pos1 = std_pos0 - recStride;
+            std_pos2 = std_pos1 - recStride;
 #endif
+        }
+        else
+        {
+            std_pos_1 = std_pos - recStride;
+            std_pos0 = std_pos;
+            std_pos1 = std_pos0 + recStride;
+            std_pos2 = std_pos1 + recStride;
+        }
         __m256i y00 = _mm256_loadu_si256((const __m256i*)(std_pos0));
         __m256i y10 = _mm256_loadu_si256((const __m256i*)(std_pos1));
         __m256i y_10 = _mm256_loadu_si256((const __m256i*)(std_pos_1));
@@ -76,7 +89,7 @@ static void lutfSetLapAndCls_avx2(const int iMin, const int iMax, const int jMin
 
             y_10 = _mm256_loadu_si256((const __m256i*)(std_pos - offset_ver));
 #if !LUTF_TEST_LINE_BUFFER
-            if (i == (iMax - iMin - 2))
+            if ((i == (iMax - iMin - 2)) && ((iMax + LUTF_TEST_STRIPE_OFF) % sb_size == 0))
               y20 = y00;
             else
 #endif
@@ -113,7 +126,7 @@ static void lutfSetLapAndCls_avx2(const int iMin, const int iMax, const int jMin
 
             y_1_1 = _mm256_loadu_si256((const __m256i*)(std_pos - offset_dia0));
 #if !LUTF_TEST_LINE_BUFFER
-            if (i == (iMax - iMin - 2))
+            if ((i == (iMax - iMin - 2)) && ((iMax + LUTF_TEST_STRIPE_OFF) % sb_size == 0))
                 y21 = y01;
             else
 #endif
@@ -133,7 +146,7 @@ static void lutfSetLapAndCls_avx2(const int iMin, const int iMax, const int jMin
 
             y_11 = _mm256_loadu_si256((const __m256i*)(std_pos - offset_dia1));
 #if !LUTF_TEST_LINE_BUFFER
-            if (i == (iMax - iMin - 2))
+            if ((i == (iMax - iMin - 2)) && ((iMax + LUTF_TEST_STRIPE_OFF) % sb_size == 0))
                 y2_1 = y0_1;
             else
 #endif
@@ -269,7 +282,7 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
     const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
     const int lut_idx_scale = max(-lut_idx_min, lut_idx_max);
     int32_t lut_shift = LUTF_TEST_INP_PREC - LUTF_TRAIN_INP_PREC + LUTF_NET_PAR_SCALE_LOG2;
-    int32_t lut_shift_half = 1 << (lut_shift - 1);
+    int32_t lut_shitf_half = 1 << (lut_shift - 1);
     
     const int16_t* alpha = lutfIntraAlpha[qpIdx];
     const int16_t* weight = lutfIntraWeight[qpIdx];
@@ -278,7 +291,7 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
     
     DECLARE_ALIGNED(32, uint32_t, aligned_cls[LUTF_TEST_BLK_SIZE][(LUTF_TEST_BLK_SIZE)+ 16]) = { 0 };
     DECLARE_ALIGNED(32, uint16_t, aligned_lap[LUTF_NET_INP_GRD_NUM][LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE * 2 + 16]) = { 0 };
-    lutfSetLapAndCls_avx2(iMin, iMax, jMin, jMax, recPnt + recStride * iMin + jMin, recStride, 10, aligned_lap, aligned_cls); // TODO :: bitdepth
+    lutfSetLapAndCls_avx2(iMin, iMax, jMin, jMax, sb_size, recPnt + recStride * iMin + jMin, recStride, 10, aligned_lap, aligned_cls); // TODO :: bitdepth
 
     lutf_bias(bias_reg0, bias);
     lutf_bias(bias_reg1, bias + LUTF_NET_INP_GRD_NUM);
@@ -290,12 +303,16 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
 
     __m256i reg_m256i, reg_m256i_02;
     __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
+    const __m256i min_val = _mm256_set1_epi16(-2048); // -2^11
+    const __m256i max_val = _mm256_set1_epi16(2047); // 2^11 - 1
     __m256  reg_m256;
 
     uint16_t* lapLines[LUTF_NET_INP_GRD_NUM] = { aligned_lap[0][0], aligned_lap[1][0], aligned_lap[2][0], aligned_lap[3][0] };
     for (int i = 0; i < (iMax - iMin); i++)
     {
-        for (int j = 0; j < (jMax - jMin); j += 16) 
+        int vertical_spatial_support_min = -LUTF_TEST_LINE_BUFFER - ((i + iMin + LUTF_TEST_STRIPE_OFF) % sb_size);
+        int vertical_spatial_support_max = (sb_size - 1 + LUTF_TEST_LINE_BUFFER) - ((i + iMin + LUTF_TEST_STRIPE_OFF) % sb_size);
+        for (int j = 0; j < (jMax - jMin); j += 16)
         {
             __m256i clsIdx = _mm256_load_si256((const __m256i*)(clsLine + (j >> 1)));
             lutf_output(out_reg00, out_reg01, bias_reg0, clsIdx)
@@ -306,7 +323,7 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
             {
                 __m256i input_reg1 = _mm256_loadu_si256((const __m256i*) (recPtr + j));
 #if LUTF_TEST_VIRTUAL_BOUNDARY
-                int lutfRecCoordinates_h = ((((i + iMin) % sb_size) + lutfRecCoordinates[k][0]) < -LUTF_TEST_LINE_BUFFER) ? -lutfRecCoordinates[k][0] : lutfRecCoordinates[k][0];
+                int lutfRecCoordinates_h = (lutfRecCoordinates[k][0] < vertical_spatial_support_min) ? -lutfRecCoordinates[k][0] : lutfRecCoordinates[k][0];
                 const uint16_t* s_pos_A = recPtr + j + (lutfRecCoordinates_h * recStride) + lutfRecCoordinates[k][1];
 #else   //
                 const uint16_t* s_pos_A = recPtr + j + (lutfRecCoordinates[k][0] * recStride) + lutfRecCoordinates[k][1];
@@ -316,7 +333,7 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 __m256i sample_regA = _mm256_slli_epi16(reg_m256i_02, pxlShift);
 
 #if LUTF_TEST_VIRTUAL_BOUNDARY
-                int lutfRecCoordinates_Sym_h = ((((i + iMin) % sb_size) + lutfRecCoordinates_Sym[k][0]) > (sb_size - 1 + LUTF_TEST_LINE_BUFFER)) ? -lutfRecCoordinates_Sym[k][0] : lutfRecCoordinates_Sym[k][0];
+                int lutfRecCoordinates_Sym_h = (lutfRecCoordinates_Sym[k][0] > vertical_spatial_support_max) ? -lutfRecCoordinates_Sym[k][0] : lutfRecCoordinates_Sym[k][0];
                 const uint16_t* s_pos_B = recPtr + j + (lutfRecCoordinates_Sym_h * recStride) + lutfRecCoordinates_Sym[k][1];
 #else   //
                 const uint16_t* s_pos_B = recPtr + j + (lutfRecCoordinates_Sym[k][0] * recStride) + lutfRecCoordinates_Sym[k][1];
@@ -332,8 +349,8 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 
                 lutf_input(odd_clipA, even_clipA, sample_regA, min_alpha_reg, max_alpha_reg, reg_m256i, reg_m256i_02, odd_mask)
                 lutf_input(odd_clipB, even_clipB, sample_regB, min_alpha_reg, max_alpha_reg, reg_m256i, reg_m256i_02, odd_mask)
-                __m256i odd_clip = _mm256_add_epi16(odd_clipA, odd_clipB);
-                __m256i even_clip = _mm256_add_epi16(even_clipA, even_clipB);
+                __m256i odd_clip = _mm256_min_epi16(_mm256_max_epi16(_mm256_add_epi16(odd_clipA, odd_clipB), min_val), max_val);
+                __m256i even_clip = _mm256_min_epi16(_mm256_max_epi16(_mm256_add_epi16(even_clipA, even_clipB), min_val), max_val);
 
                 lutf_mult(out_reg00, out_reg01, reg_m256i, reg_m256i_02, odd_clip, even_clip, weight_reg0)
                 lutf_mult(out_reg10, out_reg11, reg_m256i, reg_m256i_02, odd_clip, even_clip, weight_reg1)
@@ -358,7 +375,7 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
             }
 
             __m256i scale_value = _mm256_set1_epi32(lut_idx_scale);
-            __m256i half_value = _mm256_set1_epi32(lut_shift_half);
+            __m256i half_value = _mm256_set1_epi32(lut_shitf_half);
             __m256i idx_min_reg = _mm256_set1_epi32(lut_idx_min);
             __m256i idx_max_reg = _mm256_set1_epi32(lut_frm_max - 1);
             __m256i zero_reg = _mm256_setzero_si256();
@@ -374,12 +391,11 @@ void lutfIntraBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
             __m256i lut_idx_odd = _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg00, 8), _mm256_slli_epi32(out_reg10, 4)), out_reg20);
             __m256i lut_idx_even = _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg01, 8), _mm256_slli_epi32(out_reg11, 4)), out_reg21);
 
-            __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
-            __m256i v_odd = _mm256_i32gather_epi32((int*)lutftable, _mm256_andnot_si256(sub_idx_mask, lut_idx_odd), 1);
-            __m256i v_even = _mm256_i32gather_epi32((int*)lutftable, _mm256_andnot_si256(sub_idx_mask, lut_idx_even), 1);
+            __m256i v_odd = _mm256_i32gather_epi32((int*)lutftable, lut_idx_odd, 4);
+            __m256i v_even = _mm256_i32gather_epi32((int*)lutftable, lut_idx_even, 4);
 
-            __m256i tv_odd = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_odd, _mm256_slli_epi32(_mm256_and_si256(sub_idx_mask, lut_idx_odd), 3)), 24), 24);
-            __m256i tv_even = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_even, _mm256_slli_epi32(_mm256_and_si256(sub_idx_mask, lut_idx_even), 3)), 24), 8);
+            __m256i tv_odd = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_odd, _mm256_slli_epi32(clsIdx, 3)), 24), 24);
+            __m256i tv_even = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_even, _mm256_slli_epi32(clsIdx, 3)), 24), 8);
 
             __m256i out_reg = _mm256_blend_epi16(tv_odd, tv_even, 0xAA);
             __m256i out_min_reg = _mm256_set1_epi16(LUTF_TEST_RES_MAX);
@@ -421,7 +437,7 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
     const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
     const int lut_idx_scale = max(-lut_idx_min, lut_idx_max);
     int32_t lut_shift = LUTF_TEST_INP_PREC - LUTF_TRAIN_INP_PREC + LUTF_NET_PAR_SCALE_LOG2;
-    int32_t lut_shift_half = 1 << (lut_shift - 1);
+    int32_t lut_shitf_half = 1 << (lut_shift - 1);
     
     const int16_t *alpha = lutfInterAlpha[refDstIdx][qpIdx];
     const int16_t *weight= lutfInterWeight[refDstIdx][qpIdx];
@@ -430,7 +446,7 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
 
     DECLARE_ALIGNED(32, uint32_t, aligned_cls[LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE + 16]) = { 0 };
     DECLARE_ALIGNED(32, uint16_t, aligned_lap[LUTF_NET_INP_GRD_NUM][LUTF_TEST_BLK_SIZE][LUTF_TEST_BLK_SIZE * 2 + 16]) = { 0 };
-    lutfSetLapAndCls_avx2(iMin, iMax, jMin, jMax, recPnt + recStride * iMin + jMin, recStride, 10, aligned_lap, aligned_cls); // TODO :: bitdepth
+    lutfSetLapAndCls_avx2(iMin, iMax, jMin, jMax, sb_size, recPnt + recStride * iMin + jMin, recStride, 10, aligned_lap, aligned_cls); // TODO :: bitdepth
 
     lutf_bias(bias_reg0, bias);
     lutf_bias(bias_reg1, bias + LUTF_NET_INP_GRD_NUM);
@@ -442,12 +458,16 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
 
     __m256i reg_m256i, reg_m256i_02;
     __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
+    const __m256i min_val = _mm256_set1_epi16(-2048); // -2^11
+    const __m256i max_val = _mm256_set1_epi16(2047); // 2^11 - 1
     __m256  reg_m256;
 
     uint16_t* lapLines[LUTF_NET_INP_GRD_NUM] = { aligned_lap[0][0], aligned_lap[1][0], aligned_lap[2][0], aligned_lap[3][0] };
     for (int i = 0; i < (iMax - iMin); i++)
     {
-        for (int j = 0; j < (jMax - jMin); j += 16) 
+        int vertical_spatial_support_min = -LUTF_TEST_LINE_BUFFER - ((i + iMin + LUTF_TEST_STRIPE_OFF) % sb_size);
+        int vertical_spatial_support_max = (sb_size - 1 + LUTF_TEST_LINE_BUFFER) - ((i + iMin + LUTF_TEST_STRIPE_OFF) % sb_size);
+        for (int j = 0; j < (jMax - jMin); j += 16)
         {
             __m256i clsIdx = _mm256_load_si256((const __m256i*)(clsLine + (j >> 1)));
             lutf_output(out_reg00, out_reg01, bias_reg0, clsIdx)
@@ -457,7 +477,7 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 __m256i input_reg1 = _mm256_loadu_si256((const __m256i*) (recPtr + j));
 
 #if LUTF_TEST_VIRTUAL_BOUNDARY
-                int lutfRecCoordinates_h = ((((i + iMin) % sb_size) + lutfRecCoordinates[k][0]) < -LUTF_TEST_LINE_BUFFER) ? -lutfRecCoordinates[k][0] : lutfRecCoordinates[k][0];
+                int lutfRecCoordinates_h = (lutfRecCoordinates[k][0] < vertical_spatial_support_min) ? -lutfRecCoordinates[k][0] : lutfRecCoordinates[k][0];
                 const uint16_t* s_pos_A = recPtr + j + (lutfRecCoordinates_h * recStride) + lutfRecCoordinates[k][1];
 #else   //
                 const uint16_t* s_pos_A = recPtr + j + (lutfRecCoordinates[k][0] * recStride) + lutfRecCoordinates[k][1];
@@ -467,7 +487,7 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 __m256i sample_regA = _mm256_slli_epi16(reg_m256i_02, pxlShift);
 
 #if LUTF_TEST_VIRTUAL_BOUNDARY
-                int lutfRecCoordinates_Sym_h = ((((i + iMin) % sb_size) + lutfRecCoordinates_Sym[k][0]) > (sb_size - 1 + LUTF_TEST_LINE_BUFFER)) ? -lutfRecCoordinates_Sym[k][0] : lutfRecCoordinates_Sym[k][0];
+                int lutfRecCoordinates_Sym_h = (lutfRecCoordinates_Sym[k][0] > vertical_spatial_support_max) ? -lutfRecCoordinates_Sym[k][0] : lutfRecCoordinates_Sym[k][0];
                 const uint16_t* s_pos_B = recPtr + j + (lutfRecCoordinates_Sym_h * recStride) + lutfRecCoordinates_Sym[k][1];
 #else   //
                 const uint16_t* s_pos_B = recPtr + j + (lutfRecCoordinates_Sym[k][0] * recStride) + lutfRecCoordinates_Sym[k][1];
@@ -483,8 +503,8 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 
                 lutf_input(odd_clipA, even_clipA, sample_regA, min_alpha_reg, max_alpha_reg, reg_m256i, reg_m256i_02, odd_mask)
                 lutf_input(odd_clipB, even_clipB, sample_regB, min_alpha_reg, max_alpha_reg, reg_m256i, reg_m256i_02, odd_mask)
-                __m256i odd_clip = _mm256_add_epi16(odd_clipA, odd_clipB);
-                __m256i even_clip = _mm256_add_epi16(even_clipA, even_clipB);
+                __m256i odd_clip = _mm256_min_epi16(_mm256_max_epi16(_mm256_add_epi16(odd_clipA, odd_clipB), min_val), max_val);
+                __m256i even_clip = _mm256_min_epi16(_mm256_max_epi16(_mm256_add_epi16(even_clipA, even_clipB), min_val), max_val);
 
                 lutf_mult(out_reg00, out_reg01, reg_m256i, reg_m256i_02, odd_clip, even_clip, weight_reg0)
                 lutf_mult(out_reg10, out_reg11, reg_m256i, reg_m256i_02, odd_clip, even_clip, weight_reg1)
@@ -509,7 +529,7 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
             }
 
             __m256i scale_value = _mm256_set1_epi32(lut_idx_scale);
-            __m256i half_value = _mm256_set1_epi32(lut_shift_half);
+            __m256i half_value = _mm256_set1_epi32(lut_shitf_half);
             __m256i idx_min_reg = _mm256_set1_epi32(lut_idx_min);
             __m256i idx_max_reg = _mm256_set1_epi32(lut_frm_max - 1);
             __m256i zero_reg = _mm256_setzero_si256();
@@ -531,12 +551,11 @@ void lutfInterBlockProcess_avx2(const int iMin, const int iMax, const int jMin, 
                 _mm256_add_epi32(_mm256_slli_epi32(out_reg11, 3), _mm256_slli_epi32(out_reg11, 1))),
                 out_reg21);
 
-            __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
-            __m256i v_odd = _mm256_i32gather_epi32((int*)lutftable, _mm256_andnot_si256(sub_idx_mask, lut_idx_odd), 1);
-            __m256i v_even = _mm256_i32gather_epi32((int*)lutftable, _mm256_andnot_si256(sub_idx_mask, lut_idx_even), 1);
+            __m256i v_odd = _mm256_i32gather_epi32((int*)lutftable, lut_idx_odd, 4);
+            __m256i v_even = _mm256_i32gather_epi32((int*)lutftable, lut_idx_even, 4);
 
-            __m256i tv_odd = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_odd, _mm256_slli_epi32(_mm256_and_si256(sub_idx_mask, lut_idx_odd), 3)), 24), 24);
-            __m256i tv_even = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_even, _mm256_slli_epi32(_mm256_and_si256(sub_idx_mask, lut_idx_even), 3)), 24), 8);
+            __m256i tv_odd = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_odd, _mm256_slli_epi32(clsIdx, 3)), 24), 24);
+            __m256i tv_even = _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v_even, _mm256_slli_epi32(clsIdx, 3)), 24), 8);
 
             __m256i out_reg = _mm256_blend_epi16(tv_odd, tv_even, 0xAA);
             __m256i out_min_reg = _mm256_set1_epi16(LUTF_TEST_RES_MAX);

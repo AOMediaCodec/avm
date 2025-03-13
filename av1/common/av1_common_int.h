@@ -434,6 +434,9 @@ typedef struct {
     int lutf_block_num_h;
     int lutf_block_num_w;
     int lutf_block_num;
+    int lutf_stripe_size;
+    int lutf_unit_size;
+
     int lutf_block_filterMode[2400];     // TODO_KD: maximum number of blocks is 600
 
     uint16_t* lapPnt[4];                // TODO_KD: maximum number of direction is 4
