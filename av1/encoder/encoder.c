@@ -2271,12 +2271,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   }
 
   if (!is_stat_generation_stage(cpi) && cm->seq_params.enable_tip) {
+    setup_tip_frame_size(cpi);
     RefCntBuffer *buf = get_ref_frame_buf(cm, TIP_FRAME);
-    if (buf == NULL || (buf->buf.y_crop_width != cm->width ||
-                        buf->buf.y_crop_height != cm->height)) {
-      setup_tip_frame_size(cpi);
-      buf = get_ref_frame_buf(cm, TIP_FRAME);
-    }
+
     if (buf != NULL) {
       struct scale_factors *sf = get_ref_scale_factors(cm, TIP_FRAME);
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,

@@ -4329,11 +4329,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
   if (cm->seq_params.enable_tip) {
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, TIP_FRAME);
-    if (ref_buf == NULL || (ref_buf->buf.y_crop_width != cm->width ||
-                            ref_buf->buf.y_crop_height != cm->height)) {
-      setup_tip_frame_size(cm);
-    }
+    setup_tip_frame_size(cm);
   }
 }
 
