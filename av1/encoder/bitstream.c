@@ -6726,7 +6726,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
     write_tile_info(cm, saved_wb, wb);
 #endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     if (seq_params->film_grain_params_present &&
-        (cm->show_frame || cm->showable_frame))
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+         cm->showable_frame))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+          (cm->show_frame || cm->showable_frame))
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       write_film_grain_params(cpi, wb);
     return;
   }
@@ -6837,7 +6842,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame))
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+      (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+       cm->showable_frame))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        (cm->show_frame || cm->showable_frame))
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     write_film_grain_params(cpi, wb);
 
   if (cm->tiles.large_scale) write_ext_tile_info(cm, saved_wb, wb);
