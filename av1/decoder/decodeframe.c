@@ -2855,6 +2855,13 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 
   if (parse_decode_flag & 1)
     update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+#if CONFIG_EXTENDED_SDP
+  if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+    xd->tree_type = CHROMA_PART;
+    update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+    xd->tree_type = SHARED_PART;
+  }
+#endif  // CONFIG_EXTENDED_SDP
 }
 
 static AOM_INLINE void setup_bool_decoder(

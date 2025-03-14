@@ -3776,7 +3776,9 @@ static AOM_INLINE void write_modes_sb(
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
 #if CONFIG_INTRA_SDP_LATENCY_FIX
-
+  const int intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
   const int total_loop_num =
       (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
        cm->seq_params.enable_sdp && bsize == BLOCK_64X64)
@@ -3864,11 +3866,7 @@ static AOM_INLINE void write_modes_sb(
     }
   }
 #endif  // CONFIG_EXTENDED_SDP
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-  const int intra_sdp_enabled =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-       cm->seq_params.enable_sdp);
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+
   switch (partition) {
     case PARTITION_NONE:
       write_modes_b(
@@ -4208,6 +4206,13 @@ static AOM_INLINE void write_modes_sb(
 
   // update partition context
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+#if CONFIG_EXTENDED_SDP
+  if (intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+    xd->tree_type = CHROMA_PART;
+    update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+    xd->tree_type = SHARED_PART;
+  }
+#endif  // CONFIG_EXTENDED_SDP
 }
 
 static AOM_INLINE void write_modes(AV1_COMP *const cpi,
