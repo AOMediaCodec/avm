@@ -41,6 +41,7 @@ struct tcq_lf_ctx_t;
 struct prequant_t;
 struct tcq_rate_t;
 struct tcq_coeff_ctx_t;
+struct tcq_param_t;
 struct LV_MAP_COEFF_COST;
 
 enum { NONE, RELU, SOFTSIGN, SIGMOID } UENUM1BYTE(ACTIVATION);
@@ -376,11 +377,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_pre_quant/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
     specialize qw/av1_pre_quant avx2/;
 
-    add_proto qw/void av1_get_rate_dist_def_luma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
+    add_proto qw/void av1_get_rate_dist_def_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_def_luma avx2/;
     add_proto qw/void av1_get_rate_dist_def_chroma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int plane, int t_sign, int sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_def_chroma avx2/;
-    add_proto qw/void av1_get_rate_dist_lf_luma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int coeff_sign, struct tcq_rate_t *rd";
+    add_proto qw/void av1_get_rate_dist_lf_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int coeff_sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_lf_luma avx2/;
     add_proto qw/void av1_get_rate_dist_lf_chroma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int plane, int coeff_sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_lf_chroma avx2/;

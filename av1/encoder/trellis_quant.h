@@ -87,11 +87,14 @@ typedef struct tcq_coeff_ctx_t {
 
 typedef struct tcq_param_t {
   int plane;
+  int bwl;
+  int txb_height;
   TX_SIZE tx_size;
   TX_CLASS tx_class;
   int sharpness;
   int64_t rdmult;
   int log_scale;
+  int dc_sign_ctx;
   const int16_t *scan;
   const int32_t *tmp_sign;
   const tran_low_t *qcoeff;
@@ -103,6 +106,32 @@ typedef struct tcq_param_t {
   const TXB_CTX *txb_ctx;
   const LV_MAP_COEFF_COST *txb_costs;
 } tcq_param_t;
+
+// Extract mid/base magnitude context.
+// (context based on sum of neighbor abs_coeff levels)
+// Packed format:
+//   mid_ctx: bits[7:4]
+//   base_ctx: bits[3:0]
+static AOM_FORCE_INLINE int get_mid_ctx(int coeff_ctx) {
+  return coeff_ctx >> 4;
+}
+
+static AOM_FORCE_INLINE int get_base_ctx(int coeff_ctx) {
+  return coeff_ctx & 15;
+}
+
+// Extract mid/base diagonal context.
+// (context offset based on row + col)
+// Packed format:
+//   mid_diag_ctx: bits[15:8]
+//   base_diag_ctx: bits[7:0]
+static AOM_FORCE_INLINE int get_mid_diag_ctx(int diag_ctx) {
+  return diag_ctx >> 8;
+}
+
+static AOM_FORCE_INLINE int get_base_diag_ctx(int diag_ctx) {
+  return diag_ctx & 255;
+}
 
 // Get the low range part of a coeff
 static AOM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {

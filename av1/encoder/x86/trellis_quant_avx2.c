@@ -391,15 +391,13 @@ static int get_mid_cost_lf(tran_low_t abs_qc, int coeff_ctx,
   return cost;
 }
 
-void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
+void av1_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
                                      const struct prequant_t *pq,
-                                     const tcq_coeff_ctx_t *coeff_ctx,
-                                     int blk_pos, int bwl, TX_CLASS tx_class,
-                                     int diag_ctx, int eob_rate,
+                                     const struct tcq_coeff_ctx_t *coeff_ctx,
+                                     int blk_pos, int diag_ctx, int eob_rate,
                                      struct tcq_rate_t *rd) {
-  (void)bwl;
+  const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   (void)blk_pos;
-  (void)tx_class;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_zero;
   const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->base_cost_low_tbl;
@@ -408,13 +406,15 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_mid_tbl)[LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+  int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i zero = _mm256_setzero_si256();
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
 
   __m256i coef_ctx = _mm256_castsi128_si256(_mm_loadu_si64(&coeff_ctx->coef));
   __m256i ctx16 = _mm256_unpacklo_epi8(coef_ctx, zero);
@@ -434,7 +434,7 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   int qIdx = pq->qIdx;
   int idx = AOMMIN(qIdx - 1, 4);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi16(diag_ctx & 255);
+  __m256i diag = _mm256_set1_epi16(base_diag_ctx);
   __m256i base_ctx = _mm256_slli_epi16(ctx16, 12);
   base_ctx = _mm256_srli_epi16(base_ctx, 12);
   base_ctx = _mm256_add_epi16(base_ctx, diag);
@@ -474,7 +474,7 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
     rate_eob = _mm_add_epi32(rate_eob, mid_rate_eob);
     _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     __m256i mid_ctx = _mm256_srli_epi16(ctx16, 4);
-    __m256i mid_diag = _mm256_set1_epi16(diag_ctx >> 8);
+    __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
     mid_ctx = _mm256_add_epi16(mid_ctx, mid_diag);
     for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
       int ctx0 = _mm256_extract_epi16(mid_ctx, 0);
@@ -640,13 +640,12 @@ void av1_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
   }
 }
 
-void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
+void av1_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
                                     const struct prequant_t *pq,
                                     const struct tcq_coeff_ctx_t *coeff_ctx,
                                     int blk_pos, int diag_ctx, int eob_rate,
-                                    int dc_sign_ctx, const int32_t *tmp_sign,
-                                    int bwl, TX_CLASS tx_class, int coeff_sign,
-                                    struct tcq_rate_t *rd) {
+                                    int coeff_sign, struct tcq_rate_t *rd) {
+  const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   static const int8_t kShuf[2][32] = {
     { 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
       0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 },
@@ -662,13 +661,19 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_lf_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
-  const int plane = 0;
+  const int32_t *tmp_sign = p->tmp_sign;
+  int bwl = p->bwl;
+  TX_CLASS tx_class = p->tx_class;
+  int dc_sign_ctx = p->dc_sign_ctx;
+  int plane = 0;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+  int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i shuf = _mm256_lddqu_si256((__m256i *)kShuf[0]);
   cost_zero_dq0 = _mm256_shuffle_epi8(cost_zero_dq0, shuf);
   cost_zero_dq1 = _mm256_shuffle_epi8(cost_zero_dq1, shuf);
@@ -691,7 +696,7 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   int idx = AOMMIN(qIdx - 1, 8);
   __m256i zero = _mm256_setzero_si256();
   __m128i c_zero = _mm256_castsi256_si128(zero);
-  __m256i base_diag = _mm256_set1_epi8(diag_ctx & 255);
+  __m256i base_diag = _mm256_set1_epi8(base_diag_ctx);
   base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
@@ -758,7 +763,7 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
     _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     __m256i mid_ctx = _mm256_unpacklo_epi8(ctx, zero);
     mid_ctx = _mm256_srli_epi16(mid_ctx, 4);
-    __m256i mid_diag = _mm256_set1_epi16(diag_ctx >> 8);
+    __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
     mid_ctx = _mm256_add_epi16(mid_ctx, mid_diag);
     for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
       int ctx0 = _mm256_extract_epi16(mid_ctx, 0);
@@ -846,12 +851,13 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_lf_eob_cost_uv_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i shuf = _mm256_lddqu_si256((__m256i *)kShuf[0]);
   cost_zero_dq0 = _mm256_shuffle_epi8(cost_zero_dq0, shuf);
   cost_zero_dq1 = _mm256_shuffle_epi8(cost_zero_dq1, shuf);
@@ -872,7 +878,7 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   // Calc coeff_base rate.
   int idx = AOMMIN(pq->qIdx - 1, 8);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i base_diag = _mm256_set1_epi8(diag_ctx & 255);
+  __m256i base_diag = _mm256_set1_epi8(base_diag_ctx);
   base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
@@ -968,13 +974,14 @@ void av1_get_rate_dist_def_chroma_avx2(
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_eob_cost_uv_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i zero = _mm256_setzero_si256();
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx & 255]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i ctx = _mm256_castsi128_si256(_mm_loadu_si64(&coeff_ctx->coef));
   __m256i ctx16 = _mm256_unpacklo_epi8(ctx, zero);
   __m256i ctx16sh = _mm256_shuffle_epi32(ctx16, 0xD8);
@@ -992,7 +999,7 @@ void av1_get_rate_dist_def_chroma_avx2(
   // Calc coeff_base rate.
   int idx = AOMMIN(pq->qIdx - 1, 4);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi16(diag_ctx);
+  __m256i diag = _mm256_set1_epi16(base_diag_ctx);
   __m256i base_ctx = _mm256_slli_epi16(ctx16, 12);
   base_ctx = _mm256_srli_epi16(base_ctx, 12);
   base_ctx = _mm256_add_epi16(base_ctx, diag);
