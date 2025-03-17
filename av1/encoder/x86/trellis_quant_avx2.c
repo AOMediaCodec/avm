@@ -872,9 +872,7 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   // Calc coeff_base rate.
   int idx = AOMMIN(pq->qIdx - 1, 8);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi8(diag_ctx);
-  __m256i base_diag = _mm256_slli_epi16(diag, 12);
-  base_diag = _mm256_srli_epi16(diag, 12);
+  __m256i base_diag = _mm256_set1_epi8(diag_ctx & 255);
   base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);

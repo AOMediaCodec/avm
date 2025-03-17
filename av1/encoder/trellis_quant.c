@@ -1078,14 +1078,14 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
     if (limits) {
       if (plane == 0) {
         int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
-        if (scan_pos) {
-          diag_ctx += 7 << 8;
-        }
         for (int i = 0; i < TCQ_N_STATES; i++) {
           int base_ctx =
               get_lower_levels_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
           int br_ctx = get_br_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
           coeff_ctx.coef[i] = base_ctx - diag_ctx + (br_ctx << 4);
+        }
+        if (scan_pos) {
+          diag_ctx += 7 << 8;
         }
         f_get_rate_dist_lf_luma(txb_costs, &pqData, &coeff_ctx, blk_pos,
                                 diag_ctx, eob_rate, txb_ctx->dc_sign_ctx,
