@@ -243,7 +243,7 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                      const LV_MAP_COEFF_COST *txb_costs,
                                      int q_i, int t_sign, int sign) {
   int base_ctx = (diag_ctx & 255) + (coeff_ctx & 15);
-  int mid_ctx = (diag_ctx >> 8) + (coeff_ctx >> 4);
+  int mid_ctx = coeff_ctx >> 4;
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   int cost = base_cost_ptr[base_ctx][q_i][AOMMIN(abs_qc, 3)];
@@ -1077,16 +1077,18 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
     // Calculate contexts and rate distortion
     if (limits) {
       if (plane == 0) {
-        int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
+        int base_diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
+        int mid_diag_ctx = 7 * (tx_class == TX_CLASS_2D ? blk_pos > 0 :
+                                tx_class == TX_CLASS_HORIZ ? col == 0 :
+                                row == 0);
         for (int i = 0; i < TCQ_N_STATES; i++) {
           int base_ctx =
               get_lower_levels_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
           int br_ctx = get_br_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
-          coeff_ctx.coef[i] = base_ctx - diag_ctx + (br_ctx << 4);
+          br_ctx -= mid_diag_ctx;
+          coeff_ctx.coef[i] = base_ctx - base_diag_ctx + (br_ctx << 4);
         }
-        if (scan_pos) {
-          diag_ctx += 7 << 8;
-        }
+        int diag_ctx = base_diag_ctx + (mid_diag_ctx << 8);
         f_get_rate_dist_lf_luma(txb_costs, &pqData, &coeff_ctx, blk_pos,
                                 diag_ctx, eob_rate, txb_ctx->dc_sign_ctx,
                                 tmp_sign, bwl, tx_class, coeff_sign, &rd);
