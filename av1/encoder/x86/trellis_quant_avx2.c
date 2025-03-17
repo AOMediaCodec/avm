@@ -691,7 +691,7 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   int idx = AOMMIN(qIdx - 1, 8);
   __m256i zero = _mm256_setzero_si256();
   __m128i c_zero = _mm256_castsi256_si128(zero);
-  __m256i base_diag = _mm256_set1_epi8(diag_ctx);
+  __m256i base_diag = _mm256_set1_epi8(diag_ctx & 255);
   base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
