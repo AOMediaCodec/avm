@@ -3338,6 +3338,7 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
+  ptree->bsize = bsize;
 
   PARTITION_TREE *parent = ptree->parent;
   set_chroma_ref_info(tree_type, mi_row, mi_col, ptree->index, bsize,
