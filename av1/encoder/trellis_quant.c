@@ -1079,10 +1079,11 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
     // Calculate contexts and rate distortion
     if (limits) {
       if (plane == 0) {
-        int base_diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
-        int mid_diag_ctx = 7 * (tx_class == TX_CLASS_2D ? blk_pos > 0 :
-                                tx_class == TX_CLASS_HORIZ ? col == 0 :
-                                row == 0);
+        int base_diag_ctx =
+            get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, tx_class);
+        int mid_diag_ctx = 7 * (tx_class == TX_CLASS_2D      ? blk_pos > 0
+                                : tx_class == TX_CLASS_HORIZ ? col == 0
+                                                             : row == 0);
         for (int i = 0; i < TCQ_N_STATES; i++) {
           int base_ctx =
               get_lower_levels_lf_ctx(prev_levels[i], blk_pos, bwl, tx_class);
