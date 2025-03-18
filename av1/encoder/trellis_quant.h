@@ -36,18 +36,36 @@ typedef struct tcq_node_t {
   int32_t prevId : 8;
 } tcq_node_t;
 
+// This struct maintains context for current and upcoming
+// diagonals (A diagonal is a group of consecutive coeffs
+// with the same row + col, traversed from upper-right to
+// lower-left. Diagonals are processed from the largest (which
+// contains the initial EOB position), to the smallest (DC coeff).
 typedef struct tcq_ctx_t {
+  // Coeff magnitudes for one diagonal, clipped to fit within 8 bits,
+  // used to calculate upcoming contexts
   uint8_t lev_new[MAX_DIAG + 8][TCQ_MAX_STATES];
+  // Sum of neighbors used for base level syntax, for the upcoming
+  // diagonal. This contains the sum of {2,0} {1,1} and {0,2}
+  // template neighbors.
   uint8_t mag_base[MAX_DIAG + 8][TCQ_MAX_STATES];
+  // Sum of neighbors used for mid level syntax, for the upcoming
+  // diagonal. This contains the {1,1} neighbor.
   uint8_t mag_mid[MAX_DIAG + 8][TCQ_MAX_STATES];
+  // Neighbor context for mid/base, packed into 8 bits.
+  // for use in current diagonal.
+  // base_ctx = ({sum of 5 nbrs} + 1) >> 1
+  // mid_ctx = ({sum of 3 nbrs} + 1) >> 1
+  // ctx = (mid_ctx << 4) + base_ctx
   uint8_t ctx[MAX_DIAG + 8][TCQ_MAX_STATES];
+  // Map trellis state to previous state. After the diagonal is
+  // processed, this array is used to backtrack and traverse the
+  // trellis-selected coeffs. A value of -1 indicates a new eob position.
   int8_t prev_st[MAX_DIAG + 8][TCQ_MAX_STATES];
+  // Maintain which original state (from the beginning of the diagonal)
+  // is selected with the current state. (-1 indicates new eob)
   int8_t orig_st[TCQ_MAX_STATES];
 } tcq_ctx_t;
-
-typedef struct tcq_lf_ctx_t {
-  uint8_t last[16];
-} tcq_lf_ctx_t;
 
 typedef struct prequant_t {
   int32_t absLevel[4];

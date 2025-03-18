@@ -72,6 +72,11 @@ static AOM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   }
 }
 
+// Initialize coeff neighbor magnitudes to zero before starting trellis
+// optimization for a coeff block.
+// Initialize previous state storage to identity mapping.
+// As trellis decisions are made, magnitudes and
+// state transitions will be updated.
 static AOM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx) {
   static const int8_t init_st[4][TCQ_MAX_STATES] = {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
