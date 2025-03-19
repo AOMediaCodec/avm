@@ -3766,7 +3766,7 @@ static AOM_INLINE void setup_lutf(AV1_COMMON* cm,
     struct aom_read_bit_buffer* rb) {
     if (is_global_intrabc_allowed(cm)) return;
     cm->lutf_info.lutf_decoder = 1;
-    lutfOpen(cm);
+    gdf_open_info(cm);
     cm->lutf_info.lutf_enable = aom_rb_read_bit(rb);
     if (cm->lutf_info.lutf_enable)
     {
@@ -8809,10 +8809,9 @@ void av1_lutf_frame_dec(AV1_COMMON* cm)
 {
     if (cm->lutf_info.lutf_enable)
     {
-        lutfFilter(cm);
-        lutfCompensate(cm);
+        gdf_filter_frame(cm);
     }
-    lutfClose(cm);
+    gdf_close_info(cm);
 }
 #endif  //
 #endif  //
@@ -8877,12 +8876,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     {
       if (LUTF_TEST_INP_LOC == 0)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 0)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
     }
 #endif	//
@@ -8974,12 +8973,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if LUTF_TEST
       if (LUTF_TEST_INP_LOC == 1)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 1)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
 #endif	//
 #endif  //
@@ -8992,12 +8991,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if LUTF_TEST
       if (LUTF_TEST_INP_LOC == 2)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 2)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
 #endif	//
 #endif  //
@@ -9011,12 +9010,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if LUTF_TEST
       if (LUTF_TEST_INP_LOC == 3)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 3)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
 #endif	//
 #endif  //
@@ -9027,12 +9026,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if LUTF_TEST
       if (LUTF_TEST_INP_LOC == 4)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 4)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
 #endif	//
 #endif  //
@@ -9060,12 +9059,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if LUTF_TEST
       if (LUTF_TEST_INP_LOC == 5)
       {
-          lutfCpyInpFrm(cm);
+          gdf_copy_guided_frame(cm);
       }
       if (LUTF_TEST_OUT_LOC == 5)
       {
           av1_lutf_frame_dec(cm);
-          lutfDelInpFrm(cm);
+          gdf_free_guided_frame(cm);
       }
 #endif	//
 #endif  //

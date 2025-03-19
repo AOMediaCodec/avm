@@ -614,19 +614,17 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
 }
 
 add_proto qw/void lutfIntraBlockProcess/, "const int iMin, const int iMax, const int jMin, const int jMax,
-                      const int sb_size, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
-                      const uint32_t* clsPnt, int16_t* tgtPnt, uint16_t* const lapPnt[4],
-                      const int pxlShift, const int refDstIdx";
+                      const int stripeSize, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
+                      int16_t* errPnt, const int errStride, const int pxlShift, const int refDstIdx";
 specialize qw/lutfIntraBlockProcess avx2/;
 
 add_proto qw/void lutfInterBlockProcess/, "const int iMin, const int iMax, const int jMin, const int jMax,
-                      const int sb_size, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
-                      const uint32_t* clsPnt, int16_t* tgtPnt, uint16_t* const lapPnt[4],
-                      const int pxlShift, const int refDstIdx";
+                      const int stripeSize, const int qpIdx, const uint16_t* recPnt, const int recWidth, const int recStride,
+                      int16_t* errPnt, const int errStride, const int pxlShift, const int refDstIdx";
 specialize qw/lutfInterBlockProcess avx2/;
 
-add_proto qw/void lutfCompensationBlockProcess/, "uint16_t* recPnt, const int recStride, const int16_t* tgtPnt,
-    					      const int tgtStride, const int tgt_shift, const int scale, const int pxlMax, const int blkHeight, const int blkWidth";
+add_proto qw/void lutfCompensationBlockProcess/, "uint16_t* recPnt, const int recStride,
+    				  int16_t* errPnt, const int errStride, const int errShift, const int scale, const int pxlMax, const int blkHeight, const int blkWidth";
 specialize qw/lutfCompensationBlockProcess avx2/;
 
 # Cross-component Sample Offset

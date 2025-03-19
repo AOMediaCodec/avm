@@ -439,9 +439,9 @@ typedef struct {
 
     int lutf_block_filterMode[2400];     // TODO_KD: maximum number of blocks is 600
 
-    uint16_t* lapPnt[4];                // TODO_KD: maximum number of direction is 4
-    uint32_t* clsPnt[4];                // TODO_KD: maximum number of classes is 4
-    int16_t* tgtPnt[8];                 // TODO_KD: maximum number of optimized QPs is 8
+    int errHeight;
+    int errStride;
+    int16_t* errPnt;
     uint16_t* inpPnt;
     uint16_t* inpPlsPnt;
 } LutfInfo;
