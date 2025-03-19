@@ -374,11 +374,6 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
-
-  if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
-      xd->tree_type == SHARED_PART) {
-    cfl_store_tx(xd, row, col, tx_size, cm->seq_params.cfl_ds_filter_index);
-  }
 }
 
 // Facade function for inverse cross chroma component transform
@@ -1585,7 +1580,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
     }
-    td->cfl_store_inter_block_visit(cm, xd);
   }
 
   av1_visit_palette(pbi, xd, r, set_color_index_map_offset);

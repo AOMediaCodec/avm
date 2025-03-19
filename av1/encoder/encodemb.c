@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -1834,10 +1834,6 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
   *(args->skip) = 0;
-  if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
-    cfl_store_tx(xd, blk_row, blk_col, tx_size,
-                 cm->seq_params.cfl_ds_filter_index);
-  }
 }
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
