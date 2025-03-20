@@ -6485,8 +6485,21 @@ static AOM_INLINE void write_uncompressed_header_obu(
         }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (!features->cur_frame_force_integer_mv) {
+#if CONFIG_FRAME_HALF_PRECISION
+          aom_wb_write_bit(wb,
+                           features->fr_mv_precision == MV_PRECISION_QTR_PEL);
+          if (features->fr_mv_precision != MV_PRECISION_QTR_PEL) {
+            assert(features->fr_mv_precision == MV_PRECISION_ONE_EIGHTH_PEL ||
+                   features->fr_mv_precision == MV_PRECISION_HALF_PEL);
+            aom_wb_write_bit(
+                wb, features->fr_mv_precision == MV_PRECISION_ONE_EIGHTH_PEL);
+          }
+#else
+
           aom_wb_write_bit(wb,
                            features->fr_mv_precision > MV_PRECISION_QTR_PEL);
+#endif  // CONFIG_FRAME_HALF_PRECISION
+
           assert(features->fr_mv_precision ==
                  features->most_probable_fr_mv_precision);
         }

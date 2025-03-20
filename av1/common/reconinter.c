@@ -4184,23 +4184,37 @@ void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   (void)cm;
   (void)xd;
   (void)ref_mv_idx;
-
+#if CONFIG_FRAME_HALF_PRECISION
+  mbmi->mb_precision_set =
+      (mbmi->max_mv_precision < MV_PRECISION_HALF_PEL)
+          ? 0
+          : MV_PRECISION_ONE_EIGHTH_PEL - mbmi->max_mv_precision;
+#else
   int set_idx = 0;
 
   int offset_idx = (mbmi->max_mv_precision == MV_PRECISION_QTR_PEL)
                        ? NUMBER_OF_PRECISION_SETS
                        : 0;
   mbmi->mb_precision_set = set_idx + offset_idx;
+#endif  // CONFIG_FRAME_HALF_PRECISION
 }
 void set_default_precision_set(const AV1_COMMON *const cm, MB_MODE_INFO *mbmi,
                                const BLOCK_SIZE bsize) {
   (void)bsize;
   (void)cm;
+
+#if CONFIG_FRAME_HALF_PRECISION
+  mbmi->mb_precision_set =
+      (mbmi->max_mv_precision < MV_PRECISION_HALF_PEL)
+          ? 0
+          : MV_PRECISION_ONE_EIGHTH_PEL - mbmi->max_mv_precision;
+#else
   int set_idx = 0;
   int offset_idx = (mbmi->max_mv_precision == MV_PRECISION_QTR_PEL)
                        ? NUMBER_OF_PRECISION_SETS
                        : 0;
   mbmi->mb_precision_set = set_idx + offset_idx;
+#endif  // CONFIG_FRAME_HALF_PRECISION
 }
 void set_default_max_mv_precision(MB_MODE_INFO *mbmi,
                                   MvSubpelPrecision precision) {

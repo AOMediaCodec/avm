@@ -8088,9 +8088,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
         } else {
+#if CONFIG_FRAME_HALF_PRECISION
+          if (aom_rb_read_bit(rb)) {
+            features->fr_mv_precision = MV_PRECISION_QTR_PEL;
+          } else {
+            features->fr_mv_precision = aom_rb_read_bit(rb)
+                                            ? MV_PRECISION_ONE_EIGHTH_PEL
+                                            : MV_PRECISION_HALF_PEL;
+          }
+#else
           features->fr_mv_precision = aom_rb_read_bit(rb)
                                           ? MV_PRECISION_ONE_EIGHTH_PEL
                                           : MV_PRECISION_QTR_PEL;
+
+#endif  //  CONFIG_FRAME_HALF_PRECISION
+
           features->most_probable_fr_mv_precision = features->fr_mv_precision;
         }
         if (features->fr_mv_precision == MV_PRECISION_ONE_PEL) {

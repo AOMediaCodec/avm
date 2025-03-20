@@ -983,8 +983,12 @@ void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex) {
     prec = MV_PRECISION_ONE_PEL;
   }
   av1_set_high_precision_mv(cpi, prec);
-  cpi->common.features.use_pb_mv_precision =
-      cpi->common.seq_params.enable_flex_mvres;
+  if (cpi->common.features.cur_frame_force_integer_mv) {
+    cpi->common.features.use_pb_mv_precision = 0;
+  } else {
+    cpi->common.features.use_pb_mv_precision =
+        cpi->common.seq_params.enable_flex_mvres;
+  }
   cpi->common.features.most_probable_fr_mv_precision =
       cpi->common.features.fr_mv_precision;
 }

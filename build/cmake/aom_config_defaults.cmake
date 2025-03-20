@@ -331,6 +331,8 @@ set_aom_config_var(CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION 1
 
 set_aom_config_var(CONFIG_MV_RANGE_EXTENSION 1
                    "Enable to extend the range of MV")
+set_aom_config_var(CONFIG_FRAME_HALF_PRECISION 1
+                   "Enable frame level half precision")
 
 set_aom_config_var(CONFIG_WRL_CORNER_MVS 1
                    "Improve the WRL from the 3 corner MVs")
