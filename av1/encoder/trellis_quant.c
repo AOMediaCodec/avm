@@ -912,8 +912,6 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
   int height = p->txb_height;
   assert(plane == 0);
   assert(p->tx_class == TX_CLASS_2D);
-  assert(scan_lo >= 0);
-  assert(scan_hi >= scan_lo);
   (void)plane;
 
   int dc_coeff_sign = tcoeff[0] < 0;
@@ -929,6 +927,7 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
     scan_lo = scan_hi - inc;
     int lf = 0;
     int diag_ctx = get_diag_ctx(lf, blk_pos, scan_lo, bwl);
+    assert(scan_lo >= 0);
 
     for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
       tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
@@ -971,6 +970,7 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
     scan_lo = scan_hi - inc;
     int lf = 1;
     int diag_ctx = get_diag_ctx(lf, blk_pos, scan_lo, bwl);
+    assert(scan_lo >= 0);
 
     for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
       tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
