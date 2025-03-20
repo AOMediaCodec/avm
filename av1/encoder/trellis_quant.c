@@ -911,7 +911,7 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
   int bwl = p->bwl;
   int height = p->txb_height;
   assert(plane == 0);
-  assert(tx_class == TX_CLASS_2D);
+  assert(p->tx_class == TX_CLASS_2D);
   assert(scan_lo >= 0);
   assert(scan_hi >= scan_lo);
   (void)plane;
