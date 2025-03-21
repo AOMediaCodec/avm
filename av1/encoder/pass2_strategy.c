@@ -2948,8 +2948,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
       } else {
-        frame_params->frame_type =
-            rc->frames_since_key == 0 ? KEY_FRAME : INTER_FRAME;
+        frame_params->frame_type = rc->frames_since_key == 0 ? KEY_FRAME
+                                   : rc->sframe_due          ? S_FRAME
+                                                             : INTER_FRAME;
       }
     }
 
