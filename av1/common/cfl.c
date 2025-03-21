@@ -24,6 +24,10 @@
 
 #include "av1/common/warped_motion.h"
 
+#if CONFIG_MHCCP_GAUSSIAN
+#define LOCAL_FIXED_MULT(x, y, round, bits) (((x) * (y) + round) >> bits)
+#endif  // CONFIG_MHCCP_GAUSSIAN
+
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   assert(block_size_wide[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
   assert(block_size_high[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
@@ -1120,7 +1124,12 @@ static inline int floorLog2Uint64(uint64_t x) {
   return result;
 }
 
-void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
+void get_division_scale_shift(uint64_t denom, int *scale,
+#if CONFIG_MHCCP_GAUSSIAN
+                              int *round,
+#else
+                              uint64_t *round,
+#endif  // CONFIG_MHCCP_GAUSSIAN
                               int *shift) {
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
@@ -1138,14 +1147,24 @@ void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
   if (*shift == 0)
     *round = 0;
   else
+#if CONFIG_MHCCP_GAUSSIAN
+    *round = (int)((1ULL << (*shift)) >> 1);
+#else
     *round = (uint64_t)(1ULL << (*shift) >> 1);
+#endif  // CONFIG_MHCCP_GAUSSIAN
+
   int normDiff = 0;
+#if CONFIG_MHCCP_GAUSSIAN
+  normDiff = (int)((((denom << DIV_PREC_BITS) + *round) >> (*shift)) &
+                   ((1 << DIV_PREC_BITS) - 1));
+#else
   if (*shift > DIV_PREC_BITS)
     normDiff = (int)((denom >> ((*shift) - DIV_PREC_BITS)) &
                      ((1 << DIV_PREC_BITS) - 1));
   else
     normDiff = (int)((denom << (DIV_PREC_BITS - (*shift))) &
                      ((1 << DIV_PREC_BITS) - 1));
+#endif  // CONFIG_MHCCP_GAUSSIAN
   // The vale of index is ranging from 0 to 7
   int index = normDiff >> DIV_INTR_BITS;
   int normDiff2 = normDiff - pow2O[index];
@@ -1158,16 +1177,25 @@ void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
 
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col) {
+                           int numEq, int col
+#if CONFIG_MHCCP_GAUSSIAN
+                           ,
+                           int round, int bits
+#endif  // CONFIG_MHCCP_GAUSSIAN
+) {
   x[numEq - 1] = C[numEq - 1][col];
 
   for (int i = numEq - 2; i >= 0; i--) {
     x[i] = C[i][col];
 
     for (int j = i + 1; j < numEq; j++) {
+#if CONFIG_MHCCP_GAUSSIAN
+      x[i] -= LOCAL_FIXED_MULT(C[i][j], x[j], round, bits);
+#else
       x[i] -= stable_mult_shift(C[i][j], x[j], MHCCP_DECIM_BITS,
                                 get_msb_signed_64(C[i][j]),
                                 get_msb_signed_64(x[j]), 32, NULL);
+#endif  // CONFIG_MHCCP_GAUSSIAN
     }
   }
 }
@@ -1178,7 +1206,10 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   int colChr0 = numEq;
 
   int reg = 2 << (bd - 8);
-
+#if CONFIG_MHCCP_GAUSSIAN
+  const int decimBits = MHCCP_DECIM_BITS;
+  const int decimRound = (1 << (decimBits - 1));
+#endif  // CONFIG_MHCCP_GAUSSIAN
   // Create an [M][M+2] matrix system (could have been done already when
   // calculating auto/cross-correlations)
   for (int i = 0; i < numEq; i++) {
@@ -1192,16 +1223,27 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
   for (int i = 0; i < numEq; i++) {
     int64_t *src = C[i];
+#if CONFIG_MHCCP_GAUSSIAN
+    uint64_t diag = llabs(src[i]) < 1 ? 1 : llabs(src[i]);
+#else
     uint64_t diag = src[i] < 1 ? 1 : src[i];
-
+#endif  // CONFIG_MHCCP_GAUSSIAN
+#if CONFIG_MHCCP_GAUSSIAN
+    int round;
+#else
     uint64_t round;
+#endif  // CONFIG_MHCCP_GAUSSIAN
     int scale, shift;
     get_division_scale_shift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
+#if CONFIG_MHCCP_GAUSSIAN
+      src[j] = (src[j] * scale + round) >> shift;
+#else
       src[j] =
           stable_mult_shift(src[j], scale, shift, get_msb_signed_64(src[j]),
                             get_msb_signed_64(scale), 32, NULL);
+#endif  // CONFIG_MHCCP_GAUSSIAN
     }
 
     for (int j = i + 1; j < numEq; j++) {
@@ -1211,15 +1253,24 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
       // On row j all elements with k < i+1 are now zero (not zeroing those here
       // as backsubstitution does not need them)
       for (int k = i + 1; k < numEq + 1; k++) {
+#if CONFIG_MHCCP_GAUSSIAN
+        dst[k] -= LOCAL_FIXED_MULT(scale_factor, src[k], decimRound, decimBits);
+#else
         dst[k] -= stable_mult_shift(scale_factor, src[k], MHCCP_DECIM_BITS,
                                     get_msb_signed_64(scale_factor),
                                     get_msb_signed_64(src[k]), 32, NULL);
+#endif  // CONFIG_MHCCP_GAUSSIAN
       }
     }
   }
 
   // Solve with backsubstitution
-  gauss_back_substitute(x0, C, numEq, colChr0);
+  gauss_back_substitute(x0, C, numEq, colChr0
+#if CONFIG_MHCCP_GAUSSIAN
+                        ,
+                        decimRound, decimBits
+#endif  // CONFIG_MHCCP_GAUSSIAN
+  );
 }
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
@@ -1314,7 +1365,14 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
+#if CONFIG_MHCCP_GAUSSIAN
+  const int decimBits = MHCCP_DECIM_BITS;
+  const int decimRound = (1 << (decimBits - 1));
+#endif  // CONFIG_MHCCP_GAUSSIAN
   for (int i = 0; i < numParams; i++) {
+#if CONFIG_MHCCP_GAUSSIAN
+    sum += LOCAL_FIXED_MULT(params[i], vector[i], decimRound, decimBits);
+#else
 #if CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY
     sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
                              get_msb_signed_64(params[i]),
@@ -1322,6 +1380,7 @@ static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
 #else
     sum += params[i] * vector[i];
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
+#endif  // CONFIG_MHCCP_GAUSSIAN
   }
 #if CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY
   return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
