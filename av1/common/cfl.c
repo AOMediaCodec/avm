@@ -24,6 +24,10 @@
 
 #include "av1/common/warped_motion.h"
 
+#if CONFIG_MHCCP_GAUSSIAN
+#define LOCAL_FIXED_MULT(x, y, round, bits) (((x) * (y) + round) >> bits)
+#endif
+
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   assert(block_size_wide[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
   assert(block_size_high[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
@@ -1023,8 +1027,12 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     }
 
     // Scale the matrix and vector to selected dynamic range
+#if CONFIG_MHCCP_GAUSSIAN
+    int matrixShift = MHCCP_MATRIX_BITS - 2 * xd->bd - (int)ceil(log2(count));
+#else
     int matrixShift =
         (MHCCP_DECIM_BITS + 6) - 2 * xd->bd - (int)ceil(log2(count));
+#endif
 
     if (matrixShift > 0) {
       for (int coli0 = 0; coli0 < MHCCP_NUM_PARAMS; coli0++)
@@ -1046,6 +1054,17 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 #if CONFIG_E125_MHCCP_SIMPLIFY
     gauss_elimination_mhccp(ATA, C, Ty, mbmi->mhccp_implicit_param[plane - 1],
                             MHCCP_NUM_PARAMS, xd->bd);
+/*
+    // 临时保存数组指针
+    const int64_t* implicit_params = mbmi->mhccp_implicit_param[plane - 1];
+
+    // 打印数组内容
+    printf("mhccp_implicit_param[plane-1] values (plane=%d):\n", plane);
+    for (int i = 0; i < 4; i++)
+    {
+      printf("  Entry[%d] = %ld\n", i, implicit_params[i]);
+    }
+*/
 #else
     int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     int64_t diag[MHCCP_NUM_PARAMS];
@@ -1103,8 +1122,13 @@ static inline int floorLog2Uint64(uint64_t x) {
   return result;
 }
 
+#if CONFIG_MHCCP_GAUSSIAN
+void get_division_scale_shift(uint64_t denom, int *scale, int *round,
+                              int *shift) {
+#else
 void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
                               int *shift) {
+#endif
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
   static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
@@ -1118,17 +1142,29 @@ void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
                                                  11764, 12195, 12870, 13782 };
 
   *shift = floorLog2Uint64(denom);
+#if CONFIG_MHCCP_GAUSSIAN
+  if (*shift == 0)
+    *round = 0;
+  else
+    *round = (int)((1ULL << (*shift)) >> 1);
+#else
   if (*shift == 0)
     *round = 0;
   else
     *round = (uint64_t)(1ULL << (*shift) >> 1);
+#endif
   int normDiff = 0;
+#if CONFIG_MHCCP_GAUSSIAN
+  normDiff = (int)((((denom << DIV_PREC_BITS) + *round) >> (*shift)) &
+                   ((1 << DIV_PREC_BITS) - 1));
+#else
   if (*shift > DIV_PREC_BITS)
     normDiff = (int)((denom >> ((*shift) - DIV_PREC_BITS)) &
                      ((1 << DIV_PREC_BITS) - 1));
   else
     normDiff = (int)((denom << (DIV_PREC_BITS - (*shift))) &
                      ((1 << DIV_PREC_BITS) - 1));
+#endif
   // The vale of index is ranging from 0 to 7
   int index = normDiff >> DIV_INTR_BITS;
   int normDiff2 = normDiff - pow2O[index];
@@ -1139,18 +1175,28 @@ void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
   *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
 }
 
+#if CONFIG_MHCCP_GAUSSIAN
+void gauss_back_substitute(int64_t *x,
+                           int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
+                           int numEq, int col, int round, int bits) {
+#else
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                            int numEq, int col) {
+#endif
   x[numEq - 1] = C[numEq - 1][col];
 
   for (int i = numEq - 2; i >= 0; i--) {
     x[i] = C[i][col];
 
     for (int j = i + 1; j < numEq; j++) {
+#if CONFIG_MHCCP_GAUSSIAN
+      x[i] -= LOCAL_FIXED_MULT(C[i][j], x[j], round, bits);
+#else
       x[i] -= stable_mult_shift(C[i][j], x[j], MHCCP_DECIM_BITS,
                                 get_msb_signed_64(C[i][j]),
                                 get_msb_signed_64(x[j]), 32, NULL);
+#endif
     }
   }
 }
@@ -1161,7 +1207,10 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   int colChr0 = numEq;
 
   int reg = 2 << (bd - 8);
-
+#if CONFIG_MHCCP_GAUSSIAN
+  const int decimBits = DECIM_BITS(bd);
+  const int decimRound = (1 << (decimBits - 1));
+#endif
   // Create an [M][M+2] matrix system (could have been done already when
   // calculating auto/cross-correlations)
   for (int i = 0; i < numEq; i++) {
@@ -1176,15 +1225,22 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   for (int i = 0; i < numEq; i++) {
     int64_t *src = C[i];
     uint64_t diag = src[i] < 1 ? 1 : src[i];
-
+#if CONFIG_MHCCP_GAUSSIAN
+    int round;
+#else
     uint64_t round;
+#endif
     int scale, shift;
     get_division_scale_shift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
+#if CONFIG_MHCCP_GAUSSIAN
+      src[j] = (src[j] * scale + round) >> shift;
+#else
       src[j] =
           stable_mult_shift(src[j], scale, shift, get_msb_signed_64(src[j]),
                             get_msb_signed_64(scale), 32, NULL);
+#endif
     }
 
     for (int j = i + 1; j < numEq; j++) {
@@ -1194,15 +1250,23 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
       // On row j all elements with k < i+1 are now zero (not zeroing those here
       // as backsubstitution does not need them)
       for (int k = i + 1; k < numEq + 1; k++) {
+#if CONFIG_MHCCP_GAUSSIAN
+        dst[k] -= LOCAL_FIXED_MULT(scale_factor, src[k], decimRound, decimBits);
+#else
         dst[k] -= stable_mult_shift(scale_factor, src[k], MHCCP_DECIM_BITS,
                                     get_msb_signed_64(scale_factor),
                                     get_msb_signed_64(src[k]), 32, NULL);
+#endif
       }
     }
   }
 
   // Solve with backsubstitution
+#if CONFIG_MHCCP_GAUSSIAN
+  gauss_back_substitute(x0, C, numEq, colChr0, decimRound, decimBits);
+#else
   gauss_back_substitute(x0, C, numEq, colChr0);
+#endif
 }
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
@@ -1295,13 +1359,22 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 }
 #endif  // !CONFIG_E125_MHCCP_SIMPLIFY
 
-static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
+static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams,
+                        int bd) {
   int64_t sum = 0;
+#if CONFIG_MHCCP_GAUSSIAN
+  const int decimBits = DECIM_BITS(bd);
+  const int decimRound = (1 << (decimBits - 1));
+#endif
   for (int i = 0; i < numParams; i++) {
 #if CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_MHCCP_GAUSSIAN
+    sum += LOCAL_FIXED_MULT(params[i], vector[i], decimRound, decimBits);
+#else
     sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
                              get_msb_signed_64(params[i]),
                              get_msb_signed(vector[i]), 32, NULL);
+#endif
 #else
     sum += params[i] * vector[i];
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
@@ -1352,8 +1425,13 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
       vector[3] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
       vector[4] = mid;
 #endif  // CONFIG_E149_MHCCP_4PARA
+#if CONFIG_MHCCP_GAUSSIAN
+      dst[i] = clip_pixel_highbd(
+          convolve(alpha_q3, vector, MHCCP_NUM_PARAMS, bit_depth), bit_depth);
+#else
       dst[i] = clip_pixel_highbd(convolve(alpha_q3, vector, MHCCP_NUM_PARAMS),
                                  bit_depth);
+#endif
     }
     dst += dst_stride;
     input += CFL_BUF_LINE * 2;

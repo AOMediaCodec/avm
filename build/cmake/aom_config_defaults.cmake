@@ -513,6 +513,8 @@ set_aom_config_var(
   CONFIG_ENHANCED_FRAME_CONTEXT_INIT 1
   "Enables improved frame context initialization with frame averaging.")
 
+set_aom_config_var(CONFIG_MHCCP_GAUSSIAN 1 "FIX GAUSSIAN ELIMINATION FOR MHCCP")
+
 set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
                    "Fix precision of inter DDT.")
 set_aom_config_var(

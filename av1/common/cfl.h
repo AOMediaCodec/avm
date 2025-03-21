@@ -123,14 +123,24 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 // Apply the back substitution process to generate the MHCCP parameters
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col);
+                           int numEq, int col
+#if CONFIG_MHCCP_GAUSSIAN
+                           ,
+                           int round, int bits
+#endif
+);
 // Use gaussian elimination approach to derive the parameters for MHCCP mode
 void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                              int64_t *y0, int64_t *x0, int numEq, int bd);
 // Get the number of shifted bits for denominator and the scaling factors
+#if CONFIG_MHCCP_GAUSSIAN
+void get_division_scale_shift(uint64_t denom, int *scale, int *round,
+                              int *shift);
+#else
 void get_division_scale_shift(uint64_t denom, int *scale, uint64_t *round,
                               int *shift);
+#endif
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
 #if !CONFIG_E125_MHCCP_SIMPLIFY
