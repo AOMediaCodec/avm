@@ -300,10 +300,12 @@ static int file_is_raw(struct AvxInputContext *input) {
   return is_raw;
 }
 #if CONFIG_MULTIVIEW_CORE
-static void show_progress_multiview(int frame_in, int frame_out, int view_id, int frame_out_per_view,  uint64_t dx_time) {
+static void show_progress_multiview(int frame_in, int frame_out, int view_id,
+                                    int frame_out_per_view, uint64_t dx_time) {
   fprintf(stderr,
-          "%d decoded frames/%d showed frames (view_id=%d, frame_per_view=%d) in %" PRId64 " us (%.2f fps)\r",
-          frame_in, frame_out, view_id, frame_out_per_view,  dx_time,
+          "%d decoded frames/%d showed frames (view_id=%d, frame_per_view=%d) "
+          "in %" PRId64 " us (%.2f fps)\r",
+          frame_in, frame_out, view_id, frame_out_per_view, dx_time,
           (double)frame_out * 1000000.0 / (double)dx_time);
 }
 #endif
@@ -986,7 +988,7 @@ static int main_loop(int argc, const char **argv_) {
 #endif
 #if CONFIG_MULTIVIEW_CORE
       const int view_id = img->view_id;
-      const int frame_per_view = frame_out/aom_input_ctx.num_views;
+      const int frame_per_view = frame_out / aom_input_ctx.num_views;
 #endif
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
@@ -1002,11 +1004,13 @@ static int main_loop(int argc, const char **argv_) {
       frames_corrupted += corrupted;
 
 #if CONFIG_MULTIVIEW_CORE
-      if (progress) show_progress_multiview(frame_in, frame_out, view_id, frame_per_view, dx_time);
+      if (progress)
+        show_progress_multiview(frame_in, frame_out, view_id, frame_per_view,
+                                dx_time);
 #else
       if (progress) show_progress(frame_in, frame_out, dx_time);
 #endif
-      
+
       if (do_verify) {
         if (check_decoded_frame_hash(&decoder, img, frame_out,
                                      skip_film_grain) &&
@@ -1103,7 +1107,7 @@ static int main_loop(int argc, const char **argv_) {
 #if CONFIG_MULTIVIEW_CORE
                 fputs(y4m_buf, outfile[view_id]);
 #else
-				fputs(y4m_buf, outfile);
+                fputs(y4m_buf, outfile);
 #endif
               }
             }

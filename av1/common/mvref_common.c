@@ -3745,7 +3745,7 @@ void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
   *nearest_mv = mvlist[0];
   *near_mv = mvlist[1];
 }
-        
+
 void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
@@ -3758,7 +3758,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
 #if CONFIG_MULTIVIEW_CORE
   cm->cur_frame->view_id = cm->current_frame.view_id;
 #endif
-  
+
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -3778,7 +3778,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
     }
   }
 }
-      
+
 void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
   memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
   for (int ref_frame = 0; ref_frame < cm->ref_frames_info.num_future_refs;

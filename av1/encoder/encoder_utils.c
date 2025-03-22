@@ -1109,22 +1109,35 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
 #if CONFIG_MULTIVIEW_DEBUG
     const CurrentFrame *const cf = &cpi->common.current_frame;
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
-      FILE *const logfile = cm->fEncMultiviewLog;
+    FILE *const logfile = cm->fEncMultiviewLog;
 #endif
     if (frame_to_show == NULL || cpi->existing_fb_idx_to_show < 0) {
 #if CONFIG_MULTIVIEW_DEBUG_PROMPT
-      printf("Frame to show - does not exist (index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      printf(
+          "Frame to show - does not exist (index=%d): "
+          "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+          cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+          cf->order_hint, cf->display_order_hint);
       fflush(stdout);
 #endif
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
-      fprintf(logfile, "Frame to show - does not exist (index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      fprintf(logfile,
+              "Frame to show - does not exist (index=%d): "
+              "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+              cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+              cf->order_hint, cf->display_order_hint);
 #endif
-    }
-    else {
-      //printf("Frame to show - exists (index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+    } else {
+      // printf("Frame to show - exists (index=%d):
+      // (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show,
+      // cf->view_id, cf->pyramid_level, cf->order_hint,
+      // cf->display_order_hint);
 
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
-      //fprintf(logfile, "Frame to show - exists (index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      // fprintf(logfile, "Frame to show - exists (index=%d):
+      // (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show,
+      // cf->view_id, cf->pyramid_level, cf->order_hint,
+      // cf->display_order_hint);
 #endif
     }
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
@@ -1135,7 +1148,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
 //      fflush(logfile);
 #endif
 #endif
-    
+
     if (frame_to_show == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Buffer does not contain a reconstructed frame");

@@ -42,15 +42,16 @@ static void bubble_sort_ref_scores(RefScoreData *scores, int n_ranked) {
 
 // Checks to see if a particular reference frame is already in the reference
 // frame map
-static int is_in_ref_score(RefScoreData *map, int disp_order, 
+static int is_in_ref_score(RefScoreData *map, int disp_order,
 #if CONFIG_MULTIVIEW_CORE
                            int view_id,
 #endif
-                           int score,
-                           int n_frames) {
+                           int score, int n_frames) {
   for (int i = 0; i < n_frames; i++) {
 #if CONFIG_MULTIVIEW_CORE
-    if (disp_order == map[i].disp_order && view_id == map[i].view_id && score == map[i].score) return 1;
+    if (disp_order == map[i].disp_order && view_id == map[i].view_id &&
+        score == map[i].score)
+      return 1;
 #else
     if (disp_order == map[i].disp_order && score == map[i].score) return 1;
 #endif
@@ -185,11 +186,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
             ? ((tdist << DIST_WEIGHT_BITS) + ref_base_qindex)
             : temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
                   AOMMAX(tdist - DECAY_DIST_CAP, 0) + ref_base_qindex;
-    if (is_in_ref_score(scores, ref_disp, 
+    if (is_in_ref_score(scores, ref_disp,
 #if CONFIG_MULTIVIEW_CORE
                         ref_view_id,
 #endif
-                        score, n_ranked)) continue;
+                        score, n_ranked))
+      continue;
 
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;
@@ -283,13 +285,13 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
   int i;
 
 #if CONFIG_MULTIVIEW_CORE
-  PrimaryRefCand cand_lower_qp = { -1, -1, -1, -1};
-  PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX, -1};
+  PrimaryRefCand cand_lower_qp = { -1, -1, -1, -1 };
+  PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX, -1 };
 #else
   PrimaryRefCand cand_lower_qp = { -1, -1, -1 };
   PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX };
 #endif
-  
+
   const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
   for (i = 0; i < n_refs; i++) {
     // Get reference frame buffer
@@ -301,9 +303,10 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
     if (ref_view_id > curr_view_id) continue;
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
     const CurrentFrame *const cf = &cm->current_frame;
-    if ( ref_view_id > curr_view_id) {
+    if (ref_view_id > curr_view_id) {
       printf("Breaking view dependency: \n");
-      printf("(index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", i, cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      printf("(index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", i, cf->view_id,
+             cf->pyramid_level, cf->order_hint, cf->display_order_hint);
       printf("Current reference-buffer =");
       debug_print_buffer_state(cm);
     }

@@ -246,7 +246,7 @@ typedef struct RefCntBuffer {
   int view_id;
   int ref_view_ids[INTER_REFS_PER_FRAME];
 #endif
-  
+
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
   // the limitation of get_relative_dist() which returns incorrect
@@ -1809,7 +1809,7 @@ typedef struct AV1Common {
   FILE *fEncMultiviewLog;
   FILE *fDecMultiviewLog;
 #endif
-  
+
   /*!
    * Flag to indicate if current frame has backward ref frame
    */
@@ -2047,18 +2047,22 @@ static INLINE RefCntBuffer *get_ref_frame_buf(
 }
 
 #if CONFIG_MULTIVIEW_DEBUG
-static INLINE void debug_print_multiview_curr_frame(const AV1_COMMON *const cm) {
+static INLINE void debug_print_multiview_curr_frame(
+    const AV1_COMMON *const cm) {
   const CurrentFrame *const cf = &cm->current_frame;
-  const char frame_type_str[4][25] = {"KEY_FRAME", "INTER_FRAME", "INTRA_ONLY_FRAME", "S_FRAME"};
-  const char ref_mode_str[4][50] = {"SINGLE_REFERENCE", "COMPOUND_REFERENCE", "REFERENCE_MODE_SELECT", "REFERENCE_MODES"};
+  const char frame_type_str[4][25] = { "KEY_FRAME", "INTER_FRAME",
+                                       "INTRA_ONLY_FRAME", "S_FRAME" };
+  const char ref_mode_str[4][50] = { "SINGLE_REFERENCE", "COMPOUND_REFERENCE",
+                                     "REFERENCE_MODE_SELECT",
+                                     "REFERENCE_MODES" };
   printf("frame_type=%s,", frame_type_str[cf->frame_type]);
-  //printf("reference_mode=%s,", ref_mode_str[cf->reference_mode]);
+  // printf("reference_mode=%s,", ref_mode_str[cf->reference_mode]);
   printf("order_hint=%2d, ", cf->order_hint);
   printf("display_order_hint=%2d, ", cf->display_order_hint);
-  //printf("pyramid_level=%2d, ", cf->pyramid_level); // encoder only
-  //printf("absolute_poc=%2d, ", cf->absolute_poc); // encoder only
-  //printf("key_frame_number=%2d, ", cf->key_frame_number);
-  //printf("frame_number=%2d, ", cf->frame_number);
+  // printf("pyramid_level=%2d, ", cf->pyramid_level); // encoder only
+  // printf("absolute_poc=%2d, ", cf->absolute_poc); // encoder only
+  // printf("key_frame_number=%2d, ", cf->key_frame_number);
+  // printf("frame_number=%2d, ", cf->frame_number);
   printf("view_id=%2d, ", cf->view_id);
   printf("refresh_frame_flags=%2d,", cf->refresh_frame_flags);
   printf("num_total_refs=%2d,", cm->ref_frames_info.num_total_refs);
@@ -2076,7 +2080,8 @@ static INLINE void debug_print_buffer_state(const AV1_COMMON *const cm) {
     if (buf == NULL)
       printf("%d:(**,**,**) ", ref_idx);
     else
-      printf("%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->pyramid_level, buf->display_order_hint);
+      printf("%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->pyramid_level,
+             buf->display_order_hint);
   }
   printf("]\n");
 }
@@ -2084,8 +2089,10 @@ static INLINE void debug_print_buffer_state(const AV1_COMMON *const cm) {
 static INLINE void debug_print_multiview_buf_refs(const AV1_COMMON *const cm) {
   const RefCntBuffer *const cf = cm->cur_frame;
   MV_REFERENCE_FRAME ref_frame;
-  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint, cf->display_order_hint);
-  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ", cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+         cf->display_order_hint);
+  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+         cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
   printf("[");
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
@@ -2098,72 +2105,93 @@ static INLINE void debug_print_multiview_buf_refs(const AV1_COMMON *const cm) {
 }
 
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
-static INLINE void logfile_multiview_curr_frame(const AV1_COMMON *const cm, FILE *const file) {
+static INLINE void logfile_multiview_curr_frame(const AV1_COMMON *const cm,
+                                                FILE *const file) {
   const CurrentFrame *const cf = &cm->current_frame;
-  const char frame_type_str[4][25] = {"KEY_FRAME", "INTER_FRAME", "INTRA_ONLY_FRAME", "S_FRAME"};
-  const char ref_mode_str[4][50] = {"SINGLE_REFERENCE", "COMPOUND_REFERENCE", "REFERENCE_MODE_SELECT", "REFERENCE_MODES"};
-  fprintf(file,"frame_type=%s,", frame_type_str[cf->frame_type]);
-  //fprintf(file,"reference_mode=%s,", ref_mode_str[cf->reference_mode]);
-  fprintf(file,"order_hint=%2d, ", cf->order_hint);
-  fprintf(file,"display_order_hint=%2d, ", cf->display_order_hint);
-  //fprintf(file,"pyramid_level=%2d, ", cf->pyramid_level); // encoder only
-  //fprintf(file,"absolute_poc=%2d, ", cf->absolute_poc); // encoder only
-  //fprintf(file,"key_frame_number=%2d, ", cf->key_frame_number);
-  //fprintf(file,"frame_number=%2d, ", cf->frame_number);
-  fprintf(file,"view_id=%2d, ", cf->view_id);
-  fprintf(file,"refresh_frame_flags=%2d,", cf->refresh_frame_flags);
-  fprintf(file,"num_total_refs=%2d,", cm->ref_frames_info.num_total_refs);
-  fprintf(file,"num_cur_refs=%2d,", cm->ref_frames_info.num_cur_refs);
-  fprintf(file,"num_past_refs=%2d,", cm->ref_frames_info.num_past_refs);
-  fprintf(file,"num_future_refs=%2d", cm->ref_frames_info.num_future_refs);
-  fprintf(file,"\n");
+  const char frame_type_str[4][25] = { "KEY_FRAME", "INTER_FRAME",
+                                       "INTRA_ONLY_FRAME", "S_FRAME" };
+  const char ref_mode_str[4][50] = { "SINGLE_REFERENCE", "COMPOUND_REFERENCE",
+                                     "REFERENCE_MODE_SELECT",
+                                     "REFERENCE_MODES" };
+  fprintf(file, "frame_type=%s,", frame_type_str[cf->frame_type]);
+  // fprintf(file,"reference_mode=%s,", ref_mode_str[cf->reference_mode]);
+  fprintf(file, "order_hint=%2d, ", cf->order_hint);
+  fprintf(file, "display_order_hint=%2d, ", cf->display_order_hint);
+  // fprintf(file,"pyramid_level=%2d, ", cf->pyramid_level); // encoder only
+  // fprintf(file,"absolute_poc=%2d, ", cf->absolute_poc); // encoder only
+  // fprintf(file,"key_frame_number=%2d, ", cf->key_frame_number);
+  // fprintf(file,"frame_number=%2d, ", cf->frame_number);
+  fprintf(file, "view_id=%2d, ", cf->view_id);
+  fprintf(file, "refresh_frame_flags=%2d,", cf->refresh_frame_flags);
+  fprintf(file, "num_total_refs=%2d,", cm->ref_frames_info.num_total_refs);
+  fprintf(file, "num_cur_refs=%2d,", cm->ref_frames_info.num_cur_refs);
+  fprintf(file, "num_past_refs=%2d,", cm->ref_frames_info.num_past_refs);
+  fprintf(file, "num_future_refs=%2d", cm->ref_frames_info.num_future_refs);
+  fprintf(file, "\n");
 }
 
-static INLINE void logfile_multiview_buf_refs(const AV1_COMMON *const cm, FILE *const file) {
+static INLINE void logfile_multiview_buf_refs(const AV1_COMMON *const cm,
+                                              FILE *const file) {
   const RefCntBuffer *const cf = cm->cur_frame;
   MV_REFERENCE_FRAME ref_frame;
-  fprintf(file,"(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id ,cf->order_hint, cf->display_order_hint);
-  fprintf(file,"  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ", cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
-  fprintf(file,"[");
+  fprintf(file, "(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+          cf->display_order_hint);
+  fprintf(file, "  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+          cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  fprintf(file, "[");
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-    fprintf(file,"%2d:", map_idx);
-    fprintf(file,"(%2d,", cf->ref_view_ids[ref_frame]);
-    fprintf(file,"%2d,", cf->ref_order_hints[ref_frame]);
-    fprintf(file,"%2d) ", cf->ref_display_order_hint[ref_frame]);
+    fprintf(file, "%2d:", map_idx);
+    fprintf(file, "(%2d,", cf->ref_view_ids[ref_frame]);
+    fprintf(file, "%2d,", cf->ref_order_hints[ref_frame]);
+    fprintf(file, "%2d) ", cf->ref_display_order_hint[ref_frame]);
   }
-  fprintf(file,"]\n");
+  fprintf(file, "]\n");
 }
 
-static INLINE void logfile_buffer_state(const AV1_COMMON *const cm, FILE *const file) {
-  fprintf(file," [ ");
+static INLINE void logfile_buffer_state(const AV1_COMMON *const cm,
+                                        FILE *const file) {
+  fprintf(file, " [ ");
   for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
     RefCntBuffer *const buf = cm->ref_frame_map[ref_idx];
     if (buf == NULL)
-      fprintf(file,"%d:(**,**,**) ", ref_idx);
+      fprintf(file, "%d:(**,**,**) ", ref_idx);
     else
-      fprintf(file,"%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->order_hint, buf->display_order_hint);
+      fprintf(file, "%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->order_hint,
+              buf->display_order_hint);
   }
-  fprintf(file,"]\n");
+  fprintf(file, "]\n");
 }
 
-static INLINE void logfile_primary_ref_info(const AV1_COMMON *const cm, FILE *const file) {
+static INLINE void logfile_primary_ref_info(const AV1_COMMON *const cm,
+                                            FILE *const file) {
   const int idx = cm->features.primary_ref_frame;
   const int map_idx = get_ref_frame_map_idx(cm, idx);
   const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
   if (ref_buf == NULL)
-    fprintf(file," Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> (N/A,N/A,N/A) \n ", idx, map_idx );
+    fprintf(file,
+            " Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> "
+            "(N/A,N/A,N/A) \n ",
+            idx, map_idx);
   else
-    fprintf(file," Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> (%2d,%2d,%3d) \n ", idx, map_idx, ref_buf->view_id, ref_buf->order_hint, ref_buf->display_order_hint );
+    fprintf(file,
+            " Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> "
+            "(%2d,%2d,%3d) \n ",
+            idx, map_idx, ref_buf->view_id, ref_buf->order_hint,
+            ref_buf->display_order_hint);
 }
 
-//static INLINE void logfile_show_existing_frame(const AV1_COMMON *const cm, FILE *const file) {
-//  int show_existing_frame = cm->show_existing_frame;
-//  if (show_existing_frame)
-//    fprintf(file," Show existing frame : [idx,map_idx]:[%2d,%2d] --> (%2d,%2d,%3d) \n ", idx, map_idx, ref_buf->view_id, ref_buf->order_hint, ref_buf->display_order_hint );
-//  
-//  RefCntBuffer *const frame_to_show = cm->ref_frame_map[cpi->existing_fb_idx_to_show];
-//}
+// static INLINE void logfile_show_existing_frame(const AV1_COMMON *const cm,
+// FILE *const file) {
+//   int show_existing_frame = cm->show_existing_frame;
+//   if (show_existing_frame)
+//     fprintf(file," Show existing frame : [idx,map_idx]:[%2d,%2d] -->
+//     (%2d,%2d,%3d) \n ", idx, map_idx, ref_buf->view_id, ref_buf->order_hint,
+//     ref_buf->display_order_hint );
+//
+//   RefCntBuffer *const frame_to_show =
+//   cm->ref_frame_map[cpi->existing_fb_idx_to_show];
+// }
 #endif
 
 #endif

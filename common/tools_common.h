@@ -183,7 +183,8 @@ const char *get_short_name_by_aom_decoder(aom_codec_iface_t *decoder);
 uint32_t get_fourcc_by_aom_decoder(aom_codec_iface_t *iface);
 
 #if CONFIG_MULTIVIEW_CORE
-int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame, int view_id);
+int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame,
+                   int view_id);
 #else
 int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame);
 #endif

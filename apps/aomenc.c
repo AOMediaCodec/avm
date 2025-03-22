@@ -1528,12 +1528,14 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Num of coding passes           : %d\n", global->passes);
 #if CONFIG_MULTIVIEW_CORE
   fprintf(stdout, "Lag in frames                  : %d\n",
-          cfg->g_lag_in_frames/cfg->g_num_views);
+          cfg->g_lag_in_frames / cfg->g_num_views);
   if (cfg->kf_min_dist != cfg->kf_max_dist) {
     fprintf(stdout, "Key frame distance           : %d - %d\n",
-            cfg->kf_min_dist/cfg->g_num_views, cfg->kf_max_dist/cfg->g_num_views);
+            cfg->kf_min_dist / cfg->g_num_views,
+            cfg->kf_max_dist / cfg->g_num_views);
   } else {
-    fprintf(stdout, "Key frame distance             : %d\n", cfg->kf_min_dist/cfg->g_num_views);
+    fprintf(stdout, "Key frame distance             : %d\n",
+            cfg->kf_min_dist / cfg->g_num_views);
   }
 #else
   fprintf(stdout, "Lag in frames                  : %d\n",
@@ -2343,7 +2345,7 @@ int main(int argc, const char **argv_) {
             }
             break;
           case 2:
-#if CONFIG_MULTIVIEW_CORE		  
+#if CONFIG_MULTIVIEW_CORE
             for (int i = 0; i < input.num_views; i++) {
               if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
                                            input.fmt == AOM_IMG_FMT_I44416)) {
@@ -2615,7 +2617,7 @@ int main(int argc, const char **argv_) {
       }
       assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-      printf(" frame_avail:%d seen_frames=%d \n",frame_avail, seen_frames);
+      printf(" frame_avail:%d seen_frames=%d \n", frame_avail, seen_frames);
 #endif
       FOREACH_STREAM(stream, streams) {
         encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,

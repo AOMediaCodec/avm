@@ -1089,13 +1089,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     data += payload_size;
   }
-  
+
 #if CONFIG_MULTIVIEW_DEBUG_LOGFILES
   FILE *const logfile = cm->fDecMultiviewLog;
   logfile_multiview_curr_frame(cm, logfile);
   logfile_multiview_buf_refs(cm, logfile);
   logfile_buffer_state(cm, logfile);
-  //logfile_primary_ref_info(cm, logfile);
+  // logfile_primary_ref_info(cm, logfile);
 #endif
 
   if (cm->error.error_code != AOM_CODEC_OK) return -1;

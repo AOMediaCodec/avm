@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
   obu_ctx.avx_ctx->file = inputfile;
   obu_ctx.avx_ctx->filename = argv[1];
 #endif
-  
+
   aom_codec_iface_t *decoder = get_aom_decoder_by_index(0);
   printf("Using %s\n", aom_codec_iface_name(decoder));
 

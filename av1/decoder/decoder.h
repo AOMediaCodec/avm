@@ -294,7 +294,7 @@ typedef struct AV1Decoder {
   int output_view_ids[REF_FRAMES];
   int display_order_hint_ids[REF_FRAMES];
 #endif
-  
+
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.
   // So we track whether this is the first frame or not.

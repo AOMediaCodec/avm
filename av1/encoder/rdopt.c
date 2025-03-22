@@ -3218,8 +3218,8 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
     const int ref_mv_offset = ref_mv_idx;
 #if CONFIG_SEP_COMP_DRL
     const int16_t ref_frame_type = has_second_drl_by_mode(this_mode, ref_frame)
-                                      ? ref_frame[ref_idx]
-                                      : av1_ref_frame_type(ref_frame);
+                                       ? ref_frame[ref_idx]
+                                       : av1_ref_frame_type(ref_frame);
 #else
     const int16_t ref_frame_type = av1_ref_frame_type(ref_frame);
 #endif
@@ -9806,11 +9806,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // to determine if we should skip a compound mode.
 
 #if CONFIG_MULTIVIEW_EXTENDED_DPB
-    int64_t ref_frame_rd[SINGLE_REF_FRAMES] = { INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
-                                                INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
-                                                INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
-                                                INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
-                                                INT64_MAX };
+  int64_t ref_frame_rd[SINGLE_REF_FRAMES] = {
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX
+  };
 #else
   int64_t ref_frame_rd[SINGLE_REF_FRAMES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX, INT64_MAX, INT64_MAX,

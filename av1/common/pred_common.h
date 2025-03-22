@@ -54,12 +54,12 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
         buf->view_id > cm->current_frame.view_id ||
 #endif
         buf->temporal_layer_id > cm->current_frame.temporal_layer_id) {
-#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+#else  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     if (buf == NULL
 #if CONFIG_MULTIVIEW_SEPARATE_DPB
         || buf->view_id > cm->current_frame.view_id
 #endif
-        ) {
+    ) {
 #endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
       ref_frame_map_pairs[map_idx].disp_order = -1;
       ref_frame_map_pairs[map_idx].pyr_level = -1;
@@ -535,7 +535,8 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_single_ref(const MACROBLOCKD *xd,
                                                         int num_total_refs) {
   assert((ref + 1) < num_total_refs);
 #if CONFIG_MULTIVIEW_EXTENDED_DPB
-  return xd->tile_ctx->single_ref_cdf[av1_get_ref_pred_context(xd, ref, num_total_refs)][clamp(ref, 0, EXTENDED_INTER_REFS_CONTEXT-1)];
+  return xd->tile_ctx->single_ref_cdf[av1_get_ref_pred_context(
+      xd, ref, num_total_refs)][clamp(ref, 0, EXTENDED_INTER_REFS_CONTEXT - 1)];
 #else
   return xd->tile_ctx
       ->single_ref_cdf[av1_get_ref_pred_context(xd, ref, num_total_refs)][ref];
@@ -568,21 +569,27 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_compound_ref(
   assert(bit_type < COMPREF_BIT_TYPES);
   assert(IMPLIES(n_bits == 0, ref < RANKED_REF0_TO_PRUNE - 1));
 #endif  // CONFIG_SAME_REF_COMPOUND
-  return n_bits == 0 ? xd->tile_ctx->comp_ref0_cdf[av1_get_ref_pred_context(
+  return n_bits == 0
+             ? xd->tile_ctx->comp_ref0_cdf[av1_get_ref_pred_context(
 #if CONFIG_MULTIVIEW_EXTENDED_DPB
-                           xd, ref, num_total_refs)][clamp(ref, 0, EXTENDED_INTER_REFS_CONTEXT-1)]
+                   xd, ref,
+                   num_total_refs)][clamp(ref, 0,
+                                          EXTENDED_INTER_REFS_CONTEXT - 1)]
 #else
-                           xd, ref, num_total_refs)][ref]
+                   xd, ref, num_total_refs)][ref]
 #endif
-                     : xd->tile_ctx->comp_ref1_cdf[av1_get_ref_pred_context(
+             : xd->tile_ctx
+                   ->comp_ref1_cdf[av1_get_ref_pred_context(
 #if CONFIG_SAME_REF_COMPOUND
 #if CONFIG_MULTIVIEW_EXTENDED_DPB
-                           xd, ref, num_total_refs)][bit_type][clamp(ref, 0, EXTENDED_INTER_REFS_CONTEXT-1)];
+                       xd, ref, num_total_refs)][bit_type]
+                                  [clamp(ref, 0,
+                                         EXTENDED_INTER_REFS_CONTEXT - 1)];
 #else
-                           xd, ref, num_total_refs)][bit_type][ref];
+                       xd, ref, num_total_refs)][bit_type][ref];
 #endif
 #else
-                           xd, ref, num_total_refs)][bit_type][ref - 1];
+                       xd, ref, num_total_refs)][bit_type][ref - 1];
 #endif  // CONFIG_SAME_REF_COMPOUND
 }
 

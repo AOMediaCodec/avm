@@ -1463,7 +1463,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
         q_cfg->fixed_qp_offsets[i] = get_modeled_qp_offset(
             rc_cfg->qp, i, tool_cfg->bit_depth, q_cfg->q_based_qp_offsets);
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-          printf(" qp-offset[%d]=%2.2f\n", i, q_cfg->fixed_qp_offsets[i]);
+        printf(" qp-offset[%d]=%2.2f\n", i, q_cfg->fixed_qp_offsets[i]);
 #endif
       }
     } else {
@@ -2873,8 +2873,8 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-      ref_view[ref_idx] = buf ? (int)buf->view_id: -1;
-      ref_poc[ref_idx] = buf ? (int)buf->display_order_hint: -1;
+      ref_view[ref_idx] = buf ? (int)buf->view_id : -1;
+      ref_poc[ref_idx] = buf ? (int)buf->display_order_hint : -1;
 #else
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
       ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
@@ -2896,8 +2896,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
 #if CONFIG_MULTIVIEW_CORE
-              cm->cur_frame->display_order_hint,
-              cm->cur_frame->view_id,
+              cm->cur_frame->display_order_hint, cm->cur_frame->view_id,
 #endif
               frameType[cm->current_frame.frame_type],
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
@@ -4289,13 +4288,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                       // g_threads
     0,                       // g_profile
 
-    320,         // g_w
-    240,         // g_h
-    0,           // g_limit
-    0,           // g_forced_max_frame_width
-    0,           // g_forced_max_frame_height
+    320,  // g_w
+    240,  // g_h
+    0,    // g_limit
+    0,    // g_forced_max_frame_width
+    0,    // g_forced_max_frame_height
 #if CONFIG_MULTIVIEW_CORE
-    1,           // g_num_views
+    1,  // g_num_views
 #endif
     AOM_BITS_8,  // g_bit_depth
     8,           // g_input_bit_depth

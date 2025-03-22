@@ -1417,7 +1417,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         cpi->sf.inter_sf.prune_warped_prob_thresh)
       enabled_motion_modes &= ~(1 << WARPED_CAUSAL);
   }
-  
+
   features->enabled_motion_modes = enabled_motion_modes;
 
   features->allow_warpmv_mode =
@@ -1827,8 +1827,10 @@ void av1_encode_frame(AV1_COMP *cpi) {
 void debug_print_buf_refs_enc(const AV1_COMMON *const cm) {
   const RefCntBuffer *const cf = cm->cur_frame;
   MV_REFERENCE_FRAME ref_frame;
-  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint, cf->display_order_hint);
-  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ", cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+         cf->display_order_hint);
+  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+         cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
   printf("[");
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
@@ -1840,4 +1842,3 @@ void debug_print_buf_refs_enc(const AV1_COMMON *const cm) {
   printf("]\n");
 }
 #endif
-

@@ -3854,8 +3854,9 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate frame buffer: setup_tip_frame_size 0");
+    aom_internal_error(
+        &cm->error, AOM_CODEC_MEM_ERROR,
+        "Failed to allocate frame buffer: setup_tip_frame_size 0");
   }
 
   if (tip_frame_buf) {
@@ -3877,8 +3878,9 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate frame buffer: setup_tip_frame_size 1");
+    aom_internal_error(
+        &cm->error, AOM_CODEC_MEM_ERROR,
+        "Failed to allocate frame buffer: setup_tip_frame_size 1");
   }
 
   if (tip_frame_buf) {
@@ -6697,7 +6699,7 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
   for (int i = 0; i < REF_FRAMES; i++) {
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     set_ref_count_zero(cm->ref_frame_map[i], pool);
-#else  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     decrease_ref_count(cm->ref_frame_map[i], pool);
 #endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     cm->ref_frame_map[i] = NULL;
@@ -7087,7 +7089,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
 
     frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
-    
+
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -7098,16 +7100,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     current_frame->display_order_hint = get_disp_order_hint(cm);
     current_frame->frame_number = current_frame->order_hint;
-    
+
 #if CONFIG_MULTIVIEW_CORE
-    current_frame->frame_number = current_frame->order_hint * cm->number_layers + current_frame->view_id;
+    current_frame->frame_number =
+        current_frame->order_hint * cm->number_layers + current_frame->view_id;
 #endif
-    
+
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-    printf("--- decode bitstream: show_frame=%d, frame_number=%d -- ", cm->show_existing_frame, current_frame->frame_number);
+    printf("--- decode bitstream: show_frame=%d, frame_number=%d -- ",
+           cm->show_existing_frame, current_frame->frame_number);
     debug_print_multiview_curr_frame(cm);
 #endif
-    
+
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
@@ -7251,7 +7255,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             lock_buffer_pool(pool);
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             set_ref_count_zero(buf, pool);
-#else  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             decrease_ref_count(buf, pool);
 #endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             unlock_buffer_pool(pool);
@@ -7274,12 +7278,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   pool->get_fb_cb, pool->cb_priv, false)) {
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             set_ref_count_zero(buf, pool);
-#else  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             decrease_ref_count(buf, pool);
 #endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             unlock_buffer_pool(pool);
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                               "Failed to allocate frame buffer: read_uncompressed_header");
+            aom_internal_error(
+                &cm->error, AOM_CODEC_MEM_ERROR,
+                "Failed to allocate frame buffer: read_uncompressed_header");
           }
           unlock_buffer_pool(pool);
           // According to the specification, valid bitstreams are required to
@@ -7514,7 +7519,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
                   : 1;
 #if CONFIG_MULTIVIEW_CORE
-          if (scores[i].distance == 0 && current_frame->view_id != cm->ref_frame_map_pairs[ref].view_id) {
+          if (scores[i].distance == 0 &&
+              current_frame->view_id != cm->ref_frame_map_pairs[ref].view_id) {
             scores[i].distance = 1;
           }
 #endif
@@ -7766,7 +7772,7 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
-  
+
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
 #if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp) {
@@ -8395,7 +8401,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_LPF_MASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);
 #endif
-        
+
   if (!pbi->dcb.corrupted) {
     if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
       assert(pbi->context_update_tile_id < pbi->allocated_tiles);

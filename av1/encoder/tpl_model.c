@@ -1080,9 +1080,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         cpi, &frame_params, frame_update_type, gf_index,
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
         0,
-#endif  
+#endif
 #if CONFIG_MULTIVIEW_SEPARATE_DPB
-       -1, cm->number_layers, 
+        -1, cm->number_layers,
 #endif
         true_disp, ref_frame_map_pairs);
 
@@ -1167,9 +1167,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     gf_group->update_type[gf_index] = LF_UPDATE;
     gf_group->q_val[gf_index] = *pframe_qindex;
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-  printf(" init_gop_frames_for_tpl: pframe_qindex=%2d\n", *pframe_qindex);
+    printf(" init_gop_frames_for_tpl: pframe_qindex=%2d\n", *pframe_qindex);
 #endif
-    
+
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
@@ -1185,7 +1185,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type, -1,
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
                                     0,
-#endif  
+#endif
 #if CONFIG_MULTIVIEW_SEPARATE_DPB
                                     -1, cm->number_layers,
 #endif
@@ -1269,7 +1269,8 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
         av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
                                  &bottom_index, &top_index);
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-  printf(" av1_tpl_setup_stats: q_val[%d]=%2d\n", gf_index, gf_group->q_val[gf_index]);
+    printf(" av1_tpl_setup_stats: q_val[%d]=%2d\n", gf_index,
+           gf_group->q_val[gf_index]);
 #endif
     cm->current_frame.frame_type = INTER_FRAME;
   }

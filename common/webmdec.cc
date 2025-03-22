@@ -68,8 +68,9 @@ void rewind_and_reset(struct WebmInputContext *const webm_ctx,
 
 int file_is_webm(struct WebmInputContext *webm_ctx,
                  struct AvxInputContext *aom_ctx) {
-#if CONFIG_MULTIVIEW_CORE				 
-  mkvparser::MkvReader *const reader = new mkvparser::MkvReader(aom_ctx->file[0]);
+#if CONFIG_MULTIVIEW_CORE
+  mkvparser::MkvReader *const reader =
+      new mkvparser::MkvReader(aom_ctx->file[0]);
 #else
   mkvparser::MkvReader *const reader = new mkvparser::MkvReader(aom_ctx->file);
 #endif

@@ -5721,12 +5721,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_MULTIVIEW_CORE
     aom_wb_write_literal(wb, current_frame->view_id, 8);
 #endif
-    
+
 #if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
-  printf("--- write bitstream: view_id=%d --- ", current_frame->view_id);
-  debug_print_multiview_curr_frame(cm);
+    printf("--- write bitstream: view_id=%d --- ", current_frame->view_id);
+    debug_print_multiview_curr_frame(cm);
 #endif
-    
+
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
@@ -5813,12 +5813,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
         int idx = ref_idx;
         if (cm->ref_frame_map[ref_idx] == NULL) {
           idx = 0;
-          //idx = cm->remapped_ref_idx[0];
+          // idx = cm->remapped_ref_idx[0];
         }
         aom_wb_write_literal(
             wb, cm->ref_frame_map[idx]->order_hint,
             seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-          
+
 #else
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
@@ -5834,7 +5834,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         int idx = ref_idx;
         if (cm->ref_frame_map[ref_idx] == NULL) {
           idx = 0;
-          //idx = cm->remapped_ref_idx[0];
+          // idx = cm->remapped_ref_idx[0];
         }
         aom_wb_write_literal(wb, cm->ref_frame_map[idx]->base_qindex,
                              cm->seq_params.bit_depth == AOM_BITS_8
@@ -7012,7 +7012,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   uint32_t obu_payload_size = 0;
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
-  //printf("\ncm->temporal_layer_id: %d\n", cm->temporal_layer_id);
+  // printf("\ncm->temporal_layer_id: %d\n", cm->temporal_layer_id);
 #endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
   const uint8_t obu_extension_header =
       cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;

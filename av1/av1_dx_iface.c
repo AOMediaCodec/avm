@@ -61,7 +61,7 @@ struct aom_codec_alg_priv {
   unsigned int is_annexb;
   int operating_point;
   int output_all_layers;
-  
+
   AVxWorker *frame_worker;
 
   aom_image_t image_with_grain;
