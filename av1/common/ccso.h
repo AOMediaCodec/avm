@@ -53,6 +53,9 @@ void derive_ccso_sample_pos(AV1_COMMON *cm, int *rec_idx, const int ccso_stride,
 typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
+#if CONFIG_CCSO_REFACTORING
+                                 const int proc_unit_log2,
+#endif
 #if CONFIG_CCSO_IMPROVE
                                  const uint16_t thr,
 #else

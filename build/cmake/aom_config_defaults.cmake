@@ -413,6 +413,8 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
 
+set_aom_config_var(CONFIG_CCSO_REFACTORING 0
+  "Enable CCSO processing unit")
 # IST for sub-TU partitions from CWG-E151
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
                    "Enable IST non zero depth TUs from CWG-E151.")
