@@ -425,6 +425,12 @@ typedef struct {
    */
   int skip_pcwiener_filtering;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_BRU
+  MB_MODE_INFO **mbmi_ptr;
+  int mi_stride;
+  int ss_x;
+  int ss_y;
+#endif  // CONFIG_BRU
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -656,6 +662,10 @@ typedef struct FilterFrameCtxt {
   uint8_t *wiener_class_id;
   int wiener_class_id_stride;
   bool tskip_zero_flag;
+#if CONFIG_BRU
+  const struct CommonModeInfoParams *mi_params;
+  int order_hint;
+#endif  // CONFIG_BRU
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
@@ -809,6 +819,11 @@ int av1_lr_count_units_in_tile(int unit_size, int tile_size);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
 void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
                              const int sb_cols, int plane);
+
+#if CONFIG_BRU
+void copy_tile(int width, int height, const uint16_t *src, int src_stride,
+               uint16_t *dst, int dst_stride);
+#endif
 
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);

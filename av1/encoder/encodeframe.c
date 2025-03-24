@@ -30,6 +30,9 @@
 #if CONFIG_MISMATCH_DEBUG
 #include "aom_util/debug_util.h"
 #endif  // CONFIG_MISMATCH_DEBUG
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
@@ -879,6 +882,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     }
 #if CONFIG_EXT_RECUR_PARTITIONS
     else if (!frame_is_intra_only(cm) &&
+#if CONFIG_BRU
+             bru_is_sb_active(cm, mi_col, mi_row) &&
+#endif
              sf->part_sf.two_pass_partition_search) {
       perform_two_pass_partition_search(cpi, td, tile_data, tp, mi_row, mi_col);
     }
@@ -895,6 +901,14 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #endif
   }
 
+#if CONFIG_BRU
+  if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+    if (bru_is_sb_available(cm, mi_col, mi_row)) {
+      assert(get_ref_frame_buf(cm, cm->bru.update_ref_idx) != NULL);
+      bru_update_sb(cm, mi_col, mi_row);
+    }
+  }
+#endif  // CONFIG_BRU
   // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.
   if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 &&
@@ -951,7 +965,14 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
     av1_reset_is_mi_coded_map(xd, cm->mib_size);
+#if CONFIG_BRU
+    BruActiveMode sb_active_mode =
+        enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
+    // use for lpf only, use causal restriction only
+    av1_set_sb_info(cm, xd, mi_row, mi_col, sb_active_mode);
+#else
     av1_set_sb_info(cm, xd, mi_row, mi_col);
+#endif
 
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
@@ -1000,8 +1021,48 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);
     }
 
-    // encode the superblock
-    encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
+#if CONFIG_BRU
+    BruActiveMode cur_sb_active_mode =
+        enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
+    // EXT SB let it go to RD but restrict
+    assert(xd->sbi->sb_active_mode == cur_sb_active_mode);
+    // use for lpf only, use causal restriction only
+    if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {
+      CHROMA_REF_INFO chroma_ref_info;
+      // xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->partition =
+          PARTITION_NONE;
+      set_chroma_ref_info(
+          xd->tree_type, mi_row, mi_col, 0, cm->seq_params.sb_size,
+          &chroma_ref_info,
+          &xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->chroma_ref_info,
+          BLOCK_INVALID, PARTITION_NONE, xd->plane[1].subsampling_x,
+          xd->plane[1].subsampling_y);
+      av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
+                                         mi_row, mi_col, cm->seq_params.sb_size,
+                                         NULL);
+      set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.sb_size,
+                           cur_sb_active_mode);
+      initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
+                                 &xd->mi[0]->chroma_ref_info);
+      bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0], cm->seq_params.sb_size);
+      const int w = mi_size_wide[sb_size];
+      const int h = mi_size_high[sb_size];
+      const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
+      const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row);
+      // set to bru ref mvs to 0
+      bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
+                      x_inside_boundary, y_inside_boundary);
+      // only support need to be copied
+      // no even support do not eed to copy
+      if (cur_sb_active_mode == BRU_SUPPORT_SB) {
+        bru_copy_sb(cm, mi_col, mi_row);
+      }
+    } else
+#endif  // CONFIG_BRU
+      // encode the superblock
+      encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
 
     // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&
@@ -1079,6 +1140,30 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       tile_data->allow_update_cdf =
           tile_data->allow_update_cdf && !cm->features.disable_cdf_update;
       tile_data->tctx = *cm->fc;
+#if CONFIG_BRU
+      tile_info->tile_active_mode = 1;
+      // check tile skip
+      if (cm->bru.enabled) {
+        tile_info->tile_active_mode = 0;
+        if (cm->bru.frame_active_mode == 1) {
+          for (int mi_y = tile_info->mi_row_start; mi_y < tile_info->mi_row_end;
+               mi_y += cm->mib_size) {
+            for (int mi_x = tile_info->mi_col_start;
+                 mi_x < tile_info->mi_col_end; mi_x += cm->mib_size) {
+              BruActiveMode sb_active_mode =
+                  enc_get_cur_sb_active_mode(cm, mi_x, mi_y);
+              if (sb_active_mode != BRU_INACTIVE_SB) {
+                tile_info->tile_active_mode = 1;
+                break;
+              }
+            }
+            if (tile_info->tile_active_mode) {
+              break;
+            }
+          }
+        }
+      }
+#endif
     }
   }
 }
@@ -1348,6 +1433,9 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
   if (cm->seq_params.enable_tip
+#if CONFIG_BRU
+      && !cm->bru.enabled
+#endif
 #if CONFIG_TIP_LD
       && could_tip_mode_be_selected(cpi)
 #endif  // CONFIG_TIP_LD
@@ -1845,7 +1933,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
       // 0: REFINE_NONE, 1: REFINE_SWTICHABLE, 2: REFINE_ALL
       features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
     }
-
+    
     encode_frame_internal(cpi);
 
     if (current_frame->reference_mode == REFERENCE_MODE_SELECT) {

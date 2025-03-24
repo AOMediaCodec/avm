@@ -25,6 +25,9 @@
 #endif  // CONFIG_MISMATCH_DEBUG
 
 #include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
@@ -60,6 +63,10 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   // With explicit_ref_frame_map on, an encoder-only ranking scheme can be
   // implemented here. For now, av1_get_ref_frames is used as a placeholder.
   av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
+
+#if CONFIG_BRU
+  enc_bru_swap_ref(cm);
+#endif  // CONFIG_BRU
 }
 
 void av1_configure_buffer_updates(AV1_COMP *const cpi,
@@ -344,6 +351,33 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
     if (!ref_frame_used[frame]) *ref_frame_flags &= ~(1 << (frame));
 }
 
+#if CONFIG_BRU
+static void bru_lookahead_update(AV1_COMP *const cpi, int *bru_ref_buf_offset,
+                                 struct lookahead_entry **bru_ref_source) {
+  if (cpi->common.seq_params.enable_bru) {
+    AV1_COMMON *const cm = &cpi->common;
+    const int n_refs = cm->ref_frames_info.num_total_refs;
+    if (n_refs > 1)
+      *bru_ref_source = av1_lookahead_peek(cpi->lookahead, *bru_ref_buf_offset,
+                                           cpi->compressor_stage);
+  }
+}
+
+static void init_bru_frame(AV1_COMMON *const cm) {
+  // bru skip mode update ref
+  if (cm->bru.enabled) {
+    int bru_ref_idx = cm->bru.update_ref_idx;
+    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, bru_ref_idx);
+    if (!ref_buf) {
+      cm->bru.enabled = 0;  // disable if no valid ref
+    }
+    if (!cm->bru.enabled) {
+      cm->bru.update_ref_idx = -1;
+      cm->bru.explicit_ref_idx = -1;
+    }
+  }
+}
+#endif  // CONFIG_BRU
 #if !CONFIG_PRIMARY_REF_FRAME_OPT
 static void update_fb_of_context_type(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
@@ -456,6 +490,9 @@ int get_forced_keyframe_position(struct lookahead_ctx *lookahead,
 // Return the frame source, or NULL if we couldn't find one
 static struct lookahead_entry *choose_frame_source(
     AV1_COMP *const cpi, int *const flush, struct lookahead_entry **last_source,
+#if CONFIG_BRU
+    int bru_ref_buf_offset, struct lookahead_entry **bru_ref_source,
+#endif  // CONFIG_BRU
     EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -498,6 +535,11 @@ static struct lookahead_entry *choose_frame_source(
       *last_source =
           av1_lookahead_peek(cpi->lookahead, -1, cpi->compressor_stage);
     }
+#if CONFIG_BRU
+    if (cpi->common.seq_params.enable_bru) {
+      bru_lookahead_update(cpi, &bru_ref_buf_offset, bru_ref_source);
+    }
+#endif  // CONFIG_BRU
     // Read in the source frame.
     source = av1_lookahead_pop(cpi->lookahead, *flush, cpi->compressor_stage);
   } else {
@@ -736,8 +778,24 @@ int av1_get_refresh_frame_flags(
     return refresh_mask;
   }
 
+#if CONFIG_BRU
+  // BRU frame, refresh flag is set to refresh BRU ref frame
+  int free_fb_index = INVALID_IDX;
+  if (cpi->common.bru.enabled) {
+    const int bru_ref_order = cpi->common.bru.ref_order;
+    assert(bru_ref_order >= 0);
+    for (int idx = 0; idx < REF_FRAMES; ++idx) {
+      if (ref_frame_map_pairs[idx].disp_order == bru_ref_order) {
+        free_fb_index = idx;
+      }
+    }
+  } else {
+    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
+  }
+#else
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
+#endif
 
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
@@ -938,6 +996,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   memset(&frame_input, 0, sizeof(frame_input));
   memset(&frame_params, 0, sizeof(frame_params));
   memset(&frame_results, 0, sizeof(frame_results));
+#if CONFIG_BRU
+  cm->bru.update_ref_idx = -1;
+  cm->bru.explicit_ref_idx = -1;
+  cm->bru.ref_order = -1;
+#endif  // CONFIG_BRU
 
   // Check if we need to stuff more src frames
   if (flush == 0) {
@@ -990,11 +1053,18 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
+#if CONFIG_BRU
+  struct lookahead_entry *bru_ref_source = NULL;
+#endif  // CONFIG_BRU
   if (frame_params.show_existing_frame) {
     source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
     frame_params.show_frame = 1;
   } else {
-    source = choose_frame_source(cpi, &flush, &last_source, &frame_params);
+    source = choose_frame_source(cpi, &flush, &last_source,
+#if CONFIG_BRU
+                                 -2, &bru_ref_source,
+#endif  // CONFIG_BRU
+                                 &frame_params);
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
@@ -1007,6 +1077,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
   frame_input.last_source = last_source != NULL ? &last_source->img : NULL;
+#if CONFIG_BRU
+  // prepare bru ref source
+  frame_input.bru_ref_source =
+      bru_ref_source != NULL ? &bru_ref_source->img : NULL;
+  if (bru_ref_source) {
+    cpi->common.bru.update_ref_idx = bru_ref_source->order_hint;
+    cpi->common.bru.ref_order = bru_ref_source->order_hint;
+  }
+#endif  // CONFIG_BRU
   frame_input.ts_duration = source->ts_end - source->ts_start;
   // Save unfiltered source. It is used in av1_get_second_pass_params().
   cpi->unfiltered_source = frame_input.source;
@@ -1127,7 +1206,66 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
-
+#if CONFIG_BRU
+    // get last frame idx as bru frame
+    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru;
+    if (cpi->oxcf.tool_cfg.enable_bru && frame_input.bru_ref_source != NULL &&
+        !frame_is_intra_only(&cpi->common)) {
+      active_region_detection(cpi, frame_input.source,
+                              frame_input.bru_ref_source);
+      //  disable bru if
+      //  1. too many active regions
+      //  2. active ratio too large > 50%
+      const int num_active_region = bru_get_num_of_active_region(&cpi->common);
+      if (num_active_region > MAX_ACTIVE_REGION) {
+        cm->bru.blocks_skipped = 0;
+      } else if (cm->bru.blocks_skipped * 100 / cm->bru.total_units <
+                 BRU_OFF_RATIO) {
+        cm->bru.blocks_skipped = 0;
+      }
+      if (cm->bru.blocks_skipped == 0) {
+        cm->bru.enabled = 0;
+        cm->bru.update_ref_idx = -1;
+      }
+      cm->bru.frame_active_mode =
+          (cm->bru.blocks_skipped != cm->bru.total_units);
+    } else {
+      cm->bru.enabled = 0;
+      cm->bru.update_ref_idx = -1;
+    }
+#if CONFIG_BRU && CONFIG_BRU_DIST
+    if (cm->bru.enabled && cm->bru.frame_active_mode == 1) {
+      for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+        if (abs(cm->ref_frames_info.ref_frame_distance[i]) >
+            MAX_FRAME_DISTANCE) {
+          cm->bru.enabled = 0;
+          cm->bru.update_ref_idx = -1;
+          // int ref_order = get_ref_frame_buf(cm, i)->order_hint;
+          break;
+        }
+      }
+    }
+#endif
+    // clean up active sb queue if any left over
+    // it may happen if encoder decide not using BRU for lots of active sbs
+    // exists
+    if (cm->bru.enabled == 0) {
+      memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
+      for (uint32_t r = 0; r < cm->bru.num_active_regions; r++) {
+        ARD_Queue *q = cpi->enc_act_sb_queue[r];
+        if (q == NULL) continue;
+        // make sure every queue is dumpped
+        while (!ard_is_queue_empty(q)) {
+          ard_dequeue(q);
+        }
+        // after dump, free the ARD_Queue structure
+        free(q);
+        cpi->enc_act_sb_queue[r] = NULL;
+      }
+    } else {
+      cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
+    }
+#endif  // CONFIG_BRU
 #if CONFIG_PRIMARY_REF_FRAME_OPT
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
@@ -1139,7 +1277,22 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     else
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
-
+#if CONFIG_BRU
+    if (cm->bru.frame_active_mode == 0) {
+      cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+      const RefCntBuffer * bru_ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+      cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
+      if (av1_num_planes(cm) > 1) {
+        cm->quant_params.u_ac_delta_q = bru_ref_buf->u_ac_delta_q;
+        cm->quant_params.v_ac_delta_q = bru_ref_buf->v_ac_delta_q;
+      } else {
+        cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
+      }
+      cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+      cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
+      cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
+    }
+#endif    
 #if CONFIG_SAME_REF_COMPOUND
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,
@@ -1198,6 +1351,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
+#if CONFIG_BRU
+  init_bru_frame(cm);
+#endif  // CONFIG_BRU
 
   cpi->td.mb.delta_qindex = 0;
 

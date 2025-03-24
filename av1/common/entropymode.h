@@ -483,6 +483,9 @@ typedef struct frame_contexts {
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_BRU
+  aom_cdf_prob bru_mode_cdf[CDF_SIZE(3)];
+#endif  // CONFIG_BRU
   aom_cdf_prob skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT

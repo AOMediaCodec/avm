@@ -206,6 +206,50 @@ int64_t aom_get_sse_plane(const YV12_BUFFER_CONFIG *a,
   }
 }
 
+#if CONFIG_BRU
+int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
+                                    const YV12_BUFFER_CONFIG *b, int plane,
+                                    const uint8_t *active_map,
+                                    const int active_map_stride,
+                                    const int unit_cols, const int unit_rows,
+                                    const int unit_w, const int unit_h) {
+  // act is in bru unit size
+  // unit_w , unit_h are subsampled
+  const uint8_t *act = active_map;
+  int64_t total_err = 0;
+  for (int r = 0; r < unit_rows; r++) {
+    for (int c = 0; c < unit_cols; c++) {
+      // need to check both active and support
+      if (act[c]) {
+        const int h_start = c * unit_w;
+        const int v_start = r * unit_h;
+        const int width = AOMMIN(
+            unit_w, (plane > 0 ? a->uv_crop_width : a->y_crop_width) - h_start);
+        const int height =
+            AOMMIN(unit_h, (plane > 0 ? a->uv_crop_height : a->y_crop_height) -
+                               v_start);
+        switch (plane) {
+          case 0:
+            total_err += aom_highbd_get_y_sse_part(a, b, h_start, width,
+                                                   v_start, height);
+            break;
+          case 1:
+            total_err += aom_highbd_get_u_sse_part(a, b, h_start, width,
+                                                   v_start, height);
+            break;
+          case 2:
+            total_err += aom_highbd_get_v_sse_part(a, b, h_start, width,
+                                                   v_start, height);
+            break;
+          default: assert(plane >= 0 && plane <= 2); break;
+        }
+      }
+    }
+    act += active_map_stride;
+  }
+  return total_err;
+}
+#endif
 void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
                           const YV12_BUFFER_CONFIG *b, PSNR_STATS *psnr,
                           uint32_t bit_depth, uint32_t in_bit_depth) {

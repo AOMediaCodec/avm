@@ -231,6 +231,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_BRU
+                                        AV1E_SET_ENABLE_BRU,
+#endif  // CONFIG_BRU
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -526,6 +529,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_REFRESH_FLAG
   &g_av1_codec_arg_defs.enable_short_refresh_frame_flags,
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_BRU
+  &g_av1_codec_arg_defs.enable_bru,
+#endif  // CONFIG_BRU
   NULL,
 };
 
@@ -781,6 +787,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_REFRESH_FLAG
   config->enable_short_refresh_frame_flags = 1;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_BRU
+  config->enable_bru = 0;
+#endif  // CONFIG_BRU
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1554,6 +1563,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, " , DRL Reorder (%d)", encoder_cfg->enable_drl_reorder);
 #endif  // CONFIG_DRL_REORDER_CONTROL
   fprintf(stdout, "\n");
+#if CONFIG_BRU
+  fprintf(stdout, "Backward Reference Update (BRU): %d\n",
+          encoder_cfg->enable_bru);
+#endif  // CONFIG_BRU
 #if CONFIG_EXT_RECUR_PARTITIONS
   fprintf(
       stdout,

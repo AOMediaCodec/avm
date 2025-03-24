@@ -26,6 +26,9 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/system_state.h"
 #include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/quant_common.h"
 #include "av1/common/restoration.h"
 
@@ -122,6 +125,10 @@ typedef struct {
   // This flag will be set based on the speed feature
   // 'prune_sgr_based_on_wiener'. 0 implies no pruning and 1 implies pruning.
   uint8_t skip_sgr_eval;
+#if CONFIG_BRU
+  // indicate the unit is skipped due to BRU (so no signaling)
+  int bru_unit_skipped;
+#endif  // CONFIG_BRU
 } RestUnitSearchInfo;
 
 typedef struct {
@@ -927,6 +934,11 @@ static AOM_INLINE void search_sgrproj_visitor(
   const int bit_depth = cm->seq_params.bit_depth;
 
   const int64_t bits_none = x->mode_costs.sgrproj_restore_cost[0];
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    rusi->skip_sgr_eval = 1;
+  }
+#endif  // CONFIG_BRU
   // Prune evaluation of RESTORE_SGRPROJ if 'skip_sgr_eval' is set
   if (rusi->skip_sgr_eval) {
     rsc->bits += bits_none;
@@ -947,9 +959,21 @@ static AOM_INLINE void search_sgrproj_visitor(
       rsc->lpf_sf->enable_sgr_ep_pruning);
 
   RestorationUnitInfo rui;
+#if CONFIG_BRU
+  memset(&rui, 0, sizeof(RestorationUnitInfo));
+#endif
   rui.restoration_type = RESTORE_SGRPROJ;
   rui.sgrproj_info = rusi->sgrproj_info;
 
+#if CONFIG_BRU
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx = get_mi_grid_idx(&cm->mi_params, start_mi_y, start_mi_x);
+  rui.mbmi_ptr = cm->mi_params.mi_grid_base + mbmi_idx;
+  rui.mi_stride = cm->mi_params.mi_stride;
+  rui.ss_x = ss_x;
+  rui.ss_y = ss_y;
+#endif  // CONFIG_BRU
   rusi->sse[RESTORE_SGRPROJ] =
       try_restoration_unit(rsc, limits, &rsc->tile_rect, &rui);
 
@@ -1079,6 +1103,12 @@ static AOM_INLINE void search_sgrproj_visitor(
     RestorationUnitInfo rui_temp_cand;
     memset(&rui_temp_cand, 0, sizeof(rui_temp_cand));
     rui_temp_cand.restoration_type = RESTORE_SGRPROJ;
+#if CONFIG_BRU
+    rui_temp_cand.mbmi_ptr = rui.mbmi_ptr;
+    rui_temp_cand.mi_stride = rui.mi_stride;
+    rui_temp_cand.ss_x = ss_x;
+    rui_temp_cand.ss_y = ss_y;
+#endif  // CONFIG_BRU
     rui_temp_cand.sgrproj_info = search_selfguided_restoration(
         rsc, NULL, bit_depth, procunit_width, procunit_height, tmpbuf,
         rsc->lpf_sf->enable_sgr_ep_pruning);
@@ -1116,9 +1146,24 @@ static AOM_INLINE void search_sgrproj_visitor(
           !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand))
         continue;
 
+#if CONFIG_BRU
+      if (old_rusi->bru_unit_skipped) {
+        old_unit->merge_sse_cand = 0;
+      } else {
+        const int old_start_mi_x =
+            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+        const int old_start_mi_y =
+            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+        const int old_mbmi_idx = get_mi_grid_idx(
+            &rsc->cm->mi_params, old_start_mi_y, old_start_mi_x);
+        rui_temp_cand.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + old_mbmi_idx;
+        old_unit->merge_sse_cand = try_restoration_unit(
+            rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
+      }
+#else
       old_unit->merge_sse_cand = try_restoration_unit(
           rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
-
+#endif
       // First unit in stack has larger unit_bits because the
       // merged coeffs are linked to it.
       if (old_unit->rest_unit_idx == begin_idx_cand) {
@@ -1278,6 +1323,11 @@ static AOM_INLINE void search_pc_wiener_visitor(
 #else
   bool skip_search = rsc->plane != AOM_PLANE_Y;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    skip_search = true;
+  }
+#endif  // CONFIG_BRU
   if (skip_search) {
     rsc->bits += bits_none;
     rsc->sse += rusi->sse[RESTORE_NONE];
@@ -1288,6 +1338,18 @@ static AOM_INLINE void search_pc_wiener_visitor(
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
+#if CONFIG_BRU
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx =
+      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+  rui.ss_x = ss_x;
+  rui.ss_y = ss_y;
+  rui.mi_stride = rsc->cm->mi_params.mi_stride;
+#endif
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int pcwiener_disabled =
       rsc->plane > 0 ||
@@ -1738,6 +1800,18 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
                                             RestorationUnitInfo *rui) {
   int64_t err = 0;
   if (limits != NULL) {
+#if CONFIG_BRU
+    const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+    const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+    const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+    const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+    const int mbmi_idx =
+        get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+    rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+    rui->ss_x = ss_x;
+    rui->ss_y = ss_y;
+    rui->mi_stride = rsc->cm->mi_params.mi_stride;
+#endif
     err = try_restoration_unit(rsc, limits, tile, rui);
   } else {
     Vector *current_unit_stack = rsc->unit_stack;
@@ -1746,7 +1820,25 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     int idx = *(int *)aom_vector_const_get(current_unit_indices, n);
     VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
       RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+#if CONFIG_BRU
+      if (old_unit->rest_unit_idx == idx && !rsc->rusi[idx].bru_unit_skipped) {
+#else
       if (old_unit->rest_unit_idx == idx) {
+#endif
+#if CONFIG_BRU
+        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+        const int start_mi_x =
+            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+        const int start_mi_y =
+            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+        const int mbmi_idx =
+            get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+        rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+        rui->ss_x = ss_x;
+        rui->ss_y = ss_y;
+        rui->mi_stride = rsc->cm->mi_params.mi_stride;
+#endif
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -1787,6 +1879,20 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
           // Revert to old unit's filters.
           copy_nsfilter_taps(&rui->wienerns_info, &old_rusi->wienerns_info);
         }
+#if CONFIG_BRU
+        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+        const int start_mi_x =
+            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+        const int start_mi_y =
+            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+        const int mbmi_idx =
+            get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+        rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+        rui->ss_x = ss_x;
+        rui->ss_y = ss_y;
+        rui->mi_stride = rsc->cm->mi_params.mi_stride;
+#endif
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -1978,6 +2084,17 @@ static AOM_INLINE void search_wiener_visitor(
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->mode_costs.wiener_restore_cost[0];
 
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    // in fixed LR size case, no bit cost for skipped
+    rsc->bits += bits_none;
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
+    rusi->sse[RESTORE_WIENER] = INT64_MAX;
+    if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
+    return;
+  }
+#endif  // CONFIG_BRU
   // Skip Wiener search for low variance contents
   if (rsc->lpf_sf->prune_wiener_based_on_src_var) {
     const int scale[3] = { 0, 1, 2 };
@@ -2034,6 +2151,18 @@ static AOM_INLINE void search_wiener_visitor(
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
   rui.restoration_type = RESTORE_WIENER;
+#if CONFIG_BRU
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx =
+      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+  rui.ss_x = ss_x;
+  rui.ss_y = ss_y;
+  rui.mi_stride = rsc->cm->mi_params.mi_stride;
+#endif  // CONFIG_BRU
   finalize_sym_filter(reduced_wiener_win, vfilter, rui.wiener_info.vfilter);
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
@@ -2237,6 +2366,12 @@ static AOM_INLINE void search_wiener_visitor(
     RestorationUnitInfo rui_temp_cand;
     memset(&rui_temp_cand, 0, sizeof(rui_temp_cand));
     rui_temp_cand.restoration_type = RESTORE_WIENER;
+#if CONFIG_BRU
+    rui_temp_cand.mbmi_ptr = rui.mbmi_ptr;
+    rui_temp_cand.mi_stride = rui.mi_stride;
+    rui_temp_cand.ss_x = rui.ss_x;
+    rui_temp_cand.ss_y = rui.ss_y;
+#endif  // CONFIG_BRU
     int32_t vfilter_merge[WIENER_WIN], hfilter_merge[WIENER_WIN];
     wiener_decompose_sep_sym(reduced_wiener_win, M_AVG, H_AVG, vfilter_merge,
                              hfilter_merge);
@@ -2266,8 +2401,25 @@ static AOM_INLINE void search_wiener_visitor(
           !check_wiener_eq(&old_rusi->wiener_info, ref_wiener_info_cand))
         continue;
 
+#if CONFIG_BRU
+      if (old_rusi->bru_unit_skipped) {
+        old_unit->merge_sse_cand = 0;
+      } else {
+        const int old_start_mi_x =
+            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+        const int old_start_mi_y =
+            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+        const int old_mbmi_idx = get_mi_grid_idx(
+            &rsc->cm->mi_params, old_start_mi_y, old_start_mi_x);
+        rui_temp_cand.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + old_mbmi_idx;
+        old_unit->merge_sse_cand = try_restoration_unit(
+            rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
+      }
+#else
       old_unit->merge_sse_cand = try_restoration_unit(
           rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
+#endif
+
       // First unit in stack has larger unit_bits because the
       // merged coeffs are linked to it.
       if (old_unit->rest_unit_idx == begin_idx_cand) {
@@ -2386,7 +2538,12 @@ static AOM_INLINE void search_norestore_visitor(
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
-
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    rusi->sse[RESTORE_NONE] = 0;
+    return;
+  }
+#endif  // CONFIG_BRU
   rusi->sse[RESTORE_NONE] = sse_restoration_unit(
       limits, rsc->src, &rsc->cm->cur_frame->buf, rsc->plane);
 
@@ -3361,8 +3518,26 @@ double set_cand_merge_sse_and_bits(
                            nsfilter_params->ncoeffs, wiener_class_id))
       continue;
 
+#if CONFIG_BRU
+    if (old_rusi->bru_unit_skipped) {
+      old_unit->merge_sse_cand = 0;
+    } else {
+      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+      const int old_start_mi_x =
+          old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+      const int old_start_mi_y =
+          old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+      const int old_mbmi_idx =
+          get_mi_grid_idx(&rsc->cm->mi_params, old_start_mi_y, old_start_mi_x);
+      rui_merge_cand->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + old_mbmi_idx;
+      old_unit->merge_sse_cand = try_restoration_unit(
+          rsc, &old_unit->limits, tile_rect, rui_merge_cand);
+    }
+#else
     old_unit->merge_sse_cand =
         try_restoration_unit(rsc, &old_unit->limits, tile_rect, rui_merge_cand);
+#endif
     // First unit in stack has larger unit_bits because the
     // merged coeffs are linked to it.
     if (old_unit->rest_unit_idx == begin_idx_cand) {
@@ -3495,13 +3670,33 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
   assert(rsc->num_filter_classes == rsc->wienerns_bank.filter[0].num_classes);
 
+#if CONFIG_BRU
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx =
+      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+  rui.ss_x = ss_x;
+  rui.ss_y = ss_y;
+  rui.mi_stride = rsc->cm->mi_params.mi_stride;
+#endif
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
-  unit_stats.real_sse = compute_stats_for_wienerns_filter(
-      rsc->dgd_buffer, rsc->src_buffer, limits, rsc->dgd_stride,
-      rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
-      unit_stats.b, unit_stats.num_pixels_in_class, nsfilter_params,
-      rsc->num_stats_classes);
+#if CONFIG_BRU
+  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+  unit_stats.real_sse = 0;
+  if (!rusi->bru_unit_skipped) {
+#endif
+    unit_stats.real_sse = compute_stats_for_wienerns_filter(
+        rsc->dgd_buffer, rsc->src_buffer, limits, rsc->dgd_stride,
+        rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
+        unit_stats.b, unit_stats.num_pixels_in_class, nsfilter_params,
+        rsc->num_stats_classes);
+#if CONFIG_BRU
+  }
+#endif
   unit_stats.ru_idx = rest_unit_idx;
   unit_stats.ru_idx_in_tile = rest_unit_idx_in_rutile - rsc->ru_idx_base;
   unit_stats.limits = *limits;
@@ -3610,6 +3805,14 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    for (RestorationType r = 0; r < RESTORE_SWITCHABLE_TYPES; ++r) {
+      rusi->best_rtype[r] = RESTORE_NONE;
+    }
+  }
+#endif  // CONFIG_BRU
+
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->mode_costs.wienerns_restore_cost[0];
   const int bit_depth = rsc->cm->seq_params.bit_depth;
@@ -3618,6 +3821,18 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
+#if CONFIG_BRU
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx =
+      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+  rui.ss_x = ss_x;
+  rui.ss_y = ss_y;
+  rui.mi_stride = rsc->cm->mi_params.mi_stride;
+#endif  // CONFIG_BRU
 #if CONFIG_COMBINE_PC_NS_WIENER
   // Classification has already been calculated by search_pc_wiener_visitor().
   rui.compute_classification = 0;
@@ -3640,7 +3855,11 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(unit_stats->plane == rsc->plane);
   assert(rusi->sse[RESTORE_NONE] == unit_stats->real_sse);
 #if CONFIG_COMBINE_PC_NS_WIENER
-  if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane)) {
+  if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane)
+#if CONFIG_BRU
+      && !rusi->bru_unit_skipped
+#endif
+  ) {
     // Pick the best filter for this RU.
     rusi->sse[RESTORE_WIENER_NONSEP] = evaluate_frame_filter(rsc, limits, &rui);
 
@@ -3653,7 +3872,12 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
     return;
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped ||
+      !compute_quantized_wienerns_filter(
+#else
   if (!compute_quantized_wienerns_filter(
+#endif
           rsc, limits, &rsc->tile_rect, &rui, unit_stats->A, unit_stats->b,
           unit_stats->real_sse, nsfilter_params)) {
     rsc->bits += bits_none;
@@ -3791,7 +4015,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       // Only check the best reference for the solved filter.
       if (bank_ref_cand != ns_bank_ref_base[c_id]) continue;
 #else
-      (void)ns_bank_ref_base;
+              (void)ns_bank_ref_base;
 #endif
 
       // Needed to track the set of merge candidate RUs.
@@ -4124,6 +4348,13 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     // find a solution or the solution was worse than RESTORE_NONE.
     // In either case the best_rtype will be set as RESTORE_NONE. These
     // should be skipped from the test below.
+#if CONFIG_BRU
+    if (rusi->bru_unit_skipped) {
+      assert(r == 0);
+      // only none case exists in RU skip
+      break;
+    }
+#endif  // CONFIG_BRU
     if (r > RESTORE_NONE) {
       if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
     }
@@ -4228,6 +4459,12 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
   rui->restoration_type = frame_rtype == RESTORE_NONE
                               ? RESTORE_NONE
                               : rusi->best_rtype[frame_rtype - 1];
+#if CONFIG_BRU
+  if (rusi->bru_unit_skipped) {
+    rui->restoration_type = RESTORE_NONE;
+    return;
+  }
+#endif  // CONFIG_BRU
   if (rui->restoration_type == RESTORE_WIENER) {
     rui->wiener_info = rusi->wiener_info;
     const int wiener_win =
@@ -4278,6 +4515,40 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
   }
 }
 
+#if CONFIG_BRU
+static AOM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
+                                        int rrow1, int rcol0, int rcol1) {
+  const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
+  const int ru_size = rsi->restoration_unit_size;
+  const int is_uv = rsc->plane > 0;
+  const int ss_x = is_uv && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = is_uv && rsc->cm->seq_params.subsampling_y;
+  const int rstride = rsi->horz_units_per_tile;
+  for (int rrow = rrow0; rrow < rrow1; ++rrow) {
+    for (int rcol = rcol0; rcol < rcol1; ++rcol) {
+      const int runit_idx = rcol + rrow * rstride;
+      RestUnitSearchInfo *rusi = &rsc->rusi[runit_idx];
+      if (rsc->cm->bru.enabled) {
+        AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
+            rsc->cm, is_uv, rrow, rrow + 1, rcol, rcol + 1, ru_size, ru_size);
+        ru_sb_rect.top <<= (is_uv && ss_y);
+        ru_sb_rect.bottom <<= (is_uv && ss_y);
+        ru_sb_rect.left <<= (is_uv && ss_x);
+        ru_sb_rect.right <<= (is_uv && ss_x);
+        // very similar to bru_is_fu_skipped_mbmi(), but this one uses rect
+        if (is_ru_bru_skip(rsc->cm, &ru_sb_rect)) {
+          rusi->bru_unit_skipped = 1;
+        } else {
+          rusi->bru_unit_skipped = 0;
+        }
+      } else {
+        rusi->bru_unit_skipped = 0;
+      }
+    }
+  }
+}
+#endif
+
 // Calls visitor function fun() for one specific RU in frame
 // Note that RU-tiles are different from coded tiles since the RU sizes can be
 // different from Sb sizes and also because there could be super-resolution.
@@ -4307,6 +4578,11 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
       if (av1_loop_restoration_corners_in_sb(rsc->cm, rsc->plane, mi_row,
                                              mi_col, rsc->cm->sb_size, &rcol0,
                                              &rcol1, &rrow0, &rrow1)) {
+#if CONFIG_BRU
+        if (rsc->cm->bru.enabled) {
+          bru_set_sru_skip(rsc, rrow0, rrow1, rcol0, rcol1);
+        }
+#endif  // CONFIG_BRU
         // RU domain rectangle for the coded SB
         AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
             rsc->cm, is_uv, rrow0, rrow1, rcol0, rcol1, ru_size, ru_size);
@@ -4723,9 +4999,31 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
   VECTOR_FOR_EACH(rsc->wienerns_stats, unit_stats) {
     stat_slot++;
     RstUnitStats *unit_stats_ptr = (RstUnitStats *)(unit_stats.pointer);
+#if CONFIG_BRU
+    int64_t distortion = INT64_MAX;
+    int64_t distortion_none = 0;
+    if (!rsc->rusi[unit_stats_ptr->ru_idx].bru_unit_skipped) {
+      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+      const int start_mi_x =
+          unit_stats_ptr->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
+      const int start_mi_y =
+          unit_stats_ptr->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
+      const int mbmi_idx =
+          get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+      rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+      rui->ss_x = ss_x;
+      rui->ss_y = ss_y;
+      rui->mi_stride = rsc->cm->mi_params.mi_stride;
+      distortion = calc_finer_tile_search_error(rsc, &unit_stats_ptr->limits,
+                                                &rsc->tile_rect, rui);
+      distortion_none = unit_stats_ptr->real_sse;
+    }
+#else
     int64_t distortion = calc_finer_tile_search_error(
         rsc, &unit_stats_ptr->limits, &rsc->tile_rect, rui);
     const int64_t distortion_none = unit_stats_ptr->real_sse;
+#endif
 
     const double cost_wienerns = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rsc->x->rdmult, bits_wienerns >> 4, distortion,
@@ -5076,6 +5374,12 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       continue;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
     }
+#if CONFIG_BRU
+    // cannot use BRU frame as bank, theoratically OK, but disable for now
+    if (ref_idx == rsc->cm->bru.update_ref_idx) {
+      continue;
+    }
+#endif
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;
@@ -5363,10 +5667,14 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
 #if CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_WIENER_NONSEP &&
+#if CONFIG_BRU
+              !cm->bru.enabled &&
+#endif            
               is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
             // desired make a copy of stats.
+            
             rsc.frame_filters_on = 1;
             find_optimal_num_classes_and_frame_filters(&rsc);
 
@@ -5385,11 +5693,20 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_WIENER_NONSEP || r == RESTORE_SWITCHABLE)
             rsc.num_wiener_nonsep = 0;
+#if CONFIG_BRU
+          // If the full frame is skipped, no need to search other type
+          if (cm->current_frame.frame_type != KEY_FRAME &&
+              cm->bru.frame_active_mode == 0 && r != 0)
+            continue;
+#endif  // CONFIG_BRU
 
           double cost = search_rest_type(&rsc, r);
           int real_r = r;
 #if CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
+#if CONFIG_BRU
+              !cm->bru.enabled &&
+#endif          
               frame_filters_configured && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
 #if PRINT_LR_COSTS && !defined(NDEBUG)

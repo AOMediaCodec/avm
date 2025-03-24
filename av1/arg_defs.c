@@ -886,4 +886,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_BRU
+  .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
+                        "Enable Backward Ref Update (BRU) "
+                        "(0: false (default), "
+                        " 1: true)"),
+#endif  // CONFIG_BRU
 };

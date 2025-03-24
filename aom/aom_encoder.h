@@ -660,6 +660,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_BRU
+  /*!\brief enable bru
+   *
+   */
+  unsigned int enable_bru;
+#endif  // CONFIG_BRU
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

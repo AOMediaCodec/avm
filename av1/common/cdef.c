@@ -18,6 +18,9 @@
 
 #include "aom/aom_integer.h"
 #include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/cdef.h"
 #include "av1/common/cdef_block.h"
 #include "av1/common/reconinter.h"
@@ -69,6 +72,13 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
     for (int c = 0; c < maxc; c += c_step) {
       if (!is_8x8_block_skip(grid, mi_row + r, mi_col + c,
                              mi_params->mi_stride)) {
+#if CONFIG_BRU
+        // no need for doing this, just one place holder
+        // BRU support/inactive sb always has skip_txfm = 1
+        MB_MODE_INFO **mi =
+            grid + (mi_row + r) * mi_params->mi_stride + mi_col + c;
+        if (mi[0]->sb_active_mode != BRU_ACTIVE_SB) continue;
+#endif
         dlist[count].by = r >> r_shift;
         dlist[count].bx = c >> c_shift;
         count++;
@@ -167,7 +177,15 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       int nhb, nvb;
       int cstart = 0;
       curr_row_cdef[fbc] = 0;
-      if (mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
+      if (
+#if CONFIG_BRU
+          //for AVM only, HW will use local cdef_strength = 0
+          (mi_params
+               ->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
+                              MI_SIZE_64X64 * fbc]
+               ->sb_active_mode != BRU_ACTIVE_SB) ||
+#endif  // CONFIG_BRU
+          mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc] == NULL ||
           mi_params
                   ->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +

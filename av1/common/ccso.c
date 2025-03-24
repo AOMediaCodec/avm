@@ -208,6 +208,9 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
+#if CONFIG_BRU
+  const int is_uv = (int)(plane > 0);
+#endif
 #if CONFIG_CCSO_REFACTORING
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
@@ -228,6 +231,16 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          //for AVM only, HW will use local ccso_blk_y = 0
+          const int mbmi_idx =
+              get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+                              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -297,6 +310,9 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
+#if CONFIG_BRU
+  const int is_uv = plane > 0;
+#endif
 #if CONFIG_CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
@@ -318,6 +334,16 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          //for AVM only, HW will use local ccso_blk_y = 0
+          const int mbmi_idx =
+              get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+                              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -388,6 +414,9 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
+#if CONFIG_BRU
+  const int is_uv = plane > 0;
+#endif
 #if CONFIG_CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
@@ -411,6 +440,16 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          //for AVM only, HW will use local ccso_blk_u/v = 0
+          const int mbmi_idx =
+              get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+                              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -483,6 +522,9 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
+#if CONFIG_BRU
+  const int is_uv = plane > 0;
+#endif
 #if CONFIG_CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
@@ -506,6 +548,16 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          //for AVM only, HW will use local ccso_blk_u/v = 0
+          const int mbmi_idx =
+              get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+                              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,

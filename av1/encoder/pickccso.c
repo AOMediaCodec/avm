@@ -128,6 +128,15 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
 #if CONFIG_CCSO_REFACTORING
+#if CONFIG_BRU
+      // check BRU skip in entire CCSO FU, this means no signal needed
+      if (bru_is_fu_skipped_mbmi(cm, x >> (MI_SIZE_LOG2 - y_uv_hscale),
+                                 y >> (MI_SIZE_LOG2 - y_uv_vscale),
+                                 blk_size >> (MI_SIZE_LOG2 - y_uv_hscale),
+                                 blk_size >> (MI_SIZE_LOG2 - y_uv_vscale))) {
+        continue;
+      }
+#endif
       // reset begining of FSU
       const uint16_t *src_y_unit = src_y;
       uint8_t *src_unit_0 = src_cls0;
@@ -136,6 +145,14 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+              (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           ccso_derive_src_block(
               src_y_unit, src_unit_0, src_unit_1, ccso_stride_ext, ccso_stride,
               x + unit_x, y + unit_y, pic_width, pic_height, y_uv_hscale,
@@ -163,6 +180,9 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
  * each entry of the LUT */
 static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
                                        const int plane,
+#if CONFIG_BRU
+                                       const AV1_COMMON *cm,
+#endif
 #if CONFIG_CCSO_REFACTORING
                                        const int proc_unit_log2,
 #endif
@@ -190,6 +210,11 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       fb_idx++;
+#if CONFIG_BRU
+      if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
+        continue;  // FSU skip
+      }
+#endif
       const int y_end = AOMMIN(pic_height - y, blk_size);
       const int x_end = AOMMIN(pic_width - x, blk_size);
 #if CONFIG_CCSO_REFACTORING
@@ -203,6 +228,15 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
           const int y_end_unit = AOMMIN(pic_height - y - unit_y, unit_size);
           const int x_end_unit = AOMMIN(pic_width - x - unit_x, unit_size);
+#if CONFIG_BRU
+          // FPU skip
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+              (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           for (int y_start = 0; y_start < y_end_unit; y_start++) {
             for (int x_start = 0; x_start < x_end_unit; x_start++) {
               const int x_pos = x + unit_x + x_start;
@@ -272,6 +306,9 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
 // pre compute classes for band offset only option
 static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
                                           const int plane,
+#if CONFIG_BRU
+                                          const AV1_COMMON *cm,
+#endif
 #if CONFIG_CCSO_REFACTORING
                                           const int proc_unit_log2,
 #endif
@@ -296,6 +333,12 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       fb_idx++;
+#if CONFIG_BRU
+      assert(ctx->filter_control);
+      if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
+        continue;
+      }
+#endif
       const int y_end = AOMMIN(pic_height - y, blk_size);
       const int x_end = AOMMIN(pic_width - x, blk_size);
 #if CONFIG_CCSO_REFACTORING
@@ -308,6 +351,14 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
           const int y_end_unit = AOMMIN(pic_height - y - unit_y, unit_size);
           const int x_end_unit = AOMMIN(pic_width - x - unit_x, unit_size);
+#if CONFIG_BRU
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+              (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           for (int y_start = 0; y_start < y_end_unit; y_start++) {
             for (int x_start = 0; x_start < x_end_unit; x_start++) {
               const int x_pos = x + unit_x + x_start;
@@ -432,6 +483,9 @@ void ccso_filter_block_hbd_with_buf_c(
 }
 /* Apply CCSO on luma component at encoder (high bit-depth) */
 void ccso_try_luma_filter(
+#if CONFIG_BRU
+    CcsoCtx *ctx,
+#endif
     AV1_COMMON *cm, MACROBLOCKD *xd, const int plane, const uint16_t *src_y,
     uint16_t *dst_yuv, const int dst_stride, const int8_t *filter_offset,
     uint8_t *src_cls0, uint8_t *src_cls1, const uint8_t shift_bits,
@@ -441,6 +495,9 @@ void ccso_try_luma_filter(
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
+#if CONFIG_BRU
+  int fb_idx = 0;
+#endif
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
 #if CONFIG_CCSO_REFACTORING
   const int is_uv = (int)(plane > 0);
@@ -452,6 +509,13 @@ void ccso_try_luma_filter(
 #endif
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
+#if CONFIG_BRU
+      fb_idx++;
+      assert(ctx->filter_control);
+      if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
+        continue;  // FSU level skip
+      }
+#endif
 #if CONFIG_CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
@@ -461,6 +525,15 @@ void ccso_try_luma_filter(
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (ccso_bo_only) {
 #if CONFIG_CCSO_IMPROVE
             ccso_filter_block_hbd_with_buf_bo_only(
@@ -515,6 +588,9 @@ void ccso_try_luma_filter(
 
 /* Apply CCSO on chroma component at encoder (high bit-depth) */
 static void ccso_try_chroma_filter(
+#if CONFIG_BRU
+    CcsoCtx *ctx,
+#endif
     AV1_COMMON *cm, MACROBLOCKD *xd, const int plane, const uint16_t *src_y,
     uint16_t *dst_yuv, const int dst_stride, const int8_t *filter_offset,
     uint8_t *src_cls0, uint8_t *src_cls1, const uint8_t shift_bits,
@@ -526,6 +602,9 @@ static void ccso_try_chroma_filter(
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
+#if CONFIG_BRU
+  int fb_idx = 0;
+#endif
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
 #if CONFIG_CCSO_REFACTORING
   const int is_uv = (int)(plane > 0);
@@ -537,6 +616,13 @@ static void ccso_try_chroma_filter(
 #endif
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
+#if CONFIG_BRU
+      fb_idx++;
+      assert(ctx->filter_control);
+      if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
+        continue;
+      }
+#endif
 #if CONFIG_CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
@@ -546,6 +632,15 @@ static void ccso_try_chroma_filter(
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+          // FPU level skip
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           if (ccso_bo_only) {
 #if CONFIG_CCSO_IMPROVE
             ccso_filter_block_hbd_with_buf_bo_only(
@@ -631,6 +726,9 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
 #if CONFIG_CCSO_REFACTORING
                                const int log2_proc_unit_size,
 #endif
+#if CONFIG_BRU
+                               const AV1_COMMON *cm, const int is_uv,
+#endif
                                const int height, const int width,
                                uint64_t *distortion_buf,
                                const int distortion_buf_stride,
@@ -645,8 +743,23 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
   const int unit_size_x = 1 << (unit_log2_x);
   const int unit_size_y = 1 << (unit_log2_y);
 #endif
+#if CONFIG_BRU
+  const int blk_size_x = (1 << log2_filter_unit_size_x);
+  const int blk_size_y = (1 << log2_filter_unit_size_y);
+#endif
   for (int y = 0; y < height; y += (1 << log2_filter_unit_size_y)) {
     for (int x = 0; x < width; x += (1 << log2_filter_unit_size_x)) {
+#if CONFIG_BRU
+      // check BRU skip in entire CCSO FSU
+      if (bru_is_fu_skipped_mbmi(cm, x >> (MI_SIZE_LOG2 - is_uv),
+                                 y >> (MI_SIZE_LOG2 - is_uv),
+                                 blk_size_x >> (MI_SIZE_LOG2 - is_uv),
+                                 blk_size_y >> (MI_SIZE_LOG2 - is_uv))) {
+        distortion_buf[(y >> log2_filter_unit_size_y) * distortion_buf_stride +
+                       (x >> log2_filter_unit_size_x)] = 0;
+        continue;
+      }
+#endif
 #if CONFIG_CCSO_REFACTORING
       // All unified into pixel size
       uint64_t sb_ssd = 0;
@@ -656,6 +769,15 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
       const int x_end = AOMMIN(width - x, (1 << log2_filter_unit_size_x));
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
+#if CONFIG_BRU
+          // skip if unit skip
+          const int mbmi_idx = get_mi_grid_idx(
+              &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
+              (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+            continue;
+          }
+#endif
           // skip if unit skip
           sb_ssd += compute_distortion_block(
               org_unit, org_stride, rec_unit, rec_stride, x + unit_x,
@@ -743,6 +865,14 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   bool cur_filter_enabled = false;
   int sb_idx = 0;
 
+#if CONFIG_BRU
+  const int ss_x = xd->plane[plane].subsampling_x;
+  const int ss_y = xd->plane[plane].subsampling_y;
+  const int sb_unit_size_x =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_x));
+  const int sb_unit_size_y =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_y));
+#endif
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
@@ -789,7 +919,15 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
           int cost_from_cdf[CCSO_CONTEXT][2];
           av1_cost_tokens_from_cdf(cost_from_cdf[ccso_ctx], ccso_cdf[ccso_ctx],
                                    NULL);
-
+#if CONFIG_BRU
+          // check BRU skip in entire CCSO FU
+          if (bru_is_fu_skipped_mbmi(cm, mi_col, mi_row, sb_unit_size_x,
+                                     sb_unit_size_y)) {
+            // assert(m_filter_control[sb_idx] == 0);
+            m_filter_control[sb_idx] = 0;
+            continue;
+          }
+#endif
           for (int cur_filter_control = 0; cur_filter_control < 2;
                cur_filter_control++) {
             if (!(*filter_enable)) {
@@ -848,7 +986,14 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       (1 << log2_filter_unit_size >> 2);
   bool cur_filter_enabled = false;
   int sb_idx = 0;
-
+#if CONFIG_BRU
+  const int ss_x = xd->plane[plane].subsampling_x;
+  const int ss_y = xd->plane[plane].subsampling_y;
+  const int sb_unit_size_x =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_x));
+  const int sb_unit_size_y =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_y));
+#endif
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
@@ -881,6 +1026,14 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             continue;
           }
 
+#if CONFIG_BRU
+          // check BRU skip in entire CCSO FU
+          if (bru_is_fu_skipped_mbmi(cm, mi_col, mi_row, sb_unit_size_x,
+                                     sb_unit_size_y)) {
+            // assert(m_filter_control[sb_idx] == 0);
+            continue;
+          }
+#endif
           uint64_t ssd;
 
           if (!(*filter_enable)) continue;
@@ -925,6 +1078,14 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       (1 << log2_filter_unit_size >> 2);
   bool cur_filter_enabled = false;
   int sb_idx = 0;
+#if CONFIG_BRU
+  const int ss_x = xd->plane[plane].subsampling_x;
+  const int ss_y = xd->plane[plane].subsampling_y;
+  const int sb_unit_size_x =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_x));
+  const int sb_unit_size_y =
+      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_y));
+#endif
   for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
     for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
       uint64_t ssd;
@@ -933,6 +1094,17 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       uint8_t cur_best_filter_control = 0;
       int cost_from_cdf[2];
       av1_cost_tokens_from_cdf(cost_from_cdf, ccso_cdf, NULL);
+#if CONFIG_BRU
+      // check BRU skip in entire CCSO FU
+      if (bru_is_fu_skipped_mbmi(cm, x_sb * sb_unit_size_x,
+                                 y_sb * sb_unit_size_y, sb_unit_size_x,
+                                 sb_unit_size_y)) {
+        assert(m_filter_control[sb_idx] == 0);
+        m_filter_control[sb_idx] = 0;
+        sb_idx++;
+        continue;
+      }
+#endif
       for (int cur_filter_control = 0; cur_filter_control < 2;
            cur_filter_control++) {
         if (!(*filter_enable)) {
@@ -1165,6 +1337,14 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
          sizeof(*ctx->final_filter_control) * sb_count);
   temp_rec_uv_buf = aom_malloc(sizeof(*temp_rec_uv_buf) *
                                xd->plane[0].dst.height * ctx->ccso_stride);
+#if CONFIG_BRU
+  const int ss_x = xd->plane[plane].subsampling_x;
+  const int ss_y = xd->plane[plane].subsampling_y;
+  const int sb_unit_size_x =
+      (1 << log2_filter_unit_size_x >> (MI_SIZE_LOG2 - ss_x));
+  const int sb_unit_size_y =
+      (1 << log2_filter_unit_size_y >> (MI_SIZE_LOG2 - ss_y));
+#endif
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
       for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
@@ -1186,6 +1366,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                      log2_filter_unit_size_y, log2_filter_unit_size_x,
 #if CONFIG_CCSO_REFACTORING
                      cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
+#endif
+#if CONFIG_BRU
+                     cm, (plane > 0),
 #endif
                      pic_height_c, pic_width_c, ctx->unfiltered_dist_block,
                      ccso_nhfb, &ctx->unfiltered_dist_frame);
@@ -1322,7 +1505,18 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
               int control_idx = 0;
               for (int y = 0; y < ccso_nvfb; y++) {
                 for (int x = 0; x < ccso_nhfb; x++) {
+#if CONFIG_BRU
+                  if (cm->bru.enabled &&
+                      bru_is_fu_skipped_mbmi(cm, x * sb_unit_size_x,
+                                             y * sb_unit_size_y, sb_unit_size_x,
+                                             sb_unit_size_y)) {
+                    // check BRU skip in entire CCSO FU
+                    ctx->filter_control[control_idx] = 0;
+                  } else
+                    ctx->filter_control[control_idx] = 1;
+#else
                   ctx->filter_control[control_idx] = 1;
+#endif
                   control_idx++;
                 }
               }
@@ -1336,6 +1530,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                 }
                 ccso_pre_compute_class_err_bo(
                     ctx, xd, plane,
+#if CONFIG_BRU
+                    cm,
+#endif
 #if CONFIG_CCSO_REFACTORING
                     cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
@@ -1355,6 +1552,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                 }
                 ccso_pre_compute_class_err(
                     ctx, xd, plane,
+#if CONFIG_BRU
+                    cm,
+#endif
 #if CONFIG_CCSO_REFACTORING
                     cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
@@ -1378,6 +1578,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                 for (int ref_idx = 0; ref_idx <= num_ref_frames; ref_idx++) {
                   ref_frame_ccso_info = NULL;
                   if (reuse_ccso_idx > 0 && ref_idx == 0) continue;
+#if CONFIG_BRU
+                  // do not use BRU frame as ref for now
+                  if (ref_idx == cm->bru.update_ref_idx) continue;
+#endif
 
                   if (ref_idx > 0) {
                     ref_frame = get_ref_frame_buf(cm, ref_idx - 1);
@@ -1483,12 +1687,18 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                                    xd->plane[0].dst.height * ctx->ccso_stride);
                         if (plane > 0)
                           ccso_try_chroma_filter(
+#if CONFIG_BRU
+                              ctx,
+#endif
                               cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
                               ctx->ccso_stride, filter_offset, src_cls0,
                               src_cls1, shift_bits, ccso_bo_only,
                               ctx->ccso_stride, ctx->ccso_stride_ext);
                         else
                           ccso_try_luma_filter(
+#if CONFIG_BRU
+                              ctx,
+#endif
                               cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
                               ctx->ccso_stride, filter_offset, src_cls0,
                               src_cls1, shift_bits, ccso_bo_only,
@@ -1500,6 +1710,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             log2_filter_unit_size_x,
 #if CONFIG_CCSO_REFACTORING
                             cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
+#endif
+#if CONFIG_BRU
+                            cm, plane > 0,
 #endif
                             pic_height_c, pic_width_c, ctx->training_dist_block,
                             ccso_nhfb, &ctx->filtered_dist_frame);
@@ -1628,6 +1841,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 #if CONFIG_CCSO_REFACTORING
                   cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
+#if CONFIG_BRU
+                  cm, plane > 0,
+#endif
                   pic_height_c, pic_width_c, ctx->training_dist_block,
                   ccso_nhfb, &ctx->filtered_dist_frame);
 
@@ -1744,38 +1960,91 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif  // CONFIG_CCSO_IMPROVE
               if (plane == AOM_PLANE_Y) {
-                mi_params
-                    ->mi_grid_base
-                        [(1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                             row * mi_params->mi_stride +
-                         (1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                             col]
-                    ->ccso_blk_y =
-                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+#if CONFIG_BRU
+                // for tile skip, no valid mi exist
+                if (cm->bru.enabled &&
+                    bru_is_fu_skipped_mbmi(cm, sb_unit_size_x * col,
+                                           sb_unit_size_y * row, f_w, f_h)) {
+                  assert(ctx->final_filter_control[y_sb * ccso_nhfb + x_sb] ==
+                         0);
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                               col]
+                      ->ccso_blk_y = 0;
+                } else
+#endif
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                               col]
+                      ->ccso_blk_y =
+                      ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               } else if (plane == AOM_PLANE_U) {
-                mi_params
-                    ->mi_grid_base
-                        [(1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                             row * mi_params->mi_stride +
-                         (1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                             col]
-                    ->ccso_blk_u =
-                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+#if CONFIG_BRU
+                if (cm->bru.enabled &&
+                    bru_is_fu_skipped_mbmi(cm, sb_unit_size_x * col,
+                                           sb_unit_size_y * row, f_w, f_h)) {
+                  assert(ctx->final_filter_control[y_sb * ccso_nhfb + x_sb] ==
+                         0);
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                               col]
+                      ->ccso_blk_u = 0;
+                } else
+#endif
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                               col]
+                      ->ccso_blk_u =
+                      ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               } else {
-                mi_params
-                    ->mi_grid_base
-                        [(1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
-                             row * mi_params->mi_stride +
-                         (1 << CCSO_BLK_SIZE >>
-                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
-                             col]
-                    ->ccso_blk_v =
-                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+#if CONFIG_BRU
+                // for tile skip, no valid mi exist
+                if (cm->bru.enabled &&
+                    bru_is_fu_skipped_mbmi(cm, sb_unit_size_x * col,
+                                           sb_unit_size_y * row, f_w, f_h)) {
+                  assert(ctx->final_filter_control[y_sb * ccso_nhfb + x_sb] ==
+                         0);
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
+                               col]
+                      ->ccso_blk_v = 0;
+                } else
+#endif
+                  mi_params
+                      ->mi_grid_base
+                          [(1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
+                               row * mi_params->mi_stride +
+                           (1 << CCSO_BLK_SIZE >>
+                            (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
+                               col]
+                      ->ccso_blk_v =
+                      ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               }
 #if CONFIG_CCSO_IMPROVE
               const int ccso_mib_size_y =
@@ -1836,7 +2105,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
              ref_frame_ccso_info->sb_filter_control[plane],
              sizeof(*cm->cur_frame->ccso_info.sb_filter_control[plane]) *
                  sb_count);
-
       for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
         for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
           if (plane == AOM_PLANE_Y) {

@@ -617,6 +617,9 @@ typedef struct SequenceHeader {
   uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
 #endif                       // CONFIG_LF_SUB_PU
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
+#if CONFIG_BRU
+  uint8_t enable_bru;  // To turn on/off backward reference updating
+#endif                 // CONFIG_BRU
 #if CONFIG_DRL_REORDER_CONTROL
   uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
                                // 1 - DRL reorder with constraints
@@ -1458,6 +1461,81 @@ typedef struct TIP_Buffer {
   int *mf_need_clamp;
 } TIP;
 
+#if CONFIG_BRU
+typedef struct BRU_Info {
+  /*!
+   * Flag to indicate if a SB is marked as active.
+   */
+  uint8_t *active_mode_map;
+  /*!
+   * Regions of active SBs
+   */
+  AV1PixelRect *active_region;
+  /*!
+   * Active SB count in each region
+   */
+  uint32_t *active_sb_in_region;
+  /*!
+   * Number of active regions
+   */
+  uint32_t num_active_regions;
+  /*!
+   * Count number of blocks marked as active
+   */
+  uint32_t blocks_skipped;
+  /*!
+   * Number of rows in the frame in bru units.
+   */
+  uint32_t unit_rows;
+  /*!
+   * Number of cols in the frame in bru units.
+   */
+  uint32_t unit_cols;
+  /*!
+   * Log 2 of number of mi in each bru unit
+   */
+  uint32_t unit_mi_size_log2;
+  /*!
+   * Total units = unit_rows * unit_cols.
+   */
+  uint32_t total_units;
+  /*!
+   * if bru feature enabled
+   */
+  int enabled;
+  /*!
+   * referece idx that recon will be updated to
+   */
+  int update_ref_idx;  // indicate which ref buf is to be updated
+  /*!
+   * explicit ref idx that cur_frame is swap with
+   */
+  int explicit_ref_idx;  // indicate the absolute ref idx in the ref buffer
+  /*!
+   * is entire frame BRU skipped
+   */
+  int frame_active_mode;
+  /*!
+   *  order_hint of bru ref idx
+   */
+  int ref_order;  // ref idx order hint
+  /*!
+   * Store frame buffer of cur_frame
+   */
+  /*!
+   * Store frame context of bru ref_frame
+   */
+  FRAME_CONTEXT update_ref_fc;  // to store reference fc befor swap
+  /*!
+   * Store frame score computed in av1_get_ref_frames
+   */
+  void *ref_scores;
+  /*!
+   * Store num of ranked refs in av1_get_ref_frames
+   */
+  int ref_n_ranked;
+} BruInfo;
+#endif  // CONFIG_BRU
 /*!
  * \brief Top level common structure used by both encoder and decoder.
  */
@@ -1949,6 +2027,12 @@ typedef struct AV1Common {
    */
   int mib_size_log2;
 
+#if CONFIG_BRU
+  /*!
+   * Structure contain frame level BRU parameters
+   */
+  BruInfo bru;
+#endif
 #if CONFIG_INSPECTION
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
@@ -2417,6 +2501,10 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
 
+#if CONFIG_BRU
+  xd->tile.tile_active_mode = tile->tile_active_mode;
+  xd->mi[0]->sb_active_mode = xd->sbi->sb_active_mode;
+#endif
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -4210,12 +4298,20 @@ static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
 }
 
 static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
-                                   int mi_col) {
+                                   int mi_col
+#if CONFIG_BRU
+                                   ,
+                                   BruActiveMode sb_active_mode
+#endif
+) {
   SB_INFO *sbi = xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
 
   sbi->mi_row = mi_row;
   sbi->mi_col = mi_col;
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#if CONFIG_BRU
+  sbi->sb_active_mode = sb_active_mode;
+#endif
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.

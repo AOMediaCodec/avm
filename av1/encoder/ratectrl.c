@@ -1712,7 +1712,11 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
   if (gf_group->update_type[gf_index] == ARF_UPDATE ||
       gf_group->update_type[gf_index] == KFFLT_UPDATE)
     rc->level1_qp = q;
-
+#if CONFIG_BRU
+  if (cpi->common.bru.enabled && cpi->common.bru.frame_active_mode == 0) {
+    q = cpi->common.quant_params.base_qindex;  
+  }
+#endif
   return q;
 }
 

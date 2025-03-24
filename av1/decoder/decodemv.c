@@ -13,6 +13,9 @@
 #include <assert.h>
 
 #include "av1/common/blockd.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/cdef.h"
 #include "av1/common/ccso.h"
 #include "av1/common/cdef_block.h"
@@ -45,7 +48,11 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
 }
 #endif  // !CONFIG_AIMC
 
+#if CONFIG_BRU
+void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
+#else
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
+#endif
   assert(xd->tree_type != CHROMA_PART);
   const int skip_txfm = xd->mi[0]->skip_txfm[0];
   if (cm->features.coded_lossless) return;
@@ -116,7 +123,11 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
   }
 }
 
+#if CONFIG_BRU
+void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
+#else
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
+#endif
   if (cm->features.coded_lossless) return;
   if (is_global_intrabc_allowed(cm)) return;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;

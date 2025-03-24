@@ -198,6 +198,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   if (n_ranked > INTER_REFS_PER_FRAME)
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
 
+#if CONFIG_BRU
+  cm->bru.ref_n_ranked = n_ranked;
+  if (n_ranked > 0)
+    memcpy(cm->bru.ref_scores, scores, REF_FRAMES * sizeof(*scores));
+#endif
+
   // Fill any slots that are empty (should only happen for the first 7 frames)
   for (int i = 0; i < REF_FRAMES; i++) {
     if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;

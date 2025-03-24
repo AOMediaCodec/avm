@@ -26,6 +26,10 @@
 #include "aom_ports/system_state.h"
 
 #include "av1/common/av1_common_int.h"
+#include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
 #include "av1/common/common_data.h"
@@ -647,7 +651,19 @@ static AOM_INLINE void estimate_ref_frame_costs(
 
     const int n_refs = cm->ref_frames_info.num_total_refs;
     for (int i = 0; i < n_refs; i++) {
+#if CONFIG_BRU
+      if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+        ref_costs_single[i] = INT_MAX;  // set bru ref cost max to prevent
+                                        // inter pred from bru ref frames
+        continue;
+      }
+#endif  // CONFIG_BRU
       for (int j = 0; j <= AOMMIN(i, n_refs - 2); j++) {
+#if CONFIG_BRU
+        if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+          continue;
+        }
+#endif  // CONFIG_BRU
         aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
         const int bit = i == j;
         ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
@@ -666,6 +682,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
       int use_same_ref_comp = cm->ref_frames_info.num_same_ref_compound > 0;
       for (int i = 0; i < n_refs + use_same_ref_comp - 1; i++) {
         if (i >= RANKED_REF0_TO_PRUNE) break;
+#if CONFIG_BRU
+        if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+          continue;
+        }
+#endif  // CONFIG_BRU
         if (i == n_refs - 1 && i >= cm->ref_frames_info.num_same_ref_compound)
           break;
         int prev_cost = base_cost;
@@ -678,7 +699,12 @@ static AOM_INLINE void estimate_ref_frame_costs(
           int implicit_ref0_ref1_bits =
               j >= n_refs - 2 && j >= cm->ref_frames_info.num_same_ref_compound;
           if (j <= i) {
-            // Keep track of the cost to encode the first reference
+#if CONFIG_BRU
+            if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+              continue;
+            }
+#endif  // CONFIG_BRU
+        // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
             const int bit = i == j;
             if (!implicit_ref0_bit && !implicit_ref0_ref1_bits)
@@ -689,9 +715,21 @@ static AOM_INLINE void estimate_ref_frame_costs(
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
             if (j < n_refs - 1) {
+#if CONFIG_BRU
+              if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+                ref_costs_comp[i][j] = INT_MAX;
+                ref_costs_comp[j][i] = INT_MAX;
+                continue;
+              }
+#endif  // CONFIG_BRU
               aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
               const int bit_type =
                   av1_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
+#if CONFIG_BRU
+              if (cm->bru.enabled &&
+                  (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
+                continue;
+#endif  // CONFIG_BRU
               ref_costs_comp[i][j] +=
                   mode_costs->comp_ref1_cost[ctx][bit_type][j][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
@@ -704,11 +742,21 @@ static AOM_INLINE void estimate_ref_frame_costs(
 #else
       for (int i = 0; i < n_refs - 1; i++) {
         if (i >= RANKED_REF0_TO_PRUNE) break;
+#if CONFIG_BRU
+        if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+          continue;
+        }
+#endif  // CONFIG_BRU
         int prev_cost = base_cost;
         for (int j = 0; j < n_refs; j++) {
           if (j <= i) {
             if (n_refs == 2) continue;  // No bits need to be sent in this case
-            // Keep track of the cost to encode the first reference
+#if CONFIG_BRU
+            if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+              continue;
+            }
+#endif  // CONFIG_BRU
+        // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
             const int bit = i == j;
             if (j < n_refs - 2 && j < RANKED_REF0_TO_PRUNE - 1)
@@ -717,9 +765,21 @@ static AOM_INLINE void estimate_ref_frame_costs(
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
             if (j < n_refs - 1) {
+#if CONFIG_BRU
+              if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+                ref_costs_comp[i][j] = INT_MAX;
+                ref_costs_comp[j][i] = INT_MAX;
+                continue;
+              }
+#endif  // CONFIG_BRU
               aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
               const int bit_type =
                   av1_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
+#if CONFIG_BRU
+              if (cm->bru.enabled &&
+                  (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
+                continue;
+#endif  // CONFIG_BRU
               ref_costs_comp[i][j] +=
                   mode_costs->comp_ref1_cost[ctx][bit_type][j - 1][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
@@ -733,6 +793,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
 #ifndef NDEBUG
       for (int i = 0; i < n_refs - 1; i++) {
         for (int j = i + 1; j < n_refs; j++) {
+#if CONFIG_BRU
+          if (cm->bru.enabled &&
+              (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
+            continue;
+#endif  // CONFIG_BRU
           if (i < RANKED_REF0_TO_PRUNE) assert(ref_costs_comp[i][j] != INT_MAX);
         }
       }
@@ -3793,9 +3858,13 @@ static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
 // values. It will also guarantee a DRL cost of zero if the mode does not need
 // a DRL index.
 // Also see related function write_drl_idx() for more info.
-static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
-                               const MB_MODE_INFO_EXT *mbmi_ext,
-                               const MACROBLOCK *x) {
+#if CONFIG_BRU
+int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
+#else
+static INLINE int get_drl_cost(
+    int max_drl_bits, const MB_MODE_INFO *mbmi,
+#endif
+                 const MB_MODE_INFO_EXT *mbmi_ext, const MACROBLOCK *x) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     return get_skip_drl_cost(max_drl_bits, mbmi, x);
@@ -7054,6 +7123,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
+#if CONFIG_BRU
+  assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
+#endif  // CONFIG_BRU
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -7934,6 +8006,14 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
   const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    if (ref_frame == cm->bru.update_ref_idx ||
+        second_ref_frame == cm->bru.update_ref_idx) {
+      return;
+    }
+  }
+#endif  // CONFIG_BRU
 
 #if !CONFIG_SKIP_MODE_NO_REFINEMENTS
   const PREDICTION_MODE this_mode =
@@ -10331,6 +10411,18 @@ static void tx_search_best_inter_candidates(
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
     }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_BRU
+    if (cm->bru.enabled) {
+      if (mbmi->ref_frame[0] != INVALID_IDX &&
+          cm->bru.update_ref_idx == mbmi->ref_frame[0]) {
+        continue;
+      }
+      if (mbmi->ref_frame[1] != INVALID_IDX &&
+          cm->bru.update_ref_idx == mbmi->ref_frame[1]) {
+        continue;
+      }
+    }
+#endif  // CONFIG_BRU
     int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
     if (curr_est_rd * 0.80 > top_est_rd) break;
 
@@ -10910,6 +11002,22 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, this_mode,
                               ref_frames, &sf_args))
             continue;
+#if CONFIG_BRU
+          assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
+          // write this to a function
+          if (cm->bru.enabled) {
+            if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
+              if (ref_frame != INVALID_IDX &&
+                  cm->bru.update_ref_idx == ref_frame) {
+                continue;
+              }
+              if (comp_pred && second_ref_frame != INVALID_IDX &&
+                  cm->bru.update_ref_idx == second_ref_frame) {
+                continue;
+              }
+            }
+          }
+#endif  // CONFIG_BRU
 
           if ((this_mode == AMVDNEWMV || mbmi->mode == JOINT_AMVDNEWMV ||
                mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) &&
@@ -11629,6 +11737,9 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
+#if CONFIG_BRU
+  assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
+#endif  // CONFIG_BRU
 
   av1_count_overlappable_neighbors(cm, xd);
 #if CONFIG_COMPOUND_WARP_CAUSAL

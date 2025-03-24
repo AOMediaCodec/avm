@@ -1261,6 +1261,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_CDF_AVERAGING = 168,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_BRU
+  /*!\brief Control to enable BRU
+   */
+  AV1E_SET_ENABLE_BRU = 169,
+#endif  // CONFIG_BRU
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1759,6 +1764,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 #define AOM_CTRL_AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION
 
+#if CONFIG_BRU
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_BRU
+#endif  // CONFIG_BRU
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
 #ifdef __cplusplus

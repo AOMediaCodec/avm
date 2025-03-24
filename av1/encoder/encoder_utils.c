@@ -461,6 +461,222 @@ const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
                                              { 512, 512, 512 } }
                                          };
 
+#if CONFIG_BRU
+void set_ard_active_map(AV1_COMP *cpi) {
+  struct segmentation *const seg = &cpi->common.seg;
+  const unsigned char *const active_map = cpi->active_map.map;
+  const int mi_rows = cpi->common.mi_params.mi_rows;
+  const int mi_cols = cpi->common.mi_params.mi_cols;
+  BruInfo *bru_info = &cpi->common.bru;
+  if (cpi->common.seq_params.enable_bru) {
+    if (cpi->active_map.update) {
+      const int unit_rows = cpi->common.bru.unit_rows;
+      const int unit_cols = cpi->common.bru.unit_cols;
+      if (cpi->active_map.enabled) {
+        const int unit_size = cpi->common.seq_params.mib_size;
+        uint8_t *const active_mode_map = bru_info->active_mode_map;
+
+        // outer loops for superblock
+        bru_info->blocks_skipped = 0;
+        for (int r = 0, mi_row = 0, unit_idx = 0; r < unit_rows;
+             r++, mi_row += unit_size) {
+          for (int c = 0, mi_col = 0; c < unit_cols;
+               c++, unit_idx++, mi_col += unit_size) {
+            assert(mi_row <= mi_rows);
+            assert(mi_col <= mi_cols);
+
+            // compute number of source pixels within current superblock
+            // compute number of MI rows and columns in current superblock
+            const int mi_rows_in_sb = AOMMIN(unit_size, mi_rows - mi_row);
+            const int mi_cols_in_sb = AOMMIN(unit_size, mi_cols - mi_col);
+            const int mi_offset = (r * unit_size) * mi_cols + c * unit_size;
+
+            // UNIT is active if any MI within it is active
+            bool is_unit_active = false;
+            for (int rr = 0; rr < mi_rows_in_sb; rr++) {
+              for (int cc = 0; cc < mi_cols_in_sb; cc++) {
+                if (active_map[mi_offset + rr * mi_cols + cc] ==
+                    AM_SEGMENT_ID_ACTIVE)
+                  is_unit_active = true;
+              }
+            }
+
+            if (is_unit_active) {
+              active_mode_map[unit_idx] = 3;
+            } else {
+              active_mode_map[unit_idx] = 0;
+              bru_info->blocks_skipped++;
+            }
+          }
+        }
+      } else {
+        memset(bru_info->active_mode_map, 2, bru_info->total_units);
+      }
+    }
+    av1_disable_segmentation(seg);
+    cpi->active_map.update = 0;
+    return;
+  }
+}
+
+// Breadth-First Search to find clusters
+ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int x, int y,
+                   uint8_t *visited, int *x_min, int *y_min, int *x_max,
+                   int *y_max, int *count) {
+  ARD_Queue *q = ard_create_queue();
+  ARD_Queue *q_sd = ard_create_queue();
+  ARD_Coordinate start = { x, y };
+  int active_count = 0;
+  ard_enqueue(q, start);
+  ard_enqueue(q_sd, start);
+  active_count++;
+  visited[y * width + x] = 1;
+  *x_min = x;
+  *x_max = x;
+  *y_min = y;
+  *y_max = y;
+  while (!ard_is_queue_empty(q)) {
+    ARD_Coordinate current = ard_dequeue(q);
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        if (dx == 0 && dy == 0) continue;
+        int nx = current.x + dx;
+        int ny = current.y + dy;
+        if (is_valid_ard_location(nx, ny, width, height) &&
+            !visited[ny * width + nx] && (map[ny * width + nx] & 1)) {
+          ARD_Coordinate next = { nx, ny };
+          ard_enqueue(q, next);
+          ard_enqueue(q_sd, next);
+          active_count++;
+          visited[ny * width + nx] = 1;
+          *x_min = (*x_min < nx) ? *x_min : nx;
+          *y_min = (*y_min < ny) ? *y_min : ny;
+          *x_max = (*x_max > nx) ? *x_max : nx;
+          *y_max = (*y_max > ny) ? *y_max : ny;
+        }
+      }
+    }
+  }
+  free(q);
+  *count = active_count;
+  return q_sd;
+}
+static bool is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
+  int left = AOMMAX(rect1->left, rect2->left);
+  int right = AOMMIN(rect1->right, rect2->right);
+  int top = AOMMAX(rect1->top, rect2->top);
+  int bottom = AOMMIN(rect1->bottom, rect2->bottom);
+  if (left < right && bottom > top)
+    return true;
+  else
+    return false;
+}
+// Function to find clusters and their bounding boxes
+AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
+                                     uint32_t *act_sb_in_region,
+                                     ARD_Queue **ard_queue, int width,
+                                     int height, uint32_t *numRegions) {
+  uint8_t *visited = (uint8_t *)calloc(height * width, sizeof(uint8_t));
+  *numRegions = 0;
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < width; i++) {
+      if (!visited[j * width + i] && (map[j * width + i] & 1)) {
+        int x_min, y_min, x_max, y_max;
+        int count = 0;
+        ARD_Queue *q = ARD_BFS(map, width, height, i, j, visited, &x_min,
+                               &y_min, &x_max, &y_max, &count);
+        AV1PixelRect *region = &regions[*numRegions];
+        region->left = x_min;
+        region->top = y_min;
+        region->right = x_max + 1;
+        region->bottom = y_max + 1;
+        act_sb_in_region[*numRegions] = count;
+        ard_queue[*numRegions] = q;
+        (*numRegions)++;
+      }
+    }
+  }
+  free(visited);
+  // merge first (assume all the regions are not extened yet)
+  for (int r = (*numRegions) - 1; r > 0; r--) {
+    AV1PixelRect *r0 = &regions[r];
+    AV1PixelRect r0e;
+    r0e.left = AOMMAX(r0->left - 1, 0);
+    r0e.top = AOMMAX(r0->top - 1, 0);
+    r0e.right = AOMMIN(r0->right + 1, width);
+    r0e.bottom = AOMMIN(r0->bottom + 1, height);
+    for (int p = r - 1; p >= 0; p--) {
+      if (p == r) continue;
+      AV1PixelRect *r1 = &regions[p];
+      AV1PixelRect r1e;
+      r1e.left = AOMMAX(r1->left - 1, 0);
+      r1e.top = AOMMAX(r1->top - 1, 0);
+      r1e.right = AOMMIN(r1->right + 1, width);
+      r1e.bottom = AOMMIN(r1->bottom + 1, height);
+      // is overlap with extened
+      if (is_rect_overlap(&r0e, &r1e)) {
+        r1->left = AOMMIN(r0->left, r1->left);
+        r1->top = AOMMIN(r0->top, r1->top);
+        r1->bottom = AOMMAX(r0->bottom, r1->bottom);
+        r1->right = AOMMAX(r0->right, r1->right);
+        (*numRegions)--;
+        ARD_Queue *qr = ard_queue[r];
+        ARD_Queue *qp = ard_queue[p];
+        assert(qr);
+        assert(qp);
+        while (qr && !ard_is_queue_empty(qr)) {
+          ard_enqueue(qp, ard_dequeue(qr));
+        }
+        free(qr);
+        act_sb_in_region[p] += act_sb_in_region[r];
+        // need to shift all the region # > r to r
+        for (uint32_t k = r; k < *(numRegions); k++) {
+          ard_queue[k] = ard_queue[k + 1];
+          regions[k] = regions[k + 1];
+          act_sb_in_region[k] = act_sb_in_region[k + 1];
+        }
+        // set previouis last to NULL
+        ard_queue[*(numRegions)] = NULL;
+        act_sb_in_region[*(numRegions)] = 0;
+        // reset the loop
+        r = *numRegions;
+        break;
+      }
+    }
+  }
+  // for now, set inside all active //fix this if there are issues (time or
+  // rate)
+  for (uint32_t r = 0; r < *numRegions; r++) {
+    unsigned char *p = map + regions[r].top * width;
+    for (int y = regions[r].top; y < regions[r].bottom; y++) {
+      for (int x = regions[r].left; x < regions[r].right; x++) {
+        p[x] = 3;
+      }
+      p += width;
+    }
+  }
+  // then extend
+  for (uint32_t r = 0; r < *numRegions; r++) {
+    unsigned char *p;
+    AV1PixelRect ext_region;
+    ext_region.left = AOMMAX(regions[r].left - 1, 0);
+    ext_region.top = AOMMAX(regions[r].top - 1, 0);
+    ext_region.right = AOMMIN(regions[r].right + 1, width);
+    ext_region.bottom = AOMMIN(regions[r].bottom + 1, height);
+    p = map + ext_region.top * width;
+    for (int y = ext_region.top; y < ext_region.bottom; y++) {
+      for (int x = ext_region.left; x < ext_region.right; x++) {
+        p[x] |= 1;
+        if (p[x] == 3) {
+          p[x] = 2;
+        }
+      }
+      p += width;
+    }
+  }
+  return regions;
+}
+#endif  // CONFIG_BRU
 void av1_apply_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
   unsigned char *const seg_map = cpi->enc_seg.map;
@@ -846,6 +1062,9 @@ void av1_setup_frame(AV1_COMP *cpi) {
                                      : cm->features.derived_primary_ref_frame;
       const int map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
       if ((map_idx != INVALID_IDX) &&
+#if CONFIG_BRU
+          cm->bru.frame_active_mode == 1 &&
+#endif
           (ref_frame_used != cm->features.primary_ref_frame) &&
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
           !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
@@ -1337,3 +1556,82 @@ void av1_save_all_coding_context(AV1_COMP *cpi) {
   save_extra_coding_context(cpi);
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
+
+#if CONFIG_BRU
+void active_region_detection(AV1_COMP *cpi,
+                             const YV12_BUFFER_CONFIG *cur_picture,
+                             const YV12_BUFFER_CONFIG *last_picture) {
+  AV1_COMMON *const cm = &cpi->common;
+  unsigned char *const active_map = cpi->active_map.map;
+  const int mi_rows = cpi->common.mi_params.mi_rows;
+  const int mi_cols = cpi->common.mi_params.mi_cols;
+  const int num_comps = cm->seq_params.monochrome ? 1 : 3;
+  BruInfo *bru_info = &cm->bru;
+  if (cur_picture == NULL || last_picture == NULL) {
+    cpi->active_map.update = 0;
+    cpi->active_map.enabled = 0;
+    memset(active_map, AM_SEGMENT_ID_ACTIVE, mi_rows * mi_cols);
+    bru_info->blocks_skipped = 0;
+    return;
+  }
+
+  cpi->active_map.update = 1;
+  cpi->active_map.enabled = 1;
+  memset(active_map, AM_SEGMENT_ID_INACTIVE, mi_rows * mi_cols);
+
+  // compute active map based upon pixel-wise comparison
+  for (int comp = 0; comp < num_comps; comp++) {
+    const int uv_flag = (comp > 0);
+    const int plane_width = cur_picture->widths[uv_flag];
+    const int plane_height = cur_picture->heights[uv_flag];
+    const int stride = cur_picture->strides[uv_flag];
+    uint16_t *cur_buffer = cur_picture->buffers[comp];
+    uint16_t *last_buffer = last_picture->buffers[comp];
+    const int comp_mi_width =
+        uv_flag ? (MI_SIZE >> cur_picture->subsampling_x) : MI_SIZE;
+    const int comp_mi_height =
+        uv_flag ? (MI_SIZE >> cur_picture->subsampling_y) : MI_SIZE;
+
+    for (int r_mi = 0, mi_idx = 0; r_mi < mi_rows; r_mi++) {
+      for (int c_mi = 0; c_mi < mi_cols; c_mi++, mi_idx++) {
+        bool is_active = true;
+
+        // only check if block is not active: once active always active
+        if (active_map[mi_idx] == AM_SEGMENT_ID_INACTIVE) {
+          int x_pos = c_mi * comp_mi_width;
+          int y_pos = r_mi * comp_mi_height;
+          uint16_t *cur_ptr = cur_buffer + y_pos * stride + x_pos;
+          uint16_t *last_ptr = last_buffer + y_pos * stride + x_pos;
+          int block_width = AOMMIN(comp_mi_width, plane_width - x_pos);
+          int block_height = AOMMIN(comp_mi_height, plane_height - y_pos);
+
+          is_active = false;
+          for (int r = 0; r < block_height; r++) {
+            for (int c = 0; c < block_width; c++) {
+              if (cur_ptr[c] != last_ptr[c]) {
+                is_active = true;
+                goto next_block;
+              }
+            }
+            cur_ptr += stride;
+            last_ptr += stride;
+          }
+        }
+      next_block:
+        active_map[mi_idx] =
+            is_active ? AM_SEGMENT_ID_ACTIVE : AM_SEGMENT_ID_INACTIVE;
+        continue;
+      }
+    }
+  }
+  set_ard_active_map(cpi);
+  // in set_ard_active_map, active region is set to '11' and inactive region is
+  // set to '00' in cluster_active_regions, the rect regions are xor with '1'
+  // such that active region become '10', extended active region is '01' the
+  // inactive region (outside rects) are still '00'
+  cluster_active_regions(bru_info->active_mode_map, bru_info->active_region,
+                         bru_info->active_sb_in_region, cpi->enc_act_sb_queue,
+                         cm->bru.unit_cols, cm->bru.unit_rows,
+                         &bru_info->num_active_regions);
+}
+#endif  // CONFIG_BRU
