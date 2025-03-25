@@ -2661,7 +2661,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
           mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
 #if CONFIG_ENABLE_MHCCP
           if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#if MHCCP_3_PARAMETERS
+            const uint8_t mh_size_group = size_group_lookup[bsize];
+#else
             const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+#endif  // MHCCP_3_PARAMETERS
 #if CONFIG_CFL_64x64
             assert(mh_size_group < MHCCP_CONTEXT_GROUP_SIZE);
 #else
@@ -3494,7 +3498,11 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
         mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
 #if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#if MHCCP_3_PARAMETERS
+          const uint8_t mh_size_group = size_group_lookup[bsize];
+#else
           const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+#endif  // MHCCP_3_PARAMETERS
           aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
           mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
         }

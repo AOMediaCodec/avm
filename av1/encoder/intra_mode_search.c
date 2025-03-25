@@ -879,12 +879,25 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mbmi->uv_mode = UV_CFL_PRED;
         mbmi->uv_mode_idx = 0;
       }
+#if MHCCP_3_PARAMETERS
+      else if (mode_idx == 4) {
+        mbmi->cfl_idx = 2;
+        mbmi->mh_dir = 2;
+        mbmi->uv_mode = UV_CFL_PRED;
+        mbmi->uv_mode_idx = 0;
+      }
+#endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
       else {
         mbmi->cfl_idx = 0;
 #if CONFIG_ENABLE_MHCCP
+#if MHCCP_3_PARAMETERS
+        mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 5];
+        mbmi->uv_mode_idx = mode_idx - 5;
+#else
         mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 4];
         mbmi->uv_mode_idx = mode_idx - 4;
+#endif  // MHCCP_3_PARAMETERS
 #else
       mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 2];
       mbmi->uv_mode_idx = mode_idx - 2;
@@ -950,7 +963,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
 #if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-          const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+#if MHCCP_3_PARAMETERS
+          const uint8_t mh_size_group = size_group_lookup[bsize];
+#else
+        const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+#endif  // MHCCP_3_PARAMETERS
           filter_dir_rate =
               x->mode_costs.filter_dir_cost[mh_size_group][mbmi->mh_dir];
         }

@@ -226,6 +226,16 @@ static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
 };
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_MHCCP
+#if MHCCP_3_PARAMETERS
+static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
+                                                [CDF_SIZE(MHCCP_MODE_NUM)] = {
+                                                  { AOM_CDF3(16384, 24576), 1 },
+                                                  { AOM_CDF3(16384, 24576), 1 },
+                                                  { AOM_CDF3(16384, 24576), 1 },
+                                                  { AOM_CDF3(16384, 24576),
+                                                    32 },
+                                                };
+#else
 static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                 [CDF_SIZE(MHCCP_MODE_NUM)] = {
                                                   { AOM_CDF2(13909), 1 },
@@ -236,6 +246,7 @@ static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                   { AOM_CDF2(9557), 32 },
                                                   { AOM_CDF2(16384), 32 },
                                                 };
+#endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
 #if CONFIG_ENTROPY_PARA

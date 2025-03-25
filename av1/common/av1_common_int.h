@@ -2746,13 +2746,17 @@ static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
                                               const BLOCK_SIZE bsize) {
   FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
   assert(bsize != BLOCK_INVALID);
-  const uint8_t fsc_size_group = fsc_bsize_groups[bsize];
-#if CONFIG_CFL_64x64
-  assert(fsc_size_group < MHCCP_CONTEXT_GROUP_SIZE);
+#if MHCCP_3_PARAMETERS
+  const uint8_t mhccp_size_group = size_group_lookup[bsize];
 #else
-  assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
+  const uint8_t mhccp_size_group = fsc_bsize_groups[bsize];
+#endif  // MHCCP_3_PARAMETERS
+#if CONFIG_CFL_64x64
+  assert(mhccp_size_group < MHCCP_CONTEXT_GROUP_SIZE);
+#else
+  assert(mhccp_size_group < FSC_BSIZE_CONTEXTS);
 #endif  // CONFIG_CFL_64x64
-  return tile_ctx->filter_dir_cdf[fsc_size_group];
+  return tile_ctx->filter_dir_cdf[mhccp_size_group];
 }
 #endif  // CONFIG_ENABLE_MHCCP
 

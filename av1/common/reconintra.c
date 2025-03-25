@@ -2843,7 +2843,35 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                            tx_size);
         cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
                                            tx_size);
-      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
+      }
+#if MHCCP_3_PARAMETERS
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+        mhccp_implicit_fetch_neighbor_luma(
+            cm, xd, blk_row << cfl->subsampling_y,
+            blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
+#if CONFIG_MHCCP_SB_BOUNDARY
+            is_top_sb_boundary,
+#endif
+            &ref_width, &ref_height);
+
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
+        mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
+                                             tx_size, above_lines, left_lines,
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                             is_top_sb_boundary,
+#endif
+                                             ref_width, ref_height);
+        mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                    is_top_sb_boundary,
+#endif
+                                    ref_width, ref_height, mbmi->mh_dir);
+      }
+#else
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
@@ -2895,6 +2923,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif
         );
       }
+#endif  // MHCCP_3_PARAMETERS
 #else
       if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
         cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,

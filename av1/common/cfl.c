@@ -650,6 +650,17 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
 #if CONFIG_ENABLE_MHCCP
+#if MHCCP_3_PARAMETERS
+  if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+    mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
+                             (uint16_t)above_lines * CFL_BUF_LINE * 2,
+                         dst, have_top, have_left, dst_stride,
+                         mbmi->mhccp_implicit_param[plane - 1], xd->bd,
+                         tx_size_wide[tx_size], tx_size_high[tx_size],
+                         mbmi->mh_dir);
+    return;
+  }
+#else
   if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
     mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
                              (uint16_t)above_lines * CFL_BUF_LINE * 2,
@@ -664,7 +675,9 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                          mbmi->mhccp_implicit_param[plane - 1], xd->bd,
                          tx_size_wide[tx_size], tx_size_high[tx_size], 1);
     return;
-  } else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+  }
+#endif  // MHCCP_3_PARAMETERS
+  else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
     alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
   } else {
     alpha_q3 =
@@ -974,7 +987,26 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
           }
         }
 #endif  // CONFIG_MHCCP_SB_BOUNDARY
-        // 7-tap cross
+#if MHCCP_3_PARAMETERS
+        // 3-tap cross
+        if (dir == 0) {
+          A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
+          A[1][count] = NON_LINEAR(
+              (l[i + (j + ref_h_offset) * ref_stride] >> 3), mid, xd->bd);
+
+        } else if (dir == 1) {
+          A[0][count] = (l[i + (j + ref_h_offset - 1) * ref_stride] >> 3);  // T
+          A[1][count] = NON_LINEAR(
+              (l[i + (j + ref_h_offset) * ref_stride] >> 3), mid, xd->bd);
+        } else if (dir == 2) {
+          A[0][count] =
+              (l[(i - 1) + (j + ref_h_offset) * ref_stride] >> 3);  // L
+          A[1][count] = NON_LINEAR(
+              (l[i + (j + ref_h_offset) * ref_stride] >> 3), mid, xd->bd);
+        }
+        A[2][count] = mid;
+#else
+        // 5-tap cross or 4-tap cross based on CONFIG_E149_MHCCP_4PARA
         A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
         if (dir == 0) {
           A[1][count] =
@@ -985,7 +1017,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                   ? (l[i + (j + ref_h_offset) * ref_stride] >> 3)
                   : (l[i + (j + 1 + ref_h_offset) * ref_stride] >>
                      3);  // S 1,  1
-#endif                    // !CONFIG_E149_MHCCP_4PARA
+#endif  // !CONFIG_E149_MHCCP_4PARA
         } else {
           A[1][count] =
               (l[(i - 1) + (j + ref_h_offset) * ref_stride] >> 3);  // W 1, -1
@@ -994,7 +1026,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                             ? (l[(i) + (j + ref_h_offset) * ref_stride] >> 3)
                             : (l[(i + 1) + (j + ref_h_offset) * ref_stride] >>
                                3);  // E 1,  1
-#endif                              // !CONFIG_E149_MHCCP_4PARA
+#endif  // !CONFIG_E149_MHCCP_4PARA
         }
 #if CONFIG_E149_MHCCP_4PARA
         A[2][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
@@ -1005,6 +1037,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  mid, xd->bd);
         A[4][count] = mid;
 #endif  // CONFIG_E149_MHCCP_4PARA
+#endif  // MHCCP_3_PARAMETERS
         YCb[count] = c[i + (j + ref_h_offset) * ref_stride];
         ++count;
       }
@@ -1413,6 +1446,15 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
 #if !CONFIG_E149_MHCCP_4PARA
       uint16_t d = (i + 1 >= width ? input[i] : input[i + 1]) >> 3;  // right
 #endif  // !CONFIG_E149_MHCCP_4PARA
+#if MHCCP_3_PARAMETERS
+      if (dir == 1) {
+        vector[0] = a;  // T
+      } else if (dir == 2) {
+        vector[0] = c;  // L
+      }
+      vector[1] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
+      vector[2] = mid;
+#else
       if (dir == 0) {
         vector[1] = a;
 #if !CONFIG_E149_MHCCP_4PARA
@@ -1431,6 +1473,7 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
       vector[3] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
       vector[4] = mid;
 #endif  // CONFIG_E149_MHCCP_4PARA
+#endif  // MHCCP_3_PARAMETERS
       dst[i] = clip_pixel_highbd(convolve(alpha_q3, vector, MHCCP_NUM_PARAMS),
                                  bit_depth);
     }

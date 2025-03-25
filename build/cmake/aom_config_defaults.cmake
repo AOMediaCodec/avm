@@ -469,6 +469,8 @@ set_aom_config_var(MHCCP_BUFFER_4LINES 1
 set_aom_config_var(CONFIG_MHCCP_GAUSSIAN 1
                    "Fix gaussian elimination precision for MHCCP")
 
+set_aom_config_var(MHCCP_3_PARAMETERS 1 "Using 3 parameters in MHCCP")
+
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 

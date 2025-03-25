@@ -612,8 +612,13 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)];
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_MHCCP
+#if MHCCP_3_PARAMETERS
+  aom_cdf_prob filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
+                             [CDF_SIZE(MHCCP_MODE_NUM)];
+#else
   aom_cdf_prob filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                              [CDF_SIZE(CFL_MULTI_PARAM_V)];
+#endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
   // y mode cdf
