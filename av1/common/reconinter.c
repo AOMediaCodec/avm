@@ -3651,7 +3651,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #endif                      // CONFIG_BAWP_FIX_DIVISION_16x16_MC
   const int16_t shift = 8;  // maybe a smaller value can be used
 
+#if CONFIG_BAWP_CHROMA
   if (mbmi->bawp_flag[0] > 1 && plane == 0) {
+#else
+  if (mbmi->bawp_flag > 1) {
+#endif  // CONFIG_BAWP_CHROMA
     if (count > 0) {
       const int beta = derive_linear_parameters_beta(
           sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
