@@ -1224,7 +1224,11 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
   for (int i = 0; i < numEq; i++) {
     int64_t *src = C[i];
+#if CONFIG_MHCCP_GAUSSIAN
+    uint64_t diag = labs(src[i]) < 1 ? 1 : labs(src[i]);
+#else
     uint64_t diag = src[i] < 1 ? 1 : src[i];
+#endif
 #if CONFIG_MHCCP_GAUSSIAN
     int round;
 #else
