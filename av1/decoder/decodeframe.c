@@ -3058,7 +3058,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
@@ -3701,8 +3703,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
-
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (cm->features.coded_lossless) {
+#else
   if (is_global_intrabc_allowed(cm) || cm->features.coded_lossless) {
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
     // write default deltas to frame buffer
     av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
     av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
@@ -3857,8 +3862,9 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   CdefInfo *const cdef_info = &cm->cdef_info;
-
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
   if (!cdef_info->cdef_frame_enable) return;
@@ -3922,6 +3928,7 @@ static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
 }
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_CCSO_IMPROVE
   if (is_global_intrabc_allowed(cm)) {
     cm->cur_frame->ccso_info.ccso_enable[0] = 0;
@@ -3932,7 +3939,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #else
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // CONFIG_CCSO_IMPROVE
-
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_CCSO_IMPROVE
   const int ccso_scale[4] = { 1, 2, 3, 4 };
@@ -4916,7 +4923,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }
@@ -8404,9 +8411,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
-
-  if (is_global_intrabc_allowed(cm) ||
-      features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#else
+    if (is_global_intrabc_allowed(cm) ||
+        features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
@@ -8539,7 +8549,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
     cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
     if (!is_global_intrabc_allowed(cm))
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
     if (cm->delta_q_info.delta_lf_present_flag) {
       cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
@@ -8975,8 +8987,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
   }
-
-  if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (!tiles->single_tile_decoding) {
+#else
+    if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1
 #if CONFIG_LF_SUB_PU

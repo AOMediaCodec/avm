@@ -3539,6 +3539,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  loopfilter_frame(cpi, cm);
+#else
   if (!is_global_intrabc_allowed(cm)) {
     loopfilter_frame(cpi, cm);
   } else {
@@ -3568,7 +3571,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
 #endif  // CONFIG_CCSO_IMPROVE
   }
-
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
   compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,

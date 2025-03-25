@@ -50,6 +50,7 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   assert(xd->tree_type != CHROMA_PART);
   const int skip_txfm = xd->mi[0]->skip_txfm[0];
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) {
 #if CONFIG_FIX_CDEF_SYNTAX
     assert(cm->cdef_info.cdef_frame_enable == 0);
@@ -62,6 +63,7 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     return;
   }
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
@@ -167,7 +169,9 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
 
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
