@@ -1298,7 +1298,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
   for (int i = 0; i < numParams; i++) {
-#if CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_E125_MHCCP_SIMPLIFY && 0
     sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
                              get_msb_signed_64(params[i]),
                              get_msb_signed(vector[i]), 32, NULL);
@@ -1306,7 +1306,7 @@ static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
     sum += params[i] * vector[i];
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
   }
-#if CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_E125_MHCCP_SIMPLIFY && 0
   return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
 #else
   return (int16_t)((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS);
