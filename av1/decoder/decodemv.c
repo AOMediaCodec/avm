@@ -324,7 +324,7 @@ static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
 
     if (!smallval) {
       const int rem_bits = aom_read_literal(r, 3, ACCT_INFO("rem_bits")) + 1;
-      const int thr = (1 << rem_bits) + 1;
+      const int thr = (1 << rem_bits) + (DELTA_Q_SMALL - 2);
       abs = aom_read_literal(r, rem_bits, ACCT_INFO("abs")) + thr;
     }
 

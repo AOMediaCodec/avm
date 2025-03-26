@@ -7918,7 +7918,7 @@ static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
-  AOM_CDF4(8192, 16384, 24576), 0
+  AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613), 56
 };
 #else
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {

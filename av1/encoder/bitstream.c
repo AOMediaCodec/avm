@@ -949,8 +949,8 @@ static AOM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
                    DELTA_Q_PROBS + 1);
 
   if (!smallval) {
-    rem_bits = get_msb(abs - 1);
-    thr = (1 << rem_bits) + 1;
+    rem_bits = get_msb(abs - (DELTA_Q_SMALL - 2));
+    thr = (1 << rem_bits) + (DELTA_Q_SMALL - 2);
     aom_write_literal(w, rem_bits - 1, 3);
     aom_write_literal(w, abs - thr, rem_bits);
   }
