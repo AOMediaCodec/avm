@@ -215,7 +215,11 @@ static INLINE int get_tip_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    if (neighbor != NULL && neighbor->skip_mode == 0) {
+#else
     if (neighbor != NULL) {
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
       ctx += is_tip_ref_frame(neighbor->ref_frame[0]);
     }
   }
@@ -343,7 +347,11 @@ static INLINE int derive_comp_one_ref_context(const AV1_COMMON *cm,
   MV_REFERENCE_FRAME furthest_future_ref = get_furthest_future_ref_index(cm);
   int ctx = 0;
   if (mi) {
-    if (has_second_ref(mi))
+    if (has_second_ref(mi)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        || mi->skip_mode == 1
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       ctx = mi->comp_group_idx;
     else if (mi->ref_frame[0] == furthest_future_ref)
       ctx = 2;

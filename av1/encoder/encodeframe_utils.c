@@ -460,7 +460,11 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   if (dry_run) return;
 
   if (mi_addr->ref_frame[0] != INTRA_FRAME) {
-    if (cm->features.interp_filter == SWITCHABLE &&
+    if (
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        mi_addr->skip_mode == 0 &&
+#endif
+        cm->features.interp_filter == SWITCHABLE &&
         !is_warp_mode(mi_addr->motion_mode) &&
         !is_nontrans_global_motion(xd, xd->mi[0])) {
       update_filter_type_count(td->counts, xd, mi_addr);

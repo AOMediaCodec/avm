@@ -474,8 +474,14 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         MV_REFERENCE_FRAME ref_frame) {
   (void)xd;
 
-  if (ref_mbmi->ref_frame[0] != ref_frame &&
+  if (
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+      ref_mbmi->skip_mode == 1 || (ref_mbmi->ref_frame[0] != ref_frame &&
+                                   ref_mbmi->ref_frame[1] != ref_frame)) {
+#else
+      ref_mbmi->ref_frame[0] != ref_frame &&
       ref_mbmi->ref_frame[1] != ref_frame) {
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
     return SWITCHABLE_FILTERS;
   }
   (void)dir;
@@ -484,6 +490,7 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->skip_mode == 0);
   const int ctx_offset =
       is_inter_ref_frame(mbmi->ref_frame[1]) * INTER_FILTER_COMP_OFFSET;
   assert(dir == 0 || dir == 1);
@@ -800,15 +807,27 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   // left of the entries corresponding to real macroblocks.
   // The prediction flags in these dummy entries are initialized to 0.
   if (neighbor0 && neighbor1) {  // both neighbors available
-    if (!has_second_ref(neighbor0) && !has_second_ref(neighbor1))
+    if (!has_second_ref(neighbor0) && !has_second_ref(neighbor1)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        && neighbor0->skip_mode == 0 && neighbor1->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // neither neighbor uses comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(neighbor0->ref_frame[0]) ^
             IS_BACKWARD_REF_FRAME(neighbor1->ref_frame[0]);
-    else if (!has_second_ref(neighbor0))
+    else if (!has_second_ref(neighbor0)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+             && neighbor0->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // one of two neighbors uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(neighbor0->ref_frame[0]) ||
                  !is_inter_block(neighbor0, xd->tree_type));
-    else if (!has_second_ref(neighbor1))
+    else if (!has_second_ref(neighbor1)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+             && neighbor1->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // one of two neighbors uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(neighbor1->ref_frame[0]) ||
                  !is_inter_block(neighbor1, xd->tree_type));
@@ -817,7 +836,11 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   } else if (neighbor0 || neighbor1) {  // one neighbor available
     const MB_MODE_INFO *neighbor = neighbor0 ? neighbor0 : neighbor1;
 
-    if (!has_second_ref(neighbor))
+    if (!has_second_ref(neighbor)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        && neighbor->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // neighbor does not use comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(neighbor->ref_frame[0]);
     else

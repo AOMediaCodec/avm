@@ -924,6 +924,9 @@ static INLINE int is_tip_ref_frame(MV_REFERENCE_FRAME ref_frame) {
 
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
   return is_intrabc_block(mbmi, tree_type) ||
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+         mbmi->skip_mode == 1 ||
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
