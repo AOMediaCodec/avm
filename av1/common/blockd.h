@@ -741,6 +741,10 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_BRU
   /*! \brief Whether current block is inactive(0), support (1) and active(2)*/
   BruActiveMode sb_active_mode;
+  /*! \brief store restoration type in current SB */
+  int local_rest_type;  
+  /*! \brief store ccso blk flag in current SB shared for y/u/v in current implementation*/
+  int local_ccso_blk_flag;
 #endif  // CONFIG_BRU
 } MB_MODE_INFO;
 

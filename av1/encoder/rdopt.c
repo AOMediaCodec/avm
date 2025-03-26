@@ -7870,6 +7870,10 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+#if CONFIG_BRU
+  mbmi->local_rest_type = 1;                                
+  mbmi->local_ccso_blk_flag= 1;                                
+#endif    
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mv[0].as_int = 0;
     mbmi->skip_mode = 0;
@@ -9660,7 +9664,10 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
 #endif  // CONFIG_IBC_SR_EXT
-
+#if CONFIG_BRU
+  mbmi->local_rest_type = 1;                                
+  mbmi->local_ccso_blk_flag= 1;                                
+#endif  
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);
   set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
@@ -10588,6 +10595,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_BRU
+  mbmi->local_rest_type = 1;                                
+  mbmi->local_ccso_blk_flag= 1;                                
+#endif  
 
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);

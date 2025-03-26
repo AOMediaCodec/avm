@@ -2424,6 +2424,10 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->partition = partition;
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
+#if CONFIG_BRU
+  mbmi->local_rest_type = 1; //for SW it only matter 0 or 1
+  mbmi->local_ccso_blk_flag= 1; //for SW it only matter 0 or 1
+#endif
 
   const int num_planes = av1_num_planes(cm);
   const int plane_start = (xd->tree_type == CHROMA_PART);

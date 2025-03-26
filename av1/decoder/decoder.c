@@ -700,12 +700,6 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           ++ref_index;
         }
 #if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
-      } else {
-#if CONFIG_BRU_REG_DECODE
-        const int map_idx = get_ref_frame_map_idx(cm, cm->bru.update_ref_idx);
-        cm->ref_frame_map[map_idx] = cm->cur_frame;
-        ++cm->cur_frame->ref_count;
-#endif
       }
 #endif  // CONFIG_BRU
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,

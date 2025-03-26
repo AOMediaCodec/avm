@@ -946,6 +946,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   xd->mi[0]->tree_type = xd->tree_type;
 #endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_BRU
+  xd->mi[0]->local_rest_type = 1; // set non zero default type, it is only matter 1 or 0 in SW
+  xd->mi[0]->local_ccso_blk_flag = 1; // set non zero default type, it is only matter 1 or 0 in SW
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
     xd->mi[0]->sb_active_mode = xd->sbi->sb_active_mode;
     bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0], bsize);

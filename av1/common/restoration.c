@@ -1554,9 +1554,8 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
 #if CONFIG_BRU
-    //for AVM only, HW will use local RESTORATION_NONE
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }
@@ -1968,9 +1967,8 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
 #if CONFIG_BRU
-    //for AVM only, HW will use local RESTORATION_NONE
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }
@@ -2168,9 +2166,8 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
     const uint16_t *src_p = src + j;
     uint16_t *dst_p = dst + j;
 #if CONFIG_BRU
-    //for AVM only, HW will use local RESTORATION_NONE
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src_p, src_stride, dst_p, dst_stride);
       continue;
     }
@@ -2191,9 +2188,8 @@ static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
 #if CONFIG_BRU
-    //for AVM only, HW will use local RESTORATION_NONE
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }

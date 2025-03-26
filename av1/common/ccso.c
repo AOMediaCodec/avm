@@ -233,11 +233,12 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
 #if CONFIG_BRU
           // FPU level skip
-          //for AVM only, HW will use local ccso_blk_y = 0
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
                               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          const int use_ccso_local =
+              mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+          if (!use_ccso_local) {
             continue;
           }
 #endif
@@ -259,7 +260,6 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << unit_log2);
       }
-    }
 #else
       if (cm->ccso_info.ccso_bo_only[plane]) {
         ccso_filter_block_hbd_wo_buf_c(
@@ -274,8 +274,8 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             0, thr, neg_thr, src_loc, max_val, blk_size, false, shift_bits,
             edge_clf, 0);
       }
-    }
 #endif  // CONFIG_CCSO_REFACTORING
+    }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_ext_stride << blk_log2);
   }
@@ -336,11 +336,12 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
 #if CONFIG_BRU
           // FPU level skip
-          //for AVM only, HW will use local ccso_blk_y = 0
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
                               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          const int use_ccso_local =
+              mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+          if (!use_ccso_local) {
             continue;
           }
 #endif
@@ -362,7 +363,6 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << unit_log2);
       }
-    }
 #else
       if (cm->ccso_info.ccso_bo_only[plane]) {
         ccso_filter_block_hbd_wo_buf_c(
@@ -377,8 +377,8 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             0, thr, neg_thr, src_loc, max_val, blk_size, true, shift_bits,
             edge_clf, 0);
       }
-    }
 #endif  // CONFIG_CCSO_REFACTORING
+    }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_ext_stride << blk_log2);
   }
@@ -442,11 +442,12 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
 #if CONFIG_BRU
           // FPU level skip
-          //for AVM only, HW will use local ccso_blk_u/v = 0
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
                               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          const int use_ccso_local =
+              mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+          if (!use_ccso_local) {
             continue;
           }
 #endif
@@ -469,7 +470,6 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << (unit_log2 + y_uv_vscale));
       }
-    }
 #else
       if (cm->ccso_info.ccso_bo_only[plane]) {
         ccso_filter_block_hbd_wo_buf_c(
@@ -484,8 +484,8 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val, blk_size,
             false, shift_bits, edge_clf, 0);
       }
-    }
 #endif  // CONFIG_CCSO_REFACTORING
+    }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_ext_stride << (blk_log2 + y_uv_vscale));
   }
@@ -550,11 +550,12 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
 #if CONFIG_BRU
           // FPU level skip
-          //for AVM only, HW will use local ccso_blk_u/v = 0
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
                               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          const int use_ccso_local =
+              mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+          if (!use_ccso_local) {
             continue;
           }
 #endif
@@ -577,7 +578,6 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << (unit_log2 + y_uv_vscale));
       }
-    }
 #else
       if (cm->ccso_info.ccso_bo_only[plane]) {
         ccso_filter_block_hbd_wo_buf_c(
@@ -592,8 +592,8 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val, blk_size,
             true, shift_bits, edge_clf, 0);
       }
-    }
 #endif  // CONFIG_CCSO_REFACTORING
+    }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_ext_stride << (blk_log2 + y_uv_vscale));
   }
