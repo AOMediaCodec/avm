@@ -1397,38 +1397,34 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
     int block_width = inter_pred_params->block_width;
     int block_height = inter_pred_params->block_height;
 
-    int p0_x_start =
-      b_data_0->x0 < 0 ? 0 : frame_width - b_data_0->x0;
+    int p0_x_start = b_data_0->x0 < 0 ? 0 : frame_width - b_data_0->x0;
     p0_x_start = AOMMIN(p0_x_start, block_width);
     p0_x_start = AOMMAX(p0_x_start, 0);
-  
-    int p0_x_end =
-      b_data_0->x1 > frame_width ? block_width : - b_data_0->x0;
-    p0_x_end = AOMMAX(p0_x_end, 0);
 
-    int p0_y_start =
-      b_data_0->y0 < 0 ? 0 : frame_height - b_data_0->y0;
+    int p0_x_end = b_data_0->x1 > frame_width ? block_width : -b_data_0->x0;
+    p0_x_end = AOMMAX(p0_x_end, 0);
+    p0_x_end = AOMMIN(p0_x_end, block_width);
+
+    int p0_y_start = b_data_0->y0 < 0 ? 0 : frame_height - b_data_0->y0;
     p0_y_start = AOMMIN(p0_y_start, block_height);
     p0_y_start = AOMMAX(p0_y_start, 0);
-    int p0_y_end =
-      b_data_0->y1 > frame_height ? block_height : - b_data_0->y0;
+    int p0_y_end = b_data_0->y1 > frame_height ? block_height : -b_data_0->y0;
     p0_y_end = AOMMAX(p0_y_end, 0);
+    p0_y_end = AOMMIN(p0_y_end, block_height);
 
-    int p1_x_start =
-      b_data_1->x0 < 0 ? 0 : frame_width - b_data_1->x0;
+    int p1_x_start = b_data_1->x0 < 0 ? 0 : frame_width - b_data_1->x0;
     p1_x_start = AOMMIN(p1_x_start, block_width);
     p1_x_start = AOMMAX(p1_x_start, 0);
-    int p1_x_end =
-      b_data_1->x1 > frame_width ? block_width : - b_data_1->x0;
+    int p1_x_end = b_data_1->x1 > frame_width ? block_width : -b_data_1->x0;
     p1_x_end = AOMMAX(p1_x_end, 0);
+    p1_x_end = AOMMIN(p1_x_end, block_width);
 
-    int p1_y_start =
-      b_data_1->y0 < 0 ? 0 : frame_height - b_data_1->y0;
+    int p1_y_start = b_data_1->y0 < 0 ? 0 : frame_height - b_data_1->y0;
     p1_y_start = AOMMIN(p1_y_start, block_height);
     p1_y_start = AOMMAX(p1_y_start, 0);
-    int p1_y_end =
-      b_data_1->y1 > frame_height ? block_height : - b_data_1->y0;
+    int p1_y_end = b_data_1->y1 > frame_height ? block_height : -b_data_1->y0;
     p1_y_end = AOMMAX(p1_y_end, 0);
+    p1_y_end = AOMMIN(p1_y_end, block_height);
 
     // Initialize the mask block
     for (int idy = 0; idy < block_height; ++idy)
@@ -1438,29 +1434,22 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
     int line_start = (p1_x_start == 0) ? p1_x_end : 0;
     int line_end = (p1_x_start == 0) ? block_width : p1_x_start;
     int mem_width = line_end - line_start;
-    int row_start = (p1_y_start == 0) ? 
-                        AOMMAX(p0_y_start, p1_y_end) :
-                        p0_y_start;
-    int row_end = (p1_y_start == 0) ?
-                        p0_y_end :
-                        AOMMIN(p0_y_end, p1_y_start);
+    int row_start =
+        (p1_y_start == 0) ? AOMMAX(p0_y_start, p1_y_end) : p0_y_start;
+    int row_end = (p1_y_start == 0) ? p0_y_end : AOMMIN(p0_y_end, p1_y_start);
 
     if (mem_width > 0) {
       for (int idy = row_start; idy < row_end; ++idy) {
-        memset(mask + mask_stride * idy + line_start,
-               DEFAULT_IMP_MSK_WT, mem_width);
+        memset(mask + mask_stride * idy + line_start, DEFAULT_IMP_MSK_WT,
+               mem_width);
       }
     }
 
     line_start = (p0_x_start == 0) ? p0_x_end : 0;
     line_end = (p0_x_start == 0) ? block_width : p0_x_start;
     mem_width = line_end - line_start;
-    row_start = (p0_y_start == 0) ? 
-                        AOMMAX(p1_y_start, p0_y_end) :
-                        p1_y_start;
-    row_end = (p0_y_start == 0) ?
-                        p1_y_end :
-                        AOMMIN(p1_y_end, p0_y_start);
+    row_start = (p0_y_start == 0) ? AOMMAX(p1_y_start, p0_y_end) : p1_y_start;
+    row_end = (p0_y_start == 0) ? p1_y_end : AOMMIN(p1_y_end, p0_y_start);
 
     if (mem_width > 0) {
       for (int idy = row_start; idy < row_end; ++idy) {
@@ -1469,37 +1458,28 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
       }
     }
 
-    int start_idx = (p1_x_start == 0) ?
-                        AOMMAX(p0_x_start, p1_x_end) :
-                        p0_x_start;
-    int end_idx = (p1_x_start == 0) ?
-                        p0_x_end :
-                        AOMMIN(p0_x_end, p1_x_start);
+    int start_idx =
+        (p1_x_start == 0) ? AOMMAX(p0_x_start, p1_x_end) : p0_x_start;
+    int end_idx = (p1_x_start == 0) ? p0_x_end : AOMMIN(p0_x_end, p1_x_start);
     int len = end_idx - start_idx;
     if (len > 0) {
       for (int idy = 0; idy < block_height; ++idy) {
-	      int value = DEFAULT_IMP_MSK_WT;
-	      if (idy >= p1_y_start && idy < p1_y_end)
-	        value = AOM_BLEND_A64_MAX_ALPHA >> 1;
-        memset(mask + mask_stride * idy + start_idx,
-               value, len);
+        int value = DEFAULT_IMP_MSK_WT;
+        if (idy >= p1_y_start && idy < p1_y_end)
+          value = AOM_BLEND_A64_MAX_ALPHA >> 1;
+        memset(mask + mask_stride * idy + start_idx, value, len);
       }
     }
 
-    start_idx = (p0_x_start == 0) ?
-                        AOMMAX(p1_x_start, p0_x_end) :
-                        p1_x_start;
-    end_idx = (p0_x_start == 0) ?
-                        p1_x_end :
-                        AOMMIN(p1_x_end, p0_x_start);
+    start_idx = (p0_x_start == 0) ? AOMMAX(p1_x_start, p0_x_end) : p1_x_start;
+    end_idx = (p0_x_start == 0) ? p1_x_end : AOMMIN(p1_x_end, p0_x_start);
     len = end_idx - start_idx;
     if (len > 0) {
       for (int idy = 0; idy < block_height; ++idy) {
-	      int value = AOM_BLEND_A64_MAX_ALPHA - DEFAULT_IMP_MSK_WT;
-	      if (idy >= p0_y_start && idy < p0_y_end)
-	        value = AOM_BLEND_A64_MAX_ALPHA >> 1;
-          memset(mask + mask_stride * idy + start_idx,
-                 value, len);
+        int value = AOM_BLEND_A64_MAX_ALPHA - DEFAULT_IMP_MSK_WT;
+        if (idy >= p0_y_start && idy < p0_y_end)
+          value = AOM_BLEND_A64_MAX_ALPHA >> 1;
+        memset(mask + mask_stride * idy + start_idx, value, len);
       }
     }
   }
