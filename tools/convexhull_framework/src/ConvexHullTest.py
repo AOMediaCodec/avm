@@ -154,6 +154,14 @@ def Run_Parallel_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogC
                     bsFile = Encode(EncodeMethod, CodecName, EncodePreset, ds_clip, 'AS', QP,
                                 num_frames, Path_Bitstreams, Path_PerfLog,
                                 Path_EncLog, start_frame, LogCmdOnly)
+
+                    #decode
+                    #bsFile = os.path.join(Path_Bitstreams, "%s.obu" % (JobName))
+                    decodedYUV = Decode(ds_clip, EncodeMethod, 'AS', CodecName, bsFile, Path_DecodedYuv, Path_PerfLog,
+                                False, Path_DecLog, LogCmdOnly)
+                    if SaveMemory:
+                        DeleteFile(decodedYUV, LogCmdOnly)
+
                     start_frame += num_frames
                     if LogCmdOnly:
                         Utils.CmdLogger.write("============== %s Job End =================\n" % JobName)

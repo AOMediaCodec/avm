@@ -134,6 +134,12 @@ def Run_Parallel_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly =
                 bsFile = Encode(method, codec, preset, clip, test_cfg, QP,
                                 num_frames, Path_Bitstreams, Path_TimingLog,
                                 Path_EncLog, start_frame, LogCmdOnly)
+
+                decodedYUV = Decode(clip, method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
+                                False, Path_DecLog, LogCmdOnly)
+                if SaveMemory:
+                    DeleteFile(decodedYUV, LogCmdOnly)
+
                 start_frame += num_frames
 
                 if LogCmdOnly:
@@ -245,6 +251,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
 
     QPSet = QPs[test_cfg]
     for clip in clip_list:
+        total_frame = get_total_frame(test_cfg, clip.file_name)
         for qp in QPSet:
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
