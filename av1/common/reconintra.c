@@ -2357,20 +2357,27 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(block_size_high[plane_bsize] == tx_size_high[tx_size]);
     }
 #endif
-    // chroma_bsize is the size in units of 4x4 luma samples of the chroma block represented as a BLOCK_SIZE
+    // chroma_bsize is the size in units of 4x4 luma samples of the chroma block
+    // represented as a BLOCK_SIZE
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, PLANE_TYPE_UV);
-    // chroma_tx_size is the size in units of 4x4 luma samples of the chroma block represented as a TX_SIZE
+    // chroma_tx_size is the size in units of 4x4 luma samples of the chroma
+    // block represented as a TX_SIZE
     const TX_SIZE chroma_tx_size = max_txsize_rect_lookup[chroma_bsize];
     CFL_CTX *const cfl = &xd->cfl;
     const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
     const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-    const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
-    const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
+    const int row_offset =
+        mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
+    const int col_offset =
+        mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
     struct macroblockd_plane *const luma_pd = &xd->plane[AOM_PLANE_Y];
-    // luma_dst points to the top-left luma sample corresponding to the top-left chroma sample of the chroma block
-    uint16_t *luma_dst = &luma_pd->dst.buf[(-row_offset * luma_pd->dst.stride - col_offset) << MI_SIZE_LOG2];
-    cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0,
-                chroma_tx_size, cm->seq_params.cfl_ds_filter_index);
+    // luma_dst points to the top-left luma sample corresponding to the top-left
+    // chroma sample of the chroma block
+    uint16_t *luma_dst =
+        &luma_pd->dst.buf[(-row_offset * luma_pd->dst.stride - col_offset)
+                          << MI_SIZE_LOG2];
+    cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0, chroma_tx_size,
+              cm->seq_params.cfl_ds_filter_index);
 
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
     if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {

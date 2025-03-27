@@ -780,9 +780,9 @@ static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
   return cfl_get_luma_subsampling_444_hbd(tx_size);
 }
 
-void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
-                      const uint16_t *input, int input_stride, int row, int col,
-                      TX_SIZE tx_size, int filter_type) {
+void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
+               int input_stride, int row, int col, TX_SIZE tx_size,
+               int filter_type) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int tx_off_log2 = MI_SIZE_LOG2;

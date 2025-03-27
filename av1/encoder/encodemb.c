@@ -460,11 +460,11 @@ void parity_hiding_trellis_off(const struct AV1_COMP *cpi, MACROBLOCK *mb,
     tran_low_t abstcoeff = abs(tcoeff[tune_pos]);
     tran_low_t absqcoeff =
         abs(qcoeff[tune_pos]) + ((abstcoeff < absdqcoeff) ? -1 : 1);
-    absdqcoeff = (tran_low_t)(ROUND_POWER_OF_TWO_64(
-                                  (tran_high_t)absqcoeff *
-                                      get_dqv(dequant, tune_pos, iqmatrix),
-                                  QUANT_TABLE_BITS) >>
-                              shift);
+    absdqcoeff = (tran_low_t)(
+        ROUND_POWER_OF_TWO_64(
+            (tran_high_t)absqcoeff * get_dqv(dequant, tune_pos, iqmatrix),
+            QUANT_TABLE_BITS) >>
+        shift);
     tran_low_t dist_min = abs(abstcoeff - absdqcoeff);
     tran_low_t tune_absqcoeff = absqcoeff, tune_absdqcoeff = absdqcoeff;
 
@@ -477,11 +477,11 @@ void parity_hiding_trellis_off(const struct AV1_COMP *cpi, MACROBLOCK *mb,
           (absqcoeff < MAX_BASE_BR_RANGE) ||
           ((absqcoeff == MAX_BASE_BR_RANGE) && (abstcoeff < absdqcoeff));
       absqcoeff += ((abstcoeff < absdqcoeff) ? -1 : 1);
-      absdqcoeff = (tran_low_t)(ROUND_POWER_OF_TWO_64(
-                                    (tran_high_t)absqcoeff *
-                                        get_dqv(dequant, pos, iqmatrix),
-                                    QUANT_TABLE_BITS) >>
-                                shift);
+      absdqcoeff = (tran_low_t)(
+          ROUND_POWER_OF_TWO_64(
+              (tran_high_t)absqcoeff * get_dqv(dequant, pos, iqmatrix),
+              QUANT_TABLE_BITS) >>
+          shift);
       tran_low_t absdist = abs(abstcoeff - absdqcoeff);
       if (absdist < dist_min && tunable) {
         dist_min = absdist;
