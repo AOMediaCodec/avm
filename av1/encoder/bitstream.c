@@ -1977,11 +1977,12 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
 
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w, int skip) {
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (cm->features.coded_lossless) return;
-#else
-  if (cm->features.coded_lossless || is_global_intrabc_allowed(cm)) return;
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (cm->features.coded_lossless
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      || is_global_intrabc_allowed(cm)
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  )
+    return;
 #if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
@@ -3677,11 +3678,12 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     write_tokens_b(cpi, w, tok, tok_end);
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  } else if (!cm->features.coded_lossless) {
-#else
-  } else if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  } else if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !is_global_intrabc_allowed(cm) &&
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !cm->features.coded_lossless) {
+
     // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }

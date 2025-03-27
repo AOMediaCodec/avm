@@ -3703,11 +3703,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (cm->features.coded_lossless) {
-#else
-  if (is_global_intrabc_allowed(cm) || cm->features.coded_lossless) {
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      is_global_intrabc_allowed(cm) ||
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      cm->features.coded_lossless) {
     // write default deltas to frame buffer
     av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
     av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
@@ -8411,12 +8411,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-#else
-    if (is_global_intrabc_allowed(cm) ||
-        features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      is_global_intrabc_allowed(cm) ||
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
@@ -8987,11 +8986,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
   }
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (!tiles->single_tile_decoding) {
-#else
-    if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
+
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !is_global_intrabc_allowed(cm) &&
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !tiles->single_tile_decoding) {
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1
 #if CONFIG_LF_SUB_PU
