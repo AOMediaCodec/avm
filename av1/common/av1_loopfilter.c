@@ -20,9 +20,6 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
-#if CONFIG_BRU
-#include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 
@@ -217,17 +214,8 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
-#if CONFIG_BRU
-              if (cm->bru.enabled && seg_id == 1) {
-                lfi->q_thr[plane][seg_id][dir][ref][mode] = 0;
-                lfi->side_thr[plane][seg_id][dir][ref][mode] = 0;
-              } else {
-#endif
-                lfi->q_thr[plane][seg_id][dir][ref][mode] = q_thr_seg;
-                lfi->side_thr[plane][seg_id][dir][ref][mode] = side_thr_seg;
-#if CONFIG_BRU
-              }
-#endif
+              lfi->q_thr[plane][seg_id][dir][ref][mode] = q_thr_seg;
+              lfi->side_thr[plane][seg_id][dir][ref][mode] = side_thr_seg;
             }
           }
           for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
@@ -251,12 +239,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
-#if CONFIG_BRU
-              if (cm->bru.enabled && seg_id == 1) {
-                lfi->q_thr[plane][seg_id][dir][ref][mode] = 0;
-                lfi->side_thr[plane][seg_id][dir][ref][mode] = 0;
-              } else {
-#endif              
               lfi->q_thr[plane][seg_id][dir][ref][mode] =
                   df_quant_from_qindex(q_ind_seg + lf->ref_deltas[ref] * scale +
                                            lf->mode_deltas[mode] * scale,
@@ -266,9 +248,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
                                           lf->ref_deltas[ref] * scale +
                                           lf->mode_deltas[mode] * scale,
                                       cm->seq_params.bit_depth);
-#if CONFIG_BRU                                      
-                  }
-#endif
             }
           }
 
@@ -827,7 +806,13 @@ static TX_SIZE set_lpf_parameters(
     if (!tu_edge)
 #endif  // CONFIG_LF_SUB_PU
       return ts;
-
+#if CONFIG_BRU
+    if (cm->bru.enabled) {
+      if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
+        return TX_64X64;
+      }
+    }
+#endif  // CONFIG_BRU
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =

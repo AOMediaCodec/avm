@@ -274,7 +274,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
                                 BLOCK_SIZE bsize) {
   // think reuse init_mbmi() here
-  mbmi->segment_id = 1;
+  mbmi->segment_id = 0;
   mbmi->skip_mode = 0;
 #if CONFIG_EXTENDED_SDP
   xd->tree_type = SHARED_PART;
