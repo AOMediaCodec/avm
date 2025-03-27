@@ -567,13 +567,16 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
   if (is_warpmv_mode_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
     const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
     warp_mode_cost =
         mode_costs
             ->inter_warp_mode_cost[iswarpmvmode_ctx][is_warpmv_or_warp_newmv];
     if (is_warpmv_or_warp_newmv) {
-      warp_mode_cost +=
-          mode_costs->is_warpmv_or_warp_newmv_cost[mode == WARPMV];
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+        warp_mode_cost +=
+            mode_costs->is_warpmv_or_warp_newmv_cost[mode == WARPMV];
+      }
       return warp_mode_cost;
     }
 #else
@@ -3346,7 +3349,8 @@ static int64_t motion_mode_rd(
 #endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          if (mbmi->mode == WARP_NEWMV) {
+          if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
+              mbmi->mode == WARP_NEWMV) {
             continue_motion_mode_signaling =
                 (allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
                 (allowed_motion_modes & (1 << WARP_DELTA));
@@ -11030,6 +11034,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             && !is_warpmv_mode_allowed(cm, mbmi, bsize))
           continue;
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        if (this_mode == WARP_NEWMV &&
+            !is_warp_newmv_allowed(cm, xd, mbmi, bsize))
+          continue;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_C071_SUBBLK_WARPMV
         init_submi(xd, cm, mi_row, mi_col, bsize);

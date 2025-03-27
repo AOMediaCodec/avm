@@ -4737,6 +4737,25 @@ static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
 }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
+                                        const MACROBLOCKD *xd,
+                                        const MB_MODE_INFO *mbmi,
+                                        const BLOCK_SIZE bsize) {
+  const int allow_warped_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_motion_variation_allowed_compound(mbmi) &&
+      is_inter_ref_frame(mbmi->ref_frame[0]) &&
+      !is_tip_ref_frame(mbmi->ref_frame[0]) &&
+#if !CONFIG_ACROSS_SCALE_WARP
+      !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
+      !xd->cur_frame_force_integer_mv;
+
+  return allow_warped_motion;
+}
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
                                       const CANDIDATE_MV *ref_mv_stack,
@@ -4761,16 +4780,10 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   }
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == WARP_NEWMV) {
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
     int allowed_motion_modes = 0;
 
-    const int allow_warped_motion =
-        is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
-        is_motion_variation_allowed_compound(mbmi) &&
-        !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
-        !xd->cur_frame_force_integer_mv;
-
-    if (allow_warped_motion &&
+    if (
 #if CONFIG_COMPOUND_WARP_CAUSAL
         mbmi->num_proj_ref[0] >= 1
 #else
@@ -4780,14 +4793,13 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       allowed_motion_modes |= (1 << WARPED_CAUSAL);
     }
 
-    if (allow_warped_motion && allow_extend_nb(cm, xd, mbmi, NULL)) {
+    if (allow_extend_nb(cm, xd, mbmi, NULL)) {
       allowed_motion_modes |= (1 << WARP_EXTEND);
     }
 
     bool warp_delta_allowed =
-        allow_warped_motion &&
         AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >=
-            MIN_BSIZE_WARP_DELTA;
+        MIN_BSIZE_WARP_DELTA;
 
     if (warp_delta_allowed) {
       allowed_motion_modes |= (1 << WARP_DELTA);
@@ -4860,7 +4872,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   const int allow_compound_warp_causal_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       mbmi->mode == NEW_NEWMV &&
+#if !CONFIG_ACROSS_SCALE_WARP
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
       is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN

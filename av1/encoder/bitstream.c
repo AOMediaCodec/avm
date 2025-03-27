@@ -137,8 +137,10 @@ static AOM_INLINE void write_inter_mode(
     aom_write_symbol(w, is_warpmv_or_warp_newmv,
                      ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2);
     if (is_warpmv_or_warp_newmv) {
-      aom_write_symbol(w, mode == WARPMV, ec_ctx->is_warpmv_or_warp_newmv_cdf,
-                       2);
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+        aom_write_symbol(w, mode == WARPMV, ec_ctx->is_warpmv_or_warp_newmv_cdf,
+                         2);
+      }
       return;
     }
 #else
@@ -803,7 +805,7 @@ static AOM_INLINE void write_motion_mode(
   }
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == WARP_NEWMV) {
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
     if (!((allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
           (allowed_motion_modes & (1 << WARP_DELTA))))
       return;

@@ -496,10 +496,12 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
     update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx],
                is_warpmv_or_warp_newmv, 2);
     if (is_warpmv_or_warp_newmv) {
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
 #if CONFIG_ENTROPY_STATS
-      ++counts->is_warpmv_or_warp_newmv_cnt[mode == WARPMV];
+        ++counts->is_warpmv_or_warp_newmv_cnt[mode == WARPMV];
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->is_warpmv_or_warp_newmv_cdf, mode == WARPMV, 2);
+        update_cdf(fc->is_warpmv_or_warp_newmv_cdf, mode == WARPMV, 2);
+      }
       return;
     }
 #else

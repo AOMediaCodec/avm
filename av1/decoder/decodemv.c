@@ -495,9 +495,13 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
         aom_read_symbol(r, ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2,
                         ACCT_INFO("is_warpmv_or_warp_newmv"));
     if (is_warpmv_or_warp_newmv) {
-      const int is_warpmv = aom_read_symbol(
-          r, ec_ctx->is_warpmv_or_warp_newmv_cdf, 2, ACCT_INFO("is_warpmv"));
-      return is_warpmv ? WARPMV : WARP_NEWMV;
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+        const int is_warpmv = aom_read_symbol(
+            r, ec_ctx->is_warpmv_or_warp_newmv_cdf, 2, ACCT_INFO("is_warpmv"));
+        return is_warpmv ? WARPMV : WARP_NEWMV;
+      } else {
+        return WARPMV;
+      }
     }
   }
 #else
@@ -847,7 +851,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == WARP_NEWMV) {
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
     if (!((allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
           (allowed_motion_modes & (1 << WARP_DELTA))))
       return WARP_EXTEND;

@@ -1804,7 +1804,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                          mbmi->motion_mode == WARPED_CAUSAL));
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      if (continue_motion_mode_signaling && mbmi->mode == WARP_NEWMV) {
+      if (continue_motion_mode_signaling &&
+          is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
+          mbmi->mode == WARP_NEWMV) {
         continue_motion_mode_signaling =
             (allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
             (allowed_motion_modes & (1 << WARP_DELTA));
