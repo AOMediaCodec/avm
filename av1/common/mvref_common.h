@@ -332,7 +332,7 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
 static INLINE int16_t single2comb(int n, const int16_t *const rf) {
   assert(rf[0] < n && rf[1] < n);
 
-  int8_t rfr[2] = { rf[0], rf[1] };
+  int16_t rfr[2] = { rf[0], rf[1] };
   if (rf[1] < rf[0]) {
     rfr[0] = rf[1];
     rfr[1] = rf[0];

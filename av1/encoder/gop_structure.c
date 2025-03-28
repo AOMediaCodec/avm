@@ -295,11 +295,13 @@ static const SubGOPCfg *get_subgop_config(SubGOPSetCfg *config_set,
     return NULL;
 }
 
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
 static const char frame_update_type[FRAME_UPDATE_TYPES][50] = {
   "KF_UPDATE",        "LF_UPDATE",      "GF_UPDATE",
   "ARF_UPDATE",       "OVERLAY_UPDATE", "INTNL_OVERLAY_UPDATE",
   "INTNL_ARF_UPDATE", "KFFLT_UPDATE",   "KFFLT_OVERLAY_UPDATE",
 };
+#endif
 
 static int construct_multi_layer_gf_structure(
     AV1_COMP *cpi, TWO_PASS *twopass, GF_GROUP *const gf_group,
