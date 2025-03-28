@@ -36,6 +36,10 @@
 #include "aom_dsp/psnr.h"
 #include "aom_ports/aom_timer.h"
 
+#if CONFIG_MULTIVIEW_CORE
+#include "common/tools_common.h"
+#endif
+
 #define MAG_SIZE (4)
 
 struct av1_extracfg {
