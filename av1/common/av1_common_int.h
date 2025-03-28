@@ -1923,6 +1923,10 @@ typedef struct AV1Common {
    */
   int tmvp_sample_step;
   /*!
+   * Log 2 step size for tmvp sampling.
+   */
+  int tmvp_sample_stepl2;
+  /*!
    * The processing unit size used
    */
   int tmvp_proc_size;

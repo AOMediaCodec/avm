@@ -4312,8 +4312,8 @@ static int motion_field_projection_start_target(
                 cm, &mi_r, &mi_c, scaled_blk_row, scaled_blk_col, this_mv.as_mv,
                 0);
           }
-          mi_r = (mi_r / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-          mi_c = (mi_c / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          mi_r = (mi_r >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
+          mi_c = (mi_c >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
           if (is_scaled) {
@@ -4563,8 +4563,8 @@ static int motion_field_projection_side(AV1_COMMON *cm,
           } else {
             this_mv.as_int = 0;
           }
-          mi_r = (mi_r / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-          mi_c = (mi_c / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          mi_r = (mi_r >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
+          mi_c = (mi_c >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
           if (is_scaled) {
@@ -4725,6 +4725,7 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
 void determine_tmvp_sample_step(AV1_COMMON *cm,
                                 int checked_ref[INTER_REFS_PER_FRAME][2]) {
   cm->tmvp_sample_step = 1;
+  cm->tmvp_sample_stepl2 = 0;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
   if (sb_size == 64) {
@@ -4759,8 +4760,7 @@ void determine_tmvp_sample_step(AV1_COMMON *cm,
   }
   if (large_count > small_count * 2) {
     cm->tmvp_sample_step = 2;
-  } else {
-    cm->tmvp_sample_step = 1;
+    cm->tmvp_sample_stepl2 = 1;
   }
 }
 
