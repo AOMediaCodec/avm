@@ -551,7 +551,7 @@ static void open_multiple_output_files_perview(
   for (int view_id = 0; view_id < aom_input_ctx.num_views; view_id++) {
     char output_filename[PATH_MAX];
     char extension[6];
-    char suffix[9];
+    char suffix[16];
     sprintf(suffix, "_view%0d", view_id);
     strcpy(output_filename, outfile_name);
     char *ptr_extension = strrchr(output_filename, '.');
