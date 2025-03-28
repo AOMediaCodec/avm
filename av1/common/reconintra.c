@@ -2374,8 +2374,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     // luma_dst points to the top-left luma sample corresponding to the top-left
     // chroma sample of the chroma block
     uint16_t *luma_dst =
-        &luma_pd->dst.buf[(-row_offset * luma_pd->dst.stride - col_offset)
-                          << MI_SIZE_LOG2];
+        &luma_pd->dst.buf[-((row_offset * luma_pd->dst.stride + col_offset)
+                          << MI_SIZE_LOG2)];
     cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0, chroma_tx_size,
               cm->seq_params.cfl_ds_filter_index);
 
