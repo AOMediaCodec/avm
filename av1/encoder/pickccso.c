@@ -99,7 +99,7 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 /* Derive CCSO filter support information */
 static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif
 #if CONFIG_CCSO_IMPROVE
@@ -120,14 +120,14 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
 #endif
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
 #if CONFIG_BRU
       // check BRU skip in entire CCSO FU, this means no signal needed
       if (bru_is_fu_skipped_mbmi(cm, x >> (MI_SIZE_LOG2 - y_uv_hscale),
@@ -168,7 +168,7 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
                             ccso_stride, x, y, pic_width, pic_height,
                             y_uv_hscale, y_uv_vscale, qstep, neg_qstep, src_loc,
                             blk_size, edge_clf);
-#endif  // CONFIG_CCSO_REFACTORING
+#endif  // CCSO_REFACTORING
     }
     src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
     src_cls0 += (ccso_stride << (blk_log2 + y_uv_vscale));
@@ -183,7 +183,7 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
 #if CONFIG_BRU
                                        const AV1_COMMON *cm,
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                                        const int proc_unit_log2,
 #endif
                                        const uint16_t *src_y,
@@ -202,7 +202,7 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
   const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
   const int scaled_stride = (ctx->ccso_stride << y_uv_vscale);
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
@@ -217,7 +217,7 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
 #endif
       const int y_end = AOMMIN(pic_height - y, blk_size);
       const int x_end = AOMMIN(pic_width - x, blk_size);
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
       // reset temp pointers for sbs
       const uint16_t *ref_unit = ref;
       const uint16_t *dst_unit = dst;
@@ -309,7 +309,7 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
 #if CONFIG_BRU
                                           const AV1_COMMON *cm,
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                                           const int proc_unit_log2,
 #endif
                                           const uint16_t *src_y,
@@ -325,7 +325,7 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
   const int blk_size = 1 << blk_log2;
   const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   // const int is_uv = (int)(plane > 0);
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
@@ -341,7 +341,7 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
 #endif
       const int y_end = AOMMIN(pic_height - y, blk_size);
       const int x_end = AOMMIN(pic_width - x, blk_size);
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
       assert(ctx->filter_control);
       // reset temp pointers for sbs
       const uint16_t *ref_unit = ref;
@@ -397,7 +397,7 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
       ref -= ctx->ccso_stride * y_end;
       dst -= ctx->ccso_stride * y_end;
       src_y -= scaled_ext_stride * y_end;
-#endif  // CONFIG_CCSO_REFACTORING
+#endif  // CCSO_REFACTORING
     }
     ref += (ctx->ccso_stride << blk_log2);
     dst += (ctx->ccso_stride << blk_log2);
@@ -499,7 +499,7 @@ void ccso_try_luma_filter(
   int fb_idx = 0;
 #endif
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   const int is_uv = (int)(plane > 0);
   int unit_log2 = cm->mib_size_log2 + MI_SIZE_LOG2 - is_uv;
   if (unit_log2 > blk_log2) {
@@ -516,7 +516,7 @@ void ccso_try_luma_filter(
         continue;  // FSU level skip
       }
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
       const uint8_t *src_unit0 = src_cls0;
@@ -606,7 +606,7 @@ static void ccso_try_chroma_filter(
   int fb_idx = 0;
 #endif
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   const int is_uv = (int)(plane > 0);
   int unit_log2 = cm->mib_size_log2 + MI_SIZE_LOG2 - is_uv;
   if (unit_log2 > blk_log2) {
@@ -623,7 +623,7 @@ static void ccso_try_chroma_filter(
         continue;
       }
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
       const uint8_t *src_unit0 = src_cls0;
@@ -723,7 +723,7 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
                                const uint16_t *rec16, const int rec_stride,
                                const int log2_filter_unit_size_y,
                                const int log2_filter_unit_size_x,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                                const int log2_proc_unit_size,
 #endif
 #if CONFIG_BRU
@@ -733,7 +733,7 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
                                uint64_t *distortion_buf,
                                const int distortion_buf_stride,
                                uint64_t *total_distortion) {
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
   int unit_log2_x = log2_proc_unit_size > log2_filter_unit_size_x
                         ? log2_filter_unit_size_x
                         : log2_proc_unit_size;
@@ -760,7 +760,7 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
         continue;
       }
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
       // All unified into pixel size
       uint64_t sb_ssd = 0;
       const uint16_t *org_unit = org;
@@ -1364,7 +1364,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   compute_distortion(org_uv, ctx->ccso_stride, rec_uv, ctx->ccso_stride,
                      log2_filter_unit_size_y, log2_filter_unit_size_x,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                      cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
 #if CONFIG_BRU
@@ -1477,7 +1477,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
             if (!ccso_bo_only) {
               ccso_derive_src_info(
                   cm, xd, plane, ext_rec_y,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                   cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
 #if CONFIG_CCSO_IMPROVE
@@ -1533,7 +1533,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 #if CONFIG_BRU
                     cm,
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                     cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
                     ext_rec_y, org_uv, rec_uv, shift_bits);
@@ -1555,7 +1555,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 #if CONFIG_BRU
                     cm,
 #endif
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                     cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
                     ext_rec_y, org_uv, rec_uv, src_cls0, src_cls1, shift_bits);
@@ -1708,7 +1708,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             org_uv, ctx->ccso_stride, temp_rec_uv_buf,
                             ctx->ccso_stride, log2_filter_unit_size_y,
                             log2_filter_unit_size_x,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                             cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
 #if CONFIG_BRU
@@ -1838,7 +1838,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
               compute_distortion(
                   org_uv, ctx->ccso_stride, temp_rec_uv_buf, ctx->ccso_stride,
                   log2_filter_unit_size_y, log2_filter_unit_size_x,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                   cm->mib_size_log2 - (plane > 0) + MI_SIZE_LOG2,
 #endif
 #if CONFIG_BRU

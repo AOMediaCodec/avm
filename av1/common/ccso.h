@@ -18,6 +18,10 @@
 
 #define CCSO_INPUT_INTERVAL 3
 
+#ifdef CONFIG_BRU
+#define CCSO_REFACTORING 1
+#endif
+
 #include <float.h>
 #include "config/aom_config.h"
 #include "aom/aom_integer.h"
@@ -53,7 +57,7 @@ void derive_ccso_sample_pos(AV1_COMMON *cm, int *rec_idx, const int ccso_stride,
 typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
-#if CONFIG_CCSO_REFACTORING
+#if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif
 #if CONFIG_CCSO_IMPROVE

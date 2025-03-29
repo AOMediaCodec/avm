@@ -1209,6 +1209,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_BRU
     // get last frame idx as bru frame
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru;
+    cm->bru.frame_active_mode = 1;
     if (cpi->oxcf.tool_cfg.enable_bru && frame_input.bru_ref_source != NULL &&
         !frame_is_intra_only(&cpi->common)) {
       active_region_detection(cpi, frame_input.source,

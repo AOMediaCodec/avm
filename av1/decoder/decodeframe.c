@@ -7561,6 +7561,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->bru.update_ref_idx = -1;
   cm->bru.explicit_ref_idx = -1;
   cm->bru.ref_order = -1;
+  cm->bru.frame_active_mode = 1;
 #endif  // CONFIG_BRU
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++) {
