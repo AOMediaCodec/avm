@@ -1987,7 +1987,7 @@ static void build_intra_predictors_high(
     const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
 #endif
 #if CONFIG_IDIF
-    if (enable_idif) {
+    if (enable_idif && plane == AOM_PLANE_Y) {
 #if CONFIG_MRLS_IMPROVE
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
                                left_col_1st, p_angle, xd->bd, mrl_index);
@@ -2053,7 +2053,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[tx_size][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif) {
+            if (enable_idif && plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
@@ -2097,7 +2097,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[transpose_tsize][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif) {
+            if (enable_idif && plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
