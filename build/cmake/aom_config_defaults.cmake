@@ -365,6 +365,8 @@ set_aom_config_var(CONFIG_CFL_SIMPLIFICATION 1 "Fix issues of CfL")
 
 set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")
+set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
+                   "CWG F137 simplification for blending mode")
 set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
 set_aom_config_var(CONFIG_E125_MHCCP_SIMPLIFY 1
