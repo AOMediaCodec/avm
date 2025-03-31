@@ -2042,7 +2042,7 @@ static void build_intra_predictors_high(
     if (apply_ibp) {
       if (mrl_index == 0
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
-          && (angle_delta % 2 == 0)
+          && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
       ) {
         if (p_angle > 0 && p_angle < 90) {
