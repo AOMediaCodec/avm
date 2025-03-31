@@ -4360,7 +4360,10 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
     const TokenExtra *tok_end_chroma =
         tok_chroma +
         cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].count_chroma;
-    assert(tok_end < tok_chroma);
+    const int intra_sdp_enabled =
+        (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+         cm->seq_params.enable_sdp);
+    if (intra_sdp_enabled) assert(tok_end < tok_chroma);
 #endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     av1_zero_left_context(xd);
 
@@ -4372,9 +4375,6 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 
 #if CONFIG_INTRA_SDP_LATENCY_FIX
       xd->tree_type = SHARED_PART;
-      const int intra_sdp_enabled =
-          (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-           cm->seq_params.enable_sdp);
 #else
       const int total_loop_num =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
