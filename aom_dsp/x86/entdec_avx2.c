@@ -51,7 +51,7 @@ int od_ec_decode_cdf_q15_avx2(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   __m128i retv_hi = _mm256_extractf128_si256(retv, 1);
   __m128i retv_lo = _mm256_castsi256_si128(retv);
   retv_lo = _mm_add_epi16(retv_lo, retv_hi);
-  int16_t ret = _mm_extract_epi16(retv_lo, 0);
+  int16_t ret = (int16_t)_mm_extract_epi16(retv_lo, 0);
   ret = 16 + ret;
 
   __m256i sc_cdf1 = _mm256_permute2x128_si256(sc_cdf, rng, 0x02);
