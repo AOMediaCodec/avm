@@ -69,52 +69,6 @@
    URL="http://researchcommons.waikato.ac.nz/bitstream/handle/10289/78/content.pdf"
   }*/
 
-/*This is meant to be a large, positive constant that can still be efficiently
-   loaded as an immediate (on platforms like ARM, for example).
-  Even relatively modest values like 100 would work fine.*/
-#define OD_EC_LOTS_OF_BITS (0x4000)
-
-/*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
-   call.*/
-void od_ec_dec_refill(od_ec_dec *dec) {
-  int s;
-  od_ec_window dif;
-  int16_t cnt;
-  const unsigned char *bptr;
-  const unsigned char *end;
-  dif = dec->dif;
-  cnt = dec->cnt;
-  bptr = dec->bptr;
-  end = dec->end;
-  s = OD_EC_WINDOW_SIZE - 9 - (cnt + 15);
-  for (; s >= 0 && bptr < end; s -= 8, bptr++) {
-    /*Each time a byte is inserted into the window (dif), bptr advances and cnt
-       is incremented by 8, so the total number of consumed bits (the return
-       value of od_ec_dec_tell) does not change.*/
-    assert(s <= OD_EC_WINDOW_SIZE - 8);
-    dif ^= (od_ec_window)bptr[0] << s;
-    cnt += 8;
-  }
-  if (bptr >= end) {
-    /*We've reached the end of the buffer. It is perfectly valid for us to need
-       to fill the window with additional bits past the end of the buffer (and
-       this happens in normal operation). These bits should all just be taken
-       as zero. But we cannot increment bptr past 'end' (this is undefined
-       behavior), so we start to increment dec->tell_offs. We also don't want
-       to keep testing bptr against 'end', so we set cnt to OD_EC_LOTS_OF_BITS
-       and adjust dec->tell_offs so that the total number of unconsumed bits in
-       the window (dec->cnt - dec->tell_offs) does not change. This effectively
-       puts lots of zero bits into the window, and means we won't try to refill
-       it from the buffer for a very long time (at which point we'll put lots
-       of zero bits into the window again).*/
-    dec->tell_offs += OD_EC_LOTS_OF_BITS - cnt;
-    cnt = OD_EC_LOTS_OF_BITS;
-  }
-  dec->dif = dif;
-  dec->cnt = cnt;
-  dec->bptr = bptr;
-}
-
 /*Initializes the decoder.
   buf: The input buffer to use.
   storage: The size in bytes of the input buffer.*/

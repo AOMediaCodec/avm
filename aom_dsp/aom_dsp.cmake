@@ -113,7 +113,7 @@ list(
   "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h")
 
 if(CONFIG_CDF_SCALE)
-  list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
+  list(APPEND AOM_DSP_DECODER_INTRIN_AVX2
        "${AOM_ROOT}/aom_dsp/x86/entdec_avx2.c")
 endif()
 
@@ -387,6 +387,10 @@ function(setup_aom_dsp_targets)
   if(HAVE_AVX2)
     add_intrinsics_object_library("-mavx2" "avx2" "aom_dsp_common"
                                   "AOM_DSP_COMMON_INTRIN_AVX2")
+    if(CONFIG_AV1_DECODER)
+      add_intrinsics_object_library("-mavx2" "avx2" "aom_dsp_decoder"
+                                    "AOM_DSP_DECODER_INTRIN_AVX2")
+    endif()
     if(CONFIG_AV1_ENCODER)
       add_intrinsics_object_library("-mavx2" "avx2" "aom_dsp_encoder"
                                     "AOM_DSP_ENCODER_INTRIN_AVX2")
