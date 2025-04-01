@@ -141,11 +141,11 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
-set_aom_config_var(CONFIG_MULTIVIEW_CORE 1
+set_aom_config_var(CONFIG_MULTIVIEW_CORE 0
                    "Core changes in the codebase for multiview coding support.")
-set_aom_config_var(CONFIG_MULTIVIEW_SEPARATE_DPB 1
+set_aom_config_var(CONFIG_MULTIVIEW_SEPARATE_DPB 0
                    "separate dpb support for multiview.")
-set_aom_config_var(CONFIG_MULTIVIEW_EXTENDED_DPB 1
+set_aom_config_var(CONFIG_MULTIVIEW_EXTENDED_DPB 0
                    "extended dpb support for multiview.")
 
 set_aom_config_var(CONFIG_MULTIVIEW_DEBUG 0
@@ -157,7 +157,7 @@ set_aom_config_var(CONFIG_MULTIVIEW_DEBUG_LOGFILES 0
 
 set_aom_config_var(
   CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
-  1
+  0
   "Enable temporal scalability using the implicit reference frame list construction"
 )
 set_aom_config_var(

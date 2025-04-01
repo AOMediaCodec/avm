@@ -4250,6 +4250,10 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       cpi->gf_group.layer_depth[cpi->gf_group.index],
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
 
+#if !CONFIG_MULTIVIEW_CORE
+  current_frame->absolute_poc =
+      current_frame->key_frame_number + current_frame->display_order_hint;
+#endif
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
 #if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
   cm->temporal_layer_id = current_frame->pyramid_level;
