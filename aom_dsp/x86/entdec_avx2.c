@@ -41,7 +41,7 @@ int od_ec_decode_cdf_q15_avx2(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   __m256i sc_cdf = _mm256_mulhi_epu16(cdf, rngv);
   sc_cdf = _mm256_slli_epi16(sc_cdf, 3);
   od_ec_window dif = dec->dif;
-  __m256i difv = _mm256_set1_epi16(dif >> (OD_EC_WINDOW_SIZE - 16));
+  __m256i difv = _mm256_set1_epi16((int16_t)(dif >> (OD_EC_WINDOW_SIZE - 16)));
   difv = _mm256_or_si256(mask, difv);
   __m256i cmp_min = _mm256_min_epu16(sc_cdf, difv);
   __m256i gt = _mm256_cmpeq_epi16(sc_cdf, cmp_min);
