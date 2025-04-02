@@ -246,7 +246,7 @@ static const aom_cdf_prob
                   29340, 31013, 31870),
         75 },
     };
-
+#if !TEST_27
 static const aom_cdf_prob
     default_y_second_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)] = {
       { AOM_CDF16(2614, 4872, 7327, 9645, 11546, 13349, 15504, 17424, 19397,
@@ -259,7 +259,7 @@ static const aom_cdf_prob
                   19690, 21835, 25356, 27731, 29157, 30362),
         76 },
     };
-
+#endif  // !TEST_27
 static const aom_cdf_prob
     default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)] = {
       { AOM_CDF13(13848, 18930, 20641, 22133, 23986, 25450, 28075, 28950, 29740,
@@ -287,6 +287,7 @@ static const aom_cdf_prob
       { AOM_CDF13(7000, 12000, 14000, 16000, 17000, 22000, 26000, 27000, 28000,
                   29000, 30000, 31000) }
     };
+#if !TEST_27
 static const aom_cdf_prob
     default_y_second_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)] = {
       { AOM_CDF16(2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384, 18432,
@@ -296,6 +297,7 @@ static const aom_cdf_prob
       { AOM_CDF16(2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384, 18432,
                   20480, 22528, 24576, 26624, 28672, 30720) }
     };
+#endif  // !TEST_27
 static const aom_cdf_prob
     default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)] = {
       { AOM_CDF13(20545, 22597, 24087, 24753, 24995, 25621, 26273, 27089, 28510,
@@ -8556,7 +8558,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_AIMC
   av1_copy(fc->y_mode_set_cdf, default_y_mode_set_cdf);
   av1_copy(fc->y_mode_idx_cdf_0, default_y_first_mode_cdf);
+#if !TEST_27
   av1_copy(fc->y_mode_idx_cdf_1, default_y_second_mode_cdf);
+#endif  // !TEST_27
 #else
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
 #endif  // CONFIG_AIMC
@@ -9085,8 +9089,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          INTRA_MODE_SETS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
                          FIRST_MODE_COUNT);
+#if !TEST_27
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
                          SECOND_MODE_COUNT);
+#endif  // !TEST_27
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC
@@ -9511,7 +9517,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #if CONFIG_AIMC
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
+#if !TEST_27
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
+#endif  // !TEST_27
 #else
   SHIFT_CDF(ctx_ptr->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC
@@ -9980,8 +9988,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
+#if !TEST_27
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
+#endif  // !TEST_27
 #else
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC

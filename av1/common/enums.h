@@ -29,6 +29,8 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
+#define TEST_27 1  // literal coding of y_second_mode
+
 #define BAWP_BUGFIX 1
 #define ADJUST_SUPER_RES_Q 1
 

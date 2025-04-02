@@ -985,7 +985,9 @@ typedef struct {
   //! y first mode cost
   int y_first_mode_costs[Y_MODE_CONTEXTS][FIRST_MODE_COUNT];
   //! y second mode cost
+#if !TEST_27
   int y_second_mode_costs[Y_MODE_CONTEXTS][SECOND_MODE_COUNT];
+#endif  // !TEST_27
   //! uv mode cost
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
   //! CFL mode cost

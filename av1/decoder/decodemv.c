@@ -2153,10 +2153,14 @@ static void read_intra_luma_mode(MACROBLOCKD *const xd, aom_reader *r) {
         aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_0[context], FIRST_MODE_COUNT,
                         ACCT_INFO("mode_idx", "y_mode_idx_cdf_0"));
   } else {
-    mode_idx =
-        FIRST_MODE_COUNT + (mode_set_index - 1) * SECOND_MODE_COUNT +
-        aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT,
-                        ACCT_INFO("mode_idx", "y_mode_idx_cdf_1"));
+    mode_idx = FIRST_MODE_COUNT + (mode_set_index - 1) * SECOND_MODE_COUNT +
+#if TEST_27
+               aom_read_literal(r, 4, ACCT_INFO("mode_idx"));
+#else
+               aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_1[context],
+                               SECOND_MODE_COUNT,
+                               ACCT_INFO("mode_idx", "y_mode_idx_cdf_1"));
+#endif  // TEST_27
   }
   assert(mode_idx < LUMA_MODE_COUNT);
   get_y_intra_mode_set(mbmi, xd);

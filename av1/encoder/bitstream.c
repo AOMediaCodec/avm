@@ -2125,10 +2125,17 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
     aom_write_symbol(w, mode_idx, ec_ctx->y_mode_idx_cdf_0[context],
                      FIRST_MODE_COUNT);
   } else {
+#if TEST_27
+    aom_write_literal(
+        w,
+        mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
+        4);
+#else
     aom_write_symbol(
         w,
         mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
         ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT);
+#endif  // !TEST_27
   }
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
