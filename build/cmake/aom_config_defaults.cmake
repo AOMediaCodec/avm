@@ -410,6 +410,8 @@ set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
 
 set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
                    "Enable the optimization of CDEF strengths")
+set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
+                   "Enable reduction of the CDFs for MVD related sybmols")
 
 set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
                    "Improvements to TMVP & MV trajectory")

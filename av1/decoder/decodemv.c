@@ -2074,13 +2074,23 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 #if CONFIG_DERIVED_MVD_SIGN
     // Encode sign
     if (mv_diff.row) {
+#if CONFIG_MVD_CDF_REDUCTION
+      int sign = aom_read_literal(r, 1, ACCT_INFO("sign"));
+#else
       int sign = aom_read_symbol(r, ec_ctx->ndvc.comps[0].sign_cdf, 2,
                                  ACCT_INFO("sign"));
+#endif  // CONFIG_MVD_CDF_REDUCTION
+
       if (sign) mv_diff.row = -mv_diff.row;
     }
     if (mv_diff.col) {
+#if CONFIG_MVD_CDF_REDUCTION
+      int sign = aom_read_literal(r, 1, ACCT_INFO("sign"));
+#else
       int sign = aom_read_symbol(r, ec_ctx->ndvc.comps[1].sign_cdf, 2,
                                  ACCT_INFO("sign"));
+#endif  // CONFIG_MVD_CDF_REDUCTION
+
       if (sign) mv_diff.col = -mv_diff.col;
     }
 #if CONFIG_IBC_SUBPEL_PRECISION
@@ -2886,14 +2896,28 @@ static INLINE void read_mv(aom_reader *r,
 static void read_truncated_unary_mvd(aom_reader *r, nmv_context *ctx,
                                      const int max_coded_value, int num_of_ctx,
                                      int *decoded_value) {
+#if CONFIG_MVD_CDF_REDUCTION
+  (void)num_of_ctx;
+#endif  // CONFIG_MVD_CDF_REDUCTION
+
   int col = 0;
   int max_idx_bits = max_coded_value;
   for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+#if CONFIG_MVD_CDF_REDUCTION
+    aom_cdf_prob *cdf = ctx->shell_offset_class2_cdf;
+#else
     int context_index = bit_idx < num_of_ctx ? bit_idx : num_of_ctx - 1;
     assert(context_index < num_of_ctx);
     aom_cdf_prob *cdf = ctx->shell_offset_class2_cdf[context_index];
-    int this_bit = aom_read_symbol(
-        r, cdf, 2, ACCT_INFO("greater_flags", "col_mv_greater_flags_cdf"));
+#endif  // CONFIG_MVD_CDF_REDUCTION
+    int this_bit =
+#if CONFIG_MVD_CDF_REDUCTION
+        bit_idx ? aom_read_literal(r, 1, ACCT_INFO("greater_flags")) :
+#endif  // CONFIG_MVD_CDF_REDUCTION
+
+                aom_read_symbol(
+                    r, cdf, 2,
+                    ACCT_INFO("greater_flags", "col_mv_greater_flags_cdf"));
 
     col = bit_idx + this_bit;
     if (!this_bit) break;
@@ -3881,8 +3905,12 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
               (ref_idx == last_ref && comp == last_comp)) {
             sign = (sum_mvd & 0x1);
           } else {
+#if CONFIG_MVD_CDF_REDUCTION
+            sign = aom_read_literal(r, 1, ACCT_INFO("sign"));
+#else
             sign = aom_read_symbol(r, ec_ctx->nmvc.comps[comp].sign_cdf, 2,
                                    ACCT_INFO("sign"));
+#endif  // CONFIG_MVD_CDF_REDUCTION
           }
           if (sign) {
             if (comp == 0)

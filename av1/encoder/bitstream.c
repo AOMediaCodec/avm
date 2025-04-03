@@ -3117,7 +3117,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
           }
           if (this_mvd_comp) {
             const int sign = this_mvd_comp < 0;
+#if CONFIG_MVD_CDF_REDUCTION
+            aom_write_literal(w, sign, 1);
+#else
             aom_write_symbol(w, sign, ec_ctx->nmvc.comps[comp].sign_cdf, 2);
+#endif  // CONFIG_MVD_CDF_REDUCTION
           }
         }
       }
@@ -3358,10 +3362,19 @@ static AOM_INLINE void write_intrabc_info(
       assert(is_this_mv_precision_compliant(diff, mbmi->pb_mv_precision));
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
       if (diff.row) {
+#if CONFIG_MVD_CDF_REDUCTION
+        aom_write_literal(w, diff.row < 0, 1);
+#else
         aom_write_symbol(w, diff.row < 0, ec_ctx->ndvc.comps[0].sign_cdf, 2);
+#endif  // CONFIG_MVD_CDF_REDUCTION
       }
       if (diff.col) {
+#if CONFIG_MVD_CDF_REDUCTION
+        aom_write_literal(w, diff.col < 0, 1);
+#else
+
         aom_write_symbol(w, diff.col < 0, ec_ctx->ndvc.comps[1].sign_cdf, 2);
+#endif  // CONFIG_MVD_CDF_REDUCTION
       }
     }
 #endif  // CONFIG_DERIVED_MVD_SIGN

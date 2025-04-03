@@ -179,7 +179,9 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
 #else
     RESET_CDF_COUNTER(nmv->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
 #endif  // !CONFIG_VQ_MVD_CODING
+#if !CONFIG_MVD_CDF_REDUCTION
     RESET_CDF_COUNTER(nmv->comps[i].sign_cdf, 2);
+#endif  //! CONFIG_MVD_CDF_REDUCTION
   }
 }
 

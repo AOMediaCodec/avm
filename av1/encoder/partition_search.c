@@ -1570,12 +1570,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_VQ_MVD_CODING
       av1_update_mv_stats(&fc->ndvc, mv_diff, mbmi->pb_mv_precision, 0);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
       if (mv_diff.row) {
         update_cdf(fc->ndvc.comps[0].sign_cdf, mv_diff.row < 0, 2);
       }
       if (mv_diff.col) {
         update_cdf(fc->ndvc.comps[1].sign_cdf, mv_diff.col < 0, 2);
       }
+#endif  //! CONFIG_MVD_CDF_REDUCTION
+
 #endif
 
 #else
@@ -2375,8 +2378,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff[2] = { kZeroMv, kZeroMv };
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
     int num_signaled_mvd = 0;
     int start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
@@ -2392,8 +2397,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                             xd->mi_col, xd->mi_row);
         assert(is_adaptive_mvd == 0);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
         num_signaled_mvd = 1;
         start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
         get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
@@ -2446,8 +2453,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
         if (new_mv) {
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
           num_signaled_mvd = 1 + has_second_ref(mbmi);
           start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
@@ -2476,8 +2485,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                           jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
           num_signaled_mvd = 1;
           start_signaled_mvd_idx = ref;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #if CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
           get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
@@ -2500,6 +2511,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
     }
 #if CONFIG_DERIVED_MVD_SIGN
+
+#if !CONFIG_MVD_CDF_REDUCTION
     // Update stats of the sign in the second pass
     if (num_signaled_mvd > 0) {
       int last_ref = -1;
@@ -2540,6 +2553,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
     }
+#endif  // !CONFIG_MVD_CDF_REDUCTION
 #endif  // CONFIG_DERIVED_MVD_SIGN
   }
 }
