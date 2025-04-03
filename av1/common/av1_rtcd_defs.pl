@@ -394,7 +394,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
     specialize qw/av1_get_coeff_ctx avx2/;
     add_proto qw/void av1_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
-    #specialize qw/av1_update_nbr_diagonal avx2/;
+    specialize qw/av1_update_nbr_diagonal avx2/;
   }
 
   # fdct functions
