@@ -242,7 +242,8 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
       cm->ccso_info.ccso_enable[1]) {
 #if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
-    const int log2_filter_unit_size = (CCSO_BLK_SIZE - xd->plane[1].subsampling_x);
+    const int log2_filter_unit_size =
+        (CCSO_BLK_SIZE - xd->plane[1].subsampling_x);
 #else
     const int log2_filter_unit_size = CCSO_BLK_SIZE;
 #endif
@@ -287,7 +288,8 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
       cm->ccso_info.ccso_enable[2]) {
 #if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
-    const int log2_filter_unit_size = (CCSO_BLK_SIZE - xd->plane[2].subsampling_x);
+    const int log2_filter_unit_size =
+        (CCSO_BLK_SIZE - xd->plane[2].subsampling_x);
 #else
     const int log2_filter_unit_size = CCSO_BLK_SIZE;
 #endif

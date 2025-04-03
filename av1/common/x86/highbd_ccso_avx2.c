@@ -57,8 +57,8 @@ void ccso_filter_block_hbd_wo_buf_avx2(
 #else
     const int blk_size,
 #endif
-    const bool isSingleBand,
-    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only) {
+    const bool isSingleBand, const uint8_t shift_bits, const int edge_clf,
+    const uint8_t ccso_bo_only) {
   assert(ccso_bo_only == 0);
   (void)ccso_bo_only;
   __m256i cmp_thr1 = _mm256_set1_epi16(quant_step_size);

@@ -2248,10 +2248,10 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 #if CONFIG_CCSO_FU_BUGFIX
       const int log2_filter_unit_size_y =
           pli == 0 ? CCSO_BLK_SIZE
-                  : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
       const int log2_filter_unit_size_x =
           pli == 0 ? CCSO_BLK_SIZE
-                  : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
+                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
 #else
       const int log2_filter_unit_size_y =
           pli > 0 ? CCSO_BLK_SIZE
