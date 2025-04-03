@@ -85,6 +85,8 @@ set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
 
 set_aom_config_var(CONFIG_ENABLE_IBC_NAT 1 "Enables IBC for natural content")
+set_aom_config_var(CONFIG_ENABLE_INLOOP_FILTER_GIBC 1
+                   "Enables In-loop filters for key-frames with GIBC enabled")
 set_aom_config_var(CONFIG_IBC_SUBPEL_PRECISION 1
                    "Allow sub-pel precision for intraBC block vector.")
 
@@ -372,6 +374,9 @@ set_aom_config_var(CONFIG_KEY_OVERLAY 1
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
 
+set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
+                   "Enable the optimization of CDEF strengths")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
@@ -441,6 +446,9 @@ set_aom_config_var(
   "Enable the signaling optimization for certain frame header syntax elements")
 
 set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
+
+set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
+                   "Enable the redesign of warp modes signaling flow")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")

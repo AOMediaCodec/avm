@@ -68,6 +68,9 @@ static const int mode_lf_lut[] = {
   1, 0, 1,                                // INTER_SINGLE_MODES (GLOBALMV == 0)
   1,                                      // AMVDNEWMV
   1,                                      // WARPMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  1,              // WARP_NEWMV
+#endif            // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
   1, 1, 1, 1, 1, 1, 1, 1,
 };

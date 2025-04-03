@@ -1123,6 +1123,10 @@ typedef struct {
 
   //! inter warpmv mode cost
   int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  //! is_warpmv_or_warp_newmv_cost
+  int is_warpmv_or_warp_newmv_cost[2];
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
@@ -1273,6 +1277,9 @@ typedef struct {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
   //! warped_causal_cost
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  int warped_causal_cost[WARP_CAUSAL_MODE_CTX][2];
+#else
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   int warped_causal_cost[2];
 #else
@@ -1284,6 +1291,7 @@ typedef struct {
 #else
   int warp_delta_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   //! warped_causal_warpmv_cost
 #if CONFIG_D149_CTX_MODELING_OPT

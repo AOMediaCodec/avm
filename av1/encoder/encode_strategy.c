@@ -879,6 +879,15 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
              get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
+    if (is_lossless_requested(&oxcf->rc_cfg)) {
+      // Turn off temporal filtering if overlay is off.
+      // Also, turn off temporal filtering for internal ARF if overlay is on,
+      // since overlay is not supported for this frame, and without overlay,
+      // the frame cannot become lossless after temporal filtering.
+      apply_filtering &=
+          (oxcf->algo_cfg.enable_overlay &
+           (get_frame_update_type(&cpi->gf_group) != INTNL_ARF_UPDATE));
+    }
     if (gf_group->is_user_specified) {
       apply_filtering &= gf_group->is_filtered[gf_group->index];
     }

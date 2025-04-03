@@ -50,23 +50,32 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   assert(xd->tree_type != CHROMA_PART);
   const int skip_txfm = xd->mi[0]->skip_txfm[0];
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) {
 #if CONFIG_FIX_CDEF_SYNTAX
     assert(cm->cdef_info.cdef_frame_enable == 0);
 #else
+#if CONFIG_CDEF_ENHANCEMENTS
+    assert(cm->cdef_info.nb_cdef_strengths == 1);
+#else
     assert(cm->cdef_info.cdef_bits == 0);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     return;
   }
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
 
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
   // At the start of a superblock, mark that we haven't yet read CDEF strengths
   // for any of the CDEF units contained in this superblock.
   const int sb_mask = (cm->mib_size - 1);
-  const int mi_row_in_sb = (xd->mi_row & sb_mask);
-  const int mi_col_in_sb = (xd->mi_col & sb_mask);
+  const int mi_row_in_sb = (mi_row & sb_mask);
+  const int mi_col_in_sb = (mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
     av1_zero(xd->cdef_transmitted);
   }
@@ -75,22 +84,63 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
 
   // Find index of this CDEF unit in this superblock.
-  const int index = av1_get_cdef_transmitted_index(xd->mi_row, xd->mi_col);
+  const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
+
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   // Read CDEF strength from the first non-skip coding block in this CDEF unit.
-  if (!xd->cdef_transmitted[index] && !skip_txfm) {
+  if (!xd->cdef_transmitted[index] &&
+#if CONFIG_CDEF_ENHANCEMENTS
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip_txfm)
+#else
+      !skip_txfm
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  ) {
     // CDEF strength for this CDEF unit needs to be read into the MB_MODE_INFO
     // of the 1st block in this CDEF unit.
     const int first_block_mask = ~(cdef_size - 1);
-    CommonModeInfoParams *const mi_params = &cm->mi_params;
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, xd->mi_row & first_block_mask,
-                        xd->mi_col & first_block_mask);
+    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
+                                         mi_col & first_block_mask);
     MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+#if CONFIG_CDEF_ENHANCEMENTS
+    if (cm->cdef_info.nb_cdef_strengths == 1) {
+      mbmi->cdef_strength = 0;
+    } else {
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int is_strength_index0 = aom_read_symbol(
+          r, xd->tile_ctx->cdef_strength_index0_cdf[cdef_strength_index0_ctx],
+          2, ACCT_INFO("cdef_strength_index0_cdf"));
+      if (is_strength_index0) {
+        mbmi->cdef_strength = 0;
+      } else {
+        const int nb_cdef_strengths = cm->cdef_info.nb_cdef_strengths;
+        if (nb_cdef_strengths == 2) {
+          mbmi->cdef_strength = 1;
+        } else {
+          mbmi->cdef_strength =
+              aom_read_symbol(r, xd->tile_ctx->cdef_cdf[nb_cdef_strengths - 3],
+                              nb_cdef_strengths - 1,
+                              ACCT_INFO("cdef_strength")) +
+              1;
+        }
+      }
+    }
+#else
     mbmi->cdef_strength = aom_read_literal(r, cm->cdef_info.cdef_bits,
                                            ACCT_INFO("cdef_strength"));
+#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
   }
+#if CONFIG_CDEF_ENHANCEMENTS
+  else {
+    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
+        ->cdef_strength =
+        mi_params
+            ->mi_grid_base[(mi_row & ~(cdef_size - 1)) * mi_params->mi_stride +
+                           (mi_col & ~(cdef_size - 1))]
+            ->cdef_strength;
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 }
 
 // This function is to copy the block level ccso control flag when the
@@ -124,7 +174,9 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
 
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -458,6 +510,23 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
   }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    const int is_warpmv_or_warp_newmv =
+        aom_read_symbol(r, ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2,
+                        ACCT_INFO("is_warpmv_or_warp_newmv"));
+    if (is_warpmv_or_warp_newmv) {
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+        const int is_warpmv = aom_read_symbol(
+            r, ec_ctx->is_warpmv_or_warp_newmv_cdf, 2, ACCT_INFO("is_warpmv"));
+        return is_warpmv ? WARPMV : WARP_NEWMV;
+      } else {
+        return WARPMV;
+      }
+    }
+  }
+#else
   int is_warpmv = 0;
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
@@ -468,6 +537,7 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
       return WARPMV;
     }
   }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
   return SINGLE_INTER_MODE_START +
@@ -802,6 +872,58 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     return WARP_DELTA;
   }
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
+    if (!((allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
+          (allowed_motion_modes & (1 << WARP_DELTA))))
+      return WARP_EXTEND;
+
+    if (allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+      const int ctx = av1_get_warp_extend_ctx(xd);
+      const int use_warp_extend =
+          aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx], 2,
+                          ACCT_INFO("use_warp_extend"));
+#else
+      const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+      const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
+      const int use_warp_extend =
+          aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2,
+                          ACCT_INFO("use_warp_extend"));
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+      if (use_warp_extend) {
+        return WARP_EXTEND;
+      }
+    }
+
+    if (!(allowed_motion_modes & (1 << WARP_DELTA))) return WARPED_CAUSAL;
+
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      const int ctx = av1_get_warp_causal_ctx(xd);
+      const int use_warped_causal =
+          aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[ctx], 2,
+                          ACCT_INFO("use_warped_causal"));
+#else
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+      int use_warped_causal =
+          aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf, 2,
+                          ACCT_INFO("use_warped_causal"));
+#else
+      int use_warped_causal =
+          aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[bsize], 2,
+                          ACCT_INFO("use_warped_causal"));
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      if (use_warped_causal) {
+        return WARPED_CAUSAL;
+      }
+    }
+
+    return WARP_DELTA;
+  }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
   mbmi->use_wedge_interintra = 0;
   if (allowed_motion_modes & (1 << INTERINTRA)) {
     const int bsize_group = size_group_lookup[bsize];
@@ -868,6 +990,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
     const int ctx = av1_get_warp_extend_ctx(xd);
@@ -884,8 +1007,15 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       return WARP_EXTEND;
     }
   }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const int ctx = av1_get_warp_causal_ctx(xd);
+    const int use_warped_causal =
+        aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[ctx], 2,
+                        ACCT_INFO("use_warped_causal"));
+#else
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
     int use_warped_causal = aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf,
                                             2, ACCT_INFO("use_warped_causal"));
@@ -894,11 +1024,13 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
         aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[bsize], 2,
                         ACCT_INFO("use_warped_causal"));
 #endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     if (use_warped_causal) {
       return WARPED_CAUSAL;
     }
   }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_DELTA)) {
 #if CONFIG_D149_CTX_MODELING_OPT
     int use_warp_delta = aom_read_symbol(r, xd->tile_ctx->warp_delta_cdf, 2,
@@ -912,6 +1044,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       return WARP_DELTA;
     }
   }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   return SIMPLE_TRANSLATION;
 }
@@ -3309,6 +3442,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
   switch (mode) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    case WARP_NEWMV:
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     case AMVDNEWMV:
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
@@ -4072,6 +4208,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       int is_warpmv_warp_causal =
           ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);
       if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
+#else
         mbmi->max_num_warp_candidates =
             (mbmi->mode == GLOBALMV || mbmi->mode == AMVDNEWMV ||
              mbmi->mode == NEARMV)
@@ -4080,6 +4219,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         if (is_warpmv_warp_causal) {
           mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
         }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         av1_find_warp_delta_base_candidates(
             xd, mbmi, warp_param_stack,
             xd->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)],
@@ -4469,7 +4609,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
     } else {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      assert(mbmi->mode == WARP_NEWMV);
+#else
       assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       bool neighbor_is_above =
           xd->up_available && (base_pos.row == -1 && base_pos.col >= 0);

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -4464,8 +4464,6 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
     assert(!is_inter || plane_bsize < BLOCK_8X8);
-    cfl_store_tx(xd, blk_row, blk_col, tx_size,
-                 cm->seq_params.cfl_ds_filter_index);
   }
 
 #if CONFIG_RD_DEBUG

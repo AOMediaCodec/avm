@@ -374,11 +374,6 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
-
-  if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
-      xd->tree_type == SHARED_PART) {
-    cfl_store_tx(xd, row, col, tx_size, cm->seq_params.cfl_ds_filter_index);
-  }
 }
 
 // Facade function for inverse cross chroma component transform
@@ -1585,7 +1580,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
     }
-    td->cfl_store_inter_block_visit(cm, xd);
   }
 
   av1_visit_palette(pbi, xd, r, set_color_index_map_offset);
@@ -2369,7 +2363,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                         BLOCK_SIZE bsize, SB_INFO *sbi,
                                         PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                        PARTITION_TREE *ptree_luma,
+#else
                                         const PARTITION_TREE *ptree_luma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                         int parse_decode_flag) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -2396,6 +2394,31 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int is_intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
+  const int total_loop_num =
+      is_intra_sdp_enabled && bsize == BLOCK_64X64 ? 2 : 1;
+  if (total_loop_num == 2 && xd->tree_type == SHARED_PART) {
+    xd->tree_type = LUMA_PART;
+    decode_partition(pbi, td, mi_row, mi_col, reader, bsize, sbi, ptree,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                     ptree_luma,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                     parse_decode_flag);
+    xd->tree_type = CHROMA_PART;
+
+    decode_partition(pbi, td, mi_row, mi_col, reader, bsize, sbi, ptree_luma,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                     ptree,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                     parse_decode_flag);
+    xd->tree_type = SHARED_PART;
+    return;
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   // parse_decode_flag takes the following values :
   // 01 - do parse only
@@ -2450,6 +2473,14 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
     ptree->is_settled = 1;
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+      ptree_luma->bsize = bsize;
+      ptree_luma->mi_row = mi_row;
+      ptree_luma->mi_col = mi_col;
+      ptree_luma->is_settled = 1;
+    }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     PARTITION_TREE *parent = ptree->parent;
     set_chroma_ref_info(
         xd->tree_type, mi_row, mi_col, ptree->index, bsize,
@@ -2466,12 +2497,12 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              bsize);
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_INTRA_SDP_LATENCY_FIX
     if (!is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma,
                                              bsize)) {
       ptree_luma = NULL;
     }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_INTRA_SDP_LATENCY_FIX
 
     ptree->partition = partition;
 
@@ -2512,12 +2543,26 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+          ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
+          ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
+        }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
       case PARTITION_VERT:
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+        }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
       case PARTITION_HORZ_3:
       case PARTITION_VERT_3:
@@ -2525,6 +2570,14 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+          ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
+          ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
+        }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2795,7 +2848,19 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #undef DEC_BLOCK_STX_ARG
 
   if (parse_decode_flag & 1)
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  {
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+      xd->tree_type = CHROMA_PART;
+      update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize,
+                                   partition);
+      xd->tree_type = SHARED_PART;
+    }
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 }
 
 static AOM_INLINE void setup_bool_decoder(
@@ -2825,21 +2890,37 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
   AV1_COMMON *const cm = &pbi->common;
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  xd->tree_type = SHARED_PART;
+  const int is_intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
+#else
   const int total_loop_num =
       (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
        cm->seq_params.enable_sdp)
           ? 2
           : 1;
   xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
   if (parse_decode_flag & 1) {
     av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    if (is_intra_sdp_enabled) av1_reset_ptree_in_sbi(xd->sbi, CHROMA_PART);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
   }
-  decode_partition(pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
-                   td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+  decode_partition(
+      pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
+      td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
-                   NULL,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+      (is_intra_sdp_enabled ? td->dcb.xd.sbi->ptree_root[1] : NULL),
+#else
+      NULL,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-                   parse_decode_flag);
+      parse_decode_flag);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
   if (total_loop_num == 2) {
     xd->tree_type = CHROMA_PART;
     if (parse_decode_flag & 1) {
@@ -2853,6 +2934,7 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
                      parse_decode_flag);
     xd->tree_type = SHARED_PART;
   }
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
 #if CONFIG_INSPECTION
   if (pbi->inspect_sb_cb != NULL) {
     (*pbi->inspect_sb_cb)(pbi, pbi->inspect_ctx);
@@ -2970,7 +3052,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
@@ -3613,8 +3697,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
-
-  if (is_global_intrabc_allowed(cm) || cm->features.coded_lossless) {
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      is_global_intrabc_allowed(cm) ||
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      cm->features.coded_lossless) {
     // write default deltas to frame buffer
     av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
     av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
@@ -3769,19 +3856,57 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   CdefInfo *const cdef_info = &cm->cdef_info;
-
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
   if (!cdef_info->cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
+#if CONFIG_CDEF_ENHANCEMENTS
+  cdef_info->nb_cdef_strengths = aom_rb_read_literal(rb, 3) + 1;
+  if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
+    cdef_info->cdef_on_skip_txfm_frame_enable = aom_rb_read_bit(rb);
+  } else if (cm->seq_params.enable_cdef_on_skip_txfm ==
+             CDEF_ON_SKIP_TXFM_ALWAYS_ON) {
+    cdef_info->cdef_on_skip_txfm_frame_enable = 1;
+  } else {
+    cdef_info->cdef_on_skip_txfm_frame_enable = 0;
+  }
+#else
   cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
   cdef_info->nb_cdef_strengths = 1 << cdef_info->cdef_bits;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   for (int i = 0; i < cdef_info->nb_cdef_strengths; i++) {
+#if CONFIG_CDEF_ENHANCEMENTS
+    int less_4 = aom_rb_read_bit(rb);
+    if (less_4) {
+      cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, 2);
+    } else {
+      cdef_info->cdef_strengths[i] =
+          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+    }
+#else
     cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
-    cdef_info->cdef_uv_strengths[i] =
-        num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+
+    if (num_planes > 1) {
+#if CONFIG_CDEF_ENHANCEMENTS
+      less_4 = aom_rb_read_bit(rb);
+      if (less_4) {
+        cdef_info->cdef_uv_strengths[i] = aom_rb_read_literal(rb, 2);
+      } else {
+        cdef_info->cdef_uv_strengths[i] =
+            aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+      }
+#else
+      cdef_info->cdef_uv_strengths[i] =
+          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+    } else {
+      cdef_info->cdef_uv_strengths[i] = 0;
+    }
   }
 }
 
@@ -3797,6 +3922,7 @@ static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
 }
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_CCSO_IMPROVE
   if (is_global_intrabc_allowed(cm)) {
     cm->cur_frame->ccso_info.ccso_enable[0] = 0;
@@ -3807,7 +3933,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #else
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // CONFIG_CCSO_IMPROVE
-
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_CCSO_IMPROVE
   const int ccso_scale[4] = { 1, 2, 3, 4 };
@@ -4253,11 +4379,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
   if (cm->seq_params.enable_tip) {
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, TIP_FRAME);
-    if (ref_buf == NULL || (ref_buf->buf.y_crop_width != cm->width ||
-                            ref_buf->buf.y_crop_height != cm->height)) {
-      setup_tip_frame_size(cm);
-    }
+    setup_tip_frame_size(cm);
   }
 }
 
@@ -4459,9 +4581,14 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
 
     // Figure out single_tile_decoding by loopfilter_level.
     const int no_loopfilter = !(lf->filter_level[0] || lf->filter_level[1]);
-    const int no_cdef = cdef_info->cdef_bits == 0 &&
-                        cdef_info->cdef_strengths[0] == 0 &&
-                        cdef_info->cdef_uv_strengths[0] == 0;
+    const int no_cdef =
+#if CONFIG_CDEF_ENHANCEMENTS
+        cdef_info->nb_cdef_strengths == 1 &&
+#else
+        cdef_info->cdef_bits == 0 &&
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+        cdef_info->cdef_strengths[0] == 0 &&
+        cdef_info->cdef_uv_strengths[0] == 0;
     const int no_restoration =
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
@@ -6750,6 +6877,15 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  if (aom_rb_read_bit(rb)) {
+    seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
+  } else {
+    seq_params->enable_cdef_on_skip_txfm = aom_rb_read_bit(rb)
+                                               ? CDEF_ON_SKIP_TXFM_DISABLED
+                                               : CDEF_ON_SKIP_TXFM_ADAPTIVE;
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq_params->enable_avg_cdf = aom_rb_read_bit(rb);
   if (seq_params->enable_avg_cdf) {
@@ -8269,8 +8405,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
-
-  if (is_global_intrabc_allowed(cm) ||
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      is_global_intrabc_allowed(cm) ||
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
@@ -8279,7 +8417,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
       cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
       cm->cdef_info.cdef_strengths[0] = 0;
       cm->cdef_info.nb_cdef_strengths = 1;
       cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -8402,7 +8542,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
     cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
     if (!is_global_intrabc_allowed(cm))
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
     if (cm->delta_q_info.delta_lf_present_flag) {
       cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
@@ -8436,7 +8578,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if CONFIG_CDEF_ENHANCEMENTS
+      cm->cdef_info.nb_cdef_strengths = 1;
+#else
       cm->cdef_info.cdef_bits = 0;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
       cm->cdef_info.cdef_strengths[0] = 0;
       cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
@@ -8599,8 +8745,16 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
     }
 #if CONFIG_TIP_LD
     set_primary_ref_frame_and_ctx(cm);
+    cm->seg.enabled = 0;
+    if (cm->cur_frame->seg_map) {
+      memset(cm->cur_frame->seg_map, 0,
+             (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
+    }
+    memset(&cm->seg, 0, sizeof(cm->seg));
+    segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 #else
       av1_setup_past_independence(cm);
+      segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 #endif  // CONFIG_TIP_LD
     if (!cm->tiles.large_scale) {
       cm->cur_frame->frame_context = *cm->fc;
@@ -8827,7 +8981,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     return;
   }
 
-  if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !is_global_intrabc_allowed(cm) &&
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !tiles->single_tile_decoding) {
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1
 #if CONFIG_LF_SUB_PU
@@ -8891,9 +9049,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_FIX_CDEF_SYNTAX
                         cm->cdef_info.cdef_frame_enable;
 #else
-                          (cm->cdef_info.cdef_bits ||
-                           cm->cdef_info.cdef_strengths[0] ||
-                           cm->cdef_info.cdef_uv_strengths[0]);
+                          (
+#if CONFIG_CDEF_ENHANCEMENTS
+                              cdef_info->nb_cdef_strengths != 1 ||
+#else
+                              cm->cdef_info.cdef_bits ||
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+                              cm->cdef_info.cdef_strengths[0] ||
+                              cm->cdef_info.cdef_uv_strengths[0]);
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     const int do_superres = av1_superres_scaled(cm);
 

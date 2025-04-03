@@ -488,8 +488,26 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
+#if CONFIG_ENTROPY_STATS
+    ++counts->inter_warp_cnts[iswarpmvmode_ctx][is_warpmv_or_warp_newmv];
+#endif  // CONFIG_ENTROPY_STATS
+    update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx],
+               is_warpmv_or_warp_newmv, 2);
+    if (is_warpmv_or_warp_newmv) {
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->is_warpmv_or_warp_newmv_cnt[mode == WARPMV];
+#endif  // CONFIG_ENTROPY_STATS
+        update_cdf(fc->is_warpmv_or_warp_newmv_cdf, mode == WARPMV, 2);
+      }
+      return;
+    }
+#else
     update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
     if (mode == WARPMV) return;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   }
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
@@ -1521,6 +1539,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_CHROMA_CODING
 
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,
+              ctx_tr->is_warpmv_or_warp_newmv_cdf, 2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_REFINEMV
   AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
@@ -1580,7 +1602,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTERINTRA_MODES);
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
   AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
               WARP_DELTA_NUMSYMBOLS_LOW);
 #if CONFIG_WARP_PRECISION
@@ -1702,6 +1726,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->ccso_cdf[plane], ctx_tr->ccso_cdf[plane], 2);
 #endif  // CONFIG_CCSO_IMPROVE
   }
+#if CONFIG_CDEF_ENHANCEMENTS
+  AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
+              ctx_tr->cdef_strength_index0_cdf, 2);
+  for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
+    AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
+                   CDF_SIZE(CDEF_STRENGTHS_NUM));
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);

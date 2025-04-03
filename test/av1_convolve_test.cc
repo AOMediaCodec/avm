@@ -1235,7 +1235,6 @@ class AV1ConvolveNonSep2DHighbdTest
   libaom_test::ACMRandom rnd_;
   static constexpr int kMaxPrecisionBeforeOverflow = 12;
   static constexpr int kMaxNumSymmetricTaps = 18;
-  static constexpr int kMaxNumSymmetricTapsChroma = 12;
   static constexpr int kMaxTapOffset = 3;  // Filters are 7x7.
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;

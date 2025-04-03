@@ -533,6 +533,10 @@ bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
 int av1_get_ccso_context(const MACROBLOCKD *xd, int plane);
 #endif  // CONFIG_CCSO_IMPROVE
 
+#if CONFIG_CDEF_ENHANCEMENTS
+int av1_get_cdef_context(const MACROBLOCKD *xd);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+
 int av1_get_reference_mode_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);
 
 static INLINE aom_cdf_prob *av1_get_reference_mode_cdf(const AV1_COMMON *cm,

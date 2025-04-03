@@ -162,6 +162,10 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
     target_order_hint = nearest_ref_order_hint[0];
   }
 
+  if (abs(ref_frame_offset) > MAX_FRAME_DISTANCE) {
+    return 0;
+  }
+
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
@@ -324,6 +328,10 @@ void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm) {
 
 static void tip_temporal_scale_motion_field(AV1_COMMON *cm,
                                             const int ref_frames_offset) {
+  if (abs(ref_frames_offset) > MAX_FRAME_DISTANCE) {
+    return;
+  }
+
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);

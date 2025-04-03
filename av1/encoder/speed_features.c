@@ -639,6 +639,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.prune_starting_mv = 3;
 
     sf->winner_mode_sf.dc_blk_pred_level = 1;
+    sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
   }
 
   if (speed >= 6) {

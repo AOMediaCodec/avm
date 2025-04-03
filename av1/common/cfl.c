@@ -780,9 +780,9 @@ static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
   return cfl_get_luma_subsampling_444_hbd(tx_size);
 }
 
-static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
-                      const uint16_t *input, int input_stride, int row, int col,
-                      TX_SIZE tx_size, int filter_type) {
+void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
+               int input_stride, int row, int col, TX_SIZE tx_size,
+               int filter_type) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int tx_off_log2 = MI_SIZE_LOG2;
@@ -876,21 +876,6 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                                                recon_buf_q3);
 #endif  // CONFIG_CFL_64x64
   }
-}
-
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  int filter_type) {
-  CFL_CTX *const cfl = &xd->cfl;
-  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
-  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
-
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
-  const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
-
-  cfl_store(xd, cfl, dst, pd->dst.stride, row + row_offset, col + col_offset,
-            tx_size, filter_type);
 }
 
 #if !CONFIG_EXT_RECUR_PARTITIONS

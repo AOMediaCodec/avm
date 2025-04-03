@@ -115,19 +115,22 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEWMV,          // NEWMV
     NEWMV,          // AMVDNEWMV
     WARPMV,         // WARPMV
-    NEARMV,         // NEAR_NEARMV
-    NEARMV,         // NEAR_NEWMV
-    NEWMV,          // NEW_NEARMV
-    GLOBALMV,       // GLOBAL_GLOBALMV
-    NEWMV,          // NEW_NEWMV
-    NEWMV,          // JOINT_NEWMV
-    NEWMV,          // JOINT_AMVDNEWMV
-    NEARMV,         // NEAR_NEARMV_OPTFLOW
-    NEARMV,         // NEAR_NEWMV_OPTFLOW
-    NEWMV,          // NEW_NEARMV_OPTFLOW
-    NEWMV,          // NEW_NEWMV_OPTFLOW
-    NEWMV,          // JOINT_NEWMV_OPTFLOW
-    NEWMV,          // JOINT_AMVDNEWMV_OPTFLOW
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    WARP_NEWMV,  // WARP_NEWMV
+#endif           // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    NEARMV,      // NEAR_NEARMV
+    NEARMV,      // NEAR_NEWMV
+    NEWMV,       // NEW_NEARMV
+    GLOBALMV,    // GLOBAL_GLOBALMV
+    NEWMV,       // NEW_NEWMV
+    NEWMV,       // JOINT_NEWMV
+    NEWMV,       // JOINT_AMVDNEWMV
+    NEARMV,      // NEAR_NEARMV_OPTFLOW
+    NEARMV,      // NEAR_NEWMV_OPTFLOW
+    NEWMV,       // NEW_NEARMV_OPTFLOW
+    NEWMV,       // NEW_NEWMV_OPTFLOW
+    NEWMV,       // JOINT_NEWMV_OPTFLOW
+    NEWMV,       // JOINT_AMVDNEWMV_OPTFLOW
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -154,6 +157,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEWMV
     MB_MODE_COUNT,  // AMVDNEWMV
     MB_MODE_COUNT,  // WARPMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    MB_MODE_COUNT,  // WARP_NEWMV
+#endif              // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     NEARMV,         // NEAR_NEARMV
     NEWMV,          // NEAR_NEWMV
     NEARMV,         // NEW_NEARMV
@@ -192,8 +198,11 @@ static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
 }
 
 static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
-  return mode == NEWMV || mode == AMVDNEWMV || mode == NEW_NEWMV_OPTFLOW ||
-         mode == NEW_NEWMV;
+  return mode == NEWMV || mode == AMVDNEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+         mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+         mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEWMV;
 }
 
 // return whether current mode is joint AMVD coding mode
@@ -235,6 +244,9 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
 
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mode == AMVDNEWMV || is_joint_mvd_coding_mode(mode) ||
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
           mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEARMV);
@@ -4436,6 +4448,9 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
   if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame)
@@ -4524,6 +4539,9 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
 static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
                                         mi_col) &&
@@ -4678,7 +4696,11 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+static AOM_INLINE PARTITION_TREE *get_partition_subtree_const(
+#else
 static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const PARTITION_TREE *partition_tree, int idx) {
   if (!partition_tree) {
     return NULL;

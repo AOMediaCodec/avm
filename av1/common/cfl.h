@@ -187,8 +187,9 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  int filter_type);
+void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
+               int input_stride, int row, int col, TX_SIZE tx_size,
+               int filter_type);
 
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,

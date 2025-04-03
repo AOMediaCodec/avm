@@ -572,10 +572,10 @@ static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
   den = AOMMIN(den, MAX_FRAME_DISTANCE);
   num = num > 0 ? AOMMIN(num, MAX_FRAME_DISTANCE)
                 : AOMMAX(num, -MAX_FRAME_DISTANCE);
-  const int mv_row =
-      ROUND_POWER_OF_TWO_SIGNED(ref.row * num * div_mult[den], 14);
-  const int mv_col =
-      ROUND_POWER_OF_TWO_SIGNED(ref.col * num * div_mult[den], 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * num * div_mult[den];
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * num * div_mult[den];
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);
@@ -946,7 +946,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                + bottom_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                                ) * SCALE_PX_TO_MV +
-                              dv.row;
+                              dv.row
+#if CONFIG_IBC_SUBPEL_PRECISION
+                              - has_row_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_bottom_edge = tile->mi_row_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_bottom_edge > tile_bottom_edge) return 0;
   const int src_right_edge = (mi_col * MI_SIZE + bw
@@ -954,7 +958,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                               + right_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                               ) * SCALE_PX_TO_MV +
-                             dv.col;
+                             dv.col
+#if CONFIG_IBC_SUBPEL_PRECISION
+                             - has_col_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_right_edge > tile_right_edge) return 0;
 
@@ -1216,6 +1224,22 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+static INLINE int av1_get_warp_causal_ctx(const MACROBLOCKD *xd) {
+  int ctx = 0;
+  int has_warp_neighbor = 0;
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+    if (neighbor != NULL && is_warp_mode(neighbor->motion_mode)) {
+      has_warp_neighbor = 1;
+      ctx += (neighbor->motion_mode == WARPED_CAUSAL);
+    }
+  }
+
+  return (ctx + has_warp_neighbor);
+}
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
@@ -1237,7 +1261,11 @@ static INLINE int av1_get_warp_extend_ctx1(const MACROBLOCKD *xd,
   if (mbmi->mode == NEARMV) {
     return 0;
   } else {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    assert(mbmi->mode == WARP_NEWMV);
+#else
     assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const TileInfo *const tile = &xd->tile;
     const POSITION mi_pos = { xd->height - 1, -1 };
     if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
@@ -1265,7 +1293,11 @@ static INLINE int av1_get_warp_extend_ctx2(const MACROBLOCKD *xd,
   if (mbmi->mode == NEARMV) {
     return 0;
   } else {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    assert(mbmi->mode == WARP_NEWMV);
+#else
     assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const TileInfo *const tile = &xd->tile;
     const POSITION mi_pos = { -1, xd->width - 1 };
     if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available))
@@ -1332,8 +1364,10 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
 // Temporal scaling the motion vector
 static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
                                              int scale_factor) {
-  const int mv_row = ROUND_POWER_OF_TWO_SIGNED(ref.row * scale_factor, 14);
-  const int mv_col = ROUND_POWER_OF_TWO_SIGNED(ref.col * scale_factor, 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * scale_factor;
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * scale_factor;
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);

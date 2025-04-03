@@ -2569,6 +2569,10 @@ static AOM_INLINE void add_tmvp_candidate(
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
+  if (cm->features.allow_ref_frame_mvs == 0 ||
+      cm->seq_params.order_hint_info.enable_order_hint == 0)
+    return 0;
+
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
   if (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
@@ -4357,6 +4361,10 @@ static int motion_field_projection_start_target(
 
   int ref_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
+
+  if (abs(ref_frame_offset) > MAX_FRAME_DISTANCE) {
+    return 0;
+  }
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -6856,7 +6864,11 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     return num_of_warp_neighbors;
   }
 
-  if (mbmi->mode == NEWMV) {
+  if (mbmi->mode == NEWMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      || mbmi->mode == WARP_NEWMV
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  ) {
     return allow_new_ext;
   } else if (mbmi->mode == NEARMV) {
     return allow_near_ext;
@@ -6945,6 +6957,9 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (is_same_ref_frame(neighbor_mi, mbmi)) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mbmi->mode == NEWMV) {
         base_pos->row = mi_pos.row;
         base_pos->col = mi_pos.col;
@@ -6962,6 +6977,9 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mvp_row_offset * xd->mi_stride + mvp_col_offset];
     if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         mbmi->mode == NEWMV) {
       base_pos->row = mvp_row_offset;
       base_pos->col = mvp_col_offset;

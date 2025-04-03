@@ -519,6 +519,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_DRL_REORDER_CONTROL
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
@@ -2271,12 +2274,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   }
 
   if (!is_stat_generation_stage(cpi) && cm->seq_params.enable_tip) {
+    setup_tip_frame_size(cpi);
     RefCntBuffer *buf = get_ref_frame_buf(cm, TIP_FRAME);
-    if (buf == NULL || (buf->buf.y_crop_width != cm->width ||
-                        buf->buf.y_crop_height != cm->height)) {
-      setup_tip_frame_size(cpi);
-      buf = get_ref_frame_buf(cm, TIP_FRAME);
-    }
+
     if (buf != NULL) {
       struct scale_factors *sf = get_ref_scale_factors(cm, TIP_FRAME);
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
@@ -2350,6 +2350,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
     // Find CDEF parameters
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
+#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+                    &cpi->td,
+#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
@@ -2365,7 +2368,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3041,6 +3046,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
                                                     int64_t *sse, int64_t *rate,
                                                     int *largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
+
   if (allow_tip_direct_output(cm)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
@@ -3347,7 +3353,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3531,6 +3539,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  loopfilter_frame(cpi, cm);
+#else
   if (!is_global_intrabc_allowed(cm)) {
     loopfilter_frame(cpi, cm);
   } else {
@@ -3539,7 +3550,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3558,7 +3571,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
 #endif  // CONFIG_CCSO_IMPROVE
   }
-
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
   compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,

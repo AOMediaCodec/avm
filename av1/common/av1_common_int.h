@@ -242,6 +242,28 @@ enum {
 } UENUM1BYTE(DRL_REORDER_TYPE);
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
+#if CONFIG_CDEF_ENHANCEMENTS
+enum {
+  /**
+   * Always disable the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_DISABLED = 0,
+  /**
+   * Always enable the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_ALWAYS_ON,
+  /**
+   * Allow to turn on or off the CDEF on the blocks with skip_txfm = 1 at
+   * the frame level
+   */
+  CDEF_ON_SKIP_TXFM_ADAPTIVE,
+  /**
+   * Types of allowing the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_TYPES,
+} UENUM1BYTE(CDEF_ON_SKIP_TXFM_TYPE);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;
@@ -428,7 +450,12 @@ typedef struct {
   int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
                                                 chroma */
-  int cdef_bits; /*!< Number of CDEF strength values in bits */
+#if CONFIG_CDEF_ENHANCEMENTS
+  int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
+                                         skip_txfm = 1 */
+#else
+  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
 #endif                   // CONFIG_FIX_CDEF_SYNTAX
@@ -622,12 +649,17 @@ typedef struct SequenceHeader {
                                // 1 - DRL reorder with constraints
                                // 2 - Always reorder DRL
 #endif                         // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
+  // 1 - CDEF on skip_txfm = 1 is always on
+  // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t enable_avg_cdf;  // enable CDF averaging
   uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization
                            // 1 - Tile averaging for CDF initialization
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  uint8_t enable_tiles_cdfs_avg;   // To turn on/off tiles cdfs average
+  uint8_t enable_tiles_cdfs_avg;  // To turn on/off tiles cdfs average
 #endif                               // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
@@ -3237,10 +3269,25 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
 }
 
 static INLINE int check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     TREE_TYPE tree_type, PARTITION_TYPE partition, BLOCK_SIZE bsize, int mi_row,
     int mi_col, int ss_x, int ss_y,
     const CHROMA_REF_INFO *parent_chroma_ref_info) {
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
+  bool sdp_tree_type = ((tree_type == LUMA_PART) ||
+                        (intra_sdp_enabled && tree_type == SHARED_PART));
+  // After interleave luma and chroma at 64X64
+  // tree type will be set to SHARED_PART for blocks
+  // greater than 64x64 in key frames
+  if (sdp_tree_type) {
+#else
   if (tree_type == LUMA_PART) {
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     // If we handling luma tree and the current luma tree is decoupled from
     // chroma tree, we don't need to concern with chroma bsize. But if they are
     // still coupled, then we need to make sure the corresponding chroma bsize
@@ -3459,15 +3506,23 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const RECT_PART_TYPE implied_rect_type =
       rect_type_implied_by_bsize(bsize, tree_type);
 
-  const int is_horz_size_valid =
-      is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_horz_size_valid = is_partition_valid(bsize, PARTITION_HORZ) &&
+                                 implied_rect_type != VERT &&
+                                 check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                     cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                     tree_type, PARTITION_HORZ, bsize, mi_row,
+                                     mi_col, ss_x, ss_y, chroma_ref_info);
 
-  const int is_vert_size_valid =
-      is_partition_valid(bsize, PARTITION_VERT) && implied_rect_type != HORZ &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_vert_size_valid = is_partition_valid(bsize, PARTITION_VERT) &&
+                                 implied_rect_type != HORZ &&
+                                 check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                     cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                     tree_type, PARTITION_VERT, bsize, mi_row,
+                                     mi_col, ss_x, ss_y, chroma_ref_info);
 
   const bool is_block_splittable = is_partition_point(bsize);
   partition_allowed[PARTITION_NONE] =
@@ -3501,8 +3556,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != VERT &&
       is_ext_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_3, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_3, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_3, ss_x, ss_y)
@@ -3514,8 +3573,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != HORZ &&
       is_ext_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_3, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_3, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_3, ss_x, ss_y)
@@ -3529,8 +3592,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_4A, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4A, ss_x,
                                     ss_y);
@@ -3540,8 +3607,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_4B, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4B, ss_x,
                                     ss_y);
@@ -3551,8 +3622,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_4A, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4A, ss_x,
                                     ss_y);
@@ -3562,8 +3637,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_4B, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4B, ss_x,
                                     ss_y);
@@ -4654,7 +4733,7 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
-
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT
   return frame_is_intra_only(cm) && cm->features.allow_intrabc &&
@@ -4663,6 +4742,7 @@ static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
   return cm->features.allow_intrabc;
 #endif
 }
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 /*!\endcond */
 
 static inline int is_this_mv_precision_compliant(
@@ -4713,6 +4793,25 @@ static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
 }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
+                                        const MACROBLOCKD *xd,
+                                        const MB_MODE_INFO *mbmi,
+                                        const BLOCK_SIZE bsize) {
+  const int allow_warped_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_motion_variation_allowed_compound(mbmi) &&
+      is_inter_ref_frame(mbmi->ref_frame[0]) &&
+      !is_tip_ref_frame(mbmi->ref_frame[0]) &&
+#if !CONFIG_ACROSS_SCALE_WARP
+      !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
+      !xd->cur_frame_force_integer_mv;
+
+  return allow_warped_motion;
+}
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
                                       const CANDIDATE_MV *ref_mv_stack,
@@ -4735,6 +4834,36 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     }
     return (allowed_motion_mode_warpmv & enabled_motion_modes);
   }
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
+    int allowed_motion_modes = 0;
+
+    if (
+#if CONFIG_COMPOUND_WARP_CAUSAL
+        mbmi->num_proj_ref[0] >= 1
+#else
+        mbmi->num_proj_ref >= 1
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+    ) {
+      allowed_motion_modes |= (1 << WARPED_CAUSAL);
+    }
+
+    if (allow_extend_nb(cm, xd, mbmi, NULL)) {
+      allowed_motion_modes |= (1 << WARP_EXTEND);
+    }
+
+    bool warp_delta_allowed =
+        AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >=
+        MIN_BSIZE_WARP_DELTA;
+
+    if (warp_delta_allowed) {
+      allowed_motion_modes |= (1 << WARP_DELTA);
+    }
+
+    return (allowed_motion_modes & enabled_motion_modes);
+  }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
     return (1 << SIMPLE_TRANSLATION);
@@ -4794,6 +4923,26 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     allowed_motion_modes |= (1 << OBMC_CAUSAL);
   }
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  const int allow_compound_warp_causal_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      mbmi->mode == NEW_NEWMV &&
+#if !CONFIG_ACROSS_SCALE_WARP
+      !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
+      !xd->cur_frame_force_integer_mv &&
+      is_compound_warp_causal_allowed(cm,
+#if CONFIG_COMPOUND_4XN
+                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                      mbmi) &&
+      mbmi->num_proj_ref[0] >= 1 && mbmi->num_proj_ref[1] >= 1;
+  if (allow_compound_warp_causal_motion) {
+    allowed_motion_modes |= (1 << WARPED_CAUSAL);
+  }
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#else
   // From here on, all modes are warped, so have some common criteria:
   const int allow_warped_motion =
       motion_variation_allowed &&
@@ -4849,6 +4998,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   if (warp_delta_allowed) {
     allowed_motion_modes |= (1 << WARP_DELTA);
   }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   return (allowed_motion_modes & enabled_motion_modes);
 }

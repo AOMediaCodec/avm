@@ -940,6 +940,10 @@ typedef struct {
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
+  int enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if cdf average (frame or tile) should be enabled for
   // initialization.
@@ -1374,6 +1378,9 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  unsigned int is_warpmv_or_warp_newmv_cnt[2];
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   unsigned int cfl_sign[CFL_JOINT_SIGNS];
   unsigned int cfl_alpha[CFL_ALPHA_CONTEXTS][CFL_ALPHABET_SIZE];
@@ -1628,11 +1635,15 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int obmc[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  unsigned int warped_causal[WARP_CAUSAL_MODE_CTX][2];
+#else
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   unsigned int warped_causal[2];
 #else
   unsigned int warped_causal[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warped_causal_warpmv[CDF_SIZE(2)];
 #else
@@ -1643,11 +1654,13 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int warpmv_with_mvd_flag[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warp_delta[2];
 #else
   unsigned int warp_delta[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int warp_delta_param[2][WARP_DELTA_NUMSYMBOLS_LOW];
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int warp_extend[WARP_EXTEND_CTX][2];
@@ -1733,6 +1746,10 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_CCSO_IMPROVE
   unsigned int default_ccso_cnts[3][CCSO_CONTEXT][2];
 #endif
+#if CONFIG_CDEF_ENHANCEMENTS
+  unsigned int cdef_strength_index0_cnts[CDEF_STRENGTH_INDEX0_CTX][2];
+  unsigned int cdef_cnts[CDEF_STRENGTHS_NUM - 1][CDEF_STRENGTHS_NUM];
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
 #if CONFIG_INTRA_TX_IST_PARSE

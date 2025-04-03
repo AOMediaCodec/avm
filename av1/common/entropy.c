@@ -206,6 +206,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->inter_single_mode_cdf, INTER_SINGLE_MODES);
   RESET_CDF_COUNTER(fc->inter_warp_mode_cdf, 2);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  RESET_CDF_COUNTER(fc->is_warpmv_or_warp_newmv_cdf, 2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
@@ -252,7 +255,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);
@@ -389,6 +394,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     RESET_CDF_COUNTER(fc->ccso_cdf[plane], 2);
   }
 #endif  // CONFIG_CCSO_IMPROVE
+#if CONFIG_CDEF_ENHANCEMENTS
+  RESET_CDF_COUNTER(fc->cdef_strength_index0_cdf, 2);
+  for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
+    RESET_CDF_COUNTER_STRIDE(fc->cdef_cdf[j], j + 2,
+                             CDF_SIZE(CDEF_STRENGTHS_NUM));
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);

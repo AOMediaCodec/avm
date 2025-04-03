@@ -377,8 +377,14 @@ static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
 #endif                                         // CONFIG_SIX_PARAM_WARP_DELTA
       (mbmi->warp_ref_idx == 1);               // 4-parameter
 
-  return (mbmi->mode != WARPMV && cm->features.allow_warpmv_mode &&
-          mbmi->motion_mode == WARP_DELTA && allow_delta_for_this_warp_ref_idx);
+  return (
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mbmi->mode == WARP_NEWMV &&
+#else
+      mbmi->mode != WARPMV &&
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      cm->features.allow_warpmv_mode && mbmi->motion_mode == WARP_DELTA &&
+      allow_delta_for_this_warp_ref_idx);
 }
 
 // Map the index to weighting factor for compound weighted prediction
@@ -1042,28 +1048,27 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 
+#if !CONFIG_ACROSS_SCALE_REFINEMV
+  // If one of the reference frame is different resolution than the current
+  // frame, refinemv is disabled.
+  const struct scale_factors *const sf0 =
+      is_tip ? cm->tip_ref.ref_scale_factor[0]
+             : get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+  const struct scale_factors *const sf1 =
+      is_tip ? cm->tip_ref.ref_scale_factor[1]
+             : get_ref_scale_factors_const(cm, mbmi->ref_frame[1]);
+  if (av1_is_scaled(sf0) || av1_is_scaled(sf1)) {
+    return 0;
+  }
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+
   if (is_tip) {
     d0 = cm->tip_ref.ref_offset[0];
     d1 = cm->tip_ref.ref_offset[1];
-#if !CONFIG_ACROSS_SCALE_REFINEMV
-    const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
-    const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
-    if (av1_is_scaled(sf0) || av1_is_scaled(sf1)) {
-      return 0;
-    }
-#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
   } else {
     if (!has_second_ref(mbmi)) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-
-#if !CONFIG_ACROSS_SCALE_REFINEMV
-    // If one of the reference frame is different resolution than the current
-    // frame, refinemv is disabled.
-    if (ref0->width != cm->width || ref0->height != cm->height ||
-        ref1->width != cm->width || ref1->height != cm->height)
-      return 0;
-#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref0->display_order_hint);
@@ -1620,9 +1625,12 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
     }
     if (drl_idx > 0) return 0;
   }
-  return (mbmi->mode == NEWMV || mbmi->mode == JOINT_NEWMV ||
-          mbmi->mode == JOINT_NEWMV_OPTFLOW || mbmi->mode == NEW_NEWMV ||
-          mbmi->mode == NEW_NEWMV_OPTFLOW);
+  return (mbmi->mode == NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW ||
+          mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW);
 }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 

@@ -132,9 +132,22 @@ static AOM_INLINE void write_inter_mode(
 
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
+    aom_write_symbol(w, is_warpmv_or_warp_newmv,
+                     ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2);
+    if (is_warpmv_or_warp_newmv) {
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+        aom_write_symbol(w, mode == WARPMV, ec_ctx->is_warpmv_or_warp_newmv_cdf,
+                         2);
+      }
+      return;
+    }
+#else
     aom_write_symbol(w, mode == WARPMV,
                      ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2);
     if (mode == WARPMV) return;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   } else {
     assert(mode != WARPMV);
   }
@@ -791,6 +804,53 @@ static AOM_INLINE void write_motion_mode(
     return;
   }
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
+    if (!((allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
+          (allowed_motion_modes & (1 << WARP_DELTA))))
+      return;
+
+    if (allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+      const int ctx = av1_get_warp_extend_ctx(xd);
+      aom_write_symbol(w, motion_mode == WARP_EXTEND,
+                       xd->tile_ctx->warp_extend_cdf[ctx], 2);
+#else
+      const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+      const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
+      aom_write_symbol(w, motion_mode == WARP_EXTEND,
+                       xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+      if (motion_mode == WARP_EXTEND) {
+        return;
+      }
+    }
+
+    if (!(allowed_motion_modes & (1 << WARP_DELTA))) return;
+
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      const int ctx = av1_get_warp_causal_ctx(xd);
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+                       xd->tile_ctx->warped_causal_cdf[ctx], 2);
+#else
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+                       xd->tile_ctx->warped_causal_cdf,
+#else
+                       xd->tile_ctx->warped_causal_cdf[bsize],
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+                       2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      if (motion_mode == WARPED_CAUSAL) {
+        return;
+      }
+    }
+
+    return;
+  }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
   if (allowed_motion_modes & (1 << INTERINTRA)) {
     const int bsize_group = size_group_lookup[bsize];
     aom_write_symbol(w, motion_mode == INTERINTRA,
@@ -835,6 +895,7 @@ static AOM_INLINE void write_motion_mode(
     }
   }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
     const int ctx = av1_get_warp_extend_ctx(xd);
@@ -850,8 +911,14 @@ static AOM_INLINE void write_motion_mode(
       return;
     }
   }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const int ctx = av1_get_warp_causal_ctx(xd);
+    aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+                     xd->tile_ctx->warped_causal_cdf[ctx], 2);
+#else
     aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
                      xd->tile_ctx->warped_causal_cdf,
@@ -859,12 +926,14 @@ static AOM_INLINE void write_motion_mode(
                      xd->tile_ctx->warped_causal_cdf[bsize],
 #endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
                      2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
     if (motion_mode == WARPED_CAUSAL) {
       return;
     }
   }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_DELTA)) {
     aom_write_symbol(w, motion_mode == WARP_DELTA,
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -874,6 +943,7 @@ static AOM_INLINE void write_motion_mode(
 #endif  // CONFIG_D149_CTX_MODELING_OPT
                      2);
   }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 }
 
 static AOM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
@@ -1909,15 +1979,25 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
 
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w, int skip) {
-  if (cm->features.coded_lossless || is_global_intrabc_allowed(cm)) return;
+  if (cm->features.coded_lossless
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      || is_global_intrabc_allowed(cm)
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  )
+    return;
 #if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
+
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
   // At the start of a superblock, mark that we haven't yet written CDEF
   // strengths for any of the CDEF units contained in this superblock.
   const int sb_mask = (cm->mib_size - 1);
-  const int mi_row_in_sb = (xd->mi_row & sb_mask);
-  const int mi_col_in_sb = (xd->mi_col & sb_mask);
+  const int mi_row_in_sb = (mi_row & sb_mask);
+  const int mi_col_in_sb = (mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
     av1_zero(xd->cdef_transmitted);
   }
@@ -1926,19 +2006,39 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
   const int cdef_size = 1 << (6 - MI_SIZE_LOG2);
 
   // Find index of this CDEF unit in this superblock.
-  const int index = av1_get_cdef_transmitted_index(xd->mi_row, xd->mi_col);
+  const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
 
   // Write CDEF strength to the first non-skip coding block in this CDEF unit.
-  if (!xd->cdef_transmitted[index] && !skip) {
+  if (!xd->cdef_transmitted[index] &&
+#if CONFIG_CDEF_ENHANCEMENTS
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip)
+#else
+      !skip
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  ) {
     // CDEF strength for this CDEF unit needs to be stored in the MB_MODE_INFO
     // of the 1st block in this CDEF unit.
     const int first_block_mask = ~(cdef_size - 1);
-    const CommonModeInfoParams *const mi_params = &cm->mi_params;
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, xd->mi_row & first_block_mask,
-                        xd->mi_col & first_block_mask);
+    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
+                                         mi_col & first_block_mask);
     const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+#if CONFIG_CDEF_ENHANCEMENTS
+    if (cm->cdef_info.nb_cdef_strengths > 1) {
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int is_strength_index0 = mbmi->cdef_strength == 0;
+      aom_write_symbol(
+          w, is_strength_index0,
+          xd->tile_ctx->cdef_strength_index0_cdf[cdef_strength_index0_ctx], 2);
+      const int nb_cdef_strengths = cm->cdef_info.nb_cdef_strengths;
+      if (!is_strength_index0 && nb_cdef_strengths > 2) {
+        aom_write_symbol(w, mbmi->cdef_strength - 1,
+                         xd->tile_ctx->cdef_cdf[nb_cdef_strengths - 3],
+                         nb_cdef_strengths - 1);
+      }
+    }
+#else
     aom_write_literal(w, mbmi->cdef_strength, cm->cdef_info.cdef_bits);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
   }
 }
@@ -1946,7 +2046,9 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w) {
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -2285,7 +2387,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
         write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     }
   }
-
   // Palette.
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
     write_palette_mode_info(cm, xd, mbmi, w);
@@ -3517,6 +3618,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->sb_type[plane], plane, xd, NULL, NULL,
                                &rows, &cols);
       assert(*tok < tok_end);
+
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
       const struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -3583,7 +3685,12 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     write_tokens_b(cpi, w, tok, tok_end);
-  } else if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
+  } else if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !is_global_intrabc_allowed(cm) &&
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      !cm->features.coded_lossless) {
+
     // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }
@@ -3748,9 +3855,16 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 static AOM_INLINE void write_modes_sb(
     AV1_COMP *const cpi, const TileInfo *const tile, aom_writer *const w,
     const TokenExtra **tok, const TokenExtra *const tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    const TokenExtra **tok_chroma, const TokenExtra *const tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    PARTITION_TREE *ptree_luma,
+#else
     const PARTITION_TREE *ptree_luma,
+#endif  //  CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
   AV1_COMMON *cm = &cpi->common;
@@ -3772,6 +3886,39 @@ static AOM_INLINE void write_modes_sb(
   if (subsize == BLOCK_INVALID) return;
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp);
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp && bsize == BLOCK_64X64)
+          ? 2
+          : 1;
+  if (total_loop_num == 2 && xd->tree_type == SHARED_PART) {
+    xd->tree_type = LUMA_PART;
+    write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                   tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                   ptree, ptree_luma, mi_row, mi_col, bsize);
+    xd->tree_type = CHROMA_PART;
+    assert(ptree_luma);
+
+    write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                   tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                   ptree_luma,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                   ptree,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                   mi_row, mi_col, bsize);
+    xd->tree_type = SHARED_PART;
+    return;
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end =
@@ -3803,12 +3950,14 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_EXT_RECUR_PARTITIONS
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
                   w);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
   const int track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
   if (!track_ptree_luma) {
     ptree_luma = NULL;
   }
   assert(IMPLIES(track_ptree_luma, ptree_luma));
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3829,17 +3978,36 @@ static AOM_INLINE void write_modes_sb(
     }
   }
 #endif  // CONFIG_EXTENDED_SDP
+
   switch (partition) {
     case PARTITION_NONE:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(
+          cpi, tile, w,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma
+                                                              : tok,
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
+                                                              : tok_end,
+#else
+          tok, tok_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          mi_row, mi_col);
       break;
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + hbs_h < mi_params->mi_rows) {
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[1],
                        get_partition_subtree_const(ptree_luma, 1),
                        mi_row + hbs_h, mi_col, subsize);
       }
@@ -3851,11 +4019,19 @@ static AOM_INLINE void write_modes_sb(
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + hbs_w < mi_params->mi_cols) {
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[1],
                        get_partition_subtree_const(ptree_luma, 1), mi_row,
                        mi_col + hbs_w, subsize);
       }
@@ -3870,19 +4046,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
                      mi_col, bsize_med);
       if (mi_row + 3 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2),
                      mi_row + 3 * ebs_h, mi_col, bsize_big);
       if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3),
                      mi_row + 7 * ebs_h, mi_col, subsize);
       break;
@@ -3891,19 +4083,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_row + ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
                      mi_col, bsize_big);
       if (mi_row + 5 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2),
                      mi_row + 5 * ebs_h, mi_col, bsize_med);
       if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3),
                      mi_row + 7 * ebs_h, mi_col, subsize);
       break;
@@ -3912,19 +4120,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + ebs_w, bsize_med);
       if (mi_col + 3 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row,
                      mi_col + 3 * ebs_w, bsize_big);
       if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row,
                      mi_col + 7 * ebs_w, subsize);
       break;
@@ -3933,19 +4157,35 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
       if (mi_col + ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + ebs_w, bsize_big);
       if (mi_col + 5 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row,
                      mi_col + 5 * ebs_w, bsize_med);
       if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row,
                      mi_col + 7 * ebs_w, subsize);
       break;
@@ -3968,22 +4208,42 @@ static AOM_INLINE void write_modes_sb(
           if (this_mi_col >= cm->mi_params.mi_cols) break;
         }
 
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[i],
+        write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                       tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                       ptree->sub_tree[i],
                        get_partition_subtree_const(ptree_luma, i), this_mi_row,
                        this_mi_col, this_bsize);
       }
       break;
     case PARTITION_SPLIT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[1],
                      get_partition_subtree_const(ptree_luma, 1), mi_row,
                      mi_col + hbs_w, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[2],
                      get_partition_subtree_const(ptree_luma, 2), mi_row + hbs_h,
                      mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+      write_modes_sb(cpi, tile, w, tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     tok_chroma, tok_chroma_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                     ptree->sub_tree[3],
                      get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
                      mi_col + hbs_w, subsize);
       break;
@@ -4041,7 +4301,16 @@ static AOM_INLINE void write_modes_sb(
       ptree->region_type == INTRA_REGION) {
     // run chroma part in luma region
     xd->tree_type = CHROMA_PART;
-    write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+    write_modes_b(
+        cpi, tile, w,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma : tok,
+        (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
+                                                            : tok_end,
+#else
+        tok, tok_end,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+        mi_row, mi_col);
     // reset back to shared part
     xd->tree_type = SHARED_PART;
   }
@@ -4049,6 +4318,13 @@ static AOM_INLINE void write_modes_sb(
 
   // update partition context
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  if (intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+    xd->tree_type = CHROMA_PART;
+    update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
+    xd->tree_type = SHARED_PART;
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 }
 
 static AOM_INLINE void write_modes(AV1_COMP *const cpi,
@@ -4076,11 +4352,24 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
     const int sb_row_in_tile =
         (mi_row - tile->mi_row_start) >> cm->mib_size_log2;
+
     const TokenExtra *tok =
         cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].start;
     const TokenExtra *tok_end =
         tok + cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].count;
 
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+
+    const TokenExtra *tok_chroma =
+        cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].start_chroma;
+    const TokenExtra *tok_end_chroma =
+        tok_chroma +
+        cpi->token_info.tplist[tile_row][tile_col][sb_row_in_tile].count_chroma;
+    const int intra_sdp_enabled =
+        (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+         cm->seq_params.enable_sdp);
+    if (intra_sdp_enabled) assert(tok_end < tok_chroma);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     av1_zero_left_context(xd);
 
     for (int mi_col = mi_col_start; mi_col < mi_col_end;
@@ -4088,18 +4377,31 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
       av1_reset_is_mi_coded_map(xd, cm->mib_size);
       xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+      xd->tree_type = SHARED_PART;
+#else
       const int total_loop_num =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
            cm->seq_params.enable_sdp)
               ? 2
               : 1;
       xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
       write_modes_sb(cpi, tile, w, &tok, tok_end,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     &tok_chroma, tok_end_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
                      xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     (intra_sdp_enabled ? xd->sbi->ptree_root[1] : NULL),
+#else
                      NULL,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                      mi_row, mi_col, cm->sb_size);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
       if (total_loop_num == 2) {
         xd->tree_type = CHROMA_PART;
         write_modes_sb(cpi, tile, w, &tok, tok_end,
@@ -4110,7 +4412,11 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
                        mi_row, mi_col, cm->sb_size);
         xd->tree_type = SHARED_PART;
       }
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
     }
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    assert(tok_chroma == tok_end_chroma);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     assert(tok == tok_end);
   }
 }
@@ -4145,7 +4451,9 @@ static AOM_INLINE void encode_restoration_mode(
     AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   assert(!cm->features.all_lossless);
   if (!cm->seq_params.enable_restoration) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const int num_planes = av1_num_planes(cm);
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
@@ -4782,7 +5090,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
 
@@ -4898,21 +5208,50 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
   if (!cm->seq_params.enable_cdef) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  const CdefInfo *const cdef_info = &cm->cdef_info;
 #if CONFIG_FIX_CDEF_SYNTAX
-  aom_wb_write_bit(wb, cm->cdef_info.cdef_frame_enable);
-  if (!cm->cdef_info.cdef_frame_enable) return;
+  aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
+  if (!cdef_info->cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   const int num_planes = av1_num_planes(cm);
   int i;
-  aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
-  aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
-  for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
+  aom_wb_write_literal(wb, cdef_info->cdef_damping - 3, 2);
+#if CONFIG_CDEF_ENHANCEMENTS
+  aom_wb_write_literal(wb, cdef_info->nb_cdef_strengths - 1, 3);
+  if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
+    aom_wb_write_bit(wb, cdef_info->cdef_on_skip_txfm_frame_enable);
+  }
+#else
+  aom_wb_write_literal(wb, cdef_info->cdef_bits, 2);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+  for (i = 0; i < cdef_info->nb_cdef_strengths; i++) {
+#if CONFIG_CDEF_ENHANCEMENTS
+    aom_wb_write_bit(wb, cdef_info->cdef_strengths[i] < 4);
+    if (cdef_info->cdef_strengths[i] < 4) {
+      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i], 2);
+    } else {
+      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i],
+                           CDEF_STRENGTH_BITS);
+    }
+    if (num_planes > 1) {
+      aom_wb_write_bit(wb, cdef_info->cdef_uv_strengths[i] < 4);
+      if (cdef_info->cdef_uv_strengths[i] < 4) {
+        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i], 2);
+      } else {
+        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i],
+                             CDEF_STRENGTH_BITS);
+      }
+    }
+#else
     aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
                          CDEF_STRENGTH_BITS);
     if (num_planes > 1)
       aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
                            CDEF_STRENGTH_BITS);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   }
 }
 
@@ -4926,7 +5265,9 @@ static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
 }
 static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_CCSO_IMPROVE
   const int ccso_scale[4] = { 1, 2, 3, 4 };
@@ -5739,6 +6080,15 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
                      seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  const int is_cdef_on_skip_txfm_always_on =
+      (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
+  aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);
+  if (!is_cdef_on_skip_txfm_always_on) {
+    aom_wb_write_bit(
+        wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
   if (seq_params->enable_avg_cdf) {
@@ -6537,7 +6887,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
     write_tile_info(cm, saved_wb, wb);
 #endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     if (seq_params->film_grain_params_present &&
-        (cm->show_frame || cm->showable_frame))
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+         cm->showable_frame))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+          (cm->show_frame || cm->showable_frame))
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       write_film_grain_params(cpi, wb);
     return;
   }
@@ -6580,9 +6935,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (delta_q_info->delta_q_present_flag) {
       aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
       xd->current_base_qindex = quant_params->base_qindex;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       if (is_global_intrabc_allowed(cm))
         assert(delta_q_info->delta_lf_present_flag == 0);
       else
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
         aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
       if (delta_q_info->delta_lf_present_flag) {
         aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2);
@@ -6648,7 +7005,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame))
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+      (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+       cm->showable_frame))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        (cm->show_frame || cm->showable_frame))
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     write_film_grain_params(cpi, wb);
 
   if (cm->tiles.large_scale) write_ext_tile_info(cm, saved_wb, wb);
