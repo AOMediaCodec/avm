@@ -553,8 +553,8 @@ void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
   uint8_t next_mid_mag[32 + 8][TCQ_MAX_STATES];
   uint8_t(*next_base)[TCQ_MAX_STATES] = &next_base_mag[4];
   uint8_t(*next_mid)[TCQ_MAX_STATES] = &next_mid_mag[4];
-  uint8_t(*mag_base)[TCQ_MAX_STATES] = &tcq_ctx->mag_base[2];
-  uint8_t(*mag_mid)[TCQ_MAX_STATES] = &tcq_ctx->mag_mid[2];
+  uint8_t(*mag_base)[TCQ_MAX_STATES] = &tcq_ctx->mag_base[4];
+  uint8_t(*mag_mid)[TCQ_MAX_STATES] = &tcq_ctx->mag_mid[4];
 
   int idx_start = col;
   int idx_end = 1 << bwl;
@@ -573,6 +573,8 @@ void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
       }
     }
   }
+  memset(next_base_mag, 0, sizeof(next_base_mag[0]) * 4);
+  memset(next_mid_mag, 0, sizeof(next_mid_mag[0]) * 4);
   memset(tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
   memset(tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
   int diag = row + col;
