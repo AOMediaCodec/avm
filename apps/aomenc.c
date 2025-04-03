@@ -274,6 +274,9 @@ const arg_def_t *global_args[] = {
 #if CONFIG_WEBM_IO
   &g_av1_codec_arg_defs.stereo_mode,
 #endif
+#if CONFIG_MULTIVIEW_CORE
+  &g_av1_codec_arg_defs.num_views,
+#endif
   &g_av1_codec_arg_defs.timebase,
   &g_av1_codec_arg_defs.framerate,
   &g_av1_codec_arg_defs.global_error_resilient,
@@ -802,6 +805,9 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   global->csp = AOM_CSP_UNKNOWN;
   global->show_psnr = 0;
   global->step_frames = 1;
+#if CONFIG_MULTIVIEW_CORE
+  global->num_views = 1;
+#endif
 
   int cfg_included = 0;
   init_config(&global->encoder_config);
@@ -864,6 +870,10 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
         global->show_psnr = arg_parse_int(&arg);
       else
         global->show_psnr = 2;
+#if CONFIG_MULTIVIEW_CORE
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.num_views, argi)) {
+      global->num_views = arg_parse_uint(&arg);
+#endif
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.recontest, argi)) {
       global->test_decode = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.framerate, argi)) {
@@ -905,6 +915,57 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
 
 static void open_input_file(struct AvxInputContext *input,
                             aom_chroma_sample_position_t csp) {
+#if CONFIG_MULTIVIEW_CORE
+  for (int i = 0; i < input->num_views; i++) {
+    /* Parse certain options from the input file, if possible */
+    input->file[i] = strcmp(input->filename[i], "-")
+                         ? fopen(input->filename[i], "rb")
+                         : set_binary_mode(stdin);
+
+    if (!input->file[i]) fatal("Failed to open input file");
+
+    if (!fseeko(input->file[i], 0, SEEK_END)) {
+      /* Input file is seekable. Figure out how long it is, so we can get
+       * progress info.
+       */
+      input->length = ftello(input->file[i]);
+      rewind(input->file[i]);
+    }
+
+    /* Default to 1:1 pixel aspect ratio. */
+    input->pixel_aspect_ratio.numerator = 1;
+    input->pixel_aspect_ratio.denominator = 1;
+
+    /* For RAW input sources, these bytes will applied on the first frame
+     *  in read_frame().
+     */
+    input->detect[i].buf_read =
+        fread(input->detect[i].buf, 1, 4, input->file[i]);
+    input->detect[i].position = 0;
+
+    if (input->detect[i].buf_read == 4 && file_is_y4m(input->detect[i].buf)) {
+      if (y4m_input_open(&input->y4m[i], input->file[i], input->detect[i].buf,
+                         4, csp, input->only_i420) >= 0) {
+        input->file_type[i] = FILE_TYPE_Y4M;
+        input->width = input->y4m[i].pic_w;
+        input->height = input->y4m[i].pic_h;
+        input->pixel_aspect_ratio.numerator = input->y4m[i].par_n;
+        input->pixel_aspect_ratio.denominator = input->y4m[i].par_d;
+        input->framerate.numerator = input->y4m[i].fps_n;
+        input->framerate.denominator = input->y4m[i].fps_d;
+        input->fmt = input->y4m[i].aom_fmt;
+        input->bit_depth = input->y4m[i].bit_depth;
+        input->color_range = input->y4m[i].color_range;
+      } else
+        fatal("Unsupported Y4M stream.");
+    } else if (input->detect[i].buf_read == 4 &&
+               fourcc_is_ivf(input->detect[i].buf)) {
+      fatal("IVF is not supported as input.");
+    } else {
+      input->file_type[i] = FILE_TYPE_RAW;
+    }
+  }
+#else
   /* Parse certain options from the input file, if possible */
   input->file = strcmp(input->filename, "-") ? fopen(input->filename, "rb")
                                              : set_binary_mode(stdin);
@@ -949,11 +1010,19 @@ static void open_input_file(struct AvxInputContext *input,
   } else {
     input->file_type = FILE_TYPE_RAW;
   }
+#endif
 }
 
 static void close_input_file(struct AvxInputContext *input) {
+#if CONFIG_MULTIVIEW_CORE
+  for (int i = 0; i < input->num_views; i++) {
+    fclose(input->file[i]);
+    if (input->file_type[i] == FILE_TYPE_Y4M) y4m_input_close(&input->y4m[i]);
+  }
+#else
   fclose(input->file);
   if (input->file_type == FILE_TYPE_Y4M) y4m_input_close(&input->y4m);
+#endif
 }
 
 static struct stream_state *new_stream(struct AvxEncoderConfig *global,
@@ -1218,6 +1287,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 #if CONFIG_WEBM_IO
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.stereo_mode, argi)) {
       config->stereo_fmt = arg_parse_enum_or_int(&arg);
+#endif
+#if CONFIG_MULTIVIEW_CORE
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.num_views, argi)) {
+      config->cfg.g_num_views = arg_parse_uint(&arg);
 #endif
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.timebase, argi)) {
       config->cfg.g_timebase = arg_parse_rational(&arg);
@@ -1485,12 +1558,24 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Codec                          : %s\n",
           aom_codec_iface_name(global->codec));
   fprintf(stdout, "Executable                     : aomenc %s\n", ENV_BITS);
+#if CONFIG_MULTIVIEW_CORE
+  fprintf(stdout, "Number of views                : %d \n", cfg->g_num_views);
+  for (int i = 0; i < input->num_views; i++) {
+    fprintf(stdout, "Input file%2d                   : %s\n", i,
+            input->filename[i]);
+  }
+#else
   fprintf(stdout, "Input file                     : %s\n", input->filename);
+#endif
   fprintf(stdout, "Output file                    : %s\n",
           stream->config.out_fn);
   fprintf(stdout,
           "Input format                   : %s, %s, %dx%d, %3.1f FPS, %d bit\n",
+#if CONFIG_MULTIVIEW_CORE
+          file_type_to_string(input->file_type[0]),
+#else
           file_type_to_string(input->file_type),
+#endif
           image_format_to_string(input->fmt), input->width, input->height,
           (double)global->framerate.num / (double)global->framerate.den,
           input->bit_depth);
@@ -1498,6 +1583,18 @@ static void show_stream_config(struct stream_state *stream,
   print_frames_to_code(stdout, stream, global);
   fprintf(stdout, "Operating bit depth            : %d\n", cfg->g_bit_depth);
   fprintf(stdout, "Num of coding passes           : %d\n", global->passes);
+#if CONFIG_MULTIVIEW_CORE
+  fprintf(stdout, "Lag in frames                  : %d\n",
+          cfg->g_lag_in_frames / cfg->g_num_views);
+  if (cfg->kf_min_dist != cfg->kf_max_dist) {
+    fprintf(stdout, "Key frame distance           : %d - %d\n",
+            cfg->kf_min_dist / cfg->g_num_views,
+            cfg->kf_max_dist / cfg->g_num_views);
+  } else {
+    fprintf(stdout, "Key frame distance             : %d\n",
+            cfg->kf_min_dist / cfg->g_num_views);
+  }
+#else
   fprintf(stdout, "Lag in frames                  : %d\n",
           cfg->g_lag_in_frames);
   if (cfg->kf_min_dist != cfg->kf_max_dist) {
@@ -1506,6 +1603,7 @@ static void show_stream_config(struct stream_state *stream,
   } else {
     fprintf(stdout, "Key frame distance             : %d\n", cfg->kf_min_dist);
   }
+#endif
   if (encoder_cfg->superblock_size != 0) {
     fprintf(stdout, "Super block size               : %d\n",
             encoder_cfg->superblock_size);
@@ -1907,7 +2005,6 @@ static void encode_frame(struct stream_state *stream,
   aom_codec_pts_t frame_start, next_frame_start;
   struct aom_codec_enc_cfg *cfg = &stream->config.cfg;
   struct aom_usec_timer timer;
-
   frame_start =
       (cfg->g_timebase.den * (int64_t)(frames_in - 1) * global->framerate.den) /
       cfg->g_timebase.num / global->framerate.num;
@@ -2225,8 +2322,25 @@ int main(int argc, const char **argv_) {
       die("only support ivf output format while large-scale-tile=1\n");
   }
 
+#if CONFIG_MULTIVIEW_CORE
+  /* read filenames for each view */
+  input.num_views = global.num_views;
+  for (int i = 0; i < input.num_views; i++) {
+    input.filename[i] = argv[i];
+    printf("Filename inputted : %s \n", input.filename[i]);
+  }
+  FOREACH_STREAM(stream, streams) {
+    stream->config.cfg.g_num_views = input.num_views;
+    stream->config.cfg.g_lag_in_frames *= input.num_views;
+    stream->config.cfg.kf_min_dist *= input.num_views;
+    stream->config.cfg.kf_max_dist *= input.num_views;
+    if (stream->config.cfg.kf_min_dist == 1) stream->config.cfg.kf_min_dist = 0;
+    if (stream->config.cfg.kf_max_dist == 1) stream->config.cfg.kf_max_dist = 0;
+  }
+#else
   /* Handle non-option arguments */
   input.filename = argv[0];
+#endif
 
   FOREACH_STREAM(stream, streams) {
     if (stream->config.recon_fn != NULL) {
@@ -2235,10 +2349,20 @@ int main(int argc, const char **argv_) {
     }
   }
 
+#if CONFIG_MULTIVIEW_CORE
+  /* check input files for each view */
+  for (int i = 0; i < input.num_views; i++) {
+    if (!input.filename[i]) {
+      fprintf(stderr, "No input file specified!\n");
+      usage_exit();
+    }
+  }
+#else
   if (!input.filename) {
     fprintf(stderr, "No input file specified!\n");
     usage_exit();
   }
+#endif
 
   /* Decide if other chroma subsamplings than 4:2:0 are supported */
   if (get_fourcc_by_aom_encoder(global.codec) == AV1_FOURCC)
@@ -2317,6 +2441,37 @@ int main(int argc, const char **argv_) {
             }
             break;
           case 2:
+#if CONFIG_MULTIVIEW_CORE
+            for (int i = 0; i < input.num_views; i++) {
+              if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
+                                           input.fmt == AOM_IMG_FMT_I44416)) {
+                stream->config.cfg.g_profile = 1;
+                profile_updated = 1;
+              } else if (input.bit_depth < 12 &&
+                         (input.fmt == AOM_IMG_FMT_I420 ||
+                          input.fmt == AOM_IMG_FMT_I42016)) {
+                stream->config.cfg.g_profile = 0;
+                profile_updated = 1;
+              } else if (input.bit_depth == 12 &&
+                         input.file_type[i] == FILE_TYPE_Y4M) {
+                // Note that here the input file values for chroma subsampling
+                // are used instead of those from the command line.
+                AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
+                                              AV1E_SET_CHROMA_SUBSAMPLING_X,
+                                              input.y4m[i].dst_c_dec_h >> 1);
+                AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
+                                              AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                                              input.y4m[i].dst_c_dec_v >> 1);
+              } else if (input.bit_depth == 12 &&
+                         input.file_type[i] == FILE_TYPE_RAW) {
+                AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
+                                              AV1E_SET_CHROMA_SUBSAMPLING_X,
+                                              stream->chroma_subsampling_x);
+                AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
+                                              AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                                              stream->chroma_subsampling_y);
+              }
+#else
             if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
                                          input.fmt == AOM_IMG_FMT_I44416)) {
               stream->config.cfg.g_profile = 1;
@@ -2344,6 +2499,7 @@ int main(int argc, const char **argv_) {
               AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
                                             AV1E_SET_CHROMA_SUBSAMPLING_Y,
                                             stream->chroma_subsampling_y);
+#endif
             }
             break;
           default: break;
@@ -2425,6 +2581,17 @@ int main(int argc, const char **argv_) {
       stream->config.cfg.g_timebase.num = global.framerate.den;
     }
 
+#if CONFIG_MULTIVIEW_CORE
+    for (int i = 0; i < input.num_views; i++) {
+      if (input.file_type[i] == FILE_TYPE_Y4M)
+        /*The Y4M reader does its own allocation.
+         Just initialize this here to avoid problems if we never read any
+         frames.*/
+        memset(&raw, 0, sizeof(raw));
+      else
+        aom_img_alloc(&raw, input.fmt, input.width, input.height, 32);
+    }
+#else
     if (input.file_type == FILE_TYPE_Y4M)
       /*The Y4M reader does its own allocation.
         Just initialize this here to avoid problems if we never read any
@@ -2432,7 +2599,7 @@ int main(int argc, const char **argv_) {
       memset(&raw, 0, sizeof(raw));
     else
       aom_img_alloc(&raw, input.fmt, input.width, input.height, 32);
-
+#endif
     FOREACH_STREAM(stream, streams) {
       stream->rate_hist =
           init_rate_histogram(&stream->config.cfg, &global.framerate);
@@ -2458,8 +2625,14 @@ int main(int argc, const char **argv_) {
       // that test frameworks should use, when they want deterministic output
       // from the container format).
       if (stream->config.write_webm && !stream->webm_ctx.debug) {
+#if CONFIG_MULTIVIEW_CORE
+        const int i = 0;
+        encoder_settings = extract_encoder_settings(
+            aom_codec_version_str(), argv_, argc, input.filename[i]);
+#else
         encoder_settings = extract_encoder_settings(
             aom_codec_version_str(), argv_, argc, input.filename);
+#endif
         if (encoder_settings == NULL) {
           fprintf(
               stderr,
@@ -2505,8 +2678,19 @@ int main(int argc, const char **argv_) {
 
     // The limit iterator will stop returning frames after the N-th.
     StreamIter limit_stream;
+#if CONFIG_MULTIVIEW_CORE
+    int limit = global.limit * input.num_views;
+    limit_stream_iter_init(&limit_stream, &step_stream, limit);
+    int view_id = 0;
+#else
     limit_stream_iter_init(&limit_stream, &step_stream, global.limit);
+#endif
     while (frame_avail || got_data) {
+#if CONFIG_MULTIVIEW_CORE
+      view_id = seen_frames % input.num_views;
+      orig_stream.view_id = view_id;
+      limit_stream.view_id = view_id;
+#endif
       frame_avail = read_stream_iter(&limit_stream, &raw);
       if (frame_avail) {
         seen_frames++;
@@ -2528,6 +2712,9 @@ int main(int argc, const char **argv_) {
         frame_to_encode = &raw;
       }
       assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+      printf(" frame_avail:%d seen_frames=%d \n", frame_avail, seen_frames);
+#endif
       FOREACH_STREAM(stream, streams) {
         encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
                      seen_frames);

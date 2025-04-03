@@ -5904,10 +5904,10 @@ static void none_partition_search(
 #endif  // CONFIG_EXTENDED_SDP
     ) {
 #if CONFIG_EXTENDED_SDP
-      const int ref_type = av1_ref_frame_type(
+      const int16_t ref_type = av1_ref_frame_type(
           pc_tree->none[pc_tree->region_type]->mic.ref_frame);
 #else
-      const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
+      const int16_t ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
 #endif  // CONFIG_EXTENDED_SDP
       av1_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
                                         mi_row, mi_col);

@@ -71,6 +71,10 @@ typedef long FileOffset; /* NOLINT */
 
 #define AV1_FOURCC 0x31305641
 
+#if CONFIG_MULTIVIEW_CORE
+#define NUM_LAYERS_MAX 256  // maximum number of layers supported
+#endif
+
 enum VideoFileType {
   FILE_TYPE_OBU,
   FILE_TYPE_RAW,
@@ -101,11 +105,22 @@ struct AvxRational {
 };
 
 struct AvxInputContext {
+#if CONFIG_MULTIVIEW_CORE
+  const char *filename[NUM_LAYERS_MAX];
+  FILE *file[NUM_LAYERS_MAX];
+  int num_views;
+#else
   const char *filename;
   FILE *file;
+#endif
   int64_t length;
+#if CONFIG_MULTIVIEW_CORE
+  struct FileTypeDetectionBuffer detect[NUM_LAYERS_MAX];
+  enum VideoFileType file_type[NUM_LAYERS_MAX];
+#else
   struct FileTypeDetectionBuffer detect;
   enum VideoFileType file_type;
+#endif
   uint32_t width;
   uint32_t height;
   struct AvxRational pixel_aspect_ratio;
@@ -115,7 +130,11 @@ struct AvxInputContext {
   uint32_t fourcc;
   struct AvxRational framerate;
 #if CONFIG_AV1_ENCODER
+#if CONFIG_MULTIVIEW_CORE
+  y4m_input y4m[NUM_LAYERS_MAX];
+#else
   y4m_input y4m;
+#endif
 #endif
   aom_color_range_t color_range;
 };
@@ -163,7 +182,12 @@ const char *get_short_name_by_aom_decoder(aom_codec_iface_t *decoder);
 // If the interface is unknown, returns 0.
 uint32_t get_fourcc_by_aom_decoder(aom_codec_iface_t *iface);
 
+#if CONFIG_MULTIVIEW_CORE
+int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame,
+                   int view_id);
+#else
 int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame);
+#endif
 
 void aom_img_write(const aom_image_t *img, FILE *file);
 int aom_img_read(aom_image_t *img, FILE *file);

@@ -294,6 +294,11 @@ typedef struct AV1Decoder {
   size_t output_frames_offset;  // Use only for single layer
   size_t num_output_frames;     // How many frames are queued up so far?
 
+#if CONFIG_MULTIVIEW_CORE
+  int output_view_ids[REF_FRAMES];
+  int display_order_hint_ids[REF_FRAMES];
+#endif
+
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.
   // So we track whether this is the first frame or not.
@@ -438,6 +443,28 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
     }
   }
 }
+
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+static INLINE void set_ref_count_zero(RefCntBuffer *const buf,
+                                      BufferPool *const pool) {
+  if (buf != NULL) {
+    buf->ref_count = 0;
+    // Reference counts should never become negative. If this assertion fails,
+    // there is a bug in our reference count management.
+    assert(buf->ref_count >= 0);
+    // A worker may only get a free framebuffer index when calling get_free_fb.
+    // But the raw frame buffer is not set up until we finish decoding header.
+    // So if any error happens during decoding header, frame_bufs[idx] will not
+    // have a valid raw frame buffer.
+    if (buf->ref_count == 0 && buf->raw_frame_buffer.data) {
+      pool->release_fb_cb(pool->cb_priv, &buf->raw_frame_buffer);
+      buf->raw_frame_buffer.data = NULL;
+      buf->raw_frame_buffer.size = 0;
+      buf->raw_frame_buffer.priv = NULL;
+    }
+  }
+}
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // Check whether the frame is ready to output or not.

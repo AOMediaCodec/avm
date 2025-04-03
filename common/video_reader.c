@@ -42,24 +42,41 @@ AvxVideoReader *aom_video_reader_open(const char *filename) {
     return NULL;  // Can't allocate AvxVideoReader
   }
 
+#if CONFIG_MULTIVIEW_CORE
+  reader->input_ctx.filename[0] = filename;
+  reader->input_ctx.file[0] = file;
+#else
   reader->input_ctx.filename = filename;
   reader->input_ctx.file = file;
+#endif
   reader->obu_ctx.avx_ctx = &reader->input_ctx;
 
   if (file_is_ivf(&reader->input_ctx)) {
+#if CONFIG_MULTIVIEW_CORE
+    reader->input_ctx.file_type[0] = FILE_TYPE_IVF;
+#else
     reader->input_ctx.file_type = FILE_TYPE_IVF;
+#endif
     reader->info.codec_fourcc = reader->input_ctx.fourcc;
     reader->info.frame_width = reader->input_ctx.width;
     reader->info.frame_height = reader->input_ctx.height;
 #if CONFIG_WEBM_IO
   } else if (file_is_webm(&reader->webm_ctx, &reader->input_ctx)) {
+#if CONFIG_MULTIVIEW_CORE
+    reader->input_ctx.file_type[0] = FILE_TYPE_WEBM;
+#else
     reader->input_ctx.file_type = FILE_TYPE_WEBM;
+#endif
     reader->info.codec_fourcc = reader->input_ctx.fourcc;
     reader->info.frame_width = reader->input_ctx.width;
     reader->info.frame_height = reader->input_ctx.height;
 #endif
   } else if (file_is_obu(&reader->obu_ctx)) {
+#if CONFIG_MULTIVIEW_CORE
+    reader->input_ctx.file_type[0] = FILE_TYPE_OBU;
+#else
     reader->input_ctx.file_type = FILE_TYPE_OBU;
+#endif
     // assume AV1
     reader->info.codec_fourcc = AV1_FOURCC;
     reader->info.is_annexb = reader->obu_ctx.is_annexb;
@@ -74,8 +91,13 @@ AvxVideoReader *aom_video_reader_open(const char *filename) {
 
 void aom_video_reader_close(AvxVideoReader *reader) {
   if (reader) {
+#if CONFIG_MULTIVIEW_CORE
+    fclose(reader->input_ctx.file[0]);
+    if (reader->input_ctx.file_type[0] == FILE_TYPE_OBU) {
+#else
     fclose(reader->input_ctx.file);
     if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
+#endif
       obudec_free(&reader->obu_ctx);
     }
     free(reader->buffer);
@@ -84,16 +106,29 @@ void aom_video_reader_close(AvxVideoReader *reader) {
 }
 
 int aom_video_reader_read_frame(AvxVideoReader *reader) {
+#if CONFIG_MULTIVIEW_CORE
+  if (reader->input_ctx.file_type[0] == FILE_TYPE_IVF) {
+    return !ivf_read_frame(reader->input_ctx.file[0], &reader->buffer,
+#else
   if (reader->input_ctx.file_type == FILE_TYPE_IVF) {
     return !ivf_read_frame(reader->input_ctx.file, &reader->buffer,
+#endif
                            &reader->frame_size, &reader->buffer_size,
                            &reader->pts);
+#if CONFIG_MULTIVIEW_CORE
+  } else if (reader->input_ctx.file_type[0] == FILE_TYPE_OBU) {
+#else
   } else if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
+#endif
     return !obudec_read_temporal_unit(&reader->obu_ctx, &reader->buffer,
                                       &reader->frame_size,
                                       &reader->buffer_size);
 #if CONFIG_WEBM_IO
+#if CONFIG_MULTIVIEW_CORE
+  } else if (reader->input_ctx.file_type[0] == FILE_TYPE_WEBM) {
+#else
   } else if (reader->input_ctx.file_type == FILE_TYPE_WEBM) {
+#endif
     return !webm_read_frame(&reader->webm_ctx, &reader->buffer,
                             &reader->frame_size, &reader->buffer_size);
 #endif
@@ -115,7 +150,11 @@ int64_t aom_video_reader_get_frame_pts(AvxVideoReader *reader) {
 }
 
 FILE *aom_video_reader_get_file(AvxVideoReader *reader) {
+#if CONFIG_MULTIVIEW_CORE
+  return reader->input_ctx.file[0];
+#else
   return reader->input_ctx.file;
+#endif
 }
 
 const AvxVideoInfo *aom_video_reader_get_info(AvxVideoReader *reader) {

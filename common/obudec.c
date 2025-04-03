@@ -276,7 +276,11 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   const int is_annexb = obu_ctx->is_annexb;
+#if CONFIG_MULTIVIEW_CORE
+  FILE *f = avx_ctx->file[0];
+#else
   FILE *f = avx_ctx->file;
+#endif
   size_t payload_length = 0;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
@@ -369,7 +373,11 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
                               size_t *buffer_size) {
+#if CONFIG_MULTIVIEW_CORE
+  FILE *f = obu_ctx->avx_ctx->file[0];
+#else
   FILE *f = obu_ctx->avx_ctx->file;
+#endif
   if (!f) return -1;
 
   *buffer_size = 0;

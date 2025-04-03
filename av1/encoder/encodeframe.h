@@ -39,7 +39,9 @@ void av1_setup_src_planes(struct macroblock *x,
                           const CHROMA_REF_INFO *chroma_ref_info);
 
 void av1_encode_frame(struct AV1_COMP *cpi);
-
+#if CONFIG_MULTIVIEW_DEBUG
+void debug_print_buf_refs_enc(const AV1_COMMON *const cm);
+#endif
 void av1_alloc_tile_data(struct AV1_COMP *cpi);
 void av1_init_tile_data(struct AV1_COMP *cpi);
 void av1_encode_tile(struct AV1_COMP *cpi, struct ThreadData *td, int tile_row,

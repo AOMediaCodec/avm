@@ -36,6 +36,10 @@
 #include "aom_dsp/psnr.h"
 #include "aom_ports/aom_timer.h"
 
+#if CONFIG_MULTIVIEW_CORE
+#include "common/tools_common.h"
+#endif
+
 #define MAG_SIZE (4)
 
 struct av1_extracfg {
@@ -707,7 +711,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.den, 1, 1000000000);
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
-
+#if CONFIG_MULTIVIEW_CORE
+  RANGE_CHECK(cfg, g_num_views, 1, NUM_LAYERS_MAX);
+#endif
   RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AOM_BITS_8, AOM_BITS_12);
 
@@ -1350,6 +1356,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   frm_dim_cfg->render_width = extra_cfg->render_width;
   frm_dim_cfg->render_height = extra_cfg->render_height;
 
+#if CONFIG_MULTIVIEW_CORE
+  // Set number of views
+  input_cfg->num_views = cfg->g_num_views;
+#endif
+
   // Set input video related configuration.
   input_cfg->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
@@ -1600,6 +1611,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       } else {  // auto-selected qp offset
         q_cfg->fixed_qp_offsets[i] = get_modeled_qp_offset(
             rc_cfg->qp, i, tool_cfg->bit_depth, q_cfg->q_based_qp_offsets);
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+        printf(" qp-offset[%d]=%2.2f\n", i, q_cfg->fixed_qp_offsets[i]);
+#endif
       }
     } else {
       q_cfg->fixed_qp_offsets[i] = -1.0;
@@ -2028,7 +2042,6 @@ static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
   const SubGOPCfg *const subgop_cfg = gf_group->subgop_cfg;
   subgop_info->gf_interval = cpi->rc.baseline_gf_interval;
   subgop_info->frames_to_key = cpi->rc.frames_to_key;
-
   // As key frame is not part of sub-gop configuration,
   // parameters are assigned separately.
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
@@ -3054,23 +3067,38 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   if (!cm->show_existing_frame) {
     // Get reference frame information
     int ref_poc[INTER_REFS_PER_FRAME];
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    int ref_view[INTER_REFS_PER_FRAME];
+#endif
     for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+      ref_view[ref_idx] = buf ? (int)buf->view_id : -1;
+      ref_poc[ref_idx] = buf ? (int)buf->display_order_hint : -1;
+#else
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
       ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
                              ? -1
                              : ref_poc[ref_idx];
+#endif
     }
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
       fprintf(stdout,
+#if CONFIG_MULTIVIEW_CORE
+              "POC:%6d, DOH:%3d, View:%2d [%s][Level:%d][Q:%3d]: %10" PRIu64
+#else
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+#endif
               " Bytes, "
               "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
               "%2.4f dB(V), "
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
+#if CONFIG_MULTIVIEW_CORE
+              cm->cur_frame->display_order_hint, cm->cur_frame->view_id,
+#endif
               frameType[cm->current_frame.frame_type],
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
               cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
@@ -3090,7 +3118,11 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 
     fprintf(stdout, "    [");
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+      fprintf(stdout, "(%d,%d)", ref_poc[ref_idx], ref_view[ref_idx]);
+#else
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
+#endif
     }
     fprintf(stdout, "]\n");
   }
@@ -4509,11 +4541,14 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                       // g_threads
     0,                       // g_profile
 
-    320,         // g_w
-    240,         // g_h
-    0,           // g_limit
-    0,           // g_forced_max_frame_width
-    0,           // g_forced_max_frame_height
+    320,  // g_w
+    240,  // g_h
+    0,    // g_limit
+    0,    // g_forced_max_frame_width
+    0,    // g_forced_max_frame_height
+#if CONFIG_MULTIVIEW_CORE
+    1,  // g_num_views
+#endif
     AOM_BITS_8,  // g_bit_depth
     8,           // g_input_bit_depth
 

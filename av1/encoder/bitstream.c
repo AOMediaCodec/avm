@@ -2323,7 +2323,7 @@ static INLINE int_mv get_ref_mv_from_stack(
     const MB_MODE_INFO *mbmi
 #endif  // CONFIG_SEP_COMP_DRL
 ) {
-  const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+  const int16_t ref_frame_type = av1_ref_frame_type(ref_frame);
 #if CONFIG_SEP_COMP_DRL
   const CANDIDATE_MV *curr_ref_mv_stack =
       has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]
@@ -5048,7 +5048,6 @@ static AOM_INLINE void encode_quantization(
   aom_wb_write_literal(
       wb, quant_params->base_qindex,
       bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
-
   write_delta_q(wb, quant_params->y_dc_delta_q);
   if (num_planes > 1) {
     int diff_uv_delta =
@@ -6141,6 +6140,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
           wb, current_frame->order_hint,
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
+#if CONFIG_MULTIVIEW_CORE
+    aom_wb_write_literal(wb, current_frame->view_id, 8);
+#endif
+
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    printf("--- write bitstream: view_id=%d --- ", current_frame->view_id);
+    debug_print_multiview_curr_frame(cm);
+#endif
+
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
@@ -6223,19 +6231,43 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
       for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST_FIX_ERROR_RES
+        int idx = ref_idx;
+        if (cm->ref_frame_map[ref_idx] == NULL) {
+          idx = 0;
+          // idx = cm->remapped_ref_idx[0];
+        }
         aom_wb_write_literal(
-            wb, cm->ref_frame_map[ref_idx]->order_hint,
+            wb, cm->ref_frame_map[idx]->order_hint,
             seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+#else
+          aom_wb_write_literal(
+              wb, cm->ref_frame_map[ref_idx]->order_hint,
+              seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#endif
       }
     }
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
     // required by reference mapping.
     if (features->error_resilient_mode) {
       for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
-        aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->base_qindex,
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST_FIX_ERROR_RES
+        int idx = ref_idx;
+        if (cm->ref_frame_map[ref_idx] == NULL) {
+          idx = 0;
+          // idx = cm->remapped_ref_idx[0];
+        }
+        aom_wb_write_literal(wb, cm->ref_frame_map[idx]->base_qindex,
                              cm->seq_params.bit_depth == AOM_BITS_8
                                  ? QINDEX_BITS_UNEXT
                                  : QINDEX_BITS);
+#else
+          aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->base_qindex,
+                               cm->seq_params.bit_depth == AOM_BITS_8
+                                   ? QINDEX_BITS_UNEXT
+                                   : QINDEX_BITS);
+#endif
       }
     }
   }
@@ -6844,6 +6876,12 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   write_profile(seq_params->profile, &wb);
 
+#if CONFIG_MULTIVIEW_CORE
+  aom_wb_write_literal(
+      &wb, seq_params->num_views - 1,
+      8);  // TODO: (@hegilmez) redesign later or change where this is signaled
+#endif
+
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
   aom_wb_write_literal(&wb, seq_params->max_frame_width - 1,
@@ -6909,6 +6947,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
       }
     }
   }
+
   write_sequence_header(seq_params, &wb);
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
@@ -7461,6 +7500,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   uint32_t obu_header_size = 0;
   uint32_t obu_payload_size = 0;
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+  // printf("\ncm->temporal_layer_id: %d\n", cm->temporal_layer_id);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
   const uint8_t obu_extension_header =
       cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;
 

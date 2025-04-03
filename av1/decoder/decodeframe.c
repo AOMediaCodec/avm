@@ -4173,8 +4173,9 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate frame buffer");
+    aom_internal_error(
+        &cm->error, AOM_CODEC_MEM_ERROR,
+        "Failed to allocate frame buffer: setup_tip_frame_size 0");
   }
 
   if (tip_frame_buf) {
@@ -4196,8 +4197,9 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate frame buffer");
+    aom_internal_error(
+        &cm->error, AOM_CODEC_MEM_ERROR,
+        "Failed to allocate frame buffer: setup_tip_frame_size 1");
   }
 
   if (tip_frame_buf) {
@@ -4227,7 +4229,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
           pool->get_fb_cb, pool->cb_priv, false)) {
     unlock_buffer_pool(pool);
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate frame buffer");
+                       "Failed to allocate frame buffer: setup_buffer_pool");
   }
   unlock_buffer_pool(pool);
 
@@ -7085,7 +7087,11 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
   BufferPool *const pool = cm->buffer_pool;
 
   for (int i = 0; i < REF_FRAMES; i++) {
-    decrease_ref_count(cm->ref_frame_map[i], pool);
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    set_ref_count_zero(cm->ref_frame_map[i], pool);
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+      decrease_ref_count(cm->ref_frame_map[i], pool);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     cm->ref_frame_map[i] = NULL;
   }
 }
@@ -7602,8 +7608,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
+#if CONFIG_MULTIVIEW_CORE
+    current_frame->view_id = aom_rb_read_literal(rb, 8);
+    cm->layer_id = current_frame->view_id;
+#endif
+
     current_frame->display_order_hint = get_disp_order_hint(cm);
     current_frame->frame_number = current_frame->order_hint;
+
+#if CONFIG_MULTIVIEW_CORE
+    current_frame->frame_number =
+        current_frame->order_hint * cm->number_layers + current_frame->view_id;
+#endif
+
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    printf("--- decode bitstream: show_frame=%d, frame_number=%d -- ",
+           cm->show_existing_frame, current_frame->frame_number);
+    debug_print_multiview_curr_frame(cm);
+#endif
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
@@ -7748,7 +7770,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (buf == NULL || order_hint != buf->order_hint) {
           if (buf != NULL) {
             lock_buffer_pool(pool);
-            decrease_ref_count(buf, pool);
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+            set_ref_count_zero(buf, pool);
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+              decrease_ref_count(buf, pool);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             unlock_buffer_pool(pool);
             cm->ref_frame_map[ref_idx] = NULL;
           }
@@ -7767,10 +7793,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
                   features->byte_alignment, &buf->raw_frame_buffer,
                   pool->get_fb_cb, pool->cb_priv, false)) {
-            decrease_ref_count(buf, pool);
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+            set_ref_count_zero(buf, pool);
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+              decrease_ref_count(buf, pool);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
             unlock_buffer_pool(pool);
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                               "Failed to allocate frame buffer");
+            aom_internal_error(
+                &cm->error, AOM_CODEC_MEM_ERROR,
+                "Failed to allocate frame buffer: read_uncompressed_header");
           }
           unlock_buffer_pool(pool);
           // According to the specification, valid bitstreams are required to
@@ -7818,6 +7849,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_LF_SUB_PU
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -7857,6 +7891,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->cur_frame->num_ref_frames = 0;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
@@ -8003,6 +8040,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        (int)ref_frame_map_pairs[ref].disp_order)
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
                   : 1;
+#if CONFIG_MULTIVIEW_CORE
+          if (scores[i].distance == 0 &&
+              current_frame->view_id != cm->ref_frame_map_pairs[ref].view_id) {
+            scores[i].distance = 1;
+          }
+#endif
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);

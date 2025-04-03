@@ -1794,7 +1794,6 @@ void av1_encode_frame(AV1_COMP *cpi) {
   // Indicates whether or not to use a default reduced set for ext-tx
   // rather than the potential full set of 16 transforms
   features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
-
   // Make sure segment_id is no larger than last_active_segid.
   if (cm->seg.enabled && cm->seg.update_map) {
     const int mi_rows = cm->mi_params.mi_rows;
@@ -1880,3 +1879,23 @@ void av1_encode_frame(AV1_COMP *cpi) {
     encode_frame_internal(cpi);
   }
 }
+
+#if CONFIG_MULTIVIEW_DEBUG
+void debug_print_buf_refs_enc(const AV1_COMMON *const cm) {
+  const RefCntBuffer *const cf = cm->cur_frame;
+  MV_REFERENCE_FRAME ref_frame;
+  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+         cf->display_order_hint);
+  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+         cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  printf("[");
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+    printf("%2d:", map_idx);
+    printf("(%2d,", cf->ref_view_ids[ref_frame]);
+    printf("%2d,", cf->ref_order_hints[ref_frame]);
+    printf("%2d) ", cf->ref_display_order_hint[ref_frame]);
+  }
+  printf("]\n");
+}
+#endif

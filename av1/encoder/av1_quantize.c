@@ -571,11 +571,12 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   *v_dc_delta_q = 0;
   *u_ac_delta_q = 0;
   *v_ac_delta_q = 0;
-
+#if !CONFIG_MULTIVIEW_CORE
   if (frame_is_intra_only(cm)) {
     *y_dc_delta_q = 0;
     *u_dc_delta_q = *v_dc_delta_q = -4;
   }
+#endif
 }
 
 void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,

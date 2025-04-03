@@ -77,6 +77,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_WEBM_IO
   arg_def_t stereo_mode;
 #endif
+#if CONFIG_MULTIVIEW_CORE
+  arg_def_t num_views;
+#endif
   arg_def_t timebase;
   arg_def_t global_error_resilient;
   arg_def_t lag_in_frames;

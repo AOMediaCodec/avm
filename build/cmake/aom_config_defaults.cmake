@@ -143,6 +143,38 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
+set_aom_config_var(CONFIG_MULTIVIEW_CORE 0
+                   "Core changes in the codebase for multiview coding support.")
+set_aom_config_var(CONFIG_MULTIVIEW_SEPARATE_DPB 0
+                   "separate dpb support for multiview.")
+set_aom_config_var(CONFIG_MULTIVIEW_EXTENDED_DPB 0
+                   "extended dpb support for multiview.")
+
+set_aom_config_var(CONFIG_MULTIVIEW_DEBUG 0
+                   "Debug functionality macro for multiview coding.")
+set_aom_config_var(CONFIG_MULTIVIEW_DEBUG_PROMPT 0
+                   "Debug macro for prompting on display.")
+set_aom_config_var(CONFIG_MULTIVIEW_DEBUG_LOGFILES 0
+                   "Debug create logfiles for encode and decode.")
+
+set_aom_config_var(
+  CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+  0
+  "Enable temporal scalability using the implicit reference frame list construction"
+)
+set_aom_config_var(
+  CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
+  0
+  "Enable temporal scalability encoding with ref map slot allocation and frame drop"
+)
+# Bugfix for error resilience case for
+# CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+set_aom_config_var(
+  CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST_FIX_ERROR_RES
+  0
+  "Enable temporal scalability using the implicit reference frame list construction"
+)
+
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 

@@ -1039,7 +1039,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int anc_frame_offset = gf_group->cur_frame_idx[cur_frame_idx];
   int process_frame_count = 0;
   const int gop_length = get_gop_length(gf_group);
-
   for (gf_index = cur_frame_idx; gf_index < gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
@@ -1100,9 +1099,15 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
     else
       av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
-    int refresh_mask =
-        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
-                                    gf_index, true_disp, ref_frame_map_pairs);
+    int refresh_mask = av1_get_refresh_frame_flags(
+        cpi, &frame_params, frame_update_type, gf_index,
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
+        0,
+#endif
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+        -1, cm->number_layers,
+#endif
+        true_disp, ref_frame_map_pairs);
 
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
@@ -1148,7 +1153,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       MAX_TPL_EXTEND, cpi->rc.frames_to_key - cpi->rc.baseline_gf_interval);
   int frame_display_index = gf_group->cur_frame_idx[gop_length - 1] +
                             gf_group->arf_src_offset[gop_length - 1] + 1;
-
   for (;
        gf_index < MAX_TPL_FRAME_IDX && extend_frame_count < extend_frame_length;
        ++gf_index) {
@@ -1185,6 +1189,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     gf_group->update_type[gf_index] = LF_UPDATE;
     gf_group->q_val[gf_index] = *pframe_qindex;
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    printf(" init_gop_frames_for_tpl: pframe_qindex=%2d\n", *pframe_qindex);
+#endif
 
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
@@ -1199,6 +1206,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     // frame_update_type.
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type, -1,
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
+                                    0,
+#endif
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+                                    -1, cm->number_layers,
+#endif
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
@@ -1278,7 +1291,10 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     gf_group->q_val[gf_index] =
         av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
                                  &bottom_index, &top_index);
-
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    printf(" av1_tpl_setup_stats: q_val[%d]=%2d\n", gf_index,
+           gf_group->q_val[gf_index]);
+#endif
     cm->current_frame.frame_type = INTER_FRAME;
   }
 

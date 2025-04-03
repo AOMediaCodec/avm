@@ -1145,7 +1145,14 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   // All buffers are refreshed for shown keyframes and S-frames.
   for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
     if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+      if (cm->current_frame.frame_type == KEY_FRAME && ref_frame > 0)
+        set_frame_buffer_invalid(&cm->ref_frame_map[ref_frame]);
+      else
+        assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+#else   // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
       assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     }
   }
 }

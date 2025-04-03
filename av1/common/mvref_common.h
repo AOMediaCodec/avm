@@ -371,10 +371,10 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
 //                 (2, 2), (2, 3), ..., (2, n-1),
 //                                 ...
 //                                      (n-1, n-1)
-static INLINE int8_t single2comb(int n, const int8_t *const rf) {
+static INLINE int16_t single2comb(int n, const int16_t *const rf) {
   assert(rf[0] < n && rf[1] < n);
 
-  int8_t rfr[2] = { rf[0], rf[1] };
+  int16_t rfr[2] = { rf[0], rf[1] };
   if (rf[1] < rf[0]) {
     rfr[0] = rf[1];
     rfr[1] = rf[0];
@@ -389,7 +389,7 @@ static INLINE int8_t single2comb(int n, const int8_t *const rf) {
 // Converts a combined index in [0, n*(n+1)/2] to a pair of single
 // ref indices (rf) each in [0, n-1]. See comment above for order
 // of the combined indexing.
-static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
+static INLINE void comb2single(int n, int16_t combindex, int16_t *rf) {
   assert(combindex < n * (n + 1) / 2);
   int i = n, j = n;
   rf[0] = 0;
@@ -444,7 +444,7 @@ static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
 }
 #endif  // CONFIG_SAME_REF_COMPOUND
 
-static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
+static INLINE int16_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   if (!is_inter_ref_frame(rf[0])) {
     // Intra or invalid
     return rf[0];
@@ -507,13 +507,13 @@ static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
 
 static INLINE int16_t av1_mode_context_pristine(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  const int16_t ref_frame = av1_ref_frame_type(rf);
   return mode_context[ref_frame];
 }
 
 static INLINE int16_t av1_mode_context_analyzer(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  const int16_t ref_frame = av1_ref_frame_type(rf);
 
 #if CONFIG_OPT_INTER_MODE_CTX
   return mode_context[ref_frame];

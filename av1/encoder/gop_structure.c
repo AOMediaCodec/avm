@@ -32,57 +32,128 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
                                    GF_GROUP *const gf_group, RATE_CONTROL *rc,
                                    FRAME_INFO *frame_info, int start, int end,
                                    int *cur_frame_idx, int *frame_ind,
-                                   int layer_depth) {
-  const int num_frames_to_process = end - start;
+                                   int layer_depth
+#if CONFIG_MULTIVIEW_CORE
+                                   ,
+                                   const int num_views
+#endif
+) {
 
+  const int num_frames_to_process = end - start;
   // Either we are at the last level of the pyramid, or we don't have enough
   // frames between 'l' and 'r' to create one more level.
   if (layer_depth > gf_group->max_layer_depth_allowed ||
       num_frames_to_process < 3) {
     // Leaf nodes.
     while (start < end) {
+      gf_group->max_layer_depth =
+          AOMMAX(gf_group->max_layer_depth, layer_depth);
       gf_group->update_type[*frame_ind] = LF_UPDATE;
       gf_group->arf_src_offset[*frame_ind] = 0;
+#if CONFIG_MULTIVIEW_CORE
+      gf_group->cur_frame_idx[*frame_ind] = num_views * (*cur_frame_idx);
+#else
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+#endif
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
           twopass, rc, frame_info, start, end - start, 0, NULL, NULL);
-      gf_group->max_layer_depth =
-          AOMMAX(gf_group->max_layer_depth, layer_depth);
       ++(*frame_ind);
       ++(*cur_frame_idx);
       ++start;
+#if CONFIG_MULTIVIEW_CORE
+      for (int i = 1; i < num_views; i++) {
+        const int prev_frame_ind = (*frame_ind) - 1;
+        assert(prev_frame_ind >= 0);
+        gf_group->update_type[*frame_ind] = LF_UPDATE;
+        gf_group->arf_src_offset[*frame_ind] = 0;
+        gf_group->cur_frame_idx[*frame_ind] =
+            gf_group->cur_frame_idx[prev_frame_ind] + 1;
+        gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
+        gf_group->arf_boost[*frame_ind] = gf_group->arf_boost[prev_frame_ind];
+        ++(*frame_ind);
+      }
+#endif
     }
   } else {
     const int m = (start + end - 1) / 2;
 
     // Internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
+#if CONFIG_MULTIVIEW_CORE
+    gf_group->arf_src_offset[*frame_ind] = num_views * (m - start);
+    gf_group->cur_frame_idx[*frame_ind] = num_views * (*cur_frame_idx);
+#else
     gf_group->arf_src_offset[*frame_ind] = m - start;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+#endif
     gf_group->layer_depth[*frame_ind] = layer_depth;
 
     // Get the boost factor for intermediate ARF frames.
     gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
         twopass, rc, frame_info, m, end - m, m - start, NULL, NULL);
     ++(*frame_ind);
+#if CONFIG_MULTIVIEW_CORE
+    for (int i = 1; i < num_views; i++) {
+      // Internal ARF per-view.
+      const int prev_frame_ind = (*frame_ind) - 1;
+      assert(prev_frame_ind >= 0);
+      gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
+      gf_group->arf_src_offset[*frame_ind] =
+          gf_group->arf_src_offset[prev_frame_ind] + 1;
+      gf_group->cur_frame_idx[*frame_ind] =
+          gf_group->cur_frame_idx[prev_frame_ind];
+      gf_group->layer_depth[*frame_ind] = layer_depth;
+      gf_group->arf_boost[*frame_ind] = gf_group->arf_boost[prev_frame_ind];
+      ++(*frame_ind);
+    }
+#endif
 
     // Frames displayed before this internal ARF.
     set_multi_layer_params(twopass, gf_group, rc, frame_info, start, m,
-                           cur_frame_idx, frame_ind, layer_depth + 1);
+                           cur_frame_idx, frame_ind, layer_depth + 1
+#if CONFIG_MULTIVIEW_CORE
+                           ,
+                           num_views
+#endif
+    );
 
     // Overlay for internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = 0;
+#if CONFIG_MULTIVIEW_CORE
+    gf_group->cur_frame_idx[*frame_ind] = num_views * (*cur_frame_idx);
+#else
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+#endif
     gf_group->arf_boost[*frame_ind] = 0;
     gf_group->layer_depth[*frame_ind] = layer_depth;
     ++(*frame_ind);
     ++(*cur_frame_idx);
 
+#if CONFIG_MULTIVIEW_CORE
+    for (int i = 1; i < num_views; i++) {
+      // Overlay for internal ARF per-view.
+      const int prev_frame_ind = (*frame_ind) - 1;
+      assert(prev_frame_ind >= 0);
+      gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
+      gf_group->arf_src_offset[*frame_ind] =
+          gf_group->arf_src_offset[prev_frame_ind];
+      gf_group->cur_frame_idx[*frame_ind] =
+          gf_group->cur_frame_idx[prev_frame_ind] + 1;
+      gf_group->arf_boost[*frame_ind] = 0;
+      gf_group->layer_depth[*frame_ind] = layer_depth;
+      ++(*frame_ind);
+    }
+#endif
     // Frames displayed after this internal ARF.
     set_multi_layer_params(twopass, gf_group, rc, frame_info, m + 1, end,
-                           cur_frame_idx, frame_ind, layer_depth + 1);
+                           cur_frame_idx, frame_ind, layer_depth + 1
+#if CONFIG_MULTIVIEW_CORE
+                           ,
+                           num_views
+#endif
+    );
   }
 }
 
@@ -124,7 +195,12 @@ static void set_multi_layer_params_from_subgop_cfg(
     int *cur_frame_idx, int *frame_index, int is_ld_map_first_gop) {
   int last_shown_frame = 0;
   int min_pyr_level = MAX_ARF_LAYERS;
-
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf(
+      " ml-subgop: subgop_cfg->num_steps=%d "
+      "(cur_frame_idx=%d,frame_index=%d)\n",
+      subgop_cfg->num_steps, *cur_frame_idx, *frame_index);
+#endif
   for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
     const SubGOPStepCfg *frame = &subgop_cfg->step[idx];
 
@@ -219,12 +295,23 @@ static const SubGOPCfg *get_subgop_config(SubGOPSetCfg *config_set,
     return NULL;
 }
 
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+static const char frame_update_type[FRAME_UPDATE_TYPES][50] = {
+  "KF_UPDATE",        "LF_UPDATE",      "GF_UPDATE",
+  "ARF_UPDATE",       "OVERLAY_UPDATE", "INTNL_OVERLAY_UPDATE",
+  "INTNL_ARF_UPDATE", "KFFLT_UPDATE",   "KFFLT_OVERLAY_UPDATE",
+};
+#endif
+
 static int construct_multi_layer_gf_structure(
     AV1_COMP *cpi, TWO_PASS *twopass, GF_GROUP *const gf_group,
     RATE_CONTROL *rc, FRAME_INFO *const frame_info, int gf_interval,
     FRAME_UPDATE_TYPE first_frame_update_type) {
   int frame_index = 0;
   int cur_frame_index = 0;
+#if CONFIG_MULTIVIEW_CORE
+  const int num_views = cpi->common.number_layers;
+#endif
 
   assert(first_frame_update_type == KF_UPDATE ||
          first_frame_update_type == ARF_UPDATE ||
@@ -240,7 +327,12 @@ static int construct_multi_layer_gf_structure(
       subgop_cfg_set, gf_interval, rc->frames_to_key <= gf_interval + 2,
       first_frame_update_type == KF_UPDATE, use_altref, &is_ld_map);
   int is_ld_map_first_gop = is_ld_map && first_frame_update_type == KF_UPDATE;
-
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf(" 1: frame_index=%d, cur_frame_index=%d\n", frame_index,
+         cur_frame_index);
+  printf("-- first_frame_update_type = %s\n",
+         frame_update_type[first_frame_update_type]);
+#endif
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
     gf_group->has_overlay_for_key_frame = 1;
@@ -266,9 +358,26 @@ static int construct_multi_layer_gf_structure(
     gf_group->layer_depth[frame_index] = 0;
     gf_group->max_layer_depth = 0;
     ++frame_index;
-    ++cur_frame_index;
+    cur_frame_index++;
+#if CONFIG_MULTIVIEW_CORE
+    for (int i = 1; i < num_views; i++) {
+      // arf update
+      const int prev_frame_ind = frame_index - 1;
+      assert(prev_frame_ind >= 0);
+      gf_group->update_type[frame_index] = LF_UPDATE;
+      gf_group->arf_src_offset[frame_index] = 0;
+      gf_group->cur_frame_idx[frame_index] =
+          gf_group->cur_frame_idx[prev_frame_ind] + 1;
+      gf_group->layer_depth[frame_index] = 0;
+      gf_group->max_layer_depth = 0;
+      ++frame_index;
+    }
+#endif
   }
-
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf(" 2: frame_index=%d, cur_frame_index=%d\n", frame_index,
+         cur_frame_index);
+#endif
   if (subgop_cfg) {
     gf_group->subgop_cfg = subgop_cfg;
     gf_group->is_user_specified = 1;
@@ -277,43 +386,117 @@ static int construct_multi_layer_gf_structure(
                                            &frame_index, is_ld_map_first_gop);
     frame_index++;
   } else {
+#if CONFIG_MULTIVIEW_CORE
+    if (num_views == 1) {
+      if (first_frame_update_type == KF_UPDATE) gf_interval++;
+    }
+#else
     if (first_frame_update_type == KF_UPDATE) gf_interval++;
+#endif
     // ALTREF.
     if (use_altref) {
       gf_group->update_type[frame_index] = ARF_UPDATE;
+#if CONFIG_MULTIVIEW_CORE
+      gf_group->arf_src_offset[frame_index] =
+          num_views * (gf_interval - cur_frame_index - 1);
+      gf_group->cur_frame_idx[frame_index] = num_views * cur_frame_index;
+#else
       gf_group->arf_src_offset[frame_index] = gf_interval - cur_frame_index - 1;
       gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+#endif
       gf_group->layer_depth[frame_index] = 1;
       gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
       gf_group->max_layer_depth = 1;
       gf_group->arf_index = frame_index;
       ++frame_index;
+#if CONFIG_MULTIVIEW_CORE
+      for (int i = 1; i < num_views; i++) {
+        const int prev_frame_ind = frame_index - 1;
+        assert(prev_frame_ind >= 0);
+        gf_group->update_type[frame_index] = ARF_UPDATE;
+        gf_group->arf_src_offset[frame_index] =
+            gf_group->arf_src_offset[prev_frame_ind] + 1;
+        gf_group->cur_frame_idx[frame_index] =
+            gf_group->cur_frame_idx[prev_frame_ind];
+
+        gf_group->layer_depth[frame_index] = 1;
+        gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
+        gf_group->max_layer_depth = 1;
+        gf_group->arf_index = frame_index;
+        ++frame_index;
+      }
+#endif
     } else {
       gf_group->arf_index = -1;
     }
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+    printf("      frame_index=%d, cur_frame_index=%d\n", frame_index,
+           cur_frame_index);
+#endif
     set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
                            gf_interval - 1, &cur_frame_index, &frame_index,
-                           use_altref + 1);
+                           use_altref + 1
+#if CONFIG_MULTIVIEW_CORE
+                           ,
+                           num_views
+#endif
+    );
     if (use_altref) {
-      gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+      gf_group->update_type[frame_index] =
+          INTNL_OVERLAY_UPDATE;  // OVERLAY_UPDATE;
       gf_group->arf_src_offset[frame_index] = 0;
+#if CONFIG_MULTIVIEW_CORE
+      gf_group->cur_frame_idx[frame_index] = num_views * cur_frame_index;
+#else
       gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+#endif
       gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
       gf_group->arf_boost[frame_index] = NORMAL_BOOST;
       ++frame_index;
+#if CONFIG_MULTIVIEW_CORE
+      for (int i = 1; i < num_views; i++) {
+        const int prev_frame_ind = frame_index - 1;
+        assert(prev_frame_ind >= 0);
+        gf_group->update_type[frame_index] =
+            (i == (num_views - 1)) ? OVERLAY_UPDATE : INTNL_OVERLAY_UPDATE;
+        gf_group->arf_src_offset[frame_index] = 0;
+        gf_group->cur_frame_idx[frame_index] =
+            gf_group->cur_frame_idx[prev_frame_ind] + 1;
+        gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+        gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+        ++frame_index;
+      }
+#endif
     } else {
       for (; cur_frame_index < gf_interval; ++cur_frame_index) {
         gf_group->update_type[frame_index] = LF_UPDATE;
         gf_group->arf_src_offset[frame_index] = 0;
+#if CONFIG_MULTIVIEW_CORE
+        gf_group->cur_frame_idx[frame_index] = cur_frame_index * num_views;
+#else
         gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+#endif
         gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
         gf_group->arf_boost[frame_index] = NORMAL_BOOST;
         gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, 2);
         ++frame_index;
+#if CONFIG_MULTIVIEW_CORE
+        for (int i = 1; i < num_views; i++) {
+          const int prev_frame_ind = frame_index - 1;
+          assert(prev_frame_ind >= 0);
+          gf_group->update_type[frame_index] = LF_UPDATE;
+          gf_group->arf_src_offset[frame_index] = 1;
+          gf_group->cur_frame_idx[frame_index] =
+              gf_group->cur_frame_idx[prev_frame_ind];
+          gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+          gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+          gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, 2);
+          ++frame_index;
+        }
+#endif
       }
     }
   }
-
   return frame_index;
 }
 

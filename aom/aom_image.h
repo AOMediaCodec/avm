@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
 #include "aom/aom_integer.h"
 
 /*!\brief Current ABI version number
@@ -210,7 +211,10 @@ typedef struct aom_image {
 
   int temporal_id; /**< Temporal layer Id of image */
   int spatial_id;  /**< Spatial layer Id of image */
-
+#if CONFIG_MULTIVIEW_CORE
+  int view_id;            /**< View layer id of image */
+  int display_order_hint; /**< display order of image */
+#endif
   /*!\brief The following member may be set by the application to associate
    * data with this image.
    */

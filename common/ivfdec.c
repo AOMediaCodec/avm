@@ -32,8 +32,11 @@ static void fix_framerate(int *num, int *den) {
 int file_is_ivf(struct AvxInputContext *input_ctx) {
   char raw_hdr[32];
   int is_ivf = 0;
-
+#if CONFIG_MULTIVIEW_CORE
+  if (fread(raw_hdr, 1, 32, input_ctx->file[0]) == 32) {
+#else
   if (fread(raw_hdr, 1, 32, input_ctx->file) == 32) {
+#endif
     if (memcmp(IVF_SIGNATURE, raw_hdr, 4) == 0) {
       is_ivf = 1;
 
@@ -54,10 +57,19 @@ int file_is_ivf(struct AvxInputContext *input_ctx) {
   }
 
   if (!is_ivf) {
+#if CONFIG_MULTIVIEW_CORE
+    rewind(input_ctx->file[0]);
+    input_ctx->detect[0].buf_read = 0;
+#else
     rewind(input_ctx->file);
     input_ctx->detect.buf_read = 0;
+#endif
   } else {
+#if CONFIG_MULTIVIEW_CORE
+    input_ctx->detect[0].position = 4;
+#else
     input_ctx->detect.position = 4;
+#endif
   }
   return is_ivf;
 }

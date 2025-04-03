@@ -1165,7 +1165,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MB_MODE_INFO *mbmi
 #endif  // CONFIG_SEP_COMP_DRL
 ) {
-  const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+  const int16_t ref_frame_type = av1_ref_frame_type(ref_frame);
 #if CONFIG_SEP_COMP_DRL
   const CANDIDATE_MV *curr_ref_mv_stack =
       has_second_drl(mbmi) ? mbmi_ext->ref_mv_stack[ref_frame[ref_idx]]

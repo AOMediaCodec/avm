@@ -33,7 +33,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
                  has_second_ref(mbmi)));
 
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
-  const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
+  const int16_t ref_frame_type = av1_ref_frame_type(ref_frames);
 #if CONFIG_SEP_COMP_DRL
   const CANDIDATE_MV *curr_ref_mv_stack =
       has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]

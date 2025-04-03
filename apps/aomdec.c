@@ -246,18 +246,32 @@ static int raw_read_frame(FILE *infile, uint8_t **buffer, size_t *bytes_read,
 
 static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
                       size_t *bytes_in_buffer, size_t *buffer_size) {
+#if CONFIG_MULTIVIEW_CORE
+  switch (input->aom_input_ctx->file_type[0]) {
+#else
   switch (input->aom_input_ctx->file_type) {
+#endif
 #if CONFIG_WEBM_IO
     case FILE_TYPE_WEBM:
       return webm_read_frame(input->webm_ctx, buf, bytes_in_buffer,
                              buffer_size);
 #endif
     case FILE_TYPE_RAW:
+#if CONFIG_MULTIVIEW_CORE
+      return raw_read_frame(input->aom_input_ctx->file[0], buf, bytes_in_buffer,
+                            buffer_size);
+#else
       return raw_read_frame(input->aom_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size);
+#endif
     case FILE_TYPE_IVF:
+#if CONFIG_MULTIVIEW_CORE
+      return ivf_read_frame(input->aom_input_ctx->file[0], buf, bytes_in_buffer,
+                            buffer_size, NULL);
+#else
       return ivf_read_frame(input->aom_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
+#endif
     case FILE_TYPE_OBU:
       return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
                                        buffer_size);
@@ -271,7 +285,11 @@ static int file_is_raw(struct AvxInputContext *input) {
   aom_codec_stream_info_t si;
   memset(&si, 0, sizeof(si));
 
+#if CONFIG_MULTIVIEW_CORE
+  if (fread(buf, 1, 32, input->file[0]) == 32) {
+#else
   if (fread(buf, 1, 32, input->file) == 32) {
+#endif
     int i;
 
     if (mem_get_le32(buf) < 256 * 1024 * 1024) {
@@ -289,10 +307,23 @@ static int file_is_raw(struct AvxInputContext *input) {
       }
     }
   }
-
+#if CONFIG_MULTIVIEW_CORE
+  rewind(input->file[0]);
+#else
   rewind(input->file);
+#endif
   return is_raw;
 }
+#if CONFIG_MULTIVIEW_CORE
+static void show_progress_multiview(int frame_in, int frame_out, int view_id,
+                                    int frame_out_per_view, uint64_t dx_time) {
+  fprintf(stderr,
+          "%d decoded frames/%d showed frames (view_id=%d, frame_per_view=%d) "
+          "in %" PRId64 " us (%.2f fps)\r",
+          frame_in, frame_out, view_id, frame_out_per_view, dx_time,
+          (double)frame_out * 1000000.0 / (double)dx_time);
+}
+#endif
 
 static void show_progress(int frame_in, int frame_out, uint64_t dx_time) {
   fprintf(stderr,
@@ -528,6 +559,26 @@ static FILE *open_outfile(const char *name) {
   }
 }
 
+#if CONFIG_MULTIVIEW_CORE
+static void open_multiple_output_files_perview(
+    const char *outfile_name, const struct AvxInputContext aom_input_ctx,
+    FILE **outfile) {
+  for (int view_id = 0; view_id < aom_input_ctx.num_views; view_id++) {
+    char output_filename[PATH_MAX];
+    char extension[6];
+    char suffix[16];
+    sprintf(suffix, "_view%0d", view_id);
+    strcpy(output_filename, outfile_name);
+    char *ptr_extension = strrchr(output_filename, '.');
+    strcpy(extension, ptr_extension);
+    if (ptr_extension != NULL) *ptr_extension = '\0';
+    strcat(output_filename, suffix);
+    strcat(output_filename, extension);
+    outfile[view_id] = open_outfile(output_filename);
+  }
+}
+#endif
+
 static int main_loop(int argc, const char **argv_) {
   aom_codec_ctx_t decoder;
   char *fn = NULL;
@@ -568,7 +619,11 @@ static int main_loop(int argc, const char **argv_) {
 
   const char *outfile_pattern = NULL;
   char outfile_name[PATH_MAX] = { 0 };
+#if CONFIG_MULTIVIEW_CORE
+  FILE *outfile[NUM_LAYERS_MAX] = { NULL };
+#else
   FILE *outfile = NULL;
+#endif
 
   FILE *framestats_file = NULL;
 
@@ -728,20 +783,41 @@ static int main_loop(int argc, const char **argv_) {
     return EXIT_FAILURE;
   }
 #endif
+#if CONFIG_MULTIVIEW_CORE
+  input.aom_input_ctx->filename[0] = fn;
+  input.aom_input_ctx->file[0] = infile;
+#else
   input.aom_input_ctx->filename = fn;
   input.aom_input_ctx->file = infile;
+#endif
   if (file_is_ivf(input.aom_input_ctx)) {
+#if CONFIG_MULTIVIEW_CORE
+    input.aom_input_ctx->file_type[0] = FILE_TYPE_IVF;
+#else
     input.aom_input_ctx->file_type = FILE_TYPE_IVF;
+#endif
     is_ivf = 1;
   }
 #if CONFIG_WEBM_IO
   else if (file_is_webm(input.webm_ctx, input.aom_input_ctx))
+#if CONFIG_MULTIVIEW_CORE
+    input.aom_input_ctx->file_type[0] = FILE_TYPE_WEBM;
+#else
     input.aom_input_ctx->file_type = FILE_TYPE_WEBM;
 #endif
+#endif
   else if (file_is_obu(&obu_ctx))
+#if CONFIG_MULTIVIEW_CORE
+    input.aom_input_ctx->file_type[0] = FILE_TYPE_OBU;
+#else
     input.aom_input_ctx->file_type = FILE_TYPE_OBU;
+#endif
   else if (file_is_raw(input.aom_input_ctx))
+#if CONFIG_MULTIVIEW_CORE
+    input.aom_input_ctx->file_type[0] = FILE_TYPE_RAW;
+#else
     input.aom_input_ctx->file_type = FILE_TYPE_RAW;
+#endif
   else {
     fprintf(stderr, "Unrecognized input file type.\n");
 #if !CONFIG_WEBM_IO
@@ -753,7 +829,7 @@ static int main_loop(int argc, const char **argv_) {
 
   outfile_pattern = outfile_pattern ? outfile_pattern : "-";
   single_file = is_single_file(outfile_pattern);
-
+#if !CONFIG_MULTIVIEW_CORE
   if (!noblit && single_file) {
     generate_filename(outfile_pattern, outfile_name, PATH_MAX,
                       aom_input_ctx.width, aom_input_ctx.height, 0);
@@ -762,7 +838,7 @@ static int main_loop(int argc, const char **argv_) {
     else
       outfile = open_outfile(outfile_name);
   }
-
+#endif
   if (use_y4m && !noblit) {
     if (!single_file) {
       fprintf(stderr,
@@ -772,7 +848,11 @@ static int main_loop(int argc, const char **argv_) {
     }
 
 #if CONFIG_WEBM_IO
+#if CONFIG_MULTIVIEW_CORE
+    if (aom_input_ctx.file_type[0] == FILE_TYPE_WEBM) {
+#else
     if (aom_input_ctx.file_type == FILE_TYPE_WEBM) {
+#endif
       if (webm_guess_framerate(input.webm_ctx, input.aom_input_ctx)) {
         fprintf(stderr,
                 "Failed to guess framerate -- error parsing "
@@ -872,18 +952,32 @@ static int main_loop(int argc, const char **argv_) {
       if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) {
         frame_avail = 1;
         frame_in++;
-
         aom_usec_timer_start(&timer);
-
         if (aom_codec_decode(&decoder, buf, bytes_in_buffer, NULL)) {
           const char *detail = aom_codec_error_detail(&decoder);
           warn("Failed to decode frame %d: %s", frame_in,
                aom_codec_error(&decoder));
-
           if (detail) warn("Additional information: %s", detail);
           if (!keep_going) goto fail;
         }
 
+#if CONFIG_MULTIVIEW_CORE
+        if (frame_in == 1) {
+          if (!noblit && single_file) {
+            generate_filename(outfile_pattern, outfile_name, PATH_MAX,
+                              aom_input_ctx.width, aom_input_ctx.height, 0);
+            if (do_md5)
+              MD5Init(&md5_ctx);
+            else {
+              aom_codec_stream_info_t si;
+              aom_codec_get_stream_info(&decoder, &si);
+              aom_input_ctx.num_views = si.number_views;
+              open_multiple_output_files_perview(outfile_name, aom_input_ctx,
+                                                 outfile);
+            }
+          }
+        }
+#endif
         if (framestats_file) {
           int qp;
           if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AOMD_GET_LAST_QUANTIZER,
@@ -917,7 +1011,15 @@ static int main_loop(int argc, const char **argv_) {
     dx_time += aom_usec_timer_elapsed(&timer);
 
     got_data = 0;
+#if CONFIG_MULTIVIEW_CORE
     while ((img = aom_codec_get_frame(&decoder, &iter))) {
+#else
+    while ((img = aom_codec_get_frame(&decoder, &iter))) {
+#endif
+#if CONFIG_MULTIVIEW_CORE
+      const int view_id = img->view_id;
+      const int frame_per_view = frame_out / aom_input_ctx.num_views;
+#endif
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
@@ -931,7 +1033,13 @@ static int main_loop(int argc, const char **argv_) {
       }
       frames_corrupted += corrupted;
 
+#if CONFIG_MULTIVIEW_CORE
+      if (progress)
+        show_progress_multiview(frame_in, frame_out, view_id, frame_per_view,
+                                dx_time);
+#else
       if (progress) show_progress(frame_in, frame_out, dx_time);
+#endif
 
       if (do_verify) {
         if (check_decoded_frame_hash(&decoder, img, frame_out,
@@ -1006,7 +1114,12 @@ static int main_loop(int argc, const char **argv_) {
           if (use_y4m) {
             char y4m_buf[Y4M_BUFFER_SIZE] = { 0 };
             size_t len = 0;
+#if CONFIG_MULTIVIEW_CORE
+            if (frame_out == 1 ||
+                ((frame_out - 1) / aom_input_ctx.num_views) < 1) {
+#else
             if (frame_out == 1) {
+#endif
               // Y4M file header
               len = y4m_write_file_header(
                   y4m_buf, sizeof(y4m_buf), aom_input_ctx.width,
@@ -1021,7 +1134,11 @@ static int main_loop(int argc, const char **argv_) {
               if (do_md5) {
                 MD5Update(&md5_ctx, (md5byte *)y4m_buf, (unsigned int)len);
               } else {
+#if CONFIG_MULTIVIEW_CORE
+                fputs(y4m_buf, outfile[view_id]);
+#else
                 fputs(y4m_buf, outfile);
+#endif
               }
             }
 
@@ -1031,8 +1148,13 @@ static int main_loop(int argc, const char **argv_) {
               MD5Update(&md5_ctx, (md5byte *)y4m_buf, (unsigned int)len);
               y4m_update_image_md5(img, planes, &md5_ctx);
             } else {
+#if CONFIG_MULTIVIEW_CORE
+              fputs(y4m_buf, outfile[view_id]);
+              y4m_write_image_file(img, planes, outfile[view_id]);
+#else
               fputs(y4m_buf, outfile);
               y4m_write_image_file(img, planes, outfile);
+#endif
             }
           } else {
             if (frame_out == 1) {
@@ -1059,7 +1181,11 @@ static int main_loop(int argc, const char **argv_) {
             if (do_md5) {
               raw_update_image_md5(img, planes, num_planes, &md5_ctx);
             } else {
+#if CONFIG_MULTIVIEW_CORE
+              raw_write_image_file(img, planes, num_planes, outfile[view_id]);
+#else
               raw_write_image_file(img, planes, num_planes, outfile);
+#endif
             }
           }
         } else {
@@ -1075,6 +1201,15 @@ static int main_loop(int argc, const char **argv_) {
             MD5Final(md5_digest, &md5_ctx);
             print_md5(md5_digest, outfile_name);
           } else {
+#if CONFIG_MULTIVIEW_CORE
+            outfile[0] = open_outfile(outfile_name);
+            if (use_y4m) {
+              y4m_write_image_file(img, planes, outfile[0]);
+            } else {
+              raw_write_image_file(img, planes, num_planes, outfile[0]);
+            }
+            fclose(outfile[0]);
+#else
             outfile = open_outfile(outfile_name);
             if (use_y4m) {
               y4m_write_image_file(img, planes, outfile);
@@ -1082,6 +1217,7 @@ static int main_loop(int argc, const char **argv_) {
               raw_write_image_file(img, planes, num_planes, outfile);
             }
             fclose(outfile);
+#endif
           }
         }
       }
@@ -1113,19 +1249,36 @@ fail2:
       MD5Final(md5_digest, &md5_ctx);
       print_md5(md5_digest, outfile_name);
     } else {
+#if CONFIG_MULTIVIEW_CORE
+      for (int view_id = 0; view_id < aom_input_ctx.num_views; view_id++) {
+        fclose(outfile[view_id]);
+      }
+#else
       fclose(outfile);
+#endif
     }
   }
 
 #if CONFIG_WEBM_IO
+#if CONFIG_MULTIVIEW_CORE
+  if (input.aom_input_ctx->file_type[0] == FILE_TYPE_WEBM)
+#else
   if (input.aom_input_ctx->file_type == FILE_TYPE_WEBM)
+#endif
     webm_free(input.webm_ctx);
 #endif
+#if CONFIG_MULTIVIEW_CORE
+  if (input.aom_input_ctx->file_type[0] == FILE_TYPE_OBU)
+#else
   if (input.aom_input_ctx->file_type == FILE_TYPE_OBU)
+#endif
     obudec_free(input.obu_ctx);
 
+#if CONFIG_MULTIVIEW_CORE
+  if (input.aom_input_ctx->file_type[0] != FILE_TYPE_WEBM) free(buf);
+#else
   if (input.aom_input_ctx->file_type != FILE_TYPE_WEBM) free(buf);
-
+#endif
   if (scaled_img) aom_img_free(scaled_img);
   if (img_shifted) aom_img_free(img_shifted);
 

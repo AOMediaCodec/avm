@@ -548,7 +548,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
     for (i = 0; i < REF_CONTEXTS; ++i) {
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+      for (j = 0; j < EXTENDED_INTER_REFS_CONTEXT; ++j) {
+#else
       for (j = 0; j < INTER_REFS_PER_FRAME - 1; ++j) {
+#endif
         av1_cost_tokens_from_cdf(mode_costs->single_ref_cost[i][j],
                                  fc->single_ref_cdf[i][j], NULL);
       }
@@ -556,7 +560,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 
     for (i = 0; i < REF_CONTEXTS; ++i) {
 #if CONFIG_SAME_REF_COMPOUND
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+      for (j = 0; j < EXTENDED_INTER_REFS_CONTEXT; ++j) {
+#else
       for (j = 0; j < INTER_REFS_PER_FRAME - 1; ++j) {
+#endif
 #else
       for (j = 0; j < INTER_REFS_PER_FRAME - 2; ++j) {
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -567,7 +575,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     for (i = 0; i < REF_CONTEXTS; ++i) {
       for (j = 0; j < COMPREF_BIT_TYPES; j++) {
 #if CONFIG_SAME_REF_COMPOUND
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+        for (int k = 0; k < EXTENDED_INTER_REFS_CONTEXT; ++k) {
+#else
         for (int k = 0; k < INTER_REFS_PER_FRAME - 1; ++k) {
+#endif
 #else
         for (int k = 0; k < INTER_REFS_PER_FRAME - 2; ++k) {
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -952,6 +964,7 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
   int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, qindex);
+#if !CONFIG_MULTIVIEW_CORE
   if (is_stat_consumption_stage(cpi) &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -961,6 +974,7 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
     rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
+#endif
   return (int)rdmult;
 }
 

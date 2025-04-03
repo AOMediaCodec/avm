@@ -1124,6 +1124,48 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
+#if CONFIG_MULTIVIEW_DEBUG
+    const CurrentFrame *const cf = &cpi->common.current_frame;
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+    FILE *const logfile = cm->fEncMultiviewLog;
+#endif
+    if (frame_to_show == NULL || cpi->existing_fb_idx_to_show < 0) {
+#if CONFIG_MULTIVIEW_DEBUG_PROMPT
+      printf(
+          "Frame to show - does not exist (index=%d): "
+          "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+          cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+          cf->order_hint, cf->display_order_hint);
+      fflush(stdout);
+#endif
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+      fprintf(logfile,
+              "Frame to show - does not exist (index=%d): "
+              "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+              cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+              cf->order_hint, cf->display_order_hint);
+#endif
+    } else {
+      // printf("Frame to show - exists (index=%d):
+      // (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show,
+      // cf->view_id, cf->pyramid_level, cf->order_hint,
+      // cf->display_order_hint);
+
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+      // fprintf(logfile, "Frame to show - exists (index=%d):
+      // (View,Level,OH,DOH):(%d,%d,%d,%d) \n", cpi->existing_fb_idx_to_show,
+      // cf->view_id, cf->pyramid_level, cf->order_hint,
+      // cf->display_order_hint);
+#endif
+    }
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+//      logfile_multiview_curr_frame(cm, logfile);
+//      logfile_multiview_buf_refs(cm, logfile);
+//      logfile_buffer_state(cm, logfile);
+//      logfile_primary_ref_info(cm, logfile);
+//      fflush(logfile);
+#endif
+#endif
 
     if (frame_to_show == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,

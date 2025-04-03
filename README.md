@@ -1,6 +1,23 @@
-# AVM
+# Multiview-AVM (M-AVM) v1.0.0
 
-[TOC]
+M-AVM is the multilayer/multiview extension of the AVM reference software.
+
+After building and compiling *aomenc* and *aomdec* binaries as instructed below, the following command line entries for *aomenc* will compress of multiple input views from separate raw video files.
+
+For example, two views stored in `Raw_video_view0.yuv` and `Raw_video_view1.yuv` files can be compressed using *aomenc* with the following command line arguments:
+~~~
+aomenc <Raw_video_view0.yuv> <Raw_video_view1.yuv> --num-views=2 -o bitstream.avm [*additional command arguments for AVM]
+~~~
+This will generate a single M-AVM bitstream in `bitstream.avm`. The following sample command can be used to decode using the *aomdec* binary.
+~~~
+aomdec bitstream.avm --output=Recon_video.yuv --progress --output-bit-depth=8 --rawvideo
+~~~
+This command will decode and output two files `Recon_video_view0.yuv` and `Recon_video_view1.yuv` for each view.
+
+The current version software allows up to encoding and decoding of 256 views. For more `N` views the encoder the following encoder command can be used:
+~~~
+aomenc <Raw_video_view0.yuv> <Raw_video_view1.yuv> ... <Raw_video_view{N-1}.yuv> --num-views=N -o bitstream.avm [*additional command arguments for AVM]
+~~~
 
 ## Building
 

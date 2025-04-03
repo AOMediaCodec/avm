@@ -25,6 +25,9 @@ extern "C" {
 #if !CONFIG_PRIMARY_REF_FRAME_OPT
 typedef struct {
   int pyr_level;
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+  int temporal_layer_id;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
@@ -42,10 +45,31 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
-    if (buf == NULL) {
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    // If the temporal_layer_id of the reference frame is greater than
+    // the temporal_layer_id of the current frame, the reference frame
+    // is not included into the list of ref_frame_map_pairs[].
+    if (buf == NULL ||
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+        buf->view_id > cm->current_frame.view_id ||
+#endif
+        buf->temporal_layer_id > cm->current_frame.temporal_layer_id) {
+#else  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    if (buf == NULL
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+        || buf->view_id > cm->current_frame.view_id
+#endif
+    ) {
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
       ref_frame_map_pairs[map_idx].disp_order = -1;
       ref_frame_map_pairs[map_idx].pyr_level = -1;
       ref_frame_map_pairs[map_idx].base_qindex = -1;
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+      ref_frame_map_pairs[map_idx].view_id = -1;
+#endif
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+      ref_frame_map_pairs[map_idx].temporal_layer_id = -1;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
       continue;
     } else if (buf->ref_count > 1) {
       // Once the keyframe is coded, the slots in ref_frame_map will all
@@ -59,12 +83,24 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
           ref_frame_map_pairs[idx2].disp_order = -1;
           ref_frame_map_pairs[idx2].pyr_level = -1;
           ref_frame_map_pairs[idx2].base_qindex = -1;
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+          ref_frame_map_pairs[idx2].view_id = -1;
+#endif
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+          ref_frame_map_pairs[map_idx].temporal_layer_id = -1;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
         }
       }
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+    ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
     ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+    ref_frame_map_pairs[map_idx].view_id = buf->view_id;
+#endif
 #if CONFIG_PRIMARY_REF_FRAME_OPT
     ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
@@ -84,6 +120,9 @@ typedef struct {
   int disp_order;
   // Quality of the reference frame
   int base_qindex;
+#if CONFIG_MULTIVIEW_CORE
+  int view_id;
+#endif
 } RefScoreData;
 /*!\endcond */
 
@@ -548,8 +587,13 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_single_ref(const MACROBLOCKD *xd,
                                                         MV_REFERENCE_FRAME ref,
                                                         int num_total_refs) {
   assert((ref + 1) < num_total_refs);
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+  return xd->tile_ctx->single_ref_cdf[av1_get_ref_pred_context(
+      xd, ref, num_total_refs)][clamp(ref, 0, EXTENDED_INTER_REFS_CONTEXT - 1)];
+#else
   return xd->tile_ctx
       ->single_ref_cdf[av1_get_ref_pred_context(xd, ref, num_total_refs)][ref];
+#endif
 }
 
 // This function checks whether the previously coded reference frame is on the
@@ -578,13 +622,27 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_compound_ref(
   assert(bit_type < COMPREF_BIT_TYPES);
   assert(IMPLIES(n_bits == 0, ref < RANKED_REF0_TO_PRUNE - 1));
 #endif  // CONFIG_SAME_REF_COMPOUND
-  return n_bits == 0 ? xd->tile_ctx->comp_ref0_cdf[av1_get_ref_pred_context(
-                           xd, ref, num_total_refs)][ref]
-                     : xd->tile_ctx->comp_ref1_cdf[av1_get_ref_pred_context(
-#if CONFIG_SAME_REF_COMPOUND
-                           xd, ref, num_total_refs)][bit_type][ref];
+  return n_bits == 0
+             ? xd->tile_ctx->comp_ref0_cdf[av1_get_ref_pred_context(
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+                   xd, ref,
+                   num_total_refs)][clamp(ref, 0,
+                                          EXTENDED_INTER_REFS_CONTEXT - 1)]
 #else
-                           xd, ref, num_total_refs)][bit_type][ref - 1];
+                   xd, ref, num_total_refs)][ref]
+#endif
+             : xd->tile_ctx
+                   ->comp_ref1_cdf[av1_get_ref_pred_context(
+#if CONFIG_SAME_REF_COMPOUND
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+                       xd, ref, num_total_refs)][bit_type]
+                                  [clamp(ref, 0,
+                                         EXTENDED_INTER_REFS_CONTEXT - 1)];
+#else
+                       xd, ref, num_total_refs)][bit_type][ref];
+#endif
+#else
+                       xd, ref, num_total_refs)][bit_type][ref - 1];
 #endif  // CONFIG_SAME_REF_COMPOUND
 }
 

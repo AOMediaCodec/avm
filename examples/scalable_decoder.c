@@ -110,8 +110,13 @@ int main(int argc, char **argv) {
 
   if (!(inputfile = fopen(argv[1], "rb")))
     die("Failed to open %s for read.", argv[1]);
+#if CONFIG_MULTIVIEW_CORE
+  obu_ctx.avx_ctx->file[0] = inputfile;
+  obu_ctx.avx_ctx->filename[0] = argv[1];
+#else
   obu_ctx.avx_ctx->file = inputfile;
   obu_ctx.avx_ctx->filename = argv[1];
+#endif
 
   aom_codec_iface_t *decoder = get_aom_decoder_by_index(0);
   printf("Using %s\n", aom_codec_iface_name(decoder));

@@ -32,7 +32,11 @@ class WebMVideoSource : public CompressedVideoSource {
         frame_number_(0), end_of_file_(false) {}
 
   virtual ~WebMVideoSource() {
+#if CONFIG_MULTIVIEW_CORE
+    if (aom_ctx_->file[0] != NULL) fclose(aom_ctx_->file[0]);
+#else
     if (aom_ctx_->file != NULL) fclose(aom_ctx_->file);
+#endif
     webm_free(webm_ctx_);
     delete aom_ctx_;
     delete webm_ctx_;
@@ -41,9 +45,15 @@ class WebMVideoSource : public CompressedVideoSource {
   virtual void Init() {}
 
   virtual void Begin() {
+#if CONFIG_MULTIVIEW_CORE
+    aom_ctx_->file[0] = OpenTestDataFile(file_name_);
+    ASSERT_TRUE(aom_ctx_->file[0] != NULL)
+        << "Input file open failed. Filename: " << file_name_;
+#else
     aom_ctx_->file = OpenTestDataFile(file_name_);
     ASSERT_TRUE(aom_ctx_->file != NULL)
         << "Input file open failed. Filename: " << file_name_;
+#endif
 
     ASSERT_EQ(file_is_webm(webm_ctx_, aom_ctx_), 1) << "file is not WebM";
 
@@ -56,7 +66,11 @@ class WebMVideoSource : public CompressedVideoSource {
   }
 
   void FillFrame() {
+#if CONFIG_MULTIVIEW_CORE
+    ASSERT_TRUE(aom_ctx_->file[0] != NULL);
+#else
     ASSERT_TRUE(aom_ctx_->file != NULL);
+#endif
     const int status = webm_read_frame(webm_ctx_, &buf_, &frame_sz_, &buf_sz_);
     ASSERT_GE(status, 0) << "webm_read_frame failed";
     if (status == 1) {
@@ -65,7 +79,11 @@ class WebMVideoSource : public CompressedVideoSource {
   }
 
   void SeekToNextKeyFrame() {
+#if CONFIG_MULTIVIEW_CORE
+    ASSERT_TRUE(aom_ctx_->file[0] != NULL);
+#else
     ASSERT_TRUE(aom_ctx_->file != NULL);
+#endif
     do {
       const int status =
           webm_read_frame(webm_ctx_, &buf_, &frame_sz_, &buf_sz_);

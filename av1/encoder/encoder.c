@@ -362,6 +362,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
+#if CONFIG_MULTIVIEW_CORE
+  assert(oxcf->input_cfg.num_views > 0);
+  seq->still_picture &= oxcf->input_cfg.num_views == 1;
+#endif
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
@@ -388,6 +392,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_SAME_REF_COMPOUND
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 #endif  // CONFIG_SAME_REF_COMPOUND
+
+#if CONFIG_MULTIVIEW_CORE
+  seq->num_views = oxcf->input_cfg.num_views;
+#endif
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
@@ -643,6 +651,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->number_temporal_layers = 1;
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
+
+#if CONFIG_MULTIVIEW_CORE
+  cm->number_layers = oxcf->input_cfg.num_views;
+#endif
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
@@ -1104,6 +1116,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 #if DEBUG_EXTQUANT
   cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
 #endif
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+  cm->fEncMultiviewLog = fopen("/tmp/EncMultilayerLog.txt", "wt");
+#endif
 
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
@@ -1140,6 +1155,10 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
+#if CONFIG_MULTIVIEW_CORE
+  cpi->frames_left *= cm->number_layers;
+  assert(cm->number_layers > 0);
+#endif
 
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
@@ -1595,6 +1614,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if DEBUG_EXTQUANT
   if (cpi->common.fEncCoeffLog != NULL) {
     fclose(cpi->common.fEncCoeffLog);
+  }
+#endif
+
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+  if (cpi->common.fEncMultiviewLog != NULL) {
+    fclose(cpi->common.fEncMultiviewLog);
   }
 #endif
 
@@ -3702,6 +3727,20 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cpi->last_encoded_frame_order_hint = cm->current_frame.display_order_hint;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
+#if CONFIG_MULTIVIEW_DEBUG
+#if CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf("Encoder - ");
+  debug_print_multiview_buf_refs(cm);
+  debug_print_multiview_curr_frame(cm);
+#endif
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+  FILE *const logfile = cm->fEncMultiviewLog;
+  logfile_multiview_curr_frame(cm, logfile);
+  logfile_multiview_buf_refs(cm, logfile);
+  logfile_buffer_state(cm, logfile);
+#endif
+#endif
+
   return AOM_CODEC_OK;
 }
 
@@ -4068,13 +4107,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           realloc_and_scale_source(cpi, cm->cur_frame->buf.y_crop_width,
                                    cm->cur_frame->buf.y_crop_height);
     }
-
     // current_frame->frame_number is incremented already for
     // keyframe overlays.
     if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
-                                    cpi->rc.frames_since_key))
+                                    cpi->rc.frames_since_key)) {
       ++current_frame->frame_number;
-
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+      printf("Frame number increment 1 : %d --> %d \n",
+             current_frame->frame_number - 1, current_frame->frame_number);
+#endif
+    }
     return AOM_CODEC_OK;
   }
 
@@ -4331,6 +4373,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     ++current_frame->frame_number;
   }
 
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf("Frame number increment 2 : %d --> %d \n",
+         current_frame->frame_number - 1, current_frame->frame_number);
+#endif
+
   return AOM_CODEC_OK;
 }
 
@@ -4368,15 +4415,73 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
+#if CONFIG_MULTIVIEW_CORE
+  current_frame->absolute_poc =
+      current_frame->key_frame_number + current_frame->display_order_hint;
+  current_frame->view_id =
+      current_frame->display_order_hint % cm->number_layers;
+  current_frame->order_hint = current_frame->order_hint / cm->number_layers;
+  current_frame->display_order_hint =
+      current_frame->display_order_hint / cm->number_layers;
+#endif
+
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
 
+#if !CONFIG_MULTIVIEW_CORE
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
+#endif
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
+  cm->temporal_layer_id = current_frame->pyramid_level;
+  current_frame->temporal_layer_id = cm->temporal_layer_id;
+#else
+  cm->temporal_layer_id = 0;
+  current_frame->temporal_layer_id = cm->temporal_layer_id;
+#endif
+
+  const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+#if CONFIG_MULTIVIEW_CORE
+  const int cur_frame_disp =
+      (cpi->common.current_frame.frame_number + order_offset) /
+      cm->number_layers;
+#else
+  const int cur_frame_disp =
+      cpi->common.current_frame.frame_number + order_offset;
+#endif
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  init_ref_map_pair(
+      &cpi->common, cm->ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+#else
+  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+  init_ref_map_pair(
+      &cpi->common, ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  if (cm->seq_params.explicit_ref_frame_map)
+    av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+  else
+    av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#else
+  if (cm->seq_params.explicit_ref_frame_map)
+    av1_get_ref_frames_enc(cm, cur_frame_disp, ref_frame_map_pairs);
+  else
+    av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+#endif  // CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_REFLIST
 
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
+
+#if CONFIG_MULTIVIEW_CORE && CONFIG_MULTIVIEW_DEBUG_PROMPT
+  printf("--- encoder: ");
+  debug_print_multiview_curr_frame(cm);
+#endif
 
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
@@ -4388,6 +4493,22 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
                                         cm->show_frame);
 #endif  // CONFIG_BITSTREAM_DEBUG
+#if CONFIG_MULTIVIEW_DEBUG_LOGFILES
+    cm->show_existing_frame = frame_params->show_existing_frame;
+    cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
+    if (cm->show_existing_frame != 0 && cpi->existing_fb_idx_to_show < 0) {
+      FILE *const logfile = cm->fEncMultiviewLog;
+      fprintf(logfile,
+              " -- Encoder show existing frame may fail (flag=%d, "
+              "fb_idx_to_show=%d): \n ",
+              cm->show_existing_frame, cpi->existing_fb_idx_to_show);
+      logfile_multiview_curr_frame(cm, logfile);
+      logfile_multiview_buf_refs(cm, logfile);
+      logfile_buffer_state(cm, logfile);
+      logfile_primary_ref_info(cm, logfile);
+      fprintf(logfile, " -- End show existing frame --- \n ");
+    }
+#endif
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;

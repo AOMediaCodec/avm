@@ -70,8 +70,14 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
 
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
-    FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_frame_disp,
-    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
+    FRAME_UPDATE_TYPE frame_update_type, int gf_index,
+#if CONFIG_MULTILAYER_TEMPORAL_SCALABILITY_ENCODER
+    int cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTIVIEW_SEPARATE_DPB
+    int current_view_id, int num_views,
+#endif
+    int cur_frame_disp, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 
 int av1_get_refresh_ref_frame_map(AV1_COMMON *cm, int refresh_frame_flags);
 

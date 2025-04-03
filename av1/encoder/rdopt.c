@@ -921,7 +921,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   if (!(this_mode == GLOBALMV || this_mode == NEARMV)) {
     return 0;
   }
-  const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames);
+  const uint16_t ref_frame_type = av1_ref_frame_type(ref_frames);
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   if (ref_mv_count > 1) {
@@ -3621,11 +3621,11 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
     assert(single_mode == NEARMV);
     const int ref_mv_offset = ref_mv_idx;
 #if CONFIG_SEP_COMP_DRL
-    const int8_t ref_frame_type = has_second_drl_by_mode(this_mode, ref_frame)
-                                      ? ref_frame[ref_idx]
-                                      : av1_ref_frame_type(ref_frame);
+    const int16_t ref_frame_type = has_second_drl_by_mode(this_mode, ref_frame)
+                                       ? ref_frame[ref_idx]
+                                       : av1_ref_frame_type(ref_frame);
 #else
-    const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+    const int16_t ref_frame_type = av1_ref_frame_type(ref_frame);
 #endif
     if (ref_frame_type > NONE_FRAME &&
         ref_mv_offset < mbmi_ext->ref_mv_count[ref_frame_type]) {
@@ -3732,7 +3732,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     if (!ret) return 0;
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, i);
     if (single_mode == NEWMV) {
-      const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+      const uint16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_SEP_COMP_DRL
       if (has_second_drl(mbmi))
         cur_mv[i] =
@@ -3905,7 +3905,7 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
   }
 #endif
 
-  const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+  const int16_t ref_frame_type = av1_ref_frame_type(ref_frame);
 
   int ref_mv_count =
       ref_frame_type > NONE_FRAME ? mbmi_ext->ref_mv_count[ref_frame_type] : 0;
@@ -3943,7 +3943,7 @@ static bool ref_mv_idx_early_breakout(
 #if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
-  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  const int16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_SEP_COMP_DRL
   if (sf->inter_sf.reduce_inter_modes &&
       (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0)) {
@@ -4178,7 +4178,7 @@ static int skip_similar_ref_mv(AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->ref_mv_idx > 0) {
 #endif
     const int is_comp_pred = has_second_ref(mbmi);
-    const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+    const uint16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
     int_mv this_refmv[2];
     this_refmv[0].as_int = 0;
     this_refmv[1].as_int = 0;
@@ -7990,7 +7990,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_MORPH_PRED
 
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
-  const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  const uint16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   if (x->mbmi_ext->ref_mv_count[ref_frame_type] == UINT8_MAX) {
     if (x->mbmi_ext->ref_mv_count[ref_frame] == UINT8_MAX ||
         x->mbmi_ext->ref_mv_count[second_ref_frame] == UINT8_MAX) {
@@ -8104,7 +8104,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
     setup_buffer_ref_mvs_inter(cpi, x, rf_idx, bsize, yv12_mb);
   }
 
-  const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  const uint16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 
   av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, mbmi_ext->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs
@@ -8450,7 +8450,7 @@ static AOM_INLINE void rd_pick_skip_mode(
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
-  const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  const int16_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   if (x->mbmi_ext->ref_mv_count[ref_frame_type] == UINT8_MAX) {
     if (x->mbmi_ext->ref_mv_count[ref_frame] == UINT8_MAX ||
         x->mbmi_ext->ref_mv_count[second_ref_frame] == UINT8_MAX) {
@@ -9425,9 +9425,9 @@ static int inter_mode_search_order_independent_skip(
     return 1;
   }
 #if CONFIG_SAME_REF_COMPOUND
-  const uint8_t ref_type = av1_ref_frame_type(ref_frame);
+  const uint16_t ref_type = av1_ref_frame_type(ref_frame);
 #else
-  const int ref_type = av1_ref_frame_type(ref_frame);
+  const int16_t ref_type = av1_ref_frame_type(ref_frame);
 #endif  // CONFIG_SAME_REF_COMPOUND
   if (prune_ref_frame(cpi, x, ref_type)) return 1;
 
@@ -10702,10 +10702,17 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // Note that the 0-th element will contain a cut-off that is later used
   // to determine if we should skip a compound mode.
 
+#if CONFIG_MULTIVIEW_EXTENDED_DPB
+  int64_t ref_frame_rd[SINGLE_REF_FRAMES] = {
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX,
+    INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX
+  };
+#else
   int64_t ref_frame_rd[SINGLE_REF_FRAMES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX, INT64_MAX, INT64_MAX };
-
+#endif
   // Prepared stats used later to check if we could skip intra mode eval.
   int64_t inter_cost = -1;
   int64_t intra_cost = -1;
