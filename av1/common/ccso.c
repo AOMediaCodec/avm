@@ -379,9 +379,9 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
       const int ccso_blk_idx =
           (blk_size_y >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2) * mi_params->mi_stride +
+              (y >> blk_log2_y) * mi_params->mi_stride +
           (blk_size_x >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2);
+              (x >> blk_log2_y);
 #endif
       const bool use_ccso =
           (plane == 1) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
@@ -460,9 +460,9 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
       const int ccso_blk_idx =
           (blk_size_y >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2) * mi_params->mi_stride +
+              (y >> blk_log2_y) * mi_params->mi_stride +
           (blk_size_x >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2);
+              (x >> blk_log2_y);
 #endif
       const bool use_ccso =
           (plane == 1) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u

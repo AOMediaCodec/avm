@@ -81,6 +81,9 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 #endif
                              const int blk_size_y, const int edge_clf) {
   int src_cls[2];
+#if !CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_x = blk_size_y;
+#endif
   const int y_end = AOMMIN(pic_height - y, blk_size_y);
   const int x_end = AOMMIN(pic_width - x, blk_size_x);
   for (int y_start = 0; y_start < y_end; y_start++) {
