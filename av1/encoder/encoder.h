@@ -969,6 +969,9 @@ typedef struct {
 #if CONFIG_REFRESH_FLAG
   bool enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  bool enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;
 

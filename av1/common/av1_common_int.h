@@ -682,6 +682,10 @@ typedef struct SequenceHeader {
 #if CONFIG_REFRESH_FLAG
   uint8_t enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  uint8_t enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -956,6 +960,12 @@ typedef struct {
    */
   int tcq_mode;
 #endif  // CONFIG_TCQ
+#if CONFIG_EXT_SEG
+  /*!
+   * Enables/disables max # of segments to be 16
+   */
+  bool enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 } FeatureFlags;
 
 /*!

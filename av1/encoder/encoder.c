@@ -549,6 +549,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  seq->enable_ext_seg = tool_cfg->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -3494,6 +3497,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   start_timing(cpi, encode_with_recode_loop_time);
 #endif
   int err;
+
   if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
   else
@@ -4057,6 +4061,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
+
+#if CONFIG_EXT_SEG
+  features->enable_ext_seg = seq_params->enable_ext_seg;
+  cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 
   cpi->last_frame_type = current_frame->frame_type;
 

@@ -5563,7 +5563,13 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // Segmentation data
   if (seg->update_data) {
-    for (i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (i = 0; i < max_seg_num; i++) {
       for (j = 0; j < SEG_LVL_MAX; j++) {
         const int active = segfeature_active(seg, i, j);
         aom_wb_write_bit(wb, active);
@@ -6309,6 +6315,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_REFRESH_FLAG
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#endif  // CONFIG_EXT_SEG
 }
 
 static AOM_INLINE void write_global_motion_params(

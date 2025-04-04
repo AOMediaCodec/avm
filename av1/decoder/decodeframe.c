@@ -2771,6 +2771,9 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   seg->update_map = 0;
   seg->update_data = 0;
   seg->temporal_update = 0;
+#if CONFIG_EXT_SEG
+  seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 
   seg->enabled = aom_rb_read_bit(rb);
   if (!seg->enabled) {
@@ -2783,6 +2786,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     segfeatures_copy(&cm->cur_frame->seg, seg);
     return;
   }
+
   if (cm->seg.enabled && cm->prev_frame &&
       (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
       (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
@@ -2813,8 +2817,13 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   // Segmentation data update
   if (seg->update_data) {
     av1_clearall_segfeatures(seg);
-
-    for (int i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (int i = 0; i < max_seg_num; i++) {
       for (int j = 0; j < SEG_LVL_MAX; j++) {
         int data = 0;
         const int feature_enabled = aom_rb_read_bit(rb);
@@ -6846,6 +6855,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  seq_params->enable_ext_seg = aom_rb_read_bit(rb);
+#endif  // CONFIG_EXT_SEG
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -8515,6 +8527,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     av1_set_single_tile_decoding_mode(cm);
   }
 #endif  // EXT_TILE_DEBUG
+
+#if CONFIG_EXT_SEG
+  features->enable_ext_seg = seq_params->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+
   return 0;
 }
 

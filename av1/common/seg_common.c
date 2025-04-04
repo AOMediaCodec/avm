@@ -38,7 +38,13 @@ void av1_clearall_segfeatures(struct segmentation *seg) {
 void av1_calculate_segdata(struct segmentation *seg) {
   seg->segid_preskip = 0;
   seg->last_active_segid = 0;
-  for (int i = 0; i < MAX_SEGMENTS; i++) {
+
+#if CONFIG_EXT_SEG
+  const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+  const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+  for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
       if (seg->feature_mask[i] & (1 << j)) {
         seg->segid_preskip |= (j >= SEG_LVL_ALT_LF_V);

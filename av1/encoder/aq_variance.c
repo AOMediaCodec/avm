@@ -28,6 +28,7 @@ static const double rate_ratio[MAX_SEGMENTS] = { 2.2, 1.7, 1.3, 1.0,
 
 static const double deltaq_rate_ratio[MAX_SEGMENTS] = { 2.5,  2.0, 1.5, 1.0,
                                                         0.75, 1.0, 1.0, 1.0 };
+
 #define ENERGY_MIN (-4)
 #define ENERGY_MAX (1)
 #define ENERGY_SPAN (ENERGY_MAX - ENERGY_MIN + 1)
@@ -71,7 +72,14 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
 
     aom_clear_system_state();
 
-    for (i = 0; i < MAX_SEGMENTS; ++i) {
+#if CONFIG_EXT_SEG
+    // TODO: This workaround is needed because existing aq_mode=1 is only
+    // defined for 8 energy levles.
+    const int max_seg_num = MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (i = 0; i < max_seg_num; ++i) {
       // Set up avg segment id to be 1.0 and adjust the other segments around
       // it.
       int qindex_delta = av1_compute_qdelta_by_rate(
@@ -90,6 +98,26 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
       av1_set_segdata(seg, i, SEG_LVL_ALT_Q, qindex_delta);
       av1_enable_segfeature(seg, i, SEG_LVL_ALT_Q);
     }
+
+#if CONFIG_EXT_SEG
+    // TODO: This workaround is needed because existing aq_mode=1 is only
+    // defined for 8 energy levles, hence mapped to seg_id = [0..7] only. So,
+    // until it is defined. disable ALT_Q/seg_id MAX_SEGMENTS_8 or greater.
+    //
+    // Please refer to the code, where energy level decides the seg_id,
+    // in setup_block_rdmult()
+    //   energy = av1_log_block_var(cpi, x, bsize);
+    //   mbmi->segment_id = energy;
+
+    SequenceHeader *const seq_params = &cm->seq_params;
+    cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
+
+    if (cm->seg.enable_ext_seg) {
+      for (i = MAX_SEGMENTS_8; i < MAX_SEGMENTS; ++i) {
+        av1_disable_segfeature(seg, i, SEG_LVL_ALT_Q);
+      }
+    }
+#endif  // CONFIG_EXT_SEG
   }
 }
 

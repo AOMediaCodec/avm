@@ -19,7 +19,13 @@
 extern "C" {
 #endif
 
+#if CONFIG_EXT_SEG
+#define MAX_SEGMENTS 16
+#define MAX_SEGMENTS_8 8
+#else
 #define MAX_SEGMENTS 8
+#endif  // CONFIG_EXT_SEG
+
 #define SEG_TREE_PROBS (MAX_SEGMENTS - 1)
 
 #define SEG_TEMPORAL_PRED_CTXS 3
@@ -50,6 +56,9 @@ struct segmentation {
                           // skip syntax element.
                           // 1: the segment id will be read first.
                           // 0: the skip syntax element will be read first.
+#if CONFIG_EXT_SEG
+  uint8_t enable_ext_seg;  // Enable the extended max segment num = 16
+#endif                     // CONFIG_EXT_SEG
 };
 
 struct segmentation_probs {
@@ -68,7 +77,13 @@ static INLINE int segfeature_active(const struct segmentation *seg,
 static INLINE void segfeatures_copy(struct segmentation *dst,
                                     const struct segmentation *src) {
   int i, j;
-  for (i = 0; i < MAX_SEGMENTS; i++) {
+
+#if CONFIG_EXT_SEG
+  const int max_seg_num = src->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+  const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+  for (i = 0; i < max_seg_num; i++) {
     dst->feature_mask[i] = src->feature_mask[i];
     for (j = 0; j < SEG_LVL_MAX; j++) {
       dst->feature_data[i][j] = src->feature_data[i][j];
@@ -76,6 +91,7 @@ static INLINE void segfeatures_copy(struct segmentation *dst,
   }
   dst->segid_preskip = src->segid_preskip;
   dst->last_active_segid = src->last_active_segid;
+  dst->enable_ext_seg = src->enable_ext_seg;
 }
 
 void av1_clearall_segfeatures(struct segmentation *seg);

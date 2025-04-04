@@ -7958,11 +7958,16 @@ static const aom_cdf_prob default_delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(
 static const aom_cdf_prob default_delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)] = {
   AOM_CDF4(28160, 32120, 32677)
 };
-#endif  // CONFIG_ENTROPY_PARA
 
+#endif  // CONFIG_ENTROPY_PARA
 // FIXME(someone) need real defaults here
 static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(MAX_SEGMENTS)] = {
+#if CONFIG_EXT_SEG
+  AOM_CDF16(2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384, 18432, 20480,
+            22528, 24576, 26624, 28672, 30720)
+#else   // CONFIG_EXT_SEG
   AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672)
+#endif  // CONFIG_EXT_SEG
 };
 
 static const aom_cdf_prob
@@ -7973,6 +7978,23 @@ static const aom_cdf_prob
 static const aom_cdf_prob
     default_spatial_pred_seg_tree_cdf[SPATIAL_PREDICTION_PROBS][CDF_SIZE(
         MAX_SEGMENTS)] = {
+#if CONFIG_EXT_SEG
+      {
+          // all different
+          AOM_CDF16(5622, 6757, 7893, 11993, 16093, 17163, 18233, 23021, 27809,
+                    28091, 28373, 30453, 32533, 32650, 32762),
+      },
+      {
+          // either of three pair of two neighbors is the same
+          AOM_CDF16(14274, 16252, 18230, 20393, 22557, 23746, 24935, 27362,
+                    29980, 30415, 30851, 31597, 32344, 32553, 32762),
+      },
+      {
+          // UL == L && UL == U, all the same
+          AOM_CDF16(27527, 28007, 28487, 28605, 28723, 28806, 28890, 30643,
+                    32397, 32522, 32647, 32663, 32679, 32720, 32762),
+      },
+#else   // CONFIG_EXT_SEG
       {
           AOM_CDF8(5622, 7893, 16093, 18233, 27809, 28373, 32533),
       },
@@ -7982,6 +8004,7 @@ static const aom_cdf_prob
       {
           AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),
       },
+#endif  // CONFIG_EXT_SEG
     };
 
 #if CONFIG_NEW_TX_PARTITION
