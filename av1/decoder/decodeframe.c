@@ -3335,6 +3335,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
     int ncoeffs =
         config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
     assert(nsfilter_params->ncoeffs == ncoeffs);
+    (void)ncoeffs;
     int s = 0;
     for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
       const int filter_length_bit =
@@ -3438,6 +3439,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     int ncoeffs =
         config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
     assert(nsfilter_params->ncoeffs == ncoeffs);
+    (void)ncoeffs;
     int s = 0;
     for (int i = 0; i < nsfilter_params->nsubsets - 1; ++i) {
       const int filter_length_bit =

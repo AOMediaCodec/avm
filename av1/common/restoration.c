@@ -1787,11 +1787,11 @@ static bool adjust_filter_to_non_subtract_center(
     const NonsepFilterConfig *nsfilter_config,
     const WienerNonsepInfo *wienerns_info, int is_uv,
     NonsepFilterConfig *adjusted_config, WienerNonsepInfo *adjusted_info) {
+  assert(IMPLIES(!is_uv, nsfilter_config->config2 == NULL));
+  (void)is_uv;
   *adjusted_config = *nsfilter_config;
   *adjusted_info = *wienerns_info;
   if (nsfilter_config->subtract_center == 0) return true;
-
-  assert(IMPLIES(!is_uv, adjusted_config->config2 == NULL));
 
   adjusted_config->subtract_center = 0;
 

@@ -58,7 +58,9 @@ typedef struct NonsepFilterConfig {
 
   // Symmetry can be derived from the config but convenient to have
   // explicitly specified
-  int asymmetric;   // number of pixels that are asymmetric in config
+  int asymmetric;   // number of pixels that are asymmetric in config; the value
+                    // is always equal to zero since luma filter is symmetric in
+                    // AV2
   int asymmetric2;  // number of pixels that are asymmetric in config2
 } NonsepFilterConfig;
 

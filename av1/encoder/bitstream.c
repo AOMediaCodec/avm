@@ -4853,6 +4853,7 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
     int ncoeffs =
         config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
     assert(nsfilter_params->ncoeffs == ncoeffs);
+    (void)ncoeffs;
     int s;
     for (s = 0; s < nsfilter_params->nsubsets; ++s) {
       int i;
@@ -4964,6 +4965,7 @@ static AOM_INLINE void write_wienerns_filter(
     int ncoeffs =
         config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
     assert(nsfilter_params->ncoeffs == ncoeffs);
+    (void)ncoeffs;
     int s;
     for (s = 0; s < nsfilter_params->nsubsets; ++s) {
       int i;

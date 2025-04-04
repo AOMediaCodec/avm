@@ -2490,6 +2490,7 @@ static int64_t count_wienerns_bits(
     int ncoeffs =
         config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
     assert(nsfilter_params->ncoeffs == ncoeffs);
+    (void)ncoeffs;
     int s;
     for (s = 0; s < nsfilter_params->nsubsets; ++s) {
       int i;
@@ -2664,6 +2665,7 @@ static int64_t finer_tile_search_wienerns(
   int ncoeffs =
       config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
   assert(nsfilter_params->ncoeffs == ncoeffs);
+  (void)ncoeffs;
 
 #if CONFIG_COMBINE_PC_NS_WIENER
   int reset_dict = 1;

@@ -900,8 +900,7 @@ static INLINE int skip_sym_bit(const WienernsFilterParameters *nsfilter_params,
     num_taps++;
     asym_taps += is_asym_coeff;
   }
-  int num_taps_sym = num_taps - (asym_taps >> 1);
-  assert(num_taps_sym <= WIENERNS_SIGNALED_TAPS_MAX);
+  assert(num_taps - (asym_taps >> 1) <= WIENERNS_SIGNALED_TAPS_MAX);
 
   return (num_taps > WIENERNS_SIGNALED_TAPS_MAX ? 2 : (asym_taps == 0));
 }
