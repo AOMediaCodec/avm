@@ -184,15 +184,13 @@ class CCSOWITHBUFTest : public CCSOFilterTest<CCSO_With_BUF> {
  protected:
   void Execute() {
     ccso_stride_ = src_y_stride_ - (CCSO_PADDING_SIZE << 1);
-    params_.ref_func(src_y_, dst_ref_, src_cls0_, src_cls1_, src_y_stride_,
-                     dst_stride_, ccso_stride_, 0, 0, pic_width_, pic_height_,
-                     offset_buf_,
+    params_.ref_func(
+        src_y_, dst_ref_, src_cls0_, src_cls1_, src_y_stride_, dst_stride_,
+        ccso_stride_, 0, 0, pic_width_, pic_height_, offset_buf_,
 #if CONFIG_CCSO_FU_BUGFIX
-                     blk_size_,
+        blk_size_,
 #endif
-                     blk_size_,
-                     y_uv_hscale_, y_uv_vscale_,
-                     max_val_, shift_bits_, 0);
+        blk_size_, y_uv_hscale_, y_uv_vscale_, max_val_, shift_bits_, 0);
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, dst_tst_, src_cls0_, src_cls1_, src_y_stride_, dst_stride_,
@@ -260,8 +258,7 @@ class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {
 #if CONFIG_CCSO_FU_BUGFIX
                      blk_size_,
 #endif
-                     blk_size_,
-                     edge_clf_);
+                     blk_size_, edge_clf_);
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, src_cls0_tst, src_cls1_tst, src_y_stride_, ccso_stride_, 0, 0,
