@@ -127,13 +127,19 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
     params_.ref_func(src_y_, dst_ref_, 0, 0, pic_width_, pic_height_, src_cls_,
                      offset_buf_, src_y_stride_, dst_stride_, y_uv_hscale_,
                      y_uv_vscale_, thr_, neg_thr_, src_loc_, max_val_,
+#if CONFIG_CCSO_FU_BUGFIX
+                     blk_size_,
+#endif
                      blk_size_, isSingleBand_, shift_bits_, edge_clf_, 0);
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, dst_tst_, 0, 0, pic_width_, pic_height_, src_cls_, offset_buf_,
         src_y_stride_, dst_stride_, y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_,
-        src_loc_, max_val_, blk_size_, isSingleBand_, shift_bits_, edge_clf_,
-        0));
+        src_loc_, max_val_,
+#if CONFIG_CCSO_FU_BUGFIX
+        blk_size_,
+#endif
+        blk_size_, isSingleBand_, shift_bits_, edge_clf_, 0));
 
     for (int r = 0; r < blk_size_; ++r) {
       for (int c = 0; c < blk_size_; ++c) {
