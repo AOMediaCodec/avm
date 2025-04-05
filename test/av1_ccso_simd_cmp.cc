@@ -266,10 +266,14 @@ class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {
 #endif
                      blk_size_, edge_clf_);
 
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(
-        src_y_, src_cls0_tst, src_cls1_tst, src_y_stride_, ccso_stride_, 0, 0,
-        pic_width_, pic_height_, y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_,
-        src_loc_, blk_size_, edge_clf_));
+    ASM_REGISTER_STATE_CHECK(
+        params_.tst_func(src_y_, src_cls0_tst, src_cls1_tst, src_y_stride_,
+                         ccso_stride_, 0, 0, pic_width_, pic_height_,
+                         y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_, src_loc_,
+#if CONFIG_CCSO_FU_BUGFIX
+                         blk_size_,
+#endif
+                         blk_size_, edge_clf_));
 
     for (int r = 0; r < blk_size_; ++r) {
       for (int c = 0; c < blk_size_; ++c) {
