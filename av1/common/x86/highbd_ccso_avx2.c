@@ -56,7 +56,7 @@ void ccso_filter_block_hbd_wo_buf_avx2(
     const int blk_size_x, const int blk_size_y,
 #else
     const int blk_size,
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
     const bool isSingleBand, const uint8_t shift_bits, const int edge_clf,
     const uint8_t ccso_bo_only) {
   assert(ccso_bo_only == 0);
@@ -92,7 +92,7 @@ void ccso_filter_block_hbd_wo_buf_avx2(
 #if !CONFIG_CCSO_FU_BUGFIX
   const int blk_size_x = blk_size;
   const int blk_size_y = blk_size;
-#endif
+#endif  // !CONFIG_CCSO_FU_BUGFIX
 
   if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
@@ -262,7 +262,7 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int blk_size_x, const int blk_size_y,
 #else
                                 const int blk_size,
-#endif
+#endif // CONFIG_CCSO_FU_BUGFIX
                                 const int edge_clf) {
   const int quant_step_size = qstep;
   const int inv_quant_step = neg_qstep;
@@ -296,7 +296,7 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
 #if !CONFIG_CCSO_FU_BUGFIX
   const int blk_size_x = blk_size;
   const int blk_size_y = blk_size;
-#endif
+#endif  // !CONFIG_CCSO_FU_BUGFIX
 
   if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
@@ -449,7 +449,7 @@ void ccso_filter_block_hbd_with_buf_bo_only_avx2(
     const int blk_size_x, const int blk_size_y,
 #else
     const int blk_size,
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
     const int y_uv_hscale, const int y_uv_vscale, const int max_val,
     const uint8_t shift_bits, const uint8_t ccso_bo_only) {
   (void)ccso_bo_only;
@@ -472,7 +472,7 @@ void ccso_filter_block_hbd_with_buf_bo_only_avx2(
 #if !CONFIG_CCSO_FU_BUGFIX
   const int blk_size_x = blk_size;
   const int blk_size_y = blk_size;
-#endif
+#endif  // !CONFIG_CCSO_FU_BUGFIX
 
   if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
@@ -567,7 +567,7 @@ void ccso_filter_block_hbd_with_buf_avx2(
     const int blk_size_x, const int blk_size_y,
 #else
     const int blk_size,
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
     const int y_uv_hscale, const int y_uv_vscale, const int max_val,
     const uint8_t shift_bits, const uint8_t ccso_bo_only) {
   (void)ccso_bo_only;
@@ -590,7 +590,7 @@ void ccso_filter_block_hbd_with_buf_avx2(
 #if !CONFIG_CCSO_FU_BUGFIX
   const int blk_size_x = blk_size;
   const int blk_size_y = blk_size;
-#endif
+#endif  // !CONFIG_CCSO_FU_BUGFIX
 
   if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
