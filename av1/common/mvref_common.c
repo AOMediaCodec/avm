@@ -561,25 +561,40 @@ static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
     mv->ref_frame[0] = mv->ref_frame[1];
     mv->mv[0] = mv->mv[1];
   } else if (mv->ref_frame[0] != NONE_FRAME && mv->ref_frame[1] != NONE_FRAME) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     int ref_display_order[2] = {
       get_ref_frame_buf(cm, mv->ref_frame[0])->display_order_hint,
       get_ref_frame_buf(cm, mv->ref_frame[1])->display_order_hint
     };
     int cur_display_order = cm->cur_frame->display_order_hint;
+#else
+    int ref_display_order[2] = {
+      get_ref_frame_buf(cm, mv->ref_frame[0])->order_hint,
+      get_ref_frame_buf(cm, mv->ref_frame[1])->order_hint
+    };
+    int cur_display_order = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
+    const int diff_0_cur =
+        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
+                          cur_display_order);
+    const int diff_1_cur =
+        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[1],
+                          cur_display_order);
+    const int diff_0_1 =
+        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
+                          ref_display_order[1]);
 
     bool to_switch = false;
-    if (ref_display_order[0] < cur_display_order &&
-        ref_display_order[1] < cur_display_order) {
-      if (ref_display_order[0] < ref_display_order[1]) {
+    if (diff_0_cur < 0 && diff_1_cur < 0) {
+      if (diff_0_1 < 0) {
         to_switch = true;
       }
-    } else if (ref_display_order[0] > cur_display_order &&
-               ref_display_order[1] > cur_display_order) {
-      if (ref_display_order[1] > ref_display_order[0]) {
+    } else if (diff_0_cur > 0 && diff_1_cur > 0) {
+      if (diff_0_1 < 0) {
         to_switch = true;
       }
-    } else if (ref_display_order[0] > cur_display_order &&
-               ref_display_order[1] < cur_display_order) {
+    } else if (diff_0_cur > 0 && diff_1_cur < 0) {
       to_switch = true;
     }
 
@@ -5204,13 +5219,23 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
                                  int rf) {
   visited[rf] = 1;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_hint = buf->display_order_hint;
+#else
+  const int cur_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   if (buf->frame_type == INTER_FRAME) {
     for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-      if (buf->ref_display_order_hint[i] < 0) continue;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int ref_hint = buf->ref_display_order_hint[i];
+#else
+      const int ref_hint = bug->ref_order_hints[i];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      if (ref_hint < 0) continue;
       int found_rf = -1;
       for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
-        if ((int)get_ref_frame_buf(cm, j)->display_order_hint ==
-            buf->ref_display_order_hint[i]) {
+        if (get_relative_dist(&cm->seq_params.order_hint_info, cur_hint,
+                              ref_hint) == 0) {
           if (is_overlay[j]) continue;
           found_rf = j;
           break;
@@ -5231,9 +5256,19 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
 static int has_future_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_hint = buf->display_order_hint;
+#else
+  const int cur_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (buf->ref_display_order_hint[i] >= 0 &&
-        buf->ref_display_order_hint[i] > (int)buf->display_order_hint) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_hint = buf->ref_display_order_hint[i];
+#else
+    const int ref_hint = bug->ref_order_hints[i];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
+                                           ref_hint, cur_hint) > 0) {
       return 1;
     }
   }
@@ -5244,9 +5279,19 @@ static int has_future_ref(const AV1_COMMON *cm, int rf) {
 static int has_past_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_hint = buf->display_order_hint;
+#else
+  const int cur_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (buf->ref_display_order_hint[i] >= 0 &&
-        buf->ref_display_order_hint[i] < (int)buf->display_order_hint) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_hint = buf->ref_display_order_hint[i];
+#else
+    const int ref_hint = bug->ref_order_hints[i];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
+                                           ref_hint, cur_hint) < 0) {
       return 1;
     }
   }
@@ -5739,10 +5784,16 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
 static int motion_field_projection_start_target(
     AV1_COMMON *cm, MV_REFERENCE_FRAME start_frame,
     MV_REFERENCE_FRAME target_frame) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;
   int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
   int target_order_hint =
       get_ref_frame_buf(cm, target_frame)->display_order_hint;
+#else
+  const int cur_order_hint = cm->cur_frame->order_hint;
+  int start_order_hint = get_ref_frame_buf(cm, start_frame)->order_hint;
+  int target_order_hint = get_ref_frame_buf(cm, target_frame)->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   OrderHintInfo *order_hint_info = &cm->seq_params.order_hint_info;
 
@@ -5771,7 +5822,11 @@ static int motion_field_projection_start_target(
          start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
+#else
+  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   int start_to_current_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, cur_order_hint);
@@ -5816,7 +5871,8 @@ static int motion_field_projection_start_target(
       if (is_inter_ref_frame(mv_ref->ref_frame[mv_idx])) {
         const int ref_frame_order_hint =
             ref_order_hints[mv_ref->ref_frame[mv_idx]];
-        if (ref_frame_order_hint == target_order_hint) {
+        if (get_relative_dist(order_hint_info, ref_frame_order_hint,
+                              target_order_hint) == 0) {
           MV ref_mv = mv_ref->mv[mv_idx].as_mv;
 #if CONFIG_TMVP_MV_COMPRESSION
           fetch_mv_from_tmvp(&ref_mv);
@@ -6074,10 +6130,21 @@ static int motion_field_projection_side(AV1_COMMON *cm,
 #if CONFIG_MV_TRAJECTORY
   int start_ref_map[INTER_REFS_PER_FRAME];
   for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
+#else
+    const int ref_k_hint = start_frame_buf->ref_order_hints[k];
+#endif
     start_ref_map[k] = NONE_FRAME;
     for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-      if ((int)get_ref_frame_buf(cm, rf)->display_order_hint ==
-          start_frame_buf->ref_display_order_hint[k]) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int rf_hint = get_ref_frame_buf(cm, rf)->display_order_hint;
+#else
+      const int rf_hint = get_ref_frame_buf(cm, rf)->order_hint;
+#endif
+      if (rf_hint >= 0 && ref_k_hint >= 0 &&
+          get_relative_dist(&cm->seq_params.order_hint_info, rf_hint,
+                            ref_k_hint) == 0) {
         start_ref_map[k] = rf;
         break;
       }
@@ -6682,13 +6749,27 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
   int64_t avg_row = 0;
   int64_t avg_col = 0;
   int64_t count = 0;
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int buf_hint = buf->display_order_hint;
+#else
+  const int buf_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
   for (int r = 0; r < mvs_rows; r += 2) {
     for (int c = 0; c < mvs_cols; c += 2) {
       const MV_REF *mv_ref = &buf->mvs[r * mvs_cols + c];
       if (mv_ref->ref_frame[side] != NONE_FRAME) {
-        const int dist =
-            abs((int)buf->display_order_hint -
-                (int)buf->ref_display_order_hint[mv_ref->ref_frame[side]]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        const int ref_hint =
+            buf->ref_display_order_hint[mv_ref->ref_frame[side]];
+#else
+        const int ref_hint = buf->ref_order_hints[mv_ref->ref_frame[side]];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
+        const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                               buf_hint, ref_hint));
+
         if (dist != 0) {
 #if CONFIG_TMVP_MV_COMPRESSION
           MV ref_mv = mv_ref->mv[side].as_mv;
@@ -6722,14 +6803,24 @@ void determine_tmvp_sample_step(AV1_COMMON *cm,
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   int small_count = 0;
   int large_count = 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_hint = cm->cur_frame->display_order_hint;
+#else
+  const int cur_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     for (int j = 0; j < 2; j++) {
       if (!checked_ref[i][j]) continue;
       const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int buf_hint = buf->display_order_hint;
+#else
+      const int buf_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
-      const int dist = abs((int)cm->cur_frame->display_order_hint -
-                           (int)buf->display_order_hint);
+      const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                             cur_hint, buf_hint));
       if (buf->avg_row[j] * dist / 16 > 8 || buf->avg_col[j] * dist / 16 > 16) {
         large_count++;
       } else {
@@ -7617,13 +7708,18 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   }
 
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
+#else
+    disp_order[rf] = get_ref_frame_buf(cm, rf)->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
-      if (disp_order[j] < disp_order[i]) {
-        int16_t tmp = disp_order[i];
+      if (get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
+          0) {
+        int tmp = disp_order[i];
         disp_order[i] = disp_order[j];
         disp_order[j] = tmp;
 
@@ -7633,11 +7729,16 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       }
     }
   }
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int cur_disp_order = cm->cur_frame->display_order_hint;
+#else
+  int cur_disp_order = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   // The idx of rf in sort_ref that is before current frame, and closest.
   int cur_frame_sort_idx = -1;
   for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
-    if (disp_order[rf_idx] < cur_disp_order) {
+    if (get_relative_dist(order_hint_info, disp_order[rf_idx], cur_disp_order) <
+        0) {
       cur_frame_sort_idx = rf_idx;
     } else {
       break;
@@ -7771,8 +7872,13 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   for (int ri = stack_count - 1; ri > 0; ri--) {
     int side;
-    if (get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint <
-        cm->cur_frame->display_order_hint) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_hint =
+        get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint;
+#else
+    const int ref_hint = get_ref_frame_buf(cm, rf_stack[ri])->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    if (get_relative_dist(order_hint_info, ref_hint, cur_disp_order) < 0) {
       side = 1;
     } else {
       side = 0;
