@@ -6109,7 +6109,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_SAME_REF_COMPOUND
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
-  aom_wb_write_bit(wb, seq_params->enable_sdp);
+  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);
   aom_wb_write_bit(wb, seq_params->enable_ist);
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
 #if CONFIG_CHROMA_TX
