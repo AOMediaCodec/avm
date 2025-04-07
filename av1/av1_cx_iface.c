@@ -1824,7 +1824,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #else
   part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  part_cfg->enable_sdp = extra_cfg->enable_sdp;
+  part_cfg->enable_sdp =
+      tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_sdp;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
   part_cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;

@@ -6908,7 +6908,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_SAME_REF_COMPOUND
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
-  seq_params->enable_sdp = aom_rb_read_bit(rb);
+  seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_ist = aom_rb_read_bit(rb);
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
 #if CONFIG_CHROMA_TX

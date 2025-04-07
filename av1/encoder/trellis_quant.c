@@ -553,6 +553,8 @@ void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
   uint8_t next_mid_mag[32 + 8][TCQ_MAX_STATES];
   uint8_t(*next_base)[TCQ_MAX_STATES] = &next_base_mag[4];
   uint8_t(*next_mid)[TCQ_MAX_STATES] = &next_mid_mag[4];
+  uint8_t(*mag_base)[TCQ_MAX_STATES] = &tcq_ctx->mag_base[4];
+  uint8_t(*mag_mid)[TCQ_MAX_STATES] = &tcq_ctx->mag_mid[4];
 
   int idx_start = col;
   int idx_end = 1 << bwl;
@@ -566,11 +568,13 @@ void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
       }
     } else {
       for (int i = 0; i < 32; i++) {
-        next_base[i][st] = tcq_ctx->mag_base[i][orig_st];
-        next_mid[i][st] = tcq_ctx->mag_mid[i][orig_st];
+        next_base[i][st] = mag_base[i][orig_st];
+        next_mid[i][st] = mag_mid[i][orig_st];
       }
     }
   }
+  memset(next_base_mag, 0, sizeof(next_base_mag[0]) * 4);
+  memset(next_mid_mag, 0, sizeof(next_mid_mag[0]) * 4);
   memset(tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
   memset(tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
   int diag = row + col;
@@ -591,11 +595,11 @@ void av1_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
       next_mid[i - 1][st] += lev;
       // Update base positions {2, 0}, {1. 1}, {0, 2}
       int base2 = AOMMIN(lev, max2);
-      tcq_ctx->mag_base[i][st] += base2;
-      tcq_ctx->mag_base[i - 1][st] += base2;
-      tcq_ctx->mag_base[i - 2][st] += base2;
+      mag_base[i][st] += base2;
+      mag_base[i - 1][st] += base2;
+      mag_base[i - 2][st] += base2;
       // Update mid position {1, 1}
-      tcq_ctx->mag_mid[i - 1][st] = lev;
+      mag_mid[i - 1][st] = lev;
     }
   }
   // Calc next context info
