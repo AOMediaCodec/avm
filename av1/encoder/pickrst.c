@@ -3872,16 +3872,10 @@ static int compute_quantized_wienerns_filter(
   double best_cost = DBL_MAX;
 
   assert((num_feat & 1) == 0);
-  const int fast_search = 0;
-  int break_low = 0, break_high = 0;
   for (int s = nsfilter_params->nsubsets - 1; s >= 0; --s) {
     memset(solver_x, 0, sizeof(*solver_x) * total_dim_b);
-    int ncoeffs =
-        config2ncoeffs_select(&nsfilter_params->nsfilter_config,
-                              nsfilter_params->subset_config[s], NULL, NULL);
-    if (ret && break_low && ncoeffs < break_low) continue;
-    if (ret && break_high && ncoeffs > break_high) continue;
-    int success = 0;
+    config2ncoeffs_select(&nsfilter_params->nsfilter_config,
+                          nsfilter_params->subset_config[s], NULL, NULL);
     int linsolve_successful = 0;
     for (int c_id = 0; c_id < num_classes; ++c_id) {
       int16_t *nsfilter = nsfilter_taps(&rui->wienerns_info, c_id);
@@ -3906,16 +3900,11 @@ static int compute_quantized_wienerns_filter(
         if (real_errq <= real_sse && cost < best_cost) {
           best_cost = cost;
           copy_nsfilter_taps(&best, &rui->wienerns_info);
-          success = 1;
-          ret = ncoeffs;
+          ret = 1;
         } else {
           copy_nsfilter_taps(&rui->wienerns_info, &best);
         }
       } while (0);
-      if (fast_search && ret && !success) {
-        if (ncoeffs < ret) break_low = ncoeffs;
-        if (ncoeffs > ret) break_high = ncoeffs;
-      }
     }
   }
   if (ret) {
