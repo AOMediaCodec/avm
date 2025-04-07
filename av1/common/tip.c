@@ -31,6 +31,7 @@
 // projection in a frame to allow TIP mode
 #define TIP_ENABLE_COUNT_THRESHOLD 60
 
+#if !CONFIG_TMVP_MEM_OPT
 static void tip_find_closest_bi_dir_ref_frames(AV1_COMMON *cm,
                                                int ref_order_hints[2],
                                                MV_REFERENCE_FRAME rf[2]) {
@@ -325,6 +326,7 @@ void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm) {
     cm->tip_ref.ref_frame[1] = NONE_FRAME;
   }
 }
+#endif  // !CONFIG_TMVP_MEM_OPT
 
 static void tip_temporal_scale_motion_field(AV1_COMMON *cm,
                                             const int ref_frames_offset) {
