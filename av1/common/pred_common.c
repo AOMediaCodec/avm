@@ -531,7 +531,7 @@ bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
   return (((mbmi->mi_row_start & ~blk_size_y) >= tile->mi_row_start) &&
           ((mbmi->mi_col_start & ~blk_size_x) >= tile->mi_col_start) &&
@@ -571,7 +571,7 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
   if (neighbor0_ccso_available && neighbor1_ccso_available) {
     int is_neighbor0_ccso = 0;

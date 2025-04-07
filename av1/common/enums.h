@@ -137,7 +137,7 @@ enum {
 #define CCSO_PADDING_SIZE 5
 #define CCSO_BAND_NUM 128
 #define CCSO_NUM_COMPONENTS 3
-#endif
+#endif  // !CONFIG_CCSO_FU_BUGFIX
 
 #define BUGFIX_AMVD_AMVR 1
 // Supported scale modes for JOINT_NEWMV
@@ -161,7 +161,7 @@ enum {
 #define CCSO_PADDING_SIZE 5
 #define CCSO_BAND_NUM 128
 #define CCSO_NUM_COMPONENTS 3
-#endif
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
 #if CONFIG_ENABLE_MHCCP
 #define MHCCP_CONTEXT_GROUP_SIZE 7
