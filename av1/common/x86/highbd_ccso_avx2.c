@@ -262,7 +262,7 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int blk_size_x, const int blk_size_y,
 #else
                                 const int blk_size,
-#endif // CONFIG_CCSO_FU_BUGFIX
+#endif  // CONFIG_CCSO_FU_BUGFIX
                                 const int edge_clf) {
   const int quant_step_size = qstep;
   const int inv_quant_step = neg_qstep;

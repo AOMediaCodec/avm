@@ -381,7 +381,7 @@ void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_CCSO_FU_BUGFIX
             blk_size,
 #endif  // CONFIG_CCSO_FU_BUGFIX
-            // y_uv_scale in h and v shall be zero
+        // y_uv_scale in h and v shall be zero
             0, 0, max_val, shift_bits, ccso_bo_only);
       } else {
         ccso_filter_block_hbd_with_buf(
@@ -390,7 +390,7 @@ void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_CCSO_FU_BUGFIX
             blk_size,
 #endif  // CONFIG_CCSO_FU_BUGFIX
-            // y_uv_scale in h and v shall be zero
+        // y_uv_scale in h and v shall be zero
             0, 0, max_val, shift_bits, 0);
       }
     }
