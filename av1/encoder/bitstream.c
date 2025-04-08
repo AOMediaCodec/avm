@@ -4286,7 +4286,7 @@ static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
   const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
   const int exact_match = (equal_ref >= 0);
 #if CONFIG_MERGE_PARA_CTX
-  aom_write_bit(w, exact_match);
+  aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
 #endif
@@ -4354,7 +4354,7 @@ static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
   const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
   const int exact_match = (equal_ref >= 0);
 #if CONFIG_MERGE_PARA_CTX
-  aom_write_bit(w, exact_match);
+  aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
 #endif
@@ -4411,7 +4411,7 @@ static int check_and_write_merge_info(
                              wiener_class_id, ref_for_class);
   const int exact_match = (is_equal >= 0);
 #if CONFIG_MERGE_PARA_CTX
-  aom_write_bit(w, exact_match);
+  aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
 #endif
@@ -4443,7 +4443,7 @@ static int check_and_write_exact_match(
       check_wienerns_eq(wienerns_info, ref_wienerns_info,
                         nsfilter_params->ncoeffs, wiener_class_id);
 #if CONFIG_MERGE_PARA_CTX
-  aom_write_bit(w, exact_match);
+  aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
 #endif
