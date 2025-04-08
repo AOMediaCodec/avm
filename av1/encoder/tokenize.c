@@ -57,7 +57,11 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   const int axis2_limit = direction ? cols : rows;
   PaletteDirectionCost direction_cost = param->direction_cost;
   if (calc_rate && plane_block_width < 64 && plane_block_height < 64) {
+#if CONFIG_PLT_DIR_CTX
+    this_rate += av1_cost_literal(1);
+#else
     this_rate += (*direction_cost)[direction];
+#endif
   }
   for (int ax2 = 0; ax2 < axis2_limit; ax2++) {
     int line_copy_flag = 0;

@@ -3119,8 +3119,13 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfo *wiener_info,
                                           WienerInfoBank *bank,
                                           aom_reader *rb) {
+#if CONFIG_MERGE_PARA_CTX
+    const int exact_match = aom_read_bit(rb,
+                                            ACCT_INFO("exact_match"));
+#else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
+#endif
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
     if (aom_read_literal(rb, 1, ACCT_INFO("bank_size"))) break;
@@ -3201,8 +3206,12 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfo *sgrproj_info,
                                            SgrprojInfoBank *bank,
                                            aom_reader *rb) {
+#if CONFIG_MERGE_PARA_CTX
+    const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
+#else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
+#endif
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
     if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
@@ -3360,8 +3369,12 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   read_match_indices(&rsi->frame_filters, rb, nopcw);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   for (int c_id = 0; c_id < num_classes; ++c_id) {
+#if CONFIG_MERGE_PARA_CTX
+      const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
+#else
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
+#endif
     skip_filter_read_for_class[c_id] = exact_match;
   }
   const WienernsFilterParameters *nsfilter_params =
@@ -3445,8 +3458,12 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   if (rsi->frame_filters_on) return;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
   for (int c_id = 0; c_id < num_classes; ++c_id) {
+#if CONFIG_MERGE_PARA_CTX
+    const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
+#else
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
+#endif
     int ref;
     for (ref = 0; ref < bank->bank_size_for_class[c_id] - 1; ++ref) {
       if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
