@@ -874,7 +874,11 @@ static int64_t count_sgrproj_bits(const ModeCosts *mode_costs,
     bits += (1 << AV1_PROB_COST_SHIFT);
     if (match) break;
   }
+#if CONFIG_MERGE_PARA_CTX
+  bits += av1_cost_literal(1);
+#else
   bits += mode_costs->merged_param_cost[equal_ref];
+#endif
   if (equal_ref) return bits;
   bits += (SGRPROJ_PARAMS_BITS << AV1_PROB_COST_SHIFT);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
@@ -968,7 +972,11 @@ static AOM_INLINE void search_sgrproj_visitor(
   double cost_nomerge_base = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_nomerge_base >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
   const int bits_min = x->mode_costs.sgrproj_restore_cost[1] +
+#if CONFIG_MERGE_PARA_CTX
+                       av1_cost_literal(1) +
+#else
                        x->mode_costs.merged_param_cost[1] +
+#endif
                        (1 << AV1_PROB_COST_SHIFT);
   const double cost_min = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_min >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
@@ -1669,7 +1677,11 @@ static int64_t count_wiener_bits(int wiener_win, const ModeCosts *mode_costs,
     bits += (1 << AV1_PROB_COST_SHIFT);
     if (match) break;
   }
+#if CONFIG_MERGE_PARA_CTX
+  bits += av1_cost_literal(1);
+#else
   bits += mode_costs->merged_param_cost[equal_ref];
+#endif
   if (equal_ref) return bits;
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
@@ -2081,7 +2093,11 @@ static AOM_INLINE void search_wiener_visitor(
       x->rdmult, bits_nomerge_base >> 4, rusi->sse[RESTORE_WIENER],
       rsc->cm->seq_params.bit_depth);
   const int bits_min = x->mode_costs.wiener_restore_cost[1] +
+#if CONFIG_MERGE_PARA_CTX
+                       av1_cost_literal(1) +
+#else
                        x->mode_costs.merged_param_cost[1] +
+#endif
                        (1 << AV1_PROB_COST_SHIFT);
   const double cost_min = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_min >> 4, rusi->sse[RESTORE_WIENER],
@@ -2420,7 +2436,11 @@ static int64_t count_wienerns_bits(
       bits += (1 << AV1_PROB_COST_SHIFT);
       if (match) break;
     }
+#if CONFIG_MERGE_PARA_CTX
+    bits += av1_cost_literal(1);
+#else
     bits += mode_costs->merged_param_cost[equal_ref];
+#endif
     skip_filter_write_for_class[c_id] = equal_ref;
     ref_for_class[c_id] = ref;
   }
@@ -3704,7 +3724,11 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       x->rdmult, bits_nomerge_base >> 4, rusi->sse[RESTORE_WIENER_NONSEP],
       bit_depth);
   const int bits_min = x->mode_costs.wienerns_restore_cost[1] +
+#if CONFIG_MERGE_PARA_CTX
+                       av1_cost_literal(1) +
+#else
                        x->mode_costs.merged_param_cost[1] +
+#endif
                        (1 << AV1_PROB_COST_SHIFT);
   const double cost_min = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_min >> 4, rusi->sse[RESTORE_WIENER_NONSEP], bit_depth);

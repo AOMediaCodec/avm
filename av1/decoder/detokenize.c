@@ -37,7 +37,11 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
       plane_block_width < 64 && plane_block_height < 64;
   int direction;
   if (transverse_allowed) {
+#if CONFIG_PLT_DIR_CTX
+    direction = aom_read_bit(r, ACCT_INFO());
+#else
     direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_INFO());
+#endif
   } else {
     direction = 0;
   }

@@ -946,7 +946,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
 #if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
+#if CONFIG_PLT_DIR_CTX
+    aom_write_bit(w, p->direction);
+#else
     aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
+#endif
   }
 #else
   const int direction = 0;
@@ -4281,7 +4285,11 @@ static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                            aom_writer *wb) {
   const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
   const int exact_match = (equal_ref >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(w, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif
   const int ref = wiener_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4345,7 +4353,11 @@ static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
                                             aom_writer *wb) {
   const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
   const int exact_match = (equal_ref >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(w, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif
   const int ref = sgrproj_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4398,8 +4410,11 @@ static int check_and_write_merge_info(
       check_wienerns_bank_eq(bank, wienerns_info, nsfilter_params->ncoeffs,
                              wiener_class_id, ref_for_class);
   const int exact_match = (is_equal >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(w, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-
+#endif
   if (!exact_match) {
     ref_for_class[wiener_class_id] =
         wienerns_info->bank_ref_for_class[wiener_class_id];
@@ -4427,7 +4442,11 @@ static int check_and_write_exact_match(
   const int exact_match =
       check_wienerns_eq(wienerns_info, ref_wienerns_info,
                         nsfilter_params->ncoeffs, wiener_class_id);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(w, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif
   return exact_match;
 }
 
