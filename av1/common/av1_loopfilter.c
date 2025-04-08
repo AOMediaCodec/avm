@@ -535,7 +535,8 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
   const bool is_tip_mode = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip_mode) {
     *tip_edge = 1;
-    const int tip_ts = (scale_horz || scale_vert) ? TX_4X4 : TX_8X8;
+    const int tip_ts =
+        (scale_horz && scale_vert) ? TX_4X4 : (scale_horz ? TX_4X8 : TX_8X8);
     *ts = tip_ts;
   }
 }
@@ -1366,34 +1367,38 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int n = 8;
+  int sub_bw = 8;
+  int sub_bh = 8;
   if (plane > 0) {
     const int subsampling_x = cm->seq_params.subsampling_x;
     const int subsampling_y = cm->seq_params.subsampling_y;
-    if (subsampling_x || subsampling_y) n = 4;
+    sub_bw >>= subsampling_x;
+    sub_bh >>= subsampling_y;
   }
-  const int filter_length = n;
+  const int filter_length = plane ? 4 : 8;
 
   // start filtering
-  const int h = bh - n;
-  const int w = bw - n;
-  const int rw = bw - (bw % n);
-  for (int j = 0; j <= h; j += n) {
-    for (int i = 0; i <= w; i += n) {
+  const int h = bh - sub_bh;
+  const int w = bw - sub_bw;
+  const int rw = bw - (bw % sub_bw);
+  for (int j = 0; j <= h; j += sub_bh) {
+    for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
         aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length,
-                                          &q_vert, &side_vert, bit_depth, n);
+                                          &q_vert, &side_vert, bit_depth,
+                                          sub_bh);
       }
       // filter horizontal boundary
       if (j > 0) {
         aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length,
-                                            &q_horz, &side_horz, bit_depth, n);
+                                            &q_horz, &side_horz, bit_depth,
+                                            sub_bw);
       }
-      dst += n;
+      dst += sub_bw;
     }
     dst -= rw;
-    dst += n * dst_stride;
+    dst += sub_bh * dst_stride;
   }
 }
 
