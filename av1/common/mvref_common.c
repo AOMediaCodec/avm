@@ -5219,23 +5219,23 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
                                  int rf) {
   visited[rf] = 1;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int cur_hint = buf->display_order_hint;
-#else
-  const int cur_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   if (buf->frame_type == INTER_FRAME) {
     for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int ref_hint = buf->ref_display_order_hint[i];
+      const int target_ref_hint = buf->ref_display_order_hint[i];
 #else
-      const int ref_hint = bug->ref_order_hints[i];
+      const int target_ref_hint = bug->ref_order_hints[i];
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      if (ref_hint < 0) continue;
+      if (target_ref_hint < 0) continue;
       int found_rf = -1;
       for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
-        if (get_relative_dist(&cm->seq_params.order_hint_info, cur_hint,
-                              ref_hint) == 0) {
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        const int ref_hint = get_ref_frame_buf(cm, j)->display_order_hint;
+#else
+        const int ref_hint = get_ref_frame_buf(cm, j)->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        if (get_relative_dist(&cm->seq_params.order_hint_info, ref_hint,
+                              target_ref_hint) == 0) {
           if (is_overlay[j]) continue;
           found_rf = j;
           break;
