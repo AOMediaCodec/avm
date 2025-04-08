@@ -547,7 +547,9 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
                                        const MB_MODE_INFO *const mbmi,
-                                       TX_SIZE *ts, int32_t *opfl_edge) {
+                                       const int scale_horz,
+                                       const int scale_vert, TX_SIZE *ts,
+                                       int32_t *opfl_edge) {
   const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
@@ -557,7 +559,7 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
   if (is_opfl_mode && plane &&
       mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START) {
     *opfl_edge = 1;
-    *ts = TX_4X4;
+    *ts = (scale_horz && scale_vert) ? TX_4X4 : (scale_horz ? TX_4X8 : TX_8X8);
     return;
   }
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -579,7 +581,8 @@ static AOM_INLINE void check_rfmv_edge(const MB_MODE_INFO *const mbmi,
       mbmi->refinemv_flag && !is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_rfmv_mode) {
     *rfmv_edge = 1;
-    const int rfmv_ts = (scale_horz || scale_vert) ? TX_8X8 : TX_16X16;
+    const int rfmv_ts =
+        (scale_horz && scale_vert) ? TX_8X8 : (scale_horz ? TX_8X16 : TX_16X16);
     *ts = rfmv_ts;
   }
 }
@@ -606,7 +609,7 @@ static AOM_INLINE void check_sub_pu_edge(
 #if CONFIG_COMPOUND_4XN
                     xd,
 #endif  // CONFIG_COMPOUND_4XN
-                    mbmi, &temp_ts, &temp_edge);
+                    mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
 #if CONFIG_REFINEMV
   if (!temp_edge)
     check_rfmv_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
