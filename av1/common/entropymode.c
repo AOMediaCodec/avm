@@ -7916,15 +7916,27 @@ static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     16855) };
 #endif  // CONFIG_ENTROPY_PARA
 
+#if CONFIG_DELTAQ_OPT
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613), 56
 };
 #else
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
+  AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613)
+};
+#endif  // CONFIG_ENTROPY_PARA
+#else
+#if CONFIG_ENTROPY_PARA
+static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
+  AOM_CDF4(8192, 16384, 24576), 0
+};
+#else
+static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF4(28160, 32120, 32677)
 };
 #endif  // CONFIG_ENTROPY_PARA
+#endif
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_delta_lf_multi_cdf[4][CDF_SIZE(4)] = {

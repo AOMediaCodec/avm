@@ -1222,7 +1222,7 @@ enum {
 #define MAX_AMVD_INDEX 8
 #endif  // CONFIG_VQ_MVD_CODING
 
-#if CONFIG_ENTROPY_PARA
+#if CONFIG_DELTAQ_OPT
 #define DELTA_Q_SMALL 7
 #else
 #define DELTA_Q_SMALL 3

@@ -577,6 +577,8 @@ set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
 set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
 set_aom_config_var(CONFIG_DF_PAR_BITS 1
                    "Flexible control of deblocking parameter bits.")
+set_aom_config_var(CONFIG_DELTAQ_OPT 1
+                   "Enable delta-q entropy coding optimization.")
 #
 # Variables in this section control optional features of the build system.
 #
