@@ -207,8 +207,10 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   const int height = tx_size_high[tx_size];
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
-  const int row_start = ((xd->mi_row + row) << MI_SIZE_LOG2);
-  const int col_start = ((xd->mi_col + col) << MI_SIZE_LOG2);
+  const int row_start =
+      ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base + row) << MI_SIZE_LOG2);
+  const int col_start =
+      ((xd->mi[0]->chroma_ref_info.mi_col_chroma_base + col) << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
