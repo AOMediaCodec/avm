@@ -2411,7 +2411,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 #if CONFIG_CFL_SIMPLIFICATION
       const int row_start =
-          ((xd->mi_row + (blk_row << cfl->subsampling_y)) << MI_SIZE_LOG2);
+          ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base + (blk_row << cfl->subsampling_y)) << MI_SIZE_LOG2);
       const int sb_height = block_size_high[cm->sb_size];
       const int is_top_sb_boundary = !(row_start % sb_height);
 #endif  // CONFIG_CFL_SIMPLIFICATION
