@@ -1375,7 +1375,9 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     sub_bw >>= subsampling_x;
     sub_bh >>= subsampling_y;
   }
-  const int filter_length = plane ? 4 : 8;
+  // select vert/horz filter lengths based on block width/height
+  int filter_length_vert = sub_bw;
+  int filter_length_horz = sub_bh;
 
   // start filtering
   const int h = bh - sub_bh;
@@ -1385,13 +1387,13 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length,
+        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
                                           &q_vert, &side_vert, bit_depth,
                                           sub_bh);
       }
       // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length,
+        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
                                             &q_horz, &side_horz, bit_depth,
                                             sub_bw);
       }
