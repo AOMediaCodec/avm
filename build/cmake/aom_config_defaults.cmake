@@ -525,6 +525,8 @@ set_aom_config_var(
   "Parsing dependency removal for intra tx type and IST set signaling.")
 set_aom_config_var(CONFIG_E194_FLEX_SECTX 1
                    "Secondary transforms with flexible support regions for 8x8")
+set_aom_config_var(CONFIG_F105_IST_MEM_REDUCE 1
+                   "Prune ADST_ADST IST sets for 8x8 intra blocks")
 set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")
 set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD4 1
                    "AV2 remove worst-case multiplications.")

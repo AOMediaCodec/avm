@@ -20,10 +20,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_IST_REDUCTION
-#define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
-#endif                         // CONFIG_IST_REDUCTION
-
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 

@@ -521,6 +521,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #if CONFIG_INTRA_TX_IST_PARSE
   av1_cost_tokens_from_cdf(mode_costs->most_probable_stx_set_flag_cost,
                            fc->most_probable_stx_set_cdf, NULL);
+#if CONFIG_F105_IST_MEM_REDUCE
+  av1_cost_tokens_from_cdf(
+      mode_costs->most_probable_stx_set_flag_cost_ADST_ADST,
+      fc->most_probable_stx_set_cdf_ADST_ADST, NULL);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   for (i = 0; i < IST_DIR_SIZE; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->stx_set_flag_cost[i],

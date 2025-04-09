@@ -3940,9 +3940,15 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+  const int st_size_class =
+      (width == 8 && height == 8 && primary_tx_type == DCT_DCT) ? 1
+      : (width >= 8 && height >= 8) ? (primary_tx_type == DCT_DCT ? 2 : 3)
+#else
   const int st_size_class = (width == 8 && height == 8)   ? 1
                             : (width >= 8 && height >= 8) ? 2
-                                                          : 0;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                    : 0;
 #else
   const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
@@ -3951,7 +3957,11 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #if CONFIG_E124_IST_REDUCE_METHOD4
   if (((st_size_class == 0) && (eob > IST_4x4_HEIGHT)) ||
       ((st_size_class == 1) && (eob > IST_8x8_HEIGHT_RED)) ||
-      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT))) {
+      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT))
+#if CONFIG_F105_IST_MEM_REDUCE
+      || ((st_size_class == 3) && (eob > IST_ADST_NZ_CNT))
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+  ) {
 #else
   if (((sb_size == 4) && (eob > IST_4x4_HEIGHT)) ||
       ((sb_size == 8) && (eob > IST_8x8_HEIGHT))) {

@@ -4260,9 +4260,14 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
 #endif
   int *srcPtr = src;
 #if CONFIG_E124_IST_REDUCE_METHOD4
-  const int ist_height = (size == 0)   ? IST_4x4_HEIGHT
-                         : (size == 1) ? IST_8x8_HEIGHT_RED
-                                       : IST_8x8_HEIGHT;
+  const int ist_height = (size == 0) ? IST_4x4_HEIGHT
+                         : (size == 1)
+                             ? IST_8x8_HEIGHT_RED
+#if CONFIG_F105_IST_MEM_REDUCE
+                             : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
+                             : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
   if (size == 0) {
 #else
   if (size == 4) {

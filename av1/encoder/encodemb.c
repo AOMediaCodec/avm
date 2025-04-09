@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -163,6 +163,18 @@ static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 1, 4, 3, 6, 5, 0, 2 },  // D203_PRED, D67_PRED
   { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
 };
+#if CONFIG_F105_IST_MEM_REDUCE
+static const uint8_t
+    inv_ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+      { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
+      { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 2, 0, 4, 6, 3, 5, 1 },  // D45_PRED
+      { 0, 3, 5, 4, 1, 6, 2 },  // D135_PRED
+      { 2, 1, 6, 4, 0, 5, 3 },  // D113_PRED, D157_PRED
+      { 1, 0, 5, 6, 3, 4, 2 },  // D203_PRED, D67_PRED
+      { 2, 1, 6, 5, 3, 4, 0 },  // SMOOTH_PRED
+    };
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_REDUCTION
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
@@ -890,13 +902,21 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
     if (!is_inter_block(xd->mi[0], xd->tree_type)) {
       int intra_stx_mode =
           stx_transpose_mapping[AOMMIN(txfm_param->intra_mode, SMOOTH_H_PRED)];
-      uint8_t stx_id = 0;
+      uint8_t stx_id = 0, stx_idx;
       if (txfm_param->tx_type == ADST_ADST) {
         stx_id = AOMMAX(txfm_param->sec_tx_set - IST_DIR_SIZE, 0);
+#if CONFIG_F105_IST_MEM_REDUCE
+        if (width < 8 || height < 8)
+          stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+        else
+          stx_idx = inv_ist_intra_stx_mapping_ADST_ADST[intra_stx_mode][stx_id];
+#else
+        stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
       } else {
         stx_id = txfm_param->sec_tx_set;
+        stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
       }
-      uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
       txfm_param->sec_tx_set_idx = stx_idx;
     }
 #endif  // CONFIG_IST_REDUCTION

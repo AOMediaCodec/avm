@@ -1934,6 +1934,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_INTRA_TX_IST_PARSE
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
               ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
+              ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
+              IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE

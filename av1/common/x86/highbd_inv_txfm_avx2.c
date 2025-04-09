@@ -4543,7 +4543,13 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
+#if CONFIG_F105_IST_MEM_REDUCE
+    reduced_height = (size == 1)
+                         ? IST_8x8_HEIGHT_RED
+                         : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
     reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
 #else

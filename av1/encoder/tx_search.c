@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -64,6 +64,18 @@ static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 5, 0, 6, 2, 1, 4, 3 },  // D203_PRED, D67_PRED
   { 6, 1, 0, 5, 4, 3, 2 },  // SMOOTH_PRED
 };
+#if CONFIG_F105_IST_MEM_REDUCE
+static const uint8_t
+    ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+      { 6, 1, 0, 4, 5, 3, 2 },  // DC_PRED
+      { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 1, 6, 0, 4, 2, 5, 3 },  // D45_PRED
+      { 0, 4, 6, 1, 3, 2, 5 },  // D135_PRED
+      { 4, 1, 0, 6, 3, 5, 2 },  // D113_PRED, D157_PRED
+      { 1, 0, 6, 4, 5, 2, 3 },  // D203_PRED, D67_PRED
+      { 6, 1, 0, 4, 5, 3, 2 },  // SMOOTH_PRED
+    };
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_REDUCTION
 
 // origin_threshold * 128 / 100
@@ -2962,7 +2974,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
-              ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
+              ? (primary_tx_type != DCT_DCT || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
 #if CONFIG_IST_NON_ZERO_DEPTH
          dc_only_blk || (eob_found) || !xd->enable_ist);
@@ -2974,17 +2986,42 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
 #if CONFIG_IST_REDUCTION
+#if CONFIG_F105_IST_MEM_REDUCE
+    int max_set_id_ptx_type[4] = { IST_REDUCE_SET_SIZE, 1, 1,
+                                   IST_REDUCE_SET_SIZE_ADST_ADST };
+    if (max_set_id == IST_DIR_SIZE) {
+      assert(primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST);
+      max_set_id = (txw < 8 || txh < 8) ? IST_REDUCE_SET_SIZE
+                                        : max_set_id_ptx_type[primary_tx_type];
+    }
+#else
     if (max_set_id == IST_DIR_SIZE) {
       max_set_id = IST_REDUCE_SET_SIZE;
     }
+#endif  // CONFIG_F105_IST_MEM_REDUCE
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;
       uint8_t set_id = set_idx;
       if (!is_inter_block(mbmi, xd->tree_type)) {
         const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
         int intra_stx_mode = stx_transpose_mapping[mode];
+#if CONFIG_F105_IST_MEM_REDUCE
+        if (txw < 8 || txh < 8) {
+          assert(set_idx < IST_REDUCE_SET_SIZE);
+          set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+        } else {
+          assert((primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST)
+                     ? set_idx < max_set_id_ptx_type[primary_tx_type]
+                     : !set_idx);
+          if (primary_tx_type == ADST_ADST)
+            set_id = ist_intra_stx_mapping_ADST_ADST[intra_stx_mode][set_idx];
+          else
+            set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+        }
+#else
         assert(set_idx < IST_REDUCE_SET_SIZE);
         set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
       }
 #else
     // Iterate through all possible secondary tx sets for given primary tx type

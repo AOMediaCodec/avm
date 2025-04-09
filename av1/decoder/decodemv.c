@@ -1838,17 +1838,41 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 // This function reads a 'secondary tx set' from the bitstream
 static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
                                   aom_reader *r, MB_MODE_INFO *mbmi,
+#if CONFIG_F105_IST_MEM_REDUCE
+                                  TX_SIZE tx_size,
+#endif  // CONFIG_F105_IST_MEM_REDUCE
                                   TX_TYPE *tx_type) {
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   TX_TYPE stx_set_flag = DC_PRED;
   if (!inter_block) {
 #if CONFIG_INTRA_TX_IST_PARSE
     uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
+#if CONFIG_F105_IST_MEM_REDUCE
+    TX_TYPE reordered_stx_set_flag;
+    if (get_primary_tx_type(*tx_type) == ADST_ADST &&
+        tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) {
+      reordered_stx_set_flag = aom_read_symbol(
+          r, ec_ctx->most_probable_stx_set_cdf_ADST_ADST,
+          IST_REDUCE_SET_SIZE_ADST_ADST, ACCT_INFO("stx_set_flag_ADST_ADST"));
+      assert(reordered_stx_set_flag < IST_REDUCE_SET_SIZE_ADST_ADST);
+      stx_set_flag =
+          inv_most_probable_stx_mapping_ADST_ADST[intra_mode]
+                                                 [reordered_stx_set_flag];
+    } else {
+      reordered_stx_set_flag =
+          aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE,
+                          ACCT_INFO("stx_set_flag"));
+      assert(reordered_stx_set_flag < IST_REDUCE_SET_SIZE);
+      stx_set_flag =
+          inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
+    }
+#else
     const TX_TYPE reordered_stx_set_flag =
         aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE,
                         ACCT_INFO("stx_set_flag"));
     stx_set_flag =
         inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
     uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
     uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
@@ -1890,7 +1914,12 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           STX_TYPES, ACCT_INFO("stx_flag"));
       *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 #if CONFIG_IST_SET_FLAG
-      if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
+      if (stx_flag > 0)
+        read_secondary_tx_set(xd, ec_ctx, r, mbmi,
+#if CONFIG_F105_IST_MEM_REDUCE
+                              tx_size,
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                              tx_type);
 #endif  // CONFIG_IST_SET_FLAG
 #if STX_SYNTAX_DEBUG
       const int sb_size =
@@ -1912,7 +1941,12 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           STX_TYPES, ACCT_INFO("stx_flag"));
       *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 #if CONFIG_IST_SET_FLAG
-      if (stx_flag > 0) read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_type);
+      if (stx_flag > 0)
+        read_secondary_tx_set(xd, ec_ctx, r, mbmi,
+#if CONFIG_F105_IST_MEM_REDUCE
+                              tx_size,
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                              tx_type);
 #endif  // CONFIG_IST_SET_FLAG
 #if STX_SYNTAX_DEBUG
       const int sb_size =

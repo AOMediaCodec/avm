@@ -666,6 +666,10 @@ typedef struct frame_contexts {
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob most_probable_stx_set_cdf[CDF_SIZE(IST_DIR_SIZE)];
+#if CONFIG_F105_IST_MEM_REDUCE
+  aom_cdf_prob most_probable_stx_set_cdf_ADST_ADST[CDF_SIZE(
+      IST_REDUCE_SET_SIZE_ADST_ADST)];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
 #endif  // CONFIG_INTRA_TX_IST_PARSE

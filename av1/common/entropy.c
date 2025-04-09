@@ -526,6 +526,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   RESET_CDF_COUNTER(fc->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  RESET_CDF_COUNTER(fc->most_probable_stx_set_cdf_ADST_ADST,
+                    IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   RESET_CDF_COUNTER(fc->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE

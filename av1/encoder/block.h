@@ -1017,6 +1017,9 @@ typedef struct {
   //! Cost of signaling secondary transform set index
 #if CONFIG_INTRA_TX_IST_PARSE
   int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
+#if CONFIG_F105_IST_MEM_REDUCE
+  int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCE_SET_SIZE_ADST_ADST];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   int stx_set_flag_cost[IST_DIR_SIZE][IST_DIR_SIZE];
 #endif  // CONFIG_INTRA_TX_IST_PARSE

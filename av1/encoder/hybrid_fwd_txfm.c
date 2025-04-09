@@ -584,18 +584,30 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     }
 #endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+    const int st_size_class =
+        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
+        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
+#else
     const int st_size_class = (width == 8 && height == 8)   ? 1
                               : (width >= 8 && height >= 8) ? 2
-                                                            : 0;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                      : 0;
 #else
     const int st_size_class = sb_size;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
     fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     if (sec_tx_sse != NULL) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
-      const int reduced_height = (st_size_class == 0)   ? IST_4x4_HEIGHT
-                                 : (st_size_class == 1) ? IST_8x8_HEIGHT_RED
-                                                        : IST_8x8_HEIGHT;
+      const int reduced_height =
+          (st_size_class == 0) ? IST_4x4_HEIGHT
+          : (st_size_class == 1)
+              ? IST_8x8_HEIGHT_RED
+#if CONFIG_F105_IST_MEM_REDUCE
+              : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
+              : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
       const int reduced_height =
           (sb_size == 4) ? IST_4x4_HEIGHT : IST_8x8_HEIGHT;

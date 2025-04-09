@@ -8099,6 +8099,13 @@ static const aom_cdf_prob
       AOM_CDF7(16328, 21408, 25613, 27672, 29722, 31413),
       75,
     };
+#if CONFIG_F105_IST_MEM_REDUCE
+static const aom_cdf_prob default_most_probable_stx_set_cdf_ADST_ADST[CDF_SIZE(
+    IST_REDUCE_SET_SIZE_ADST_ADST)] = {
+  AOM_CDF4(16328, 21408, 25613),
+  75,
+};
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
 static const aom_cdf_prob
     default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
@@ -8668,6 +8675,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   av1_copy(fc->most_probable_stx_set_cdf, default_most_probable_stx_set_cdf);
+#if CONFIG_F105_IST_MEM_REDUCE
+  av1_copy(fc->most_probable_stx_set_cdf_ADST_ADST,
+           default_most_probable_stx_set_cdf_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   av1_copy(fc->stx_set_cdf, default_stx_set_cdf);
 #endif  // CONFIG_INTRA_TX_IST_PARSE
@@ -9236,6 +9247,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #if CONFIG_INTRA_TX_IST_PARSE
   CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
                          ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
+                         ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
+                         IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf,
                          IST_DIR_SIZE);
@@ -9636,6 +9652,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf_ADST_ADST,
+            IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   SHIFT_CDF(ctx_ptr->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE
@@ -10128,6 +10148,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_INTRA_TX_IST_PARSE
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
               ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
+              ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
+              IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE

@@ -282,6 +282,9 @@ enum {
 #define IST_8x8_WIDTH 48
 #define IST_8x8_HEIGHT_MAX 32
 #define IST_8x8_HEIGHT 32
+#if CONFIG_F105_IST_MEM_REDUCE
+#define IST_ADST_NZ_CNT 20
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
@@ -743,6 +746,13 @@ enum {
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM2BYTE(TX_TYPE);
+
+#if CONFIG_IST_REDUCTION
+#define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
+#if CONFIG_F105_IST_MEM_REDUCE
+#define IST_REDUCE_SET_SIZE_ADST_ADST 4
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+#endif  // CONFIG_IST_REDUCTION
 
 #define CCTX_CONTEXTS 3
 
