@@ -418,8 +418,12 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   int pic_width_c = cm->width >> sub_x;
   int pic_height_c = cm->height >> sub_y;
 
-  const int row_start = (((xd->mi_row >> sub_y) + row) << MI_SIZE_LOG2);
-  const int col_start = (((xd->mi_col >> sub_x) + col) << MI_SIZE_LOG2);
+  const int row_start =
+      (((xd->mi[0]->chroma_ref_info.mi_row_chroma_base >> sub_y) + row)
+       << MI_SIZE_LOG2);
+  const int col_start =
+      (((xd->mi[0]->chroma_ref_info.mi_col_chroma_base >> sub_x) + col)
+       << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
