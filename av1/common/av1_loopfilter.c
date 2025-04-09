@@ -321,6 +321,10 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   ,
                                   bool *tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+#if CONFIG_LF_SUB_PU
+                                  ,
+                                  bool *is_tx_m_partition
+#endif  // CONFIG_LF_SUB_PU
 ) {
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) {
@@ -385,6 +389,15 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
 
     if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M) {
+#if CONFIG_LF_SUB_PU
+      if (is_tx_m_partition != NULL) {
+        *is_tx_m_partition =
+            (edge_dir == VERT_EDGE && mi_size_wide[mbmi->sb_type[0]] == 4 &&
+             partition == TX_PARTITION_VERT_M) ||
+            (edge_dir == HORZ_EDGE && mi_size_high[mbmi->sb_type[0]] == 4 &&
+             partition == TX_PARTITION_HORZ_M);
+      }
+#endif  // CONFIG_LF_SUB_PU
       TXB_POS_INFO txb_pos;
       TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
       get_tx_partition_sizes(partition, max_tx_size, &txb_pos, sub_txs);
@@ -619,7 +632,8 @@ static AOM_INLINE void check_sub_pu_edge(
     TREE_TYPE tree_type,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const int scale_horz, const int scale_vert, const EDGE_DIR edge_dir,
-    const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge) {
+    const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge,
+    bool *is_tx_m_partition) {
   if (!cm->features.allow_lf_sub_pu) return;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (!is_inter) return;
@@ -639,11 +653,11 @@ static AOM_INLINE void check_sub_pu_edge(
 #endif  // CONFIG_REFINEMV
 
   if (temp_edge) {
-    const int curr_tx =
+    const int sub_pu_size =
         edge_dir == VERT_EDGE ? tx_size_wide[temp_ts] : tx_size_high[temp_ts];
-    const int orig_tx =
+    const int tx_size =
         edge_dir == VERT_EDGE ? tx_size_wide[*ts] : tx_size_high[*ts];
-    if (curr_tx < orig_tx) {
+    if (sub_pu_size <= tx_size) {
       const uint32_t sub_pu_masks = edge_dir == VERT_EDGE
                                         ? tx_size_wide[temp_ts] - 1
                                         : tx_size_high[temp_ts] - 1;
@@ -656,7 +670,11 @@ static AOM_INLINE void check_sub_pu_edge(
 #else
       *sub_pu_edge = (coord & sub_pu_masks) ? (0) : (1);
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-      if (*sub_pu_edge) *ts = temp_ts;
+      if (*is_tx_m_partition) {
+        *ts = TX_4X4;
+      } else if (*sub_pu_edge) {
+        *ts = temp_ts;
+      }
     }
   }
 }
@@ -810,13 +828,15 @@ static TX_SIZE set_lpf_parameters(
   bool tu_edge;
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 #if CONFIG_LF_SUB_PU
+  bool is_tx_m_partition = false;
   TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane,
                                   tree_type, plane_ptr
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                   ,
                                   &tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-  );
+                                  ,
+                                  &is_tx_m_partition);
   const TX_SIZE ts_ori = ts;
 #else
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
@@ -842,7 +862,7 @@ static TX_SIZE set_lpf_parameters(
                       tree_type,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
                       scale_horz, scale_vert, edge_dir, coord, &ts,
-                      &sub_pu_edge);
+                      &sub_pu_edge, &is_tx_m_partition);
     if (!tu_edge && !sub_pu_edge)
 #else
     if (!tu_edge)
@@ -899,6 +919,10 @@ static TX_SIZE set_lpf_parameters(
                                  ,
                                  &prev_tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+#if CONFIG_LF_SUB_PU
+                                 ,
+                                 NULL
+#endif  // CONFIG_LF_SUB_PU
               );
 #else
 
