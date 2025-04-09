@@ -4477,12 +4477,16 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
   assert(stx_idx < 4);
+  // Secondary transform kernels are stored as 32-bit integers to match SIMD
+  // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
+  // during execution by letting SIMD variants directly load the pre-converted
+  // filter weights.
 #if CONFIG_E124_IST_REDUCE_METHOD4
-  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #else
-  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 4) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
 
   int reduced_width, reduced_height;
@@ -4510,14 +4514,13 @@ void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   }
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
-    const int16_t *kernel_tmp = kernel;
+    const int32_t *kernel_tmp = kernel;
     int *srcPtr = src;
     int *out = dst;
     __m256i tmpCoeff = _mm256_set1_epi32(srcPtr[j]);
     __m256i *tmpBlock = (__m256i *)out;
     for (int i = 0; i < reduced_width; i += 8, tmpBlock++) {
-      __m256i tmp =
-          _mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(kernel_tmp + i)));
+      __m256i tmp = _mm256_loadu_si256((__m256i *)(kernel_tmp + i));
       __m256i sum = _mm256_loadu_si256(tmpBlock);
       tmp = _mm256_mullo_epi32(tmpCoeff, tmp);
       tmp = _mm256_add_epi32(tmp, sum);

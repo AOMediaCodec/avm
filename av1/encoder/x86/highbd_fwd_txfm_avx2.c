@@ -3970,6 +3970,15 @@ static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
   return _mm256_srai_epi32(v_tmp_d, bits);
 }
 
+static INLINE __m128i round_power_of_two_signed_sse2(__m128i v_val_d,
+                                                     int bits) {
+  const __m128i v_bias_d = _mm_set1_epi32((1 << bits) >> 1);
+  const __m128i v_sign_d = _mm_srai_epi32(v_val_d, 31);
+  const __m128i v_tmp_d =
+      _mm_add_epi32(_mm_add_epi32(v_val_d, v_bias_d), v_sign_d);
+  return _mm_srai_epi32(v_tmp_d, bits);
+}
+
 void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
                                         tran_low_t *coeff_c2, TX_SIZE tx_size,
                                         CctxType cctx_type, const int bd) {
@@ -4011,65 +4020,69 @@ void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
   }
 }
 
-static INLINE void transpose_kernel(const int16_t *kernel, __m256i *out) {
-  __m256i in[8], a0, a1, a2, a3, b0, b1, b2, b3;
+static void fwd_stxfm_transpose_4x8_avx2(__m256i *in, __m128i *out) {
+  __m256i x0, x1;
 
-  in[0] = _mm256_loadu_si256((__m256i *)(kernel + 0));
-  in[1] = _mm256_loadu_si256((__m256i *)(kernel + 16));
-  in[2] = _mm256_loadu_si256((__m256i *)(kernel + 32));
-  in[3] = _mm256_loadu_si256((__m256i *)(kernel + 48));
-  in[4] = _mm256_loadu_si256((__m256i *)(kernel + 64));
-  in[5] = _mm256_loadu_si256((__m256i *)(kernel + 80));
-  in[6] = _mm256_loadu_si256((__m256i *)(kernel + 96));
-  in[7] = _mm256_loadu_si256((__m256i *)(kernel + 112));
+  // First step: unpack 32-bit elements within lanes
+  const __m256i u0 = _mm256_unpacklo_epi32(in[0], in[1]);
+  const __m256i u1 = _mm256_unpackhi_epi32(in[0], in[1]);
+  const __m256i u2 = _mm256_unpacklo_epi32(in[2], in[3]);
+  const __m256i u3 = _mm256_unpackhi_epi32(in[2], in[3]);
 
-  a0 = _mm256_unpacklo_epi16(in[0], in[1]);
-  a1 = _mm256_unpacklo_epi16(in[2], in[3]);
-  a2 = _mm256_unpacklo_epi16(in[4], in[5]);
-  a3 = _mm256_unpacklo_epi16(in[6], in[7]);
+  // Second step: unpack 64-bit elements within lanes
+  x0 = _mm256_unpacklo_epi64(u0, u2);  // A0 A2 B0 B2 C0 C2 D0 D2
+  x1 = _mm256_unpackhi_epi64(u0, u2);  // A1 A3 B1 B3 C1 C3 D1 D3
 
-  b0 = _mm256_unpacklo_epi32(a0, a1);
-  b1 = _mm256_unpacklo_epi32(a2, a3);
-  b2 = _mm256_unpackhi_epi32(a0, a1);
-  b3 = _mm256_unpackhi_epi32(a2, a3);
+  // Extract low and high 128-bit lanes to get the transposed 128-bit rows
+  out[0] = _mm256_castsi256_si128(x0);       // A0 A2 B0 B2
+  out[1] = _mm256_castsi256_si128(x1);       // A1 A3 B1 B3
+  out[4] = _mm256_extracti128_si256(x0, 1);  // C0 C2 D0 D2
+  out[5] = _mm256_extracti128_si256(x1, 1);  // C1 C3 D1 D3
 
-  a0 = _mm256_unpacklo_epi64(b0, b1);
-  a1 = _mm256_unpackhi_epi64(b0, b1);
-  a2 = _mm256_unpacklo_epi64(b2, b3);
-  a3 = _mm256_unpackhi_epi64(b2, b3);
+  // Repeat for the upper half
+  x0 = _mm256_unpacklo_epi64(u1, u3);  // A4 A6 B4 B6 C4 C6 D4 D6
+  x1 = _mm256_unpackhi_epi64(u1, u3);  // A5 A7 B5 B7 C5 C7 D5 D7
 
-  out[0] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a0));
-  out[1] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a1));
-  out[2] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a2));
-  out[3] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a3));
-  out[8] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a0, 1));
-  out[9] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a1, 1));
-  out[10] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a2, 1));
-  out[11] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a3, 1));
+  out[2] = _mm256_castsi256_si128(x0);       // A4 A6 B4 B6
+  out[3] = _mm256_castsi256_si128(x1);       // A5 A7 B5 B7
+  out[6] = _mm256_extracti128_si256(x0, 1);  // C4 C6 D4 D6
+  out[7] = _mm256_extracti128_si256(x1, 1);  // C5 C7 D5 D7
+}
 
-  a0 = _mm256_unpackhi_epi16(in[0], in[1]);
-  a1 = _mm256_unpackhi_epi16(in[2], in[3]);
-  a2 = _mm256_unpackhi_epi16(in[4], in[5]);
-  a3 = _mm256_unpackhi_epi16(in[6], in[7]);
+static void fwd_stxfm_transpose_8x8_avx2(__m256i *in, __m256i *out) {
+  __m256i x0, x1;
 
-  b0 = _mm256_unpacklo_epi32(a0, a1);
-  b1 = _mm256_unpacklo_epi32(a2, a3);
-  b2 = _mm256_unpackhi_epi32(a0, a1);
-  b3 = _mm256_unpackhi_epi32(a2, a3);
+  const __m256i u0 = _mm256_unpacklo_epi32(in[0], in[1]);
+  const __m256i u1 = _mm256_unpackhi_epi32(in[0], in[1]);
 
-  a0 = _mm256_unpacklo_epi64(b0, b1);
-  a1 = _mm256_unpackhi_epi64(b0, b1);
-  a2 = _mm256_unpacklo_epi64(b2, b3);
-  a3 = _mm256_unpackhi_epi64(b2, b3);
+  const __m256i u2 = _mm256_unpacklo_epi32(in[2], in[3]);
+  const __m256i u3 = _mm256_unpackhi_epi32(in[2], in[3]);
 
-  out[4] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a0));
-  out[5] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a1));
-  out[6] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a2));
-  out[7] = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(a3));
-  out[12] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a0, 1));
-  out[13] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a1, 1));
-  out[14] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a2, 1));
-  out[15] = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(a3, 1));
+  const __m256i u4 = _mm256_unpacklo_epi32(in[4], in[5]);
+  const __m256i u5 = _mm256_unpackhi_epi32(in[4], in[5]);
+
+  const __m256i u6 = _mm256_unpacklo_epi32(in[6], in[7]);
+  const __m256i u7 = _mm256_unpackhi_epi32(in[6], in[7]);
+
+  x0 = _mm256_unpacklo_epi64(u0, u2);
+  x1 = _mm256_unpacklo_epi64(u4, u6);
+  out[0] = _mm256_permute2f128_si256(x0, x1, 0x20);
+  out[4] = _mm256_permute2f128_si256(x0, x1, 0x31);
+
+  x0 = _mm256_unpackhi_epi64(u0, u2);
+  x1 = _mm256_unpackhi_epi64(u4, u6);
+  out[1] = _mm256_permute2f128_si256(x0, x1, 0x20);
+  out[5] = _mm256_permute2f128_si256(x0, x1, 0x31);
+
+  x0 = _mm256_unpacklo_epi64(u1, u3);
+  x1 = _mm256_unpacklo_epi64(u5, u7);
+  out[2] = _mm256_permute2f128_si256(x0, x1, 0x20);
+  out[6] = _mm256_permute2f128_si256(x0, x1, 0x31);
+
+  x0 = _mm256_unpackhi_epi64(u1, u3);
+  x1 = _mm256_unpackhi_epi64(u5, u7);
+  out[3] = _mm256_permute2f128_si256(x0, x1, 0x20);
+  out[7] = _mm256_permute2f128_si256(x0, x1, 0x31);
 }
 
 // Forward secondary transform
@@ -4077,81 +4090,228 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
   assert(stx_idx < 4);
+  // Secondary transform kernels are stored as 32-bit integers to match SIMD
+  // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
+  // during execution by letting SIMD variants directly load the pre-converted
+  // filter weights.
 #if CONFIG_E124_IST_REDUCE_METHOD4
-  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #else
-  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 4) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-  int *out = dst;
-  int shift = 7;
-  int *srcPtr = src;
+
+  int reduced_width, reduced_height;
 #if CONFIG_E124_IST_REDUCE_METHOD4
-  const int ist_height = (size == 0) ? IST_4x4_HEIGHT
-                         : (size == 1)
-                             ? IST_8x8_HEIGHT_RED
-#if CONFIG_F105_IST_MEM_REDUCE
-                             : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-                             : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
   if (size == 0) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+#if CONFIG_F105_IST_MEM_REDUCE
+    reduced_height = (size == 1)
+                         ? IST_8x8_HEIGHT_RED
+                         : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
+    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+    reduced_width = IST_8x8_WIDTH;
+  }
 #else
   if (size == 4) {
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
-    assert(IST_4x4_WIDTH == 16);
-    __m256i kernel_t[16];
-    __m256i sum = _mm256_setzero_si256();
-    transpose_kernel(kernel, kernel_t);
-    for (int j = 0; j < IST_4x4_WIDTH; j++) {
-      __m256i tmpCoeff = _mm256_set1_epi32(srcPtr[j]);
-      __m256i tmp = _mm256_mullo_epi32(tmpCoeff, kernel_t[j]);
-      sum = _mm256_add_epi32(sum, tmp);
-    }
-    sum = round_power_of_two_signed_avx2(sum, shift);
-    // Clamp to valid range
-    const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
-    const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
-    sum = _mm256_min_epi32(_mm256_max_epi32(sum, min_value), max_value);
-    _mm256_storeu_si256((__m256i *)out, sum);
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
   } else {
-    int reduced_width = IST_8x8_WIDTH;
-    __m256i src_t[8];
-    for (int t = 0; t < (reduced_width >> 3); t++)
-      src_t[t] = _mm256_loadu_si256((__m256i *)(srcPtr + t * 8));
+    reduced_height = IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
+
+  const int shift = 7;
 
 #if CONFIG_E124_IST_REDUCE_METHOD4
-    for (int j = 0; j < ist_height; j++) {
-#else
-    for (int j = 0; j < IST_8x8_HEIGHT; j++) {
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
-      const int16_t *kernel_tmp = kernel;
+  if (reduced_height == 8) {
+    assert(reduced_width % 8 == 0);
+    __m256i resi_vec[8];
+    __m256i resi_vec_out[8];
+    const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+    const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
+    const int *out = dst;
+    const int *src_ptr = src;
+    const __m256i zeros = _mm256_setzero_si256();
+    resi_vec[0] = zeros;
+    resi_vec[1] = zeros;
+    resi_vec[2] = zeros;
+    resi_vec[3] = zeros;
+    resi_vec[4] = zeros;
+    resi_vec[5] = zeros;
+    resi_vec[6] = zeros;
+    resi_vec[7] = zeros;
+    for (int i = 0; i < reduced_width; i += 8) {
+      __m256i kernel_vec0 = _mm256_loadu_si256((__m256i *)(kernel + i));
+      __m256i kernel_vec1 =
+          _mm256_loadu_si256((__m256i *)(kernel + reduced_width + i));
+      __m256i kernel_vec2 =
+          _mm256_loadu_si256((__m256i *)(kernel + 2 * reduced_width + i));
+      __m256i kernel_vec3 =
+          _mm256_loadu_si256((__m256i *)(kernel + 3 * reduced_width + i));
+      __m256i kernel_vec4 =
+          _mm256_loadu_si256((__m256i *)(kernel + 4 * reduced_width + i));
+      __m256i kernel_vec5 =
+          _mm256_loadu_si256((__m256i *)(kernel + 5 * reduced_width + i));
+      __m256i kernel_vec6 =
+          _mm256_loadu_si256((__m256i *)(kernel + 6 * reduced_width + i));
+      __m256i kernel_vec7 =
+          _mm256_loadu_si256((__m256i *)(kernel + 7 * reduced_width + i));
 
-      __m256i ker_t;
-      __m256i sum_t;
-      __m256i sum_32x8 = _mm256_setzero_si256();
-      for (int t = 0; t < (reduced_width >> 3); t++) {
-        ker_t = _mm256_cvtepi16_epi32(
-            _mm_loadu_si128((__m128i *)(kernel_tmp + t * 8)));
-        sum_t = _mm256_mullo_epi32(src_t[t], ker_t);
-        sum_32x8 = _mm256_add_epi32(sum_32x8, sum_t);
-      }
-      // s0 s1 s2 s3
-      const __m128i sum_32x4 =
-          _mm_add_epi32(_mm256_castsi256_si128(sum_32x8),
-                        _mm256_extracti128_si256(sum_32x8, 1));
-      // s0 s1
-      const __m128i sum_32x2 =
-          _mm_add_epi32(sum_32x4, _mm_srli_si128(sum_32x4, 8));
-      // s0
-      const __m128i sum_32x1 =
-          _mm_add_epi32(sum_32x2, _mm_srli_si128(sum_32x2, 4));
-      int coef = _mm_cvtsi128_si32(sum_32x1);
-      *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
-      kernel += reduced_width;
+      __m256i src_vec = _mm256_loadu_si256((__m256i *)(src_ptr + i));
+
+      kernel_vec0 = _mm256_mullo_epi32(kernel_vec0, src_vec);
+      kernel_vec1 = _mm256_mullo_epi32(kernel_vec1, src_vec);
+      kernel_vec2 = _mm256_mullo_epi32(kernel_vec2, src_vec);
+      kernel_vec3 = _mm256_mullo_epi32(kernel_vec3, src_vec);
+      kernel_vec4 = _mm256_mullo_epi32(kernel_vec4, src_vec);
+      kernel_vec5 = _mm256_mullo_epi32(kernel_vec5, src_vec);
+      kernel_vec6 = _mm256_mullo_epi32(kernel_vec6, src_vec);
+      kernel_vec7 = _mm256_mullo_epi32(kernel_vec7, src_vec);
+
+      resi_vec[0] = _mm256_add_epi32(resi_vec[0], kernel_vec0);
+      resi_vec[1] = _mm256_add_epi32(resi_vec[1], kernel_vec1);
+      resi_vec[2] = _mm256_add_epi32(resi_vec[2], kernel_vec2);
+      resi_vec[3] = _mm256_add_epi32(resi_vec[3], kernel_vec3);
+      resi_vec[4] = _mm256_add_epi32(resi_vec[4], kernel_vec4);
+      resi_vec[5] = _mm256_add_epi32(resi_vec[5], kernel_vec5);
+      resi_vec[6] = _mm256_add_epi32(resi_vec[6], kernel_vec6);
+      resi_vec[7] = _mm256_add_epi32(resi_vec[7], kernel_vec7);
     }
+    fwd_stxfm_transpose_8x8_avx2(resi_vec, resi_vec_out);
+    __m256i sum_vec = _mm256_setzero_si256();
+    for (int i = 0; i < 8; i++) {
+      sum_vec = _mm256_add_epi32(sum_vec, resi_vec_out[i]);
+    }
+
+    sum_vec = round_power_of_two_signed_avx2(sum_vec, shift);
+    sum_vec = _mm256_min_epi32(_mm256_max_epi32(sum_vec, min_value), max_value);
+    _mm256_storeu_si256((__m256i *)out, sum_vec);
+  } else if (reduced_height % 8 != 0) {
+    assert(reduced_height % 4 == 0 && reduced_width % 8 == 0);
+    __m256i resi_vec[4];
+    __m128i resi_vec_out[8];
+    const int *src_ptr = src;
+    const __m128i max_value = _mm_set1_epi32((1 << (7 + bd)) - 1);
+    const __m128i min_value = _mm_set1_epi32(-(1 << (7 + bd)));
+    int *out = dst;
+    const __m256i zeros = _mm256_setzero_si256();
+    for (int j = 0; j < reduced_height; j += 4) {
+      resi_vec[0] = zeros;
+      resi_vec[1] = zeros;
+      resi_vec[2] = zeros;
+      resi_vec[3] = zeros;
+      for (int i = 0; i < reduced_width; i += 8) {
+        __m256i kernel_vec0 = _mm256_loadu_si256((__m256i *)(kernel + i));
+        __m256i kernel_vec1 =
+            _mm256_loadu_si256((__m256i *)(kernel + reduced_width + i));
+        __m256i kernel_vec2 =
+            _mm256_loadu_si256((__m256i *)(kernel + 2 * reduced_width + i));
+        __m256i kernel_vec3 =
+            _mm256_loadu_si256((__m256i *)(kernel + 3 * reduced_width + i));
+
+        __m256i src_vec = _mm256_loadu_si256((__m256i *)(src_ptr + i));
+
+        kernel_vec0 = _mm256_mullo_epi32(kernel_vec0, src_vec);
+        kernel_vec1 = _mm256_mullo_epi32(kernel_vec1, src_vec);
+        kernel_vec2 = _mm256_mullo_epi32(kernel_vec2, src_vec);
+        kernel_vec3 = _mm256_mullo_epi32(kernel_vec3, src_vec);
+
+        resi_vec[0] = _mm256_add_epi32(resi_vec[0], kernel_vec0);
+        resi_vec[1] = _mm256_add_epi32(resi_vec[1], kernel_vec1);
+        resi_vec[2] = _mm256_add_epi32(resi_vec[2], kernel_vec2);
+        resi_vec[3] = _mm256_add_epi32(resi_vec[3], kernel_vec3);
+      }
+      fwd_stxfm_transpose_4x8_avx2(resi_vec, resi_vec_out);
+      __m128i sum_vec = _mm_setzero_si128();
+      for (int i = 0; i < 8; i++) {
+        sum_vec = _mm_add_epi32(sum_vec, resi_vec_out[i]);
+      }
+
+      sum_vec = round_power_of_two_signed_sse2(sum_vec, shift);
+      sum_vec = _mm_min_epi32(_mm_max_epi32(sum_vec, min_value), max_value);
+      _mm_storeu_si128((__m128i *)out, sum_vec);
+      kernel += reduced_width << 2;
+      out += 4;
+    }
+  } else {
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
+    assert(reduced_height % 8 == 0 && reduced_width % 8 == 0);
+    __m256i resi_vec[8];
+    __m256i resi_vec_out[8];
+    const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+    const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
+    int *out = dst;
+    int *src_ptr = src;
+    int stride_width = reduced_width;
+    const __m256i zeros = _mm256_setzero_si256();
+    for (int j = 0; j < reduced_height; j += 8) {
+      resi_vec[0] = zeros;
+      resi_vec[1] = zeros;
+      resi_vec[2] = zeros;
+      resi_vec[3] = zeros;
+      resi_vec[4] = zeros;
+      resi_vec[5] = zeros;
+      resi_vec[6] = zeros;
+      resi_vec[7] = zeros;
+      for (int i = 0; i < reduced_width; i += 8) {
+        __m256i kernel_vec0 = _mm256_loadu_si256((__m256i *)(kernel + i));
+        __m256i kernel_vec1 =
+            _mm256_loadu_si256((__m256i *)(kernel + stride_width + i));
+        __m256i kernel_vec2 =
+            _mm256_loadu_si256((__m256i *)(kernel + 2 * stride_width + i));
+        __m256i kernel_vec3 =
+            _mm256_loadu_si256((__m256i *)(kernel + 3 * stride_width + i));
+        __m256i kernel_vec4 =
+            _mm256_loadu_si256((__m256i *)(kernel + 4 * stride_width + i));
+        __m256i kernel_vec5 =
+            _mm256_loadu_si256((__m256i *)(kernel + 5 * stride_width + i));
+        __m256i kernel_vec6 =
+            _mm256_loadu_si256((__m256i *)(kernel + 6 * stride_width + i));
+        __m256i kernel_vec7 =
+            _mm256_loadu_si256((__m256i *)(kernel + 7 * stride_width + i));
+
+        __m256i src_vec = _mm256_loadu_si256((__m256i *)(src_ptr + i));
+
+        kernel_vec0 = _mm256_mullo_epi32(kernel_vec0, src_vec);
+        kernel_vec1 = _mm256_mullo_epi32(kernel_vec1, src_vec);
+        kernel_vec2 = _mm256_mullo_epi32(kernel_vec2, src_vec);
+        kernel_vec3 = _mm256_mullo_epi32(kernel_vec3, src_vec);
+        kernel_vec4 = _mm256_mullo_epi32(kernel_vec4, src_vec);
+        kernel_vec5 = _mm256_mullo_epi32(kernel_vec5, src_vec);
+        kernel_vec6 = _mm256_mullo_epi32(kernel_vec6, src_vec);
+        kernel_vec7 = _mm256_mullo_epi32(kernel_vec7, src_vec);
+
+        resi_vec[0] = _mm256_add_epi32(resi_vec[0], kernel_vec0);
+        resi_vec[1] = _mm256_add_epi32(resi_vec[1], kernel_vec1);
+        resi_vec[2] = _mm256_add_epi32(resi_vec[2], kernel_vec2);
+        resi_vec[3] = _mm256_add_epi32(resi_vec[3], kernel_vec3);
+        resi_vec[4] = _mm256_add_epi32(resi_vec[4], kernel_vec4);
+        resi_vec[5] = _mm256_add_epi32(resi_vec[5], kernel_vec5);
+        resi_vec[6] = _mm256_add_epi32(resi_vec[6], kernel_vec6);
+        resi_vec[7] = _mm256_add_epi32(resi_vec[7], kernel_vec7);
+      }
+      fwd_stxfm_transpose_8x8_avx2(resi_vec, resi_vec_out);
+      __m256i sum_vec = zeros;
+      for (int i = 0; i < 8; i++) {
+        sum_vec = _mm256_add_epi32(sum_vec, resi_vec_out[i]);
+      }
+      sum_vec = round_power_of_two_signed_avx2(sum_vec, shift);
+      sum_vec =
+          _mm256_min_epi32(_mm256_max_epi32(sum_vec, min_value), max_value);
+      _mm256_storeu_si256((__m256i *)out, sum_vec);
+      kernel += stride_width << 3;
+      out += 8;
+    }
+#if CONFIG_E124_IST_REDUCE_METHOD4
   }
+#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 }
 
 #if CONFIG_CORE_TX

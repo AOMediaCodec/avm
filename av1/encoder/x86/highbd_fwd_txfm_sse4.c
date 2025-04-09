@@ -3522,13 +3522,17 @@ void av1_fwd_txfm2d_32x4_sse4_1(const int16_t *input, int32_t *coeff,
 void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
                       const PREDICTION_MODE mode, const uint8_t stx_idx,
                       const int size, const int bd) {
+  // Secondary transform kernels are stored as 32-bit integers to match SIMD
+  // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
+  // during execution by letting SIMD variants directly load the pre-converted
+  // filter weights.
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
-  const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #else
-  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
+  const int32_t *kernel = (size == 4) ? ist_4x4_kernel_int32[mode][stx_idx][0]
+                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
   int coef;
   int *out = dst;
@@ -3560,12 +3564,11 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
     int *srcPtr = src;
-    const int16_t *kernel_tmp = kernel;
+    const int32_t *kernel_tmp = kernel;
     __m128i tmpSum = _mm_setzero_si128();
     for (int i = 0; i < reduced_width; i += 4) {
       __m128i tmpBlk = _mm_loadu_si128((__m128i *)(srcPtr + i));
-      __m128i tmpT =
-          _mm_cvtepi16_epi32(_mm_loadl_epi64((__m128i *)(kernel_tmp + i)));
+      __m128i tmpT = _mm_loadu_si128((__m128i *)(kernel_tmp + i));
       tmpSum = _mm_add_epi32(tmpSum, _mm_mullo_epi32(tmpBlk, tmpT));
     }
     tmpSum = _mm_add_epi32(tmpSum,

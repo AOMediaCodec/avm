@@ -767,6 +767,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
  public:
   AV1FwdSecTxfmTest() : fwd_stxfm_func_(GetParam()) {}
   void AV1FwdSecTxfmMatchTest() {
+    av1_init_stxfm_kernels();
     for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -816,6 +817,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
   }
 
   void AV1FwdSecTxfmSpeedTest() {
+    av1_init_stxfm_kernels();
 #if CONFIG_E124_IST_REDUCE_METHOD4
     for (int sb_size = 0; sb_size < 3; ++sb_size) {
 #else
@@ -882,6 +884,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
  public:
   AV1InvSecTxfmTest() : inv_stxfm_func_(GetParam()) {}
   void AV1InvSecTxfmMatchTest() {
+    av1_init_stxfm_kernels();
     for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -916,6 +919,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
   }
 
   void AV1InvSecTxfmSpeedTest() {
+    av1_init_stxfm_kernels();
 #if CONFIG_E124_IST_REDUCE_METHOD4
     for (int sb_size = 0; sb_size < 3; ++sb_size) {
 #else

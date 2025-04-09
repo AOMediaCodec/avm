@@ -35,6 +35,30 @@ extern "C" {
 
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
+
+// Secondary transform coeffs in int precision
+#if CONFIG_IST_ANY_SET
+#if CONFIG_F105_IST_MEM_REDUCE
+extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][16]
+                                   [IST_4x4_WIDTH];
+
+extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
+                                   [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH];
+#else
+extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_4x4_HEIGHT]
+                                   [IST_4x4_WIDTH];
+
+extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
+                                   [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+#else   // CONFIG_IST_ANY_SET
+extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_4x4_HEIGHT]
+                                   [IST_4x4_WIDTH];
+
+extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_8x8_HEIGHT]
+                                   [IST_8x8_WIDTH];
+#endif  // CONFIG_IST_ANY_SET
+
 #define TXFM_KERNEL_SIZE4 16
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
@@ -73,6 +97,8 @@ static const int cos_bit_max = 16;
 static const int32_t NewSqrt2 = 5793;
 // 2^12 / sqrt(2)
 static const int32_t NewInvSqrt2 = 2896;
+
+void av1_init_stxfm_kernels(void);
 
 static INLINE const int32_t *cospi_arr(int n) {
   return av1_cospi_arr_data[n - cos_bit_min];

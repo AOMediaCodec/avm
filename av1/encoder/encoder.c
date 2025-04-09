@@ -216,6 +216,7 @@ void av1_initialize_enc(void) {
   av1_rc_init_minq_luts();
   av1_init_wedge_masks();
   init_cwp_masks();
+  av1_init_stxfm_kernels();
 }
 
 static void update_reference_segmentation_map(AV1_COMP *cpi) {
