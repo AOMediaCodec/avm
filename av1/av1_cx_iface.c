@@ -1461,9 +1461,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_LF_SUB_PU
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   if (tool_cfg->enable_lf_sub_pu) {
-    if (cfg->g_lag_in_frames == 0) {
-      tool_cfg->enable_lf_sub_pu = 0;
-    }
     if (cfg->kf_max_dist == 0) {
       tool_cfg->enable_lf_sub_pu = 0;
     }
