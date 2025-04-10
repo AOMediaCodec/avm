@@ -2644,14 +2644,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     int above_lines = 0, left_lines = 0, ref_width = 0, ref_height = 0;
 #endif  // CONFIG_ENABLE_MHCCP
     {
-#if CONFIG_CFL_64x64
-      const BLOCK_SIZE luma_bsize = mbmi->sb_type[PLANE_TYPE_UV];
-      const int luma_tx_size = max_txsize_rect_lookup[luma_bsize];
-#else
-      const int luma_tx_size =
-          av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
-#endif
-
 #if CONFIG_CFL_SIMPLIFICATION
       const int row_start = ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base +
                               (blk_row << cfl->subsampling_y))
@@ -2670,7 +2662,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_CFL_SIMPLIFICATION
                                          is_top_sb_boundary,
 #endif  // CONFIG_CFL_SIMPLIFICATION
-                                         luma_tx_size);
+                                         chroma_tx_size);
         cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
       }
 #if CONFIG_ENABLE_MHCCP
