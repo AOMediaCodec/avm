@@ -1595,6 +1595,8 @@ static void build_intra_predictors_high(
   const bool is_ibp_orip_allowed_blk_sz = tx_size != TX_4X4;
   apply_sub_block_based_refinement_filter &= is_ibp_orip_allowed_blk_sz;
   const int apply_ibp = seq_ibp_flag && is_ibp_orip_allowed_blk_sz;
+#else
+  const int apply_ibp = seq_ibp_flag;
 #endif  // CONFIG_DISABLE_4X4_IBP_ORIP
 #if CONFIG_WAIP
 #if CONFIG_NEW_TX_PARTITION
@@ -1633,11 +1635,7 @@ static void build_intra_predictors_high(
       need_above = 1, need_left = 1, need_above_left = 1;
     else
       need_above = 0, need_left = 1, need_above_left = 1;
-#if CONFIG_DISABLE_4X4_IBP_ORIP
     if (apply_ibp) {
-#else
-    if (seq_ibp_flag) {
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
       need_above = 1, need_left = 1, need_above_left = 1;
     }
 
@@ -1682,13 +1680,7 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_DIP
     if (is_dr_mode)
       need_bottom =
-#if CONFIG_DISABLE_4X4_IBP_ORIP
-          apply_ibp
-#else
-          seq_ibp_flag
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
-              ? (p_angle < 90) || (p_angle > 180)
-              : p_angle > 180;
+          apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
     int num_left_pixels_needed =
         txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1);
 #if CONFIG_DIP
@@ -1720,14 +1712,7 @@ static void build_intra_predictors_high(
     if (use_intra_dip) need_right = 1;
 #endif  // CONFIG_DIP
     if (is_dr_mode)
-      need_right =
-#if CONFIG_DISABLE_4X4_IBP_ORIP
-          apply_ibp
-#else
-          seq_ibp_flag
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
-              ? (p_angle < 90) || (p_angle > 180)
-              : p_angle < 90;
+      need_right = apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
     int num_top_pixels_needed =
         txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
 #if CONFIG_DIP
@@ -1796,11 +1781,7 @@ static void build_intra_predictors_high(
       int filt_type_left = filt_type_above;
       int angle_above = p_angle - 90;
       int angle_left = p_angle - 180;
-#if CONFIG_DISABLE_4X4_IBP_ORIP
       if (apply_ibp) {
-#else
-      if (seq_ibp_flag) {
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
         need_right |= p_angle > 180;
         need_bottom |= p_angle < 90;
         const MB_MODE_INFO *ab =
@@ -1864,11 +1845,7 @@ static void build_intra_predictors_high(
                         upsample_above, upsample_left, p_angle, xd->bd,
                         mrl_index);
 #endif  // CONFIG_IDIF
-#if CONFIG_DISABLE_4X4_IBP_ORIP
     if (apply_ibp) {
-#else
-    if (seq_ibp_flag) {
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
       if (mrl_index == 0
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
           && (angle_delta % 2 == 0)
@@ -1965,13 +1942,7 @@ static void build_intra_predictors_high(
     dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
         dst, dst_stride, above_row, left_col, xd->bd);
 #if CONFIG_IBP_DC
-    if (
-#if CONFIG_DISABLE_4X4_IBP_ORIP
-        apply_ibp
-#else
-        seq_ibp_flag
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
-        && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
+    if (apply_ibp && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
         ((n_left_px > 0) || (n_top_px > 0))) {
       ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
           dst, dst_stride, above_row, left_col, xd->bd);
