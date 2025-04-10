@@ -382,6 +382,23 @@ static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r
   return mrl_index;
 }
 
+#if CONFIG_MRLS_IMPROVE
+static bool read_multi_line_mrl(FRAME_CONTEXT *ec_ctx, aom_reader *r
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                                ,
+                                const MB_MODE_INFO *neighbor0,
+                                const MB_MODE_INFO *neighbor1
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+) {
+  int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
+  aom_cdf_prob *multi_line_mrl_cdf =
+      ec_ctx->multi_line_mrl_cdf[multi_line_mrl_ctx];
+  const bool multi_line_mrl =
+      aom_read_symbol(r, multi_line_mrl_cdf, 2, ACCT_INFO());
+  return multi_line_mrl;
+}
+#endif  // CONFIG_MRLS_IMPROVE
+
 #if CONFIG_LOSSLESS_DPCM
 // read if dpcm lossless mode is used for luma
 static uint8_t read_dpcm_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
@@ -2468,6 +2485,14 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
                 ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                 : 0;
+#if CONFIG_MRLS_IMPROVE
+        if (mbmi->mrl_index) {
+          mbmi->multi_line_mrl = read_multi_line_mrl(
+              ec_ctx, r, xd->neighbors[0], xd->neighbors[1]);
+        } else {
+          mbmi->multi_line_mrl = 0;
+        }
+#endif  // CONFIG_MRLS_IMPROVE
       } else {
         mbmi->mrl_index = 0;
       }
@@ -2480,6 +2505,14 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
               ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
               : 0;
+#if CONFIG_MRLS_IMPROVE
+      if (mbmi->mrl_index) {
+        mbmi->multi_line_mrl =
+            read_multi_line_mrl(ec_ctx, r, xd->neighbors[0], xd->neighbors[1]);
+      } else {
+        mbmi->multi_line_mrl = 0;
+      }
+#endif  // CONFIG_MRLS_IMPROVE
     }
 #else  // CONFIG_LOSSLESS_DPCM
     mbmi->mrl_index =
@@ -3260,6 +3293,14 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
                 ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                 : 0;
+#if CONFIG_MRLS_IMPROVE
+        if (mbmi->mrl_index) {
+          mbmi->multi_line_mrl = read_multi_line_mrl(
+              ec_ctx, r, xd->neighbors[0], xd->neighbors[1]);
+        } else {
+          mbmi->multi_line_mrl = 0;
+        }
+#endif  // CONFIG_MRLS_IMPROVE
       } else {
         mbmi->mrl_index = 0;
       }
@@ -3272,6 +3313,14 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
               ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
               : 0;
+#if CONFIG_MRLS_IMPROVE
+      if (mbmi->mrl_index) {
+        mbmi->multi_line_mrl =
+            read_multi_line_mrl(ec_ctx, r, xd->neighbors[0], xd->neighbors[1]);
+      } else {
+        mbmi->multi_line_mrl = 0;
+      }
+#endif  // CONFIG_MRLS_IMPROVE
     }
   }
 #else  // CONFIG_LOSSLESS_DPCM

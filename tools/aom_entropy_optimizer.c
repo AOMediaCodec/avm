@@ -609,6 +609,15 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif  // CONFIG_EXT_DIR
 
+#if CONFIG_MRLS_IMPROVE
+  /* MRL index */
+  cts_each_dim[0] = MRL_INDEX_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.multi_line_mrl[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_multi_line_mrl_cdf"
+                     "[MRL_INDEX_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Intra");
+#endif
   /* cctx type */
   cts_each_dim[0] = EXT_TX_SIZES;
   cts_each_dim[1] = CCTX_CONTEXTS;

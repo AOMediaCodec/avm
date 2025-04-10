@@ -1892,6 +1892,21 @@ static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 }
 
+#if CONFIG_MRLS_IMPROVE
+static AOM_INLINE void write_multi_line_mrl(FRAME_CONTEXT *ec_ctx,
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                                            const MB_MODE_INFO *neighbor0,
+                                            const MB_MODE_INFO *neighbor1,
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+                                            bool multi_line_mrl,
+                                            aom_writer *w) {
+  int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
+  aom_cdf_prob *multi_line_mrl_cdf =
+      ec_ctx->multi_line_mrl_cdf[multi_line_mrl_ctx];
+  aom_write_symbol(w, multi_line_mrl, multi_line_mrl_cdf, 2);
+}
+#endif  // CONFIG_MRLS_IMPROVE
+
 #if CONFIG_LOSSLESS_DPCM
 static AOM_INLINE void write_dpcm_index(FRAME_CONTEXT *ec_ctx,
                                         uint8_t dpcm_mode, aom_writer *w) {
@@ -2302,6 +2317,15 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
                           xd->neighbors[0], xd->neighbors[1],
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                           mbmi->mrl_index, w);
+#if CONFIG_MRLS_IMPROVE
+          if (mbmi->mrl_index) {
+            write_multi_line_mrl(ec_ctx,
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                                 xd->neighbors[0], xd->neighbors[1],
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+                                 mbmi->multi_line_mrl, w);
+          }
+#endif  // CONFIG_MRLS_IMPROVE
         }
       } else {
         write_mrl_index(ec_ctx,
@@ -2309,6 +2333,15 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
                         xd->neighbors[0], xd->neighbors[1],
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                         mbmi->mrl_index, w);
+#if CONFIG_MRLS_IMPROVE
+        if (mbmi->mrl_index) {
+          write_multi_line_mrl(ec_ctx,
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                               xd->neighbors[0], xd->neighbors[1],
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+                               mbmi->multi_line_mrl, w);
+        }
+#endif  // CONFIG_MRLS_IMPROVE
       }
     }
 #else  // CONFIG_LOSSLESS_DPCM

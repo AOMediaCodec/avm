@@ -177,6 +177,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   for (i = 0; i < MRL_INDEX_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost[i],
                              fc->mrl_index_cdf[i], NULL);
+#if CONFIG_MRLS_IMPROVE
+    av1_cost_tokens_from_cdf(mode_costs->multi_line_mrl_cost[i],
+                             fc->multi_line_mrl_cdf[i], NULL);
+#endif
   }
 #else
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);

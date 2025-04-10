@@ -1550,12 +1550,33 @@ static void build_intra_predictors_high(
 ) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
+#if CONFIG_MRLS_IMPROVE
+  DECLARE_ALIGNED(16, uint16_t, left_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
+  DECLARE_ALIGNED(16, uint16_t, above_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
+  DECLARE_ALIGNED(16, uint16_t, left_data_2nd[NUM_INTRA_NEIGHBOUR_PIXELS]);
+  DECLARE_ALIGNED(16, uint16_t, above_data_2nd[NUM_INTRA_NEIGHBOUR_PIXELS]);
+#else
   DECLARE_ALIGNED(16, uint16_t, left_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
+#endif  // CONFIG_MRLS_IMPROVE
+
   DECLARE_ALIGNED(16, uint16_t, second_pred_data[MAX_TX_SQUARE + 32]);
+
+#if CONFIG_MRLS_IMPROVE
+  DECLARE_ALIGNED(16, uint16_t, mrl_line_0_data[MAX_TX_SQUARE + 32]);
+  uint16_t *const above_row_1st = above_data_1st + 32;
+  uint16_t *const left_col_1st = left_data_1st + 32;
+  uint16_t *const above_row_2nd = above_data_2nd + 32;
+  uint16_t *const left_col_2nd = left_data_2nd + 32;
+#else
   uint16_t *const above_row = above_data + 32;
   uint16_t *const left_col = left_data + 32;
+#endif  // CONFIG_MRLS_IMPROVE
+
   uint16_t *const second_pred = second_pred_data + 16;
+#if CONFIG_MRLS_IMPROVE
+  uint16_t *dst_mrl_line_0 = mrl_line_0_data + 16;
+#endif
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
   int need_left = extend_modes[mode] & NEED_LEFT;
@@ -1566,8 +1587,16 @@ static void build_intra_predictors_high(
           ? xd->mi[0]->mrl_index
           : 0;
   const int above_mrl_idx = is_sb_boundary ? 0 : mrl_index;
+#if CONFIG_MRLS_IMPROVE
+  const uint16_t *above_ref_1st = ref - ref_stride * (above_mrl_idx + 1);
+  const uint16_t *left_ref_1st = ref - 1 - mrl_index;
+  const uint16_t *above_ref_2nd = ref - ref_stride;
+  const uint16_t *left_ref_2nd = ref - 1;
+#else
   const uint16_t *above_ref = ref - ref_stride * (above_mrl_idx + 1);
   const uint16_t *left_ref = ref - 1 - mrl_index;
+#endif  // CONFIG_MRLS_IMPROVE
+
   int p_angle = 0;
   const int is_dr_mode = av1_is_directional_mode(mode);
   const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
@@ -1579,8 +1608,15 @@ static void build_intra_predictors_high(
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
   // 4 path in av1_highbd_dr_prediction_z2_avx2()) from left_data, above_data
   // are seen to be the potential reason for this issue.
+#if CONFIG_MRLS_IMPROVE
+  aom_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  aom_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  aom_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  aom_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+#else
   aom_memset16(left_data, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
   aom_memset16(above_data, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+#endif  // CONFIG_MRLS_IMPROVE
 
   // The default values if ref pixels are not available:
   // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
@@ -1660,9 +1696,17 @@ static void build_intra_predictors_high(
   if ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0)) {
     int val;
     if (need_left) {
+#if CONFIG_MRLS_IMPROVE
+      val = (n_top_px > 0) ? above_ref_1st[0] : base + 1;
+#else
       val = (n_top_px > 0) ? above_ref[0] : base + 1;
+#endif
     } else {
+#if CONFIG_MRLS_IMPROVE
+      val = (n_left_px > 0) ? left_ref_1st[0] : base - 1;
+#else
       val = (n_left_px > 0) ? left_ref[0] : base - 1;
+#endif
     }
     for (i = 0; i < txhpx; ++i) {
       aom_memset16(dst, val, txwpx);
@@ -1691,16 +1735,42 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_DIP
     i = 0;
     if (n_left_px > 0) {
-      for (; i < n_left_px; i++) left_col[i] = left_ref[i * ref_stride];
+      for (; i < n_left_px; i++) {
+#if CONFIG_MRLS_IMPROVE
+        left_col_1st[i] = left_ref_1st[i * ref_stride];
+        left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+#else
+        left_col[i] = left_ref[i * ref_stride];
+#endif  // CONFIG_MRLS_IMPROVE
+      }
       if (need_bottom && n_bottomleft_px > 0) {
         assert(i == txhpx);
-        for (; i < txhpx + n_bottomleft_px; i++)
+        for (; i < txhpx + n_bottomleft_px; i++) {
+#if CONFIG_MRLS_IMPROVE
+          left_col_1st[i] = left_ref_1st[i * ref_stride];
+          left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+#else
           left_col[i] = left_ref[i * ref_stride];
+#endif  // CONFIG_MRLS_IMPROVE
+        }
       }
-      if (i < num_left_pixels_needed)
+      if (i < num_left_pixels_needed) {
+#if CONFIG_MRLS_IMPROVE
+        aom_memset16(&left_col_1st[i], left_col_1st[i - 1],
+                     num_left_pixels_needed - i);
+        aom_memset16(&left_col_2nd[i], left_col_2nd[i - 1],
+                     num_left_pixels_needed - i);
+#else
         aom_memset16(&left_col[i], left_col[i - 1], num_left_pixels_needed - i);
+#endif  // CONFIG_MRLS_IMPROVE
+      }
     } else if (n_top_px > 0) {
+#if CONFIG_MRLS_IMPROVE
+      aom_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+      aom_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
+#else
       aom_memset16(left_col, above_ref[0], num_left_pixels_needed);
+#endif  // CONFIG_MRLS_IMPROVE
     }
   }
 
@@ -1722,24 +1792,71 @@ static void build_intra_predictors_high(
     }
 #endif  // CONFIG_DIP
     if (n_top_px > 0) {
+#if CONFIG_MRLS_IMPROVE
+      memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
+      memcpy(above_row_2nd, above_ref_2nd, n_top_px * sizeof(above_ref_2nd[0]));
+#else
       memcpy(above_row, above_ref, n_top_px * sizeof(above_ref[0]));
+#endif  // CONFIG_MRLS_IMPROVE
       i = n_top_px;
       if (need_right && n_topright_px > 0) {
         assert(n_top_px == txwpx);
+#if CONFIG_MRLS_IMPROVE
+        memcpy(above_row_1st + txwpx, above_ref_1st + txwpx,
+               n_topright_px * sizeof(above_ref_1st[0]));
+        memcpy(above_row_2nd + txwpx, above_ref_2nd + txwpx,
+               n_topright_px * sizeof(above_ref_2nd[0]));
+#else
         memcpy(above_row + txwpx, above_ref + txwpx,
                n_topright_px * sizeof(above_ref[0]));
+#endif  // CONFIG_MRLS_IMPROVE
         i += n_topright_px;
       }
-      if (i < num_top_pixels_needed)
+      if (i < num_top_pixels_needed) {
+#if CONFIG_MRLS_IMPROVE
+        aom_memset16(&above_row_1st[i], above_row_1st[i - 1],
+                     num_top_pixels_needed - i);
+        aom_memset16(&above_row_2nd[i], above_row_2nd[i - 1],
+                     num_top_pixels_needed - i);
+#else
         aom_memset16(&above_row[i], above_row[i - 1],
                      num_top_pixels_needed - i);
+#endif  // CONFIG_MRLS_IMPROVE
+      }
     } else if (n_left_px > 0) {
+#if CONFIG_MRLS_IMPROVE
+      aom_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+      aom_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
+#else
       aom_memset16(above_row, left_ref[0], num_top_pixels_needed);
+#endif  // CONFIG_MRLS_IMPROVE
     }
   }
 
   if (need_above_left) {
     for (i = 1; i <= mrl_index + 1; i++) {
+#if CONFIG_MRLS_IMPROVE
+      if (n_top_px > 0 && n_left_px > 0) {
+        above_row_1st[-i] = above_ref_1st[-i];
+        above_row_2nd[-i] = above_ref_2nd[-i];
+        if (is_sb_boundary) {
+          left_col_1st[-i] = left_ref_1st[-ref_stride];
+          left_col_2nd[-i] = left_ref_2nd[-ref_stride];
+        } else {
+          left_col_1st[-i] = left_ref_1st[-i * ref_stride];
+          left_col_2nd[-i] = left_ref_2nd[-i * ref_stride];
+        }
+      } else if (n_top_px > 0) {
+        above_row_1st[-i] = left_col_1st[-i] = above_ref_1st[0];
+        above_row_2nd[-i] = left_col_2nd[-i] = above_ref_2nd[0];
+      } else if (n_left_px > 0) {
+        above_row_1st[-i] = left_col_1st[-i] = left_ref_1st[0];
+        above_row_2nd[-i] = left_col_2nd[-i] = left_ref_2nd[0];
+      } else {
+        above_row_1st[-i] = left_col_1st[-i] = base;
+        above_row_2nd[-i] = left_col_2nd[-i] = base;
+      }
+#else
       if (n_top_px > 0 && n_left_px > 0) {
         above_row[-i] = above_ref[-i];
         if (is_sb_boundary)
@@ -1754,19 +1871,30 @@ static void build_intra_predictors_high(
       } else {
         above_row[-i] = left_col[-i] = base;
       }
+#endif  // CONFIG_MRLS_IMPROVE
     }
   }
 
   if (use_filter_intra) {
+#if CONFIG_MRLS_IMPROVE
+    highbd_filter_intra_predictor(dst, dst_stride, tx_size, above_row_1st,
+                                  left_col_1st, filter_intra_mode, xd->bd);
+#else
     highbd_filter_intra_predictor(dst, dst_stride, tx_size, above_row, left_col,
                                   filter_intra_mode, xd->bd);
+#endif  // CONFIG_MRLS_IMPROVE
     return;
   }
 
 #if CONFIG_DIP
   if (use_intra_dip) {
     av1_highbd_intra_dip_predictor(mbmi->intra_dip_mode, dst, dst_stride,
-                                   above_row, left_col, tx_size, xd->bd);
+#if CONFIG_MRLS_IMPROVE
+                                   above_row_1st, left_col_1st,
+#else
+                                   above_row, left_col,
+#endif
+                                   tx_size, xd->bd);
     return;
   }
 #endif  // CONFIG_DIP
@@ -1797,19 +1925,31 @@ static void build_intra_predictors_high(
       if (p_angle != 90 && p_angle != 180) {
         const int ab_le = need_above_left ? 1 : 0;
         if (need_above && need_left && (txwpx + txhpx >= 24)) {
+#if CONFIG_MRLS_IMPROVE
+          filter_intra_edge_corner_high(above_row_1st, left_col_1st);
+#else
           filter_intra_edge_corner_high(above_row, left_col);
+#endif  // CONFIG_MRLS_IMPROVE
         }
         if (need_above && n_top_px > 0) {
           const int strength = intra_edge_filter_strength(
               txwpx, txhpx, angle_above, filt_type_above);
           const int n_px = n_top_px + ab_le + (need_right ? txhpx : 0);
+#if CONFIG_MRLS_IMPROVE
+          av1_filter_intra_edge_high(above_row_1st - ab_le, n_px, strength);
+#else
           av1_filter_intra_edge_high(above_row - ab_le, n_px, strength);
+#endif  // CONFIG_MRLS_IMPROVE
         }
         if (need_left && n_left_px > 0) {
           const int strength = intra_edge_filter_strength(
               txhpx, txwpx, angle_left, filt_type_left);
           const int n_px = n_left_px + ab_le + (need_bottom ? txwpx : 0);
+#if CONFIG_MRLS_IMPROVE
+          av1_filter_intra_edge_high(left_col_1st - ab_le, n_px, strength);
+#else
           av1_filter_intra_edge_high(left_col - ab_le, n_px, strength);
+#endif  // CONFIG_MRLS_IMPROVE
         }
       }
 #if CONFIG_IDIF
@@ -1819,26 +1959,76 @@ static void build_intra_predictors_high(
                                                      filt_type_above);
         if (need_above && upsample_above) {
           const int n_px = txwpx + (need_right ? txhpx : 0);
-          av1_upsample_intra_edge_high(above_row, n_px, xd->bd);
+#if CONFIG_MRLS_IMPROVE
+          av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
+#else
+        av1_upsample_intra_edge_high(above_row, n_px, xd->bd);
+#endif  // CONFIG_MRLS_IMPROVE
         }
         upsample_left = av1_use_intra_edge_upsample(txhpx, txwpx, angle_left,
                                                     filt_type_left);
         if (need_left && upsample_left) {
           const int n_px = txhpx + (need_bottom ? txwpx : 0);
-          av1_upsample_intra_edge_high(left_col, n_px, xd->bd);
+#if CONFIG_MRLS_IMPROVE
+          av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
+#else
+        av1_upsample_intra_edge_high(left_col, n_px, xd->bd);
+#endif  // CONFIG_MRLS_IMPROVE
         }
 #if CONFIG_IDIF
       }
 #endif  // CONFIG_IDIF
     }
+#if CONFIG_MRLS_IMPROVE
+    const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
+#endif
 #if CONFIG_IDIF
     if (enable_idif) {
+#if CONFIG_MRLS_IMPROVE
+      highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
+                               left_col_1st, p_angle, xd->bd, mrl_index);
+
+      if (xd->mi[0]->multi_line_mrl && mrl_index &&
+          is_multi_line_mrls_allowed_blk_sz) {
+        highbd_dr_predictor_idif(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
+                                 left_col_2nd, p_angle, xd->bd, 0);
+
+        int r, c;
+        for (r = 0; r < txhpx; ++r) {
+          for (c = 0; c < txwpx; ++c) {
+            dst[r * dst_stride + c] =
+                (dst[r * dst_stride + c] + dst_mrl_line_0[r * txwpx + c]) / 2;
+          }
+        }
+      }
+#else
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row, left_col,
                                p_angle, xd->bd, mrl_index);
+#endif  // CONFIG_MRLS_IMPROVE
     } else {
+#if CONFIG_MRLS_IMPROVE
+      highbd_dr_predictor(dst, dst_stride, tx_size, above_row_1st, left_col_1st,
+                          upsample_above, upsample_left, p_angle, xd->bd,
+                          mrl_index);
+      if (xd->mi[0]->multi_line_mrl && mrl_index &&
+          is_multi_line_mrls_allowed_blk_sz) {
+        highbd_dr_predictor(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
+                            left_col_2nd, upsample_above, upsample_left,
+                            p_angle, xd->bd, 0);
+
+        int r, c;
+        for (r = 0; r < txhpx; ++r) {
+          for (c = 0; c < txwpx; ++c) {
+            dst[r * dst_stride + c] =
+                (dst[r * dst_stride + c] + dst_mrl_line_0[r * txwpx + c]) / 2;
+          }
+        }
+      }
+#else
       highbd_dr_predictor(dst, dst_stride, tx_size, above_row, left_col,
                           upsample_above, upsample_left, p_angle, xd->bd,
                           mrl_index);
+#endif  // CONFIG_MRLS_IMPROVE
     }
 #else
     highbd_dr_predictor(dst, dst_stride, tx_size, above_row, left_col,
@@ -1861,12 +2051,21 @@ static void build_intra_predictors_high(
 #if CONFIG_IDIF
             if (enable_idif) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                              above_row, left_col, p_angle,
-                                              xd->bd);
+#if CONFIG_MRLS_IMPROVE
+                                              above_row_1st, left_col_1st,
+#else
+                                              above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                              p_angle, xd->bd);
             } else {
-              highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                         left_col, upsample_above,
-                                         upsample_left, p_angle, xd->bd);
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+#if CONFIG_MRLS_IMPROVE
+                                         above_row_1st, left_col_1st,
+#else
+                                         above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                         upsample_above, upsample_left, p_angle,
+                                         xd->bd);
             }
 #else
           highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
@@ -1896,12 +2095,21 @@ static void build_intra_predictors_high(
 #if CONFIG_IDIF
             if (enable_idif) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                              above_row, left_col, p_angle,
-                                              xd->bd);
+#if CONFIG_MRLS_IMPROVE
+                                              above_row_1st, left_col_1st,
+#else
+                                              above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                              p_angle, xd->bd);
             } else {
-              highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                         left_col, upsample_above,
-                                         upsample_left, p_angle, xd->bd);
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+#if CONFIG_MRLS_IMPROVE
+                                         above_row_1st, left_col_1st,
+#else
+                                         above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                         upsample_above, upsample_left, p_angle,
+                                         xd->bd);
             }
 #else
           highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
@@ -1931,25 +2139,49 @@ static void build_intra_predictors_high(
 #else
         av1_allow_orip_dir(p_angle)) {
 #endif
-      av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size, above_row,
-                                     left_col, mode, xd->bd);
+      av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size,
+#if CONFIG_MRLS_IMPROVE
+                                     above_row_1st, left_col_1st,
+#else
+                                     above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                     mode, xd->bd);
     }
 #endif
     return;
   }
   // predict
   if (mode == DC_PRED) {
-    dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
-        dst, dst_stride, above_row, left_col, xd->bd);
+    dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](dst, dst_stride,
+#if CONFIG_MRLS_IMPROVE
+                                                       above_row_1st,
+                                                       left_col_1st,
+#else
+                                                       above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                                       xd->bd);
 #if CONFIG_IBP_DC
     if (apply_ibp && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
         ((n_left_px > 0) || (n_top_px > 0))) {
-      ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
-          dst, dst_stride, above_row, left_col, xd->bd);
+      ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](dst, dst_stride,
+#if CONFIG_MRLS_IMPROVE
+                                                             above_row_1st,
+                                                             left_col_1st,
+#else
+                                                             above_row,
+                                                             left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                                             xd->bd);
     }
 #endif
   } else {
-    pred_high[mode][tx_size](dst, dst_stride, above_row, left_col, xd->bd);
+    pred_high[mode][tx_size](dst, dst_stride,
+#if CONFIG_MRLS_IMPROVE
+                             above_row_1st, left_col_1st,
+#else
+                             above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                             xd->bd);
   }
 
   // Apply sub-block based filter for DC/smooth intra mode
@@ -1960,8 +2192,13 @@ static void build_intra_predictors_high(
       av1_allow_orip_smooth_dc(mode, plane);
 #endif
   if (apply_sub_block_based_refinement_filter) {
-    av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size, above_row,
-                                   left_col, mode, xd->bd);
+    av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size,
+#if CONFIG_MRLS_IMPROVE
+                                   above_row_1st, left_col_1st,
+#else
+                                   above_row, left_col,
+#endif  // CONFIG_MRLS_IMPROVE
+                                   mode, xd->bd);
   }
 }
 

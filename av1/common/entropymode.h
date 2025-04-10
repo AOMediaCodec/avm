@@ -566,6 +566,9 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_MRLS_IMPROVE
+  aom_cdf_prob multi_line_mrl_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(2)];
+#endif
 #if CONFIG_LOSSLESS_DPCM
   aom_cdf_prob dpcm_cdf[CDF_SIZE(2)];
   aom_cdf_prob dpcm_vert_horz_cdf[CDF_SIZE(2)];

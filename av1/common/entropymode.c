@@ -99,6 +99,15 @@ static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
 };
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
+#if CONFIG_MRLS_IMPROVE
+static const aom_cdf_prob default_multi_line_mrl_cdf[MRL_INDEX_CONTEXTS]
+                                                    [CDF_SIZE(2)] = {
+                                                      { AOM_CDF2(28081), 0 },
+                                                      { AOM_CDF2(22175), 0 },
+                                                      { AOM_CDF2(16384), 0 },
+                                                    };
+#endif
+
 #if CONFIG_LOSSLESS_DPCM
 static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384) };
 static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(
@@ -8580,6 +8589,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->cfl_cdf, default_cfl_cdf);
 #endif  // CONFIG_AIMC
   av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
+#if CONFIG_MRLS_IMPROVE
+  av1_copy(fc->multi_line_mrl_cdf, default_multi_line_mrl_cdf);
+#endif
   av1_copy(fc->fsc_mode_cdf, default_fsc_mode_cdf);
 #if CONFIG_LOSSLESS_DPCM
   av1_copy(fc->dpcm_cdf, default_dpcm_cdf);
@@ -9083,6 +9095,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          FSC_MODES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf,
                          MRL_LINE_NUMBER);
+#if CONFIG_MRLS_IMPROVE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->multi_line_mrl_cdf,
+                         ctx_tr->multi_line_mrl_cdf, 2);
+#endif
 
 #if CONFIG_LOSSLESS_DPCM
   CUMULATIVE_AVERAGE_CDF(ctx_left->dpcm_cdf, ctx_tr->dpcm_cdf, 2);
@@ -9518,7 +9534,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->merged_param_cdf, 2);
   SHIFT_CDF(ctx_ptr->fsc_mode_cdf, FSC_MODES);
   SHIFT_CDF(ctx_ptr->mrl_index_cdf, MRL_LINE_NUMBER);
-
+#if CONFIG_MRLS_IMPROVE
+  SHIFT_CDF(ctx_ptr->multi_line_mrl_cdf, 2);
+#endif
 #if CONFIG_LOSSLESS_DPCM
   SHIFT_CDF(ctx_ptr->dpcm_cdf, 2);
   SHIFT_CDF(ctx_ptr->dpcm_vert_horz_cdf, 2);
@@ -9988,6 +10006,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
+#if CONFIG_MRLS_IMPROVE
+  AVERAGE_CDF(ctx_left->multi_line_mrl_cdf, ctx_tr->multi_line_mrl_cdf, 2);
+#endif
 
 #if CONFIG_LOSSLESS_DPCM
   AVERAGE_CDF(ctx_left->dpcm_cdf, ctx_tr->dpcm_cdf, 2);

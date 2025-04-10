@@ -50,6 +50,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->mrl_index = 0;
+#if CONFIG_MRLS_IMPROVE
+  mbmi->multi_line_mrl = 0;
+#endif
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = 0;
@@ -186,6 +189,9 @@ static int rd_pick_intra_dip_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->mrl_index = 0;
+#if CONFIG_MRLS_IMPROVE
+  mbmi->multi_line_mrl = 0;
+#endif
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = 0;
@@ -1511,6 +1517,16 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
        cpi->common.seq_params.enable_mrls)
           ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
           : 0;
+#if CONFIG_MRLS_IMPROVE
+  if (av1_is_directional_mode(mbmi->mode) &&
+      cpi->common.seq_params.enable_mrls && mbmi->mrl_index) {
+    int multi_line_mrl_ctx =
+        get_multi_line_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+    mrl_idx_cost +=
+        x->mode_costs
+            .multi_line_mrl_cost[multi_line_mrl_ctx][mbmi->multi_line_mrl];
+  }
+#endif
 #else
   int mrl_idx_cost = (av1_is_directional_mode(mbmi->mode) &&
                       cpi->common.seq_params.enable_mrls)
@@ -1823,6 +1839,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     intra_search_state->best_intra_mode = mode;
     intra_search_state->best_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
     intra_search_state->best_mrl_index = mbmi->mrl_index;
+#if CONFIG_MRLS_IMPROVE
+    intra_search_state->best_multi_line_mrl = mbmi->multi_line_mrl;
+#endif  // CONFIG_MRLS_IMPROVE
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       intra_search_state->best_dpcm_index = mbmi->use_dpcm_y;
@@ -1876,6 +1895,11 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
   uint8_t best_mrl = best_mbmi->mrl_index;
   uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;
   uint8_t mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
+#if CONFIG_MRLS_IMPROVE
+  uint8_t best_multi_line_mrl = best_mbmi->multi_line_mrl;
+  uint8_t multi_line_mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
+#endif  // CONFIG_MRLS_IMPROVE
+
 #if CONFIG_LOSSLESS_DPCM
   int dpcm_fsc_loop = 1;
   uint8_t best_dpcm_fsc = mbmi->use_dpcm_y;
@@ -1899,54 +1923,62 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
 #endif  // CONFIG_LOSSLESS_DPCM
     for (int mrl_idx = 0; mrl_idx < mrl_loop; ++mrl_idx) {
       mbmi->mrl_index = mrl_idx ? best_mbmi->mrl_index : mrl_idx;
+#if CONFIG_MRLS_IMPROVE
+      for (int multi_line_mrl = 0;
+           multi_line_mrl < (mrl_idx ? multi_line_mrl_loop : 1);
+           ++multi_line_mrl) {
+        mbmi->multi_line_mrl =
+            multi_line_mrl ? best_mbmi->multi_line_mrl : multi_line_mrl;
+#endif
 #if CONFIG_AIMC
-      for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
-           ++mode_idx) {
-        mbmi->y_mode_idx = mode_idx;
-        mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-        set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
-        if (mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
-            !(mbmi->angle_delta[PLANE_TYPE_Y] ==
-              best_mbmi->angle_delta[PLANE_TYPE_Y])) {
-          continue;
-        }
-        mode_costs = 0;
-#if CONFIG_LOSSLESS_DPCM
-        if (xd->lossless[mbmi->segment_id]) {
-          if (mbmi->use_dpcm_y > 0 &&
-              (mrl_idx > 0 || (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
-               ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
-                mbmi->angle_delta[0] != 0))) {
+        for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+             ++mode_idx) {
+          mbmi->y_mode_idx = mode_idx;
+          mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
+          set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+          if (mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
+              !(mbmi->angle_delta[PLANE_TYPE_Y] ==
+                best_mbmi->angle_delta[PLANE_TYPE_Y])) {
             continue;
           }
-          int dpcm_cost = x->mode_costs.dpcm_cost[mbmi->use_dpcm_y];
-          mode_costs += dpcm_cost;
-          if (mbmi->use_dpcm_y > 0) {
-            mbmi->dpcm_mode_y = mbmi->mode - 1;
+          mode_costs = 0;
+#if CONFIG_LOSSLESS_DPCM
+          if (xd->lossless[mbmi->segment_id]) {
+            if (mbmi->use_dpcm_y > 0 &&
+                (mrl_idx > 0 ||
+                 (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
+                 ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
+                  mbmi->angle_delta[0] != 0))) {
+              continue;
+            }
+            int dpcm_cost = x->mode_costs.dpcm_cost[mbmi->use_dpcm_y];
+            mode_costs += dpcm_cost;
+            if (mbmi->use_dpcm_y > 0) {
+              mbmi->dpcm_mode_y = mbmi->mode - 1;
+            }
           }
-        }
 #endif  // CONFIG_LOSSLESS_DPCM
 #if CONFIG_LOSSLESS_DPCM
-        if (mbmi->use_dpcm_y == 0) {
+          if (mbmi->use_dpcm_y == 0) {
 #endif  // CONFIG_LOSSLESS_DPCM
-          int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
-          mode_set_index +=
-              ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-          mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
-          if (mode_idx < FIRST_MODE_COUNT) {
-            mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
+            int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+            mode_set_index +=
+                ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+            mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
+            if (mode_idx < FIRST_MODE_COUNT) {
+              mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
+            } else {
+              mode_costs +=
+                  x->mode_costs.y_second_mode_costs
+                      [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
+                                SECOND_MODE_COUNT * (mode_set_index - 1)];
+            }
+#if CONFIG_LOSSLESS_DPCM
           } else {
-            mode_costs +=
-                x->mode_costs.y_second_mode_costs
-                    [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
-                              SECOND_MODE_COUNT * (mode_set_index - 1)];
+            int dpcm_dir_cost =
+                x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
+            mode_costs += dpcm_dir_cost;
           }
-#if CONFIG_LOSSLESS_DPCM
-        } else {
-          int dpcm_dir_cost =
-              x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
-          mode_costs += dpcm_dir_cost;
-        }
 #endif  // CONFIG_LOSSLESS_DPCM
 #else
     int total_num_mode = best_angle_delta ? INTRA_MODES + 1 : INTRA_MODES;
@@ -1974,133 +2006,158 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
 #endif  // CONFIG_LOSSLESS_DPCM
 #endif  // CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
-        if (xd->lossless[mbmi->segment_id]) {
-          mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 1;
-        } else {
-          mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
-        }
+          if (xd->lossless[mbmi->segment_id]) {
+            mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 1;
+          } else {
+            mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
+          }
 #else
       mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
 #endif
 #if CONFIG_DIP
-        mbmi->use_intra_dip = 0;
+          mbmi->use_intra_dip = 0;
 #endif  // CONFIG_DIP
-        mbmi->filter_intra_mode_info.use_filter_intra = 0;
-        mbmi->palette_mode_info.palette_size[0] = 0;
-        int64_t this_rd;
-        RD_STATS tokenonly_rd_stats;
-        if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
-             cpi->sf.intra_sf.disable_smooth_intra) &&
-            (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-             mbmi->mode == SMOOTH_V_PRED)) {
-          continue;
-        }
-        if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-            mbmi->mode == PAETH_PRED) {
-          continue;
-        }
-        int is_directional_mode = av1_is_directional_mode(mbmi->mode);
+          mbmi->filter_intra_mode_info.use_filter_intra = 0;
+          mbmi->palette_mode_info.palette_size[0] = 0;
+          int64_t this_rd;
+          RD_STATS tokenonly_rd_stats;
+          if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+               cpi->sf.intra_sf.disable_smooth_intra) &&
+              (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
+               mbmi->mode == SMOOTH_V_PRED)) {
+            continue;
+          }
+          if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+              mbmi->mode == PAETH_PRED) {
+            continue;
+          }
+          int is_directional_mode = av1_is_directional_mode(mbmi->mode);
 #if !CONFIG_AIMC
-        if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
-            mbmi->angle_delta[PLANE_TYPE_Y] != 0) {
-          continue;
-        }
+          if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
+              mbmi->angle_delta[PLANE_TYPE_Y] != 0) {
+            continue;
+          }
 #endif  // CONFIG_AIMC
 #if CONFIG_AIMC
-        if (is_directional_mode && dir_skip_mask[mbmi->mode] &&
-            mode_idx >= FIRST_MODE_COUNT)
+          if (is_directional_mode && dir_skip_mask[mbmi->mode] &&
+              mode_idx >= FIRST_MODE_COUNT)
 #else
       if (is_directional_mode && dir_skip_mask[mbmi->mode])
 #endif  // CONFIG_AIMC
-          continue;
+            continue;
 
-        if (!is_directional_mode && mrl_idx) continue;
+          if (!is_directional_mode && mrl_idx) continue;
 #if !CONFIG_IMPROVED_INTRA_DIR_PRED
-        if (best_mbmi->mrl_index == 0 && mbmi->mrl_index > 1 &&
-            av1_is_directional_mode(best_mbmi->mode) == 0) {
-          continue;
-        }
+          if (best_mbmi->mrl_index == 0 && mbmi->mrl_index > 1 &&
+              av1_is_directional_mode(best_mbmi->mode) == 0) {
+            continue;
+          }
 #endif  // !CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_MRLS_IMPROVE
+          if (((best_mbmi->mrl_index == 0 &&
+                av1_is_directional_mode(best_mbmi->mode) == 0) ||
+               (best_mbmi->mrl_index && mbmi->multi_line_mrl == 0)) &&
+              mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
+            continue;
+          }
+#endif
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
-        int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
-        int mrl_idx_cost =
-            (is_directional_mode && enable_mrls_flag)
-                ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
-                : 0;
+          int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+          int mrl_idx_cost =
+              (is_directional_mode && enable_mrls_flag)
+                  ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+                  : 0;
+#if CONFIG_MRLS_IMPROVE
+          if (is_directional_mode && enable_mrls_flag && mbmi->mrl_index) {
+            int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
+                xd->neighbors[0], xd->neighbors[1]);
+            mrl_idx_cost +=
+                x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
+                                                 [mbmi->multi_line_mrl];
+          }
+#endif  // CONFIG_MRLS_IMPROVE
 #else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                              : 0;
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_AIMC
-        mode_costs += mrl_idx_cost;
+          mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC
-        int64_t this_model_rd;
-        this_model_rd = intra_model_yrd(cpi, x, bsize,
+          int64_t this_model_rd;
+          this_model_rd = intra_model_yrd(cpi, x, bsize,
 #if CONFIG_AIMC
-                                        mode_costs);
+                                          mode_costs);
 #else
                                       mode_costs[mbmi->mode] + mrl_idx_cost);
 #endif  // CONFIG_AIMC
 
-        if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd)
+          if (prune_intra_y_mode(this_model_rd, best_model_rd,
+                                 top_intra_model_rd)
 #if CONFIG_LOSSLESS_DPCM
-            && (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)
+              && (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)
 #endif  // CONFIG_LOSSLESS_DPCM
-        )
-          continue;
-        av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
-                                          *best_rd);
-        if (tokenonly_rd_stats.rate == INT_MAX) continue;
-        const int this_rate = tokenonly_rd_stats.rate +
-                              intra_mode_info_cost_y(cpi, x, mbmi, bsize,
+          ) {
+            continue;
+          }
+          av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
+                                            *best_rd);
+          if (tokenonly_rd_stats.rate == INT_MAX) continue;
+          const int this_rate = tokenonly_rd_stats.rate +
+                                intra_mode_info_cost_y(cpi, x, mbmi, bsize,
 #if CONFIG_AIMC
-                                                     mode_costs);
+                                                       mode_costs);
 #else
                                                    mode_costs[mbmi->mode] +
                                                        mrl_idx_cost);
 #endif
-        this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
-        // Collect mode stats for multiwinner mode processing
-        const int txfm_search_done = 1;
-        const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
-        store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
-                                0, NULL, bsize, this_rd,
-                                cpi->sf.winner_mode_sf.multi_winner_mode_type,
-                                txfm_search_done);
+          this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+          // Collect mode stats for multiwinner mode processing
+          const int txfm_search_done = 1;
+          const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
+          store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
+                                  0, NULL, bsize, this_rd,
+                                  cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                                  txfm_search_done);
 
-        if (this_rd < *best_rd) {
-          *best_rd = this_rd;
-          best_tx_size = mbmi->tx_size;
+          if (this_rd < *best_rd) {
+            *best_rd = this_rd;
+            best_tx_size = mbmi->tx_size;
 #if CONFIG_NEW_TX_PARTITION
-          av1_copy(best_tx_partition_type, mbmi->tx_partition_type);
+            av1_copy(best_tx_partition_type, mbmi->tx_partition_type);
 #endif  // CONFIG_NEW_TX_PARTITION
-          best_intra_mode = mbmi->mode;
+            best_intra_mode = mbmi->mode;
 #if CONFIG_AIMC
-          best_y_mode_idx = mbmi->y_mode_idx;
-          best_joint_ymode = mbmi->joint_y_mode_delta_angle;
+            best_y_mode_idx = mbmi->y_mode_idx;
+            best_joint_ymode = mbmi->joint_y_mode_delta_angle;
 #endif  // CONFIG_AIMC
-          best_mrl = mbmi->mrl_index;
+            best_mrl = mbmi->mrl_index;
+#if CONFIG_MRLS_IMPROVE
+            best_multi_line_mrl = mbmi->multi_line_mrl;
+#endif
 #if CONFIG_LOSSLESS_DPCM
-          if (xd->lossless[mbmi->segment_id]) {
-            best_dpcm_fsc = mbmi->use_dpcm_y;
-            best_dpcm_fsc_dir = mbmi->dpcm_mode_y;
-          }
+            if (xd->lossless[mbmi->segment_id]) {
+              best_dpcm_fsc = mbmi->use_dpcm_y;
+              best_dpcm_fsc_dir = mbmi->dpcm_mode_y;
+            }
 #endif  // CONFIG_LOSSLESS_DPCM
-          best_filt = 0;
-          best_angle_delta = mbmi->angle_delta[PLANE_TYPE_Y];
-          av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-          memcpy(ctx->blk_skip[AOM_PLANE_Y],
-                 x->txfm_search_info.blk_skip[AOM_PLANE_Y],
-                 sizeof(*x->txfm_search_info.blk_skip[AOM_PLANE_Y]) *
-                     ctx->num_4x4_blk);
-          *rate = this_rate;
-          *rate_tokenonly = tokenonly_rd_stats.rate;
-          *distortion = tokenonly_rd_stats.dist;
-          *skippable = tokenonly_rd_stats.skip_txfm;
-          best_fsc_mode = 1;
+            best_filt = 0;
+            best_angle_delta = mbmi->angle_delta[PLANE_TYPE_Y];
+            av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+            memcpy(ctx->blk_skip[AOM_PLANE_Y],
+                   x->txfm_search_info.blk_skip[AOM_PLANE_Y],
+                   sizeof(*x->txfm_search_info.blk_skip[AOM_PLANE_Y]) *
+                       ctx->num_4x4_blk);
+            *rate = this_rate;
+            *rate_tokenonly = tokenonly_rd_stats.rate;
+            *distortion = tokenonly_rd_stats.dist;
+            *skippable = tokenonly_rd_stats.skip_txfm;
+            best_fsc_mode = 1;
+          }
         }
+#if CONFIG_MRLS_IMPROVE
       }
+#endif
     }
 #if CONFIG_LOSSLESS_DPCM
   }
@@ -2123,6 +2180,9 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
     av1_copy(mbmi->tx_partition_type, best_tx_partition_type);
 #endif  // CONFIG_NEW_TX_PARTITION
     mbmi->mrl_index = best_mrl;
+#if CONFIG_MRLS_IMPROVE
+    mbmi->multi_line_mrl = best_multi_line_mrl;
+#endif
     mbmi->filter_intra_mode_info.use_filter_intra = best_filt;
     mbmi->angle_delta[PLANE_TYPE_Y] = best_angle_delta;
     av1_copy_array(ctx->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
@@ -2223,53 +2283,57 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     for (int mrl_idx = 0; mrl_idx < (enable_mrls_flag ? MRL_LINE_NUMBER : 1);
          ++mrl_idx) {
       mbmi->mrl_index = mrl_idx;
-
-      for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
-           ++mode_idx) {
+#if CONFIG_MRLS_IMPROVE
+      for (int multi_line_mrl = 0; multi_line_mrl < (mrl_idx ? 2 : 1);
+           multi_line_mrl++) {
+        mbmi->multi_line_mrl = multi_line_mrl;
+#endif
+        for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+             ++mode_idx) {
 #if CONFIG_AIMC
-        mbmi->y_mode_idx = mode_idx;
-        mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-        // the below function changes the mbmi->mode based on the mode_idx
-        set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
-        mode_costs = 0;
+          mbmi->y_mode_idx = mode_idx;
+          mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
+          // the below function changes the mbmi->mode based on the mode_idx
+          set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+          mode_costs = 0;
 #if CONFIG_LOSSLESS_DPCM
-        if (dpcm_index > 0 &&
-            (mrl_idx > 0 || (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
-             ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
-              mbmi->angle_delta[0] != 0))) {
-          continue;
-        }
-        int dpcm_cost = 0;
-        if (xd->lossless[mbmi->segment_id]) {
-          dpcm_cost = x->mode_costs.dpcm_cost[dpcm_index];
-          mode_costs += dpcm_cost;
-        }
-        mbmi->use_dpcm_y = dpcm_index;
-        if (mbmi->use_dpcm_y > 0) {
-          mbmi->dpcm_mode_y = mbmi->mode - 1;
-        } else {
-          mbmi->dpcm_mode_y = 0;
-        }
-        if (mbmi->use_dpcm_y == 0) {
-#endif  // CONFIG_LOSSLESS_DPCM
-          int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
-          mode_set_index +=
-              ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-          mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
-          if (mode_idx < FIRST_MODE_COUNT) {
-            mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
-          } else {
-            mode_costs +=
-                x->mode_costs.y_second_mode_costs
-                    [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
-                              SECOND_MODE_COUNT * (mode_set_index - 1)];
+          if (dpcm_index > 0 &&
+              (mrl_idx > 0 || (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
+               ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
+                mbmi->angle_delta[0] != 0))) {
+            continue;
           }
+          int dpcm_cost = 0;
+          if (xd->lossless[mbmi->segment_id]) {
+            dpcm_cost = x->mode_costs.dpcm_cost[dpcm_index];
+            mode_costs += dpcm_cost;
+          }
+          mbmi->use_dpcm_y = dpcm_index;
+          if (mbmi->use_dpcm_y > 0) {
+            mbmi->dpcm_mode_y = mbmi->mode - 1;
+          } else {
+            mbmi->dpcm_mode_y = 0;
+          }
+          if (mbmi->use_dpcm_y == 0) {
+#endif  // CONFIG_LOSSLESS_DPCM
+            int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+            mode_set_index +=
+                ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+            mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
+            if (mode_idx < FIRST_MODE_COUNT) {
+              mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
+            } else {
+              mode_costs +=
+                  x->mode_costs.y_second_mode_costs
+                      [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
+                                SECOND_MODE_COUNT * (mode_set_index - 1)];
+            }
 #if CONFIG_LOSSLESS_DPCM
-        } else {
-          int dpcm_dir_cost =
-              x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
-          mode_costs += dpcm_dir_cost;
-        }
+          } else {
+            int dpcm_dir_cost =
+                x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
+            mode_costs += dpcm_dir_cost;
+          }
 #endif  // CONFIG_LOSSLESS_DPCM
 #else
       set_y_mode_and_delta_angle(mode_idx, mbmi);
@@ -2293,44 +2357,61 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 #endif  // CONFIG_LOSSLESS_DPCM
 #endif  // CONFIG_AIMC
-        RD_STATS this_rd_stats;
-        int this_rate, this_rate_tokenonly, s;
-        int64_t this_distortion, this_rd;
-        if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
-             cpi->sf.intra_sf.disable_smooth_intra) &&
-            (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-             mbmi->mode == SMOOTH_V_PRED))
-          continue;
-        if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-            mbmi->mode == PAETH_PRED)
-          continue;
-        is_directional_mode = av1_is_directional_mode(mbmi->mode);
+          RD_STATS this_rd_stats;
+          int this_rate, this_rate_tokenonly, s;
+          int64_t this_distortion, this_rd;
+          if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+               cpi->sf.intra_sf.disable_smooth_intra) &&
+              (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
+               mbmi->mode == SMOOTH_V_PRED))
+            continue;
+          if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+              mbmi->mode == PAETH_PRED)
+            continue;
+          is_directional_mode = av1_is_directional_mode(mbmi->mode);
 #if !CONFIG_AIMC
-        if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
-            mbmi->angle_delta[PLANE_TYPE_Y] != 0)
-          continue;
+          if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
+              mbmi->angle_delta[PLANE_TYPE_Y] != 0)
+            continue;
 #endif  // !CONFIG_AIMC
 #if CONFIG_AIMC
-        if (is_directional_mode && directional_mode_skip_mask[mbmi->mode] &&
-            mode_idx >= FIRST_MODE_COUNT)
+          if (is_directional_mode && directional_mode_skip_mask[mbmi->mode] &&
+              mode_idx >= FIRST_MODE_COUNT)
 #else
       if (is_directional_mode && directional_mode_skip_mask[mbmi->mode])
 #endif  // CONFIG_AIMC
-          continue;
+            continue;
 
-        if (!is_directional_mode && mrl_idx) continue;
+          if (!is_directional_mode && mrl_idx) continue;
+#if CONFIG_MRLS_IMPROVE
+          if (((best_mbmi.mrl_index == 0 &&
+                av1_is_directional_mode(best_mbmi.mode) == 0) ||
+               (best_mbmi.mrl_index && mbmi->multi_line_mrl == 0)) &&
+              mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
+            continue;
+          }
+#endif  // CONFIG_MRLS_IMPROVE
 #if !CONFIG_IMPROVED_INTRA_DIR_PRED
-        if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
-            av1_is_directional_mode(best_mbmi.mode) == 0) {
-          continue;
-        }
+          if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
+              av1_is_directional_mode(best_mbmi.mode) == 0) {
+            continue;
+          }
 #endif  // !CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
-        int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
-        int mrl_idx_cost =
-            (is_directional_mode && enable_mrls_flag)
-                ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
-                : 0;
+          int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+          int mrl_idx_cost =
+              (is_directional_mode && enable_mrls_flag)
+                  ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+                  : 0;
+#if CONFIG_MRLS_IMPROVE
+          if (is_directional_mode && enable_mrls_flag && mbmi->mrl_index) {
+            int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
+                xd->neighbors[0], xd->neighbors[1]);
+            mrl_idx_cost +=
+                x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
+                                                 [mbmi->multi_line_mrl];
+          }
+#endif  // CONFIG_MRLS_IMPROVE
 #else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
@@ -2338,76 +2419,79 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
-        if (dpcm_index == 0)
+          if (dpcm_index == 0)
 #endif  // CONFIG_LOSSLESS_DPCM
-          mode_costs += mrl_idx_cost;
+            mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC
-        int64_t this_model_rd;
-        this_model_rd = intra_model_yrd(cpi, x, bsize,
+          int64_t this_model_rd;
+          this_model_rd = intra_model_yrd(cpi, x, bsize,
 #if CONFIG_AIMC
-                                        mode_costs);
+                                          mode_costs);
 #else
                                       bmode_costs[mbmi->mode] + mrl_idx_cost);
 #endif  // CONFIG_AIMC
 
-        if (prune_intra_y_mode(this_model_rd, &best_model_rd,
-                               top_intra_model_rd)
+          if (prune_intra_y_mode(this_model_rd, &best_model_rd,
+                                 top_intra_model_rd)
 #if CONFIG_LOSSLESS_DPCM
-            && (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)
+              && (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)
 #endif  // CONFIG_LOSSLESS_DPCM
-        )
-          continue;
+          )
+            continue;
 
-        av1_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
-                                          best_rd);
-        this_rate_tokenonly = this_rd_stats.rate;
-        this_distortion = this_rd_stats.dist;
-        s = this_rd_stats.skip_txfm;
+          av1_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
+                                            best_rd);
+          this_rate_tokenonly = this_rd_stats.rate;
+          this_distortion = this_rd_stats.dist;
+          s = this_rd_stats.skip_txfm;
 
-        if (this_rate_tokenonly == INT_MAX) continue;
-        if (!xd->lossless[mbmi->segment_id] &&
-            block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y])) {
-          // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
-          // tx_size in the tokenonly rate, but for intra blocks, tx_size is
-          // always coded (prediction granularity), so we account for it in
-          // the full rate, not the tokenonly rate.
-          this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
-        }
-        this_rate =
-            this_rd_stats.rate + intra_mode_info_cost_y(cpi, x, mbmi, bsize
+          if (this_rate_tokenonly == INT_MAX) continue;
+          if (!xd->lossless[mbmi->segment_id] &&
+              block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y])) {
+            // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
+            // tx_size in the tokenonly rate, but for intra blocks, tx_size is
+            // always coded (prediction granularity), so we account for it in
+            // the full rate, not the tokenonly rate.
+            this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
+          }
+          this_rate =
+              this_rd_stats.rate + intra_mode_info_cost_y(cpi, x, mbmi, bsize
 #if CONFIG_AIMC
-                                                        ,
-                                                        mode_costs);
+                                                          ,
+                                                          mode_costs);
 #else
                                                       ,
                                                       bmode_costs[mbmi->mode] +
                                                           mrl_idx_cost);
 #endif  // CONFIG_AIMC
-        this_rd = RDCOST(x->rdmult, this_rate, this_distortion);
-        // Collect mode stats for multiwinner mode processing
-        const int txfm_search_done = 1;
-        const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
-        store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
-                                0, NULL, bsize, this_rd,
-                                cpi->sf.winner_mode_sf.multi_winner_mode_type,
-                                txfm_search_done);
-        if (this_rd < best_rd) {
-          best_mbmi = *mbmi;
-          best_rd = this_rd;
-          // Setting beat_best_rd flag because current mode rd is better than
-          // best_rd passed to this function
-          beat_best_rd = 1;
-          *rate = this_rate;
-          *rate_tokenonly = this_rate_tokenonly;
-          *distortion = this_distortion;
-          *skippable = s;
-          memcpy(ctx->blk_skip[AOM_PLANE_Y],
-                 x->txfm_search_info.blk_skip[AOM_PLANE_Y],
-                 sizeof(*x->txfm_search_info.blk_skip[AOM_PLANE_Y]) *
-                     ctx->num_4x4_blk);
-          av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+          this_rd = RDCOST(x->rdmult, this_rate, this_distortion);
+          // Collect mode stats for multiwinner mode processing
+          const int txfm_search_done = 1;
+          const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
+          store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
+                                  0, NULL, bsize, this_rd,
+                                  cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                                  txfm_search_done);
+          if (this_rd < best_rd) {
+            best_mbmi = *mbmi;
+            best_rd = this_rd;
+            // Setting beat_best_rd flag because current mode rd is better than
+            // best_rd passed to this function
+            beat_best_rd = 1;
+            *rate = this_rate;
+            *rate_tokenonly = this_rate_tokenonly;
+            *distortion = this_distortion;
+            *skippable = s;
+            memcpy(ctx->blk_skip[AOM_PLANE_Y],
+                   x->txfm_search_info.blk_skip[AOM_PLANE_Y],
+                   sizeof(*x->txfm_search_info.blk_skip[AOM_PLANE_Y]) *
+                       ctx->num_4x4_blk);
+            av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+          }
         }
+#if CONFIG_MRLS_IMPROVE
       }
+#endif
     }
 #if CONFIG_LOSSLESS_DPCM
   }

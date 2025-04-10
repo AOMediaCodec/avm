@@ -579,6 +579,11 @@ typedef struct MB_MODE_INFO {
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
+#if CONFIG_MRLS_IMPROVE
+  /*! \brief Enable or disable using more than one reference line for multiple
+   * reference line selection. */
+  bool multi_line_mrl;
+#endif
 #if CONFIG_WAIP
 #if CONFIG_NEW_TX_PARTITION
   /*! \brief Whether this luma/chroma mode is wide angle mode. */

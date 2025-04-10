@@ -425,7 +425,9 @@ void av1_rd_pick_palette_intra_sby(
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
   mbmi->mrl_index = 0;
-
+#if CONFIG_MRLS_IMPROVE
+  mbmi->multi_line_mrl = 0;
+#endif
 #if CONFIG_WAIP
 #if CONFIG_NEW_TX_PARTITION
   for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {

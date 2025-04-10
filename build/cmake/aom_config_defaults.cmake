@@ -381,6 +381,10 @@ set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
 set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
                    "Enable the optimization of CDEF strengths")
 
+set_aom_config_var(
+  CONFIG_MRLS_IMPROVE 1
+  "Enable MRLS improvement to enable two reference lines for intra prediction")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
