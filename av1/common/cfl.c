@@ -201,7 +201,13 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   int input_stride = pd->dst.stride;
-  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
+
+  const int row_dst =
+      row + xd->mi[0]->chroma_ref_info.mi_row_chroma_base - xd->mi_row;
+  const int col_dst =
+      col + xd->mi[0]->chroma_ref_info.mi_col_chroma_base - xd->mi_col;
+  uint16_t *dst =
+      &pd->dst.buf[(row_dst * pd->dst.stride + col_dst) << MI_SIZE_LOG2];
 
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
@@ -213,7 +219,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       ((xd->mi[0]->chroma_ref_info.mi_col_chroma_base + col) << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_U);
 #else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
@@ -367,7 +373,7 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_U);
 #else
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
