@@ -390,7 +390,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       seq->order_hint_info.enable_order_hint
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
-  seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if CONFIG_BRU
+  if (seq->enable_bru)
+    seq->explicit_ref_frame_map = 1;
+  else
+#endif
+    seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
       oxcf->ref_frm_cfg.enable_frame_output_order &&

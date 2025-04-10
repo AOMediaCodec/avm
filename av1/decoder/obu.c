@@ -265,7 +265,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params);
-
+#if CONFIG_BRU
+  if (seq_params->enable_bru && !seq_params->explicit_ref_frame_map) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "BRU enabled but explicit_ref_frame_map is 0.");
+  }
+#endif  // CONFIG_BRU
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   if (!seq_params->order_hint_info.enable_order_hint &&
       seq_params->enable_frame_output_order) {
