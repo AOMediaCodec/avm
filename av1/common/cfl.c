@@ -207,7 +207,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   const int col_dst =
       col + xd->mi[0]->chroma_ref_info.mi_col_chroma_base - xd->mi_col;
   uint16_t *dst =
-      &pd->dst.buf[(row_dst * pd->dst.stride + col_dst) << MI_SIZE_LOG2];
+      &pd->dst.buf[-((-row_dst * pd->dst.stride - col_dst) << MI_SIZE_LOG2)];
 
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
