@@ -708,7 +708,6 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
     init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
     loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
-    aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
   }
 #endif  // CONFIG_LF_SUB_PU
 }

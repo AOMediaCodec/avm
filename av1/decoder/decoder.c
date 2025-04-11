@@ -800,6 +800,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   const uint8_t *source = *psource;
   cm->error.error_code = AOM_CODEC_OK;
   cm->error.has_detail = 0;
+  cm->decoding = 1;
 
   if (size == 0) {
     // This is used to signal that we are missing frames.

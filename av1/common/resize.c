@@ -1015,7 +1015,7 @@ void av1_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
         dst->crop_widths[is_uv], dst->strides[is_uv], is_uv ? subx : 0,
         is_uv ? suby : 0, bd, denom, num, lanczos_a_hor, lanczos_a_ver);
   }
-  aom_extend_frame_borders(dst, num_planes);
+  aom_extend_frame_borders(dst, num_planes, 1);
 }
 
 static void highbd_upscale_normative_rect(const uint16_t *const input,
@@ -1221,7 +1221,7 @@ void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                             dst->crop_widths[is_uv], dst->strides[is_uv], bd);
 #endif  // CONFIG_F054_PIC_BOUNDARY
   }
-  aom_extend_frame_borders(dst, num_planes);
+  aom_extend_frame_borders(dst, num_planes, 0);
 }
 
 void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
@@ -1288,7 +1288,7 @@ void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
                                src->crop_heights[is_uv]);
   }
 
-  aom_extend_frame_borders(dst, num_planes);
+  aom_extend_frame_borders(dst, num_planes, cm->decoding);
 }
 
 YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,

@@ -1219,7 +1219,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     ++twopass->sr_update_lag;
   }
 
-  aom_extend_frame_borders(this_frame, num_planes);
+  aom_extend_frame_borders(this_frame, num_planes, 0);
 
   // The frame we just compressed now becomes the last frame.
   assign_frame_buffer_p(

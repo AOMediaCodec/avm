@@ -1186,7 +1186,8 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
                             MAX_BLOCK_SIZE_WITH_SAME_MV, mc_buf, tmp_conv_dst,
                             calc_subpel_params_func, copy_refined_mvs);
 
-  aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
+  aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm),
+                           cm->decoding);
 }
 
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
