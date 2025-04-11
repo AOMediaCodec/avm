@@ -328,9 +328,17 @@ AV1PixelRect av1_whole_frame_rect(const AV1_COMMON *cm, int is_uv) {
   int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   rect.top = 0;
+#if CONFIG_ENABLE_SR
   rect.bottom = ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
+#else
+  rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
+#endif  // CONFIG_ENABLE_SR
   rect.left = 0;
+#if CONFIG_ENABLE_SR
   rect.right = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+#else
+  rect.right = ROUND_POWER_OF_TWO(cm->width, ss_x);
+#endif  // CONFIG_ENABLE_SR
   return rect;
 }
 
@@ -363,9 +371,14 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 
   int ss_x = plane && cm->seq_params.subsampling_x;
   int ss_y = plane && cm->seq_params.subsampling_y;
+#if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
   const int plane_width = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+#else
+  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+  const int plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
+#endif  // CONFIG_ENABLE_SR
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
   // Top limit is a multiple of RU height minus the offset, clamped to be
@@ -2680,7 +2693,11 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->dst_stride = lr_ctxt->dst->strides[is_uv];
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
+#if CONFIG_ENABLE_SR
     lr_plane_ctxt->tskip_zero_flag = av1_superres_scaled(cm);
+#else
+    lr_plane_ctxt->tskip_zero_flag = 0;
+#endif  // CONFIG_ENABLE_SR
   }
 }
 
@@ -2748,8 +2765,11 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
+#if CONFIG_ENABLE_SR
     ctxt[plane].tskip_zero_flag = av1_superres_scaled(cm);
-
+#else
+    ctxt[plane].tskip_zero_flag = 0;
+#endif  // CONFIG_ENABLE_SR
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
                                    &ctxt[plane], &ctxt[plane].tile_rect,
                                    cm->rst_tmpbuf, cm->rlbs);
@@ -2992,11 +3012,19 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   //   MI_SIZE * m = N / D u
   //
   // from which we get u = D * MI_SIZE * m / N
+#if CONFIG_ENABLE_SR
   const int mi_to_num_x = av1_superres_scaled(cm)
                               ? mi_size_x * cm->superres_scale_denominator
                               : mi_size_x;
+#else
+  const int mi_to_num_x = mi_size_x;
+#endif  // CONFIG_ENABLE_SR
   const int mi_to_num_y = mi_size_y;
+#if CONFIG_ENABLE_SR
   const int denom_x = av1_superres_scaled(cm) ? size * SCALE_NUMERATOR : size;
+#else
+  const int denom_x = size;
+#endif  // CONFIG_ENABLE_SR
   const int denom_y = size;
 
   const int rnd_x = denom_x - 1;
@@ -3032,6 +3060,9 @@ static void extend_lines(uint16_t *buf, int width, int height, int stride,
 static void save_deblock_boundary_lines(
     const YV12_BUFFER_CONFIG *frame, const AV1_COMMON *cm, int plane, int row,
     int stripe, int is_above, RestorationStripeBoundaries *boundaries) {
+#if !CONFIG_ENABLE_SR
+  (void)cm;
+#endif  // !CONFIG_ENABLE_SR
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
@@ -3055,6 +3086,7 @@ static void save_deblock_boundary_lines(
 
   int upscaled_width;
   int line_bytes;
+#if CONFIG_ENABLE_SR
   if (av1_superres_scaled(cm)) {
     const int ss_x = is_uv && cm->seq_params.subsampling_x;
     upscaled_width = (cm->superres_upscaled_width + ss_x) >> ss_x;
@@ -3063,13 +3095,16 @@ static void save_deblock_boundary_lines(
                                boundaries->stripe_boundary_stride, plane,
                                lines_to_save);
   } else {
+#endif  // CONFIG_ENABLE_SR
     upscaled_width = frame->crop_widths[is_uv];
     line_bytes = upscaled_width << 1;
     for (int i = 0; i < lines_to_save; i++) {
       memcpy(bdry_rows + i * bdry_stride, src_rows + i * src_stride,
              line_bytes);
     }
+#if CONFIG_ENABLE_SR
   }
+#endif  // CONFIG_ENABLE_SR
   // If we only saved one line, then copy it into the second line buffer
   if (lines_to_save == 1)
     memcpy(bdry_rows + bdry_stride, bdry_rows, line_bytes);
@@ -3082,6 +3117,9 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                                      const AV1_COMMON *cm, int plane, int row,
                                      int stripe, int is_above,
                                      RestorationStripeBoundaries *boundaries) {
+#if !CONFIG_ENABLE_SR
+  (void)cm;
+#endif  // !CONFIG_ENABLE_SR
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
@@ -3098,10 +3136,14 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   // At the point where this function is called, we've already applied
   // superres. So we don't need to extend the lines here, we can just
   // pull directly from the topmost row of the upscaled frame.
+#if CONFIG_ENABLE_SR
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int upscaled_width = av1_superres_scaled(cm)
                                  ? (cm->superres_upscaled_width + ss_x) >> ss_x
                                  : src_width;
+#else
+  const int upscaled_width = src_width;
+#endif  // CONFIG_ENABLE_SR
   const int line_bytes = upscaled_width << 1;
   for (int i = 0; i < RESTORATION_CTX_VERT; i++) {
     // Copy the line at 'row' into both context lines. This is because
@@ -3129,8 +3171,12 @@ static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
+#if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
+#else
+  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+#endif  // CONFIG_ENABLE_SR
 
   int tile_stripe;
   for (tile_stripe = 0;; ++tile_stripe) {

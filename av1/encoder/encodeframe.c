@@ -345,6 +345,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
 
   const int mi_row_end =
       AOMMIN(mi_size_high[sb_size] + mi_row, mi_params->mi_rows);
+#if CONFIG_ENABLE_SR
   const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
@@ -352,9 +353,18 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
       AOMMIN(coded_to_superres_mi(mi_col + mi_size_wide[sb_size],
                                   cm->superres_scale_denominator),
              mi_cols_sr);
+#else
+  const int mi_cols_sr = av1_pixels_to_mi(cm->width);
+  const int mi_col_sr = mi_col;
+  const int mi_col_end_sr = AOMMIN(mi_col + mi_size_wide[sb_size], mi_cols_sr);
+#endif  // CONFIG_ENABLE_SR
   const int row_step = step;
   const int col_step_sr =
+#if CONFIG_ENABLE_SR
       coded_to_superres_mi(step, cm->superres_scale_denominator);
+#else
+      step;
+#endif  // CONFIG_ENABLE_SR
   for (int row = mi_row; row < mi_row_end; row += row_step) {
     for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
       const TplDepStats *this_stats =
@@ -1556,10 +1566,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   // Reset the flag.
   cpi->intrabc_used = 0;
+#if CONFIG_ENABLE_SR
   // Need to disable intrabc when superres is selected
   if (av1_superres_scaled(cm)) {
     features->allow_intrabc = 0;
   }
+#endif  // CONFIG_ENABLE_SR
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
 
@@ -1667,7 +1679,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
   features->coded_lossless = is_coded_lossless(cm, xd);
-  features->all_lossless = features->coded_lossless && !av1_superres_scaled(cm);
+  features->all_lossless = features->coded_lossless
+#if CONFIG_ENABLE_SR
+                           && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+      ;
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;

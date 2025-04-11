@@ -766,8 +766,11 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
+#if CONFIG_ENABLE_SR
     ctxt[plane].tskip_zero_flag = av1_superres_scaled(cm);
-
+#else
+    ctxt[plane].tskip_zero_flag = 0;
+#endif  // CONFIG_ENABLE_SR
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int max_tile_h = tile_rect.bottom - tile_rect.top;
 

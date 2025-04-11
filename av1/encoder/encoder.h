@@ -403,6 +403,7 @@ typedef struct {
   bool enable_interintra_wedge;
 } CompoundTypeCfg;
 
+#if CONFIG_ENABLE_SR
 /*!
  * \brief Encoder config related to frame super-resolution.
  */
@@ -438,6 +439,7 @@ typedef struct {
    */
   bool enable_superres;
 } SuperResCfg;
+#endif  // CONFIG_ENABLE_SR
 
 /*!
  * \brief Encoder config related to the coding of key frames.
@@ -1135,8 +1137,10 @@ typedef struct AV1EncoderConfig {
   // Internal frame size scaling.
   ResizeCfg resize_cfg;
 
+#if CONFIG_ENABLE_SR
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
+#endif  // CONFIG_ENABLE_SR
 
   // SubGOP config.
   const char *subgop_config_str;
@@ -3231,12 +3235,14 @@ typedef struct AV1_COMP {
    */
   int num_tg;
 
+#if CONFIG_ENABLE_SR
   /*!
    * Super-resolution mode currently being used by the encoder.
    * This may / may not be same as user-supplied mode in oxcf->superres_mode
    * (when we are recoding to try multiple options for example).
    */
   aom_superres_mode superres_mode;
+#endif  // CONFIG_ENABLE_SR
 
   /*!
    * First pass related data.
@@ -3686,12 +3692,20 @@ void av1_setup_frame_size(AV1_COMP *cpi);
 
 // Returns 1 if a frame is scaled and 0 otherwise.
 static INLINE int av1_resize_scaled(const AV1_COMMON *cm) {
+#if CONFIG_ENABLE_SR
   return !(cm->superres_upscaled_width == cm->render_width &&
            cm->superres_upscaled_height == cm->render_height);
+#else
+  return !(cm->width == cm->render_width && cm->height == cm->render_height);
+#endif  // CONFIG_ENABLE_SR
 }
 
 static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
+#if CONFIG_ENABLE_SR
   return !av1_superres_scaled(cm) && av1_resize_scaled(cm);
+#else
+  return av1_resize_scaled(cm);
+#endif  // CONFIG_ENABLE_SR
 }
 
 // Don't allow a show_existing_frame to coincide with an error resilient

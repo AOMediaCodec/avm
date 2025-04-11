@@ -293,11 +293,13 @@ const arg_def_t *rc_args[] = { &g_av1_codec_arg_defs.dropframe_thresh,
                                &g_av1_codec_arg_defs.resize_mode,
                                &g_av1_codec_arg_defs.resize_denominator,
                                &g_av1_codec_arg_defs.resize_kf_denominator,
+#if CONFIG_ENABLE_SR
                                &g_av1_codec_arg_defs.superres_mode,
                                &g_av1_codec_arg_defs.superres_denominator,
                                &g_av1_codec_arg_defs.superres_kf_denominator,
                                &g_av1_codec_arg_defs.superres_qthresh,
                                &g_av1_codec_arg_defs.superres_kf_qthresh,
+#endif  // CONFIG_ENABLE_SR
                                &g_av1_codec_arg_defs.end_usage,
                                &g_av1_codec_arg_defs.target_bitrate,
                                &g_av1_codec_arg_defs.min_q_level,
@@ -1263,6 +1265,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.resize_kf_denominator,
                          argi)) {
       config->cfg.rc_resize_kf_denominator = arg_parse_uint(&arg);
+#if CONFIG_ENABLE_SR
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_mode, argi)) {
       config->cfg.rc_superres_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_denominator,
@@ -1276,6 +1279,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_kf_qthresh,
                          argi)) {
       config->cfg.rc_superres_kf_qthresh = arg_parse_uint(&arg);
+#endif  // CONFIG_ENABLE_SR
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.end_usage, argi)) {
       config->cfg.rc_end_usage = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.target_bitrate, argi)) {

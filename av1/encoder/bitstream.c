@@ -5844,6 +5844,7 @@ static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_ENABLE_SR
 static AOM_INLINE void write_superres_scale(const AV1_COMMON *const cm,
                                             struct aom_write_bit_buffer *wb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -5865,12 +5866,18 @@ static AOM_INLINE void write_superres_scale(const AV1_COMMON *const cm,
         SUPERRES_SCALE_BITS);
   }
 }
+#endif  // CONFIG_ENABLE_SR
 
 static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
                                         int frame_size_override,
                                         struct aom_write_bit_buffer *wb) {
+#if CONFIG_ENABLE_SR
   const int coded_width = cm->superres_upscaled_width - 1;
   const int coded_height = cm->superres_upscaled_height - 1;
+#else
+    const int coded_width = cm->width - 1;
+    const int coded_height = cm->height - 1;
+#endif  // CONFIG_ENABLE_SR
 
   if (frame_size_override) {
     const SequenceHeader *seq_params = &cm->seq_params;
@@ -5879,8 +5886,9 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
-
+#if CONFIG_ENABLE_SR
   write_superres_scale(cm, wb);
+#endif  // CONFIG_ENABLE_SR
   write_render_size(cm, wb);
 }
 
@@ -5894,14 +5902,21 @@ static AOM_INLINE void write_frame_size_with_refs(
     const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf(cm, ref_frame);
 
     if (cfg != NULL) {
+#if CONFIG_ENABLE_SR
       found = cm->superres_upscaled_width == cfg->y_crop_width &&
               cm->superres_upscaled_height == cfg->y_crop_height;
+#else
+        found =
+            cm->width == cfg->y_crop_width && cm->height == cfg->y_crop_height;
+#endif  // CONFIG_ENABLE_SR
       found &= cm->render_width == cfg->render_width &&
                cm->render_height == cfg->render_height;
     }
     aom_wb_write_bit(wb, found);
     if (found) {
+#if CONFIG_ENABLE_SR
       write_superres_scale(cm, wb);
+#endif  // CONFIG_ENABLE_SR
       break;
     }
   }
@@ -6233,7 +6248,9 @@ static AOM_INLINE void write_sequence_header(
           wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
   }
 
+#if CONFIG_ENABLE_SR
   aom_wb_write_bit(wb, seq_params->enable_superres);
+#endif  // CONFIG_ENABLE_SR
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_restoration);
   if (seq_params->enable_restoration) {
@@ -6688,16 +6705,26 @@ static AOM_INLINE void write_uncompressed_header_obu(
   int frame_size_override_flag = 0;
 
   if (seq_params->reduced_still_picture_hdr) {
+#if CONFIG_ENABLE_SR
     assert(cm->superres_upscaled_width == seq_params->max_frame_width &&
            cm->superres_upscaled_height == seq_params->max_frame_height);
+#else
+      assert(cm->width == seq_params->max_frame_width &&
+             cm->height == seq_params->max_frame_height);
+#endif  // CONFIG_ENABLE_SR
   } else {
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_len = seq_params->frame_id_length;
       aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
     }
 
+#if CONFIG_ENABLE_SR
     if (cm->superres_upscaled_width > seq_params->max_frame_width ||
         cm->superres_upscaled_height > seq_params->max_frame_height) {
+#else
+      if (cm->width > seq_params->max_frame_width ||
+          cm->height > seq_params->max_frame_height) {
+#endif  // CONFIG_ENABLE_SR
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Frame dimensions are larger than the maximum values");
     }
@@ -6705,8 +6732,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
     frame_size_override_flag =
         frame_is_sframe(cm)
             ? 1
+#if CONFIG_ENABLE_SR
             : (cm->superres_upscaled_width != seq_params->max_frame_width ||
                cm->superres_upscaled_height != seq_params->max_frame_height);
+#else
+              : (cm->width != seq_params->max_frame_width ||
+                 cm->height != seq_params->max_frame_height);
+#endif  // CONFIG_ENABLE_SR
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
     if (seq_params->order_hint_info.enable_order_hint)
@@ -6815,7 +6847,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   if (current_frame->frame_type == KEY_FRAME) {
     write_frame_size(cm, frame_size_override_flag, wb);
+#if CONFIG_ENABLE_SR
     assert(!av1_superres_scaled(cm) || !features->allow_intrabc);
+#endif  // CONFIG_ENABLE_SR
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -6823,7 +6857,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if !CONFIG_ENABLE_IBC_NAT
         features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-        !av1_superres_scaled(cm))
+#if CONFIG_ENABLE_SR
+        !av1_superres_scaled(cm)
+#else
+          1
+#endif  // CONFIG_ENABLE_SR
+    )
       aom_wb_write_bit(wb, features->allow_intrabc);
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
@@ -6849,7 +6888,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   } else {
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
       write_frame_size(cm, frame_size_override_flag, wb);
+#if CONFIG_ENABLE_SR
       assert(!av1_superres_scaled(cm) || !features->allow_intrabc);
+#endif  // CONFIG_ENABLE_SR
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -6857,7 +6898,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if !CONFIG_ENABLE_IBC_NAT
           features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-          !av1_superres_scaled(cm))
+#if CONFIG_ENABLE_SR
+          !av1_superres_scaled(cm)
+#else
+            1
+#endif  // CONFIG_ENABLE_SR
+      )
         aom_wb_write_bit(wb, features->allow_intrabc);
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
@@ -6966,8 +7012,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
           cm->ref_frames_info.num_total_refs >= 2
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
       ) {
+#if CONFIG_ENABLE_SR
         assert(IMPLIES(av1_superres_scaled(cm),
                        features->tip_frame_mode != TIP_FRAME_AS_OUTPUT));
+#endif  // CONFIG_ENABLE_SR
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         const int is_tip_direct_output =
             (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
@@ -7016,7 +7064,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if !CONFIG_ENABLE_IBC_NAT
             features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-            !av1_superres_scaled(cm))
+#if CONFIG_ENABLE_SR
+            !av1_superres_scaled(cm)
+#else
+            1
+#endif  // CONFIG_ENABLE_SR
+        )
           aom_wb_write_bit(wb, features->allow_intrabc);
 #endif  // CONFIG_IBC_SR_EXT
 
@@ -7168,7 +7221,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
   if (features->all_lossless) {
+#if CONFIG_ENABLE_SR
     assert(!av1_superres_scaled(cm));
+#endif  // CONFIG_ENABLE_SR
   } else {
     if (!features->coded_lossless) {
       encode_loopfilter(cm, wb);

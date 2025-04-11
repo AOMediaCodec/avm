@@ -980,12 +980,17 @@ static int gf_group_pyramid_level(const GF_GROUP *gf_group, int gf_index) {
 }
 
 static int get_active_qp(const RATE_CONTROL *rc,
-                         const AV1EncoderConfig *const oxcf, int intra_only,
-                         aom_superres_mode superres_mode, int superres_denom) {
+                         const AV1EncoderConfig *const oxcf, int intra_only
+#if CONFIG_ENABLE_SR
+                         ,
+                         aom_superres_mode superres_mode, int superres_denom
+#endif  // CONFIG_ENABLE_SR
+) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   static const double cq_adjust_threshold = 0.1;
   int active_qp = rc_cfg->qp;
   (void)intra_only;
+#if CONFIG_ENABLE_SR
   if (rc_cfg->mode == AOM_CQ || rc_cfg->mode == AOM_Q) {
     // printf("Superres %d %d %d = %d\n", superres_denom, intra_only,
     //        rc->frames_to_key, !(intra_only && rc->frames_to_key <= 1));
@@ -1008,6 +1013,7 @@ static int get_active_qp(const RATE_CONTROL *rc,
 #endif  // ADJUST_SUPER_RES_Q
     }
   }
+#endif  // CONFIG_ENABLE_SR
   if (rc_cfg->mode == AOM_CQ && rc->total_target_bits > 0) {
     const double x = (double)rc->total_actual_bits / rc->total_target_bits;
     if (x < cq_adjust_threshold) {
@@ -1115,8 +1121,12 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
                      gf_group->update_type[gf_index] == KFFLT_UPDATE));
 
   const int qp =
-      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                    cm->superres_scale_denominator);
+      get_active_qp(rc, oxcf, frame_is_intra_only(cm)
+#if CONFIG_ENABLE_SR
+                                  ,
+                    cpi->superres_mode, cm->superres_scale_denominator
+#endif  // CONFIG_ENABLE_SR
+      );
   const int bit_depth = cm->seq_params.bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
@@ -1358,6 +1368,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     active_best_quality +=
         av1_compute_qdelta(rc, q_val, q_val * q_adj_factor, bit_depth);
 
+#if CONFIG_ENABLE_SR
     // Tweak active_best_quality for AOM_Q mode when superres is on, as this
     // will be used directly as 'q' later.
     if (oxcf->rc_cfg.mode == AOM_Q &&
@@ -1370,6 +1381,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                       SUPERRES_QADJ_PER_DENOM_KEYFRAME),
                  0);
     }
+#endif  // CONFIG_ENABLE_SR
   }
   *active_best = active_best_quality;
   *active_worst = active_worst_quality;
@@ -1590,8 +1602,12 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                      gf_group->update_type[gf_index] != ARF_UPDATE &&
                      gf_group->update_type[gf_index] != KFFLT_UPDATE));
   const int qp =
-      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                    cm->superres_scale_denominator);
+      get_active_qp(rc, oxcf, frame_is_intra_only(cm)
+#if CONFIG_ENABLE_SR
+                                  ,
+                    cpi->superres_mode, cm->superres_scale_denominator
+#endif  // CONFIG_ENABLE_SR
+      );
   const int bit_depth = cm->seq_params.bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
@@ -1692,7 +1708,7 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
                              top_index, &rc->level1_qp);
   }
 
-#if ADJUST_SUPER_RES_Q
+#if ADJUST_SUPER_RES_Q && CONFIG_ENABLE_SR
   // Maximum horizontal downscaled resolution can be 2x,
   // For 2x resolution the value superres_scale_denominator is 16.
   // It is assumed that the qindex value is reduced by 23 for 2x resolution
@@ -1707,7 +1723,7 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
                    23)),
         0);
   }
-#endif  // ADJUST_SUPER_RES_Q
+#endif  // ADJUST_SUPER_RES_Q && CONFIG_ENABLE_SR
 
   if (gf_group->update_type[gf_index] == ARF_UPDATE ||
       gf_group->update_type[gf_index] == KFFLT_UPDATE)

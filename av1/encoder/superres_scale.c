@@ -14,6 +14,7 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/random.h"
 
+#if CONFIG_ENABLE_SR
 // Compute the horizontal frequency components' energy in a frame
 // by calculuating the 16x4 Horizontal DCT. This is to be used to
 // decide the superresolution parameters.
@@ -53,6 +54,7 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
     for (int k = 1; k < 16; ++k) energy[k] = 1e+20;
   }
 }
+#endif  // CONFIG_ENABLE_SR
 
 static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
@@ -76,6 +78,7 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   return new_denom;
 }
 
+#if CONFIG_ENABLE_SR
 int av1_superres_in_recode_allowed(const AV1_COMP *const cpi) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   // Empirically found to not be beneficial for image coding.
@@ -171,7 +174,6 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   const SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
-
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
 
@@ -251,6 +253,7 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   }
   return new_denom;
 }
+#endif  // CONFIG_ENABLE_SR
 
 static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
   return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
@@ -263,12 +266,16 @@ static int dimensions_are_ok(int owidth, int oheight, size_params_type *rsz) {
 }
 
 static int validate_size_scales(RESIZE_MODE resize_mode,
-                                aom_superres_mode superres_mode, int owidth,
-                                int oheight, size_params_type *rsz) {
+#if CONFIG_ENABLE_SR
+                                aom_superres_mode superres_mode,
+#endif  // CONFIG_ENABLE_SR
+                                int owidth, int oheight,
+                                size_params_type *rsz) {
   if (dimensions_are_ok(owidth, oheight, rsz)) {  // Nothing to do.
     return 1;
   }
 
+#if CONFIG_ENABLE_SR
   // Calculate current resize scale.
   int resize_denom =
       AOMMAX(DIVIDE_AND_ROUND(owidth * SCALE_NUMERATOR, rsz->resize_width),
@@ -281,43 +288,53 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
     if (!dimensions_are_ok(owidth, oheight, rsz)) {
       if (rsz->superres_denom > SCALE_NUMERATOR) --rsz->superres_denom;
     }
-  } else if (resize_mode == RESIZE_RANDOM &&
-             superres_mode != AOM_SUPERRES_RANDOM) {
-    // Alter resize scale as needed to enforce conformity.
-    resize_denom =
-        (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / rsz->superres_denom;
-    rsz->resize_width = owidth;
-    rsz->resize_height = oheight;
-    av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
-                              resize_denom);
-    if (!dimensions_are_ok(owidth, oheight, rsz)) {
-      if (resize_denom > SCALE_NUMERATOR) {
-        --resize_denom;
-        rsz->resize_width = owidth;
-        rsz->resize_height = oheight;
-        av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
-                                  resize_denom);
-      }
-    }
-  } else if (resize_mode == RESIZE_RANDOM &&
-             superres_mode == AOM_SUPERRES_RANDOM) {
-    // Alter both resize and superres scales as needed to enforce conformity.
-    do {
-      if (resize_denom > rsz->superres_denom)
-        --resize_denom;
-      else
-        --rsz->superres_denom;
+  } else
+#endif  // CONFIG_ENABLE_SR
+    if (resize_mode == RESIZE_RANDOM
+#if CONFIG_ENABLE_SR
+        && superres_mode != AOM_SUPERRES_RANDOM
+#endif  // CONFIG_ENABLE_SR
+    ) {
+      // Alter resize scale as needed to enforce conformity.
+#if !CONFIG_ENABLE_SR
+      int
+#endif  // !CONFIG_ENABLE_SR
+          resize_denom =
+              (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / rsz->superres_denom;
       rsz->resize_width = owidth;
       rsz->resize_height = oheight;
       av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
                                 resize_denom);
-    } while (!dimensions_are_ok(owidth, oheight, rsz) &&
-             (resize_denom > SCALE_NUMERATOR ||
-              rsz->superres_denom > SCALE_NUMERATOR));
-  } else {  // We are allowed to alter neither resize scale nor superres
-            // scale.
-    return 0;
-  }
+      if (!dimensions_are_ok(owidth, oheight, rsz)) {
+        if (resize_denom > SCALE_NUMERATOR) {
+          --resize_denom;
+          rsz->resize_width = owidth;
+          rsz->resize_height = oheight;
+          av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
+                                    resize_denom);
+        }
+      }
+#if CONFIG_ENABLE_SR
+    } else if (resize_mode == RESIZE_RANDOM &&
+               superres_mode == AOM_SUPERRES_RANDOM) {
+      // Alter both resize and superres scales as needed to enforce conformity.
+      do {
+        if (resize_denom > rsz->superres_denom)
+          --resize_denom;
+        else
+          --rsz->superres_denom;
+        rsz->resize_width = owidth;
+        rsz->resize_height = oheight;
+        av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
+                                  resize_denom);
+      } while (!dimensions_are_ok(owidth, oheight, rsz) &&
+               (resize_denom > SCALE_NUMERATOR ||
+                rsz->superres_denom > SCALE_NUMERATOR));
+#endif        // CONFIG_ENABLE_SR
+    } else {  // We are allowed to alter neither resize scale nor superres
+              // scale.
+      return 0;
+    }
   return dimensions_are_ok(owidth, oheight, rsz);
 }
 
@@ -334,7 +351,10 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     rsz.resize_width = resize_pending_params->width;
     rsz.resize_height = resize_pending_params->height;
     resize_pending_params->width = resize_pending_params->height = 0;
-    if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE) return rsz;
+#if CONFIG_ENABLE_SR
+    if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE)
+#endif  // CONFIG_ENABLE_SR
+      return rsz;
   } else {
     resize_denom = calculate_next_resize_scale(cpi);
     rsz.resize_width = frm_dim_cfg->width;
@@ -342,8 +362,13 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     av1_calculate_scaled_size(&rsz.resize_width, &rsz.resize_height,
                               resize_denom);
   }
+#if CONFIG_ENABLE_SR
   rsz.superres_denom = calculate_next_superres_scale(cpi);
-  if (!validate_size_scales(oxcf->resize_cfg.resize_mode, cpi->superres_mode,
+#endif  // CONFIG_ENABLE_SR
+  if (!validate_size_scales(oxcf->resize_cfg.resize_mode,
+#if CONFIG_ENABLE_SR
+                            cpi->superres_mode,
+#endif  // CONFIG_ENABLE_SR
                             frm_dim_cfg->width, frm_dim_cfg->height, &rsz))
     assert(0 && "Invalid scale parameters");
   return rsz;
@@ -354,25 +379,32 @@ static void setup_frame_size_from_params(AV1_COMP *cpi,
   int encode_width = rsz->resize_width;
   int encode_height = rsz->resize_height;
 
+#if CONFIG_ENABLE_SR
   AV1_COMMON *cm = &cpi->common;
   cm->superres_upscaled_width = encode_width;
   cm->superres_upscaled_height = encode_height;
   cm->superres_scale_denominator = rsz->superres_denom;
   av1_calculate_scaled_superres_size(&encode_width, &encode_height,
                                      rsz->superres_denom);
+#endif  // CONFIG_ENABLE_SR
   av1_set_frame_size(cpi, encode_width, encode_height);
 }
 
 void av1_setup_frame_size(AV1_COMP *cpi) {
+#if CONFIG_ENABLE_SR
   AV1_COMMON *cm = &cpi->common;
   // Reset superres params from previous frame.
   cm->superres_scale_denominator = SCALE_NUMERATOR;
+#endif  // CONFIG_ENABLE_SR
   const size_params_type rsz = calculate_next_size_params(cpi);
   setup_frame_size_from_params(cpi, &rsz);
 
+#if CONFIG_ENABLE_SR
   assert(av1_is_min_tile_width_satisfied(cm));
+#endif  // CONFIG_ENABLE_SR
 }
 
+#if CONFIG_ENABLE_SR
 void av1_superres_post_encode(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
@@ -399,3 +431,4 @@ void av1_superres_post_encode(AV1_COMP *cpi) {
                                            cm->superres_upscaled_height);
   }
 }
+#endif  // CONFIG_ENABLE_SR

@@ -236,7 +236,11 @@ void av1_new_framerate(AV1_COMP *cpi, double framerate) {
 
 double av1_get_compression_ratio(const AV1_COMMON *const cm,
                                  size_t encoded_frame_size) {
+#if CONFIG_ENABLE_SR
   const int upscaled_width = cm->superres_upscaled_width;
+#else
+  const int upscaled_width = cm->width;
+#endif  // CONFIG_ENABLE_SR
   const int height = cm->height;
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -408,7 +412,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
+#if CONFIG_ENABLE_SR
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
+#endif  // CONFIG_ENABLE_SR
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
@@ -629,8 +635,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
+#if CONFIG_ENABLE_SR
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
   cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
+#endif  // CONFIG_ENABLE_SR
   // set sb size before allocations
   const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
   set_sb_size(cm, sb_size);
@@ -798,6 +806,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_update_film_grain_parameters(cpi, oxcf);
 
   cpi->oxcf = *oxcf;
+#if CONFIG_ENABLE_SR
   // When user provides superres_mode = AOM_SUPERRES_AUTO, we still initialize
   // superres mode for current encoding = AOM_SUPERRES_NONE. This is to ensure
   // that any analysis (e.g. TPL) happening outside the main encoding loop still
@@ -806,6 +815,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cpi->superres_mode = oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO
                            ? AOM_SUPERRES_NONE
                            : oxcf->superres_cfg.superres_mode;  // default
+#endif  // CONFIG_ENABLE_SR
+
   if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
@@ -1335,9 +1346,11 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
 #endif  // CONFIG_DF_PAR_BITS
   av1_loop_filter_init(cm);
+#if CONFIG_ENABLE_SR
   cm->superres_scale_denominator = SCALE_NUMERATOR;
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
   cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
+#endif  // CONFIG_ENABLE_SR
   av1_loop_restoration_precal();
 
   // The buffers related to TIP are not used during LAP stage. Hence,
@@ -2060,8 +2073,11 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
   const int y_stride = cpi->scaled_source.y_stride;
   const int y_stride_src = ((cpi->oxcf.frm_dim_cfg.width != cm->width ||
-                             cpi->oxcf.frm_dim_cfg.height != cm->height) ||
-                            av1_superres_scaled(cm))
+                             cpi->oxcf.frm_dim_cfg.height != cm->height)
+#if CONFIG_ENABLE_SR
+                            || av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+                                )
                                ? y_stride
                                : cpi->lookahead->buf->img.y_stride;
   int fpf_y_stride = cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride
@@ -2224,8 +2240,11 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     // There has been a change in the encoded frame size
     av1_set_size_literal(cpi, width, height);
     // Recalculate 'all_lossless' in case super-resolution was (un)selected.
-    cm->features.all_lossless =
-        cm->features.coded_lossless && !av1_superres_scaled(cm);
+    cm->features.all_lossless = cm->features.coded_lossless
+#if CONFIG_ENABLE_SR
+                                && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+        ;
 
     av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
   }
@@ -2258,8 +2277,13 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
+#if CONFIG_ENABLE_SR
   const int frame_width = cm->superres_upscaled_width;
   const int frame_height = cm->superres_upscaled_height;
+#else
+  const int frame_width = cm->width;
+  const int frame_height = cm->height;
+#endif  // CONFIG_ENABLE_SR
   set_restoration_unit_size(frame_width, frame_height,
                             seq_params->subsampling_x,
                             seq_params->subsampling_y, cm->rst_info);
@@ -2434,7 +2458,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     aom_free(org_uv[pli]);
   }
 
+#if CONFIG_ENABLE_SR
   av1_superres_post_encode(cpi);
+#endif  // CONFIG_ENABLE_SR
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
@@ -2662,7 +2688,12 @@ static int encode_without_recode(AV1_COMP *cpi) {
   aom_clear_system_state();
 
   cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
-                                      filter_scaler, phase_scaler, true, false);
+                                      filter_scaler, phase_scaler, true
+#if CONFIG_ENABLE_SR
+                                      ,
+                                      false
+#endif  // CONFIG_ENABLE_SR
+  );
   if (frame_is_intra_only(cm) || resize_pending != 0) {
     memset(cpi->consec_zero_mv, 0,
            ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
@@ -2670,16 +2701,25 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
   if (cpi->unscaled_last_source != NULL) {
-    cpi->last_source = av1_scale_if_required(
-        cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
-        phase_scaler, true, false);
+    cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
+                                             &cpi->scaled_last_source,
+                                             filter_scaler, phase_scaler, true
+#if CONFIG_ENABLE_SR
+                                             ,
+                                             false
+#endif  // CONFIG_ENABLE_SR
+    );
   }
 
   // The code below turns across scale references off, which seems unnecessary.
   // So only enable this based on a speed-feature, and if superes_in_recode is
   // not allowed. Also consider dropping this segment completely.
+#if CONFIG_ENABLE_SR
   if (cpi->sf.hl_sf.disable_unequal_scale_refs &&
       !av1_superres_in_recode_allowed(cpi)) {
+#else
+  if (cpi->sf.hl_sf.disable_unequal_scale_refs) {
+#endif  // CONFIG_ENABLE_SR
     const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
     const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
     if (golden_frame != NONE_FRAME &&
@@ -2797,6 +2837,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   av1_setup_frame_size(cpi);
 
+#if CONFIG_ENABLE_SR
   if (av1_superres_in_recode_allowed(cpi) &&
       cpi->superres_mode != AOM_SUPERRES_NONE &&
       cm->superres_scale_denominator == SCALE_NUMERATOR) {
@@ -2805,6 +2846,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // recode loop for full-resolution after this anyway.
     return -1;
   }
+#endif  // CONFIG_ENABLE_SR
 
   int top_index = 0, bottom_index = 0;
   int q = 0, q_low = 0, q_high = 0;
@@ -2868,12 +2910,22 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
     cpi->source =
         av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                              EIGHTTAP_REGULAR, 0, false, false);
+                              EIGHTTAP_REGULAR, 0, false
+#if CONFIG_ENABLE_SR
+                              ,
+                              false
+#endif  // CONFIG_ENABLE_SR
+        );
 
     if (cpi->unscaled_last_source != NULL) {
-      cpi->last_source = av1_scale_if_required(
-          cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
-          EIGHTTAP_REGULAR, 0, false, false);
+      cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
+                                               &cpi->scaled_last_source,
+                                               EIGHTTAP_REGULAR, 0, false
+#if CONFIG_ENABLE_SR
+                                               ,
+                                               false
+#endif  // CONFIG_ENABLE_SR
+      );
     }
 
     if (!frame_is_intra_only(cm)) {
@@ -3034,8 +3086,11 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
   if (!frame_is_intra_only(cm) && !encode_show_existing_frame(cm) &&
-      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode &&
-      !av1_superres_scaled(cm)) {
+      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode
+#if CONFIG_ENABLE_SR
+      && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+  ) {
     return true;
   }
 
@@ -3751,6 +3806,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_ENABLE_SR
 static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
                                             uint8_t *dest,
                                             int *largest_tile_id) {
@@ -3944,9 +4000,9 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       *largest_tile_id = largest_tile_id2;
     }
   }
-
   return err;
 }
+#endif  // CONFIG_ENABLE_SR
 
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
@@ -4262,6 +4318,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_TCQ
 
   int largest_tile_id = 0;
+#if CONFIG_ENABLE_SR
   if (av1_superres_in_recode_allowed(cpi)) {
     if (encode_with_and_without_superres(cpi, size, dest, &largest_tile_id) !=
         AOM_CODEC_OK) {
@@ -4270,12 +4327,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   } else {
     const aom_superres_mode orig_superres_mode = cpi->superres_mode;  // save
     cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;
+#endif  // CONFIG_ENABLE_SR
     if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
                                            &largest_tile_id) != AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
+#if CONFIG_ENABLE_SR
     cpi->superres_mode = orig_superres_mode;  // restore
   }
+#endif  // CONFIG_ENABLE_SR
 
   cpi->seq_params_locked = 1;
 

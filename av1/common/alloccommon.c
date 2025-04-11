@@ -107,7 +107,11 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
 
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
+#if CONFIG_ENABLE_SR
   const int frame_w = cm->superres_upscaled_width;
+#else
+  const int frame_w = cm->width;
+#endif  // CONFIG_ENABLE_SR
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;
@@ -255,7 +259,12 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
 // Allocate the dynamically allocated arrays in 'mi_params' assuming
 // 'mi_params->set_mb_mi()' was already called earlier to initialize the rest of
 // the struct members.
-static int alloc_mi(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
+static int alloc_mi(CommonModeInfoParams *mi_params, AV1_COMMON *cm
+#if !CONFIG_ENABLE_SR
+                    ,
+                    int height
+#endif  // !CONFIG_ENABLE_SR
+) {
   const int aligned_mi_rows = calc_mi_size(mi_params->mi_rows);
   const int mi_grid_size = mi_params->mi_stride * aligned_mi_rows;
   const int alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
@@ -276,7 +285,12 @@ static int alloc_mi(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     if (!mi_params->mi_grid_base) return 1;
     mi_params->mi_grid_size = mi_grid_size;
     av1_alloc_txk_skip_array(mi_params, cm);
-    av1_alloc_class_id_array(mi_params, cm);
+    av1_alloc_class_id_array(mi_params, cm
+#if !CONFIG_ENABLE_SR
+                             ,
+                             height
+#endif  // !CONFIG_ENABLE_SR
+    );
 #if CONFIG_C071_SUBBLK_WARPMV
     mi_params->mi_alloc_sub =
         aom_calloc(alloc_mi_size, sizeof(*mi_params->mi_alloc_sub));
@@ -334,7 +348,13 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->set_mb_mi(mi_params, width, height);
-  if (alloc_mi(mi_params, cm)) goto fail;
+  if (alloc_mi(mi_params, cm
+#if !CONFIG_ENABLE_SR
+               ,
+               height
+#endif  // !CONFIG_ENABLE_SR
+               ))
+    goto fail;
   CommonSBInfoParams *const sbi_params = &cm->sbi_params;
   set_sb_si(cm);
   if (alloc_sbi(sbi_params)) goto fail;

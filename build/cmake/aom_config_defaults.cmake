@@ -421,6 +421,7 @@ set_aom_config_var(
   1
   "Reduce the line buffer size for DRL and WRL. The access unit is changed from 4x4 to 8x8"
 )
+set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

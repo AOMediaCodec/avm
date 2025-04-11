@@ -572,8 +572,11 @@ void av1_simple_motion_search_prune_rect(
   // Determine if we should prune rectangular partitions.
   if (cpi->sf.part_sf.simple_motion_search_prune_rect &&
       !frame_is_intra_only(cm) &&
-      (partition_horz_allowed || partition_vert_allowed) &&
-      bsize >= BLOCK_8X8 && !av1_superres_scaled(cm)) {
+      (partition_horz_allowed || partition_vert_allowed) && bsize >= BLOCK_8X8
+#if CONFIG_ENABLE_SR
+      && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+  ) {
     *prune_horz = probs[PARTITION_HORZ] <= prune_thresh;
     *prune_vert = probs[PARTITION_VERT] <= prune_thresh;
   }
@@ -1358,7 +1361,10 @@ void av1_prune_partitions_before_search(
       bsize < BLOCK_256X256 &&
 #endif
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
-      !frame_is_intra_only(cm) && !av1_superres_scaled(cm) &&
+      !frame_is_intra_only(cm) &&
+#if CONFIG_ENABLE_SR
+      !av1_superres_scaled(cm) &&
+#endif  // CONFIG_ENABLE_SR
       is_square_block(bsize) && sms_tree && *partition_none_allowed;
 
   if (try_split_only) {

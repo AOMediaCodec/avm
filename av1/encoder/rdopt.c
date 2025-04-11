@@ -4839,15 +4839,24 @@ static AOM_INLINE void get_block_level_tpl_stats(
   const int mi_high = mi_size_high[bsize];
   const int tpl_stride = tpl_frame->stride;
   const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+#if CONFIG_ENABLE_SR
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
   const int mi_col_end_sr =
       coded_to_superres_mi(mi_col + mi_wide, cm->superres_scale_denominator);
   const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-
+#else
+  const int mi_col_sr = mi_col;
+  const int mi_col_end_sr = mi_col + mi_wide;
+  const int mi_cols_sr = av1_pixels_to_mi(cm->width);
+#endif  // CONFIG_ENABLE_SR
   const int row_step = step;
+#if CONFIG_ENABLE_SR
   const int col_step_sr =
       coded_to_superres_mi(step, cm->superres_scale_denominator);
+#else
+  const int col_step_sr = step;
+#endif  // CONFIG_ENABLE_SR
   for (int row = mi_row; row < AOMMIN(mi_row + mi_high, cm->mi_params.mi_rows);
        row += row_step) {
     for (int col = mi_col_sr; col < AOMMIN(mi_col_end_sr, mi_cols_sr);

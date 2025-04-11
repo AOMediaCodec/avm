@@ -63,6 +63,7 @@ const TestVideoParam kTestVideoVectors[] = {
     49.0 },
 };
 
+#if CONFIG_ENABLE_SR
 // Modes with extra params have their own tests.
 const aom_superres_mode kSuperresModesWithoutParams[] = { AOM_SUPERRES_RANDOM,
                                                           AOM_SUPERRES_AUTO };
@@ -409,5 +410,6 @@ TEST_P(HorzSuperresQThreshEndToEndTest,
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresQThreshEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
                            ::testing::ValuesIn(kSuperresQThresholds));
+#endif  // CONFIG_ENABLE_SR
 
 }  // namespace

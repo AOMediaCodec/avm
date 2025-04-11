@@ -324,10 +324,15 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
                        "Failed to allocate last frame buffer");
 
   if (aom_realloc_frame_buffer(
-          &cpi->trial_frame_rst, cm->superres_upscaled_width,
-          cm->superres_upscaled_height, seq_params->subsampling_x,
-          seq_params->subsampling_y, AOM_RESTORATION_FRAME_BORDER,
-          byte_alignment, NULL, NULL, NULL, false))
+          &cpi->trial_frame_rst,
+#if CONFIG_ENABLE_SR
+          cm->superres_upscaled_width, cm->superres_upscaled_height,
+#else
+          cm->width, cm->height,
+#endif  // CONFIG_ENABLE_SR
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL,
+          false))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate trial restored frame buffer");
 

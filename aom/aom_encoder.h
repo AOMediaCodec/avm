@@ -191,6 +191,7 @@ enum aom_kf_mode {
   AOM_KF_DISABLED = 0 /**< Encoder does not place keyframes. */
 };
 
+#if CONFIG_ENABLE_SR
 /*!\brief Frame super-resolution mode. */
 typedef enum {
   /**< Frame super-resolution is disabled for all frames. */
@@ -206,6 +207,7 @@ typedef enum {
      super-resolution) are automatically selected for each frame. */
   AOM_SUPERRES_AUTO,
 } aom_superres_mode;
+#endif  // CONFIG_ENABLE_SR
 
 /*!\brief Frame super-resolution mode. */
 typedef enum {
@@ -863,6 +865,7 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int rc_resize_kf_denominator;
 
+#if CONFIG_ENABLE_SR
   /*!\brief Frame super-resolution scaling mode.
    *
    * Similar to spatial resampling, frame super-resolution integrates
@@ -910,6 +913,7 @@ typedef struct aom_codec_enc_cfg {
    * Used only by AOM_SUPERRES_QTHRESH
    */
   unsigned int rc_superres_kf_qthresh;
+#endif  // CONFIG_ENABLE_SR
 
   /*!\brief Rate control algorithm to use.
    *

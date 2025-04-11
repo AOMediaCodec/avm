@@ -1194,9 +1194,16 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
   const int is_uv = (plane > 0);
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int downscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-  const int upscaled_plane_width =
-      ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+  const int upscaled_plane_width = ROUND_POWER_OF_TWO(
+#if CONFIG_ENABLE_SR
+      cm->superres_upscaled_width,
+#else
+      cm->width,
+#endif  // CONFIG_ENABLE_SR
+      ss_x);
+#if CONFIG_ENABLE_SR
   const int superres_denom = cm->superres_scale_denominator;
+#endif  // CONFIG_ENABLE_SR
 
   TileInfo tile_col;
   const int32_t x_step_qn = av1_get_upscale_convolve_step(
@@ -1215,7 +1222,11 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
     const int downscaled_x1 = tile_col.mi_col_end << (MI_SIZE_LOG2 - ss_x);
     const int src_width = downscaled_x1 - downscaled_x0;
 
+#if CONFIG_ENABLE_SR
     const int upscaled_x0 = (downscaled_x0 * superres_denom) / SCALE_NUMERATOR;
+#else
+    const int upscaled_x0 = downscaled_x0;
+#endif  // CONFIG_ENABLE_SR
     int upscaled_x1;
     if (j == cm->tiles.cols - 1) {
       // Note that we can't just use AOMMIN here - due to rounding,
@@ -1223,7 +1234,11 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
       // upscaled_plane_width.
       upscaled_x1 = upscaled_plane_width;
     } else {
+#if CONFIG_ENABLE_SR
       upscaled_x1 = (downscaled_x1 * superres_denom) / SCALE_NUMERATOR;
+#else
+      upscaled_x1 = downscaled_x1;
+#endif  // CONFIG_ENABLE_SR
     }
 
     const uint16_t *const src_ptr = src + downscaled_x0;
@@ -1259,16 +1274,23 @@ void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
 
 YV12_BUFFER_CONFIG *av1_scale_if_required(
     AV1_COMMON *cm, YV12_BUFFER_CONFIG *unscaled, YV12_BUFFER_CONFIG *scaled,
-    const InterpFilter filter, const int phase, const bool use_optimized_scaler,
-    const bool for_psnr) {
+    const InterpFilter filter, const int phase, const bool use_optimized_scaler
+#if CONFIG_ENABLE_SR
+    ,
+    const bool for_psnr
+#endif  // CONFIG_ENABLE_SR
+) {
   // If scaling is performed for the sole purpose of calculating PSNR, then our
   // target dimensions are superres upscaled width/height. Otherwise our target
   // dimensions are coded width/height.
   const bool scaling_required =
+#if CONFIG_ENABLE_SR
       for_psnr ? (cm->superres_upscaled_width != unscaled->y_crop_width ||
                   cm->superres_upscaled_height != unscaled->y_crop_height)
-               : (cm->width != unscaled->y_crop_width ||
-                  cm->height != unscaled->y_crop_height);
+               :
+#endif  // CONFIG_ENABLE_SR
+               (cm->width != unscaled->y_crop_width ||
+                cm->height != unscaled->y_crop_height);
 
   if (scaling_required) {
     const int num_planes = av1_num_planes(cm);
@@ -1309,6 +1331,7 @@ void av1_calculate_scaled_size(int *width, int *height, int resize_denom) {
   calculate_scaled_size_helper(height, resize_denom);
 }
 
+#if CONFIG_ENABLE_SR
 void av1_calculate_scaled_superres_size(int *width, int *height,
                                         int superres_denom) {
   (void)height;
@@ -1426,3 +1449,4 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
   // Free the copy buffer
   aom_free_frame_buffer(&copy_buffer);
 }
+#endif  // CONFIG_ENABLE_SR
