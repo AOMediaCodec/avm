@@ -209,10 +209,11 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   uint16_t *dst =
       &pd->dst.buf[-((-row_dst * pd->dst.stride - col_dst) << MI_SIZE_LOG2)];
 
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
+  const int width = tx_size_wide[tx_size] << sub_x;
+  const int height = tx_size_high[tx_size] << sub_y;
+
   const int row_start =
       ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base + row) << MI_SIZE_LOG2);
   const int col_start =
