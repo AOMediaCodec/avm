@@ -1122,10 +1122,6 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
     for (int j = 0; j < bw; j += n) {
       if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                               build_for_decode)) {
-        *(vx0 + n_blocks) = 0;
-        *(vy0 + n_blocks) = 0;
-        *(vx1 + n_blocks) = 0;
-        *(vy1 + n_blocks) = 0;
         n_blocks++;
         continue;
       }

@@ -1840,13 +1840,6 @@ int av1_opfl_mv_refinement_nxn_avx2(
       for (int j = 0; j < bw; j += 16) {
         if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                                 build_for_decode)) {
-          const int num_blocks = 2;
-          for (int idx = 0; idx < num_blocks; idx++) {
-            *(vx0 + n_blocks + idx) = 0;
-            *(vy0 + n_blocks + idx) = 0;
-            *(vx1 + n_blocks + idx) = 0;
-            *(vy1 + n_blocks + idx) = 0;
-          }
           n_blocks += 2;
           continue;
         }
