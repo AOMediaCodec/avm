@@ -142,7 +142,7 @@ struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
 struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
                                             int left_order_hint,
                                             COMPRESSOR_STAGE stage);
- 
+
 void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
                                int refresh_frame_flags,
                                RefCntBuffer *const ref_frame_map[REF_FRAMES],

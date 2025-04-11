@@ -317,7 +317,7 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
   int tile_start_and_end_present_flag = 0;
   const int num_tiles = tiles->rows * tiles->cols;
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) return 0;
+  if (cm->bru.frame_inactive_flag) return 0;
 #endif
 
   if (!tiles->large_scale && num_tiles > 1) {
@@ -1015,14 +1015,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         }
 
 #if CONFIG_BRU
-        if (cm->bru.frame_active_mode == 0) {
+        if (cm->bru.frame_inactive_flag) {
           frame_decoding_finished = 1;
           pbi->seen_frame_header = 0;
           const int num_tiles = cm->tiles.cols * cm->tiles.rows;
           const int end_tile = num_tiles - 1;
-          av1_decode_tg_tiles_and_wrapup(pbi, data,
-                                         data + pbi->coded_tile_data_size,
-                                         p_data_end, 0, end_tile, 0);
+          av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, 0,
+                                         end_tile, 0);
           break;
         }
 #endif

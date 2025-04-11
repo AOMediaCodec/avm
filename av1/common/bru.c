@@ -222,7 +222,7 @@ void bru_copy_sb(const struct AV1Common *cm, const int mi_col,
     bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary >> MI_SIZE_LOG2,
                     y_inside_boundary >> MI_SIZE_LOG2);
   }
-  //check if still necessary
+  // check if still necessary
   bru_extend_mc_border(cm, mi_row, mi_col, sb_size, rec_dst);
   return;
 }
@@ -271,8 +271,9 @@ void bru_update_sb(const struct AV1Common *cm, const int mi_col,
 }
 
 void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
-                                MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
-                                BLOCK_SIZE bsize) {
+                                        MACROBLOCKD *const xd,
+                                        MB_MODE_INFO *const mbmi,
+                                        BLOCK_SIZE bsize) {
   // think reuse init_mbmi() here
   mbmi->segment_id = 0;
   mbmi->skip_mode = 0;

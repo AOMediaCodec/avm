@@ -1514,7 +1514,7 @@ typedef struct BRU_Info {
   /*!
    * is entire frame BRU skipped
    */
-  int frame_active_mode;
+  int frame_inactive_flag;
   /*!
    *  order_hint of bru ref idx
    */

@@ -1209,7 +1209,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_BRU
     // get last frame idx as bru frame
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru;
-    cm->bru.frame_active_mode = 1;
     if (cpi->oxcf.tool_cfg.enable_bru && frame_input.bru_ref_source != NULL &&
         !frame_is_intra_only(&cpi->common)) {
       active_region_detection(cpi, frame_input.source,
@@ -1228,14 +1227,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cm->bru.enabled = 0;
         cm->bru.update_ref_idx = -1;
       }
-      cm->bru.frame_active_mode =
-          (cm->bru.blocks_skipped != cm->bru.total_units);
+      cm->bru.frame_inactive_flag =
+          (cm->bru.blocks_skipped == cm->bru.total_units);
     } else {
       cm->bru.enabled = 0;
       cm->bru.update_ref_idx = -1;
     }
 #if CONFIG_BRU && CONFIG_BRU_DIST
-    if (cm->bru.enabled && cm->bru.frame_active_mode == 1) {
+    if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
         if (abs(cm->ref_frames_info.ref_frame_distance[i]) >
             MAX_FRAME_DISTANCE) {
@@ -1279,9 +1278,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #if CONFIG_BRU
-    if (cm->bru.frame_active_mode == 0) {
+    if (cm->bru.frame_inactive_flag) {
       cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-      const RefCntBuffer * bru_ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+      const RefCntBuffer *bru_ref_buf =
+          get_ref_frame_buf(cm, cm->bru.update_ref_idx);
       cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
       if (av1_num_planes(cm) > 1) {
         cm->quant_params.u_ac_delta_q = bru_ref_buf->u_ac_delta_q;
@@ -1293,7 +1293,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
-#endif    
+#endif
 #if CONFIG_SAME_REF_COMPOUND
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,

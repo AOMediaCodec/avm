@@ -2424,6 +2424,10 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
     lr_plane_ctxt->tskip_zero_flag = av1_superres_scaled(cm);
+#if CONFIG_BRU
+    lr_plane_ctxt->mi_params = &cm->mi_params;
+    lr_plane_ctxt->order_hint = cm->current_frame.order_hint;
+#endif  // CONFIG_BRU
   }
 }
 
@@ -2488,10 +2492,6 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
     ctxt[plane].tskip_zero_flag = av1_superres_scaled(cm);
-#if CONFIG_BRU
-    ctxt[plane].mi_params = &cm->mi_params;
-    ctxt[plane].order_hint = cm->current_frame.order_hint;
-#endif  // CONFIG_BRU
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
                                    &ctxt[plane], &ctxt[plane].tile_rect,
                                    cm->rst_tmpbuf, cm->rlbs);

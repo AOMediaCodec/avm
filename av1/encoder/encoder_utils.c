@@ -1063,7 +1063,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
       const int map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
       if ((map_idx != INVALID_IDX) &&
 #if CONFIG_BRU
-          cm->bru.frame_active_mode == 1 &&
+          !cm->bru.frame_inactive_flag &&
 #endif
           (ref_frame_used != cm->features.primary_ref_frame) &&
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&

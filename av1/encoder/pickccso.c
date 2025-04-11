@@ -149,7 +149,8 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
               (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif
@@ -233,7 +234,8 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
               (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif
@@ -355,7 +357,8 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
               (x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif
@@ -530,7 +533,8 @@ void ccso_try_luma_filter(
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif
@@ -637,7 +641,8 @@ static void ccso_try_chroma_filter(
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif
@@ -774,7 +779,8 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
           const int mbmi_idx = get_mi_grid_idx(
               &cm->mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - is_uv),
               (x + unit_x) >> (MI_SIZE_LOG2 - is_uv));
-          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode != BRU_ACTIVE_SB) {
+          if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+              BRU_ACTIVE_SB) {
             continue;
           }
 #endif

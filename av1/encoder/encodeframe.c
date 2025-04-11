@@ -1046,7 +1046,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                            cur_sb_active_mode);
       initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
                                  &xd->mi[0]->chroma_ref_info);
-      bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0], cm->seq_params.sb_size);
+      bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0],
+                                         cm->seq_params.sb_size);
       const int w = mi_size_wide[sb_size];
       const int h = mi_size_high[sb_size];
       const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
@@ -1145,7 +1146,7 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       // check tile skip
       if (cm->bru.enabled) {
         tile_info->tile_active_mode = 0;
-        if (cm->bru.frame_active_mode == 1) {
+        if (!cm->bru.frame_inactive_flag) {
           for (int mi_y = tile_info->mi_row_start; mi_y < tile_info->mi_row_end;
                mi_y += cm->mib_size) {
             for (int mi_x = tile_info->mi_col_start;
@@ -1933,7 +1934,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
       // 0: REFINE_NONE, 1: REFINE_SWTICHABLE, 2: REFINE_ALL
       features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
     }
-    
+
     encode_frame_internal(cpi);
 
     if (current_frame->reference_mode == REFERENCE_MODE_SELECT) {

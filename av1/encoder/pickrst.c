@@ -5669,12 +5669,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_WIENER_NONSEP &&
 #if CONFIG_BRU
               !cm->bru.enabled &&
-#endif            
+#endif
               is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
             // desired make a copy of stats.
-            
+
             rsc.frame_filters_on = 1;
             find_optimal_num_classes_and_frame_filters(&rsc);
 
@@ -5696,7 +5696,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_BRU
           // If the full frame is skipped, no need to search other type
           if (cm->current_frame.frame_type != KEY_FRAME &&
-              cm->bru.frame_active_mode == 0 && r != 0)
+              cm->bru.frame_inactive_flag && r != 0)
             continue;
 #endif  // CONFIG_BRU
 
@@ -5706,7 +5706,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
 #if CONFIG_BRU
               !cm->bru.enabled &&
-#endif          
+#endif
               frame_filters_configured && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
 #if PRINT_LR_COSTS && !defined(NDEBUG)

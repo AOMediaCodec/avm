@@ -3530,7 +3530,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // enc need to update part ctx on inactive and ext
   // but only inactive need to return.
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
-    if (cm->bru.frame_active_mode == 1) {
+    if (!cm->bru.frame_inactive_flag) {
       write_cdef(cm, xd, w, 1);
       if (cm->seq_params.enable_ccso) {
         write_ccso(cm, xd, w);
@@ -3890,7 +3890,7 @@ static AOM_INLINE void write_modes_sb(
     int rcol0, rcol1, rrow0, rrow1;
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
 #if CONFIG_BRU
-        cm->bru.frame_active_mode == 1 &&
+        !cm->bru.frame_inactive_flag &&
 #endif
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
@@ -4244,7 +4244,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   }
 
 #if CONFIG_BRU
-  if (cm->bru.enabled && cm->bru.frame_active_mode == 1) {
+  if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
     aom_write_bit(w, tile->tile_active_mode);
   }
 #endif
@@ -4329,7 +4329,7 @@ static AOM_INLINE void encode_restoration_mode(
   if (!cm->seq_params.enable_restoration) return;
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) return;
+  if (cm->bru.frame_inactive_flag) return;
 #endif
   const int num_planes = av1_num_planes(cm);
   int luma_none = 1, chroma_none = 1;
@@ -4969,7 +4969,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   assert(!cm->features.coded_lossless);
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) return;
+  if (cm->bru.frame_inactive_flag) return;
 #endif
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
@@ -5088,7 +5088,7 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   if (!cm->seq_params.enable_cdef) return;
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) return;
+  if (cm->bru.frame_inactive_flag) return;
 #endif
 #if CONFIG_FIX_CDEF_SYNTAX
   aom_wb_write_bit(wb, cm->cdef_info.cdef_frame_enable);
@@ -5119,7 +5119,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) return;
+  if (cm->bru.frame_inactive_flag) return;
 #endif
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_CCSO_IMPROVE
@@ -5286,7 +5286,7 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
     aom_wb_write_bit(wb, cm->bru.enabled);
     if (cm->bru.enabled) {
       aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
-      aom_wb_write_bit(wb, cm->bru.frame_active_mode);
+      aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }
   return;
@@ -6361,9 +6361,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
             : (cm->superres_upscaled_width != seq_params->max_frame_width ||
                cm->superres_upscaled_height != seq_params->max_frame_height);
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
-    
+
 #if CONFIG_BRU
-    if (cm->bru.frame_active_mode == 0) {
+    if (cm->bru.frame_inactive_flag) {
       cm->features.disable_cdf_update = 1;
     }
     if (current_frame->frame_type == INTER_FRAME) {
@@ -6616,7 +6616,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           cm->ref_frames_info.num_total_refs >= 2
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if CONFIG_BRU
-          && cm->bru.frame_active_mode == 1
+          && !cm->bru.frame_inactive_flag
 #endif
       ) {
         assert(IMPLIES(av1_superres_scaled(cm),
@@ -6660,7 +6660,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
 
 #if CONFIG_BRU
-      if (cm->bru.frame_active_mode == 1 &&
+      if (!cm->bru.frame_inactive_flag &&
           (!cm->seq_params.enable_tip ||
            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)
 #else
@@ -6737,7 +6737,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
 #if CONFIG_BRU
-  if (cm->bru.frame_active_mode == 0) {
+  if (cm->bru.frame_inactive_flag) {
 #if !CONFIG_TIP_DIRECT_MODE_SIGNALING
     write_tile_info(cm, saved_wb, wb);
 #endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
@@ -7418,7 +7418,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
               cpi, saved_wb, data + curr_tg_data_size, 0);
         }
 #if CONFIG_BRU
-        if (cm->bru.frame_active_mode == 1)
+        if (!cm->bru.frame_inactive_flag)
 #endif
           curr_tg_data_size += write_tile_group_header(
               data + curr_tg_data_size, tile_idx,
@@ -7457,8 +7457,10 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
 #if CONFIG_BRU
       tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
+#endif
       aom_start_encode(&mode_bc, dst + total_size);
-      if (cm->bru.frame_active_mode == 1)
+#if CONFIG_BRU
+      if (!cm->bru.frame_inactive_flag)
 #endif
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
       aom_stop_encode(&mode_bc);
@@ -7793,7 +7795,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
-       cm->bru.frame_active_mode == 0 ||
+       cm->bru.frame_inactive_flag ||
 #endif
        (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
   struct aom_write_bit_buffer saved_wb = { NULL, 0 };
@@ -7827,7 +7829,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         !cm->seq_params.enable_frame_output_order) &&
        encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
-      cm->bru.frame_active_mode == 0 ||
+      cm->bru.frame_inactive_flag ||
 #endif
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
     data_size = 0;

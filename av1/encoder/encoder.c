@@ -2336,7 +2336,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   int ref_stride;
   const int use_ccso = !cm->features.coded_lossless && !cm->tiles.large_scale &&
 #if CONFIG_BRU
-                       cm->bru.frame_active_mode == 1 &&
+                       !cm->bru.frame_inactive_flag &&
 #endif
                        cm->seq_params.enable_ccso;
   const int num_planes = av1_num_planes(cm);
@@ -2499,18 +2499,18 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   const int use_loopfilter = !cm->features.coded_lossless &&
 #if CONFIG_BRU
-                              cm->bru.frame_active_mode == 1 &&
+                             !cm->bru.frame_inactive_flag &&
 #endif
                              !cm->tiles.large_scale &&
                              cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef = cm->seq_params.enable_cdef &&
 #if CONFIG_BRU
-                              cm->bru.frame_active_mode == 1 &&
+                       !cm->bru.frame_inactive_flag &&
 #endif
-                             !cm->features.coded_lossless && !cm->tiles.large_scale;
+                       !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = cm->seq_params.enable_restoration &&
 #if CONFIG_BRU
-                              cm->bru.frame_active_mode == 1 &&
+                              !cm->bru.frame_inactive_flag &&
 #endif
                               !cm->features.all_lossless &&
                               !cm->tiles.large_scale;
@@ -3581,7 +3581,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   // Pick the loop filter level for the frame.
   if (!is_global_intrabc_allowed(cm)
 #if CONFIG_BRU
-      && cm->bru.frame_active_mode == 1
+      && !cm->bru.frame_inactive_flag
 #endif
   ) {
     loopfilter_frame(cpi, cm);
@@ -3691,15 +3691,16 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
     const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
 #if CONFIG_BRU
-    if (cm->bru.enabled && cm->features.primary_ref_frame == cm->bru.update_ref_idx)
+    if (cm->bru.enabled &&
+        cm->features.primary_ref_frame == cm->bru.update_ref_idx)
       *cm->fc = cm->bru.update_ref_fc;
     else
-#endif    
+#endif
       *cm->fc = ref_buf->frame_context;
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
-                  
+
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
@@ -4363,7 +4364,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_BRU
-    if (cm->bru.frame_active_mode == 1)
+    if (!cm->bru.frame_inactive_flag)
 #endif
       av1_reset_cdf_symbol_counters(cm->fc);
   }
@@ -5071,13 +5072,13 @@ int enc_bru_swap_stage(AV1_COMP *cpi) {
     av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
 #endif
 #if CONFIG_CCSO_IMPROVE
-    if (cm->bru.frame_active_mode == 0) {
+    if (cm->bru.frame_inactive_flag) {
       ref_buf->ccso_info.ccso_frame_flag = 0;
     } else {
       ref_buf->ccso_info.ccso_frame_flag = tmp_buf->ccso_info.ccso_frame_flag;
     }
     for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
-      if (cm->bru.frame_active_mode == 0) {
+      if (cm->bru.frame_inactive_flag) {
         cm->ccso_info.reuse_ccso[plane] = 0;
         cm->ccso_info.sb_reuse_ccso[plane] = 0;
         cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
