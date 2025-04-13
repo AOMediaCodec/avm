@@ -1220,6 +1220,103 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_REFINED_MVS_IN_TMVP
 
+#if CONFIG_BRU
+// Copy mvs from bru ref frame to cur frame
+// Used for keeping the old ref frame mvs in the cur frame
+void bru_copy_sb_mvs(const AV1_COMMON *const cm, int src_ref_idx,
+                     int dst_ref_idx, int mi_row, int mi_col,
+                     int x_inside_boundary, int y_inside_boundary) {
+  // if src_ref_idx or dst_ref_idx < 0 (prefer -1), means cm->cur_frame
+  if (src_ref_idx == dst_ref_idx) return;
+  const int frame_mvs_stride = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 1);
+  MV_REF *src_frame_mvs =
+      ((src_ref_idx < 0) ? cm->cur_frame->mvs
+                         : get_ref_frame_buf(cm, src_ref_idx)->mvs) +
+      +(mi_row >> 1) * frame_mvs_stride + (mi_col >> 1);
+  MV_REF *dst_frame_mvs =
+      ((dst_ref_idx < 0) ? cm->cur_frame->mvs
+                         : get_ref_frame_buf(cm, dst_ref_idx)->mvs) +
+      +(mi_row >> 1) * frame_mvs_stride + (mi_col >> 1);
+  x_inside_boundary = ROUND_POWER_OF_TWO(x_inside_boundary, 1);
+  y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
+  int w, h;
+  for (h = 0; h < y_inside_boundary; h++) {
+    // get mvs stored in bru ref frame
+    MV_REF *src_ref = src_frame_mvs;
+    MV_REF *dst_ref = dst_frame_mvs;
+    for (w = 0; w < x_inside_boundary; w++) {
+      dst_ref->ref_frame[0] = NONE_FRAME;
+      dst_ref->ref_frame[1] = NONE_FRAME;
+      dst_ref->mv[0].as_int = 0;
+      dst_ref->mv[1].as_int = 0;
+#if CONFIG_MVP_IMPROVEMENT
+      if (is_inter_ref_frame(src_ref->ref_frame[0]) &&
+          src_ref->ref_frame[1] == NONE_FRAME) {
+        if ((abs(src_ref->mv[0].as_mv.row) <= REFMVS_LIMIT) &&
+            (abs(src_ref->mv[0].as_mv.col) <= REFMVS_LIMIT)) {
+          dst_ref->ref_frame[0] = src_ref->ref_frame[0];
+          dst_ref->mv[0].as_int = src_ref->mv[0].as_int;
+        }
+      } else {
+#endif  // CONFIG_MVP_IMPROVEMENT
+        for (int idx = 0; idx < 2; ++idx) {
+          if (is_inter_ref_frame(src_ref->ref_frame[idx])) {
+            int_mv src_ref_mv = src_ref->mv[idx];
+            if ((abs(src_ref_mv.as_mv.row) > REFMVS_LIMIT) ||
+                (abs(src_ref_mv.as_mv.col) > REFMVS_LIMIT)) {
+              continue;
+            } else {
+              // TODO: careful, may need to map this to cur ref
+              dst_ref->ref_frame[idx] = src_ref->ref_frame[idx];
+              dst_ref->mv[idx] = src_ref_mv;
+            }
+          }
+        }
+#if CONFIG_MVP_IMPROVEMENT
+      }
+#endif  // CONFIG_MVP_IMPROVEMENT
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, dst_ref);
+#endif  // CONFIG_TMVP_MEM_OPT
+      dst_ref++;
+      src_ref++;
+    }
+    dst_frame_mvs += frame_mvs_stride;
+    src_frame_mvs += frame_mvs_stride;
+  }
+}
+
+void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
+                     int mi_col, int x_inside_boundary, int y_inside_boundary) {
+  const int frame_mvs_stride = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 1);
+  MV_REF *dst_frame_mvs =
+      ((dst_ref_idx < 0) ? cm->cur_frame->mvs
+                         : get_ref_frame_buf(cm, dst_ref_idx)->mvs) +
+      +(mi_row >> 1) * frame_mvs_stride + (mi_col >> 1);
+  x_inside_boundary = ROUND_POWER_OF_TWO(x_inside_boundary, 1);
+  y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
+  int w, h;
+
+  for (h = 0; h < y_inside_boundary; h++) {
+    // get mvs stored in bru ref frame
+    // MV_REF *bru_ref = frame_mvs;
+    MV_REF *dst_ref = dst_frame_mvs;
+    // MV_REFERENCE_FRAME ref_frame[2];
+    for (w = 0; w < x_inside_boundary; w++) {
+      dst_ref->ref_frame[0] = cm->bru.update_ref_idx;
+      dst_ref->ref_frame[1] = NONE_FRAME;
+      dst_ref->mv[0].as_int = 0;
+      dst_ref->mv[1].as_int = 0;
+#if CONFIG_TMVP_MEM_OPT
+      check_frame_mv_slot(cm, dst_ref);
+#endif  // CONFIG_TMVP_MEM_OPT
+      dst_ref++;
+    }
+    dst_frame_mvs += frame_mvs_stride;
+  }
+}
+#endif
+
 // Copy the MVs into the TMVP list
 void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,

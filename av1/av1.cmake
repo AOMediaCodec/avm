@@ -136,6 +136,11 @@ list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/ccso.c"
 list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
      "${AOM_ROOT}/av1/encoder/pickccso.h")
 
+if(CONFIG_BRU)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/bru.c"
+       "${AOM_ROOT}/av1/common/bru.h")
+endif()
+
 if(CONFIG_TCQ)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/trellis_quant.c"
        "${AOM_ROOT}/av1/encoder/trellis_quant.h")

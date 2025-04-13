@@ -12,6 +12,9 @@
 
 #include "aom/aom_codec.h"
 #include "aom_ports/system_state.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
@@ -708,6 +711,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     } else {
       tx_size = (bsize > BLOCK_4X4) ? tx_size : TX_4X4;
     }
+#if CONFIG_BRU
+    if (is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row,
+                                                    bsize)) {
+      tx_size = TX_64X64;
+    }
+#endif  // CONFIG_BRU
     mbmi->tx_size = tx_size;
 #if !CONFIG_TX_PARTITION_CTX
     set_txfm_ctxs(tx_size, xd->width, xd->height,
@@ -1399,6 +1408,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const int inter_block = mbmi->ref_frame[0] != INTRA_FRAME;
   const int seg_ref_active = 0;
+#if CONFIG_BRU
+  if (!bru_is_sb_active(cm, xd->mi_col, xd->mi_row)) return;
+#endif  // CONFIG_BRU
 
   if (
 #if CONFIG_EXTENDED_SDP
@@ -1720,76 +1732,93 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-      if (has_second_ref(mbmi)) {
-        const int n_refs = cm->ref_frames_info.num_total_refs;
-        int n_bits = 0;
+#if CONFIG_BRU
+      if (!cm->bru.enabled || cm->ref_frames_info.num_total_refs > 2) {
+#endif  // CONFIG_BRU
+        if (has_second_ref(mbmi)) {
+          const int n_refs = cm->ref_frames_info.num_total_refs;
+          int n_bits = 0;
 #if CONFIG_SAME_REF_COMPOUND
-        int may_have_same_ref_comp =
-            cm->ref_frames_info.num_same_ref_compound > 0;
-        assert(ref0 < ref1 + may_have_same_ref_comp);
-        for (int i = 0;
-             (i < n_refs + n_bits - 2 || may_have_same_ref_comp) && n_bits < 2;
-             i++) {
-          const int bit =
-              ((n_bits == 0) && (ref0 == i)) || ((n_bits == 1) && (ref1 == i));
+          int may_have_same_ref_comp =
+              cm->ref_frames_info.num_same_ref_compound > 0;
+          assert(ref0 < ref1 + may_have_same_ref_comp);
+          for (int i = 0; (i < n_refs + n_bits - 2 || may_have_same_ref_comp) &&
+                          n_bits < 2;
+               i++) {
+            const int bit = ((n_bits == 0) && (ref0 == i)) ||
+                            ((n_bits == 1) && (ref1 == i));
 #else
         assert(ref0 < ref1);
         for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
           const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_SAME_REF_COMPOUND
-          const int bit_type = n_bits == 0 ? -1
-                                           : av1_get_compound_ref_bit_type(
-                                                 &cm->ref_frames_info, ref0, i);
-          int implicit_ref_bit = n_bits == 0 && i >= RANKED_REF0_TO_PRUNE - 1;
-#if CONFIG_SAME_REF_COMPOUND
-          implicit_ref_bit |=
-              n_bits == 0 && i >= n_refs - 2 &&
-              i + 1 >= cm->ref_frames_info.num_same_ref_compound;
-#endif  // CONFIG_SAME_REF_COMPOUND
-          if (!implicit_ref_bit) {
-            update_cdf(
-                av1_get_pred_cdf_compound_ref(xd, i, n_bits, bit_type, n_refs),
-                bit, 2);
-#if CONFIG_ENTROPY_STATS
-            if (n_bits == 0) {
-              counts->comp_ref0[av1_get_ref_pred_context(xd, i, n_refs)][i]
-                               [bit]++;
-            } else {
-#if CONFIG_SAME_REF_COMPOUND
-              counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
-                               [bit_type][i][bit]++;
-#else
-              counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
-                               [bit_type][i - 1][bit]++;
-#endif  // CONFIG_SAME_REF_COMPOUND
+#if CONFIG_BRU
+            if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+              continue;  // skip inter on bru ref
             }
-#endif  // CONFIG_ENTROPY_STATS
-          }
-          n_bits += bit;
+#endif  // CONFIG_BRU
+            const int bit_type = n_bits == 0
+                                     ? -1
+                                     : av1_get_compound_ref_bit_type(
+                                           &cm->ref_frames_info, ref0, i);
+            int implicit_ref_bit = n_bits == 0 && i >= RANKED_REF0_TO_PRUNE - 1;
 #if CONFIG_SAME_REF_COMPOUND
-          if (i < cm->ref_frames_info.num_same_ref_compound &&
-              may_have_same_ref_comp) {
-            may_have_same_ref_comp =
-                !bit && i + 1 < cm->ref_frames_info.num_same_ref_compound;
-            i -= bit;
-          } else {
-            may_have_same_ref_comp = 0;
-          }
+            implicit_ref_bit |=
+                n_bits == 0 && i >= n_refs - 2 &&
+                i + 1 >= cm->ref_frames_info.num_same_ref_compound;
 #endif  // CONFIG_SAME_REF_COMPOUND
-        }
-      } else if (!is_tip_ref_frame(ref0)) {
-        const int n_refs = cm->ref_frames_info.num_total_refs;
-        const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
-        for (int i = 0; i < n_refs - 1; i++) {
-          const int bit = ref0_nrs == i;
-          update_cdf(av1_get_pred_cdf_single_ref(xd, i, n_refs), bit, 2);
+            if (!implicit_ref_bit) {
+              update_cdf(av1_get_pred_cdf_compound_ref(xd, i, n_bits, bit_type,
+                                                       n_refs),
+                         bit, 2);
 #if CONFIG_ENTROPY_STATS
-          counts->single_ref[av1_get_ref_pred_context(xd, i, n_refs)][i][bit]++;
+              if (n_bits == 0) {
+                counts->comp_ref0[av1_get_ref_pred_context(xd, i, n_refs)][i]
+                                 [bit]++;
+              } else {
+#if CONFIG_SAME_REF_COMPOUND
+                counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
+                                 [bit_type][i][bit]++;
+#else
+                counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
+                                 [bit_type][i - 1][bit]++;
+#endif  // CONFIG_SAME_REF_COMPOUND
+              }
 #endif  // CONFIG_ENTROPY_STATS
-          if (bit) break;
+            }
+            n_bits += bit;
+#if CONFIG_SAME_REF_COMPOUND
+            if (i < cm->ref_frames_info.num_same_ref_compound &&
+                may_have_same_ref_comp) {
+              may_have_same_ref_comp =
+                  !bit && i + 1 < cm->ref_frames_info.num_same_ref_compound;
+              i -= bit;
+            } else {
+              may_have_same_ref_comp = 0;
+            }
+#endif  // CONFIG_SAME_REF_COMPOUND
+          }
+        } else if (!is_tip_ref_frame(ref0)) {
+          const int n_refs = cm->ref_frames_info.num_total_refs;
+          const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
+          for (int i = 0; i < n_refs - 1; i++) {
+            const int bit = ref0_nrs == i;
+#if CONFIG_BRU
+            if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+              continue;  // skip inter on bru ref
+            }
+#endif  // CONFIG_BRU
+            update_cdf(av1_get_pred_cdf_single_ref(xd, i, n_refs), bit, 2);
+#if CONFIG_ENTROPY_STATS
+            counts
+                ->single_ref[av1_get_ref_pred_context(xd, i, n_refs)][i][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+            if (bit) break;
+          }
         }
+#if CONFIG_BRU
       }
-
+#endif
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
@@ -2617,7 +2646,10 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->partition = partition;
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
-
+#if CONFIG_BRU
+  mbmi->local_rest_type = 1;      // for SW it only matter 0 or 1
+  mbmi->local_ccso_blk_flag = 1;  // for SW it only matter 0 or 1
+#endif
   const int num_planes = av1_num_planes(cm);
   const int plane_start = (xd->tree_type == CHROMA_PART);
   const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
@@ -2810,6 +2842,9 @@ static void update_partition_stats(
 #if CONFIG_EXT_RECUR_PARTITIONS
   const bool ss_x = xd->plane[1].subsampling_x;
   const bool ss_y = xd->plane[1].subsampling_y;
+#if CONFIG_BRU
+  assert(xd->mi[0]);
+#endif  // CONFIG_BRU
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
       mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma);
@@ -4578,9 +4613,26 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
+#if CONFIG_BRU
+    const int bru_skip,
+#endif  // CONFIG_BRU
     const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
+#if CONFIG_BRU
+  if (bru_skip) {
+    part_search_state->do_rectangular_split = 0;
+    part_search_state->is_block_splittable = 0;
+    part_search_state->partition_none_allowed = 1;
+    part_search_state->partition_rect_allowed[HORZ] = 0;
+    part_search_state->partition_rect_allowed[VERT] = 0;
+    part_search_state->found_best_partition = true;
+#if CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition_split = false;
+#endif  // CONFIG_ML_PART_SPLIT
+    return;
+  }
+#endif  // CONFIG_BRU
   const bool allow_rect = part_cfg->enable_rect_partitions ||
                           !(blk_params->has_rows && blk_params->has_cols);
 
@@ -4772,8 +4824,12 @@ static void init_partition_search_state_params(
 #endif  // CONFIG_EXTENDED_SDP
       partition_allowed);
 
-  init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
-                          partition_allowed);
+  init_allowed_partitions(
+      part_search_state, &cpi->oxcf.part_cfg,
+#if CONFIG_BRU
+      is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
+#endif  // CONFIG_BRU
+      partition_allowed);
 
   if (max_recursion_depth == 0) {
     part_search_state->prune_rect_part[HORZ] =
@@ -5035,6 +5091,25 @@ static void rd_pick_rect_partition(
       av1_rd_cost_update(x->rdmult, sum_rdc);
     }
   }
+#if CONFIG_BRU
+  // force early terminate after successful rect if found
+  if (partition_found &&
+      !bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row)) {
+    part_search_state->terminate_partition_search = 1;
+    part_search_state->do_rectangular_split = 0;
+    part_search_state->is_block_splittable = 0;
+    part_search_state->forced_partition = 0;
+    part_search_state->partition_none_allowed = 0;
+    if (rect_type == HORZ)
+      part_search_state->partition_rect_allowed[VERT] = 0;
+    else
+      part_search_state->partition_rect_allowed[HORZ] = 0;
+    part_search_state->found_best_partition = true;
+#if CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition_split = false;
+#endif  // CONFIG_ML_PART_SPLIT
+  }
+#endif
 }
 
 static AOM_INLINE bool is_part_pruned_by_forced_partition(
@@ -5985,6 +6060,22 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
         cpi, x, sms_tree, blk_params.mi_row, blk_params.mi_col, bsize, this_rdc,
         &part_search_state->terminate_partition_search);
   }
+#if CONFIG_BRU
+  // force early terminate after successful none in not active
+  if (!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row)) {
+    part_search_state->terminate_partition_search = 1;
+    part_search_state->do_rectangular_split = 0;
+    part_search_state->is_block_splittable = 0;
+    part_search_state->forced_partition = 0;
+    part_search_state->partition_none_allowed = 1;
+    part_search_state->partition_rect_allowed[HORZ] = 0;
+    part_search_state->partition_rect_allowed[VERT] = 0;
+    part_search_state->found_best_partition = true;
+#if CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition_split = false;
+#endif  // CONFIG_ML_PART_SPLIT
+  }
+#endif
 }
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -6510,6 +6601,22 @@ static void split_partition_search(
 #if CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
   restore_level_banks(&x->e_mbd, level_banks);
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
+#if CONFIG_BRU
+  // todo: this may be moved to early stage
+  //  force early terminate after successful split if found
+  if (part_search_state->found_best_partition &&
+      !bru_is_sb_active(cm, mi_col, mi_row)) {
+    part_search_state->terminate_partition_search = 1;
+    part_search_state->do_rectangular_split = 0;
+    part_search_state->forced_partition = 0;
+    part_search_state->partition_none_allowed = 0;
+    part_search_state->partition_rect_allowed[VERT] = 0;
+    part_search_state->partition_rect_allowed[HORZ] = 0;
+#if CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition_split = false;
+#endif  // CONFIG_ML_PART_SPLIT
+  }
+#endif
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -9001,40 +9108,51 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // and the same neighboring context at the same location but from a
   // different partition path. If yes directly copy the RDO decision made for
   // the counterpart.
-  PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
-  assert(pc_tree != NULL);
-  if (counterpart_block
+#if CONFIG_BRU
+  if (bru_is_sb_active(cm, mi_col, mi_row)) {
+#endif
+    PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
+    assert(pc_tree != NULL);
+    if (counterpart_block
 #if CONFIG_EXTENDED_SDP
-      && (pc_tree->region_type == counterpart_block->region_type &&
-          (pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm)))
+        && (pc_tree->region_type == counterpart_block->region_type &&
+            (pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm)))
 #endif  // CONFIG_EXTENDED_SDP
-  ) {
-    if (counterpart_block->rd_cost.rate != INT_MAX) {
-      av1_copy_pc_tree_recursive(xd, cm, pc_tree, counterpart_block,
-                                 part_search_state.ss_x, part_search_state.ss_y,
-                                 &td->shared_coeff_buf, xd->tree_type,
-                                 num_planes);
-      *rd_cost = pc_tree->rd_cost;
-      assert(bsize != cm->sb_size);
-      if (bsize == cm->sb_size) exit(0);
+    ) {
+      if (counterpart_block->rd_cost.rate != INT_MAX) {
+        av1_copy_pc_tree_recursive(
+            xd, cm, pc_tree, counterpart_block, part_search_state.ss_x,
+            part_search_state.ss_y, &td->shared_coeff_buf, xd->tree_type,
+            num_planes);
+        *rd_cost = pc_tree->rd_cost;
+        assert(bsize != cm->sb_size);
+        if (bsize == cm->sb_size) exit(0);
 
-      if (!pc_tree->is_last_subblock) {
-        encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
-                  pc_tree, NULL,
+        if (!pc_tree->is_last_subblock) {
+          encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL,
+                    bsize, pc_tree, NULL,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                  NULL,
+                    NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-                  NULL);
+                    NULL);
+        }
+        return true;
+      } else {
+        av1_invalid_rd_stats(rd_cost);
+        return false;
       }
-      return true;
-    } else {
-      av1_invalid_rd_stats(rd_cost);
-      return false;
     }
+#if CONFIG_BRU
   }
+#endif
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+#if CONFIG_BRU
+  if ((bsize == cm->sb_size) && bru_is_sb_active(cm, mi_col, mi_row))
+    x->must_find_valid_partition = 0;
+#else
   if (bsize == cm->sb_size) x->must_find_valid_partition = 0;
+#endif
 
   // Override skipping rectangular partition operations for edge blocks.
   if (none_rd) *none_rd = 0;
@@ -9090,7 +9208,11 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   bool search_none_after_split = false;
   bool search_none_after_rect = false;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (part_search_state.forced_partition == PARTITION_INVALID) {
+  if (part_search_state.forced_partition == PARTITION_INVALID
+#if CONFIG_BRU
+      && bru_is_sb_active(cm, mi_col, mi_row)
+#endif
+  ) {
     if (cpi->sf.part_sf.adaptive_partition_search_order) {
       search_none_after_rect =
           try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
@@ -9202,8 +9324,12 @@ BEGIN_PARTITION_SEARCH:
     init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                           mi_row, mi_col, ss_x, ss_y, bsize,
                                           &pc_tree->chroma_ref_info);
-    init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg,
-                            partition_allowed);
+    init_allowed_partitions(
+        &part_search_state, &cpi->oxcf.part_cfg,
+#if CONFIG_BRU
+        is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
+#endif  // CONFIG_BRU
+        partition_allowed);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

@@ -530,6 +530,9 @@ typedef struct frame_contexts {
   aom_cdf_prob lossless_inter_tx_type_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_BRU
+  aom_cdf_prob bru_mode_cdf[CDF_SIZE(3)];
+#endif  // CONFIG_BRU
   aom_cdf_prob skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT

@@ -324,6 +324,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_EXTRA_DPB
   arg_def_t num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  arg_def_t enable_bru;
+#endif  // CONFIG_BRU
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;

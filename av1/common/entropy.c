@@ -370,6 +370,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
+#if CONFIG_BRU
+  RESET_CDF_COUNTER(fc->bru_mode_cdf, 3);
+#endif  // CONFIG_BRU
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   RESET_CDF_COUNTER(fc->intra_inter_cdf[0], 2);
   RESET_CDF_COUNTER(fc->intra_inter_cdf[1], 2);

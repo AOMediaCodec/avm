@@ -197,6 +197,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   if (n_ranked > INTER_REFS_PER_FRAME)
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
 
+#if CONFIG_BRU
+  cm->bru.ref_n_ranked = n_ranked;
+  if (n_ranked > 0)
+    memcpy(cm->bru.ref_scores, scores, REF_FRAMES * sizeof(*scores));
+#endif
+
   // Fill any slots that are empty (should only happen for the first 7 frames)
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
@@ -346,7 +352,6 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
     if (cur_ref.frame_type != INTER_FRAME) continue;
 
     const int ref_base_qindex = cur_ref.base_qindex;
-
     if (ref_base_qindex > cm->quant_params.base_qindex) {
       if ((ref_base_qindex < cand_higher_qp.base_qindex) ||
           (ref_base_qindex == cand_higher_qp.base_qindex &&
@@ -436,7 +441,6 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
     if (cur_ref.frame_type != INTER_FRAME) continue;
 
     const int ref_base_qindex = cur_ref.base_qindex;
-
     if (ref_base_qindex > cm->quant_params.base_qindex) {
       if ((ref_base_qindex < cand_higher_qp.base_qindex) ||
           (ref_base_qindex == cand_higher_qp.base_qindex &&

@@ -682,6 +682,12 @@ typedef struct cfg_options {
    */
   int num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  /*!\brief enable bru
+   *
+   */
+  unsigned int enable_bru;
+#endif  // CONFIG_BRU
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

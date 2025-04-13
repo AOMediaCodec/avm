@@ -20,6 +20,9 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 
@@ -917,7 +920,13 @@ static TX_SIZE set_lpf_parameters(
     if (!tu_edge)
 #endif  // CONFIG_LF_SUB_PU
       return ts;
-
+#if CONFIG_BRU
+    if (cm->bru.enabled) {
+      if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
+        return TX_64X64;
+      }
+    }
+#endif  // CONFIG_BRU
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =

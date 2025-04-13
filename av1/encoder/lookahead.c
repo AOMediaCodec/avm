@@ -46,7 +46,11 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx) {
 struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, unsigned int depth, const int border_in_pixels,
-    int byte_alignment, int num_lap_buffers, bool alloc_pyramid) {
+    int byte_alignment, int num_lap_buffers,
+#if CONFIG_BRU
+    int num_extra_buffers,
+#endif  // CONFIG_BRU
+    bool alloc_pyramid) {
   struct lookahead_ctx *ctx = NULL;
   int lag_in_frames = AOMMAX(1, depth);
 
@@ -56,13 +60,22 @@ struct lookahead_ctx *av1_lookahead_init(
 
   // Allocate memory to keep previous source frames available.
   depth += MAX_PRE_FRAMES;
-
+#if CONFIG_BRU
+  depth += num_extra_buffers;
+#endif  // CONFIG_BRU
   // Allocate the lookahead structures
   ctx = calloc(1, sizeof(*ctx));
   if (ctx) {
     unsigned int i;
     ctx->max_sz = depth;
+#if CONFIG_BRU
+    ctx->read_ctxs[ENCODE_STAGE].pop_sz =
+        ctx->max_sz - MAX_PRE_FRAMES - num_extra_buffers;
+    ctx->extra_sz = num_extra_buffers;
+    ctx->updated_idx = 0;
+#else
     ctx->read_ctxs[ENCODE_STAGE].pop_sz = ctx->max_sz - MAX_PRE_FRAMES;
+#endif
     ctx->read_ctxs[ENCODE_STAGE].valid = 1;
     if (num_lap_buffers) {
       ctx->read_ctxs[LAP_STAGE].pop_sz = lag_in_frames;
@@ -87,6 +100,9 @@ fail:
 
 int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
                        int64_t ts_start, int64_t ts_end,
+#if CONFIG_BRU
+                       int order_hint,
+#endif  // CONFIG_BRU
                        aom_enc_frame_flags_t flags, bool alloc_pyramid) {
   struct lookahead_entry *buf;
   int width = src->y_crop_width;
@@ -105,7 +121,10 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
     ctx->read_ctxs[LAP_STAGE].sz++;
   }
   buf = pop(ctx, &ctx->write_idx);
-
+#if CONFIG_BRU
+  if (++ctx->updated_idx >= ctx->max_sz) ctx->updated_idx -= ctx->max_sz;
+  assert(ctx->updated_idx < ctx->max_sz);
+#endif  // CONFIG_BRU
   new_dimensions = width != buf->img.y_crop_width ||
                    height != buf->img.y_crop_height ||
                    uv_width != buf->img.uv_crop_width ||
@@ -140,8 +159,81 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
   buf->flags = flags;
   aom_remove_metadata_from_frame_buffer(&buf->img);
   aom_copy_metadata_to_frame_buffer(&buf->img, src->metadata);
+#if CONFIG_BRU
+  buf->order_hint = order_hint;
+#endif  // CONFIG_BRU
   return 0;
 }
+
+#if CONFIG_BRU
+struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
+                                            int left_order_hint,
+                                            COMPRESSOR_STAGE stage) {
+  // order hint must be set so that the lookahead buffer can track which entry
+  // need to leave todo: check if closest frame is leaving, do nothing here
+  (void)stage;
+  struct lookahead_entry *buf = NULL;
+  if (ctx) {
+    assert(ctx->read_ctxs[stage].valid == 1);
+    // find the index
+    for (int i = 0; i < ctx->max_sz; i++) {
+      if (ctx->buf[i].order_hint == left_order_hint) {
+        break;
+      }
+    }
+    assert(index >= 0);  // must have one in the lookahead queue
+    ctx->read_ctxs[ENCODE_STAGE].read_idx = ctx->updated_idx;
+    ctx->write_idx = ctx->updated_idx;
+  }
+  return buf;
+}
+
+void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
+                               int refresh_frame_flags,
+                               RefCntBuffer *const ref_frame_map[REF_FRAMES],
+                               COMPRESSOR_STAGE stage) {
+  if (ctx) {
+    assert(ctx->read_ctxs[stage].valid == 1);
+    int last_idx = ctx->updated_idx - 1;
+    if (last_idx < 0) last_idx += ctx->max_sz;
+    for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
+      if (((refresh_frame_flags >> ref_frame) & 1) == 1 &&
+          ref_frame_map[ref_frame]) {
+        int target_order = ref_frame_map[ref_frame]->order_hint;
+        bool use_free_fb = false;
+        for (int j = 0; j < ref_frame; j++) {
+          if (ref_frame_map[j] &&
+              target_order == (int)ref_frame_map[j]->order_hint) {
+            use_free_fb = true;
+          }
+        }
+        if (use_free_fb) {
+          return;
+        }
+        int found_idx = -1;
+        for (int k = 0; k < last_idx; k++) {
+          if ((int)ctx->buf[k].order_hint == target_order) {
+            found_idx = k;
+            break;
+          }
+        }
+        if (found_idx >= 0) {
+          // swap last with found
+          struct lookahead_entry temp = ctx->buf[found_idx];
+          ctx->buf[found_idx] = ctx->buf[last_idx];
+          ctx->buf[last_idx] = temp;
+          ctx->updated_idx--;
+          last_idx--;
+        }
+      }
+    }
+    ctx->updated_idx = last_idx + 1;
+    if (ctx->updated_idx >= ctx->max_sz) ctx->updated_idx -= ctx->max_sz;
+    ctx->read_ctxs[stage].read_idx = ctx->updated_idx;
+    ctx->write_idx = ctx->updated_idx;
+  }
+}
+#endif  // CONFIG_BRU
 
 struct lookahead_entry *av1_lookahead_pop(struct lookahead_ctx *ctx, int drain,
                                           COMPRESSOR_STAGE stage) {
@@ -169,14 +261,22 @@ struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
   assert(read_ctx->valid == 1);
   if (index >= 0) {
     // Forward peek
+#if CONFIG_BRU
+    if (index < read_ctx->sz + ctx->extra_sz) {
+#else
     if (index < read_ctx->sz) {
+#endif  // CONFIG_BRU
       index += read_ctx->read_idx;
       if (index >= ctx->max_sz) index -= ctx->max_sz;
       buf = ctx->buf + index;
     }
   } else if (index < 0) {
     // Backward peek
+#if CONFIG_BRU
+    if (-index <= MAX_PRE_FRAMES + ctx->extra_sz) {
+#else
     if (-index <= MAX_PRE_FRAMES) {
+#endif  // CONFIG_BRU
       index += (int)(read_ctx->read_idx);
       if (index < 0) index += (int)(ctx->max_sz);
       buf = ctx->buf + index;

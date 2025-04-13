@@ -273,6 +273,9 @@ struct av1_extracfg {
 #if CONFIG_EXTRA_DPB
   int num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  unsigned int enable_bru;
+#endif  // CONFIG_BRU
 };
 
 // Example subgop configs. Currently not used by default.
@@ -642,6 +645,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_EXTRA_DPB
   0,    // num_extra_dpb
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  0,    // enable_bru
+#endif  // CONFIG_BRU
 };
 
 struct aom_codec_alg_priv {
@@ -1151,6 +1157,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_EXTRA_DPB
   cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  cfg->enable_bru = extra_cfg->enable_bru;
+#endif  // CONFIG_BRU
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1300,6 +1309,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_EXTRA_DPB
   extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  extra_cfg->enable_bru = cfg->enable_bru;
+#endif  // CONFIG_BRU
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1522,6 +1534,18 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_DERIVED_MVD_SIGN
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
+#if CONFIG_BRU
+  tool_cfg->enable_bru = extra_cfg->enable_bru;
+  if (tool_cfg->enable_bru) {
+    if (cfg->g_lag_in_frames != 0) {
+      tool_cfg->enable_bru = 0;
+    }
+
+    if (cfg->kf_max_dist == 0) {
+      tool_cfg->enable_bru = 0;
+    }
+  }
+#endif
 #if CONFIG_BAWP
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -2941,6 +2965,16 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if CONFIG_BRU
+static aom_codec_err_t ctrl_set_enable_bru(aom_codec_alg_priv_t *ctx,
+                                           va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_bru = CAST(AV1E_SET_ENABLE_BRU, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_BRU
+
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -3159,13 +3193,20 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
       fprintf(stdout,
+#if CONFIG_BRU
+              "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
+#else
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+#endif  // CONFIG_BRU
               " Bytes, "
               "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
               "%2.4f dB(V), "
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
+#if CONFIG_BRU
+              cm->bru.enabled, cm->bru.update_ref_idx,
+#endif  // CONFIG_BRU
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
               cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
               use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
@@ -3173,11 +3214,18 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
               use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
     } else {
       fprintf(stdout,
+#if CONFIG_BRU
+              "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
+#else
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+#endif
               " Bytes, "
               "%6.1fms",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
+#if CONFIG_BRU
+              cm->bru.enabled, cm->bru.update_ref_idx,
+#endif  // CONFIG_BRU
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
               cx_time / 1000.0);
     }
@@ -3186,7 +3234,15 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
     }
+#if CONFIG_BRU
+    if (cpi->oxcf.tool_cfg.enable_bru)
+      fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
+              cm->bru.total_units);
+    else
+      fprintf(stdout, "]\n");
+#else
     fprintf(stdout, "]\n");
+#endif  // CONFIG_BRU
   }
 }
 
@@ -3331,7 +3387,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
             subsampling_x, subsampling_y, lag_in_frames,
             cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
-            ctx->num_lap_buffers, cpi->oxcf.tool_cfg.enable_global_motion);
+            ctx->num_lap_buffers,
+#if CONFIG_BRU
+            cpi->common.seq_params.enable_bru ? 1 : 0,
+#endif  // CONFIG_BRU
+            cpi->oxcf.tool_cfg.enable_global_motion);
       }
       if (!cpi->lookahead)
         aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
@@ -4436,6 +4496,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.num_extra_dpb = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bru, argv,
+                              err_string)) {
+    extra_cfg.enable_bru = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_BRU
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4598,6 +4663,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
+#if CONFIG_BRU
+  { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
+#endif  // CONFIG_BRU
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -4784,6 +4852,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_EXTRA_DPB
         0,  // num_extra_dpb
 #endif      // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+        0,  // enable_bru
+#endif      // CONFIG_BRU
     },      // cfg
 } };
 

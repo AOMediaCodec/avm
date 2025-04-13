@@ -506,7 +506,12 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 
 set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
-
+set_aom_config_var(CONFIG_BRU 0 "enable BRU update")
+set_aom_config_var(
+  CONFIG_BRU_REG_DECODE
+  1
+  "0 use default (optimized) BRU mode, update to BRU ref frames. 0 use regular decode mode, decode on recon and drop bru ref"
+)
 # IST for sub-TU partitions from CWG-E151
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
                    "Enable IST non zero depth TUs from CWG-E151.")

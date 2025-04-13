@@ -34,6 +34,9 @@ struct lookahead_entry {
   int64_t ts_start;
   int64_t ts_end;
   aom_enc_frame_flags_t flags;
+#if CONFIG_BRU
+  int order_hint;
+#endif  // CONFIG_BRU
 };
 
 // The max of past frames we want to keep in the queue.
@@ -53,6 +56,10 @@ struct lookahead_ctx {
   int write_idx;                         /* Write index */
   struct read_ctx read_ctxs[MAX_STAGES]; /* Read context */
   struct lookahead_entry *buf;           /* Buffer list */
+#if CONFIG_BRU
+  int extra_sz;    /* Num of extra buffer used by bru*/
+  int updated_idx; /* idx of active buffer used by bru*/
+#endif             // CONFIG_BRU
 };
 /*!\endcond */
 
@@ -64,7 +71,11 @@ struct lookahead_ctx {
 struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, unsigned int depth, const int border_in_pixels,
-    int byte_alignment, int num_lap_buffers, bool alloc_pyramid);
+    int byte_alignment, int num_lap_buffers,
+#if CONFIG_BRU
+    int num_extra_buffers,
+#endif  // CONFIG_BRU
+    bool alloc_pyramid);
 
 /**\brief Destroys the lookahead stage
  */
@@ -82,12 +93,16 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx);
  * \param[in] src               Pointer to the image to enqueue
  * \param[in] ts_start          Timestamp for the start of this frame
  * \param[in] ts_end            Timestamp for the end of this frame
+ * \param[in] order_hint        Order hint of this frame [CONFIG_BRU 1 only]
  * \param[in] flags             Flags set on this frame
  * \param[in] alloc_pyramid     Whether to allocate a downsampling pyramid
  *                              for each frame buffer
  */
 int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
                        int64_t ts_start, int64_t ts_end,
+#if CONFIG_BRU
+                       int order_hint,
+#endif  // CONFIG_BRU
                        aom_enc_frame_flags_t flags, bool alloc_pyramid);
 
 /**\brief Get the next source buffer to encode
@@ -113,6 +128,26 @@ struct lookahead_entry *av1_lookahead_pop(struct lookahead_ctx *ctx, int drain,
  */
 struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
                                            COMPRESSOR_STAGE stage);
+
+#if CONFIG_BRU
+/**\brief One entry leave the queue
+ *
+ * \param[in] ctx       Pointer to the lookahead context
+ * \param[in] left_order_hint, which frame need to leave
+ * \param[in] cur_order_hint
+ * \param[in] stage     Encoder stage
+ *
+ * \retval Return NULL, if no buffer exists at the specified index
+ */
+struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
+                                            int left_order_hint,
+                                            COMPRESSOR_STAGE stage);
+
+void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
+                               int refresh_frame_flags,
+                               RefCntBuffer *const ref_frame_map[REF_FRAMES],
+                               COMPRESSOR_STAGE stage);
+#endif  // CONFIG_BRU
 
 /**\brief Get the number of frames currently in the lookahead queue
  */

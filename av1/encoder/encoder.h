@@ -26,6 +26,9 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif
 #include "av1/common/entropymode.h"
 #include "av1/common/enums.h"
 #include "av1/common/pred_common.h"
@@ -968,6 +971,10 @@ typedef struct {
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
+#if CONFIG_BRU
+  // Indicates if BRU is enabled and the mode
+  unsigned int enable_bru;
+#endif  // CONFIG_BRU
 #if CONFIG_AFFINE_REFINEMENT
   // Indicates if affine motion refinement should be enabled
   aom_opfl_refine_type enable_affine_refine;
@@ -2714,6 +2721,77 @@ typedef struct {
   int64_t first_ever;
 } TimeStamps;
 
+#if CONFIG_BRU
+/*!
+ * \brief structure store active sb locaitons in queue
+ */
+typedef struct {
+  int x;
+  int y;
+} ARD_Coordinate;
+
+/*!
+ * \brief queue structure for ARD BFS.
+ */
+typedef struct ARD_QueueNode {
+  ARD_Coordinate item;
+  struct ARD_QueueNode *next;
+} ARD_QueueNode;
+
+/*!
+ * \brief queue node for ARD BFS
+ */
+typedef struct {
+  ARD_QueueNode *front;
+  ARD_QueueNode *rear;
+} ARD_Queue;
+
+static INLINE ARD_Queue *ard_create_queue() {
+  ARD_Queue *q = (ARD_Queue *)malloc(sizeof(ARD_Queue));
+  q->front = NULL;
+  q->rear = NULL;
+  return q;
+}
+// Function to check if the queue is empty
+static INLINE bool ard_is_queue_empty(ARD_Queue *q) { return q->front == NULL; }
+
+// Function to enqueue an item
+static INLINE void ard_enqueue(ARD_Queue *q, ARD_Coordinate item) {
+  ARD_QueueNode *newNode = (ARD_QueueNode *)malloc(sizeof(ARD_QueueNode));
+  newNode->item = item;
+  newNode->next = NULL;
+  if (ard_is_queue_empty(q)) {
+    q->front = newNode;
+    q->rear = newNode;
+  } else {
+    q->rear->next = newNode;
+    q->rear = newNode;
+  }
+}
+
+// Function to dequeue an item
+static INLINE ARD_Coordinate ard_dequeue(ARD_Queue *q) {
+  if (ard_is_queue_empty(q)) {
+    ARD_Coordinate item = { -1, -1 };
+    return item;
+  }
+  ARD_QueueNode *temp = q->front;
+  ARD_Coordinate item = temp->item;
+  q->front = q->front->next;
+  if (q->front == NULL) {
+    q->rear = NULL;
+  }
+  free(temp);
+  return item;
+}
+
+// Function to check if a coordinate is valid
+static INLINE bool is_valid_ard_location(int x, int y, int width, int height) {
+  return (x >= 0 && x < width && y >= 0 && y < height);
+}
+
+#endif
+
 /*!
  * \brief Top level encoder structure.
  */
@@ -2935,6 +3013,18 @@ typedef struct AV1_COMP {
    * Segmentation related information for current frame.
    */
   EncSegmentationInfo enc_seg;
+
+#if CONFIG_BRU
+  /*!
+   * queue for encoding active SBs in each active region
+   */
+  ARD_Queue **enc_act_sb_queue;
+
+  /*!
+   * store queue memory allocated size
+   */
+  uint32_t enc_act_queue_size;
+#endif
 
   /*!
    * Parameters related to cyclic refresh aq-mode.
@@ -3350,6 +3440,9 @@ typedef struct EncodeFrameInput {
   /*!\cond */
   YV12_BUFFER_CONFIG *source;
   YV12_BUFFER_CONFIG *last_source;
+#if CONFIG_BRU
+  YV12_BUFFER_CONFIG *bru_ref_source;
+#endif  // CONFIG_BRU
   int64_t ts_duration;
   /*!\endcond */
 } EncodeFrameInput;
@@ -3966,6 +4059,10 @@ static INLINE char const *get_frame_type_enum(int type) {
   }
   return "error";
 }
+#endif
+#if CONFIG_BRU
+int enc_bru_swap_stage(AV1_COMP *cpi);
+void enc_bru_swap_ref(AV1_COMMON *const cm);
 #endif
 
 /*!\endcond */

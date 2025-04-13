@@ -323,6 +323,14 @@ static const PREDICTION_MODE fimode_to_intradir[FILTER_INTRA_MODES] = {
 #define TXB_COEFF_COST_MAP_SIZE (MAX_MIB_SIZE)
 #endif
 
+#if CONFIG_BRU
+typedef enum {
+  BRU_INACTIVE_SB = 0,  //'00'
+  BRU_SUPPORT_SB = 1,   //'01'
+  BRU_ACTIVE_SB = 2,    //'10'
+} BruActiveMode;
+#endif  // CONFIG_BRU
+
 typedef struct RD_STATS {
   int rate;
   int64_t dist;
@@ -807,6 +815,15 @@ typedef struct MB_MODE_INFO {
   /*! \brief The implicitly derived scaling factors*/
   int64_t mhccp_implicit_param[2][MHCCP_NUM_PARAMS];  //[u/v]
 #endif                                                // CONFIG_ENABLE_MHCCP
+#if CONFIG_BRU
+  /*! \brief Whether current block is inactive(0), support (1) and active(2)*/
+  BruActiveMode sb_active_mode;
+  /*! \brief store restoration type in current SB */
+  int local_rest_type;
+  /*! \brief store ccso blk flag in current SB shared for y/u/v in current
+   * implementation*/
+  int local_ccso_blk_flag;
+#endif  // CONFIG_BRU
 } MB_MODE_INFO;
 
 #if CONFIG_C071_SUBBLK_WARPMV || CONFIG_AFFINE_REFINEMENT || \
@@ -880,6 +897,9 @@ void av1_free_ptree_recursive(PARTITION_TREE *ptree);
 typedef struct SB_INFO {
   int mi_row;
   int mi_col;
+#if CONFIG_BRU
+  BruActiveMode sb_active_mode;
+#endif
   PARTITION_TREE *ptree_root[2];
   MvSubpelPrecision sb_mv_precision;
 } SB_INFO;

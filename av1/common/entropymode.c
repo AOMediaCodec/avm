@@ -8359,6 +8359,10 @@ static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
 };
 
 #endif  // CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_BRU
+static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3(
+    4124, 16615) };
+#endif  // CONFIG_BRU
 
 #if CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_ENTROPY_PARA
@@ -9568,6 +9572,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);
   av1_copy(fc->inter_ext_tx_cdf, default_inter_ext_tx_cdf);
+#if CONFIG_BRU
+  av1_copy(fc->bru_mode_cdf, default_bru_mode_cdf);
+#endif  // CONFIG_BRU
   av1_copy(fc->skip_mode_cdfs, default_skip_mode_cdfs);
   av1_copy(fc->skip_txfm_cdfs, default_skip_txfm_cdfs);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -10022,6 +10029,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   CUMULATIVE_AVERAGE_CDF(ctx_left->comp_group_idx_cdf,
                          ctx_tr->comp_group_idx_cdf, 2);
+#if CONFIG_BRU
+  CUMULATIVE_AVERAGE_CDF(ctx_left->bru_mode_cdf, ctx_tr->bru_mode_cdf, 3);
+#endif
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -10529,6 +10539,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->lossless_inter_tx_type_cdf, 2);
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   SHIFT_CDF(ctx_ptr->comp_group_idx_cdf, 2);
+#if CONFIG_BRU
+  SHIFT_CDF(ctx_ptr->bru_mode_cdf, 3);
+#endif
   SHIFT_CDF(ctx_ptr->skip_mode_cdfs, 2);
   SHIFT_CDF(ctx_ptr->skip_txfm_cdfs, 2);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -11047,6 +11060,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->lossless_inter_tx_type_cdf, 2);
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   AVERAGE_CDF(ctx_left->comp_group_idx_cdf, ctx_tr->comp_group_idx_cdf, 2);
+#if CONFIG_BRU
+  AVERAGE_CDF(ctx_left->bru_mode_cdf, ctx_tr->bru_mode_cdf, 3);
+#endif
   AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
   AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);

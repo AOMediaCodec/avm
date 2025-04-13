@@ -18,6 +18,9 @@
 #include <string.h>
 
 #include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
@@ -482,6 +485,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
+#if CONFIG_BRU
+  seq->enable_bru = tool_cfg->enable_bru;
+  /*
+  // place holder, will imporve mt later
+  if (seq->enable_bru && oxcf->max_threads>1) {
+    fprintf(stderr, "turn off BRU for multi-threading\n");
+    seq->enable_bru = 0;
+  }
+  */
+#endif  // CONFIG_BRU
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
 #endif  // CONFIG_REFINEMV
@@ -1040,6 +1053,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
       realloc_segmentation_maps(cpi);
+#if CONFIG_BRU
+      realloc_ARD_queue(cpi);
+#endif  // CONFIG_BRU
       initial_dimensions->width = initial_dimensions->height = 0;
     }
   }
@@ -1252,6 +1268,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->tile_data = NULL;
   cpi->last_show_frame_buf = NULL;
   realloc_segmentation_maps(cpi);
+#if CONFIG_BRU
+  realloc_ARD_queue(cpi);
+#endif  // CONFIG_BRU
 
   cpi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
 #if CONFIG_INTERNAL_STATS
@@ -1677,6 +1696,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if CONFIG_OPTFLOW_ON_TIP
   free_optflow_bufs(cm);
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_BRU
+  free_bru_info(cm);
+#endif  // CONFIG_BRU
+
   av1_remove_common(cm);
   av1_free_ref_frame_buffers(cm->buffer_pool);
 
@@ -2265,6 +2288,9 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
       realloc_segmentation_maps(cpi);
+#if CONFIG_BRU
+      realloc_ARD_queue(cpi);
+#endif  // CONFIG_BRU
     }
   }
   update_frame_size(cpi);
@@ -2392,6 +2418,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
                                     cm->width, cm->height);
 
   set_ref_ptrs(cm, xd, 0, 0);
+#if CONFIG_BRU
+  realloc_bru_info(cm);
+#endif
 }
 
 #if CONFIG_GDF
@@ -2597,6 +2626,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   const YV12_BUFFER_CONFIG *ref = cpi->source;
   int ref_stride;
   const int use_ccso = !cm->features.coded_lossless && !cm->tiles.large_scale &&
+#if CONFIG_BRU
+                       !cm->bru.frame_inactive_flag &&
+#endif
                        cm->seq_params.enable_ccso;
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -2693,6 +2725,17 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
+#if CONFIG_BRU && CONFIG_CCSO_IMPROVE
+    // if not use ccso, need to init
+    cm->ccso_info.ccso_frame_flag = false;
+    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
+        cm->ccso_info.ccso_enable[2] = 0;
+    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+      cm->ccso_info.sb_reuse_ccso[plane] = false;
+      cm->ccso_info.reuse_ccso[plane] = false;
+    }
+#endif
   }
   if (use_ccso) {
     av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -2804,11 +2847,20 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                  cm->features.coded_lossless && cm->features.all_lossless));
 
   const int use_loopfilter = !cm->features.coded_lossless &&
+#if CONFIG_BRU
+                             !cm->bru.frame_inactive_flag &&
+#endif
                              !cm->tiles.large_scale &&
                              cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef = cm->seq_params.enable_cdef &&
+#if CONFIG_BRU
+                       !cm->bru.frame_inactive_flag &&
+#endif
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = cm->seq_params.enable_restoration &&
+#if CONFIG_BRU
+                              !cm->bru.frame_inactive_flag &&
+#endif
                               !cm->features.all_lossless &&
                               !cm->tiles.large_scale;
 
@@ -3386,6 +3438,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
   if (!frame_is_intra_only(cm) && !encode_show_existing_frame(cm) &&
       cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode
+#if CONFIG_BRU
+      && !cm->bru.enabled
+#endif      
 #if CONFIG_ENABLE_SR
       && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
@@ -3880,7 +3935,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
-
+#if CONFIG_BRU
+  if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+    enc_bru_swap_stage(cpi);
+  }
+#endif
 #if CONFIG_TEMP_LR
   const int num_planes = av1_num_planes(cm);
   for (int p = 0; p < num_planes; ++p) {
@@ -3919,9 +3978,16 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // Pick the loop filter level for the frame.
 #if CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  loopfilter_frame(cpi, cm);
+#if CONFIG_BRU
+  if (!cm->bru.frame_inactive_flag)
+#endif
+    loopfilter_frame(cpi, cm);
 #else
-  if (!is_global_intrabc_allowed(cm)) {
+  if (!is_global_intrabc_allowed(cm)
+#if CONFIG_BRU
+      && !cm->bru.frame_inactive_flag
+#endif
+  ) {
     loopfilter_frame(cpi, cm);
   } else {
     cm->lf.filter_level[0] = 0;
@@ -3988,6 +4054,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
       const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
       if (temp_ref_buf->frame_type != INTER_FRAME) continue;
+#if CONFIG_BRU
+      if (cm->bru.enabled && i == cm->bru.update_ref_idx) continue;
+#endif
 
       *cm->fc = temp_ref_buf->frame_context;
 
@@ -4025,12 +4094,16 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
     cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
                                     cm->features.primary_ref_frame;
-
     const int map_idx =
         get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
     const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
-
-    *cm->fc = ref_buf->frame_context;
+#if CONFIG_BRU
+    if (cm->bru.enabled &&
+        cm->features.primary_ref_frame == cm->bru.update_ref_idx)
+      *cm->fc = cm->bru.update_ref_fc;
+    else
+#endif
+      *cm->fc = ref_buf->frame_context;
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
@@ -4052,9 +4125,18 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
         !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
         (ref_frame_used != PRIMARY_REF_NONE)) {
-      av1_avg_cdf_symbols(cm->fc,
-                          &cm->ref_frame_map[secondary_map_idx]->frame_context,
-                          AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+#if CONFIG_BRU
+      if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
+#endif
+        av1_avg_cdf_symbols(
+            cm->fc, &cm->ref_frame_map[secondary_map_idx]->frame_context,
+            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+#if CONFIG_BRU
+      } else {
+        av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
+                            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+      }
+#endif
     }
 #endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
@@ -4062,7 +4144,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_finalize_encoded_frame(cpi);
-  // Build the bitstream
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_pack_bitstream_final_time);
 #endif
@@ -4071,6 +4152,23 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_pack_bitstream_final_time);
 #endif
+#if CONFIG_BRU
+  // if bru enabled, remove the source associated with the bru_ref
+  if (cm->bru.enabled) {
+    av1_lookahead_leave(cpi->lookahead, cm->bru.ref_order, ENCODE_STAGE);
+    // get current frame
+    const int display_order_hint_factor =
+        1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+    for (int i = 0; i < cpi->lookahead->max_sz - 1; i++) {
+      if ((cpi->lookahead->buf[i].order_hint % display_order_hint_factor) ==
+          (int)cm->cur_frame->order_hint) {
+        cpi->unfiltered_source = &cpi->lookahead->buf[i].img;
+        cpi->source = &cpi->lookahead->buf[i].img;
+        break;
+      }
+    }
+  }
+#endif  // CONFIG_BRU
 
   // Compute sse and rate.
   if (sse != NULL) {
@@ -4637,8 +4735,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENABLE_SR
 
   cpi->seq_params_locked = 1;
-
   // Update reference frame ids for reference frames this frame will overwrite
+
   if (seq_params->frame_id_numbers_present_flag) {
     for (int i = 0; i < seq_params->ref_frames; i++) {
       if ((current_frame->refresh_frame_flags >> i) & 1) {
@@ -4664,6 +4762,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
+#if CONFIG_BRU
+  if (cm->seq_params.enable_bru && !cm->bru.enabled) {
+    bru_lookahead_buf_refresh(cpi->lookahead,
+                              cm->current_frame.refresh_frame_flags,
+                              cm->ref_frame_map, ENCODE_STAGE);
+  }
+#endif
 
   refresh_reference_frames(cpi);
 
@@ -4687,7 +4792,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-    av1_reset_cdf_symbol_counters(cm->fc);
+#if CONFIG_BRU
+    if (!cm->bru.frame_inactive_flag)
+#endif
+      av1_reset_cdf_symbol_counters(cm->fc);
   }
   if (!cm->tiles.large_scale) {
     cm->cur_frame->frame_context = *cm->fc;
@@ -4914,8 +5022,15 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       res = -1;
 #endif  //  CONFIG_DENOISE
 
-  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
-                         cpi->alloc_pyramid))
+#if CONFIG_BRU
+  const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
+                         cm->current_frame.frame_number + order_offset,
+                         frame_flags, cpi->alloc_pyramid))
+#else
+    if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
+                           frame_flags, cpi->alloc_pyramid))
+#endif  // CONFIG_BRU
     res = -1;
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&timer);
@@ -5309,3 +5424,175 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   global_headers->sz = global_header_buf_size;
   return global_headers;
 }
+
+#if CONFIG_BRU
+void enc_bru_swap_ref(AV1_COMMON *const cm) {
+  int n_ranked = cm->bru.ref_n_ranked;
+  RefScoreData *scores = (RefScoreData *)cm->bru.ref_scores;
+  // restrict ref by bru ref_idx
+  int replaced_bru_ref_idx = -1;
+  const int num_past_refs = cm->ref_frames_info.num_past_refs;
+  if (cm->seq_params.enable_bru) {
+    if (cm->bru.enabled) {
+      if (cm->bru.ref_order >= 0) {
+        cm->bru.update_ref_idx = -1;
+        cm->bru.explicit_ref_idx = -1;
+        for (int i = 0; i < num_past_refs; i++) {
+          const int ref_list_order =
+              cm->ref_frame_map[cm->remapped_ref_idx[i]]->order_hint;
+          if (ref_list_order == cm->bru.ref_order) {
+            cm->bru.update_ref_idx = i;
+            cm->bru.explicit_ref_idx = cm->remapped_ref_idx[i];
+            break;
+          }
+        }
+        // happend in encoder only, decoder do not know bru.ref_order yet
+        if (cm->bru.update_ref_idx == -1) {
+          for (int i = num_past_refs; i < REF_FRAMES; i++) {
+            const int ref_list_order =
+                cm->ref_frame_map[scores[i].index]->order_hint;
+            if (ref_list_order == cm->bru.ref_order) {
+              replaced_bru_ref_idx = i;
+              break;
+            }
+          }
+        }
+      }
+
+      // start to swap
+      if (replaced_bru_ref_idx >= 0) {
+        cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs - 1] =
+            scores[replaced_bru_ref_idx].index;
+        cm->ref_frames_info
+            .ref_frame_distance[cm->ref_frames_info.num_total_refs - 1] =
+            cm->seq_params.order_hint_info.enable_order_hint
+                ? scores[replaced_bru_ref_idx].distance
+                : 1;
+        RefScoreData tmp_score = scores[cm->ref_frames_info.num_total_refs - 1];
+        scores[cm->ref_frames_info.num_total_refs - 1] =
+            scores[replaced_bru_ref_idx];
+        scores[replaced_bru_ref_idx] = tmp_score;
+        cm->bru.update_ref_idx = cm->ref_frames_info.num_total_refs - 1;
+        cm->bru.explicit_ref_idx =
+            cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs - 1];
+        av1_get_past_future_cur_ref_lists(cm, cm->bru.ref_scores);
+        assert(cm->bru.explicit_ref_idx >= 0 && cm->bru.update_ref_idx >= 0);
+      }
+    }
+
+    if (n_ranked > INTER_REFS_PER_FRAME)
+      cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
+
+    // Fill any slots that are empty (should only happen for the first 7 frames)
+    for (int i = 0; i < REF_FRAMES; i++) {
+      if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
+    }
+  }
+}
+int enc_bru_swap_stage(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+  if (cm->bru.enabled) {
+    // dump active sb queue
+    for (uint32_t r = 0; r < cm->bru.num_active_regions; r++) {
+      ARD_Queue *q = cpi->enc_act_sb_queue[r];
+      // make sure every queue is dumpped
+      while (!ard_is_queue_empty(q)) {
+        ard_dequeue(q);
+      }
+      // after dump, free the ARD_Queue structure
+      free(q);
+      cpi->enc_act_sb_queue[r] = NULL;
+    }
+    assert(cm->bru.update_ref_idx >= 0);
+#if CONFIG_TEMP_LR
+    RefCntBuffer *tmp_buf = cm->cur_frame;
+#endif
+    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+    assert(ref_buf != NULL);
+    cm->bru.update_ref_fc = ref_buf->frame_context;  // pass all the values
+    MV_REFERENCE_FRAME ref_frame;
+    for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+      if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs) {
+        ref_buf->ref_order_hints[ref_frame] = buf->order_hint;
+        ref_buf->ref_display_order_hint[ref_frame] = buf->display_order_hint;
+      } else {
+        ref_buf->ref_order_hints[ref_frame] = -1;
+        ref_buf->ref_display_order_hint[ref_frame] = -1;
+      }
+    }
+    ref_buf->order_hint = cm->cur_frame->order_hint;
+    ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
+    ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
+    ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
+    ref_buf->base_qindex = cm->cur_frame->base_qindex;
+    ref_buf->num_ref_frames = cm->cur_frame->num_ref_frames;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    ref_buf->frame_output_done = 0;
+#endif
+#if CONFIG_TEMP_LR
+    ref_buf->rst_info[0] = tmp_buf->rst_info[0];
+    ref_buf->rst_info[1] = tmp_buf->rst_info[1];
+    ref_buf->rst_info[2] = tmp_buf->rst_info[2];
+    av1_copy_rst_frame_filters(&ref_buf->rst_info[0], &tmp_buf->rst_info[0]);
+    av1_copy_rst_frame_filters(&ref_buf->rst_info[1], &tmp_buf->rst_info[1]);
+    av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
+#endif
+#if CONFIG_CCSO_IMPROVE
+    if (cm->bru.frame_inactive_flag) {
+      ref_buf->ccso_info.ccso_frame_flag = 0;
+    } else {
+      ref_buf->ccso_info.ccso_frame_flag = tmp_buf->ccso_info.ccso_frame_flag;
+    }
+    for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
+      if (cm->bru.frame_inactive_flag) {
+        cm->ccso_info.reuse_ccso[plane] = 0;
+        cm->ccso_info.sb_reuse_ccso[plane] = 0;
+        cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
+        cm->ccso_info.ccso_enable[plane] = 0;
+        ref_buf->ccso_info.reuse_ccso[plane] = 0;
+        ref_buf->ccso_info.sb_reuse_ccso[plane] = 0;
+        ref_buf->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
+        ref_buf->ccso_info.ccso_enable[plane] = 0;
+        continue;
+      }
+      // copy from current to bru ref
+      ref_buf->ccso_info.reuse_ccso[plane] =
+          tmp_buf->ccso_info.reuse_ccso[plane];
+      ref_buf->ccso_info.sb_reuse_ccso[plane] =
+          tmp_buf->ccso_info.sb_reuse_ccso[plane];
+      ref_buf->ccso_info.ccso_enable[plane] =
+          tmp_buf->ccso_info.ccso_enable[plane];
+      ref_buf->ccso_info.ccso_ref_idx[plane] =
+          tmp_buf->ccso_info.ccso_ref_idx[plane];
+      ref_buf->ccso_info.subsampling_x[plane] =
+          plane > 0 ? cm->seq_params.subsampling_x : 0;
+      ref_buf->ccso_info.subsampling_y[plane] =
+          plane > 0 ? cm->seq_params.subsampling_y : 0;
+      ref_buf->ccso_info.reuse_root_ref[plane] =
+          tmp_buf->ccso_info.reuse_root_ref[plane];
+      const int log2_filter_unit_size_y =
+          plane > 0 ? CCSO_BLK_SIZE
+                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;
+      const int log2_filter_unit_size_x =
+          plane > 0 ? CCSO_BLK_SIZE
+                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_x;
+      const int ccso_nvfb = ((cm->mi_params.mi_rows >>
+                              (plane ? cm->seq_params.subsampling_y : 0)) +
+                             (1 << log2_filter_unit_size_y >> 2) - 1) /
+                            (1 << log2_filter_unit_size_y >> 2);
+      const int ccso_nhfb = ((cm->mi_params.mi_cols >>
+                              (plane ? cm->seq_params.subsampling_x : 0)) +
+                             (1 << log2_filter_unit_size_x >> 2) - 1) /
+                            (1 << log2_filter_unit_size_x >> 2);
+      const int sb_count = ccso_nvfb * ccso_nhfb;
+      av1_copy_ccso_filters(&ref_buf->ccso_info, &tmp_buf->ccso_info, plane, 1,
+                            1, sb_count);
+    }
+#endif
+    // replace cur by bru_ref
+    assign_frame_buffer_p(&cm->cur_frame, ref_buf);
+  }
+  return 0;
+}
+#endif

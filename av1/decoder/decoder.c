@@ -32,6 +32,9 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
@@ -430,6 +433,9 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   dec_free_optflow_bufs(&pbi->common);
 #endif  // CONFIG_OPTFLOW_ON_TIP
 
+#if CONFIG_BRU
+  free_bru_info(&pbi->common);
+#endif  // CONFIG_BRU
   av1_dec_free_cb_buf(pbi);
 #if CONFIG_ACCOUNTING
   aom_accounting_clear(&pbi->accounting);
@@ -673,19 +679,26 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       // The following for loop needs to release the reference stored in
       // cm->ref_frame_map[ref_index] before storing a reference to
       // cm->cur_frame in cm->ref_frame_map[ref_index].
-      for (int mask = cm->current_frame.refresh_frame_flags; mask; mask >>= 1) {
-        if (mask & 1) {
+#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
+      if (!cm->bru.enabled) {
+#endif  // CONFIG_BRU
+        for (int mask = cm->current_frame.refresh_frame_flags; mask;
+             mask >>= 1) {
+          if (mask & 1) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-          if (cm->seq_params.enable_frame_output_order &&
-              is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
-            output_frame_buffers(pbi, ref_index);
+            if (cm->seq_params.enable_frame_output_order &&
+                is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
+              output_frame_buffers(pbi, ref_index);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-          decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-          cm->ref_frame_map[ref_index] = cm->cur_frame;
-          ++cm->cur_frame->ref_count;
+            decrease_ref_count(cm->ref_frame_map[ref_index], pool);
+            cm->ref_frame_map[ref_index] = cm->cur_frame;
+            ++cm->cur_frame->ref_count;
+          }
+          ++ref_index;
         }
-        ++ref_index;
+#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
       }
+#endif  // CONFIG_BRU
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                           pbi->enable_subgop_stats);
     }
