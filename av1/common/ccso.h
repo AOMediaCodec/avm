@@ -20,6 +20,8 @@
 
 #ifdef CONFIG_BRU
 #define CCSO_REFACTORING 1
+#else
+#define CCSO_REFACTORING 0
 #endif
 
 #include <float.h>
