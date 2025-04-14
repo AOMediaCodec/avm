@@ -2495,6 +2495,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_MRLS_IMPROVE
       } else {
         mbmi->mrl_index = 0;
+#if CONFIG_MRLS_IMPROVE
+        mbmi->multi_line_mrl = 0;
+#endif  // CONFIG_MRLS_IMPROVE
       }
     } else {
       mbmi->mrl_index =
@@ -3303,6 +3306,9 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_MRLS_IMPROVE
       } else {
         mbmi->mrl_index = 0;
+#if CONFIG_MRLS_IMPROVE
+        mbmi->multi_line_mrl = 0;
+#endif  // CONFIG_MRLS_IMPROVE
       }
     } else {
       mbmi->mrl_index =

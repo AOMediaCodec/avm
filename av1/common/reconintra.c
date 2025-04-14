@@ -1693,7 +1693,11 @@ static void build_intra_predictors_high(
   assert(n_left_px >= 0);
   assert(n_bottomleft_px >= 0);
 
-  if ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0)) {
+  if (
+#if CONFIG_MRLS_IMPROVE
+      xd->mi[0]->multi_line_mrl == 0 &&
+#endif
+      ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0))) {
     int val;
     if (need_left) {
 #if CONFIG_MRLS_IMPROVE
