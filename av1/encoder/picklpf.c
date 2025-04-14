@@ -127,6 +127,7 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   const int min_filter_offset = df_par_min_val;
   const int max_filter_offset = df_par_max_val;
 #else
+  const uint8_t df_par_bits = DF_PAR_BITS;
   const int min_filter_offset = DF_PAR_MIN_VAL;
   const int max_filter_offset = DF_PAR_MAX_VAL;
 #endif  // CONFIG_DF_PAR_BITS
@@ -288,40 +289,21 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   int best_bits = 0;
   int start_bits = 0;
   if (dir == 2) {
-#if CONFIG_DF_PAR_BITS
     start_bits = offsets[off_ind] ? df_par_bits : 0;
     best_bits = offset_best ? df_par_bits : 0;
-#else
-    start_bits = offsets[off_ind] ? DF_PAR_BITS : 0;
-    best_bits = offset_best ? DF_PAR_BITS : 0;
-#endif  // CONFIG_DF_PAR_BITS
   } else if (dir == 0) {
     int hor_q_ind = 1;  // offset for the hor dir
     int hor_offset = last_frame_offsets[(hor_q_ind + 1) + off_ind];
-#if CONFIG_DF_PAR_BITS
     int hor_bits = hor_offset ? df_par_bits : 0;
     start_bits = hor_bits + (offsets[off_ind] == hor_offset ? 0 : df_par_bits);
     best_bits = hor_bits + (offset_best == hor_offset ? 0 : df_par_bits);
-#else
-    int hor_bits = hor_offset ? DF_PAR_BITS : 0;
-    start_bits = hor_bits + (offsets[off_ind] == hor_offset ? 0 : DF_PAR_BITS);
-    best_bits = hor_bits + (offset_best == hor_offset ? 0 : DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
-
   } else {               // dir == 1
     int vert_q_ind = 0;  // offset for the vert dir
     int vert_offset = last_frame_offsets[vert_q_ind + off_ind];
-#if CONFIG_DF_PAR_BITS
     int vert_bits = vert_offset ? df_par_bits : 0;
     start_bits =
         vert_bits + (offsets[off_ind] == vert_offset ? 0 : df_par_bits);
     best_bits = vert_bits + (offset_best == vert_offset ? 0 : df_par_bits);
-#else
-    int vert_bits = vert_offset ? DF_PAR_BITS : 0;
-    start_bits =
-        vert_bits + (offsets[off_ind] == vert_offset ? 0 : DF_PAR_BITS);
-    best_bits = vert_bits + (offset_best == vert_offset ? 0 : DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
   }
 
   double best_cost =
@@ -332,21 +314,12 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                                      start_err, cm->seq_params.bit_depth);
 
 #else
-#if CONFIG_DF_PAR_BITS
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult * chroma_lambda_mult, offset_best ? df_par_bits : 0, best_err,
       cm->seq_params.bit_depth);
   double start_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult * chroma_lambda_mult, offsets[off_ind] ? df_par_bits : 0,
       start_err, cm->seq_params.bit_depth);
-#else
-  double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult * chroma_lambda_mult, offset_best ? DF_PAR_BITS : 0, best_err,
-      cm->seq_params.bit_depth);
-  double start_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult * chroma_lambda_mult, offsets[off_ind] ? DF_PAR_BITS : 0,
-      start_err, cm->seq_params.bit_depth);
-#endif  // CONFIG_DF_PAR_BITS
 #endif  // DF_DUAL
 
   if (best_cost_ret) *best_cost_ret = AOMMIN(best_cost, start_cost);

@@ -5174,6 +5174,9 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 #if CONFIG_DF_PAR_BITS
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
+#else
+  const uint8_t df_par_bits = DF_PAR_BITS;
+  const uint8_t df_par_offset = DF_PAR_OFFSET;
 #endif  // CONFIG_DF_PAR_BITS
 #if DF_DUAL
   if (lf->filter_level[0]) {
@@ -5181,25 +5184,15 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 
     aom_wb_write_bit(wb, luma_delta_q_flag);
     if (luma_delta_q_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_q_luma[0] + df_par_offset,
                            df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_q_luma[0] + DF_PAR_OFFSET,
-                           DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma[0] != 0;
     aom_wb_write_bit(wb, luma_delta_side_flag);
     if (luma_delta_side_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_side_luma[0] + df_par_offset,
                            df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_side_luma[0] + DF_PAR_OFFSET,
-                           DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #else
     assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
@@ -5211,25 +5204,15 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 
     aom_wb_write_bit(wb, luma_delta_q_flag);
     if (luma_delta_q_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_q_luma[1] + df_par_offset,
                            df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_q_luma[1] + DF_PAR_OFFSET,
-                           DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma[1] != lf->delta_side_luma[0];
     aom_wb_write_bit(wb, luma_delta_side_flag);
     if (luma_delta_side_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_side_luma[1] + df_par_offset,
                            df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_side_luma[1] + DF_PAR_OFFSET,
-                           DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #else
     assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
@@ -5241,23 +5224,14 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 
     aom_wb_write_bit(wb, luma_delta_q_flag);
     if (luma_delta_q_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_q_luma + df_par_offset, df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_q_luma + DF_PAR_OFFSET, DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma != 0;
     aom_wb_write_bit(wb, luma_delta_side_flag);
     if (luma_delta_side_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_side_luma + df_par_offset,
                            df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_side_luma + DF_PAR_OFFSET,
-                           DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #else
     assert(lf->delta_q_luma == lf->delta_side_luma);
@@ -5269,11 +5243,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 
     aom_wb_write_bit(wb, u_delta_q_flag);
     if (u_delta_q_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_q_u + df_par_offset, df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_q_u + DF_PAR_OFFSET, DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #if DF_TWO_PARAM
     int u_delta_side_flag = lf->delta_side_u != 0;
@@ -5291,21 +5261,13 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 
     aom_wb_write_bit(wb, v_delta_q_flag);
     if (v_delta_q_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_q_v + df_par_offset, df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_q_v + DF_PAR_OFFSET, DF_PAR_BITS);
-#endif  // CONFIG_DF_PAR_BITS
     }
 #if DF_TWO_PARAM
     int v_delta_side_flag = lf->delta_side_v != 0;
     aom_wb_write_bit(wb, v_delta_side_flag);
     if (v_delta_side_flag) {
-#if CONFIG_DF_PAR_BITS
       aom_wb_write_literal(wb, lf->delta_side_v + df_par_offset, df_par_bits);
-#else
-      aom_wb_write_literal(wb, lf->delta_side_v + DF_PAR_OFFSET, DF_PAR_BITS);
-#endif
     }
 #else
     assert(lf->delta_q_v == lf->delta_side_v);

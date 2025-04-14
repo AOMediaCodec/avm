@@ -3611,6 +3611,9 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 #if CONFIG_DF_PAR_BITS
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
+#else
+  const uint8_t df_par_bits = DF_PAR_BITS;
+  const uint8_t df_par_offset = DF_PAR_OFFSET;
 #endif  // CONFIG_DF_PAR_BITS
 
 #if DF_DUAL
@@ -3618,11 +3621,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[0] =
-#if CONFIG_DF_PAR_BITS
           aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_luma[0] = 0;
     }
@@ -3630,11 +3629,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma[0] =
-#if CONFIG_DF_PAR_BITS
           aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma[0] = 0;
     }
@@ -3649,11 +3644,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[1] =
-#if CONFIG_DF_PAR_BITS
           aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_q_luma[1] = lf->delta_q_luma[0];
     }
@@ -3661,11 +3652,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma[1] =
-#if CONFIG_DF_PAR_BITS
           aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma[1] = lf->delta_side_luma[0];
     }
@@ -3680,12 +3667,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level[0] || lf->filter_level[1]) {
     int luma_delta_q = aom_rb_read_bit(rb);
     if (luma_delta_q) {
-      lf->delta_q_luma =
-#if CONFIG_DF_PAR_BITS
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
+      lf->delta_q_luma = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
     } else {
       lf->delta_q_luma = 0;
     }
@@ -3693,11 +3675,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     int luma_delta_side = aom_rb_read_bit(rb);
     if (luma_delta_side) {
       lf->delta_side_luma =
-#if CONFIG_DF_PAR_BITS
           aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
     } else {
       lf->delta_side_luma = 0;
     }
@@ -3713,24 +3691,14 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_u) {
     int u_delta_q = aom_rb_read_bit(rb);
     if (u_delta_q) {
-      lf->delta_q_u =
-#if CONFIG_DF_PAR_BITS
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
+      lf->delta_q_u = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
     } else {
       lf->delta_q_u = 0;
     }
 #if DF_TWO_PARAM
     int u_delta_side = aom_rb_read_bit(rb);
     if (u_delta_side) {
-      lf->delta_side_u =
-#if CONFIG_DF_PAR_BITS
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
+      lf->delta_side_u = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
     } else {
       lf->delta_side_u = 0;
     }
@@ -3744,24 +3712,14 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_v) {
     int v_delta_q = aom_rb_read_bit(rb);
     if (v_delta_q) {
-      lf->delta_q_v =
-#if CONFIG_DF_PAR_BITS
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
+      lf->delta_q_v = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
     } else {
       lf->delta_q_v = 0;
     }
 #if DF_TWO_PARAM
     int v_delta_side = aom_rb_read_bit(rb);
     if (v_delta_side) {
-      lf->delta_side_v =
-#if CONFIG_DF_PAR_BITS
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
-#else
-          aom_rb_read_literal(rb, DF_PAR_BITS) - DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
+      lf->delta_side_v = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
     } else {
       lf->delta_side_v = 0;
     }
