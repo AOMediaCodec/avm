@@ -1022,6 +1022,7 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int row_flag, int prev_row_flag
 #endif
 );
+#if CONFIG_PALETTE_THREE_NEIGHBOR
 // A faster version of av1_get_palette_color_index_context used by the encoder
 // exploiting the fact that the encoder does not need to maintain a color order.
 int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
@@ -1031,6 +1032,7 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int row_flag, int prev_row_flag
 #endif
 );
+#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 #ifdef __cplusplus
 }  // extern "C"
 #endif
