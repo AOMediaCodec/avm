@@ -73,9 +73,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                           \
-  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
-   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
+#define MC_TEMP_BUF_PELS                       \
+  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
+   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -4339,7 +4339,8 @@ static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
     BLOCK_256X256,
 #endif
-    BLOCK_128X128, BLOCK_64X64
+    BLOCK_128X128,
+    BLOCK_64X64
   };
   int index = 0;
   bool bit = aom_rb_read_bit(rb);
@@ -4840,7 +4841,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-  (void)width;
+    (void)width;
 #endif
   return 1;
 }
