@@ -136,7 +136,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
         const int color_ctx = av1_fast_palette_color_index_context(
             color_map, plane_block_width, y, x, &color_new_idx,
             identity_row_flag, prev_identity_row_flag);
-#endif // CONFIG_PALETTE_THREE_NEIGHBOR
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
         assert(color_new_idx >= 0 && color_new_idx < num_colors);
         if (calc_rate) {
           if (ax1 == 0) {
@@ -260,7 +260,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
         const int color_ctx = av1_fast_palette_color_index_context(
             color_map, plane_block_width, y, x, &color_new_idx,
             identity_row_flag, prev_identity_row_flag);
-#endif // CONFIG_PALETTE_THREE_NEIGHBOR
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
         assert(color_new_idx >= 0 && color_new_idx < num_colors);
         if (calc_rate) {
           if (x == 0) {
@@ -323,14 +323,14 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
       int i = k - j;
       int color_new_idx;
 #if CONFIG_PALETTE_THREE_NEIGHBOR
-        uint8_t color_order[PALETTE_MAX_SIZE];
-        const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, num_colors, color_order,
-            &color_new_idx, identity_row_flag, prev_identity_row_flag);
+      uint8_t color_order[PALETTE_MAX_SIZE];
+      const int color_ctx = av1_get_palette_color_index_context(
+          color_map, plane_block_width, y, x, num_colors, color_order,
+          &color_new_idx, identity_row_flag, prev_identity_row_flag);
 #else
       const int color_ctx = av1_fast_palette_color_index_context(
           color_map, plane_block_width, i, j, &color_new_idx);
-#endif // CONFIG_PALETTE_THREE_NEIGHBOR
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
       assert(color_new_idx >= 0 && color_new_idx < num_colors);
       if (calc_rate) {
         this_rate += (*color_cost)[palette_size_idx][color_ctx][color_new_idx];

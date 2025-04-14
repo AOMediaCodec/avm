@@ -8215,7 +8215,8 @@ static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
 #define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
 #if CONFIG_PALETTE_THREE_NEIGHBOR
-static INLINE void swap_color_order(uint8_t *color_order, uint8_t *color_order_status, int switch_idx,
+static INLINE void swap_color_order(uint8_t *color_order,
+                                    uint8_t *color_order_status, int switch_idx,
                                     int max_idx, int *color_order_cnt) {
   color_order[switch_idx] = max_idx;
   color_order_status[max_idx] = 1;
@@ -8226,7 +8227,7 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
                                          const uint8_t *color_map, int stride,
                                          int r, int c) {
   int color_index_ctx = 0;
-  uint8_t color_status[PALETTE_MAX_SIZE] = {0};
+  uint8_t color_status[PALETTE_MAX_SIZE] = { 0 };
   int color_cnt = 0;
   for (int j = 0; j < PALETTE_MAX_SIZE; ++j) {
     color_order[j] = j;
@@ -8241,35 +8242,43 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
     if (color_neighbors[0] == color_neighbors[1] &&
         color_neighbors[0] == color_neighbors[2]) {
       color_index_ctx = 4;
-      swap_color_order(color_order, color_status, 0, color_neighbors[0], &color_cnt);
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
     } else if (color_neighbors[0] == color_neighbors[2]) {
       color_index_ctx = 3;
-      swap_color_order(color_order,  color_status, 0, color_neighbors[0], &color_cnt);
-      swap_color_order(color_order,  color_status, 1, color_neighbors[1], &color_cnt);
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[1],
+                       &color_cnt);
     } else if (color_neighbors[0] == color_neighbors[1]) {
       color_index_ctx = 2;
-      swap_color_order(color_order,  color_status, 0, color_neighbors[0], &color_cnt);
-      swap_color_order(color_order,  color_status, 1, color_neighbors[2], &color_cnt);
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[2],
+                       &color_cnt);
     } else if (color_neighbors[1] == color_neighbors[2]) {
       color_index_ctx = 2;
-      swap_color_order(color_order,  color_status, 0, color_neighbors[2], &color_cnt);
-      swap_color_order(color_order,  color_status, 1, color_neighbors[0], &color_cnt);
+      swap_color_order(color_order, color_status, 0, color_neighbors[2],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[0],
+                       &color_cnt);
     } else {
       color_index_ctx = 1;
       int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
       int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
-      swap_color_order(color_order,  color_status, 0, min_color, &color_cnt);
-      swap_color_order(color_order,  color_status, 1, max_color, &color_cnt);
-      swap_color_order(color_order,  color_status, 2, color_neighbors[1], &color_cnt);
+      swap_color_order(color_order, color_status, 0, min_color, &color_cnt);
+      swap_color_order(color_order, color_status, 1, max_color, &color_cnt);
+      swap_color_order(color_order, color_status, 2, color_neighbors[1],
+                       &color_cnt);
     }
   } else if (c == 0 && r > 0) {
     color_index_ctx = 0;
     const int color_neighbor = color_map[(r - 1) * stride + c];
-    swap_color_order(color_order,  color_status, 0, color_neighbor, &color_cnt);
+    swap_color_order(color_order, color_status, 0, color_neighbor, &color_cnt);
   } else if (c > 0 && r == 0) {
     color_index_ctx = 0;
     const int color_neighbor = color_map[r * stride + c - 1];
-    swap_color_order(color_order,  color_status, 0, color_neighbor, &color_cnt);
+    swap_color_order(color_order, color_status, 0, color_neighbor, &color_cnt);
   }
 
   int write_idx = color_cnt;
@@ -8405,7 +8414,7 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
   assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
   return color_index_ctx;
 }
-#endif // CONFIG_PALETTE_THREE_NEIGHBOR
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
 
 int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int r, int c, int *color_idx
