@@ -2430,6 +2430,7 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
       }
     }
   } else {
+
 #endif  // CONFIG_IMPROVED_DS_CC_WIENER
     for (int r = 0; r < height_uv; ++r) {
       for (int c = 0; c < width_uv; ++c) {
@@ -2441,7 +2442,9 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
 #else
   av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
                           width_uv, out_stride, bd);
+
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
+
   // extend border by replication
   for (int r = 0; r < height_uv; ++r) {
     for (int c = -border; c < 0; ++c)
