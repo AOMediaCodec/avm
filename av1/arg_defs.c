@@ -902,6 +902,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
                            "extra dpb number (0..8), default is 0"),
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_BRU
+  .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
+                        "Enable Backward Reference Update "
+                        "(0: false (default), 1: true)"),
+#endif
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),
@@ -915,10 +920,4 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 #endif  // CONFIG_REFRESH_FLAG
-#if CONFIG_BRU
-  .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
-                        "Enable Backward Ref Update (BRU) "
-                        "(0: false (default), "
-                        " 1: true)"),
-#endif  // CONFIG_BRU
 };

@@ -39,23 +39,25 @@ static INLINE void realloc_bru_info(AV1_COMMON *cm) {
     bru_info->total_units = bru_info->unit_rows * bru_info->unit_cols;
     aom_free(bru_info->active_mode_map);
     CHECK_MEM_ERROR(cm, bru_info->active_mode_map,
-                    aom_calloc(bru_info->total_units, 1));
+                    (uint8_t *)aom_calloc(bru_info->total_units, 1));
     bru_info->num_active_regions = 0;
     aom_free(bru_info->active_region);
-    CHECK_MEM_ERROR(cm, bru_info->active_region,
-                    aom_calloc((bru_info->unit_cols / 3 + 1) *
-                                   (bru_info->unit_rows / 3 + 1),
-                               sizeof(AV1PixelRect)));
+    CHECK_MEM_ERROR(
+        cm, bru_info->active_region,
+        (AV1PixelRect *)aom_calloc(
+            (bru_info->unit_cols / 3 + 1) * (bru_info->unit_rows / 3 + 1),
+            sizeof(AV1PixelRect)));
 
     aom_free(bru_info->active_sb_in_region);
     CHECK_MEM_ERROR(cm, bru_info->active_sb_in_region,
-                    aom_calloc((bru_info->unit_cols / 3 + 1) *
-                                   (bru_info->unit_rows / 3 + 1),
-                               sizeof(uint32_t)));
+                    (uint32_t *)aom_calloc((bru_info->unit_cols / 3 + 1) *
+                                               (bru_info->unit_rows / 3 + 1),
+                                           sizeof(uint32_t)));
 
     aom_free(bru_info->ref_scores);
-    CHECK_MEM_ERROR(cm, bru_info->ref_scores,
-                    aom_calloc(REF_FRAMES, sizeof(RefScoreData)));
+    CHECK_MEM_ERROR(
+        cm, bru_info->ref_scores,
+        (RefScoreData *)aom_calloc(REF_FRAMES, sizeof(RefScoreData)));
   }
   return;
 }
@@ -130,7 +132,7 @@ static INLINE BruActiveMode enc_get_cur_sb_active_mode(const AV1_COMMON *cm,
   const int sb_stride = cm->bru.unit_cols;
   int sb_idx =
       (mi_row >> mib_size_log2) * sb_stride + (mi_col >> mib_size_log2);
-  return active_mode_map[sb_idx];
+  return (BruActiveMode)active_mode_map[sb_idx];
 }
 // TODO: this may not be necessary
 static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
@@ -143,7 +145,7 @@ static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
   int sb_idx =
       (mi_row >> mib_size_log2) * sb_stride + (mi_col >> mib_size_log2);
   active_mode_map[sb_idx] = sb_active_mode;
-  return sb_active_mode;
+  return (BruActiveMode)sb_active_mode;
 }
 
 // todo: find a better way to address this

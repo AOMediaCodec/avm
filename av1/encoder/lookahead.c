@@ -170,18 +170,15 @@ struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
                                             int left_order_hint,
                                             COMPRESSOR_STAGE stage) {
   // order hint must be set so that the lookahead buffer can track which entry
-  // need to leave todo: check if closest frame is leaving, do nothing here
   (void)stage;
   struct lookahead_entry *buf = NULL;
   if (ctx) {
     assert(ctx->read_ctxs[stage].valid == 1);
-    // find the index
     for (int i = 0; i < ctx->max_sz; i++) {
       if (ctx->buf[i].order_hint == left_order_hint) {
         break;
       }
     }
-    assert(index >= 0);  // must have one in the lookahead queue
     ctx->read_ctxs[ENCODE_STAGE].read_idx = ctx->updated_idx;
     ctx->write_idx = ctx->updated_idx;
   }
