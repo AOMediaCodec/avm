@@ -83,8 +83,11 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
         color_map[0] = av1_read_uniform(r, num_colors);
       } else {
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, num_colors, color_order, NULL,
-            identity_row_flag, prev_identity_row_flag);
+            color_map, plane_block_width, y, x,
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
+            num_colors,
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
+            color_order, NULL, identity_row_flag, prev_identity_row_flag);
         const int color_idx = aom_read_symbol(
             r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
             num_colors, ACCT_INFO());
@@ -137,8 +140,11 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
         color_map[0] = av1_read_uniform(r, num_colors);
       } else {
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, num_colors, color_order, NULL,
-            identity_row_flag, prev_identity_row_flag);
+            color_map, plane_block_width, y, x,
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
+            num_colors,
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
+            color_order, NULL, identity_row_flag, prev_identity_row_flag);
         const int color_idx = aom_read_symbol(
             r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
             num_colors, ACCT_INFO("color_idx"));
@@ -157,8 +163,11 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   for (int i = 1; i < rows + cols - 1; ++i) {
     for (int j = AOMMIN(i, cols - 1); j >= AOMMAX(0, i - rows + 1); --j) {
       const int color_ctx = av1_get_palette_color_index_context(
-          color_map, plane_block_width, (i - j), j, num_colors, color_order,
-          NULL);
+          color_map, plane_block_width, (i - j), j,
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
+          num_colors,
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
+          color_order, NULL);
       const int color_idx = aom_read_symbol(
           r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
           num_colors, ACCT_INFO("color_idx"));

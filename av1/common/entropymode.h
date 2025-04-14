@@ -28,8 +28,8 @@ extern "C" {
 
 #define TX_SIZE_CONTEXTS 3
 
-#define INTER_OFFSET(mode) ((mode)-NEARMV)
-#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#define INTER_OFFSET(mode) ((mode) - NEARMV)
+#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
 #if CONFIG_PALETTE_IMPROVEMENTS
 // As can be seen from av1_get_palette_color_index_context(), the possible
@@ -1012,7 +1012,10 @@ static const int
 // along with the 'color_order' of neighbors and the 'color_idx'.
 // The 'color_map' is a 2D array with the given 'stride'.
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
-                                        int r, int c, int palette_size,
+                                        int r, int c,
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
+                                        int palette_size,
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
                                         uint8_t *color_order, int *color_idx
 #if CONFIG_PALETTE_IMPROVEMENTS
                                         ,

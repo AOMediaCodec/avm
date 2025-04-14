@@ -130,8 +130,8 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
 #if CONFIG_PALETTE_THREE_NEIGHBOR
         uint8_t color_order[PALETTE_MAX_SIZE];
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, num_colors, color_order,
-            &color_new_idx, identity_row_flag, prev_identity_row_flag);
+            color_map, plane_block_width, y, x, color_order, &color_new_idx,
+            identity_row_flag, prev_identity_row_flag);
 #else
         const int color_ctx = av1_fast_palette_color_index_context(
             color_map, plane_block_width, y, x, &color_new_idx,
