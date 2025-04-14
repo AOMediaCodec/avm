@@ -8207,10 +8207,12 @@ static const aom_cdf_prob default_pb_mv_precision_cdf
 #endif  // CONFIG_ENTROPY_PARA
 
 #define MAX_COLOR_CONTEXT_HASH 8
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
 // Negative values are invalid
 static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
                                                     1] = { -1, -1, 0, -1, -1,
                                                            4,  3,  2, 1 };
+#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 
 #define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
