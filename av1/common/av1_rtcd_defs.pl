@@ -353,6 +353,14 @@ if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes" or aom_config("CONFIG_AFFINE_RE
     specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
 }
 
+#
+# Block Adaptive Weighted Prediction
+#
+if (aom_config("CONFIG_BAWP") eq "yes"){
+  add_proto qw/void av1_make_bawp_block/, "uint16_t *dst, int dst_stride, int16_t alpha, int32_t beta, int shift, int bw, int bh, int bd";
+  specialize qw/av1_make_bawp_block avx2/;
+}
+
 # Helper functions.
 add_proto qw/void av1_round_shift_array/, "int32_t *arr, int size, int bit";
 specialize "av1_round_shift_array", qw/sse4_1 neon/;
@@ -662,7 +670,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
 if (aom_config("CONFIG_OPFL_MEMBW_REDUCTION") eq "yes"){
   add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta, int use_damr_padding, ReferenceArea *ref_area";
-  specialize qw/av1_highbd_warp_affine sse4_1/;
+  specialize qw/av1_highbd_warp_affine sse4_1 avx2/;
 }
 else{
   add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";

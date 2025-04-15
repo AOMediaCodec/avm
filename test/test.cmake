@@ -89,6 +89,7 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AOM_UNIT_TEST_COMMON_SOURCES
     "${AOM_ROOT}/test/av1_common_int_test.cc"
+    "${AOM_ROOT}/test/bawp_test.cc"
     "${AOM_ROOT}/test/cdef_test.cc"
     "${AOM_ROOT}/test/cfl_test.cc"
     "${AOM_ROOT}/test/convolve_test.cc"

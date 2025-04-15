@@ -791,8 +791,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
-  // 1: Reuse the compound type decision
-  int reuse_compound_type_decision;
+  // 1: Reuse the compound type rd data
+  // 2: Reuse the compound type decision
+  int reuse_compound_type_data;
 
   // Enable/disable masked compound.
   int disable_masked_comp;

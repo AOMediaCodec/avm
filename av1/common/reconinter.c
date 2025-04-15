@@ -3685,6 +3685,17 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
   }
 }
 
+// Generate weighted prediction of the block.
+void av1_make_bawp_block_c(uint16_t *dst, int dst_stride, int16_t alpha,
+                           int32_t beta, int shift, int bw, int bh, int bd) {
+  for (int j = 0; j < bh; ++j) {
+    for (int i = 0; i < bw; ++i) {
+      dst[j * dst_stride + i] = clip_pixel_highbd(
+          (dst[j * dst_stride + i] * alpha + beta) >> shift, bd);
+    }
+  }
+}
+
 // generate inter prediction of a block coded in bwap mode enabled
 void av1_build_one_bawp_inter_predictor(
     uint16_t *dst, int dst_stride, const MV *const src_mv,
@@ -3850,12 +3861,7 @@ void av1_build_one_bawp_inter_predictor(
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
   int32_t beta = mbmi->bawp_beta[plane][ref];
-  for (int j = 0; j < bh; ++j) {
-    for (int i = 0; i < bw; ++i) {
-      dst[j * dst_stride + i] = clip_pixel_highbd(
-          (dst[j * dst_stride + i] * alpha + beta) >> shift, xd->bd);
-    }
-  }
+  av1_make_bawp_block(dst, dst_stride, alpha, beta, shift, bw, bh, xd->bd);
 }
 #endif  // CONFIG_BAWP
 
