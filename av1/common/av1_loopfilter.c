@@ -529,13 +529,12 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
 #if CONFIG_LF_SUB_PU
 // Check whether current block is TIP mode
 static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
-                                      const int scale_horz,
-                                      const int scale_vert, TX_SIZE *ts,
+                                      const int scale, TX_SIZE *ts,
                                       int32_t *tip_edge) {
   const bool is_tip_mode = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip_mode) {
     *tip_edge = 1;
-    const int tip_ts = (scale_horz || scale_vert) ? TX_4X4 : TX_8X8;
+    const int tip_ts = scale ? TX_4X4 : TX_8X8;
     *ts = tip_ts;
   }
 }
@@ -547,13 +546,22 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
                                        const MB_MODE_INFO *const mbmi,
-                                       TX_SIZE *ts, int32_t *opfl_edge) {
-  if (plane > 0) return;
+                                       const int scale, TX_SIZE *ts,
+                                       int32_t *opfl_edge) {
   const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                        mbmi);
+#if CONFIG_AFFINE_REFINEMENT
+  if (is_opfl_mode && plane &&
+      mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START) {
+    *opfl_edge = 1;
+    *ts = scale ? TX_4X4 : TX_8X8;
+    return;
+  }
+#endif  // CONFIG_AFFINE_REFINEMENT
+  if (plane > 0) return;
   if (is_opfl_mode) {
     *opfl_edge = 1;
     const int opfl_ts = TX_8X8;
@@ -564,14 +572,13 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
 #if CONFIG_REFINEMV
 // Check whether current block is RFMV mode
 static AOM_INLINE void check_rfmv_edge(const MB_MODE_INFO *const mbmi,
-                                       const int scale_horz,
-                                       const int scale_vert, TX_SIZE *ts,
+                                       const int scale, TX_SIZE *ts,
                                        int32_t *rfmv_edge) {
   const int is_rfmv_mode =
       mbmi->refinemv_flag && !is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_rfmv_mode) {
     *rfmv_edge = 1;
-    const int rfmv_ts = (scale_horz || scale_vert) ? TX_8X8 : TX_16X16;
+    const int rfmv_ts = scale ? TX_8X8 : TX_16X16;
     *ts = rfmv_ts;
   }
 }
@@ -592,16 +599,16 @@ static AOM_INLINE void check_sub_pu_edge(
   int temp_edge = 0;
   TX_SIZE temp_ts = 0;
 
-  check_tip_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
+  int scale = edge_dir == VERT_EDGE ? scale_horz : scale_vert;
+  check_tip_edge(mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge)
     check_opfl_edge(cm, plane,
 #if CONFIG_COMPOUND_4XN
                     xd,
 #endif  // CONFIG_COMPOUND_4XN
-                    mbmi, &temp_ts, &temp_edge);
+                    mbmi, scale, &temp_ts, &temp_edge);
 #if CONFIG_REFINEMV
-  if (!temp_edge)
-    check_rfmv_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
+  if (!temp_edge) check_rfmv_edge(mbmi, scale, &temp_ts, &temp_edge);
 #endif  // CONFIG_REFINEMV
 
   if (temp_edge) {
@@ -1355,34 +1362,40 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int n = 8;
+  int sub_bw = 8;
+  int sub_bh = 8;
   if (plane > 0) {
     const int subsampling_x = cm->seq_params.subsampling_x;
     const int subsampling_y = cm->seq_params.subsampling_y;
-    if (subsampling_x || subsampling_y) n = 4;
+    sub_bw >>= subsampling_x;
+    sub_bh >>= subsampling_y;
   }
-  const int filter_length = n;
+  // select vert/horz filter lengths based on block width/height
+  int filter_length_vert = sub_bw;
+  int filter_length_horz = sub_bh;
 
   // start filtering
-  const int h = bh - n;
-  const int w = bw - n;
-  const int rw = bw - (bw % n);
-  for (int j = 0; j <= h; j += n) {
-    for (int i = 0; i <= w; i += n) {
+  const int h = bh - sub_bh;
+  const int w = bw - sub_bw;
+  const int rw = bw - (bw % sub_bw);
+  for (int j = 0; j <= h; j += sub_bh) {
+    for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length,
-                                          &q_vert, &side_vert, bit_depth, n);
+        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
+                                          &q_vert, &side_vert, bit_depth,
+                                          sub_bh);
       }
       // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length,
-                                            &q_horz, &side_horz, bit_depth, n);
+        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
+                                            &q_horz, &side_horz, bit_depth,
+                                            sub_bw);
       }
-      dst += n;
+      dst += sub_bw;
     }
     dst -= rw;
-    dst += n * dst_stride;
+    dst += sub_bh * dst_stride;
   }
 }
 
