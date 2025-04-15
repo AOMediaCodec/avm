@@ -2724,7 +2724,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
 #if CONFIG_BRU
   xd->tile.tile_active_mode = tile->tile_active_mode;
-  xd->mi[0]->sb_active_mode = xd->sbi->sb_active_mode;
+  xd->mi[0]->sb_active_mode = xd->sbi ? xd->sbi->sb_active_mode : BRU_ACTIVE_SB;
 #endif
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];

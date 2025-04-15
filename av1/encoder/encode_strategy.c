@@ -1315,7 +1315,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // clean up active sb queue if any left over
     // it may happen if encoder decide not using BRU for lots of active sbs
     // exists
-    if (cm->bru.enabled == 0) {
+    if (cm->bru.enabled == 0 && cm->bru.active_mode_map) {
       memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
       for (uint32_t r = 0; r < cm->bru.num_active_regions; r++) {
         ARD_Queue *q = cpi->enc_act_sb_queue[r];
