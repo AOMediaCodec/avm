@@ -388,6 +388,13 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_TMVP_MV_COMPRESSION 1 "Enable to compress TMVP MV")
 
+set_aom_config_var(CONFIG_QM_EXTENSION 1
+                   "Extension for AV1 quantization matrices.")
+set_aom_config_var(CONFIG_QM_EXT_INFO 1
+                   "Enable debug information for extension to AV1 quantization matrices.")
+set_aom_config_var(CONFIG_QM_EXT_VALIDATE 1
+                   "Enable validation for extension to AV1 quantization matrices.")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

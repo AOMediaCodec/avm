@@ -242,6 +242,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_qm;
   arg_def_t qm_min;
   arg_def_t qm_max;
+#if CONFIG_QM_EXTENSION
+  arg_def_t user_defined_qmatrix;
+#endif
   arg_def_t reduced_tx_type_set;
   arg_def_t use_intra_dct_only;
   arg_def_t use_inter_dct_only;

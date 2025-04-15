@@ -1253,6 +1253,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_CDF_AVERAGING = 168,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_QM_EXTENSION
+  /*!\brief Control to set the flag for user defined matrices
+   */
+  AV1E_SET_USER_DEFINED_QMATRIX = 169,
+#endif  // CONFIG_QM_EXTENSION
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1470,6 +1475,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_QM_U, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_QM_V, unsigned int)
 #define AOM_CTRL_AV1E_SET_QM_V
+
+#if CONFIG_QM_EXTENSION
+AOM_CTRL_USE_TYPE(AV1E_SET_USER_DEFINED_QMATRIX, unsigned int)
+#define AOM_CTRL_AV1E_SET_USER_DEFINED_QMATRIX
+#endif  // CONFIG_QM_EXTENSION
 
 AOM_CTRL_USE_TYPE(AV1E_SET_NUM_TG, unsigned int)
 #define AOM_CTRL_AV1E_SET_NUM_TG

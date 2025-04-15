@@ -649,6 +649,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                     "Min quant matrix flatness (0..15), default is 8"),
   .qm_max = ARG_DEF(NULL, "qm-max", 1,
                     "Max quant matrix flatness (0..15), default is 15"),
+#if CONFIG_QM_EXTENSION
+  .user_defined_qmatrix =
+      ARG_DEF(NULL, "user-defined-qmatrix", 1,
+              "User defined matrix for QM encoding (0: default matrices, 1: "
+              "user defined matrices)"),
+#endif  // #if CONFIG_QM_EXTENSION
   .reduced_tx_type_set = ARG_DEF(NULL, "reduced-tx-type-set", 1,
                                  "Use reduced set of transform types"),
   .use_intra_dct_only =

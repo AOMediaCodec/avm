@@ -4693,6 +4693,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_REFRESH_FLAG
         1,
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_QM_EXTENSION
+        0,                         // user_defined_qmatrix
+        { 1, 1, 1, 1, 1, 1, 1, 1,  // use_default
+          1, 1, 1, 1, 1, 1, 1, 1 },
+        { 0, 1, 2, 3, 4, 5, 6, 7,  // use_default_index
+          8, 9, 10, 11, 12, 13, 14, 15 },
+#endif  // CONFIG_QM_EXTENSION
     },  // cfg
 } };
 

@@ -177,6 +177,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_QM,
                                         AV1E_SET_QM_MIN,
                                         AV1E_SET_QM_MAX,
+#if CONFIG_QM_EXTENSION
+                                        AV1E_SET_USER_DEFINED_QMATRIX,
+#endif
                                         AV1E_SET_REDUCED_TX_TYPE_SET,
                                         AV1E_SET_INTRA_DCT_ONLY,
                                         AV1E_SET_INTER_DCT_ONLY,
@@ -383,6 +386,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_qm,
   &g_av1_codec_arg_defs.qm_min,
   &g_av1_codec_arg_defs.qm_max,
+#if CONFIG_QM_EXTENSION
+  &g_av1_codec_arg_defs.user_defined_qmatrix,
+#endif
   &g_av1_codec_arg_defs.reduced_tx_type_set,
   &g_av1_codec_arg_defs.use_intra_dct_only,
   &g_av1_codec_arg_defs.use_inter_dct_only,
@@ -784,6 +790,13 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_REFRESH_FLAG
   config->enable_short_refresh_frame_flags = 1;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_QM_EXTENSION
+  config->user_defined_qmatrix = 0;
+  for (int i = 0; i < NUM_QM_LEVELS; i++) {
+    config->use_default[i] = 1;
+    config->use_default_index[i] = i;
+  }
+#endif  // CONFIG_QM_EXTENSION
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that

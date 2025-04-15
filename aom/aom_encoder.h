@@ -662,6 +662,14 @@ typedef struct cfg_options {
    */
   unsigned int enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_QM_EXTENSION
+  // boolean
+  unsigned int user_defined_qmatrix;
+  // boolean
+  unsigned int use_default[16];
+  // 0..15
+  unsigned int use_default_index[16];
+#endif  // CONFIG_QM_EXTENSION
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags
