@@ -116,6 +116,7 @@ std::vector<TestParam<T>> GetTestParams(std::initializer_list<int> bit_depths,
       sizes.insert(BlockSize(w / 2, h / 2));
     }
   }
+  sizes.insert(BlockSize(24, 24));
   std::vector<TestParam<T>> result;
   for (const BlockSize &block : sizes) {
     for (int bd : bit_depths) {

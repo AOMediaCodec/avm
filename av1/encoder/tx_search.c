@@ -127,6 +127,16 @@ static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
+// look-up table of transform partition type pruning level used to prune the
+// evaluation of transform partition type based on none rd.
+static const int tx_partition_prune_level[2][6] = { { 0, 1, 3, 3, 2, 3 },
+                                                    { 0, 1, 2, 1, 2, 3 } };
+
+// look-up table of transform type pruning level used to prune the evaluation of
+// transform type based on best rd and eob.
+static const int tx_type_prune_level[2][6] = { { 0, 1, 2, 1, 2, 3 },
+                                               { 0, 1, 3, 3, 2, 3 } };
+
 static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
                                 const uint32_t hash) {
   // Linear search through the circular buffer to find matching hash.
@@ -2867,6 +2877,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       xd, plane, blk_col, blk_row, txw, txh, cm->width, cm->height, NULL, NULL);
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
+  const int max_eob = av1_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -3257,14 +3268,17 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
 #endif  // COLLECT_TX_SIZE_DATA
 
-        // If the current best RD cost is much worse than the reference RD cost,
-        // terminate early.
-        if (cpi->sf.tx_sf.adaptive_txb_search_level) {
-          if ((best_rd - (best_rd >> cpi->sf.tx_sf.adaptive_txb_search_level)) >
-              ref_best_rd) {
-            skip_idx = true;
-            break;
-          }
+        assert(cpi->sf.tx_sf.adaptive_tx_type_search_idx < 6);
+        // Terminate the search early, If the best rd is higher than the
+        // reference best rd and number of coded coefficients are smaller
+        // than a threshold.
+        const int search_level =
+            tx_type_prune_level[p->eobs[block] < max_eob / 8]
+                               [cpi->sf.tx_sf.adaptive_tx_type_search_idx];
+        if (search_level &&
+            (best_rd - (best_rd >> search_level)) > ref_best_rd) {
+          skip_idx = true;
+          break;
         }
 
         // Terminate transform type search if the block has been quantized to
@@ -3820,6 +3834,7 @@ static void select_tx_partition_type(
   const int txw = tx_size_wide[max_tx_size];
   const int txh = tx_size_high[max_tx_size];
   const int is_vert_rect = (txh > txw);
+  const int max_txw_txh = AOMMAX(txw, txh);
   assert(max_tx_size < TX_SIZES_ALL);
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
 
@@ -3982,12 +3997,13 @@ static void select_tx_partition_type(
         if (p->eobs[block] == 0) break;
       }
 
-      const int search_level = cpi->sf.tx_sf.adaptive_txb_search_level;
-      if (search_level) {
-        if ((tmp_rd - (tmp_rd >> search_level)) > ref_best_rd) {
-          *is_cost_valid = 0;
-          break;
-        }
+      const int search_level =
+          tx_partition_prune_level[max_txw_txh == 64]
+                                  [cpi->sf.tx_sf
+                                       .adaptive_tx_partition_type_search_idx];
+      if (search_level && (tmp_rd - (tmp_rd >> search_level)) > ref_best_rd) {
+        *is_cost_valid = 0;
+        break;
       }
     }
   }
@@ -4061,8 +4077,11 @@ static AOM_INLINE void select_tx_block(
                           plane_bsize, ta, tl, ctx, rd_stats, ref_best_rd,
                           ftxs_mode, rd_info_node, &no_split);
 
+    assert(cpi->sf.tx_sf.adaptive_tx_partition_type_search_idx < 6);
     // Speed features for early termination.
-    const int search_level = cpi->sf.tx_sf.adaptive_txb_search_level;
+    const int search_level =
+        tx_partition_prune_level[1][cpi->sf.tx_sf
+                                        .adaptive_tx_partition_type_search_idx];
     if (search_level) {
       if ((no_split.rd - (no_split.rd >> (1 + search_level))) > ref_best_rd) {
         *is_cost_valid = 0;

@@ -1199,14 +1199,22 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #if CONFIG_REFINEMV
 #if CONFIG_SUBBLK_REF_EXT
   uint16_t
-      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
-                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
+      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                       (REFINEMV_SUBBLOCK_HEIGHT +
+                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
   uint16_t
-      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
-                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
+      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
+                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                       (REFINEMV_SUBBLOCK_HEIGHT +
+                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 #else
-  uint16_t dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
-  uint16_t dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+  uint16_t
+      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
+  uint16_t
+      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
+                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
 #endif  // CONFIG_SUBBLK_REF_EXT
 #if CONFIG_TIP_LD
   const int apply_refinemv = (plane == 0 && cm->has_both_sides_refs);

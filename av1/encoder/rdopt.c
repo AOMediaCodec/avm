@@ -11458,6 +11458,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (search_state.best_skip2 == 0) {
     const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
                             cpi->oxcf.kf_cfg.enable_intrabc_ext &&
+                            !sf->inter_sf.skip_eval_intrabc_in_inter_frame &&
                             av1_allow_intrabc(cm, xd
 #if CONFIG_ENABLE_IBC_NAT
                                               ,

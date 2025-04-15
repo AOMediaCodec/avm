@@ -910,13 +910,23 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
 
 #if CONFIG_REFINEMV
 // Compute the SAD between the two predictors when refinemv is ON
-int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
-                     int bd);
-// Genrate two prediction signals and compute SAD of a given mv0 and mv1
+int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
+                     int height, int bd);
+#if CONFIG_16_FULL_SEARCH_DMVR
+// Generate two prediction signals of a given mv0 and mv1
+void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
+                                   uint16_t **mc_buf,
+                                   CalcSubpelParamsFunc calc_subpel_params_func,
+                                   uint16_t *dst_ref0, uint16_t *dst_ref1,
+                                   int dst_stride, MV mv0, MV mv1,
+                                   InterPredParams *inter_pred_params);
+#else
+// Generate two prediction signals and compute SAD of a given mv0 and mv1
 int av1_refinemv_build_predictors_and_get_sad(
     MACROBLOCKD *xd, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst_ref0,
     uint16_t *dst_ref1, MV mv0, MV mv1, InterPredParams *inter_pred_params);
+#endif  // CONFIG_16_FULL_SEARCH_DMVR
 
 // Get the context index to code refinemv flag
 int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
