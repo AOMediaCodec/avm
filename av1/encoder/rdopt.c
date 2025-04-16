@@ -7837,8 +7837,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           }
           av1_copy_array(best_tx_type_map, xd->tx_type_map,
                          xd->height * xd->width);
-          av1_copy_array(best_cctx_type_map, xd->cctx_type_map,
-                         xd->height * xd->width);
+          av1_copy_array(
+              best_cctx_type_map, xd->cctx_type_map,
+              (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
         }
       }
 #else
