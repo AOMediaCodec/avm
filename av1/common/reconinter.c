@@ -1255,12 +1255,9 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   (void)gx1;
   (void)gy1;
 
-  // Compute tmp1 = P0 - P1 and gradients of
-  // tmp0 = d0 * P0 - d1 * P1
-  const int tmp_w = (mbmi->ref_frame[0] == TIP_FRAME) ? bw : MAX_SB_SIZE;
-  const int tmp_h = (mbmi->ref_frame[0] == TIP_FRAME) ? bh : MAX_SB_SIZE;
-  int16_t *tmp0 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
-  int16_t *tmp1 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
+  // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
+  DECLARE_ALIGNED(16, int16_t, tmp0[MAX_SB_SIZE * MAX_SB_SIZE]);
+  DECLARE_ALIGNED(16, int16_t, tmp1[MAX_SB_SIZE * MAX_SB_SIZE]);
   av1_copy_pred_array_highbd(dst0, dst1, dst_stride, tmp0, tmp1, bw, bh, d0, d1,
                              xd->bd, 0);
   // Buffers gx0 and gy0 are used to store the
@@ -1271,9 +1268,6 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
       tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
       mi_x, mi_y, cm->mi_params.mi_cols, cm->mi_params.mi_rows,
       build_for_decode, vx0, vy0, vx1, vy1);
-
-  aom_free(tmp0);
-  aom_free(tmp1);
 
   for (int i = 0; i < n_blocks; i++) {
     vy0[i] = clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
