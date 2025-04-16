@@ -3044,7 +3044,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av1_enc_calc_subpel_params);
+                        av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                        ,
+                        0 /* copy_refined_mvs */
+#endif                    // CONFIG_IMPROVE_REFINED_MV
+    );
 #endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
 #if !CONFIG_TIP_DIRECT_FRAME_MV
     av1_finalize_encoded_frame(cpi);
@@ -3139,7 +3144,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
         cm->tip_global_motion.as_int = ref_mv.as_int;
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params);
+                            av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                            ,
+                            0 /* copy_refined_mvs */
+#endif                        // CONFIG_IMPROVE_REFINED_MV
+        );
 #if CONFIG_LF_SUB_PU
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3180,7 +3190,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
       cm->tip_interp_filter = interp_filter;
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                          av1_enc_calc_subpel_params);
+                          av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                          ,
+                          0 /* copy_refined_mvs */
+#endif                      // CONFIG_IMPROVE_REFINED_MV
+      );
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
         loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3324,11 +3339,18 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     }
 
     const int num_planes = av1_num_planes(cm);
+#if !CONFIG_IMPROVE_REFINED_MV
     av1_copy_tip_frame_tmvp_mvs(cm);
+#endif  // !CONFIG_IMPROVE_REFINED_MV
 #if CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av1_enc_calc_subpel_params);
+                        av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                        ,
+                        1 /* copy_refined_mvs */
+#endif                    // CONFIG_IMPROVE_REFINED_MV
+    );
 #if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));

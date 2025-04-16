@@ -4818,6 +4818,33 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
+
+#if CONFIG_IMPROVE_REFINED_MV
+// Check if the optical flow MV refinement is enabled for a given block.
+static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+                                                    const MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                    const MB_MODE_INFO *mi,
+                                                    int plane,
+                                                    int tip_ref_frame) {
+  if (tip_ref_frame) {
+    return (opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                      mi) &&
+            plane == 0);
+  } else {
+    return (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                       mi));
+  }
+}
+#endif  // CONFIG_IMPROVE_REFINED_MV
+
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT

@@ -611,6 +611,26 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   }
 }
 
+#if CONFIG_IMPROVE_REFINED_MV
+// Check if refined MV needs to be stored in the TMVP list.
+static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+                                             const MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                             const MB_MODE_INFO *mbmi) {
+  return (
+      opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                 xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                 mbmi)
+#if CONFIG_REFINEMV
+      || (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE)
+#endif  // CONFIG_REFINEMV
+      || is_tip_ref_frame(mbmi->ref_frame[0]));
+}
+#endif  // CONFIG_IMPROVE_REFINED_MV
+
 #if CONFIG_REFINED_MVS_IN_TMVP
 void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                                 const MACROBLOCKD *xd,

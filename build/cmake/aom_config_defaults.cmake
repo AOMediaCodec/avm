@@ -322,6 +322,9 @@ set_aom_config_var(CONFIG_E191_OFS_PRED_RES_HANDLE 1
 
 set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")
 
+set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
+                   "Enable ext warp filter for chroma blocks with bw=4 or bh=4")
+
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
@@ -499,6 +502,8 @@ set_aom_config_var(
   "Enable implicit quantization derivation for TIP direct mode")
 set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
+set_aom_config_var(CONFIG_IMPROVE_REFINED_MV 1
+                   "Keep refined MVs in TMVP list for TIP modes.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1

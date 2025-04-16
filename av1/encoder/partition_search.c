@@ -2479,6 +2479,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_REFINED_MVS_IN_TMVP
   if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
+#if CONFIG_IMPROVE_REFINED_MV
+    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
+#else
     if (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
@@ -2488,6 +2491,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV
     ) {
+#endif  // CONFIG_IMPROVE_REFINED_MV
       const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
       const int bh = mi_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
       const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
