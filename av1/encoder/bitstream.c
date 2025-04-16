@@ -7168,6 +7168,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (current_frame->frame_type == INTER_FRAME) {
       encode_bru_active_info(cpi, wb);
     }
+    printf("write order hint %d\n", current_frame->order_hint);
 #endif  // CONFIG_BRU
     if (seq_params->order_hint_info.enable_order_hint)
       aom_wb_write_literal(

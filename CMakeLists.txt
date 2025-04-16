@@ -557,6 +557,14 @@ if(CONFIG_AV1_ENCODER)
       simple_encoder
       scalable_encoder
       twopass_encoder)
+    if(CONFIG_BRU)
+      add_executable(
+        bru_encoder
+        "${AOM_ROOT}/examples/bru_encoder.c"
+        $<TARGET_OBJECTS:aom_common_app_util>
+        $<TARGET_OBJECTS:aom_encoder_app_util>)
+      list(APPEND AOM_ENCODER_EXAMPLE_TARGETS bru_encoder)
+    endif()
   endif()
 
   if(ENABLE_TOOLS)

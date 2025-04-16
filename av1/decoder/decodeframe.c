@@ -8091,6 +8091,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
 #if CONFIG_BRU
+    printf("debug info bru decode mode %d\n", pbi->bru_opt_mode);
     if (current_frame->frame_type == INTER_FRAME) {
       setup_bru_active_info(cm, rb);
     }
