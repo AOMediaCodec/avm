@@ -53,6 +53,9 @@ struct aom_codec_alg_priv {
   int byte_alignment;
   int skip_loop_filter;
   int skip_film_grain;
+#if CONFIG_BRU
+  int bru_opt_mode;
+#endif
   int decode_tile_row;
   int decode_tile_col;
   unsigned int tile_mode;
@@ -535,6 +538,9 @@ static void init_buffer_callbacks(aom_codec_alg_priv_t *ctx) {
   cm->features.byte_alignment = ctx->byte_alignment;
   pbi->skip_loop_filter = ctx->skip_loop_filter;
   pbi->skip_film_grain = ctx->skip_film_grain;
+#if CONFIG_BRU
+  pbi->bru_opt_mode = ctx->bru_opt_mode;
+#endif
 
   if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
     pool->get_fb_cb = ctx->get_ext_fb_cb;
@@ -1802,6 +1808,21 @@ static aom_codec_err_t ctrl_set_skip_film_grain(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_BRU
+static aom_codec_err_t ctrl_set_bru_opt_mode(aom_codec_alg_priv_t *ctx,
+                                             va_list args) {
+  ctx->bru_opt_mode = va_arg(args, int);
+
+  if (ctx->frame_worker) {
+    AVxWorker *const worker = ctx->frame_worker;
+    FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+    frame_worker_data->pbi->bru_opt_mode = ctx->bru_opt_mode;
+  }
+
+  return AOM_CODEC_OK;
+}
+#endif
+
 static aom_codec_err_t ctrl_get_accounting(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
 #if !CONFIG_ACCOUNTING
@@ -1903,6 +1924,9 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_ROW_MT, ctrl_set_row_mt },
   { AV1D_SET_EXT_REF_PTR, ctrl_set_ext_ref_ptr },
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
+#if CONFIG_BRU
+  { AV1D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
+#endif
   { AV1D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
   // Getters

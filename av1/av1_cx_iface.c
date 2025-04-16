@@ -2973,6 +2973,13 @@ static aom_codec_err_t ctrl_set_enable_bru(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
   return AOM_CODEC_OK;
 }
+static aom_codec_err_t ctrl_get_enable_bru(aom_codec_alg_priv_t *ctx,
+                                           va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  *arg = ctx->cpi->common.seq_params.enable_bru;
+  return AOM_CODEC_OK;
+}
 #endif  // CONFIG_BRU
 
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
@@ -4665,6 +4672,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
 #if CONFIG_BRU
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
+  { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
 #endif  // CONFIG_BRU
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

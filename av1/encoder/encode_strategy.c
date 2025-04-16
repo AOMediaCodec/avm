@@ -1274,7 +1274,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
 #if CONFIG_BRU
     // get last frame idx as bru frame
-    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru;
+    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0;
     if (cpi->oxcf.tool_cfg.enable_bru && frame_input.bru_ref_source != NULL &&
         !frame_is_intra_only(&cpi->common)) {
       active_region_detection(cpi, frame_input.source,

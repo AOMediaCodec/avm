@@ -1943,15 +1943,13 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       }
     }
   }
-
   assert(bsize == mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)]);
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART])
     av1_reset_entropy_context(xd, bsize, num_planes);
 #if CONFIG_BRU
 direct_recon:
-#if !CONFIG_BRU_REG_DECODE
-  if (bru_is_sb_active(cm, mi_col, mi_row))
-#endif
+  if (!pbi->bru_opt_mode ||
+      (pbi->bru_opt_mode && bru_is_sb_active(cm, mi_col, mi_row)))
 #endif
     decode_token_recon_block(pbi, td, r, partition, bsize);
 
@@ -2933,36 +2931,36 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
 #endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
 #if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
-#if CONFIG_BRU_REG_DECODE
-    if (!bru_is_sb_active(cm, mi_col, mi_row)) {
-      if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
-        const int sb_size = cm->seq_params.sb_size;
-        // set cur_frame mvs to 0
-        const int w = mi_size_wide[sb_size];
-        const int h = mi_size_high[sb_size];
-        const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col)
-                                      << MI_SIZE_LOG2;
-        const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row)
-                                      << MI_SIZE_LOG2;
-        bru_zero_sb_mvs(cm, -1, mi_row, mi_col,
-                        x_inside_boundary >> MI_SIZE_LOG2,
-                        y_inside_boundary >> MI_SIZE_LOG2);
+    if (pbi->bru_opt_mode) {
+      if (bru_is_sb_available(cm, mi_col, mi_row)) {
+#ifndef NDEBUG
+        RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+        assert(ref_buf != NULL);
+#endif
+        // for active sb, update to bru ref
+        // for support sb, prepare copy to cur_frame (prepare for intra)
+        if (bru_is_sb_active(cm, mi_col, mi_row))
+          bru_update_sb(cm, mi_col, mi_row);
+        else
+          bru_copy_sb(cm, mi_col, mi_row);
+      }
+    } else {
+      if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+        if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+          const int sb_size = cm->seq_params.sb_size;
+          // set cur_frame mvs to 0
+          const int w = mi_size_wide[sb_size];
+          const int h = mi_size_high[sb_size];
+          const int x_inside_boundary =
+              AOMMIN(w, cm->mi_params.mi_cols - mi_col) << MI_SIZE_LOG2;
+          const int y_inside_boundary =
+              AOMMIN(h, cm->mi_params.mi_rows - mi_row) << MI_SIZE_LOG2;
+          bru_zero_sb_mvs(cm, -1, mi_row, mi_col,
+                          x_inside_boundary >> MI_SIZE_LOG2,
+                          y_inside_boundary >> MI_SIZE_LOG2);
+        }
       }
     }
-#else
-    if (bru_is_sb_available(cm, mi_col, mi_row)) {
-#ifndef NDEBUG
-      RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
-      assert(ref_buf != NULL);
-#endif
-      // for active sb, update to bru ref
-      // for support sb, prepare copy to cur_frame (prepare for intra)
-      if (bru_is_sb_active(cm, mi_col, mi_row))
-        bru_update_sb(cm, mi_col, mi_row);
-      else
-        bru_copy_sb(cm, mi_col, mi_row);
-    }
-#endif
   }
 #endif  // CONFIG_BRU
 #if CONFIG_INSPECTION
@@ -3081,7 +3079,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   }
   segfeatures_copy(&cm->cur_frame->seg, seg);
 }
-#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
+#if CONFIG_BRU
 static INLINE void release_ref_buffer(RefCntBuffer *const buf,
                                       BufferPool *const pool) {
   if (buf != NULL) {
@@ -9589,7 +9587,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
   }
-#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
+#if CONFIG_BRU
   // bru swap in mode 0, in mode 1, still use cur frame and then drop bru ref
   // after filtering
   // backward reference frame update
@@ -9599,7 +9597,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   // drop the recon
   // 3. if any inactive block exists and bru enabled, update ref and drop the
   // if enabled flag signaled == 1, do swap
-  if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+  if (cm->bru.enabled && pbi->bru_opt_mode &&
+      cm->current_frame.frame_type != KEY_FRAME) {
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
     cm->bru.update_ref_fc = ref_buf->frame_context;  // pass all the values
     assert(ref_buf != NULL);

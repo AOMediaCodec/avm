@@ -1257,6 +1257,9 @@ enum aome_enc_control_id {
   /*!\brief Control to enable BRU
    */
   AV1E_SET_ENABLE_BRU = 169,
+  /*!\brief Control to get enable BRU
+   */
+  AV1E_GET_ENABLE_BRU = 170,
 #endif  // CONFIG_BRU
 };
 
@@ -1761,6 +1764,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 #if CONFIG_BRU
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU
+AOM_CTRL_USE_TYPE(AV1E_GET_ENABLE_BRU, int *)
+#define AOM_CTRL_AV1E_GET_ENABLE_BRU
 #endif  // CONFIG_BRU
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

@@ -121,19 +121,43 @@ static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
-
-static const arg_def_t *all_args[] = {
-  &help,           &codecarg,     &use_yv12,      &use_i420,
-  &flipuvarg,      &rawvideo,     &noblitarg,     &progressarg,
-  &limitarg,       &skiparg,      &summaryarg,    &outputfile,
-#if CONFIG_PARAKIT_COLLECT_DATA
-  &datafilesuffix, &datafilepath,
+#if CONFIG_BRU
+static const arg_def_t bruoptmodearg =
+    ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
 #endif
-  &threadsarg,     &verbosearg,   &scalearg,      &fb_arg,
-  &md5arg,         &verifyarg,    &framestatsarg, &continuearg,
-  &outbitdeptharg, &isannexb,     &oppointarg,    &outallarg,
-  &skipfilmgrain,  NULL
-};
+static const arg_def_t *all_args[] = { &help,
+                                       &codecarg,
+                                       &use_yv12,
+                                       &use_i420,
+                                       &flipuvarg,
+                                       &rawvideo,
+                                       &noblitarg,
+                                       &progressarg,
+                                       &limitarg,
+                                       &skiparg,
+                                       &summaryarg,
+                                       &outputfile,
+#if CONFIG_PARAKIT_COLLECT_DATA
+                                       &datafilesuffix,
+                                       &datafilepath,
+#endif
+                                       &threadsarg,
+                                       &verbosearg,
+                                       &scalearg,
+                                       &fb_arg,
+                                       &md5arg,
+                                       &verifyarg,
+                                       &framestatsarg,
+                                       &continuearg,
+                                       &outbitdeptharg,
+                                       &isannexb,
+                                       &oppointarg,
+                                       &outallarg,
+                                       &skipfilmgrain,
+#if CONFIG_BRU
+                                       &bruoptmodearg,
+#endif
+                                       NULL };
 
 #if CONFIG_LIBYUV
 static INLINE int libyuv_scale(aom_image_t *src, aom_image_t *dst,
@@ -560,6 +584,9 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
+#if CONFIG_BRU
+  int bru_opt_mode = 0;
+#endif
   aom_image_t *scaled_img = NULL;
   aom_image_t *img_shifted = NULL;
   int frame_avail, got_data, flush_decoder = 0;
@@ -695,6 +722,10 @@ static int main_loop(int argc, const char **argv_) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
+#if CONFIG_BRU
+    } else if (arg_match(&arg, &bruoptmodearg, argi)) {
+      bru_opt_mode = 1;
+#endif
     } else {
       argj++;
     }
@@ -835,6 +866,15 @@ static int main_loop(int argc, const char **argv_) {
             aom_codec_error(&decoder));
     goto fail;
   }
+
+#if CONFIG_BRU
+  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_BRU_OPT_MODE,
+                                    bru_opt_mode)) {
+    fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
+            aom_codec_error(&decoder));
+    goto fail;
+  }
+#endif
 
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
   while (arg_skip) {

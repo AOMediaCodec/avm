@@ -905,7 +905,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #if CONFIG_BRU
   .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
                         "Enable Backward Reference Update "
-                        "(0: false (default), 1: true)"),
+                        "(0: false (default), 1: true with regular decoder, 2: "
+                        "true with optimized decoder)"),
 #endif
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,

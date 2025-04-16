@@ -679,8 +679,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       // The following for loop needs to release the reference stored in
       // cm->ref_frame_map[ref_index] before storing a reference to
       // cm->cur_frame in cm->ref_frame_map[ref_index].
-#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
-      if (!cm->bru.enabled) {
+#if CONFIG_BRU
+      if (!pbi->bru_opt_mode || (pbi->bru_opt_mode && !cm->bru.enabled)) {
 #endif  // CONFIG_BRU
         for (int mask = cm->current_frame.refresh_frame_flags; mask;
              mask >>= 1) {
@@ -696,7 +696,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           }
           ++ref_index;
         }
-#if CONFIG_BRU && !CONFIG_BRU_REG_DECODE
+#if CONFIG_BRU
       }
 #endif  // CONFIG_BRU
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,

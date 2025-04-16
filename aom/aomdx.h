@@ -388,6 +388,10 @@ enum aom_dec_control_id {
    */
   AV1D_SET_SKIP_FILM_GRAIN,
 
+#if CONFIG_BRU
+  AV1D_SET_BRU_OPT_MODE,
+#endif
+
   AOM_DECODER_CTRL_ID_MAX,
 
   /*!\brief Codec control function to check the presence of forward key frames
@@ -558,6 +562,11 @@ AOM_CTRL_USE_TYPE(AV1D_SET_ROW_MT, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1D_SET_SKIP_FILM_GRAIN, int)
 #define AOM_CTRL_AV1D_SET_SKIP_FILM_GRAIN
+
+#if CONFIG_BRU
+AOM_CTRL_USE_TYPE(AV1D_SET_BRU_OPT_MODE, int)
+#define AOM_CTRL_AV1D_SET_BRU_OPT_MODE
+#endif
 
 AOM_CTRL_USE_TYPE(AV1D_SET_IS_ANNEXB, unsigned int)
 #define AOM_CTRL_AV1D_SET_IS_ANNEXB

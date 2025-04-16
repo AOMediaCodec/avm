@@ -1582,13 +1582,8 @@ static void show_stream_config(struct stream_state *stream,
 #endif  // CONFIG_DRL_REORDER_CONTROL
   fprintf(stdout, "\n");
 #if CONFIG_BRU
-#if CONFIG_BRU_REG_DECODE
-  fprintf(stdout, "Backward Reference Update (Reg): %d\n",
+  fprintf(stdout, "Backward Reference Update      : %d\n",
           encoder_cfg->enable_bru);
-#else
-  fprintf(stdout, "Backward Reference Update (Opt): %d\n",
-          encoder_cfg->enable_bru);
-#endif
 #endif  // CONFIG_BRU
 #if CONFIG_EXT_RECUR_PARTITIONS
   fprintf(
@@ -1931,6 +1926,17 @@ static void initialize_encoder(struct stream_state *stream,
       AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV1_SET_DECODE_TILE_COL,
                                     -1);
       ctx_exit_on_error(&stream->decoder, "Failed to set decode_tile_col");
+#if CONFIG_BRU
+      int bru_opt_mode;
+      AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_GET_ENABLE_BRU,
+                                    &bru_opt_mode);
+      ctx_exit_on_error(&stream->encoder, "Failed to get bru opt_mode");
+      if (bru_opt_mode > 1) {
+        AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV1D_SET_BRU_OPT_MODE,
+                                      bru_opt_mode > 1);
+        ctx_exit_on_error(&stream->decoder, "Failed to set bru opt_mode");
+      }
+#endif
     }
   }
 #endif
