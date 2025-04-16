@@ -7202,6 +7202,12 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
                                            tmp_bw, mib_size_log2);
 #endif  // CONFIG_IBC_SR_EXT == 1
 #if CONFIG_IBC_SR_EXT == 2
+#if CONFIG_INTRABC_RNG_BUGFIX
+    uint8_t allow_left_128_blk = 1;
+    if (!frame_is_intra_only(cm)) allow_left_128_blk = 0;
+    valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
+                                     mib_size_log2, allow_left_128_blk);
+#else
 #if CONFIG_ENABLE_IBC_NAT
     if (!frame_is_intra_only(
             cm))  // Inter frame: Using 128x128 but the modificantion made in
@@ -7213,6 +7219,7 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
 #endif
       valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                        mib_size_log2);
+#endif  // CONFIG_INTRABC_RNG_BUGFIX
 #endif  // CONFIG_IBC_SR_EXT == 2
     if (valid) return 1;
   }

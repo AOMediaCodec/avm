@@ -398,11 +398,11 @@ set_aom_config_var(CONFIG_KEY_OVERLAY 1
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
 
+
 set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
                    "Enable the optimization of CDEF strengths")
 set_aom_config_var(CONFIG_TMVP_SIMPLIFICATION 1
                    "Enable to reduce the number of TMVP candidates")
-
 set_aom_config_var(
   CONFIG_MRLS_IMPROVE 1
   "Enable MRLS improvement to enable two reference lines for intra prediction")
@@ -413,6 +413,9 @@ set_aom_config_var(
   1
   "Reduce the line buffer size for DRL and WRL. The access unit is changed from 4x4 to 8x8"
 )
+
+set_aom_config_var(CONFIG_INTRABC_RNG_BUGFIX 1
+                   "Enable intra_bc search range bugfix")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
