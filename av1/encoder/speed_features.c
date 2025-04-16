@@ -359,6 +359,10 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.skip_mode_eval_based_on_rate_cost = 1;
+  sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+      cm->features.allow_screen_content_tools ? 0
+      : cm->current_frame.pyramid_level < 3   ? 0
+                                              : 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
   sf->intra_sf.intra_pruning_with_hog_thresh = -1.2f;
@@ -366,7 +370,8 @@ static void set_good_speed_features_framesize_independent(
   sf->intra_sf.reuse_uv_mode_rd_info = true;
 #endif  // CONFIG_AIMC
 
-  sf->tx_sf.adaptive_txb_search_level = 1;
+  sf->tx_sf.adaptive_tx_type_search_idx = 1;
+  sf->tx_sf.adaptive_tx_partition_type_search_idx = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
@@ -390,7 +395,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;
 
-    sf->tx_sf.adaptive_txb_search_level = 2;
+    sf->tx_sf.adaptive_tx_type_search_idx = 4;
+    sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
   }
@@ -435,7 +441,8 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.skip_intra_dip_search = true;
 #endif  // CONFIG_DIP
 
-    sf->tx_sf.adaptive_txb_search_level = 2;
+    sf->tx_sf.adaptive_tx_type_search_idx = 4;
+    sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
     sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
     sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
@@ -512,7 +519,9 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 4;
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
-    sf->inter_sf.reuse_compound_type_decision = 1;
+    // TODO(any): Set this speed feature to 2 after correcting the match
+    // criteria by considering tools like OPFL, DMVR.
+    sf->inter_sf.reuse_compound_type_data = 0;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
 
@@ -530,7 +539,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.skip_stx_search = 1;
     sf->tx_sf.tx_type_search.skip_cctx_search = 1;
-    sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
+    sf->tx_sf.adaptive_tx_type_search_idx = boosted ? 4 : 5;
+    sf->tx_sf.adaptive_tx_partition_type_search_idx = boosted ? 4 : 5;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
 
     // TODO(any): Refactor the code related to following winner mode speed
@@ -814,6 +824,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_search_by_single_result = 0;
   inter_sf->skip_repeated_ref_mv = 0;
   inter_sf->skip_repeated_newmv = 0;
+  inter_sf->skip_eval_intrabc_in_inter_frame = 0;
   inter_sf->skip_repeated_full_newmv = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
@@ -835,7 +846,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->disable_interinter_wedge = 0;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
-  inter_sf->reuse_compound_type_decision = 0;
+  inter_sf->reuse_compound_type_data = 0;
   inter_sf->txfm_rd_gate_level = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
@@ -892,7 +903,8 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
   tx_sf->txb_split_cap = 1;
-  tx_sf->adaptive_txb_search_level = 0;
+  tx_sf->adaptive_tx_type_search_idx = 0;
+  tx_sf->adaptive_tx_partition_type_search_idx = 0;
   tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
   tx_sf->refine_fast_tx_search_results = 1;
@@ -1359,9 +1371,17 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;
+    const int qindex_thresh2 = 135 + qindex_offset;
     if (cm->quant_params.base_qindex <= qindex_thresh) {
-      sf->tx_sf.adaptive_txb_search_level =
+      sf->tx_sf.adaptive_tx_type_search_idx =
           (boosted || cm->features.allow_screen_content_tools) ? 1 : 2;
+      sf->tx_sf.adaptive_tx_partition_type_search_idx =
+          (boosted || cm->features.allow_screen_content_tools) ? 1 : 2;
+    } else if (cm->quant_params.base_qindex <= qindex_thresh2) {
+      sf->tx_sf.adaptive_tx_partition_type_search_idx =
+          (boosted || cm->features.allow_screen_content_tools) ? 1 : 3;
+      sf->tx_sf.adaptive_tx_type_search_idx =
+          (boosted || cm->features.allow_screen_content_tools) ? 1 : 3;
     }
   }
 

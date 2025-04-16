@@ -18,8 +18,8 @@ using std::tuple;
 namespace libaom_test {
 
 int32_t random_warped_param(libaom_test::ACMRandom *rnd, int bits) {
-  // 1 in 8 chance of generating zero (arbitrarily chosen)
-  if (((rnd->Rand8()) & 7) == 0) return 0;
+  // 1 in 32 chance of generating zero (arbitrarily chosen)
+  if (((rnd->Rand8()) & 0x1f) == 0) return 0;
   // Otherwise, enerate uniform values in the range
   // [-(1 << bits), 1] U [1, 1<<bits]
   int32_t v = 1 + (rnd->Rand16() & ((1 << bits) - 1));
@@ -40,6 +40,8 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
              (1 << WARPEDMODEL_PREC_BITS);
     mat[3] = random_warped_param(rnd, WARPEDMODEL_PREC_BITS - 3);
 
+    if (is_alpha_zero == 1) mat[2] = 1 << WARPEDMODEL_PREC_BITS;
+    if (is_beta_zero == 1) mat[3] = 0;
     if (rnd8 <= 1) {
       // AFFINE
       mat[4] = random_warped_param(rnd, WARPEDMODEL_PREC_BITS - 3);
@@ -52,14 +54,12 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
       mat[4] = random_warped_param(rnd, WARPEDMODEL_PREC_BITS - 3);
       mat[5] = (random_warped_param(rnd, WARPEDMODEL_PREC_BITS - 3)) +
                (1 << WARPEDMODEL_PREC_BITS);
-      if (is_alpha_zero == 1) mat[2] = 1 << WARPEDMODEL_PREC_BITS;
-      if (is_beta_zero == 1) mat[3] = 0;
-      if (is_gamma_zero == 1) mat[4] = 0;
-      if (is_delta_zero == 1)
-        mat[5] = static_cast<int32_t>(
-            ((static_cast<int64_t>(mat[3]) * mat[4] + (mat[2] / 2)) / mat[2]) +
-            (1 << WARPEDMODEL_PREC_BITS));
     }
+    if (is_gamma_zero == 1) mat[4] = 0;
+    if (is_delta_zero == 1)
+      mat[5] = static_cast<int32_t>(
+          ((static_cast<int64_t>(mat[3]) * mat[4] + (mat[2] / 2)) / mat[2]) +
+          (1 << WARPEDMODEL_PREC_BITS));
 
     // Calculate the derived parameters and check that they are suitable
     // for the warp filter.
@@ -98,6 +98,31 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
     return;
   }
 }
+#if CONFIG_OPFL_MEMBW_REDUCTION
+void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
+                              ReferenceArea *ref_area, int w, int h, int out_w,
+                              int out_h, int p_row, int p_col, int *mat,
+                              int use_ref_area_pad) {
+  int left_limit;
+  if (use_ref_area_pad) {
+    const int32_t src_x = (p_col + 4);
+    const int32_t src_y = (p_row + 4);
+    const int64_t dst_x =
+        (int64_t)mat[2] * src_x + (int64_t)mat[3] * src_y + (int64_t)mat[0];
+    const int32_t ix4 = (int32_t)(dst_x >> WARPEDMODEL_PREC_BITS);
+    left_limit = ix4 - 7 + 3;
+  } else {
+    left_limit = rnd->Rand8() % (w - 1);
+  }
+  ref_area->pad_block.x0 = left_limit;
+  ref_area->pad_block.x1 = ref_area->pad_block.x0 + out_w + 7;
+  ref_area->pad_block.y0 = rnd->Rand8() % (h - 1);
+  ref_area->pad_block.y1 = ref_area->pad_block.y0 + out_h + 7;
+
+  ref_area->pad_block.x1 = CLIP(ref_area->pad_block.x1, 1, w);
+  ref_area->pad_block.y1 = CLIP(ref_area->pad_block.y1, 1, h);
+}
+#endif
 
 namespace AV1HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
@@ -136,7 +161,7 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   const int out_w = std::get<0>(param), out_h = std::get<1>(param);
   const int bd = std::get<3>(param);
   const int mask = (1 << bd) - 1;
-  int sub_x, sub_y;
+  int sub_x, sub_y, p_row, p_col;
 
   // The warp functions always write rows with widths that are multiples of 8.
   // So to avoid a buffer overflow, we may need to pad rows to a multiple of 8.
@@ -164,6 +189,8 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
 
   sub_x = 0;
   sub_y = 0;
+  p_row = 32;
+  p_col = 32;
   int do_average = 0;
   conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
 
@@ -172,8 +199,8 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   aom_usec_timer_start(&timer);
 
   for (int i = 0; i < num_loops; ++i)
-    test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
-              sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta
+    test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
+              out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta
 #if CONFIG_OPFL_MEMBW_REDUCTION
               ,
               0, NULL
@@ -181,9 +208,27 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
     );
 
   aom_usec_timer_mark(&timer);
-  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
   printf("highbd warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
-         1000.0 * elapsed_time / num_loops);
+         1000.0 * elapsed_time1 / num_loops);
+
+#if CONFIG_OPFL_MEMBW_REDUCTION
+  ReferenceArea ref_area;
+  generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
+                           mat, 1);
+  aom_usec_timer_start(&timer);
+
+  for (int i = 0; i < num_loops; ++i)
+    test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
+              out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta,
+              1, &ref_area);
+
+  aom_usec_timer_mark(&timer);
+  const int elapsed_time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  printf("highbd warp using ref area padding %3dx%-3d: %7.2f ns\n", out_w,
+         out_h, 1000.0 * elapsed_time2 / num_loops);
+#endif
 
   delete[] input_;
   delete[] output;
@@ -193,6 +238,7 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
 void AV1HighbdWarpFilterTest::RunCheckOutput(
     highbd_warp_affine_func test_impl) {
   const int w = 128, h = 128;
+  const int p_row = 32, p_col = 32;
   const int border = 16;
   const int stride = w + 2 * border;
   HighbdWarpTestParam param = GET_PARAM(0);
@@ -218,6 +264,9 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
   ConvolveParams conv_params = get_conv_params(0, 0, bd);
   CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
   CONV_BUF_TYPE *dstb = new CONV_BUF_TYPE[output_n];
+#if CONFIG_OPFL_MEMBW_REDUCTION
+  ReferenceArea ref_area;
+#endif
   for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand16();
 
   for (i = 0; i < num_iters; ++i) {
@@ -230,6 +279,11 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
         input[r * stride + w + c] = input[r * stride + (w - 1)];
       }
     }
+#if CONFIG_OPFL_MEMBW_REDUCTION
+    int use_damr_padding = i % 2 == 0;
+    generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
+                             NULL, 0);
+#endif
     const int use_no_round = rnd_.Rand8() & 1;
     for (sub_x = 0; sub_x < 2; ++sub_x)
       for (sub_y = 0; sub_y < 2; ++sub_y) {
@@ -251,12 +305,13 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                 conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
 
-              av1_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
-                                       out_w, out_h, out_w, sub_x, sub_y, bd,
-                                       &conv_params, alpha, beta, gamma, delta
+              av1_highbd_warp_affine_c(mat, input, w, h, stride, output, p_col,
+                                       p_row, out_w, out_h, out_w, sub_x, sub_y,
+                                       bd, &conv_params, alpha, beta, gamma,
+                                       delta
 #if CONFIG_OPFL_MEMBW_REDUCTION
                                        ,
-                                       0, NULL
+                                       use_damr_padding, &ref_area
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
               );
               if (use_no_round) {
@@ -270,12 +325,12 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                 conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
                 conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
-              test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
-                        out_w, sub_x, sub_y, bd, &conv_params, alpha, beta,
-                        gamma, delta
+              test_impl(mat, input, w, h, stride, output2, p_col, p_row, out_w,
+                        out_h, out_w, sub_x, sub_y, bd, &conv_params, alpha,
+                        beta, gamma, delta
 #if CONFIG_OPFL_MEMBW_REDUCTION
                         ,
-                        0, NULL
+                        use_damr_padding, &ref_area
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
               );
 

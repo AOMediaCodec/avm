@@ -662,6 +662,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // flag to skip NEWMV mode in drl if the motion search result is the same
   int skip_repeated_newmv;
 
+  // flag to skip the evaulation of intrabc mode in inter frame
+  int skip_eval_intrabc_in_inter_frame;
+
   // flag to early terminate jmvd scaling factors
   int early_terminate_jmvd_scale_factor;
 
@@ -803,8 +806,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
-  // 1: Reuse the compound type decision
-  int reuse_compound_type_decision;
+  // 1: Reuse the compound type rd data
+  // 2: Reuse the compound type decision
+  int reuse_compound_type_data;
 
   // Enable/disable masked compound.
   int disable_masked_comp;
@@ -890,11 +894,15 @@ typedef struct TX_SPEED_FEATURES {
   // is selected as all zero coefficients.
   int txb_split_cap;
 
-  // Shortcut the transform block partition and type search when the target
-  // rdcost is relatively lower.
-  // Values are 0 (not used) , or 1 - 2 with progressively increasing
-  // aggressiveness
-  int adaptive_txb_search_level;
+  // Prune transform type evaluation when target rdcost is low as
+  // compared to best rdcost and based on eob.
+  // 0: no pruning
+  // 1,4,5: pruning based on best rd
+  // 2,3: pruning based on eob and best rd
+  int adaptive_tx_type_search_idx;
+  // Prune transform partition type evaluation when target rdcost is low as
+  // compared to TX_PARTITION_NONE and based on the transform size.
+  int adaptive_tx_partition_type_search_idx;
 
   // Prune level for tx_size_type search for inter based on rd model
   // 0: no pruning

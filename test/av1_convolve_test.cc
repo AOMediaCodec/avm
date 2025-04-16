@@ -116,6 +116,7 @@ std::vector<TestParam<T>> GetTestParams(std::initializer_list<int> bit_depths,
       sizes.insert(BlockSize(w / 2, h / 2));
     }
   }
+  sizes.insert(BlockSize(24, 24));
   std::vector<TestParam<T>> result;
   for (const BlockSize &block : sizes) {
     for (int bd : bit_depths) {
@@ -142,7 +143,7 @@ template <typename T>
 TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av1_highbd_convolve_x_sr_c);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  ASSERT_EQ(80U, v.size());
+  ASSERT_EQ(82U, v.size());
 #else
   ASSERT_EQ(60U, v.size());
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
