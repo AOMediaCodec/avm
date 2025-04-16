@@ -520,8 +520,20 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
       }
       if (allow_affine || allow_translational)
 #endif  // CONFIG_AFFINE_REFINEMENT
+#if CONFIG_OPFL_CTX_OPT
+      {
+        int16_t opfl_ctx = comp_idx_to_opfl_mode[comp_mode_idx];
+        opfl_ctx =
+            opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
+        opfl_ctx -= NEAR_NEARMV_OPTFLOW;
+        opfl_ctx = (opfl_ctx == 0) ? 0 : 1;
         use_optical_flow_cost +=
-            mode_costs->use_optflow_cost[mode_context][use_optical_flow];
+            mode_costs->use_optflow_cost[opfl_ctx][use_optical_flow];
+      }
+#else
+      use_optical_flow_cost +=
+          mode_costs->use_optflow_cost[mode_context][use_optical_flow];
+#endif
     }
 
 #if CONFIG_OPT_INTER_MODE_CTX
@@ -8064,8 +8076,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-    }   //(int index = av1_intraBc_precision_sets.num_precisions - 1; index > 0;
-        // index--)
+    }  //(int index = av1_intraBc_precision_sets.num_precisions - 1; index > 0;
+       // index--)
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
   }
   *mbmi = best_mbmi;
@@ -11372,11 +11384,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                compmode_cost);
 #if CONFIG_AFFINE_REFINEMENT
         }  // end of comp_refine_type loop
-#endif     // CONFIG_AFFINE_REFINEMENT
+#endif  // CONFIG_AFFINE_REFINEMENT
 
       }  // end of ref1 loop
-    }    // end of ref0 loop
-  }      // end of mode loop
+    }  // end of ref0 loop
+  }  // end of mode loop
 
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
     // For the single ref winner candidates, evaluate other motion modes (non
@@ -12100,20 +12112,20 @@ struct calc_target_weighted_pred_ctxt {
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
    low bit-depth arrays. */
-#define SOBEL_X(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] -                 \
-   (src)[((i) + 1) + (stride) * ((j)-1)] +  /* NOLINT */ \
-   2 * (src)[((i)-1) + (stride) * (j)] -    /* NOLINT */ \
-   2 * (src)[((i) + 1) + (stride) * (j)] +  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
-#define SOBEL_Y(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] +                 \
-   2 * (src)[(i) + (stride) * ((j)-1)] +    /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j)-1)] -  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   2 * (src)[(i) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
+#define SOBEL_X(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] -              \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] + /* NOLINT */ \
+   2 * (src)[((i) - 1) + (stride) * (j)] -   /* NOLINT */ \
+   2 * (src)[((i) + 1) + (stride) * (j)] +   /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
+#define SOBEL_Y(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] +              \
+   2 * (src)[(i) + (stride) * ((j) - 1)] +   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] - /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   2 * (src)[(i) + (stride) * ((j) + 1)] -   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
 
 sobel_xy av1_sobel(const uint16_t *src, int stride, int i, int j) {
   int16_t s_x;

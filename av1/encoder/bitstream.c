@@ -362,8 +362,20 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
     }
     if (allow_affine || allow_translational)
 #endif  // CONFIG_AFFINE_REFINEMENT
+#if CONFIG_OPFL_CTX_OPT
+    {
+      int opfl_ctx = comp_idx_to_opfl_mode[comp_mode_idx];
+      opfl_ctx =
+          opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
+      opfl_ctx -= NEAR_NEARMV_OPTFLOW;
+      opfl_ctx = (opfl_ctx == 0) ? 0 : 1;
       aom_write_symbol(w, use_optical_flow,
-                       xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+                       xd->tile_ctx->use_optflow_cdf[opfl_ctx], 2);
+    }
+#else
+    aom_write_symbol(w, use_optical_flow,
+                     xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+#endif
   }
 }
 
@@ -4984,7 +4996,7 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
         nsfilter_params, c_id, xd, wb);
   }
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
@@ -5091,7 +5103,7 @@ static AOM_INLINE void write_wienerns_filter(
   }
   const int num_classes = wienerns_info->num_classes;
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) {

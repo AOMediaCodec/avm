@@ -1222,6 +1222,12 @@ enum {
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
+#define CONFIG_OPFL_CTX_OPT 1
+#if CONFIG_OPFL_CTX_OPT
+#define OPFL_MODE_CONTEXTS 2
+#endif
+// Simplification for opfl flag context model
+
 #if CONFIG_OPT_INTER_MODE_CTX
 #define INTER_MODE_CONTEXTS 5
 #define DRL_MODE_CONTEXTS INTER_MODE_CONTEXTS

@@ -2196,7 +2196,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
           ++counts->use_optflow[mode_ctx][use_optical_flow];
 #endif
-          update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
+#if CONFIG_OPFL_CTX_OPT
+          int opfl_ctx = opfl_get_comp_idx(mode);
+          opfl_ctx =
+              opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
+          opfl_ctx -= NEAR_NEARMV_OPTFLOW;
+          opfl_ctx = (opfl_ctx == 0) ? 0 : 1;
+          update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
+#else
+        update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
+#endif
 #if CONFIG_AFFINE_REFINEMENT
         }
 #endif  // CONFIG_AFFINE_REFINEMENT

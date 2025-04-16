@@ -28,8 +28,8 @@ extern "C" {
 
 #define TX_SIZE_CONTEXTS 3
 
-#define INTER_OFFSET(mode) ((mode)-NEARMV)
-#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#define INTER_OFFSET(mode) ((mode) - NEARMV)
+#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
 #if CONFIG_PALETTE_IMPROVEMENTS
 // As can be seen from av1_get_palette_color_index_context(), the possible
@@ -313,7 +313,11 @@ typedef struct frame_contexts {
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPT_INTER_MODE_CTX
+#if CONFIG_OPFL_CTX_OPT
+  aom_cdf_prob use_optflow_cdf[OPFL_MODE_CONTEXTS][CDF_SIZE(2)];
+#else
   aom_cdf_prob use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   // The inter_compound_mode_is_joint_cdf is for coding whether the mode is
