@@ -4588,7 +4588,7 @@ void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 }
 
-#if CONFIG_16_FULL_SEARCH_DMVR
+#if CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
                                    uint16_t **mc_buf,
                                    CalcSubpelParamsFunc calc_subpel_params_func,
@@ -4639,7 +4639,7 @@ int av1_refinemv_build_predictors_and_get_sad(
 
   return get_refinemv_sad(dst_ref0, dst_ref1, bw, bw, bh, xd->bd);
 }
-#endif  // CONFIG_16_FULL_SEARCH_DMVR
+#endif  // CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 
 void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
@@ -4720,19 +4720,19 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   }
 
-#if !CONFIG_16_FULL_SEARCH_DMVR
+#if !CONFIG_16_FULL_SEARCH_DMVR && !CONFIG_24_FULL_SEARCH_DMVR
 #if !SINGLE_STEP_SEARCH
   // Search integer-delta values
   const int search_range = 2;
 #endif  //! SINGLE_STEP_SEARCH
-#endif  //! CONFIG_16_FULL_SEARCH_DMVR
+#endif  // !CONFIG_16_FULL_SEARCH_DMVR && !CONFIG_24_FULL_SEARCH_DMVR
 
   int switchable_refinemv_flags =
       (mi->ref_frame[0] != TIP_FRAME) && switchable_refinemv_flag(cm, mi);
 
   // If we signal the refinemv_flags we do not select sad0
   // Set sad0 a large value so that it does not be selected
-#if CONFIG_16_FULL_SEARCH_DMVR
+#if CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 #if CONFIG_SUBBLK_REF_EXT
   const int dst_stride = REFINEMV_SUBBLOCK_WIDTH +
                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
@@ -4753,7 +4753,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                        xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func,
                        dst_ref0, dst_ref1, center_mvs[0], center_mvs[1],
                        inter_pred_params);
-#endif  // CONFIG_16_FULL_SEARCH_DMVR
+#endif  // CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 #if !CONFIG_SUBBLK_REF_EXT
   assert(IMPLIES(mi->ref_frame[0] == TIP_FRAME, bw == 8 && bh == 8));
 #endif  // !CONFIG_SUBBLK_REF_EXT
@@ -4775,12 +4775,21 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   refined_mv[0] = center_mvs[0];
   refined_mv[1] = center_mvs[1];
 
-#if CONFIG_16_FULL_SEARCH_DMVR
+#if CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
+#if CONFIG_24_FULL_SEARCH_DMVR
+  static const MV neighbors[DMVR_SEARCH_NUM_NEIGHBORS] = {
+    { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 }, { -1, -2 },
+    { -1, -1 }, { -1, 0 },  { -1, 1 }, { -1, 2 }, { 0, -2 }, { 0, -1 },
+    { 0, 1 },   { 0, 2 },   { 1, -2 }, { 1, -1 }, { 1, 0 },  { 1, 1 },
+    { 1, 2 },   { 2, -2 },  { 2, -1 }, { 2, 0 },  { 2, 1 },  { 2, 2 }
+  };
+#elif CONFIG_16_FULL_SEARCH_DMVR
   static const MV neighbors[DMVR_SEARCH_NUM_NEIGHBORS] = {
     { 0, -1 },  { 1, 0 },   { 0, 1 }, { -1, 0 }, { 1, -1 }, { 1, 1 },
     { -1, -1 }, { -1, 1 },  { 2, 1 }, { 2, 0 },  { 2, -1 }, { -2, 1 },
     { -2, 0 },  { -2, -1 }, { 0, 2 }, { 0, -2 }
   };
+#endif  // CONFIG_24_FULL_SEARCH_DMVR
   MV best_offset = { 0, 0 };
   // Prediction is generated at once for (bw+4) x (bh+4) block, by extending 2
   // samples (search range of the refinement stage) on each side. Later, the
@@ -4922,7 +4931,7 @@ best_mv_ref[0].col = center_mvs[0].col + 8 * best_offset.col;
 best_mv_ref[1].row = center_mvs[1].row - 8 * best_offset.row;
 best_mv_ref[1].col = center_mvs[1].col - 8 * best_offset.col;
 
-#endif  // CONFIG_16_FULL_SEARCH_DMVR
+#endif  // CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 
   assert(min_sad <= sad0);
 

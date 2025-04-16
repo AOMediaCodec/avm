@@ -191,6 +191,10 @@ set_aom_config_var(
   1
   "AV2 remove 2-stage search and early termination in neighbors for DMVR with 16-neighbor full search"
 )
+
+set_aom_config_var(CONFIG_24_FULL_SEARCH_DMVR 1
+                   "AV2 DMVR with 24-neighbor full search")
+
 set_aom_config_var(
   CONFIG_IDIF 1
   "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
