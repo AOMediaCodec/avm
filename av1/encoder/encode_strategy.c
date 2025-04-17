@@ -732,11 +732,21 @@ int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+
+#if CONFIG_GENERALIZED_S_FRAME
+  // Shown key-frames overwrite all reference slots
+  if (frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    return REFRESH_FRAME_ALL;
+  } else if (frame_params->frame_type == S_FRAME) {
+    return 0xff; //TODO, make configurable
+  }
+#else
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME) {
     return REFRESH_FRAME_ALL;
   }
+#endif  // CONFIG_GENERALIZED_S_FRAME
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.

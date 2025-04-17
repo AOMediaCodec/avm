@@ -6627,6 +6627,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   // frames.  For all other frame types, we need to write refresh_frame_flags.
   if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
       current_frame->frame_type == INTER_FRAME ||
+#if CONFIG_GENERALIZED_S_FRAME
+      current_frame->frame_type == S_FRAME ||
+#endif  // CONFIG_GENERALIZED_S_FRAME
       current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
     if (cm->seq_params.enable_short_refresh_frame_flags &&

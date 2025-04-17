@@ -7743,9 +7743,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
 #else
+#if CONFIG_GENERALIZED_S_FRAME
+        current_frame->refresh_frame_flags =
+          aom_rb_read_literal(rb, REF_FRAMES);
+#else
         current_frame->refresh_frame_flags =
             frame_is_sframe(cm) ? REFRESH_FRAME_ALL
                                 : aom_rb_read_literal(rb, REF_FRAMES);
+#endif  // CONFIG_GENERALIZED_S_FRAME
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
