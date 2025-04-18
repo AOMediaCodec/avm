@@ -938,7 +938,12 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir) {
+                                 int ref_height, int dir
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                 ,
+                                 int is_top_sb_boundary
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -957,31 +962,46 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     for (int j = 1; j < ref_height - 1; ++j) {
       for (int i = 1; i < ref_width - 1; ++i) {
         if ((i >= left_lines && j >= above_lines)) continue;
+        int ref_h_offset = 0;
+#if CONFIG_MHCCP_SB_BOUNDARY
+        if (is_top_sb_boundary && above_lines == (LINE_NUM + 1)) {
+          if (j < above_lines) {
+            ref_h_offset = above_lines - 1 - j;
+          }
+        }
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
         // 7-tap cross
-        A[0][count] = (l[i + j * ref_stride] >> 3);  // C
+        A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
         if (dir == 0) {
-          A[1][count] = (l[i + (j - 1) * ref_stride] >> 3);  // N 1, -1
+          A[1][count] =
+              (l[i + (j + ref_h_offset - 1) * ref_stride] >> 3);  // N 1, -1
 #if !CONFIG_E149_MHCCP_4PARA
-          A[2][count] = (i >= left_lines && j + 1 >= above_lines)
-                            ? (l[i + (j)*ref_stride] >> 3)
-                            : (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
+          A[2][count] =
+              (i >= left_lines && (j + 1 + ref_h_offset) >= above_lines)
+                  ? (l[i + (j + ref_h_offset) * ref_stride] >> 3)
+                  : (l[i + (j + 1 + ref_h_offset) * ref_stride] >>
+                     3);  // S 1,  1
+#endif                    // !CONFIG_E149_MHCCP_4PARA
         } else {
-          A[1][count] = (l[(i - 1) + j * ref_stride] >> 3);  // W 1, -1
+          A[1][count] =
+              (l[(i - 1) + (j + ref_h_offset) * ref_stride] >> 3);  // W 1, -1
 #if !CONFIG_E149_MHCCP_4PARA
           A[2][count] = (i + 1 >= left_lines && j >= above_lines)
-                            ? (l[(i) + j * ref_stride] >> 3)
-                            : (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
+                            ? (l[(i) + (j + ref_h_offset) * ref_stride] >> 3)
+                            : (l[(i + 1) + (j + ref_h_offset) * ref_stride] >>
+                               3);  // E 1,  1
+#endif                              // !CONFIG_E149_MHCCP_4PARA
         }
 #if CONFIG_E149_MHCCP_4PARA
-        A[2][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
+        A[2][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
+                                 mid, xd->bd);
         A[3][count] = mid;
 #else
-        A[3][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
+        A[3][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
+                                 mid, xd->bd);
         A[4][count] = mid;
 #endif  // CONFIG_E149_MHCCP_4PARA
-        YCb[count] = c[i + j * ref_stride];
+        YCb[count] = c[i + (j + ref_h_offset) * ref_stride];
         ++count;
       }
     }
