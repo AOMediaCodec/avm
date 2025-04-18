@@ -2597,8 +2597,9 @@ static INLINE void predict_dc_only_block(
   block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
   // Early prediction of skip block if residual mean and variance are less
   // than qstep based threshold
-  if (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
-      (block_var < var_threshold)) {
+  if ((((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
+       (block_var < var_threshold)) &&
+      (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
     // If the normalized mean of residual block is less than the dc qstep and
     // the  normalized block variance is less than ac qstep, then the block is
     // assumed to be a skip block and its rdcost is updated accordingly.
@@ -4619,7 +4620,10 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   if (is_inter) {
     const int64_t no_skip_txfm_rd =
         RDCOST(x->rdmult, this_rd_stats.rate, this_rd_stats.dist);
-    const int64_t skip_txfm_rd = RDCOST(x->rdmult, 0, this_rd_stats.sse);
+    const int64_t skip_txfm_rd =
+        xd->lossless[xd->mi[0]->segment_id] && this_rd_stats.sse > 0
+            ? INT64_MAX
+            : RDCOST(x->rdmult, 0, this_rd_stats.sse);
     rd = AOMMIN(no_skip_txfm_rd, skip_txfm_rd);
     this_rd_stats.skip_txfm &= !x->plane[plane].eobs[block];
   } else {
@@ -4712,7 +4716,9 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // Check if forcing the block to skip transform leads to smaller RD cost.
   if (is_inter && !rd_stats->skip_txfm && !xd->lossless[mbmi->segment_id]) {
     int64_t temp_skip_txfm_rd =
-        RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
+        xd->lossless[xd->mi[0]->segment_id] && rd_stats->sse > 0
+            ? INT64_MAX
+            : RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
     if (temp_skip_txfm_rd <= rd) {
       rd = temp_skip_txfm_rd;
       rd_stats->rate = 0;
@@ -4774,8 +4780,11 @@ static AOM_INLINE void tx_block_yrd(
                rd_stats, ftxs_mode, ref_best_rd, NULL);
     const int mi_width = mi_size_wide[plane_bsize];
     TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-    if (RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist) >=
-            RDCOST(x->rdmult, zero_blk_rate, rd_stats->sse) ||
+    int64_t skip_txfm_rd =
+        xd->lossless[xd->mi[0]->segment_id] && rd_stats->sse > 0
+            ? INT64_MAX
+            : RDCOST(x->rdmult, zero_blk_rate, rd_stats->sse);
+    if (RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist) >= skip_txfm_rd ||
         rd_stats->skip_txfm == 1) {
       rd_stats->rate = zero_blk_rate;
       rd_stats->dist = rd_stats->sse;
@@ -4883,7 +4892,10 @@ static int inter_block_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   const int skip_ctx = av1_get_skip_txfm_context(xd);
   const int no_skip_txfm_rate = x->mode_costs.skip_txfm_cost[skip_ctx][0];
   const int skip_txfm_rate = x->mode_costs.skip_txfm_cost[skip_ctx][1];
-  const int64_t skip_txfm_rd = RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
+  const int64_t skip_txfm_rd =
+      xd->lossless[xd->mi[0]->segment_id] && rd_stats->sse > 0
+          ? INT64_MAX
+          : RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
   this_rd =
       RDCOST(x->rdmult, rd_stats->rate + no_skip_txfm_rate, rd_stats->dist);
   if (skip_txfm_rd < this_rd) {
@@ -4977,7 +4989,10 @@ static AOM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
     if (is_inter) {
       const int64_t no_skip_txfm_rd =
           RDCOST(x->rdmult, this_rd_stats->rate, this_rd_stats->dist);
-      const int64_t skip_txfm_rd = RDCOST(x->rdmult, 0, this_rd_stats->sse);
+      const int64_t skip_txfm_rd =
+          xd->lossless[xd->mi[0]->segment_id] && this_rd_stats->sse > 0
+              ? INT64_MAX
+              : RDCOST(x->rdmult, 0, this_rd_stats->sse);
       rd = AOMMIN(no_skip_txfm_rd, skip_txfm_rd);
       this_rd_stats->skip_txfm &= !x->plane[plane].eobs[block];
     } else {
@@ -5116,7 +5131,9 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
         return INT64_MAX;
       }
       av1_merge_rd_stats(rd_stats, &pn_rd_stats);
-      skip_txfm_rd = RDCOST(x->rdmult, skip_txfm_cost, rd_stats->sse);
+      skip_txfm_rd = xd->lossless[xd->mi[0]->segment_id] && rd_stats->sse > 0
+                         ? INT64_MAX
+                         : RDCOST(x->rdmult, skip_txfm_cost, rd_stats->sse);
       no_skip_txfm_rd =
           RDCOST(x->rdmult, rd_stats->rate + no_skip_txfm_cost, rd_stats->dist);
       block += step;
@@ -5190,6 +5207,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_MOTION_MODE_RD_PRUNE
                                          int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   assert(is_inter_block(xd->mi[0], xd->tree_type));
 
@@ -5234,7 +5252,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // If we predict that skip is the optimal RD decision - set the respective
   // context and terminate early.
   int64_t dist;
-  if (txfm_params->skip_txfm_level &&
+  if (txfm_params->skip_txfm_level && !xd->lossless[mbmi->segment_id] &&
       predict_skip_txfm(&cpi->common, x, bsize, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     set_skip_txfm(x, rd_stats, bsize, dist);
@@ -5635,7 +5653,9 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   const int64_t non_skip_txfm_rdcosty =
       RDCOST(x->rdmult, rd_stats->rate + skip_txfm_cost[0], rd_stats->dist);
   const int64_t skip_txfm_rdcosty =
-      RDCOST(x->rdmult, mode_rate + skip_txfm_cost[1], rd_stats->sse);
+      xd->lossless[mbmi->segment_id] && rd_stats->sse > 0
+          ? INT64_MAX
+          : RDCOST(x->rdmult, mode_rate + skip_txfm_cost[1], rd_stats->sse);
   const int64_t min_rdcosty = AOMMIN(non_skip_txfm_rdcosty, skip_txfm_rdcosty);
   if (min_rdcosty > ref_best_rd) {
     const int64_t tokenonly_rdy =
@@ -5688,6 +5708,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     rd_stats_y->dist = rd_stats_y->sse;
     rd_stats_uv->dist = rd_stats_uv->sse;
     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
+    assert(IMPLIES(xd->lossless[mbmi->segment_id], rd_stats->dist == 0));
     if (rd_stats->skip_txfm) {
       const int64_t tmprd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
       if (tmprd > ref_best_rd) return 0;
