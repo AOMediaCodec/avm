@@ -2331,11 +2331,8 @@ void av1_predict_intra_block(
 void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                         MACROBLOCKD *const xd, int row, int col,
                                         TX_SIZE tx_size, int *above_lines,
-                                        int *left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                        int is_top_sb_boundary,
-#endif
-                                        int *ref_width, int *ref_height) {
+                                        int *left_lines, int *ref_width,
+                                        int *ref_height) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -2475,39 +2472,17 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           if ((h >= *above_lines && w >= *left_lines + width) ||
               (h >= *above_lines + height && w >= *left_lines))
             continue;
-          int ref_h_offset = 0;
-#if CONFIG_MHCCP_SB_BOUNDARY
-          if (is_top_sb_boundary &&
-              (*above_lines == ((LINE_NUM + 1) << sub_y))) {
-            if (h < *above_lines) {
-              ref_h_offset = ((LINE_NUM + 1) << sub_y) - (h + 1);
-            }
-          }
-#endif
           if (cm->seq_params.cfl_ds_filter_index == 1) {
-            output_q3[w >> 1] =
-                input[AOMMAX(0, w - 1) + ref_h_offset * input_stride] +
-                2 * input[w + ref_h_offset * input_stride] +
-                input[w + 1 + ref_h_offset * input_stride] +
-                input[bot + AOMMAX(-1, -w) +
-                      (ref_h_offset - 1) * input_stride] +
-                2 * input[bot + (ref_h_offset - 1) * input_stride] +
-                input[bot + 1 + (ref_h_offset - 1) * input_stride];
+            output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 2 * input[w] +
+                                input[w + 1] + input[bot + AOMMAX(-1, -w)] +
+                                2 * input[bot] + input[bot + 1];
           } else if (cm->seq_params.cfl_ds_filter_index == 2) {
             const int top = h != 0 ? w - input_stride : w;
-            output_q3[w >> 1] =
-                input[AOMMAX(0, w - 1) + ref_h_offset * input_stride] +
-                4 * input[w + ref_h_offset * input_stride] +
-                input[w + 1 + ref_h_offset * input_stride] +
-                input[top + (ref_h_offset + 1) * input_stride] +
-                input[bot + (ref_h_offset - 1) * input_stride];
+            output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 4 * input[w] +
+                                input[w + 1] + input[top] + input[bot];
           } else {
             output_q3[w >> 1] =
-                (input[w + ref_h_offset * input_stride] +
-                 input[w + 1 + ref_h_offset * input_stride] +
-                 input[bot + (ref_h_offset - 1) * input_stride] +
-                 input[bot + 1 + (ref_h_offset - 1) * input_stride])
-                << 1;
+                (input[w] + input[w + 1] + input[bot] + input[bot + 1]) << 1;
           }
         }
         output_q3 += output_stride;
@@ -2518,26 +2493,13 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
           const int filter_type = cm->seq_params.cfl_ds_filter_index;
-          int ref_h_offset = 0;
-#if CONFIG_MHCCP_SB_BOUNDARY
-          if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
-            if (h < *above_lines) {
-              ref_h_offset = (LINE_NUM + 1) - (h + 1);
-            }
-          }
-#endif
           if (filter_type == 1) {
             output_q3[i >> 1] =
-                (input[AOMMAX(0, i - 1) + ref_h_offset * input_stride] +
-                 2 * input[i + ref_h_offset * input_stride] +
-                 input[i + 1 + ref_h_offset * input_stride])
-                << 1;
+                (input[AOMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
           } else if (filter_type == 2) {
-            output_q3[i >> 1] = input[i + ref_h_offset * input_stride] << 3;
+            output_q3[i >> 1] = input[i] << 3;
           } else {
-            output_q3[i >> 1] = (input[i + ref_h_offset * input_stride] +
-                                 input[i + 1 + ref_h_offset * input_stride])
-                                << 2;
+            output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
           }
         }
         output_q3 += output_stride;
@@ -2547,18 +2509,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int h = 0; h < (*ref_height); h += 2) {
         for (int i = 0; i < (*ref_width); ++i) {
           const int bot = i + input_stride;
-#if CONFIG_MHCCP_SB_BOUNDARY
-          int ref_h_offset = 0;
-          if (is_top_sb_boundary &&
-              (*above_lines == ((LINE_NUM + 1) << sub_y))) {
-            if (h < *above_lines) {
-              ref_h_offset = ((LINE_NUM + 1) << sub_y) - (h + 1);
-            }
-          }
-#endif
-          output_q3[i] = (input[i + ref_h_offset * input_stride] +
-                          input[bot + ref_h_offset * input_stride])
-                         << 2;
+          output_q3[i] = (input[i] + input[bot]) << 2;
         }
         output_q3 += output_stride;
         input += input_stride * 2;
@@ -2566,15 +2517,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     } else {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); ++i) {
-#if CONFIG_MHCCP_SB_BOUNDARY
-          int ref_h_offset = 0;
-          if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
-            if (h < *above_lines) {
-              ref_h_offset = (LINE_NUM + 1) - (h + 1);
-            }
-          }
-#endif
-          output_q3[i] = input[i + ref_h_offset * input_stride] << 3;
+          output_q3[i] = input[i] << 3;
         }
         output_q3 += output_stride;
         input += input_stride;
@@ -2586,9 +2529,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
                                           int row, int col, TX_SIZE tx_size,
                                           int above_lines, int left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                          int is_top_sb_boundary,
-#endif
                                           int ref_width, int ref_height) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -2609,21 +2549,7 @@ void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
         if ((h >= above_lines && w >= left_lines + width) ||
             (h >= above_lines + height && w >= left_lines))
           continue;
-#if CONFIG_MHCCP_SB_BOUNDARY
-        int ref_h_offset = 0;
-        if (is_top_sb_boundary && above_lines == (LINE_NUM + 1)) {
-          if (h < above_lines) {
-            ref_h_offset = (LINE_NUM + 1) - (h + 1);
-          }
-        }
-        if (is_top_sb_boundary && h < above_lines) {
-          output_q3[w] = input[w + ref_h_offset * input_stride];
-        } else {
-#endif  // CONFIG_MHCCP_SB_BOUNDARY
-          output_q3[w] = input[w];
-#if CONFIG_MHCCP_SB_BOUNDARY
-        }
-#endif
+        output_q3[w] = input[w];
       }
       output_q3 += output_stride;
       input += input_stride;
@@ -2753,9 +2679,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-            is_top_sb_boundary,
-#endif
             &ref_width, &ref_height);
 
         above_lines >>= sub_y;
@@ -2764,24 +2687,13 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
         ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                             is_top_sb_boundary,
-#endif
                                              ref_width, ref_height);
         mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
-                                    ref_width, ref_height, 0
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                    ,
-                                    is_top_sb_boundary
-#endif
-        );
+                                    ref_width, ref_height, 0);
       } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-            is_top_sb_boundary,
-#endif
             &ref_width, &ref_height);
         above_lines >>= sub_y;
         left_lines >>= sub_x;
@@ -2789,17 +2701,9 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
         ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                             is_top_sb_boundary,
-#endif
                                              ref_width, ref_height);
         mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
-                                    ref_width, ref_height, 1
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                    ,
-                                    is_top_sb_boundary
-#endif
-        );
+                                    ref_width, ref_height, 1);
       }
 #else
       if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
