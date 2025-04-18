@@ -541,7 +541,25 @@ int main(int argc, const char **argv) {
                      "[MRL_INDEX_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif
+
   /* cctx type */
+#if CONFIG_REDUCE_CCTX_CTX
+#if USE_SINGLE_CCTX_CTX
+  cts_each_dim[0] = CCTX_TYPES;
+  optimize_cdf_table(
+      &fc.cctx_type[0], probsfile, 1, cts_each_dim,
+      "static const aom_cdf_prob default_cctx_type_cdf[CDF_SIZE(CCTX_TYPES)]",
+      0, &total_count, 0, mem_wanted, "Transforms");
+#else
+  cts_each_dim[0] = EXT_TX_SIZES;
+  cts_each_dim[1] = CCTX_TYPES;
+  optimize_cdf_table(
+      &fc.cctx_type[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_cctx_type_cdf[EXT_TX_SIZES][CDF_SIZE(CCTX_TYPES)]",
+      0, &total_count, 0, mem_wanted, "Transforms");
+#endif
+#else
   cts_each_dim[0] = EXT_TX_SIZES;
   cts_each_dim[1] = CCTX_CONTEXTS;
   cts_each_dim[2] = CCTX_TYPES;
@@ -550,6 +568,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_cctx_type_cdf[EXT_TX_SIZES]"
       "[CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)]",
       0, &total_count, 0, mem_wanted, "Transforms");
+#endif  // CONFIG_REDUCE_CCTX_CTX
 
   cts_each_dim[0] = INTER_SDP_BSIZE_GROUP;
   cts_each_dim[1] = REGION_TYPES;

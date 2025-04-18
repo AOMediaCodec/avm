@@ -489,6 +489,7 @@ static INLINE void get_above_and_left_cctx_type(const AV1_COMMON *cm,
   assert(*left_cctx >= -1 && *left_cctx < CCTX_TYPES);
 }
 
+#if !CONFIG_REDUCE_CCTX_CTX
 // Context of cctx type is determined by comparing the numbers of positive and
 // negative angles in the above and left neighbors of the current tx block.
 // 0: tie, 1: more positive angles, 2: more negative angles.
@@ -501,6 +502,7 @@ static INLINE int get_cctx_context(const MACROBLOCKD *xd, int *above,
     cnt += (*left > CCTX_60) ? -1 : 1;
   return cnt == 0 ? 0 : 1 + (cnt < 0);
 }
+#endif  // !CONFIG_REDUCE_CCTX_CTX
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir);
 
