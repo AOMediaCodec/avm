@@ -427,12 +427,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
 
+#if CONFIG_REDUCE_CCTX_CTX
+  av1_cost_tokens_from_cdf(mode_costs->cctx_type_cost, fc->cctx_type_cdf, NULL);
+#else
   for (i = 0; i < EXT_TX_SIZES; ++i) {
     for (j = 0; j < CCTX_CONTEXTS; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->cctx_type_cost[i][j],
                                fc->cctx_type_cdf[i][j], NULL);
     }
   }
+#endif  // CONFIG_REDUCE_CCTX_CTX
 
   if (!frame_is_intra_only(cm)) {
     for (i = 0; i < COMP_INTER_CONTEXTS; ++i) {

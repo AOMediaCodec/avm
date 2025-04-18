@@ -1328,7 +1328,11 @@ typedef struct {
   //! inter_tx_type_cost_of_short_side_for_large_txfm_blocks
   int inter_ext_tx_short_side_costs[EOB_TX_CTXS][EXT_TX_SIZES][4];
   //! cctx_type_cost
+#if CONFIG_REDUCE_CCTX_CTX
+  int cctx_type_cost[CCTX_TYPES];
+#else
   int cctx_type_cost[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];
+#endif  // CONFIG_REDUCE_CCTX_CTX
   /**@}*/
 
   /*****************************************************************************

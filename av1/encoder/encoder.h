@@ -1362,10 +1362,7 @@ typedef struct FRAME_COUNTS {
   unsigned int pb_mv_precision_cnts[MV_PREC_DOWN_CONTEXTS]
                                    [NUM_PB_FLEX_QUALIFIED_MAX_PREC][CDF_SIZE(
                                        FLEX_MV_COSTS_SIZE)];  // placeholder
-  unsigned int cctx_type_cnts[EXT_TX_SIZES][CCTX_CONTEXTS]
-                             [CDF_SIZE(CCTX_TYPES)];  // placeholder
-
-  unsigned int seg_tree_cnts[CDF_SIZE(MAX_SEGMENTS)];  // placeholder
+  unsigned int seg_tree_cnts[CDF_SIZE(MAX_SEGMENTS)];         // placeholder
   unsigned int segment_pred_cnts[SEG_TEMPORAL_PRED_CTXS]
                                 [CDF_SIZE(2)];  // placeholder
   unsigned int spatial_pred_seg_tree_cnts[SPATIAL_PREDICTION_PROBS][CDF_SIZE(
@@ -1684,7 +1681,11 @@ typedef struct FRAME_COUNTS {
   unsigned int tx_ext_32[2][2];
   unsigned int intra_ext_tx_short_side[EXT_TX_SIZES][4];
   unsigned int inter_ext_tx_short_side[EOB_TX_CTXS][EXT_TX_SIZES][4];
+#if CONFIG_REDUCE_CCTX_CTX
+  unsigned int cctx_type[CCTX_TYPES];
+#else
   unsigned int cctx_type[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];
+#endif  // CONFIG_REDUCE_CCTX_CTX
   unsigned int filter_intra_mode[FILTER_INTRA_MODES];
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int filter_intra[2];

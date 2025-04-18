@@ -342,6 +342,7 @@ set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
                    "Improvement of all inter mode related contexts")
+set_aom_config_var(CONFIG_REDUCE_CCTX_CTX 1 "Reduce CCTX contexts")
 
 set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
                    "Enable WRL only prune four non-translational parameters")

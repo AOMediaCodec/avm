@@ -4956,6 +4956,11 @@ static const aom_cdf_prob default_inter_ext_tx_cdf
       },
     };
 
+#if CONFIG_REDUCE_CCTX_CTX
+static const aom_cdf_prob default_cctx_type_cdf[CDF_SIZE(CCTX_TYPES)] = {
+  AOM_CDF7(13038, 14157, 16570, 18922, 21570, 29304), 37
+};
+#else
 static const aom_cdf_prob
     default_cctx_type_cdf[EXT_TX_SIZES][CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)] = {
       {
@@ -4979,6 +4984,7 @@ static const aom_cdf_prob
           { AOM_CDF7(8334, 8505, 8837, 8945, 15490, 28506), 62 },
       },
     };
+#endif  // CONFIG_REDUCE_CCTX_CTX
 
 static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {
   AOM_CDF8(5534, 6742, 11998, 19905, 28459, 29805, 32596), 37

@@ -581,7 +581,11 @@ typedef struct frame_contexts {
   aom_cdf_prob pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
                                   [NUM_PB_FLEX_QUALIFIED_MAX_PREC]
                                   [CDF_SIZE(FLEX_MV_COSTS_SIZE)];
+#if CONFIG_REDUCE_CCTX_CTX
+  aom_cdf_prob cctx_type_cdf[CDF_SIZE(CCTX_TYPES)];
+#else
   aom_cdf_prob cctx_type_cdf[EXT_TX_SIZES][CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)];
+#endif  // CONFIG_REDUCE_CCTX_CTX
   int initialized;
 } FRAME_CONTEXT;
 

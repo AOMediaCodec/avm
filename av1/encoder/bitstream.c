@@ -1550,6 +1550,10 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if CONFIG_REDUCE_CCTX_CTX
+    (void)tx_size;
+    aom_write_symbol(w, cctx_type, ec_ctx->cctx_type_cdf, CCTX_TYPES);
+#else
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     int above_cctx, left_cctx;
     get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
@@ -1557,6 +1561,7 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     aom_write_symbol(w, cctx_type,
                      ec_ctx->cctx_type_cdf[square_tx_size][cctx_ctx],
                      CCTX_TYPES);
+#endif  // CONFIG_REDUCE_CCTX_CTX
   }
 }
 

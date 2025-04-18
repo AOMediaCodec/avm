@@ -515,6 +515,7 @@ static INLINE int is_cctx_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   return 1;
 }
 
+#if !CONFIG_REDUCE_CCTX_CTX
 static INLINE void get_above_and_left_cctx_type(const AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
                                                 int *above_cctx,
@@ -554,6 +555,7 @@ static INLINE int get_cctx_context(const MACROBLOCKD *xd, int *above,
     cnt += (*left > CCTX_60) ? -1 : 1;
   return cnt == 0 ? 0 : 1 + (cnt < 0);
 }
+#endif  // !CONFIG_REDUCE_CCTX_CTX
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir);
 

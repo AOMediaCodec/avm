@@ -704,7 +704,9 @@ enum {
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_REDUCTION
 
+#if !CONFIG_REDUCE_CCTX_CTX
 #define CCTX_CONTEXTS 3
+#endif  // !CONFIG_REDUCE_CCTX_CTX
 
 // Drop C2 channel for some cctx_types.
 #define CCTX_C2_DROPPED 0
