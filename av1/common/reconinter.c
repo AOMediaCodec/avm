@@ -1256,8 +1256,8 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   (void)gy1;
 
   // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
-  DECLARE_ALIGNED(16, int16_t, tmp0[MAX_SB_SIZE * MAX_SB_SIZE]);
-  DECLARE_ALIGNED(16, int16_t, tmp1[MAX_SB_SIZE * MAX_SB_SIZE]);
+  DECLARE_ALIGNED(32, int16_t, tmp0[MAX_SB_SIZE * MAX_SB_SIZE]);
+  DECLARE_ALIGNED(32, int16_t, tmp1[MAX_SB_SIZE * MAX_SB_SIZE]);
   av1_copy_pred_array_highbd(dst0, dst1, dst_stride, tmp0, tmp1, bw, bh, d0, d1,
                              xd->bd, 0);
   // Buffers gx0 and gy0 are used to store the
