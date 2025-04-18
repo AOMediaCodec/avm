@@ -2015,6 +2015,8 @@ typedef struct macroblock {
   int prune_tx_partition;
   /*! \brief Keep records of top rdcosts of transform partition search. */
   int64_t top_tx_part_rd[TOP_TX_PART_COUNT];
+  int64_t top_tx_part_rd_inter[MAX_TX_BLOCKS_IN_MAX_SB]
+                              [TOP_INTER_TX_PART_COUNT];
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

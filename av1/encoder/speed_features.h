@@ -926,6 +926,10 @@ typedef struct TX_SPEED_FEATURES {
 #if CONFIG_NEW_TX_PARTITION
   // tx_type search pruning at low qp and resolution >= 1080p
   bool restrict_tx_partition_type_search;
+
+  // Prune RD evaluation of transform block using RD Cost of NONE transform
+  // partition of inter modes that are evaluated so far
+  bool prune_inter_tx_part_rd_eval;
 #endif  // CONFIG_NEW_TX_PARTITION
 } TX_SPEED_FEATURES;
 

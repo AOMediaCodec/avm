@@ -3848,13 +3848,57 @@ static AOM_INLINE void try_tx_block_split(
 #endif  // !CONFIG_NEW_TX_PARTITION
 
 #if CONFIG_NEW_TX_PARTITION
+// Store the NONE transform partition RD
+static INLINE void push_inter_block_none_tx_part_rd(
+    MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd, int blk_idx,
+    TX_PARTITION_TYPE type, bool prune_inter_tx_part_rd_eval) {
+  assert(blk_idx < MAX_TX_BLOCKS_IN_MAX_SB);
+  if (!prune_inter_tx_part_rd_eval || type != TX_PARTITION_NONE) return;
+
+  // Do not store for skip and intraBC modes
+  if (mbmi->skip_mode != 0 || !is_inter_ref_frame(mbmi->ref_frame[0])) return;
+
+  // Insert the RD Cost in sorted order
+  for (int i = 0; i < TOP_INTER_TX_PART_COUNT; i++) {
+    if (tmp_rd < x->top_tx_part_rd_inter[blk_idx][i]) {
+      for (int j = TOP_INTER_TX_PART_COUNT - 1; j > i; j--) {
+        x->top_tx_part_rd_inter[blk_idx][j] =
+            x->top_tx_part_rd_inter[blk_idx][j - 1];
+      }
+      x->top_tx_part_rd_inter[blk_idx][i] = tmp_rd;
+      break;
+    }
+  }
+}
+
+// Prune the evaluation of transform partitions other than NONE tx partition
+static INLINE bool prune_tx_part_eval_using_none_rd(
+    MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd, int blk_idx,
+    TX_PARTITION_TYPE type, bool prune_inter_tx_part_rd_eval) {
+  if (!prune_inter_tx_part_rd_eval || type != TX_PARTITION_NONE) return false;
+
+  // Do not prune for skip and intraBC modes
+  if (mbmi->skip_mode != 0 || !is_inter_ref_frame(mbmi->ref_frame[0]))
+    return false;
+
+  // Do not prune if there is no valid top RD Cost for comparison
+  if (x->top_tx_part_rd_inter[blk_idx][TOP_INTER_TX_PART_COUNT - 1] ==
+      INT64_MAX)
+    return false;
+
+  if (tmp_rd > x->top_tx_part_rd_inter[blk_idx][TOP_INTER_TX_PART_COUNT - 1])
+    return true;
+
+  return false;
+}
+
 // Search for the best tx partition type for a given luma block.
 static void select_tx_partition_type(
     const AV1_COMP *cpi, MACROBLOCK *x, int blk_row, int blk_col, int block,
     BLOCK_SIZE plane_bsize, ENTROPY_CONTEXT *ta, ENTROPY_CONTEXT *tl,
     TXFM_CONTEXT *tx_above, TXFM_CONTEXT *tx_left, RD_STATS *rd_stats,
     int64_t ref_best_rd, int *is_cost_valid, FAST_TX_SEARCH_MODE ftxs_mode,
-    TXB_RD_INFO_NODE *rd_info_node) {
+    TXB_RD_INFO_NODE *rd_info_node, int blk_idx) {
   av1_init_rd_stats(rd_stats);
   if (ref_best_rd < 0) {
     *is_cost_valid = 0;
@@ -4017,6 +4061,9 @@ static void select_tx_partition_type(
       cur_block += sub_step;
     }
 
+    push_inter_block_none_tx_part_rd(x, mbmi, tmp_rd, blk_idx, type,
+                                     cpi->sf.tx_sf.prune_inter_tx_part_rd_eval);
+
     if (all_zero_blk == true && type != TX_PARTITION_NONE) continue;
 
     // Update the best partition so far
@@ -4047,6 +4094,11 @@ static void select_tx_partition_type(
         break;
       }
     }
+
+    if (prune_tx_part_eval_using_none_rd(
+            x, mbmi, tmp_rd, blk_idx, type,
+            cpi->sf.tx_sf.prune_inter_tx_part_rd_eval))
+      break;
   }
 
   if (best_rd == INT64_MAX) *is_cost_valid = 0;
@@ -5032,6 +5084,9 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
   int block = 0;
 
   av1_init_rd_stats(rd_stats);
+#if CONFIG_NEW_TX_PARTITION
+  int blk_idx = 0;
+#endif
   for (int idy = 0; idy < max_block_high(xd, bsize, 0); idy += bh) {
     for (int idx = 0; idx < max_block_wide(xd, bsize, 0); idx += bw) {
       const int64_t best_rd_sofar =
@@ -5045,7 +5100,9 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
           get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
       select_tx_partition_type(cpi, x, idy, idx, block, plane_bsize, ctxa, ctxl,
                                tx_above, tx_left, &pn_rd_stats, best_rd_sofar,
-                               &is_cost_valid, ftxs_mode, rd_info_tree);
+                               &is_cost_valid, ftxs_mode, rd_info_tree,
+                               blk_idx);
+      blk_idx++;
 #else
       const int init_depth = get_search_init_depth(
           mi_width, mi_height, 1, &cpi->sf, txfm_params->tx_size_search_method);

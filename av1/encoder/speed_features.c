@@ -907,6 +907,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_NEW_TX_PARTITION
   tx_sf->restrict_tx_partition_type_search = false;
+  tx_sf->prune_inter_tx_part_rd_eval = false;
 #endif  // CONFIG_NEW_TX_PARTITION
 }
 
@@ -1426,6 +1427,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;
+#if CONFIG_NEW_TX_PARTITION
+      sf->tx_sf.prune_inter_tx_part_rd_eval = true;
+#endif
     }
   }
 
