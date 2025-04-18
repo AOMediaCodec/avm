@@ -3274,7 +3274,8 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       rdmult, tip_as_ref_rate, tip_as_ref_sse, cm->seq_params.bit_depth);
   const double tip_direct_output_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
-  if (tip_direct_output_rdcost < normal_coding_rdcost) {
+  if (tip_direct_output_rdcost < normal_coding_rdcost &&
+      (!cm->features.coded_lossless || tip_as_output_sse == 0)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 #if CONFIG_CCSO_IMPROVE
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
@@ -3592,6 +3593,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
+
   compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,
                                     &tip_as_output_rate, largest_tile_id);
 
