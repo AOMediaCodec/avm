@@ -2482,7 +2482,8 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           if (is_top_sb_boundary &&
               (*above_lines == ((LINE_NUM + 1) << sub_y))) {
             if (h < *above_lines) {
-              ref_h_t_off = ((LINE_NUM + 1) << sub_y) - h;
+              ref_h_t_off = h != 0 ? ((LINE_NUM + 1) << sub_y) - h
+                                   : ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
             }
