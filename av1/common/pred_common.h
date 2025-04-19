@@ -261,6 +261,30 @@ static INLINE int is_skip_mode_allowed(const AV1_COMMON *const cm,
   return 1;
 }
 
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+static INLINE void set_skip_mode_ref_frame(const AV1_COMMON *const cm,
+                                           const MACROBLOCKD *const xd,
+                                           MV_REFERENCE_FRAME ref_frame[2]) {
+  const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
+
+  ref_frame[0] = skip_mode_info->ref_frame_idx_0;
+  ref_frame[1] = skip_mode_info->ref_frame_idx_1;
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+    if (neighbor != NULL && is_inter_ref_frame(neighbor->ref_frame[0])) {
+      if (is_tip_ref_frame(neighbor->ref_frame[0])) {
+        ref_frame[0] = cm->tip_ref.ref_frame[0];
+        ref_frame[1] = cm->tip_ref.ref_frame[1];
+      } else if (is_inter_ref_frame(neighbor->ref_frame[1])) {
+        ref_frame[0] = neighbor->ref_frame[0];
+        ref_frame[1] = neighbor->ref_frame[1];
+      }
+      return;
+    }
+  }
+}
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
                                  const uint8_t *segment_ids, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {

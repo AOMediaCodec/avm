@@ -1344,7 +1344,7 @@ int main(int argc, const char **argv) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.skip_drl_mode[0][0], probsfile, 2, cts_each_dim,
+  optimize_cdf_table(&fc.skip_drl_cnts[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_skip_drl_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
@@ -1740,7 +1740,7 @@ int main(int argc, const char **argv) {
   /* Skip mode flag */
   cts_each_dim[0] = SKIP_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.skip_mode[0][0], probsfile, 2, cts_each_dim,
+  optimize_cdf_table(&fc.skip_mode_cnts[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");

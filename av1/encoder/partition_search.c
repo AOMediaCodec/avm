@@ -1079,13 +1079,13 @@ static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
 #if CONFIG_SEP_COMP_DRL
     update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
 #if CONFIG_ENTROPY_STATS
-    counts->skip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
+    counts->skip_drl_cnts[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
     if (mbmi->ref_mv_idx[0] == idx) break;
 #else
     update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
 #if CONFIG_ENTROPY_STATS
-    counts->skip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
+    counts->skip_drl_cnts[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
     if (mbmi->ref_mv_idx == idx) break;
 #endif  // CONFIG_SEP_COMP_DRL
@@ -1358,7 +1358,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (mbmi->region_type != INTRA_REGION && is_skip_mode_allowed(cm, xd)) {
     const int skip_mode_ctx = av1_get_skip_mode_context(xd);
 #if CONFIG_ENTROPY_STATS
-    td->counts->skip_mode[skip_mode_ctx][mbmi->skip_mode]++;
+    td->counts->skip_mode_cnts[skip_mode_ctx][mbmi->skip_mode]++;
 #endif
     update_cdf(fc->skip_mode_cdfs[skip_mode_ctx], mbmi->skip_mode, 2);
   }
@@ -1601,14 +1601,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode && have_drl_index(mbmi->mode)) {
     FRAME_COUNTS *const counts = td->counts;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     update_skip_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi);
-#else
-    const int16_t mode_ctx_pristine =
-        av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
-    update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
-                           counts, mbmi);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 

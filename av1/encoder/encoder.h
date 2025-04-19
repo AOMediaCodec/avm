@@ -1390,10 +1390,6 @@ typedef struct FRAME_COUNTS {
                                  [REFINEMV_NUM_MODES];  // placeholder
 #endif                                                  // CONFIG_REFINEMV
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-  unsigned int skip_drl_cnts[3][2];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-
   unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int is_warpmv_or_warp_newmv_cnt[2];
@@ -1700,7 +1696,7 @@ typedef struct FRAME_COUNTS {
   unsigned int txfm_partition[TXFM_PARTITION_CONTEXTS][2];
   unsigned int intra_tx_size[MAX_TX_CATS][TX_SIZE_CONTEXTS][MAX_TX_DEPTH + 1];
 #endif  // CONFIG_NEW_TX_PARTITION
-  unsigned int skip_mode[SKIP_MODE_CONTEXTS][2];
+  unsigned int skip_mode_cnts[SKIP_MODE_CONTEXTS][2];
   unsigned int skip_txfm[SKIP_CONTEXTS][2];
   unsigned int comp_group_idx[COMP_GROUP_IDX_CONTEXTS][2];
   unsigned int delta_q[DELTA_Q_PROBS][2];

@@ -1500,22 +1500,28 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
     const MV_REFERENCE_FRAME rf[2], CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count,
     CANDIDATE_MV *derived_mv_stack, uint8_t derived_mv_count,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const MB_MODE_INFO *mbmi, MV_REFERENCE_FRAME *ref_frame_idx0,
     MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const int max_ref_mv_count) {
   int index = 0;
   int derived_idx = 0;
 
-#if CONFIG_D072_SKIP_MODE_IMPROVE
+#if CONFIG_D072_SKIP_MODE_IMPROVE && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (mbmi->skip_mode) return;
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
   if (rf[1] == NONE_FRAME) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(!mbmi->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
     for (derived_idx = 0; derived_idx < derived_mv_count; ++derived_idx) {
       for (index = 0; index < *refmv_count; ++index) {
@@ -1542,10 +1548,12 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
              derived_mv_stack[derived_idx].this_mv.as_int) &&
             (ref_mv_stack[index].comp_mv.as_int ==
              derived_mv_stack[derived_idx].comp_mv.as_int)) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
           if (!mbmi->skip_mode || (ref_frame_idx0[index] == rf[0] &&
                                    ref_frame_idx1[index] == rf[1]))
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
             break;
         }
       }
@@ -1557,12 +1565,14 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
         ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
         ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
         ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (mbmi->skip_mode) {
           ref_frame_idx0[index] = rf[0];
           ref_frame_idx1[index] = rf[1];
         }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         ref_mv_weight[index] = REF_CAT_LEVEL;
         ++(*refmv_count);
       }
@@ -1683,11 +1693,13 @@ static AOM_INLINE void add_ref_mv_candidate(
     uint8_t *ref_match_count, uint8_t *newmv_count, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, int_mv *gm_mv_candidates,
     const WarpedMotionParams *gm_params,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const MB_MODE_INFO *mbmi,
     MV_REFERENCE_FRAME ref_frame_idx0[MAX_REF_MV_STACK_SIZE],
     MV_REFERENCE_FRAME ref_frame_idx1[MAX_REF_MV_STACK_SIZE],
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
     const AV1_COMMON *cm, int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv,
     uint8_t *single_mv_count, CANDIDATE_MV *derived_mv_stack,
@@ -1717,7 +1729,8 @@ static AOM_INLINE void add_ref_mv_candidate(
 
   const TIP *tip_ref = &cm->tip_ref;
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (mbmi->skip_mode) {
     if (!is_tip_ref_frame(candidate->ref_frame[0]) &&
         !is_tip_ref_frame(candidate->ref_frame[1]) &&
@@ -1795,12 +1808,15 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
     return;
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
   if (rf[1] == NONE_FRAME) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(!mbmi->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
 #if CONFIG_IMPROVE_TIP_SMVP
     int_mv cand_tip_mvs[2];
@@ -2124,9 +2140,11 @@ static AOM_INLINE void add_ref_mv_candidate(
       // compound reference frame
       if (candidate->ref_frame[0] == rf[0] &&
           candidate->ref_frame[1] == rf[1]) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (mbmi->skip_mode) return;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
         int_mv this_refmv[2];
 
@@ -2451,9 +2469,11 @@ static AOM_INLINE void scan_row_mbmi(
     const MV_REFERENCE_FRAME rf[2], int row_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
     uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_row_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
     int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
     CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
@@ -2546,9 +2566,11 @@ static AOM_INLINE void scan_row_mbmi(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
         ref_mv_weight, gm_mv_candidates, cm->global_motion,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
         cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
         derived_mv_weight, derived_mv_count,
@@ -2595,9 +2617,11 @@ static AOM_INLINE void scan_col_mbmi(
     const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
     uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_col_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
     int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
     CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
@@ -2686,9 +2710,11 @@ static AOM_INLINE void scan_col_mbmi(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
         ref_mv_weight, gm_mv_candidates, cm->global_motion,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
         cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
         derived_mv_weight, derived_mv_count,
@@ -2728,9 +2754,11 @@ static AOM_INLINE void scan_blk_mbmi(
     const int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
     int col_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
     int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
     CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
@@ -2796,9 +2824,11 @@ static AOM_INLINE void scan_blk_mbmi(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
         ref_mv_weight, gm_mv_candidates, cm->global_motion,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
         cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
         derived_mv_weight, derived_mv_count,
@@ -2934,11 +2964,13 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_MVP_IMPROVEMENT
                           CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
                           uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                           ,
                           MV_REFERENCE_FRAME *ref_frame_idx0,
                           MV_REFERENCE_FRAME *ref_frame_idx1
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                           ,
                           int16_t *mode_context
@@ -3049,9 +3081,11 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
 #endif  // !CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(!xd->mi[0]->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
     for (idx = 0; idx < *refmv_count; ++idx)
       if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
@@ -3114,7 +3148,8 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
 #endif  // !CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     if (xd->mi[0]->skip_mode) {
       for (idx = 0; idx < *refmv_count; ++idx) {
         if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
@@ -3138,7 +3173,8 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_MVP_IMPROVEMENT
       }
     } else {
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       for (idx = 0; idx < *refmv_count; ++idx) {
         if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
             comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int)
@@ -3159,9 +3195,11 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ++(*added_tmvp_cnt);
 #endif  // CONFIG_MVP_IMPROVEMENT
       }
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   }
 
   return 1;
@@ -3349,9 +3387,11 @@ static AOM_INLINE void add_tmvp_candidate(
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
     int_mv *gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -3434,10 +3474,12 @@ static AOM_INLINE void add_tmvp_candidate(
                        &added_tmvp_cnt,
 #endif  // CONFIG_MVP_IMPROVEMENT
                        ref_mv_stack, ref_mv_weight
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                        ,
                        ref_frame_idx0, ref_frame_idx1
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                        ,
                        mode_context
@@ -3470,10 +3512,12 @@ static AOM_INLINE void add_tmvp_candidate(
                            &added_tmvp_cnt,
 #endif  // CONFIG_MVP_IMPROVEMENT
                            ref_mv_stack, ref_mv_weight
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                            ,
                            ref_frame_idx0, ref_frame_idx1
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                            ,
                            mode_context
@@ -3503,10 +3547,12 @@ static AOM_INLINE void add_tmvp_candidate(
                      gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
                      refmv_count, ref_mv_stack, ref_mv_weight,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                      ref_frame_idx0,
                      ref_frame_idx1
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                          mode_context
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -3528,8 +3574,9 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
 
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
-  if (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
-      !is_tip_ref_frame(rf[0]) && !cm->has_both_sides_refs) {
+  if (!cm->has_both_sides_refs &&
+      (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
+       !is_tip_ref_frame(rf[0]))) {
     const int cur_to_ref_offset = abs(compute_cur_to_ref_dist(cm, rf[0]));
     if (cur_to_ref_offset <= 2) return 1;
   }
@@ -3539,7 +3586,11 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
 
 static AOM_INLINE void add_derived_smvp_candidates(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
@@ -3553,15 +3604,19 @@ static AOM_INLINE void add_derived_smvp_candidates(
           :
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
           AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (xd->mi[0]->skip_mode) derived_mv_count = 0;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (*refmv_count < max_ref_mv_count && derived_mv_count > 0) {
     fill_mvp_from_derived_smvp(rf, ref_mv_stack, ref_mv_weight, refmv_count,
                                derived_mv_stack, derived_mv_count,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                xd->mi[0], ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                max_ref_mv_count);
   }
 #endif  // CONFIG_MVP_IMPROVEMENT
@@ -3569,8 +3624,13 @@ static AOM_INLINE void add_derived_smvp_candidates(
 
 static AOM_INLINE void add_ref_mv_bank_candidates(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
-    MV_REFERENCE_FRAME ref_frame, MV_REFERENCE_FRAME *ref_frame_idx0,
-    MV_REFERENCE_FRAME *ref_frame_idx1, uint8_t *const refmv_count,
+    MV_REFERENCE_FRAME ref_frame,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]) {
   const int ref_mv_limit =
@@ -3610,9 +3670,11 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
           rmb_ref_frame[idx] != ref_frame)
         continue;
 #endif  // CONFIG_LC_REF_MV_BANK
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       bool rmb_candi_exist =
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
           check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
                          is_comp, xd->mi_row, xd->mi_col, block_width,
                          block_height,
@@ -3623,12 +3685,14 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
                      cm->width, cm->height
 #endif  // CONFIG_F054_PIC_BOUNDARY
           );
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       if (xd->mi[0]->skip_mode && rmb_candi_exist) {
         ref_frame_idx0[*refmv_count - 1] = rf[0];
         ref_frame_idx1[*refmv_count - 1] = rf[1];
       }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     }
   }
 }
@@ -3857,9 +3921,11 @@ static AOM_INLINE void setup_ref_mv_list(
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     int_mv mv_ref_list[MAX_MV_REF_CANDIDATES], int_mv *gm_mv_candidates,
     int mi_row, int mi_col
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -4007,9 +4073,11 @@ static AOM_INLINE void setup_ref_mv_list(
   if (is_tmvp_high_priority) {
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
                        ref_mv_weight,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                        ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                        gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -4022,9 +4090,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, (xd->height - 1), -1,
                   ref_mv_stack, ref_mv_weight, &col_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4048,9 +4118,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
                   ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4066,9 +4138,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, 0, -1, ref_mv_stack,
                   ref_mv_weight, &col_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4096,9 +4170,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
                   ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4110,9 +4186,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, xd->height, -1, ref_mv_stack,
                   ref_mv_weight, &col_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4134,9 +4212,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
                   ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4152,9 +4232,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack,
                   ref_mv_weight, &dummy_ref_match_count, &dummy_new_mv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4167,9 +4249,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, (xd->height >> 1), -1,
                   ref_mv_stack, ref_mv_weight, &col_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4184,9 +4268,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, (xd->width >> 1),
                   ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4201,9 +4287,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_row_mbmi(cm, xd, mi_row, mi_col, rf, -1, ref_mv_stack, ref_mv_weight,
                   refmv_count, &row_match_count, &newmv_count, gm_mv_candidates,
                   max_row_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4216,9 +4304,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_col_mbmi(cm, xd, mi_row, mi_col, rf, -1, ref_mv_stack, ref_mv_weight,
                   refmv_count, &col_match_count, &newmv_count, gm_mv_candidates,
                   max_col_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4231,9 +4321,11 @@ static AOM_INLINE void setup_ref_mv_list(
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, xd->width, ref_mv_stack,
                   ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4260,9 +4352,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_REORDER_CONTROL
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
                        ref_mv_weight,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                        ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if !CONFIG_C076_INTER_MOD_CTX
                        gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -4287,9 +4381,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
                   ref_mv_stack, ref_mv_weight, &dummy_ref_match_count,
                   &dummy_new_mv_count, gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                   ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count,
@@ -4318,9 +4414,11 @@ static AOM_INLINE void setup_ref_mv_list(
   // Scan the second outer area.
   scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack, ref_mv_weight,
                 &row_match_count, &dummy_newmv_count, gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                 ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_MVP_IMPROVEMENT
                 0, single_mv, &single_mv_count, derived_mv_stack,
                 derived_mv_weight, &derived_mv_count,
@@ -4349,9 +4447,11 @@ static AOM_INLINE void setup_ref_mv_list(
                           col_units_status[unit_idx].col_offset, ref_mv_stack,
                           ref_mv_weight, &col_match_count, &newmv_count,
                           gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                           ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                           1, single_mv, &single_mv_count, derived_mv_stack,
                           derived_mv_weight, &derived_mv_count,
                           warp_param_stack, max_num_of_warp_candidates,
@@ -4374,9 +4474,11 @@ static AOM_INLINE void setup_ref_mv_list(
       scan_col_mbmi(cm, xd, mi_row, mi_col, rf, col_offset, ref_mv_stack,
                     ref_mv_weight, refmv_count, &col_match_count,
                     &dummy_newmv_count, gm_mv_candidates, max_col_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     0, single_mv, &single_mv_count, derived_mv_stack,
                     derived_mv_weight, &derived_mv_count, warp_param_stack,
                     max_num_of_warp_candidates, valid_num_warp_candidates,
@@ -4393,9 +4495,11 @@ static AOM_INLINE void setup_ref_mv_list(
       scan_row_mbmi(cm, xd, mi_row, mi_col, rf, row_offset, ref_mv_stack,
                     ref_mv_weight, refmv_count, &row_match_count,
                     &dummy_newmv_count, gm_mv_candidates, max_row_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     warp_param_stack, max_num_of_warp_candidates,
                     valid_num_warp_candidates, ref_frame, &processed_rows);
 
@@ -4404,9 +4508,11 @@ static AOM_INLINE void setup_ref_mv_list(
       scan_col_mbmi(cm, xd, mi_row, mi_col, rf, col_offset, ref_mv_stack,
                     ref_mv_weight, refmv_count, &col_match_count,
                     &dummy_newmv_count, gm_mv_candidates, max_col_offset,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                     warp_param_stack, max_num_of_warp_candidates,
                     valid_num_warp_candidates, ref_frame, &processed_cols);
   }
@@ -4474,7 +4580,8 @@ static AOM_INLINE void setup_ref_mv_list(
         ref_mv_stack[max_weight_idx] = tmp_mv;
         ref_mv_weight[0] = ref_mv_weight[max_weight_idx];
         ref_mv_weight[max_weight_idx] = tmp_ref_mv_weight;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (xd->mi[0]->skip_mode) {
           const MV_REFERENCE_FRAME temp_ref0 = ref_frame_idx0[0];
           const MV_REFERENCE_FRAME temp_ref1 = ref_frame_idx1[0];
@@ -4484,7 +4591,8 @@ static AOM_INLINE void setup_ref_mv_list(
           ref_frame_idx1[0] = ref_frame_idx1[max_weight_idx];
           ref_frame_idx1[max_weight_idx] = temp_ref1;
         }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       }
     }
 #else
@@ -4500,7 +4608,8 @@ static AOM_INLINE void setup_ref_mv_list(
         ref_mv_stack[idx] = tmp_mv;
         ref_mv_weight[idx - 1] = ref_mv_weight[idx];
         ref_mv_weight[idx] = tmp_ref_mv_weight;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (xd->mi[0]->skip_mode) {
           const MV_REFERENCE_FRAME temp_ref0 = ref_frame_idx0[idx - 1];
           const MV_REFERENCE_FRAME temp_ref1 = ref_frame_idx1[idx - 1];
@@ -4510,7 +4619,8 @@ static AOM_INLINE void setup_ref_mv_list(
           ref_frame_idx1[idx - 1] = ref_frame_idx1[idx];
           ref_frame_idx1[idx] = temp_ref1;
         }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         nr_len = idx;
       }
     }
@@ -4543,20 +4653,38 @@ static AOM_INLINE void setup_ref_mv_list(
 #if CONFIG_DSMVP_REFBANK_MV_SWAP
   const int is_compound = is_inter_ref_frame(rf[1]);
   if (is_compound) {
-    add_derived_smvp_candidates(cm, xd, rf, ref_frame_idx0, ref_frame_idx1,
+    add_derived_smvp_candidates(cm, xd, rf,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 refmv_count, ref_mv_stack, ref_mv_weight,
                                 derived_mv_stack, derived_mv_count);
     if (cm->seq_params.enable_refmvbank)
-      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, ref_frame_idx0,
-                                 ref_frame_idx1, refmv_count, ref_mv_stack,
-                                 ref_mv_weight);
+      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 refmv_count, ref_mv_stack, ref_mv_weight);
   } else {
 #endif  // CONFIG_DSMVP_REFBANK_MV_SWAP
     if (cm->seq_params.enable_refmvbank)
-      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, ref_frame_idx0,
-                                 ref_frame_idx1, refmv_count, ref_mv_stack,
-                                 ref_mv_weight);
-    add_derived_smvp_candidates(cm, xd, rf, ref_frame_idx0, ref_frame_idx1,
+      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 refmv_count, ref_mv_stack, ref_mv_weight);
+    add_derived_smvp_candidates(cm, xd, rf,
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 refmv_count, ref_mv_stack, ref_mv_weight,
                                 derived_mv_stack, derived_mv_count);
 #if CONFIG_DSMVP_REFBANK_MV_SWAP
@@ -4608,12 +4736,14 @@ static AOM_INLINE void setup_ref_mv_list(
       ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
       ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
       ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       if (xd->mi[0]->skip_mode) {
         ref_frame_idx0[idx] = rf[0];
         ref_frame_idx1[idx] = rf[1];
       }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       ref_mv_weight[idx] = REF_CAT_LEVEL;
       ++(*refmv_count);
     }
@@ -4692,12 +4822,14 @@ static AOM_INLINE void setup_ref_mv_list(
           ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
           ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
         }
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (xd->mi[0]->skip_mode) {
           ref_frame_idx0[*refmv_count] = rf[0];
           ref_frame_idx1[*refmv_count] = rf[1];
         }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
         ref_mv_weight[*refmv_count] = 0;
 #else
@@ -4711,12 +4843,14 @@ static AOM_INLINE void setup_ref_mv_list(
           ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
           ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
           ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
           if (xd->mi[0]->skip_mode) {
             ref_frame_idx0[*refmv_count] = rf[0];
             ref_frame_idx1[*refmv_count] = rf[1];
           }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
           ref_mv_weight[*refmv_count] = 0;
 #else
@@ -4737,9 +4871,11 @@ static AOM_INLINE void setup_ref_mv_list(
     }
   } else {
     // Handle single reference frame extension
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(!xd->mi[0]->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_IBC_SR_EXT
     if (!xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
 #endif  // CONFIG_IBC_SR_EXT
@@ -4856,12 +4992,14 @@ static AOM_INLINE void setup_ref_mv_list(
           check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
                          is_comp, xd->mi_row, xd->mi_col, block_width,
                          block_height, cm->width, cm->height);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT && \
+    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       if (xd->mi[0]->skip_mode && rmb_candi_exist) {
         ref_frame_idx0[*refmv_count - 1] = rf[0];
         ref_frame_idx1[*refmv_count - 1] = rf[1];
       }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
+        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     }
   }
 #endif  // !CONFIG_MVP_IMPROVEMENT
@@ -5104,22 +5242,27 @@ void av1_find_mv_refs(
   if (mi->skip_mode) {
     SKIP_MODE_MVP_LIST *skip_list =
         (SKIP_MODE_MVP_LIST *)&(xd->skip_mvp_candidate_list);
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     memset(skip_list->ref_frame0, 0,
            USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame0[0]));
     memset(skip_list->ref_frame1, 0,
            USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame1[0]));
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     av1_initialize_ref_mv_stack(skip_list->ref_mv_stack,
                                 USABLE_REF_MV_STACK_SIZE);
-    setup_ref_mv_list(
-        cm, xd, ref_frame, &(skip_list->ref_mv_count), skip_list->ref_mv_stack,
-        skip_list->weight, skip_list->ref_frame0, skip_list->ref_frame1,
-        mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv, mi_row, mi_col
+    setup_ref_mv_list(cm, xd, ref_frame, &(skip_list->ref_mv_count),
+                      skip_list->ref_mv_stack, skip_list->weight,
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                      skip_list->ref_frame0, skip_list->ref_frame1,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                      mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
+                      mi_row, mi_col
 #if !CONFIG_C076_INTER_MOD_CTX
-        ,
-        skip_list->mode_context
+                      ,
+                      skip_list->mode_context
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-        ,
-        NULL, 0, NULL);
+                      ,
+                      NULL, 0, NULL);
   } else {
 #if CONFIG_SEP_COMP_DRL
     MV_REFERENCE_FRAME rf[2];
@@ -5144,7 +5287,10 @@ void av1_find_mv_refs(
       av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]], MAX_REF_MV_STACK_SIZE);
     }
     setup_ref_mv_list(cm, xd, rf[0], &ref_mv_count[rf[0]], ref_mv_stack[rf[0]],
-                      ref_mv_weight[rf[0]], NULL, NULL,
+                      ref_mv_weight[rf[0]],
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                      NULL, NULL,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                       mv_ref_list ? mv_ref_list[rf[0]] : NULL, gm_mv, mi_row,
                       mi_col
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -5167,7 +5313,10 @@ void av1_find_mv_refs(
 
       av1_initialize_ref_mv_stack(ref_mv_stack[rf[1]], MAX_REF_MV_STACK_SIZE);
       setup_ref_mv_list(cm, xd, rf[1], &ref_mv_count[rf[1]],
-                        ref_mv_stack[rf[1]], ref_mv_weight[rf[1]], NULL, NULL,
+                        ref_mv_stack[rf[1]], ref_mv_weight[rf[1]],
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                        NULL, NULL,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                         mv_ref_list ? mv_ref_list[rf[1]] : NULL, gm_mv, mi_row,
                         mi_col
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -5194,8 +5343,11 @@ void av1_find_mv_refs(
                                   MAX_REF_MV_STACK_SIZE);
     }
     setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
-                      ref_mv_stack[ref_frame], ref_mv_weight[ref_frame], NULL,
-                      NULL, mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
+                      ref_mv_stack[ref_frame], ref_mv_weight[ref_frame],
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                      NULL, NULL,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                      mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
                       mi_row, mi_col
 #if !CONFIG_C076_INTER_MOD_CTX
                       ,
@@ -8489,7 +8641,6 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
         &cm->seq_params.order_hint_info, cur_order_hint, ref_offset[0]));
     const int cur_to_ref1 = abs(get_relative_dist(
         &cm->seq_params.order_hint_info, cur_order_hint, ref_offset[1]));
-
     if (abs(cur_to_ref0 - cur_to_ref1) > 1) {
       skip_mode_info->ref_frame_idx_0 = 0;
       skip_mode_info->ref_frame_idx_1 = 0;

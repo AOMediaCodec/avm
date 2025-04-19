@@ -3144,9 +3144,16 @@ static AOM_INLINE void read_compound_ref(
 }
 
 static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                         const MACROBLOCKD *const xd,
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                          MV_REFERENCE_FRAME ref_frame[2]) {
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+  set_skip_mode_ref_frame(cm, xd, ref_frame);
+#else
   ref_frame[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
   ref_frame[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 }
 
 // Read the reference frame
@@ -3154,7 +3161,11 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
                             MV_REFERENCE_FRAME ref_frame[2]) {
   if (xd->mi[0]->skip_mode) {
-    set_ref_frames_for_skip_mode(cm, ref_frame);
+    set_ref_frames_for_skip_mode(cm,
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 xd,
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+                                 ref_frame);
     return;
   }
 
@@ -4063,19 +4074,17 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_SEP_COMP_DRL
-    av1_find_mv_refs(
-        cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
-        xd->weight, ref_mvs, /*global_mvs=*/NULL
+    av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count,
+                     xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL
 #if !CONFIG_C076_INTER_MOD_CTX
-        ,
-        inter_mode_ctx
+                     ,
+                     inter_mode_ctx
 #endif  // !CONFIG_C076_INTER_MOD_CTX
-        ,
-        xd->warp_param_stack,
-        ref_frame < SINGLE_REF_FRAMES ? MAX_WARP_REF_CANDIDATES : 0,
-        xd->valid_num_warp_candidates);
+                     ,
+                     NULL, 0, NULL);
 #endif  // CONFIG_SEP_COMP_DRL
 
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_SEP_COMP_DRL
     mbmi->ref_frame[0] =
@@ -4089,6 +4098,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
 #endif
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_D072_SKIP_MODE_IMPROVE
@@ -4117,11 +4127,15 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     mbmi->mode = NEAR_NEARMV;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_NO_REFINEMENTS
+    mbmi->comp_refine_type = COMP_REFINE_NONE;
+#else
 #if CONFIG_AFFINE_REFINEMENT
     mbmi->comp_refine_type = mbmi->mode == NEAR_NEARMV_OPTFLOW
                                  ? COMP_REFINE_TYPE_FOR_SKIP
                                  : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {

@@ -4484,8 +4484,9 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
-  if (x->e_mbd.mi[0]->skip_mode)
+  if (x->e_mbd.mi[0]->skip_mode) {
     ref_mv_count = mbmi_ext->skip_mvp_candidate_list.ref_mv_count;
+  }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   return AOMMIN(max_drl_bits + 1, ref_mv_count);
@@ -8290,8 +8291,25 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
     return;
   }
 
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+  MV_REFERENCE_FRAME ref_frames[2] = { skip_mode_info->ref_frame_idx_0,
+                                       skip_mode_info->ref_frame_idx_1 };
+  set_skip_mode_ref_frame(cm, xd, ref_frames);
+  const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
+  const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
+#else
   const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    if (ref_frame == cm->bru.update_ref_idx ||
+        second_ref_frame == cm->bru.update_ref_idx) {
+      return;
+    }
+  }
+#endif  // CONFIG_BRU
 
 #if !CONFIG_SKIP_MODE_NO_REFINEMENTS
   const PREDICTION_MODE this_mode =
@@ -8305,7 +8323,12 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
           ? NEAR_NEARMV_OPTFLOW
           : NEAR_NEARMV;
 #else
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+  const PREDICTION_MODE this_mode =
+      second_ref_frame != NONE_FRAME ? NEAR_NEARMV : NEARMV;
+#else
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
 
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
@@ -8325,11 +8348,15 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
   mbmi->cwp_idx = CWP_EQUAL;
+#if CONFIG_SKIP_MODE_NO_REFINEMENTS
+  mbmi->comp_refine_type = COMP_REFINE_NONE;
+#else
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = this_mode == NEAR_NEARMV_OPTFLOW
                                ? COMP_REFINE_TYPE_FOR_SKIP
                                : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
@@ -8498,17 +8525,20 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ref_mv_idx++) {
 #if CONFIG_SEP_COMP_DRL
     mbmi->ref_mv_idx[0] = ref_mv_idx;
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     mbmi->ref_frame[0] =
         xd->skip_mvp_candidate_list.ref_frame0[mbmi->ref_mv_idx[0]];
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx[0]];
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #else
     mbmi->ref_mv_idx = ref_mv_idx;
-
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     mbmi->ref_frame[0] =
         xd->skip_mvp_candidate_list.ref_frame0[mbmi->ref_mv_idx];
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #endif
 #if CONFIG_BRU
     if (cm->bru.enabled) {
@@ -8686,12 +8716,16 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
                        NEAR_NEARMV;
 #endif  // !CONFIG_SKIP_MODE_NO_REFINEMENTS
+#if CONFIG_SKIP_MODE_NO_REFINEMENTS
+      mbmi->comp_refine_type = COMP_REFINE_NONE;
+#else
 #if CONFIG_AFFINE_REFINEMENT
       search_state->best_mbmode.comp_refine_type =
           search_state->best_mbmode.mode == NEAR_NEARMV_OPTFLOW
               ? COMP_REFINE_TYPE_FOR_SKIP
               : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
+#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
       search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;

@@ -6807,9 +6807,9 @@ static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3(
 #if CONFIG_NEW_CONTEXT_MODELING
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS]
                                                 [CDF_SIZE(2)] = {
-                                                  { AOM_CDF2(30093), 118 },
-                                                  { AOM_CDF2(19983), 90 },
-                                                  { AOM_CDF2(12096), 76 },
+                                                  { AOM_CDF2(31439), 0 },
+                                                  { AOM_CDF2(22696), 0 },
+                                                  { AOM_CDF2(12045), 0 },
                                                 };
 #else
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(
