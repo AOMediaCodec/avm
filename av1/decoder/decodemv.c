@@ -2785,10 +2785,14 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      shell_cls_offset |= aom_read_bit(r, ACCT_INFO("offset")) << i;
+#else
       shell_cls_offset |=
           aom_read_symbol(r, ctx->shell_offset_other_class_cdf[0][i], 2,
                           ACCT_INFO("offset"))
           << i;
+#endif
     }
   }
 

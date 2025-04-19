@@ -622,8 +622,13 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   if (eob_offset_bits > 0) {
     const int eob_ctx = eob_pt - 3;
     int bit =
+#if CONFIG_EOB_PT_CTX_REDUCTION
+        aom_read_symbol(r, ec_ctx->eob_extra_cdf[0][0][0], 2,
+                        ACCT_INFO("eob_extra_cdf"));
+#else
         aom_read_symbol(r, ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx],
                         2, ACCT_INFO("eob_extra_cdf"));
+#endif
     if (bit) {
       eob_extra += (1 << (eob_offset_bits - 1));
     }
@@ -1306,11 +1311,16 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
               ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
 #endif  // CONFIG_IMPROVEIDTX
         } else {
+#if CONFIG_BY_PASS_V_SIGN
+          sign = aom_read_literal(
+              r, 1, ACCT_INFO("sign", "v_dc_sign_cdf", "plane_v"));
+#else
           int32_t tmp_sign = 0;
           if (c < xd->eob_u) tmp_sign = xd->tmp_sign[tmp_sign_idx];
           sign =
               aom_read_symbol(r, ec_ctx->v_dc_sign_cdf[tmp_sign][dc_sign_ctx],
                               2, ACCT_INFO("sign", "v_dc_sign_cdf", "plane_v"));
+#endif
         }
         if (plane == AOM_PLANE_U) xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
 #else
@@ -1318,7 +1328,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                2, ACCT_INFO("sign", "dc_sign_cdf"));
 #endif  // CONFIG_CONTEXT_DERIVATION
       } else {
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && CONFIG_CTX_V_AC_SIGN == 0
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U)
           sign = aom_read_bit(r, ACCT_INFO("sign", "plane_y_or_u"));
         else {

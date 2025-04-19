@@ -1374,8 +1374,13 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
             fc->coeff_base_bob_cdf[ctx], NULL);
 #endif  // CONFIG_IMPROVEIDTX
       for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
+#if CONFIG_EOB_PT_CTX_REDUCTION
+        av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
+                                 fc->eob_extra_cdf[0][0][0], NULL);
+#else
         av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
                                  fc->eob_extra_cdf[tx_size][plane][ctx], NULL);
+#endif
 #if CONFIG_IMPROVEIDTX
       for (int gr = 0; gr < DC_SIGN_GROUPS; ++gr) {
         for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx) {
@@ -1390,13 +1395,23 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 #endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_CONTEXT_DERIVATION
       if (plane == PLANE_TYPE_UV) {
-        for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i)
-          for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
+        for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i) {
+          for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx) {
+#if CONFIG_BY_PASS_V_SIGN
+            pcost->v_dc_sign_cost[i][ctx][0] = av1_cost_literal(1);
+            pcost->v_dc_sign_cost[i][ctx][1] = av1_cost_literal(1);
+#else
             av1_cost_tokens_from_cdf(pcost->v_dc_sign_cost[i][ctx],
                                      fc->v_dc_sign_cdf[i][ctx], NULL);
-        for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i)
+#endif
+          }
+        }
+#if CONFIG_CTX_V_AC_SIGN == 0
+        for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i) {
           av1_cost_tokens_from_cdf(pcost->v_ac_sign_cost[i],
                                    fc->v_ac_sign_cdf[i], NULL);
+        }
+#endif
       }
 #endif  // CONFIG_CONTEXT_DERIVATION
 

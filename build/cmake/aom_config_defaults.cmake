@@ -146,6 +146,11 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
+set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
+set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
+
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
                    "AV2 enable improved identity transform coding.")

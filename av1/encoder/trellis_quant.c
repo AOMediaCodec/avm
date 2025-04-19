@@ -152,10 +152,14 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[t_sign][sign];
       else
         cost += av1_cost_literal(1);
+#endif
     }
 #else
     if (ci == 0) {
@@ -231,10 +235,14 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   int cost = base_cost_ptr[base_ctx][q_i][AOMMIN(abs_qc, 3)];
   if (abs_qc != 0) {
+#if CONFIG_CTX_V_AC_SIGN
+    cost += av1_cost_literal(1);
+#else
     if (plane == AOM_PLANE_V)
       cost += txb_costs->v_ac_sign_cost[t_sign][sign];
     else
       cost += av1_cost_literal(1);
+#endif
     if (abs_qc > NUM_BASE_LEVELS) {
       if (plane == 0) {
         cost += get_br_cost_tcq(abs_qc, txb_costs->lps_cost[mid_ctx]);
@@ -274,10 +282,14 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
       else
         cost += av1_cost_literal(1);
+#endif
     }
     if (plane > 0) {
       if (limits) {
