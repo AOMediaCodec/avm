@@ -21,7 +21,7 @@
 #include "aom/aom_codec.h"
 
 static const char kSbSizeWarningString[] =
-    "super_block_size has to be 64 or 128.";
+    "super_block_size has to be one of: 64, 128 or 256.";
 static const char kMinpartWarningString[] =
     "min_partition_size has to be smaller or equal to max_partition_size.";
 static const char kMaxpartWarningString[] =
@@ -204,7 +204,8 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     exit(-1);
   }
 
-  if (config->superblock_size != 128 && config->superblock_size != 64) {
+  if (config->superblock_size != 256 && config->superblock_size != 128 &&
+      config->superblock_size != 64) {
     fprintf(stderr, "\n%s", kSbSizeWarningString);
     exit(-1);
   }

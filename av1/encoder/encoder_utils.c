@@ -571,13 +571,17 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
     return BLOCK_64X64;
   if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_256X256)
+    return BLOCK_256X256;
 
   assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
   if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
     // Use the configured size (top resolution) for spatial layers or
     // on resize.
-    return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
+    return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
+               ? BLOCK_256X256
+           : AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
                ? BLOCK_128X128
                : BLOCK_64X64;
   }

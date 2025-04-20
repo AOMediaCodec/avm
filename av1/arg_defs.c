@@ -62,6 +62,7 @@ static const struct arg_enum_list superblock_size_enum[] = {
   { "dynamic", AOM_SUPERBLOCK_SIZE_DYNAMIC },
   { "64", AOM_SUPERBLOCK_SIZE_64X64 },
   { "128", AOM_SUPERBLOCK_SIZE_128X128 },
+  { "256", AOM_SUPERBLOCK_SIZE_256X256 },
   { NULL, 0 }
 };
 

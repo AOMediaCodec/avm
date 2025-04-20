@@ -994,6 +994,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->superblock_size =
       (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_64X64)     ? 64
       : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_128X128) ? 128
+      : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_256X256) ? 256
                                                                     : 0;
   cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
@@ -1135,6 +1136,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->superblock_size =
       (cfg->superblock_size == 64)    ? AOM_SUPERBLOCK_SIZE_64X64
       : (cfg->superblock_size == 128) ? AOM_SUPERBLOCK_SIZE_128X128
+      : (cfg->superblock_size == 256) ? AOM_SUPERBLOCK_SIZE_256X256
                                       : AOM_SUPERBLOCK_SIZE_DYNAMIC;
   extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
@@ -1745,12 +1747,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tile_cfg->enable_ext_tile_debug = extra_cfg->ext_tile_debug;
 
   if (tile_cfg->enable_large_scale_tile) {
-    // The superblock_size can only be AOM_SUPERBLOCK_SIZE_64X64 or
-    // AOM_SUPERBLOCK_SIZE_128X128 while tile_cfg->enable_large_scale_tile = 1.
+    // The superblock_size must be fixed when enable_large_scale_tile = 1.
     // If superblock_size = AOM_SUPERBLOCK_SIZE_DYNAMIC, hard set it to
-    // AOM_SUPERBLOCK_SIZE_64X64(default value in large_scale_tile).
-    if (extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_64X64 &&
-        extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_128X128)
+    // AOM_SUPERBLOCK_SIZE_64X64 (default value in large_scale_tile).
+    if (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC)
       tool_cfg->superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
   }
 
