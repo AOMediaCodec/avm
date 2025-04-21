@@ -8335,6 +8335,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
         }
+      } else {
+        if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE) {
+          features->opfl_refine_type = REFINE_NONE;
+        } else {
+          features->opfl_refine_type = REFINE_ALL;
+        }
       }
     }
 

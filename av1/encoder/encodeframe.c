@@ -1984,6 +1984,10 @@ void av1_encode_frame(AV1_COMP *cpi) {
       // For now, set all frame to REFINE_SWITCHABLE. The search or heuristic
       // that encoder can use is left for future work.
       features->opfl_refine_type = REFINE_SWITCHABLE;
+      if (cm->seq_params.enable_tip &&
+          features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+        features->opfl_refine_type = REFINE_ALL;
+      }
     } else {
       // 0: REFINE_NONE, 1: REFINE_SWTICHABLE, 2: REFINE_ALL
       features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
