@@ -731,9 +731,9 @@ specialize qw/av1_upsample_intra_edge_high sse4_1/;
 # CFL
 add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int64_t *alpha_q3, int bit_depth, int width, int height, int dir";
 # Temporarily disable the sse4 function since it might overflow.
-#if CONFIG_MHCCP_CONVOLVE_SIMPLIFY && 0
-specialize qw/mhccp_predict_hv_hbd sse4_1/;
-#endif
+if ((aom_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
+  specialize qw/mhccp_predict_hv_hbd sse4_1/;
+}
 
 add_proto qw/cfl_subtract_average_fn cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
 specialize qw/cfl_get_subtract_average_fn sse2 avx2 neon vsx/;

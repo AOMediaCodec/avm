@@ -406,7 +406,10 @@ TEST_P(CFLPredictHBDTest, DISABLED_PredictHBDSpeedTest) {
   assertFaster(ref_elapsed_time, elapsed_time);
 }
 
-#if HAVE_SSE4_1
+// Temporarily disable the sse4 function since it might overflow.
+// Re-enable the test when the parameter range is restricted to 32 bits,
+// or an updated sse4 function could handle intermediate 64 bits.
+#if HAVE_SSE4_1 && 0
 typedef void (*mhccp_predict_hv_hbd_fn)(const uint16_t *input, uint16_t *dst,
                                         bool have_top, bool have_left,
                                         int dst_stride, int64_t *alpha_q3,
@@ -493,6 +496,14 @@ TEST_P(MhccpPredictHVHBDTest, DISABLED_PredictSpeedTest) {
   printSpeed(ref_elapsed_time, elapsed_time, width_, height_);
   assertFaster(ref_elapsed_time, elapsed_time);
 }
+
+INSTANTIATE_TEST_SUITE_P(SSE4_1, MhccpPredictHVHBDTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(10, 12),
+                                            ::testing::Values(4, 8, 16, 32, 64),
+                                            ::testing::Values(4, 8, 16, 32, 64),
+                                            ::testing::Values(0, 1)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_SSE2
@@ -515,16 +526,6 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, CFLSubsampleHBDTest,
                          ::testing::ValuesIn(subsample_hbd_sizes_ssse3));
 
 #endif  // HAVE_SSSE3
-
-#if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, MhccpPredictHVHBDTest,
-                         ::testing::Combine(::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Values(10, 12),
-                                            ::testing::Values(4, 8, 16, 32, 64),
-                                            ::testing::Values(4, 8, 16, 32, 64),
-                                            ::testing::Values(0, 1)));
-#endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 const sub_avg_param sub_avg_sizes_avx2[] = { ALL_CFL_TX_SIZES(
