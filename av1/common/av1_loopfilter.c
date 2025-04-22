@@ -1326,7 +1326,7 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 // Apply loop filtering on TIP plane
 AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                                       uint16_t *dst, const int dst_stride,
-                                      const int bw, const int bh) {
+                                      const int plane_w, const int plane_h) {
   // retrieve filter parameters
   loop_filter_info_n *const lfi = &cm->lf_info;
   const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
@@ -1347,27 +1347,32 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   int filter_length_horz = sub_bh;
 
   // start filtering
-  const int h = bh - sub_bh;
-  const int w = bw - sub_bw;
-  const int rw = bw - (bw % sub_bw);
+  const int h = plane_h - sub_bh;
+  const int w = plane_w - sub_bw;
   for (int j = 0; j <= h; j += sub_bh) {
+    uint16_t *p = dst + j * dst_stride;
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
+        aom_highbd_lpf_vertical_generic_c(p, dst_stride, filter_length_vert,
                                           &q_vert, &side_vert, bit_depth,
                                           sub_bh);
       }
+      p += sub_bw;
+    }
+  }
+
+  for (int i = 0; i <= w; i += sub_bw) {
+    uint16_t *p = dst + i;
+    for (int j = 0; j <= h; j += sub_bh) {
       // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
+        aom_highbd_lpf_horizontal_generic_c(p, dst_stride, filter_length_horz,
                                             &q_horz, &side_horz, bit_depth,
                                             sub_bw);
       }
-      dst += sub_bw;
+      p += sub_bh * dst_stride;
     }
-    dst -= rw;
-    dst += sub_bh * dst_stride;
   }
 }
 

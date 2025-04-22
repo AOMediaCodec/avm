@@ -155,7 +155,8 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
 
 #if CONFIG_LF_SUB_PU
 void loop_filter_tip_plane(struct AV1Common *cm, const int plane, uint16_t *dst,
-                           const int dst_stride, const int bw, const int bh);
+                           const int dst_stride, const int plane_w,
+                           const int plane_h);
 void setup_tip_dst_planes(struct AV1Common *const cm, const int plane,
                           const int tpl_row, const int tpl_col);
 void loop_filter_tip_frame(struct AV1Common *cm, int plane_start,
