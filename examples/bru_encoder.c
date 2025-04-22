@@ -38,8 +38,8 @@ static const char *exec_name;
 
 void usage_exit(void) {
   fprintf(stderr,
-          "Usage: %s <codec> <width> <height> "
-#if CONFIG_ARD
+          "Usage: %s <width> <height> "
+#if CONFIG_BRU
           "<ard-mode> "
 #endif
           "<infile> <outfile>\n",
@@ -162,20 +162,16 @@ int main(int argc, char **argv) {
   aom_codec_err_t res;
   AvxVideoInfo info;
   AvxVideoWriter *writer = NULL;
-  const int fps = 30;  // TODO(dkovalev) add command line argument
+  const int fps = 30; 
   const double bits_per_pixel_per_frame = 0.067;
   aom_active_map_t map = { 0, 0, 0 };
 
   exec_name = argv[argi++];
-#if CONFIG_ARD
-  if (argc != 8) usage_exit();
-#else
-  if (argc != 7) usage_exit();
-#endif
+  if (argc != 6) usage_exit();
 
   memset(&info, 0, sizeof(info));
 
-  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name(argv[argi++]);
+  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name("av1");
   if (encoder == NULL) {
     die("Unsupported codec.");
   }
@@ -220,18 +216,9 @@ int main(int argc, char **argv) {
   cfg.g_input_bit_depth = bit_depth;
 
   // disable filters
-  cfg.encoder_cfg.enable_cdef = 0;
-  cfg.encoder_cfg.enable_ccso = 0;
-  cfg.encoder_cfg.enable_deblocking = 0;
-  cfg.encoder_cfg.enable_restoration = 0;
-  // cfg.use_fixed_qp_offsets = 1;
-
-  map.rows = (cfg.g_h + 15) / 16;
-  map.cols = (cfg.g_w + 15) / 16;
-  map.active_map = (uint8_t *)malloc(map.rows * map.cols);
-
-#if CONFIG_ARD
-  ard_mode = (int)strtol(argv[argi++], NULL, 0);
+#if CONFIG_BRU  
+  cfg.encoder_cfg.enable_bru = 1;
+  cfg.encoder_cfg.explicit_ref_frame_map = 1;
 #endif
 
   if (!(infile = fopen(argv[argi++], "rb")))
@@ -240,7 +227,6 @@ int main(int argc, char **argv) {
   writer = aom_video_writer_open(argv[argi++], kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", argv[argi - 1]);
 
-  // TODO: get 10-bit encode to work
   if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
 
@@ -248,23 +234,9 @@ int main(int argc, char **argv) {
     die_codec(&codec, "Failed to set cpu-used");
 
     // aom_codec_set_option(&codec, "qp", "110");
-#if CONFIG_ARD
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_ARD, ard_mode & 1))
-    die_codec(&codec, "Failed to set enable_ard");
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_ARD_SB, (ard_mode >> 1) & 1))
-    die_codec(&codec, "Failed to set enable_ard_sb");
-  if (aom_codec_control(&codec, AV1E_SET_ARD_FRAME_DELAY, 4))
-    die_codec(&codec, "Failed to set ard_frame_delay");
-#endif
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_DEBLOCKING, 0))
-    die_codec(&codec, "Failed to disable deblocking");
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_CDEF, 0))
-    die_codec(&codec, "Failed to disable cdef");
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_RESTORATION, 0))
-    die_codec(&codec, "Failed to disable lr");
-#if CONFIG_CTRL_CCSO
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_CCSO, 0))
-    die_codec(&codec, "Failed to disable ccso");
+#if CONFIG_BRU
+  if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, 1))
+    die_codec(&codec, "Failed to set enable_bru");
 #endif
 
   // Encode frames.

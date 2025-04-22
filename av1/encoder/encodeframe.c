@@ -1372,7 +1372,10 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
 
   av1_init_tile_data(cpi);
   alloc_inter_modes_info_data(cm, &cpi->td.mb);
-
+  printf("F %d, BRU %d, ref idx %d, explicit idx %d, order %d, explicit_map %d\n",
+    cm->current_frame.order_hint, cm->bru.enabled, cm->bru.update_ref_idx, cm->bru.explicit_ref_idx,
+    cm->bru.ref_order, cm->seq_params.explicit_ref_frame_map
+  );
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const this_tile =
