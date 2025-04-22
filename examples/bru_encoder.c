@@ -218,7 +218,6 @@ int main(int argc, char **argv) {
   // disable filters
 #if CONFIG_BRU  
   cfg.encoder_cfg.enable_bru = 1;
-  cfg.encoder_cfg.explicit_ref_frame_map = 1;
 #endif
 
   if (!(infile = fopen(argv[argi++], "rb")))

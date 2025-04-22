@@ -1124,6 +1124,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
+  cfg->enable_bru = extra_cfg->enable_bru;
+#endif  // CONFIG_BRU  
+#if CONFIG_BRU          
   if (cfg->enable_bru)
     cfg->explicit_ref_frame_map = 1;
   else
@@ -1162,9 +1165,6 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_EXTRA_DPB
   cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
-#if CONFIG_BRU
-  cfg->enable_bru = extra_cfg->enable_bru;
-#endif  // CONFIG_BRU
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1281,6 +1281,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
+  extra_cfg->enable_bru = cfg->enable_bru;
   if (extra_cfg->enable_bru)
     extra_cfg->explicit_ref_frame_map = 1;
   else
@@ -1319,9 +1320,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_EXTRA_DPB
   extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
 #endif  // CONFIG_EXTRA_DPB
-#if CONFIG_BRU
-  extra_cfg->enable_bru = cfg->enable_bru;
-#endif  // CONFIG_BRU
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {

@@ -391,6 +391,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
 #if CONFIG_BRU
+  seq->enable_bru = tool_cfg->enable_bru;
+#endif  // CONFIG_BRU          
+#if CONFIG_BRU          
   if (seq->enable_bru)
     seq->explicit_ref_frame_map = 1;
   else
@@ -490,16 +493,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
-#if CONFIG_BRU
-  seq->enable_bru = tool_cfg->enable_bru;
-  /*
-  // place holder, will imporve mt later
-  if (seq->enable_bru && oxcf->max_threads>1) {
-    fprintf(stderr, "turn off BRU for multi-threading\n");
-    seq->enable_bru = 0;
-  }
-  */
-#endif  // CONFIG_BRU
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
 #endif  // CONFIG_REFINEMV
