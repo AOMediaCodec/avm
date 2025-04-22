@@ -240,7 +240,13 @@ set_aom_config_var(
 
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
-  "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
+  "AV2 improved luma downsampling for cross-plane non-sep wiener filter")
+
+set_aom_config_var(
+  CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+  1
+  "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
+)
 
 # CWG-D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1

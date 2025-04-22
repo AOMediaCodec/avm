@@ -2155,6 +2155,11 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
         for (int r = 0; r < h_uv; ++r) {
           for (int c = 0; c < width_uv; ++c) {
             curr_luma[r * out_stride + c] =
+#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+                (curr_dgd[2 * r * in_stride + 2 * c] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+                1;
+#else
                 (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
                  2 * curr_dgd[2 * r * in_stride + 2 * c] +
                  curr_dgd[2 * r * in_stride + 2 * c + 1] +
@@ -2163,6 +2168,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
                  2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
                  curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
                 3;
+#endif
           }
         }
       } else if (ds_type == 2) {
@@ -2335,6 +2341,12 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
       for (int r = 0; r < height_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
           (*luma)[r * out_stride + c] =
+#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+              (dgd[2 * r * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+              1;
+#else
+
               (dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
                2 * dgd[2 * r * in_stride + 2 * c] +
                dgd[2 * r * in_stride + 2 * c + 1] +
@@ -2342,6 +2354,7 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
                2 * dgd[(2 * r + 1) * in_stride + 2 * c] +
                dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
               3;
+#endif
         }
       }
     } else if (ds_type == 2) {
