@@ -279,8 +279,10 @@ typedef struct LV_MAP_COEFF_COST {
 #if CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding the AOM_PLANE_V txfm coefficient dc_sign
   int v_dc_sign_cost[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS][2];
+#if CONFIG_CTX_V_AC_SIGN == 0
   //! Cost for encoding the AOM_PLANE_V txfm coefficient ac_sign
   int v_ac_sign_cost[CROSS_COMPONENT_CONTEXTS][2];
+#endif
 #endif  // CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding an increment to the coefficient
   int lps_cost[LEVEL_CONTEXTS][COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];

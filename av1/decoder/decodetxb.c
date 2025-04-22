@@ -1316,7 +1316,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                2, ACCT_INFO("sign", "dc_sign_cdf"));
 #endif  // CONFIG_CONTEXT_DERIVATION
       } else {
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && CONFIG_CTX_V_AC_SIGN == 0
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U)
           sign = aom_read_bit(r, ACCT_INFO("sign", "plane_y_or_u"));
         else {

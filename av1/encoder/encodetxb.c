@@ -1600,7 +1600,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          2);
 #endif  // CONFIG_CONTEXT_DERIVATION
       } else {
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && CONFIG_CTX_V_AC_SIGN == 0
         if (plane == AOM_PLANE_U) xd->tmp_sign[scan[c]] = (sign ? 2 : 1);
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U)
           aom_write_bit(w, sign);
@@ -2451,12 +2451,16 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         }
         if (c == 0) return cost;
       } else {
+#if CONFIG_CTX_V_AC_SIGN
+        cost += av1_cost_literal(1);
+#else
         if (plane == AOM_PLANE_V) {
           const int sign01 = (sign ^ sign) - sign;
           cost += coeff_costs->v_ac_sign_cost[xd->tmp_sign[pos]][sign01];
         } else {
           cost += av1_cost_literal(1);
         }
+#endif
       }
 #else
       if (c) {
@@ -2568,6 +2572,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign01];
         }
       } else {
+#if CONFIG_CTX_V_AC_SIGN
+        cost += av1_cost_literal(1);
+#else
         if (plane == AOM_PLANE_V) {
           const int sign = AOMSIGN(v);
           const int sign01 = (sign ^ sign) - sign;
@@ -2575,6 +2582,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         } else {
           cost += av1_cost_literal(1);
         }
+#endif
       }
 #else
 #if CONFIG_CONTEXT_DERIVATION
@@ -3423,10 +3431,14 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
       else
         cost += av1_cost_literal(1);
+#endif
     }
 #else
     if (ci == 0) {
@@ -3612,10 +3624,14 @@ static INLINE int get_coeff_cost_general(
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
       else
         cost += av1_cost_literal(1);
+#endif
     }
 #else
     if (ci == 0) {

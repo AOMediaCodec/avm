@@ -350,8 +350,12 @@ void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      aom_write_bit(w, (shell_cls_offset >> i) & 1);
+#else
       aom_write_symbol(w, (shell_cls_offset >> i) & 1,
                        mvctx->shell_offset_other_class_cdf[0][i], 2);
+#endif
     }
   }
 
