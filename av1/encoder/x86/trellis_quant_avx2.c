@@ -318,6 +318,8 @@ static INLINE int get_mid_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                    int plane, int t_sign, int sign) {
   int cost = 0;
 #if CONFIG_CTX_V_AC_SIGN
+  (void)t_sign;
+  (void)sign;
   cost += av1_cost_literal(1);
 #else
   if (plane == AOM_PLANE_V) {

@@ -252,7 +252,9 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size,
 #endif
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
+#if !CONFIG_EOB_PT_CTX_REDUCTION
   TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+#endif
 
   const int eob_multi_size = txsize_log2_minus4[tx_size];
 #if CONFIG_EOB_POS_LUMA
@@ -326,7 +328,9 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size,
 
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
+#if !CONFIG_EOB_PT_CTX_REDUCTION
     int eob_ctx = eob_pt - 3;
+#endif
     int eob_shift = eob_offset_bits - 1;
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
@@ -736,8 +740,10 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
                             TX_SIZE tx_size, int eob) {
   MACROBLOCKD *xd = &x->e_mbd;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if !CONFIG_EOB_PT_CTX_REDUCTION
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+#endif
 #if CONFIG_EOB_POS_LUMA
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const int pl_ctx = get_eob_plane_ctx(plane, is_inter);
@@ -781,7 +787,9 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
   }
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
+#if !CONFIG_EOB_PT_CTX_REDUCTION
     const int eob_ctx = eob_pt - 3;
+#endif
     int eob_shift = eob_offset_bits - 1;
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
 #if CONFIG_EOB_PT_CTX_REDUCTION

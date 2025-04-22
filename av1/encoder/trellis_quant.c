@@ -229,6 +229,10 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                      int diag_ctx, int plane,
                                      const LV_MAP_COEFF_COST *txb_costs,
                                      int q_i, int t_sign, int sign) {
+#if CONFIG_CTX_V_AC_SIGN
+  (void)t_sign;
+  (void)sign;
+#endif
   int base_ctx = diag_ctx + (coeff_ctx & 15);
   int mid_ctx = coeff_ctx >> 4;
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
