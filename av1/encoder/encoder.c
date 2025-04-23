@@ -85,10 +85,8 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
 
-#if LUTF
-#if LUTF_TEST
-#include "av1/common/lutf.h"
-#endif  //
+#if CONFIG_GDF
+#include "av1/common/gdf.h"
 #endif  //
 
 #if CONFIG_ML_PART_SPLIT
@@ -2298,243 +2296,199 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, 0, 0);
 }
 
-#if LUTF
-#if LUTF_TEST
-void av1_gdf_optimizer(AV1_COMP* cpi, AV1_COMMON* cm)
-{
-    uint16_t* orgPnt = cpi->source->y_buffer;
-    const int orgStride = cpi->source->y_stride;
+#if CONFIG_GDF
+void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
+  uint16_t *org_pnt = cpi->source->y_buffer;
+  const int org_stride = cpi->source->y_stride;
 
-    uint16_t* recPnt = cm->cur_frame->buf.buffers[AOM_PLANE_Y];
-    const int recHeight = cm->cur_frame->buf.y_height;
-    const int recWidth = cm->cur_frame->buf.y_width;
-    const int recStride = cm->cur_frame->buf.y_stride;
+  uint16_t *rec_pnt = cm->cur_frame->buf.buffers[AOM_PLANE_Y];
+  const int rec_height = cm->cur_frame->buf.y_height;
+  const int rec_width = cm->cur_frame->buf.y_width;
+  const int rec_stride = cm->cur_frame->buf.y_stride;
 
-    const int bitDepth = cm->seq_params.bit_depth;
-    const int pxlMax = (1 << cm->cur_frame->buf.bit_depth) - 1;
-    const int pxlShift = LUTF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
-    const int errShift = LUTF_RDO_SCALE_NUM_LOG2 + pxlShift;
-    const int errShift_half = 1 << (errShift - 1);
-    const int isIntra = frame_is_intra_only(cm);
+  const int bit_depth = cm->seq_params.bit_depth;
+  const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
+  const int pxl_shift = GDF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
+  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
+  const int err_shift_half_pow2 = 1 << (err_shift - 1);
+  const int is_intra = frame_is_intra_only(cm);
 
-    int refDstIdx;
-    void (*blk_process_fn)(const int, const int, const int, const int,
-                            const int, const int, const uint16_t*, const int, const int,
-                            int16_t*, const int, const int, const int);
-    if (!isIntra)
-    {
-        blk_process_fn = lutfInterBlockProcess;
-        refDstIdx = gdf_get_refDstIdx(cm);
+  int ref_dst_idx;
+  void (*blk_process_fn)(const int, const int, const int, const int, const int,
+                         const int, const uint16_t *, const int, const int,
+                         int16_t *, const int, const int, const int);
+  if (!is_intra) {
+    blk_process_fn = gdf_inter_inference_block;
+    ref_dst_idx = gdf_get_ref_dst_idx(cm);
+  } else {
+    blk_process_fn = gdf_intra_inference_block;
+    ref_dst_idx = 0;
+  }
+  int qp_idx_base = gdf_get_qp_idx_base(cm);
+
+  int64_t *rec_slice_errors;
+  int64_t *flt_slice_errors[GDF_RDO_SCALE_NUM][GDF_RDO_QP_NUM];
+  rec_slice_errors =
+      (int64_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t));
+  for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
+    for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+      flt_slice_errors[scale_idx][qp_idx] =
+          (int64_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t));
     }
-    else
-    {
-        blk_process_fn = lutfIntraBlockProcess;
-        refDstIdx = 5;
-    }
-    int qpIdx_base = gdf_get_qpIdx_base(cm);
+  }
+  const int64_t rdmult =
+      av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
 
-    int64_t* recSliceErrors;
-    int64_t* fltSliceErrors[LUTF_RDO_SCALE_NUM][LUTF_RDO_QP_NUM];
-    recSliceErrors = (int64_t*)calloc(cm->lutf_info.lutf_block_num, sizeof(int64_t));
-    for (int scaleIdx = 0; scaleIdx < LUTF_RDO_SCALE_NUM; scaleIdx++)
-    {
-        for (int qpIdx = 0; qpIdx < LUTF_RDO_QP_NUM; qpIdx++)
-        {
-            fltSliceErrors[scaleIdx][qpIdx] = (int64_t*)calloc(cm->lutf_info.lutf_block_num, sizeof(int64_t));
-        }
-    }
-    const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+  int blk_idx = 0;
+  for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < rec_height;
+       y_pos += cm->gdf_info.gdf_block_size) {
+    for (int x_pos = 0; x_pos < rec_width;
+         x_pos += cm->gdf_info.gdf_block_size) {
+      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
+           v_pos += cm->gdf_info.gdf_unit_size) {
+        for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
+             u_pos += cm->gdf_info.gdf_unit_size) {
+          int i_min = max(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int i_max = min(v_pos + cm->gdf_info.gdf_unit_size,
+                          rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int j_min = max(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int j_max = min(u_pos + cm->gdf_info.gdf_unit_size,
+                          rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
 
-    int blkIdx = 0;
-    for (int yPos = -LUTF_TEST_STRIPE_OFF; yPos < recHeight; yPos += cm->lutf_info.lutf_block_size)
-    {
-        for (int xPos = 0; xPos < recWidth; xPos += cm->lutf_info.lutf_block_size)
-        {
-            for (int vPos = yPos; vPos < yPos + cm->lutf_info.lutf_block_size; vPos+=cm->lutf_info.lutf_unit_size)
-            {
-                for (int uPos = xPos; uPos < xPos + cm->lutf_info.lutf_block_size; uPos+=cm->lutf_info.lutf_unit_size)
-                {
+          for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+            blk_process_fn(i_min, i_max, j_min, j_max,
+                           cm->gdf_info.gdf_stripe_size, qp_idx + qp_idx_base,
+                           cm->gdf_info.inp_ptr, rec_stride, bit_depth,
+                           cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
+                           pxl_shift, ref_dst_idx);
 
-                    int iMin = max(vPos, LUTF_TEST_PAD_SIZE);
-                    int iMax = min(vPos + cm->lutf_info.lutf_unit_size, recHeight - LUTF_TEST_PAD_SIZE);
-                    int jMin = max(uPos, LUTF_TEST_PAD_SIZE);
-                    int jMax = min(uPos + cm->lutf_info.lutf_unit_size, recWidth - LUTF_TEST_PAD_SIZE);
+            for (int i = i_min; i < i_max; i++) {
+              for (int j = j_min; j < j_max; j++) {
+                int rec_loc = i * rec_stride + j;
+                int org_loc = i * org_stride + j;
+                int err_loc =
+                    (i - i_min) * cm->gdf_info.err_stride + (j - j_min);
 
-                    // 2.2. filtering error
-                    for (int qpIdx = 0; qpIdx < LUTF_RDO_QP_NUM; qpIdx++)
-                    {
-                        blk_process_fn(
-                            iMin, iMax, jMin, jMax, cm->lutf_info.lutf_stripe_size,  qpIdx + qpIdx_base,
-                            cm->lutf_info.inpPnt, recWidth, recStride,
-                            cm->lutf_info.errPnt, cm->lutf_info.errStride,
-                            pxlShift, refDstIdx);
-
-                        for (int i = iMin; i < iMax; i++)
-                        {
-                            for (int j = jMin; j < jMax; j++)
-                            {
-                                int recLoc = i * recStride + j;
-                                int orgLoc = i * orgStride + j;
-                                int errLoc = (i - iMin) * cm->lutf_info.errStride + (j - jMin);
-
-                                // 2.1. recontruction error
-                                if (qpIdx == 0)
-                                {
-                                    int64_t tmpErr = recPnt[recLoc] - orgPnt[orgLoc];
-                                    recSliceErrors[blkIdx] += tmpErr * tmpErr;
-                                }
-
-                                for (int scaleIdx = 0; scaleIdx < LUTF_RDO_SCALE_NUM; scaleIdx++)
-                                {
-                                    int32_t tmpVal = (scaleIdx + 1) * cm->lutf_info.errPnt[errLoc];
-                                    if (tmpVal > 0)
-                                    {
-                                        tmpVal = (tmpVal + errShift_half) >> errShift;
-                                    }
-                                    else
-                                    {
-                                        tmpVal = -(((-tmpVal) + errShift_half) >> errShift);
-                                    }
-                                    tmpVal = CLIP(tmpVal + recPnt[recLoc], 0, pxlMax) - orgPnt[i * orgStride + j];
-                                    fltSliceErrors[scaleIdx][qpIdx][blkIdx] += (int64_t)tmpVal * tmpVal;
-                                }
-                            }
-                        }
-                    }
+                if (qp_idx == 0) {
+                  int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
+                  rec_slice_errors[blk_idx] += tmp_err * tmp_err;
                 }
+
+                for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
+                     scale_idx++) {
+                  int32_t tmp_val =
+                      (scale_idx + 1) * cm->gdf_info.err_ptr[err_loc];
+                  if (tmp_val > 0) {
+                    tmp_val = (tmp_val + err_shift_half_pow2) >> err_shift;
+                  } else {
+                    tmp_val =
+                        -(((-tmp_val) + err_shift_half_pow2) >> err_shift);
+                  }
+                  tmp_val = CLIP(tmp_val + rec_pnt[rec_loc], 0, pxl_max) -
+                            org_pnt[org_loc];
+                  flt_slice_errors[scale_idx][qp_idx][blk_idx] +=
+                      (int64_t)tmp_val * tmp_val;
+                }
+              }
             }
-            blkIdx++;
+          }
         }
+      }
+      blk_idx++;
     }
+  }
 
-    // 1. slice off: slice off[0]
-    int sliceRate = 1 << AV1_PROB_COST_SHIFT;
-    int64_t sliceError = 0;
-    for (blkIdx = 0; blkIdx < cm->lutf_info.lutf_block_num; blkIdx++)
-    {
-        sliceError += recSliceErrors[blkIdx];
-    }
-    double bestCost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, (double)sliceRate / 16, sliceError, bitDepth);
-    cm->lutf_info.lutf_enable = 0;
+  int slice_rate = 1 << AV1_PROB_COST_SHIFT;
+  int64_t slice_error = 0;
+  for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+    slice_error += rec_slice_errors[blk_idx];
+  }
+  double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+  cm->gdf_info.gdf_mode = 0;
 
-    // 2. slice on + all classes on: slice-on block-off [10]/ slice-on block-on[11] + scaleIdx [xx] + qpIdx[xx]
-    int* block_filterMode;
-    block_filterMode = (int*)malloc(cm->lutf_info.lutf_block_num * sizeof(int));
-#if LUTF_RDO_BLOCK_ONOFF
-    int lutf_enable_max_plus_1 = (cm->lutf_info.lutf_block_num <= 1) ? 2: 3;
-    int lutf_block_enable_bit = 1;
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-    aom_cdf_prob lutf_cdf[CDF_SIZE(2)];
-    static const aom_cdf_prob default_lutf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
-#endif  //
-#else   //
-    int lutf_enable_max_plus_1 = 2;
-    int lutf_block_enable_bit = 0;
-#endif  //
-    for (int lutf_enable = 1; lutf_enable < lutf_enable_max_plus_1; lutf_enable++)
-    {
-        for (int scaleIdx = 0; scaleIdx < LUTF_RDO_SCALE_NUM; scaleIdx++)
-        {
-            for (int qpIdx = 0; qpIdx < LUTF_RDO_QP_NUM; qpIdx++)
-            {
-                sliceRate = (1 + lutf_block_enable_bit + LUTF_RDO_QP_NUM_LOG2 + LUTF_RDO_SCALE_NUM_LOG2) << AV1_PROB_COST_SHIFT;
-                sliceError = 0;
-#if LUTF_RDO_BLOCK_ONOFF
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-                av1_copy(lutf_cdf, default_lutf_cdf);
-#endif  //
-#endif  //
+  int *block_flags;
+  block_flags = (int *)aom_malloc(cm->gdf_info.gdf_block_num * sizeof(int));
+  int gdf_enable_max_plus_1 = (cm->gdf_info.gdf_block_num <= 1) ? 2 : 3;
+  int gdf_block_enable_bit = 1;
+  aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
+  static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
+  for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++) {
+    for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
+      for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+        slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
+                      GDF_RDO_SCALE_NUM_LOG2)
+                     << AV1_PROB_COST_SHIFT;
+        slice_error = 0;
+        av1_copy(gdf_cdf, default_gdf_cdf);
 
-                for (blkIdx = 0; blkIdx < cm->lutf_info.lutf_block_num; blkIdx++)
-                {
-                    if (lutf_enable == 1)
-                    {
-                        sliceError += fltSliceErrors[scaleIdx][qpIdx][blkIdx];
-                    }
-#if LUTF_RDO_BLOCK_ONOFF
-                    else
-                    {
-                        double bestBlockCost = DBL_MAX;
-                        int bestBlockRate;
-                        int64_t bestBlockError;
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-                        int cost_from_cdf[2];
-                        av1_cost_tokens_from_cdf(cost_from_cdf, lutf_cdf, NULL);
-#endif  //
-                        for (int blockFilterMode = 0; blockFilterMode < 2; blockFilterMode++)
-                        {
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-                            int blockRate = cost_from_cdf[blockFilterMode];
-#else   //
-                            int blockRate = 1 << AV1_PROB_COST_SHIFT;
-#endif  //
-                            int64_t blockError = 0;
-                            blockError += (blockFilterMode == 0) ? recSliceErrors[blkIdx]
-                                                                 : fltSliceErrors[scaleIdx][qpIdx][blkIdx];
-                            double blockCost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, (double)blockRate / 16, blockError, bitDepth);
-                            if (blockCost < bestBlockCost)
-                            {
-                                block_filterMode[blkIdx] = blockFilterMode;
-                                bestBlockRate = blockRate;
-                                bestBlockError = blockError;
-                                bestBlockCost = blockCost;
-                            }
-                        }
-                        sliceRate += bestBlockRate;
-                        sliceError += bestBlockError;
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-                        update_cdf(lutf_cdf, block_filterMode[blkIdx], 2);
-#endif  //
-                    }
-#endif  //
-                }
-                double sliceCost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, (double)sliceRate /16, sliceError, bitDepth);
-
-                if (sliceCost < bestCost)
-                {
-                    cm->lutf_info.lutf_enable = lutf_enable;
-                    cm->lutf_info.lutf_slice_qpIdx = qpIdx;
-                    cm->lutf_info.lutf_slice_scaleIdx = scaleIdx;
-                    if (lutf_enable == 2)
-                    {
-                        for (blkIdx = 0; blkIdx < cm->lutf_info.lutf_block_num; blkIdx++)
-                        {
-                            cm->lutf_info.lutf_block_filterMode[blkIdx] = block_filterMode[blkIdx];
-                        }
-                    }
-                    bestCost = sliceCost;
-                }
+        for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+          if (gdf_mode == 1) {
+            slice_error += flt_slice_errors[scale_idx][qp_idx][blk_idx];
+          } else {
+            double best_block_cost = DBL_MAX;
+            int best_block_rate;
+            int64_t best_block_error;
+            int cost_from_cdf[2];
+            av1_cost_tokens_from_cdf(cost_from_cdf, gdf_cdf, NULL);
+            for (int block_flag = 0; block_flag < 2; block_flag++) {
+              int block_rate = cost_from_cdf[block_flag];
+              int64_t block_error = 0;
+              block_error += (block_flag == 0)
+                                 ? rec_slice_errors[blk_idx]
+                                 : flt_slice_errors[scale_idx][qp_idx][blk_idx];
+              double block_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                  rdmult, (double)block_rate / 16, block_error, bit_depth);
+              if (block_cost < best_block_cost) {
+                block_flags[blk_idx] = block_flag;
+                best_block_rate = block_rate;
+                best_block_error = block_error;
+                best_block_cost = block_cost;
+              }
             }
+            slice_rate += best_block_rate;
+            slice_error += best_block_error;
+            update_cdf(gdf_cdf, block_flags[blk_idx], 2);
+          }
         }
-    }
-    free(recSliceErrors);
-    for (int scaleIdx = 0; scaleIdx < LUTF_RDO_SCALE_NUM; scaleIdx++)
-    {
-        for (int qpIdx = 0; qpIdx < LUTF_RDO_QP_NUM; qpIdx++)
-        {
-            free(fltSliceErrors[scaleIdx][qpIdx]);
+        double slice_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+            rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+
+        if (slice_cost < best_cost) {
+          cm->gdf_info.gdf_mode = gdf_mode;
+          cm->gdf_info.gdf_slice_qp_idx = qp_idx;
+          cm->gdf_info.gdf_slice_scale_idx = scale_idx;
+          if (gdf_mode == 2) {
+            for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+              cm->gdf_info.gdf_block_flags[blk_idx] = block_flags[blk_idx];
+            }
+          }
+          best_cost = slice_cost;
         }
+      }
     }
-    free(block_filterMode);
+  }
+  aom_free(rec_slice_errors);
+  for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
+    for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+      aom_free(flt_slice_errors[scale_idx][qp_idx]);
+    }
+  }
+  aom_free(block_flags);
 }
 
-void av1_gdf_optimize_frame(AV1_COMP* cpi, AV1_COMMON* cm)
-{
-    cm->lutf_info.lutf_decoder = 0;
-    gdf_open_info(cm);
-    av1_gdf_optimizer(cpi, cm);
-#if LUTF_VERBOSE
-    gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
+void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
+  gdf_open_info(cm);
+  av1_gdf_optimizer(cpi, cm);
+#if GDF_VERBOSE
+  gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
 #endif  //
-    if (cm->lutf_info.lutf_enable)
-    {
-        gdf_filter_frame(cm);
-    }
-    gdf_close_info(cm);
+  if (cm->gdf_info.gdf_mode) {
+    gdf_filter_frame(cm);
+  }
+  gdf_close_info(cm);
 }
 #endif  //
-#endif  //
-
 
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
@@ -2588,21 +2542,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
 
-#if LUTF
-#if LUTF_TEST
+#if CONFIG_GDF
   const int use_gdf = !cm->features.coded_lossless && !cm->tiles.large_scale;
-  if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 1) {
-      gdf_copy_guided_frame(cm);
-  }
-  if (LUTF_TEST_OUT_LOC == 1)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
+#endif
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2631,22 +2573,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   }
-
-#if LUTF
-#if LUTF_TEST
-  if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 2) {
-      gdf_copy_guided_frame(cm);
-  }
-  if (LUTF_TEST_OUT_LOC == 2)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
-
   if (use_ccso) {
     av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
@@ -2695,38 +2621,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     aom_free(rec_uv[pli]);
     aom_free(org_uv[pli]);
   }
-
-#if LUTF
-#if LUTF_TEST
-  if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 3) {
-      gdf_copy_guided_frame(cm);
-  }
-  if (LUTF_TEST_OUT_LOC == 3)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
-
   av1_superres_post_encode(cpi);
 
-#if LUTF
-#if LUTF_TEST
+#if CONFIG_GDF
   if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 4) {
-      gdf_copy_guided_frame(cm);
+    gdf_copy_guided_frame(cm);
   }
-  if (LUTF_TEST_OUT_LOC == 4)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
+#endif
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
@@ -2752,20 +2653,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
 
-#if LUTF
-#if LUTF_TEST
+#if CONFIG_GDF
   if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 5) {
-      gdf_copy_guided_frame(cm);
+    av1_gdf_optimize_frame(cpi, cm);
+    gdf_free_guided_frame(cm);
   }
-  if (LUTF_TEST_OUT_LOC == 5)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
+#endif
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
@@ -2800,23 +2693,6 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_filter_time);
 #endif
-
-#if LUTF
-#if LUTF_TEST
-  const int use_gdf = !cm->features.coded_lossless && !cm->tiles.large_scale;
-  if (use_gdf) {
-  if (LUTF_TEST_INP_LOC == 0) {
-      gdf_copy_guided_frame(cm);
-  }
-  if (LUTF_TEST_OUT_LOC == 0)
-  {
-      av1_gdf_optimize_frame(cpi, cm);
-      gdf_free_guided_frame(cm);
-  }
-  }
-#endif  //
-#endif  //
-
   if (use_loopfilter) {
     aom_clear_system_state();
     av1_pick_filter_level(cpi->source, cpi, cpi->sf.lpf_sf.lpf_pick);

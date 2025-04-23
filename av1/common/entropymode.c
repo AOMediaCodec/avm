@@ -7828,8 +7828,8 @@ static const aom_cdf_prob default_ccso_cdf[3][CDF_SIZE(2)] = {
 static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if LUTF_TEST
-static const aom_cdf_prob default_lutf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
+#if CONFIG_GDF
+static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif  //
 
 #if CONFIG_ENTROPY_PARA
@@ -8542,8 +8542,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_ENTROPY_PARA
   }
 
-#if LUTF_TEST
-  av1_copy(fc->lutf_cdf, default_lutf_cdf);
+#if CONFIG_GDF
+  av1_copy(fc->gdf_cdf, default_gdf_cdf);
 #endif  //
 
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);

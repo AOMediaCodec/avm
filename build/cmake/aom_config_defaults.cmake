@@ -67,14 +67,6 @@ set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 #
 
 # Build configuration flags.
-
-#============================================================================
-# lutf
-set_aom_config_var(LUTF 1 "Enable LUTF.")
-set_aom_config_var(LUTF_DATA 0 "Disable LUTF_DATA.")
-set_aom_config_var(LUTF_TEST 1 "Enable LUTF_TEST.")
-#============================================================================
-
 set_aom_config_var(AOM_RTCD_FLAGS ""
                    "Arguments to pass to rtcd.pl. Separate with ';'")
 set_aom_config_var(CONFIG_AV1_DECODER 1 "Enable AV1 decoder.")
@@ -536,6 +528,7 @@ set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
 
 set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
+set_aom_config_var(CONFIG_GDF 1 "Enable guided detail filter.")
 #
 # Variables in this section control optional features of the build system.
 #

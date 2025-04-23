@@ -421,31 +421,28 @@ typedef struct BufferPool {
 
 /*!\endcond */
 
-#if LUTF
-#if LUTF_TEST
+#if CONFIG_GDF
 typedef struct {
-    int lutf_decoder;
-    int lutf_enable;
+    int gdf_mode;
 
-    int lutf_slice_qpIdx;
-    int lutf_slice_scaleIdx;
+    int gdf_slice_qp_idx;
+    int gdf_slice_scale_idx;
 
-    int lutf_block_size;
-    int lutf_block_num_h;
-    int lutf_block_num_w;
-    int lutf_block_num;
-    int lutf_stripe_size;
-    int lutf_unit_size;
+    int gdf_block_size;
+    int gdf_block_num_h;
+    int gdf_block_num_w;
+    int gdf_block_num;
+    int gdf_stripe_size;
+    int gdf_unit_size;
 
-    int lutf_block_filterMode[2400];     // TODO_KD: maximum number of blocks is 600
+    int gdf_block_flags[2400];     // TODO_KD: maximum number of blocks is 600
 
-    int errHeight;
-    int errStride;
-    int16_t* errPnt;
-    uint16_t* inpPnt;
-    uint16_t* inpPlsPnt;
-} LutfInfo;
-#endif  //
+    int err_height;
+    int err_stride;
+    int16_t* err_ptr;
+    uint16_t* inp_ptr;
+    uint16_t* inp_pad_ptr;
+} gdf_info;
 #endif  //
 
 /*!\brief Parameters related to CDEF */
@@ -1723,10 +1720,8 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
   /**@}*/
 
-#if LUTF
-#if LUTF_TEST
-  LutfInfo lutf_info;
-#endif  //
+#if CONFIG_GDF
+  gdf_info gdf_info;
 #endif  //
 
   /*!

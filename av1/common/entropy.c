@@ -390,8 +390,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
 #endif  // CONFIG_CCSO_IMPROVE
 
-#if LUTF_TEST
-  RESET_CDF_COUNTER(fc->lutf_cdf, 2);
+#if CONFIG_GDF
+  RESET_CDF_COUNTER(fc->gdf_cdf, 2);
 #endif  //
 
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);

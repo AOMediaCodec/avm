@@ -1703,10 +1703,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_CCSO_IMPROVE
   }
 
-#if LUTF
-#if LUTF_TEST
-  AVERAGE_CDF(ctx_left->lutf_cdf, ctx_tr->lutf_cdf, 2);
-#endif  //
+#if CONFIG_GDF
+  AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
 #endif  //
 
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);

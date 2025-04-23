@@ -58,11 +58,9 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
-#if LUTF
-#if LUTF_TEST
-#include "av1/common/lutf.h"
-#endif  //
-#endif  //
+#if CONFIG_GDF
+#include "av1/common/gdf.h"
+#endif
 
 // Silence compiler warning for unused static functions
 static void image2yuvconfig_upshift(aom_image_t *hbd_img,
@@ -1912,28 +1910,22 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
   }
 }
 
-#if LUTF
-#if LUTF_TEST
-#if LUTF_RDO_BLOCK_ONOFF
-static AOM_INLINE void write_lutf(AV1_COMMON* cm, MACROBLOCKD* const xd, aom_writer* w) {
-    if (cm->features.coded_lossless) return;
-    if (is_global_intrabc_allowed(cm)) return;
-    if ((cm->lutf_info.lutf_enable < 2) || (cm->lutf_info.lutf_block_num <= 1)) return;
+#if CONFIG_GDF
+static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
+                                  aom_writer *w) {
+  if (cm->features.coded_lossless) return;
+  if (is_global_intrabc_allowed(cm)) return;
+  if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1))
+    return;
 
-    if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
-        for (int blkIdx = 0; blkIdx < cm->lutf_info.lutf_block_num; blkIdx++)
-        {
-#if LUTF_RDO_BLOCK_ONOFF_CODE
-            aom_write_symbol(w, cm->lutf_info.lutf_block_filterMode[blkIdx], xd->tile_ctx->lutf_cdf, 2);
-#else   //
-            aom_write_literal(w, cm->lutf_info.lutf_block_filterMode[blkIdx], 1);
-#endif  //
-        }
+  if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
+    for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+      aom_write_symbol(w, cm->gdf_info.gdf_block_flags[blk_idx],
+                       xd->tile_ctx->gdf_cdf, 2);
     }
+  }
 }
-#endif  //
-#endif  //
-#endif  //
+#endif
 
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w, int skip) {
@@ -2556,13 +2548,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_SKIP_TXFM_OPT
   write_inter_segment_id(cpi, w, seg, segp, skip, 0);
 
-#if LUTF
-#if LUTF_TEST
-#if LUTF_RDO_BLOCK_ONOFF
-  write_lutf(cm, xd, w);
-#endif  //
-#endif  //
-#endif  //
+#if CONFIG_GDF
+  write_gdf(cm, xd, w);
+#endif
 
   write_cdef(cm, xd, w, skip);
 
@@ -3221,13 +3209,9 @@ static AOM_INLINE void write_mb_modes_kf(
   )
     write_segment_id(cpi, mbmi, w, seg, segp, skip);
 
-#if LUTF
-#if LUTF_TEST
-#if LUTF_RDO_BLOCK_ONOFF
-  if (xd->tree_type != CHROMA_PART) write_lutf(cm, xd, w);
-#endif  //
-#endif  //
-#endif  //
+#if CONFIG_GDF
+  if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
+#endif
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
@@ -4927,28 +4911,24 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   }
 }
 
-#if LUTF
-#if LUTF_TEST
-static AOM_INLINE void encode_lutf(const AV1_COMMON* cm,
-    struct aom_write_bit_buffer* wb) {
-    assert(!cm->features.coded_lossless);
-    if (is_global_intrabc_allowed(cm)) return;
+#if CONFIG_GDF
+static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
+                                   struct aom_write_bit_buffer *wb) {
+  assert(!cm->features.coded_lossless);
+  if (is_global_intrabc_allowed(cm)) return;
 
-    aom_wb_write_bit(wb, cm->lutf_info.lutf_enable == 0 ? 0 : 1);
-    if (cm->lutf_info.lutf_enable)
-    {
-#if LUTF_RDO_BLOCK_ONOFF
-        if (cm->lutf_info.lutf_block_num > 1)
-        {
-            aom_wb_write_bit(wb, cm->lutf_info.lutf_enable == 1 ? 0 : 1);
-        }
-#endif  //
-        aom_wb_write_literal(wb, cm->lutf_info.lutf_slice_qpIdx, LUTF_RDO_QP_NUM_LOG2);
-        aom_wb_write_literal(wb, cm->lutf_info.lutf_slice_scaleIdx, LUTF_RDO_SCALE_NUM_LOG2);
+  aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 0 ? 0 : 1);
+  if (cm->gdf_info.gdf_mode) {
+    if (cm->gdf_info.gdf_block_num > 1) {
+      aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 1 ? 0 : 1);
     }
+    aom_wb_write_literal(wb, cm->gdf_info.gdf_slice_qp_idx,
+                         GDF_RDO_QP_NUM_LOG2);
+    aom_wb_write_literal(wb, cm->gdf_info.gdf_slice_scale_idx,
+                         GDF_RDO_SCALE_NUM_LOG2);
+  }
 }
-#endif  //
-#endif  //
+#endif
 
 static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
@@ -6650,11 +6630,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (!features->coded_lossless) {
       encode_loopfilter(cm, wb);
 
-#if LUTF
-#if LUTF_TEST
-      encode_lutf(cm, wb);
-#endif  //
-#endif  //
+#if CONFIG_GDF
+      encode_gdf(cm, wb);
+#endif
 
       encode_cdef(cm, wb);
     }

@@ -41,8 +41,8 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/cdef.h"
 
-#if LUTF
-#include "av1/common/lutf.h"
+#if CONFIG_GDF
+#include "av1/common/gdf.h"
 #endif  //
 
 #include "av1/common/ccso.h"
@@ -3760,27 +3760,22 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   lf->mode_ref_delta_enabled = 0;
 }
 
-#if LUTF
-#if LUTF_TEST
-static AOM_INLINE void setup_lutf(AV1_COMMON* cm,
-    struct aom_read_bit_buffer* rb) {
-    if (is_global_intrabc_allowed(cm)) return;
-    cm->lutf_info.lutf_decoder = 1;
-    gdf_open_info(cm);
-    cm->lutf_info.lutf_enable = aom_rb_read_bit(rb);
-    if (cm->lutf_info.lutf_enable)
-    {
-#if LUTF_RDO_BLOCK_ONOFF
-        if (cm->lutf_info.lutf_block_num > 1)
-        {
-            cm->lutf_info.lutf_enable += aom_rb_read_bit(rb);
-        }
-#endif  //
-        cm->lutf_info.lutf_slice_qpIdx = aom_rb_read_literal(rb, LUTF_RDO_QP_NUM_LOG2);
-        cm->lutf_info.lutf_slice_scaleIdx = aom_rb_read_literal(rb, LUTF_RDO_SCALE_NUM_LOG2);
+#if CONFIG_GDF
+static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
+                                  struct aom_read_bit_buffer *rb) {
+  if (is_global_intrabc_allowed(cm)) return;
+  gdf_open_info(cm);
+  cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
+  if (cm->gdf_info.gdf_mode) {
+    if (cm->gdf_info.gdf_block_num > 1) {
+      cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
     }
+    cm->gdf_info.gdf_slice_qp_idx =
+        aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2);
+    cm->gdf_info.gdf_slice_scale_idx =
+        aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
+  }
 }
-#endif  //
 #endif  //
 
 static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
@@ -8295,10 +8290,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
 
-#if LUTF
-#if LUTF_TEST
-    cm->lutf_info.lutf_enable = 0;
-#endif  //
+#if CONFIG_GDF
+    cm->gdf_info.gdf_mode = 0;
 #endif  //
 
 #if CONFIG_FIX_CDEF_SYNTAX
@@ -8473,13 +8466,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
   setup_loopfilter(cm, rb);
 
-#if LUTF
-#if LUTF_TEST
-  if (!features->coded_lossless)
-  {
-      setup_lutf(cm, rb);
+#if CONFIG_GDF
+  if (!features->coded_lossless) {
+    setup_gdf(cm, rb);
   }
-#endif  //
 #endif  //
 
   if (!features->coded_lossless && seq_params->enable_cdef) {
@@ -8803,17 +8793,13 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
 }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
-#if LUTF
-#if LUTF_TEST
-void av1_lutf_frame_dec(AV1_COMMON* cm)
-{
-    if (cm->lutf_info.lutf_enable)
-    {
-        gdf_filter_frame(cm);
-    }
-    gdf_close_info(cm);
+#if CONFIG_GDF
+void av1_gdf_frame_dec(AV1_COMMON *cm) {
+  if (cm->gdf_info.gdf_mode) {
+    gdf_filter_frame(cm);
+  }
+  gdf_close_info(cm);
 }
-#endif  //
 #endif  //
 
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
@@ -8867,26 +8853,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   }
 
   if (!is_global_intrabc_allowed(cm) && !tiles->single_tile_decoding) {
-
-#if LUTF
-#if LUTF_TEST
-    const int do_lutf = cm->lutf_info.lutf_enable;
-
-    if (do_lutf)
-    {
-      if (LUTF_TEST_INP_LOC == 0)
-      {
-          gdf_copy_guided_frame(cm);
-      }
-      if (LUTF_TEST_OUT_LOC == 0)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-    }
-#endif	//
-#endif  //
-
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1
 #if CONFIG_LF_SUB_PU
@@ -8955,12 +8921,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                            cm->cdef_info.cdef_uv_strengths[0]);
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     const int do_superres = av1_superres_scaled(cm);
-
+#if CONFIG_GDF
+    const int do_gdf = cm->gdf_info.gdf_mode;
+#endif
     const int optimized_loop_restoration =
-#if LUTF
-#if LUTF_TEST
-        !do_lutf &&
-#endif  //
+#if CONFIG_GDF
+        !do_gdf &&
 #endif  //
         !use_ccso && !do_cdef && !do_superres;
 
@@ -8969,71 +8935,19 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 0);
 
-#if LUTF
-#if LUTF_TEST
-      if (LUTF_TEST_INP_LOC == 1)
-      {
-          gdf_copy_guided_frame(cm);
-      }
-      if (LUTF_TEST_OUT_LOC == 1)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-#endif	//
-#endif  //
-
       if (do_cdef) {
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
       }
-
-#if LUTF
-#if LUTF_TEST
-      if (LUTF_TEST_INP_LOC == 2)
-      {
-          gdf_copy_guided_frame(cm);
-      }
-      if (LUTF_TEST_OUT_LOC == 2)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-#endif	//
-#endif  //
-
       if (use_ccso) {
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
         aom_free(ext_rec_y);
       }
-
-#if LUTF
-#if LUTF_TEST
-      if (LUTF_TEST_INP_LOC == 3)
-      {
-          gdf_copy_guided_frame(cm);
-      }
-      if (LUTF_TEST_OUT_LOC == 3)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-#endif	//
-#endif  //
-
       superres_post_decode(pbi);
 
-#if LUTF
-#if LUTF_TEST
-      if (LUTF_TEST_INP_LOC == 4)
-      {
+#if CONFIG_GDF
+      if (do_gdf) {
           gdf_copy_guided_frame(cm);
       }
-      if (LUTF_TEST_OUT_LOC == 4)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-#endif	//
 #endif  //
 
       if (do_loop_restoration) {
@@ -9055,18 +8969,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
 
-#if LUTF
-#if LUTF_TEST
-      if (LUTF_TEST_INP_LOC == 5)
-      {
-          gdf_copy_guided_frame(cm);
+#if CONFIG_GDF
+      if (do_gdf) {
+        av1_gdf_frame_dec(cm);
+        gdf_free_guided_frame(cm);
       }
-      if (LUTF_TEST_OUT_LOC == 5)
-      {
-          av1_lutf_frame_dec(cm);
-          gdf_free_guided_frame(cm);
-      }
-#endif	//
 #endif  //
 
     } else {
