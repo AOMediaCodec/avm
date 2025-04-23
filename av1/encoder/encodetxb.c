@@ -7010,7 +7010,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         entropy_ctx[block] |= dc_sign_ctx << DC_SIGN_CTX_SHIFT;
       }
 #endif  // CONFIG_IMPROVEIDTX
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_CTX_V_AC_SIGN
     if (allow_update_cdf && plane == AOM_PLANE_V) {
       for (int c = eob - 1; c >= 1; --c) {
         int pos = scan[c];
@@ -7023,7 +7023,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         }
       }
     }
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_CTX_V_AC_SIGN
   } else {
     tcoeff = qcoeff;
   }

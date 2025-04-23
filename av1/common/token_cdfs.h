@@ -92,6 +92,7 @@ static const aom_cdf_prob
                                 },
                               };
 
+#if !CONFIG_CTX_V_AC_SIGN
 static const aom_cdf_prob
     av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]
                               [CDF_SIZE(2)] = {
@@ -116,6 +117,7 @@ static const aom_cdf_prob
                                     { AOM_CDF2(28761), 37 },
                                 },
                               };
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #else
 static const aom_cdf_prob
     av1_default_v_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]
@@ -182,6 +184,7 @@ static const aom_cdf_prob
                                   } },
                               };
 
+#if !CONFIG_CTX_V_AC_SIGN
 static const aom_cdf_prob av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS]
                                                     [CROSS_COMPONENT_CONTEXTS]
                                                     [CDF_SIZE(2)] = {
@@ -206,6 +209,7 @@ static const aom_cdf_prob av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS]
                                                           { AOM_CDF2(16384) },
                                                       },
                                                     };
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_ENTROPY_PARA
 #endif  // CONFIG_CONTEXT_DERIVATION
 

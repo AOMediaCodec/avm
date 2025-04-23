@@ -2614,6 +2614,7 @@ int main(int argc, const char **argv) {
       "[CDF_SIZE(2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
 
+#if !CONFIG_CTX_V_AC_SIGN
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = CROSS_COMPONENT_CONTEXTS;
   cts_each_dim[2] = 2;
@@ -2622,6 +2623,7 @@ int main(int argc, const char **argv) {
                      "[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]"
                      "[CDF_SIZE(2)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   if (mem_wanted) {
     printf("Total RAM in bits %d \n", total_count);

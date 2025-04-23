@@ -192,7 +192,9 @@ typedef struct frame_contexts {
 #if CONFIG_CONTEXT_DERIVATION
   aom_cdf_prob v_dc_sign_cdf[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS]
                             [CDF_SIZE(2)];
+#if !CONFIG_CTX_V_AC_SIGN
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
 #if !CONFIG_IMPROVEIDTX
   aom_cdf_prob coeff_base_bob_cdf[SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
