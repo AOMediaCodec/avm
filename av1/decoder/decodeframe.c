@@ -2410,7 +2410,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     xd->mi_col = mi_col;
     xd->sbi->sb_active_mode = read_bru_mode(cm, xd, reader);
     set_active_map(cm, mi_col, mi_row, xd->sbi->sb_active_mode);
-    printf("%d, %d, sb mode %d\n", mi_col, mi_row, xd->sbi->sb_active_mode);
   }
 #endif  // CONFIG_BRU
 #if CONFIG_EXTENDED_SDP
@@ -2987,7 +2986,6 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
       cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
       cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
     }
-    printf("decode F %d,  bru enabled %d, ref %d, frame_flag %d\n", cm->current_frame.order_hint, cm->bru.enabled, cm->bru.explicit_ref_idx, cm->bru.frame_inactive_flag);
   }
 }
 #endif  // CONFIG_BRU
@@ -8093,7 +8091,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
 #if CONFIG_BRU
-    printf("debug F %d bru decode mode %d\n", cm->current_frame.order_hint, pbi->bru_opt_mode);
     if (current_frame->frame_type == INTER_FRAME) {
       setup_bru_active_info(cm, rb);
     }

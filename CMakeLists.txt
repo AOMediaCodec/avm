@@ -868,13 +868,13 @@ if((ENABLE_EXAMPLES OR ENABLE_TESTS)
    AND CONFIG_AV1_DECODER
    AND CONFIG_BRU)
   add_executable(
-     bru_encoder
-     "${AOM_ROOT}/examples/bru_encoder.c"
+     bru_encoder_decoder
+     "${AOM_ROOT}/examples/bru_encoder_decoder.c"
      $<TARGET_OBJECTS:aom_common_app_util>
      $<TARGET_OBJECTS:aom_encoder_app_util>
      $<TARGET_OBJECTS:aom_decoder_app_util>)
-  list(APPEND AOM_EXAMPLE_TARGETS bru_encoder)
-  list(APPEND AOM_APP_TARGETS bru_encoder)
+  list(APPEND AOM_EXAMPLE_TARGETS bru_encoder_decoder)
+  list(APPEND AOM_APP_TARGETS bru_encoder_decoder)
 endif()
 
 foreach(aom_app ${AOM_APP_TARGETS})

@@ -41,9 +41,9 @@ static const char *exec_name;
 
 void usage_exit(void) {
   fprintf(stderr,
-          "Usage: %s <width> <height> "
+          "Usage: %s <width> <height> <bit-depth> "
 #if CONFIG_BRU
-          "<ard-mode> "
+          "<enable_bru> "
 #endif
           "<infile> <outfile>\n",
           exec_name);
@@ -74,6 +74,7 @@ static void print_md5(FILE *stream, unsigned char digest[16]) {
   int i;
 
   for (i = 0; i < 16; ++i) fprintf(stream, "%02x", digest[i]);
+  fprintf(stream, "\n");
 }
 
 
@@ -103,22 +104,6 @@ static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
 
   return got_pkts;
 }
-/*
-static void write_recon_file(struct stream_state *stream, FILE *file) {
-  aom_image_t enc_img;
-
-  AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1_GET_NEW_FRAME_IMAGE,
-                                &enc_img);
-
-  ctx_exit_on_error(&stream->encoder,
-                    "Failed to get encoder reconstructed frame");
-
-  int num_planes = enc_img.monochrome ? 1 : 3;
-  const int PLANES_YUV[] = { AOM_PLANE_Y, AOM_PLANE_U, AOM_PLANE_V };
-  const int *planes = PLANES_YUV;
-  raw_write_image_file(&enc_img, planes, num_planes, file);
-}
-*/
 
 int main(int argc, char **argv) {
   FILE *infile = NULL;
@@ -126,8 +111,7 @@ int main(int argc, char **argv) {
   aom_codec_enc_cfg_t cfg;
   int frame_count = 0;
   const int limit = 20;
-  aom_image_t raw[2];
-  int raw_index = 0;
+  aom_image_t raw;
   int bit_depth = 8;
   int argi = 0;
   aom_codec_err_t res;
@@ -135,10 +119,10 @@ int main(int argc, char **argv) {
   AvxVideoWriter *writer = NULL;
   const int fps = 30; 
   const double bits_per_pixel_per_frame = 0.067;
-  aom_active_map_t map = { 0, 0, 0 };
 
   exec_name = argv[argi++];
-  if (argc != 6) usage_exit();
+  printf("argc %d\n", argc);
+  if (argc != 9) usage_exit();
 
   memset(&info, 0, sizeof(info));
 
@@ -153,19 +137,15 @@ int main(int argc, char **argv) {
   info.time_base.numerator = 1;
   info.time_base.denominator = fps;
 
+  printf("input %d, %d \n",info.frame_width, info.frame_height);
   if (info.frame_width <= 0 || info.frame_height <= 0 ||
       (info.frame_width % 2) != 0 || (info.frame_height % 2) != 0) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
   }
 
   bit_depth = (int)strtol(argv[argi++], NULL, 0);
-
-  if (!aom_img_alloc(&raw[0],
-                     bit_depth == 8 ? AOM_IMG_FMT_I420 : AOM_IMG_FMT_I42016,
-                     info.frame_width, info.frame_height, 1)) {
-    die("Failed to allocate image.");
-  }
-  if (!aom_img_alloc(&raw[1],
+  printf("bit depth %d\n", bit_depth);
+  if (!aom_img_alloc(&raw,
                      bit_depth == 8 ? AOM_IMG_FMT_I420 : AOM_IMG_FMT_I42016,
                      info.frame_width, info.frame_height, 1)) {
     die("Failed to allocate image.");
@@ -186,17 +166,23 @@ int main(int argc, char **argv) {
   cfg.g_bit_depth = bit_depth;
   cfg.g_input_bit_depth = bit_depth;
 
-  // disable filters
+  const int bru_enable = (int)strtol(argv[argi++], NULL, 0);
 #if CONFIG_BRU  
-  cfg.encoder_cfg.enable_bru = 1;
+  cfg.encoder_cfg.enable_bru = bru_enable;
 #endif
+  printf("bru_enable %d\n", bru_enable);
+  printf("input file %s\n", argv[argi]);
 
   if (!(infile = fopen(argv[argi++], "rb")))
     die("Failed to open %s for reading.", argv[argi - 1]);
 
   const char *bitstream = argv[argi++];
+  const char *md5_opt = argv[argi++];
+  const char *md5_reg = argv[argi++];
+  printf("ouput file bin %s, opt md5 %s, reg md5 %s\n", bitstream, md5_opt, md5_reg);
   writer = aom_video_writer_open(bitstream, kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", argv[argi - 1]);
+
 
   if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
@@ -206,15 +192,14 @@ int main(int argc, char **argv) {
 
     // aom_codec_set_option(&codec, "qp", "110");
 #if CONFIG_BRU
-  if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, 1))
+  if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, bru_enable))
     die_codec(&codec, "Failed to set enable_bru");
 #endif
 
   // Encode frames.
-  while (aom_img_read(&raw[raw_index], infile) && frame_count < limit) {
+  while (aom_img_read(&raw, infile) && frame_count < limit) {
     ++frame_count;
-    encode_frame(&codec, &raw[raw_index], frame_count, writer);
-    raw_index = !raw_index;
+    encode_frame(&codec, &raw, frame_count, writer);
   }
 
   // Flush encoder.
@@ -225,9 +210,7 @@ int main(int argc, char **argv) {
   fclose(infile);
   printf("Processed %d frames.\n", frame_count);
 
-  aom_img_free(&raw[0]);
-  aom_img_free(&raw[1]);
-  free(map.active_map);
+  aom_img_free(&raw);
   aom_video_writer_close(writer);
 
   AvxVideoReader *reader = NULL;
@@ -242,10 +225,23 @@ int main(int argc, char **argv) {
   info_dec = aom_video_reader_get_info(reader);
   aom_codec_iface_t *decoder = get_aom_decoder_by_fourcc(info_dec->codec_fourcc);
   if (!decoder) die("Unknown input codec.");
+
+
   printf("Using %s\n", aom_codec_iface_name(decoder));
   frame_count = 0;
+#if CONFIG_BRU
+  FILE * opt_md5_file = NULL;
+  FILE * reg_md5_file = NULL;
+#endif  
+  if (!(opt_md5_file = fopen(md5_opt, "wb")))
+    die("Failed to open %s for writing.", opt_md5_file);
+
   if (aom_codec_dec_init(&codec, decoder, NULL, 0))
     die("Failed to initialize decoder");
+#if CONFIG_BRU
+  if (aom_codec_control(&codec, AV1D_SET_BRU_OPT_MODE, 1))
+    die_codec(&codec, "Failed to set bru_optmode");
+#endif
     while (aom_video_reader_read_frame(reader)) {
       aom_codec_iter_t iter = NULL;
       aom_image_t *img = NULL;
@@ -254,20 +250,54 @@ int main(int argc, char **argv) {
           aom_video_reader_get_frame(reader, &frame_size);
       if (aom_codec_decode(&codec, frame, frame_size, NULL))
         die_codec(&codec, "Failed to decode frame");
-  
+#if CONFIG_BRU
       while ((img = aom_codec_get_frame(&codec, &iter)) != NULL) {
         unsigned char digest[16];
   
         get_image_md5(img, digest);
-        print_md5(decfile, digest);
-        fprintf(decfile, "  img-%ux%u-%04d.i420\n", img->d_w, img->d_h,
-                ++frame_count);
+        print_md5(opt_md5_file, digest);
+        frame_count++;
       }
+#endif      
     }
   
     printf("Processed %d frames.\n", frame_count);
     aom_video_reader_close(reader);
+#if CONFIG_BRU    
+    //bru reg mode
+    reader = aom_video_reader_open(bitstream);
+    frame_count = 0;
+    if (!(reg_md5_file = fopen(md5_reg, "wb")))
+    die("Failed to open %s for writing.", reg_md5_file);
+
+    if (aom_codec_dec_init(&codec, decoder, NULL, 0))
+    die("Failed to initialize decoder");
+#if CONFIG_BRU
+  if (aom_codec_control(&codec, AV1D_SET_BRU_OPT_MODE, 0))
+    die_codec(&codec, "Failed to set bru_optmode");
+#endif    
+while (aom_video_reader_read_frame(reader)) {
+  aom_codec_iter_t iter = NULL;
+  aom_image_t *img = NULL;
+  size_t frame_size = 0;
+  const unsigned char *frame =
+      aom_video_reader_get_frame(reader, &frame_size);
+  if (aom_codec_decode(&codec, frame, frame_size, NULL))
+    die_codec(&codec, "Failed to decode frame");
+
+  while ((img = aom_codec_get_frame(&codec, &iter)) != NULL) {
+    unsigned char digest[16];
+
+    get_image_md5(img, digest);
+    print_md5(reg_md5_file, digest);
+    frame_count++;
+  }
+}
+  aom_video_reader_close(reader);
+#endif  
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
     fclose(decfile);
+  fclose(opt_md5_file);
+  fclose(reg_md5_file);
   return EXIT_SUCCESS;
 }

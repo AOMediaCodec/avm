@@ -1279,14 +1279,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         !frame_is_intra_only(&cpi->common)) {
       active_region_detection(cpi, frame_input.source,
                               frame_input.bru_ref_source);
-       // display active map
-       printf("Display active map: \n");
-       for (unsigned int y = 0; y < cm->bru.unit_rows; y++) {
-         for (unsigned int x = 0; x < cm->bru.unit_cols; x++) {
-           printf("%d, ", cm->bru.active_mode_map[x + y*cm->bru.unit_cols]);
-         }
-         printf("\n");
-       }                                                
       //  disable bru if
       //  1. too many active regions
       //  2. active ratio too large > 50%
