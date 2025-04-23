@@ -427,8 +427,8 @@ static void compute_distortion(const uint16_t *org, const int org_stride,
                      (x >> log2_filter_unit_size_x)] = ssd;
       *total_distortion += ssd;
     }
-    org += (org_stride << log2_filter_unit_size_x);
-    rec16 += (rec_stride << log2_filter_unit_size_x);
+    org += (org_stride << log2_filter_unit_size_y);
+    rec16 += (rec_stride << log2_filter_unit_size_y);
   }
 }
 
@@ -1694,7 +1694,11 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
 #if CONFIG_CCSO_IMPROVE
-  if (rdmult_temp >= INT_MAX || is_global_intrabc_allowed(cm)) {
+  if (rdmult_temp >= INT_MAX
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      || is_global_intrabc_allowed(cm)
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  ) {
     cm->ccso_info.ccso_frame_flag = false;
     cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
         cm->ccso_info.ccso_enable[2] = 0;

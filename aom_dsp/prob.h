@@ -23,11 +23,14 @@
 #include "aom_ports/bitops.h"
 #include "aom_ports/mem.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef uint16_t aom_cdf_prob;
+
+#if CONFIG_CDF_SCALE
+#define EC_PROB_SHIFT 7
+#else
+#define EC_PROB_SHIFT 6
+#endif
+#define EC_MIN_PROB 4  // must be <= (1<<EC_PROB_SHIFT)/16
 
 #if CONFIG_ENTROPY_PARA
 #define CDF_SIZE(x) ((x) + 2)
@@ -771,8 +774,32 @@ static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
   cdf[nsymbs] += (cdf[nsymbs] < 32);
 }
 
-#ifdef __cplusplus
-}  // extern "C"
+// Scale the CDF to match the range value stored in the entropy decoder.
+static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n,
+                                        int nsym) {
+#if CONFIG_CDF_SCALE
+  int rr = r >> 8;
+  int pp = p >> EC_PROB_SHIFT;
+  pp <<= 4;
+  pp += av1_prob_inc_tbl[nsym - 2][n];
+  return ((rr * pp >> (7 - EC_PROB_SHIFT - CDF_SHIFT + 1 + 6)) << 3);
+#else
+  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
+          << 1) +
+         EC_MIN_PROB * (nsym - 1 - n);
+#endif
+}
+
+#if CONFIG_CDF_SCALE
+// Adjust probability to more closely match the scaled prob used in
+// od_ec_prob_scale()
+static INLINE unsigned get_adjusted_prob(uint16_t p, int n, int nsym) {
+  int adj_prob = (p >> EC_PROB_SHIFT) << EC_PROB_SHIFT;
+  int inc = av1_prob_inc_tbl[nsym - 2][n];
+  adj_prob += inc << (EC_PROB_SHIFT - 4);
+  return adj_prob;
+}
 #endif
 
 #endif  // AOM_AOM_DSP_PROB_H_

@@ -379,16 +379,16 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_8x4_sse2,    // 8x4 transform
   av1_lowbd_fwd_txfm2d_8x16_sse2,   // 8x16 transform
   av1_lowbd_fwd_txfm2d_16x8_sse2,   // 16x8 transform
-  NULL,                             // 16x32 transform
-  NULL,                             // 32x16 transform
+  av1_lowbd_fwd_txfm2d_16x32_sse2,  // 16x32 transform
+  av1_lowbd_fwd_txfm2d_32x16_sse2,  // 32x16 transform
   lowbd_fwd_txfm2d_32x64_sse4_1,    // 32x64 transform
   lowbd_fwd_txfm2d_64x32_sse4_1,    // 64x32 transform
   av1_lowbd_fwd_txfm2d_4x16_sse2,   // 4x16 transform
   av1_lowbd_fwd_txfm2d_16x4_sse2,   // 16x4 transform
   av1_lowbd_fwd_txfm2d_8x32_sse2,   // 8x32 transform
   av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
-  NULL,                             // 16x64 transform
-  NULL,                             // 64x16 transform
+  av1_lowbd_fwd_txfm2d_16x64_sse2,  // 16x64 transform
+  av1_lowbd_fwd_txfm2d_64x16_sse2,  // 64x16 transform
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_lowbd_fwd_txfm2d_4x32_sse2,  // 4x32 transform
   av1_lowbd_fwd_txfm2d_32x4_sse2,  // 32x4 transform

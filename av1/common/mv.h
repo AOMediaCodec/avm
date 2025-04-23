@@ -172,6 +172,110 @@ static AOM_INLINE void convert_fullmv_to_mv(int_mv *mv) {
   mv->as_mv = get_mv_from_fullmv(&mv->as_fullmv);
 }
 
+#if CONFIG_TMVP_MV_COMPRESSION
+// Actual mapping algorithm to compress the TMVP MV
+static inline int compute_mapping_val(int16_t range_interval_start_abs,
+                                      int16_t domain_interval_start_abs,
+                                      int16_t domain_val, int step_log2) {
+  const int abs_val = abs(domain_val);
+  const int sign = domain_val >= 0 ? 1 : -1;
+  const int compressed_val =
+      range_interval_start_abs +
+      ((abs_val - domain_interval_start_abs) >> step_log2);
+  return sign * compressed_val;
+}
+
+// Compress the TMVP MV to 8bits (1bit for sign, 7bits for magnitude)
+static inline int compression_mv(int16_t val) {
+  const int abs_val = abs(val);
+  int compressed_val = 0;
+  if (abs_val < 32) {
+    // Lossless coding
+    compressed_val = val;
+  } else if (abs_val >= 32 && abs_val < 64) {
+    // 2 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(32, 32, val, 1);
+  } else if (abs_val >= 64 && abs_val < 128) {
+    // 4 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(48, 64, val, 2);
+  } else if (abs_val >= 128 && abs_val < 256) {
+    // 8 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(64, 128, val, 3);
+  } else if (abs_val >= 256 && abs_val < 512) {
+    // 16 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(80, 256, val, 4);
+  } else if (abs_val >= 512 && abs_val < 1024) {
+    // 32 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(96, 512, val, 5);
+  } else if (abs_val >= 1024 && abs_val < 2048) {
+    // 64 continues numbers are quantized into the same number
+    compressed_val = compute_mapping_val(112, 1024, val, 6);
+  }
+
+  return compressed_val;
+}
+
+// Actual inverse mapping algorithm to decompress the stored TMVP MV
+static inline int compute_inverse_mapping_val(int16_t domain_interval_start_abs,
+                                              int16_t range_interval_start_abs,
+                                              int16_t range_val,
+                                              int step_log2) {
+  const int abs_val = abs(range_val);
+  const int sign = range_val >= 0 ? 1 : -1;
+  const int uncompressed_val =
+      domain_interval_start_abs +
+      ((abs_val - range_interval_start_abs) << step_log2);
+  return sign * uncompressed_val;
+}
+
+// Decompress the TMVP MV from 8bits to 12bits
+static inline int uncompression_mv(int16_t val) {
+  const int abs_val = abs(val);
+  int uncompressed_val = 0;
+
+  if (abs_val < 32) {
+    // Lossless coding
+    uncompressed_val = val;
+  } else if (abs_val >= 32 && abs_val < 48) {
+    // 2 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(32, 32, val, 1);
+  } else if (abs_val >= 48 && abs_val < 64) {
+    // 4 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(64, 48, val, 2);
+  } else if (abs_val >= 64 && abs_val < 80) {
+    // 8 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(128, 64, val, 3);
+  } else if (abs_val >= 80 && abs_val < 96) {
+    // 16 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(256, 80, val, 4);
+  } else if (abs_val >= 96 && abs_val < 112) {
+    // 32 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(512, 96, val, 5);
+  } else if (abs_val >= 112 && abs_val < 128) {
+    // 64 continues numbers are quantized into the same number
+    uncompressed_val = compute_inverse_mapping_val(1024, 112, val, 6);
+  }
+
+  return uncompressed_val;
+}
+
+/* Left shift for signed integers, for use when shift >= 0 */
+#define LEFT_SHIFT_SIGNED(x, shift) \
+  (((x) >= 0) ? ((x) << (shift)) : (-((-(x)) << (shift))))
+
+// Compress TMVP MVs before storing
+static AOM_INLINE void process_mv_for_tmvp(MV *mv) {
+  mv->row = compression_mv(mv->row);
+  mv->col = compression_mv(mv->col);
+}
+
+// Uncompress TMVP MVs
+static AOM_INLINE void fetch_mv_from_tmvp(MV *mv) {
+  mv->row = uncompression_mv(mv->row);
+  mv->col = uncompression_mv(mv->col);
+}
+#endif  // CONFIG_TMVP_MV_COMPRESSION
+
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
 // Reduce the precision of the MV to the target precision
 // The parameter radix define the step size of the MV .

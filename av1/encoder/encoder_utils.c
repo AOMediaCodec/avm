@@ -172,173 +172,6 @@ const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES] = {
     { 1024, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
-/* clang-format off */
-// TODO(urvang): update for CONFIG_EXT_RECUR_PARTITIONS. Used for speed >= 1.
-const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0, 0, 0,
-    // BLOCK_8X16 .. BLOCK_16X16
-    0, 0, 0,
-    // BLOCK_16X32 .. BLOCK_32X32
-    0, 0, 0,
-    // BLOCK_32X64 .. BLOCK_64X64
-    0, 0, 0,
-    // BLOCK_64X128 .. BLOCK_128X128
-    0, 0, 0,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    0, 0, 0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0, 0,
-    // BLOCK_8X32, BLOCK_32X8
-    0, 0,
-    // BLOCK_16X64, BLOCK_64X16
-    0, 0
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0,  0,  106,
-    // BLOCK_8X16 .. BLOCK_16X16
-    90, 90, 97,
-    // BLOCK_16X32 .. BLOCK_32X32
-    67, 59, 70,
-    // BLOCK_32X64 .. BLOCK_64X64
-    28, 30, 38,
-    // BLOCK_64X128 .. BLOCK_128X128
-    16, 16,  16,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    16, 16,  16,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0,  0,
-    // BLOCK_8X32, BLOCK_32X8
-    44, 50,
-    // BLOCK_16X64, BLOCK_64X16
-    26, 25
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0, 0, 0,
-    // BLOCK_8X16 .. BLOCK_16X16
-    0, 0, 0,
-    // BLOCK_16X32 .. BLOCK_32X32
-    0, 0, 0,
-    // BLOCK_32X64 .. BLOCK_64X64
-    0, 0, 0,
-    // BLOCK_64X128 .. BLOCK_128X128
-    0, 0, 0,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    0, 0, 0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0, 0,
-    // BLOCK_8X32, BLOCK_32X8
-    0, 0,
-    // BLOCK_16X64, BLOCK_64X16
-    0, 0
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0,  0,  98,
-    // BLOCK_8X16 .. BLOCK_16X16
-    93, 97, 68,
-    // BLOCK_16X32 .. BLOCK_32X32
-    82, 85, 33,
-    // BLOCK_32X64 .. BLOCK_64X64
-    30, 33, 16,
-    // BLOCK_64X128 .. BLOCK_128X128
-    16, 16, 16,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    16, 16, 16,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0,  0,
-    // BLOCK_8X32, BLOCK_32X8
-    43, 37,
-    // BLOCK_16X64, BLOCK_64X16
-    26, 16
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0,  0,  91,
-    // BLOCK_8X16 .. BLOCK_16X16
-    80, 76, 78,
-    // BLOCK_16X32 .. BLOCK_32X32
-    55, 49, 24,
-    // BLOCK_32X64 .. BLOCK_64X64
-    16, 16, 16,
-    // BLOCK_64X128 .. BLOCK_128X128
-    16, 16, 16,
-    // BLOCK_128X256 .. BLOCK_256X256
-#if CONFIG_EXT_RECUR_PARTITIONS
-    16, 16, 16,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0,  0,
-    // BLOCK_8X32, BLOCK_32X8
-    29, 45,
-    // BLOCK_16X64, BLOCK_64X16
-    16, 38
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0, 0, 0,
-    // BLOCK_8X16 .. BLOCK_16X16
-    0, 0, 0,
-    // BLOCK_16X32 .. BLOCK_32X32
-    0, 0, 0,
-    // BLOCK_32X64 .. BLOCK_64X64
-    0, 0, 0,
-    // BLOCK_64X128 .. BLOCK_128X128
-    0, 0, 0,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    0, 0, 0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0, 0,
-    // BLOCK_8X32, BLOCK_32X8
-    0, 0,
-    // BLOCK_16X64, BLOCK_64X16
-    0, 0
-  }, {
-    // BLOCK_4X4
-    0,
-    // BLOCK_4X8 .. BLOCK_8X8
-    0,  0,  103,
-    // BLOCK_8X16 .. BLOCK_16X16
-    89, 89, 89,
-    // BLOCK_16X32 .. BLOCK_32X32
-    62, 63, 76,
-    // BLOCK_32X64 .. BLOCK_64X64
-    34, 35, 32,
-    // BLOCK_64X128 .. BLOCK_128X128
-    19, 16,  16,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_128X256 .. BLOCK_256X256
-    19, 16,  16,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // BLOCK_4X16, BLOCK_16X4
-    0,  0,
-    // BLOCK_8X32, BLOCK_32X8
-    49, 55,
-    // BLOCK_16X64, BLOCK_64X16
-    29, 19
-  }
-};
-/* clang-format on */
-
 const int default_warped_probs[FRAME_UPDATE_TYPES] = { 64, 64, 64, 64,
                                                        64, 64, 64 };
 
@@ -738,13 +571,17 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
     return BLOCK_64X64;
   if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_256X256)
+    return BLOCK_256X256;
 
   assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
   if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
     // Use the configured size (top resolution) for spatial layers or
     // on resize.
-    return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
+    return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
+               ? BLOCK_256X256
+           : AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
                ? BLOCK_128X128
                : BLOCK_64X64;
   }
@@ -840,6 +677,12 @@ void av1_setup_frame(AV1_COMP *cpi) {
     } else {
       *cm->fc = primary_ref_buf->frame_context;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+      int ref_frame_used = PRIMARY_REF_NONE;
+      int map_idx = INVALID_IDX;
+      get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+      avg_primary_secondary_references(cm, ref_frame_used, map_idx);
+#else
       const int ref_frame_used = (cm->features.primary_ref_frame ==
                                   cm->features.derived_primary_ref_frame)
                                      ? cm->features.derived_secondary_ref_frame
@@ -853,6 +696,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
         av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
       }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
   }
@@ -955,7 +799,8 @@ static void screen_content_tools_determination(
     features->allow_screen_content_tools = 1;
 #if CONFIG_SCC_DETERMINATION
     features->allow_intrabc =
-        (is_sc_encoding_much_better_2 || cpi->intrabc_used);
+        (is_sc_encoding_much_better_2 || cpi->intrabc_used ||
+         allow_intrabc_orig_decision);
 #else
     features->allow_intrabc = cpi->intrabc_used;
 #endif  // CONFIG_SCC_DETERMINATION

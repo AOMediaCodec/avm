@@ -488,8 +488,26 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
+#if CONFIG_ENTROPY_STATS
+    ++counts->inter_warp_cnts[iswarpmvmode_ctx][is_warpmv_or_warp_newmv];
+#endif  // CONFIG_ENTROPY_STATS
+    update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx],
+               is_warpmv_or_warp_newmv, 2);
+    if (is_warpmv_or_warp_newmv) {
+      if (is_warp_newmv_allowed(cm, xd, mbmi, bsize)) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->is_warpmv_or_warp_newmv_cnt[mode == WARPMV];
+#endif  // CONFIG_ENTROPY_STATS
+        update_cdf(fc->is_warpmv_or_warp_newmv_cdf, mode == WARPMV, 2);
+      }
+      return;
+    }
+#else
     update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
     if (mode == WARPMV) return;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   }
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
@@ -692,8 +710,23 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
           update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
                      MRL_LINE_NUMBER);
+#if CONFIG_MRLS_IMPROVE
+          if (mbmi->mrl_index) {
+            int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
+                xd->neighbors[0], xd->neighbors[1]);
+            update_cdf(fc->multi_line_mrl_cdf[multi_line_mrl_ctx],
+                       mbmi->multi_line_mrl, 2);
+          }
+#endif  // CONFIG_MRLS_IMPROVE
 #if CONFIG_ENTROPY_STATS
           ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
+#if CONFIG_MRLS_IMPROVE
+          if (mbmi->mrl_index) {
+            int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
+                xd->neighbors[0], xd->neighbors[1]);
+            ++counts->multi_line_mrl[multi_line_mrl_ctx][mbmi->multi_line_mrl];
+          }
+#endif  // CONFIG_MRLS_IMPROVE
 #endif  // CONFIG_ENTROPY_STATS
 #else
           update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
@@ -707,8 +740,23 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
         update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
                    MRL_LINE_NUMBER);
+#if CONFIG_MRLS_IMPROVE
+        if (mbmi->mrl_index) {
+          int multi_line_mrl_ctx =
+              get_multi_line_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+          update_cdf(fc->multi_line_mrl_cdf[multi_line_mrl_ctx],
+                     mbmi->multi_line_mrl, 2);
+        }
+#endif  // CONFIG_MRLS_IMPROVE
 #if CONFIG_ENTROPY_STATS
         ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
+#if CONFIG_MRLS_IMPROVE
+        if (mbmi->mrl_index) {
+          int multi_line_mrl_ctx =
+              get_multi_line_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+          ++counts->multi_line_mrl[multi_line_mrl_ctx][mbmi->multi_line_mrl];
+        }
+#endif  // CONFIG_MRLS_IMPROVE
 #endif  // CONFIG_ENTROPY_STATS
 #else
         update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
@@ -1425,8 +1473,8 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
     AVERAGE_CDF(nmv_left->shell_offset_other_class_cdf[i],
                 nmv_tr->shell_offset_other_class_cdf[i], 2);
   }
-  AVERAGE_CDF(nmv_left->col_mv_greter_flags_cdf,
-              nmv_tr->col_mv_greter_flags_cdf, 2);
+  AVERAGE_CDF(nmv_left->col_mv_greater_flags_cdf,
+              nmv_tr->col_mv_greater_flags_cdf, 2);
   AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf, 2);
 
 #endif  // !CONFIG_VQ_MVD_CODING
@@ -1521,6 +1569,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_CHROMA_CODING
 
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,
+              ctx_tr->is_warpmv_or_warp_newmv_cdf, 2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_REFINEMV
   AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
@@ -1578,9 +1630,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wedge_interintra_cdf, ctx_tr->wedge_interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,
               INTERINTRA_MODES);
-  AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
-  AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
+  AVERAGE_CDF(ctx_left->warp_causal_cdf, ctx_tr->warp_causal_cdf, 2);
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
               WARP_DELTA_NUMSYMBOLS_LOW);
 #if CONFIG_WARP_PRECISION
@@ -1589,8 +1642,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->warp_param_sign_cdf, ctx_tr->warp_param_sign_cdf, 2);
 #endif  // CONFIG_WARP_PRECISION
 
-  AVERAGE_CDF(ctx_left->warped_causal_warpmv_cdf,
-              ctx_tr->warped_causal_warpmv_cdf, 2);
+  AVERAGE_CDF(ctx_left->warp_causal_warpmv_cdf, ctx_tr->warp_causal_warpmv_cdf,
+              2);
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[0], ctx_tr->warp_ref_idx_cdf[0], 2);
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[1], ctx_tr->warp_ref_idx_cdf[1], 2);
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[2], ctx_tr->warp_ref_idx_cdf[2], 2);
@@ -1702,6 +1755,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->ccso_cdf[plane], ctx_tr->ccso_cdf[plane], 2);
 #endif  // CONFIG_CCSO_IMPROVE
   }
+#if CONFIG_CDEF_ENHANCEMENTS
+  AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
+              ctx_tr->cdef_strength_index0_cdf, 2);
+  for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
+    AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
+                   CDF_SIZE(CDEF_STRENGTHS_NUM));
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
@@ -1712,7 +1773,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
-
+#if CONFIG_MRLS_IMPROVE
+  AVERAGE_CDF(ctx_left->multi_line_mrl_cdf, ctx_tr->multi_line_mrl_cdf, 2);
+#endif
 #if CONFIG_LOSSLESS_DPCM
   AVERAGE_CDF(ctx_left->dpcm_cdf, ctx_tr->dpcm_cdf, 2);
   AVERAGE_CDF(ctx_left->dpcm_vert_horz_cdf, ctx_tr->dpcm_vert_horz_cdf, 2);
@@ -1871,6 +1934,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_INTRA_TX_IST_PARSE
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
               ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
+              ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
+              IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE

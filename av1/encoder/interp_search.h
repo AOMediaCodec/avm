@@ -39,22 +39,6 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Buffer for the above predictor in OBMC
-   */
-  uint16_t *above_pred_buf[MAX_MB_PLANE];
-  /*!
-   * Stride for the above predictor in OBMC
-   */
-  int above_pred_stride[MAX_MB_PLANE];
-  /*!
-   * Buffer for the left predictor in OBMC
-   */
-  uint16_t *left_pred_buf[MAX_MB_PLANE];
-  /*!
-   * Stride for the left predictor in OBMC
-   */
-  int left_pred_stride[MAX_MB_PLANE];
-  /*!
    * Pointer to the first member in a 2D array which holds
    * single reference mode motion vectors to be used as a starting
    * point in the mv search for compound modes. Each array is length REF_FRAMES,

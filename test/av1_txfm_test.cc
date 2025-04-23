@@ -17,7 +17,11 @@ namespace libaom_test {
 
 int get_txfm1d_size(TX_SIZE tx_size) { return tx_size_wide[tx_size]; }
 
-void get_txfm1d_type(TX_TYPE txfm2d_type, TYPE_TXFM *type0, TYPE_TXFM *type1) {
+void get_txfm1d_type(TX_TYPE txfm2d_type,
+#if CONFIG_INTER_DDT
+                     int use_ddt,
+#endif  // CONFIG_INTER_DDT
+                     TYPE_TXFM *type0, TYPE_TXFM *type1) {
   switch (txfm2d_type) {
     case DCT_DCT:
       *type0 = TYPE_DCT;
@@ -89,6 +93,10 @@ void get_txfm1d_type(TX_TYPE txfm2d_type, TYPE_TXFM *type0, TYPE_TXFM *type1) {
       assert(0);
       break;
   }
+#if CONFIG_INTER_DDT
+  if (use_ddt && *type0 == TYPE_ADST) *type0 = TYPE_DDT;
+  if (use_ddt && *type1 == TYPE_ADST) *type1 = TYPE_DDT;
+#endif  // CONFIG_INTER_DDT
 }
 
 double Sqrt2 = pow(2, 0.5);
@@ -276,6 +284,115 @@ void reference_adst_1d(const double *in, double *out, int size) {
 }
 #endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_INTER_DDT
+/* clang-format off */
+void reference_ddt_1d(const double *in, double *out, int size) {
+  if (size == 4) {
+#if REPLACE_ADST4
+    const int32_t ddt4_kernel[16] = {
+      110,  922,  3277,  4685, 613,  3093,  3667, -3188,
+      3038, 3893, -2810, 1128, 4892, -2826, 1213, -407,
+    };
+    for (int k = 0; k < size; ++k) {
+      out[k] = 0;
+      for (int n = 0; n < size; ++n) {
+        out[k] += in[n] * ddt4_kernel[n + size * k];
+      }
+      out[k] = out[k] / 4096;
+    }
+#else
+    tran_low_t int_input[4];
+    for (int i = 0; i < 4; ++i) {
+      int_input[i] = static_cast<tran_low_t>(round(in[i]));
+    }
+    tran_low_t int_output[4];
+    fadst4_new(int_input, int_output);
+    for (int i = 0; i < 4; ++i) {
+      out[i] = int_output[i];
+    }
+#endif
+    return;
+  }
+
+  if (size == 8) {
+    const int32_t ddt8_kernel[64] = {
+#if REPLACE_ADST8
+      175,  310,   657,   1495, 2922,  4417,  4819, 3612,  270,   640,
+      1647, 3504,  4527,  2043, -2617, -4486, 990,  2163,  3858,  3986,
+      -14,  -3954, -1094, 3721, 2583,  4249,  3448, -1238, -3360, 1555,
+      2443, -3047, 4334,  3294, -1978, -3163, 2508, 916,   -3273, 2392,
+      4649, -792,  -3667, 2518, 682,   -3052, 3415, -1907, 3544,  -3617,
+      309,  2530,  -3746, 3582, -2601, 1156,  2530, -4395, 4443,  -3526,
+      2450, -1544, 856,   -328,
+#else
+      519,   1278,  1989,  2628, 3169,  3594,  3886,  4035,  1529,  3327,
+      4049,  3461,  1754,  -521, -2627, -3884, 2454,  4041,  2179,  -1542,
+      -3947, -2984, 526,   3587, 3232,  3081,  -1835, -3913, 61,    3941,
+      1726,  -3158, 3781,  759,  -4008, 440,   3877,  -1599, -3398, 2616,
+      3974,  -1987, -1987, 3974, -1987, -1987, 3974,  -1987, 3581,  -3764,
+      2258,  262,   -2665, 3871, -3339, 1309,  2264,  -3145, 3679,  -3805,
+      3511,  -2828, 1832,  -634,
+#endif
+    };
+    for (int k = 0; k < size; ++k) {
+      out[k] = 0;
+      for (int n = 0; n < size; ++n) {
+        out[k] += in[n] * ddt8_kernel[n + size * k];
+      }
+      out[k] = out[k] / 4096;
+    }
+    return;
+  }
+
+#if REPLACE_ADST16
+  const int32_t ddt16_kernel[256] = {
+    527,   679,   844,   1054,  1349,  1764,  2327,  2970,  3544,  3964,  4272,
+    4390,  4222,  3766,  3093,  2263,  758,   1037,  1341,  1710,  2187,  2780,
+    3439,  3918,  3753,  2689,  843,   -1381, -3359, -4506, -4524, -3488, 1662,
+    2218,  2694,  3107,  3402,  3387,  2759,  1313,  -842,  -3059, -4369, -3792,
+    -1309, 1810,  3811,  3767,  2020,  2696,  3133,  3294,  2974,  1805,  -424,
+    -2995, -4173, -2615, 940,   3893,  3681,  348,   -3183, -4105, 2108,  2693,
+    2760,  2215,  844,   -1369, -3537, -3795, -782,  3390,  4216,  151,   -4210,
+    -3403, 1462,  4378,  2725,  3336,  2874,  1251,  -1442, -3967, -3745, 174,
+    3988,  2449,  -2545, -3521, 1317,  4005,  137,   -3924, 2886,  3163,  1818,
+    -894,  -3599, -3559, 486,   4152,  1255,  -3899, -1888, 3699,  1744,  -3811,
+    -1710, 3765,  3733,  3301,  147,   -3676, -4146, 460,   4269,  798,   -3859,
+    -281,  3599,  -824,  -3219, 2146,  2479,  -3141, 4041,  2172,  -2465, -4402,
+    -292,  4011,  730,   -3822, 537,   3416,  -2348, -1973, 3685,  -664,  -3429,
+    3041,  4510,  420,   -4509, -2082, 3787,  1621,  -3693, 163,   3308,  -2747,
+    -831,  3447,  -2518, -981,  3644,  -2601, 4172,  -1645, -4171, 1905,  3197,
+    -3171, -1026, 3849,  -2759, -808,  3471,  -3228, 505,   2556,  -3809, 2215,
+    3781,  -3249, -2108, 3990,  -756,  -3082, 3571,  -1040, -2117, 3814,  -3139,
+    696,   2074,  -3779, 3700,  -1860, 3101,  -3781, 84,    3410,  -3597, 834,
+    2265,  -3897, 3649,  -1996, -308,  2401,  -3720, 3966,  -3155, 1430,  2258,
+    -3616, 2128,  653,   -2775, 3032,  -1714, -297,  2238,  -3685, 4430,  -4503,
+    4061,  -3257, 2181,  -907,  2300,  -4080, 3314,  -810,  -2082, 4036,  -4706,
+    4383,  -3782, 3198,  -2587, 1994,  -1460, 985,   -565,  204,   2002,  -4365,
+    5628,  -5737, 4906,  -3702, 2449,  -1421, 718,   -295,  30,    127,   -215,
+    241,   -202,  91,
+  };
+  for (int k = 0; k < size; ++k) {
+    out[k] = 0;
+    for (int n = 0; n < size; ++n) {
+      out[k] += in[n] * ddt16_kernel[n + size * k];
+    }
+    out[k] = out[k] / 4096;
+  }
+#else
+  // DST-7
+  for (int k = 0; k < size; ++k) {
+    out[k] = 0;
+    for (int n = 0; n < size; ++n) {
+      out[k] += in[n] * sin(PI * (2 * k + 1) * (n + 1) / (2 * size + 1));
+    }
+    // Renormalize from DST-4 to DST-7
+    out[k] /= (0.3535533905932738 / 0.3481553119113957);
+  }
+#endif
+}
+/* clang-format on */
+#endif  // CONFIG_INTER_DDT
+
 void reference_idtx_1d(const double *in, double *out, int size) {
   double scale = 0;
   if (size == 4)
@@ -298,6 +415,10 @@ void reference_hybrid_1d(double *in, double *out, int size, int type) {
     reference_dct_1d(in, out, size);
   else if (type == TYPE_ADST)
     reference_adst_1d(in, out, size);
+#if CONFIG_INTER_DDT
+  else if (type == TYPE_DDT)
+    reference_ddt_1d(in, out, size);
+#endif  // CONFIG_INTER_DDT
   else
     reference_idtx_1d(in, out, size);
 }
@@ -321,11 +442,18 @@ double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size) {
 }
 
 void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type,
+#if CONFIG_INTER_DDT
+                         int use_ddt,
+#endif  // CONFIG_INTER_DDT
                          TX_SIZE tx_size) {
   // Get transform type and size of each dimension.
   TYPE_TXFM type0;
   TYPE_TXFM type1;
+#if CONFIG_INTER_DDT
+  get_txfm1d_type(tx_type, use_ddt, &type0, &type1);
+#else
   get_txfm1d_type(tx_type, &type0, &type1);
+#endif  // CONFIG_INTER_DDT
   const int tx_width = tx_size_wide[tx_size];
   const int tx_height = tx_size_high[tx_size];
 

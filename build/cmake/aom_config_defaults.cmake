@@ -85,6 +85,8 @@ set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
 
 set_aom_config_var(CONFIG_ENABLE_IBC_NAT 1 "Enables IBC for natural content")
+set_aom_config_var(CONFIG_ENABLE_INLOOP_FILTER_GIBC 1
+                   "Enables In-loop filters for key-frames with GIBC enabled")
 set_aom_config_var(CONFIG_IBC_SUBPEL_PRECISION 1
                    "Allow sub-pel precision for intraBC block vector.")
 
@@ -131,8 +133,6 @@ set_aom_config_var(CONFIG_COLLECT_PARTITION_STATS 0
                    "Collect stats on partition decisions.")
 set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
-set_aom_config_var(CONFIG_LPF_MASK 0
-                   "Enable the use loop filter bitmasks for optimizations.")
 set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
@@ -147,6 +147,9 @@ set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
+set_aom_config_var(
+  CONFIG_WIENERNS_9x9 1
+  "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
                    "AV2 enable improved identity transform coding.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
@@ -157,6 +160,8 @@ set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
+set_aom_config_var(CONFIG_CDF_SCALE 1
+                   "AV2 enable entropy cdf scaling improvement.")
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
 set_aom_config_var(
   CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
@@ -179,6 +184,7 @@ set_aom_config_var(CONFIG_INTER_COMPOUND_BY_JOINT 1
                    "AV2 inter compound mode by joint.")
 set_aom_config_var(CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX 1
                    "AV2 no joint mode when same ref index.")
+set_aom_config_var(CONFIG_DISABLE_4X4_INTER 1 "Disable 4x4 inter blocks")
 
 set_aom_config_var(
   CONFIG_16_FULL_SEARCH_DMVR
@@ -199,7 +205,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
 set_aom_config_var(CONFIG_SIMPLIFIED_AIMC 1 "Simplification for AIMC.")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
-set_aom_config_var(CONFIG_UV_CFL 1 "AV2 intra UV mode and CFL coding flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
                    "Improvement of AV2 linear intra prediction mode.")
@@ -334,7 +339,8 @@ set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
 set_aom_config_var(
   CONFIG_COMPOUND_WARP_CAUSAL 1
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
-
+set_aom_config_var(CONFIG_DSMVP_REFBANK_MV_SWAP 1
+                   "Swap ref bank mv and derived smvp in DRL generation")
 set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
                    "Enable to improve skip mode")
 
@@ -366,8 +372,25 @@ set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
 set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
                    "Enable WRL only prune four non-translational parameters")
 
+set_aom_config_var(CONFIG_KEY_OVERLAY 1
+                   "Enable to support the key overlay frame")
+
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
+
+set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
+                   "Enable the optimization of CDEF strengths")
+
+set_aom_config_var(
+  CONFIG_MRLS_IMPROVE 1
+  "Enable MRLS improvement to enable two reference lines for intra prediction")
+
+set_aom_config_var(CONFIG_TMVP_MV_COMPRESSION 1 "Enable to compress TMVP MV")
+set_aom_config_var(
+  CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  1
+  "Reduce the line buffer size for DRL and WRL. The access unit is changed from 4x4 to 8x8"
+)
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
@@ -390,10 +413,15 @@ set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
 set_aom_config_var(CONFIG_E125_MHCCP_SIMPLIFY 1
                    "Simplify the parameter derivation for MHCCP")
+set_aom_config_var(CONFIG_MHCCP_CONVOLVE_SIMPLIFY 1
+                   "Simplify the convolve for MHCCP")
 set_aom_config_var(CONFIG_CCSO_FT_SHAPE 1
                    "Change CCSO filter shape to meet hardware requirement")
 
 set_aom_config_var(CONFIG_E149_MHCCP_4PARA 1 "Using 4 parameters in MHCCP")
+set_aom_config_var(
+  CONFIG_MHCCP_SB_BOUNDARY 1
+  "Using only 1 lines when MHCCP block at the superblock top boundary")
 
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
@@ -439,7 +467,13 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
 
+set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
+                   "Enable the redesign of warp modes signaling flow")
+
 # This is an encode-only change.
+set_aom_config_var(CONFIG_MOTION_MODE_RD_PRUNE 1
+                   "Enable fast motion mode search")
+
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
@@ -493,6 +527,8 @@ set_aom_config_var(
   "Parsing dependency removal for intra tx type and IST set signaling.")
 set_aom_config_var(CONFIG_E194_FLEX_SECTX 1
                    "Secondary transforms with flexible support regions for 8x8")
+set_aom_config_var(CONFIG_F105_IST_MEM_REDUCE 1
+                   "Prune ADST_ADST IST sets for 8x8 intra blocks")
 set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")
 set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD4 1
                    "AV2 remove worst-case multiplications.")
@@ -513,6 +549,16 @@ set_aom_config_var(
   CONFIG_ENHANCED_FRAME_CONTEXT_INIT 1
   "Enables improved frame context initialization with frame averaging.")
 
+set_aom_config_var(
+  CONFIG_PRIMARY_QP_FIRST 1
+  "Improvements to the primary reference frame by selecting the closet QP.")
+
+set_aom_config_var(
+  CONFIG_IMPROVED_SECONDARY_REFERENCE
+  1
+  "Enables improved secondary reference frame derivation for frame context initialization."
+)
+
 set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
                    "Fix precision of inter DDT.")
 set_aom_config_var(
@@ -528,6 +574,11 @@ set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
 
 set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
+set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
+set_aom_config_var(CONFIG_DF_PAR_BITS 1
+                   "Flexible control of deblocking parameter bits.")
+set_aom_config_var(CONFIG_DELTAQ_OPT 1
+                   "Enable delta-q entropy coding optimization.")
 #
 # Variables in this section control optional features of the build system.
 #

@@ -409,9 +409,9 @@ static AOM_INLINE int get_vq_col_mvd_rate(nmv_context *mvctx,
     int context_index =
         bit_idx < NUM_CTX_COL_MV_GTX ? bit_idx : NUM_CTX_COL_MV_GTX - 1;
     assert(context_index < NUM_CTX_COL_MV_GTX);
-    total_rate += get_symbol_cost(mvctx->col_mv_greter_flags_cdf[context_index],
-                                  coded_col != bit_idx);
-    update_cdf(mvctx->col_mv_greter_flags_cdf[context_index],
+    total_rate += get_symbol_cost(
+        mvctx->col_mv_greater_flags_cdf[context_index], coded_col != bit_idx);
+    update_cdf(mvctx->col_mv_greater_flags_cdf[context_index],
                coded_col != bit_idx, 2);
     if (coded_col == bit_idx) break;
   }
@@ -637,8 +637,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 
-  if (mode == NEWMV || mode == AMVDNEWMV || mode == NEW_NEWMV_OPTFLOW ||
-      mode == NEW_NEWMV) {
+  if (mode == NEWMV || mode == AMVDNEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEWMV) {
     // All mvs are new
     for (int ref_idx = 0; ref_idx < 1 + is_compound; ++ref_idx) {
       const MV ref_mv =

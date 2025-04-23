@@ -462,10 +462,6 @@ typedef struct cfg_options {
    */
   unsigned int enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
-  /*!\brief enable OBMC
-   *
-   */
-  unsigned int enable_obmc;
   /*!\brief enable local warped motion
    *
    */
@@ -473,7 +469,7 @@ typedef struct cfg_options {
   /*!\brief enable spatial warp prediction
    *
    */
-  unsigned int enable_warped_causal;
+  unsigned int enable_warp_causal;
   /*!\brief enable explicit warp models
    *
    */
@@ -624,6 +620,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  /*!\brief enable CDEF on the blocks with skip_txfm = 1
+   *
+   */
+  unsigned int enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!\brief enable the average of frame or tile cdfs for initialization
    *

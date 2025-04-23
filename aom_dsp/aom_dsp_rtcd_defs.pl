@@ -16,6 +16,9 @@ print <<EOF
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
+#if CONFIG_CDF_SCALE
+#include "aom_dsp/entdec.h"
+#endif
 #include "av1/common/enums.h"
 #include "av1/common/blockd.h"
 
@@ -192,6 +195,17 @@ else{
   add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
 }
 
+#
+# Entropy
+#
+if (aom_config("CONFIG_CDF_SCALE") eq "yes") {
+  add_proto qw/int od_ec_decode_cdf_q15/, "od_ec_dec *dec, const uint16_t *icdf, int nsyms";
+  if (aom_config("CONFIG_AV1_DECODER") eq "yes"){
+    if (aom_config("CONFIG_BYPASS_IMPROVEMENT") eq "yes") {
+      specialize qw/od_ec_decode_cdf_q15 avx2/;
+    }
+  }
+}
 
 #
 # Encoder functions.
@@ -523,20 +537,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
   #
-  # OBMC SAD
-  #
-  foreach (@block_sizes) {
-    ($w, $h) = @$_;
-    add_proto qw/unsigned int/, "aom_highbd_obmc_sad${w}x${h}", "const uint16_t *pre, int pre_stride, const int32_t *wsrc, const int32_t *mask";
-    # TODO(any): Add sse4.1 optimization
-    if ($w == 256 || $h == 256) {
-      specialize "aom_highbd_obmc_sad${w}x${h}", qw/avx2/;
-    } elsif (! (($w == 128 && $h == 32) || ($w == 32 && $h == 128))) {
-      specialize "aom_highbd_obmc_sad${w}x${h}", qw/sse4_1 avx2/;
-    }
-  }
-
-  #
   # Multi-block SAD, comparing a reference to N independent blocks
   #
   foreach (@block_sizes) {
@@ -739,18 +739,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       ($w, $h) = @$_;
       add_proto qw/unsigned int/, "aom_highbd${bd}masked_sub_pixel_variance${w}x${h}", "const uint16_t *src, int src_stride, int xoffset, int yoffset, const uint16_t *ref, int ref_stride, const uint16_t *second_pred, const uint8_t *msk, int msk_stride, int invert_mask, unsigned int *sse";
       specialize "aom_highbd${bd}masked_sub_pixel_variance${w}x${h}", qw/ssse3/;
-    }
-  }
-
-  #
-  # OBMC Variance / OBMC Subpixel Variance
-  #
-  foreach $bd ("_", "_10_", "_12_") {
-    foreach (@block_sizes) {
-      ($w, $h) = @$_;
-      add_proto qw/unsigned int/, "aom_highbd${bd}obmc_variance${w}x${h}", "const uint16_t *pre, int pre_stride, const int32_t *wsrc, const int32_t *mask, unsigned int *sse";
-      add_proto qw/unsigned int/, "aom_highbd${bd}obmc_sub_pixel_variance${w}x${h}", "const uint16_t *pre, int pre_stride, int xoffset, int yoffset, const int32_t *wsrc, const int32_t *mask, unsigned int *sse";
-      specialize "aom_highbd${bd}obmc_variance${w}x${h}", qw/sse4_1/;
     }
   }
 

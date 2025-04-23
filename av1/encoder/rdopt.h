@@ -32,6 +32,10 @@ extern "C" {
 #define COMP_TYPE_RD_THRESH_SHIFT 4
 #define MAX_WINNER_MOTION_MODES 10
 
+#if CONFIG_MOTION_MODE_RD_PRUNE
+#define MAXIMUM_NUM_OF_TX_MODES 8
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+
 struct TileInfo;
 struct macroblock;
 struct RD_STATS;

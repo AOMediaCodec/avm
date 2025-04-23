@@ -303,6 +303,27 @@ void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
       h -= 2;
     } while (h);
 #endif  // CONFIG_SUBBLK_REF_EXT
+  } else if (w == 24) {
+    do {
+      __m128i s[6];
+      s[0] = _mm_loadu_si128((__m128i *)(src + 0 * 8));
+      s[1] = _mm_loadu_si128((__m128i *)(src + 1 * 8));
+      s[2] = _mm_loadu_si128((__m128i *)(src + 2 * 8));
+      src += src_stride;
+      s[3] = _mm_loadu_si128((__m128i *)(src + 0 * 8));
+      s[4] = _mm_loadu_si128((__m128i *)(src + 1 * 8));
+      s[5] = _mm_loadu_si128((__m128i *)(src + 2 * 8));
+      src += src_stride;
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[0]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[1]);
+      _mm_storeu_si128((__m128i *)(dst + 2 * 8), s[2]);
+      dst += dst_stride;
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[3]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[4]);
+      _mm_storeu_si128((__m128i *)(dst + 2 * 8), s[5]);
+      dst += dst_stride;
+      h -= 2;
+    } while (h);
   } else if (w == 32) {
     do {
       __m128i s[8];

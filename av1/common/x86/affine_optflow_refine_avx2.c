@@ -64,6 +64,13 @@ static INLINE __m256i clamp_vector_avx2(__m256i in_vec, __m256i max_vec,
   return clamp_vec;
 }
 
+static INLINE __m256i pack_epi64_to_epi32(__m256i a, __m256i b) {
+  __m256i shift_b = _mm256_slli_epi64(b, 32);
+  __m256i ret = _mm256_blend_epi32(a, shift_b, 0xaa);
+
+  return ret;
+}
+
 #if CONFIG_AFFINE_REFINEMENT
 void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
                                   const uint16_t *ref, int width, int height,
@@ -78,16 +85,11 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
   assert(!is_uneven_wtd_comp_avg(conv_params));
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
   const int32_t *const mat = wm->wmmat;
-  __m256i mat_0 = _mm256_set1_epi32(mat[0]);
-  __m256i mat_1 = _mm256_set1_epi32(mat[1]);
   __m256i mat_2 = _mm256_set1_epi32(mat[2]);
-  __m256i mat_3 = _mm256_set1_epi32(mat[3]);
   __m256i mat_4 = _mm256_set1_epi32(mat[4]);
-  __m256i mat_5 = _mm256_set1_epi32(mat[5]);
 
   __m256i zeros = _mm256_setzero_si256();
   __m256i ones = _mm256_set1_epi32(1);
-  __m256i p_row_vec = _mm256_set1_epi32(p_row);
   __m256i p_col_vec = _mm256_set1_epi32(p_col);
   __m256i width_minus_1_vec = _mm256_set1_epi32(width - 1);
   __m256i height_minus_1_vec = _mm256_set1_epi32(height - 1);
@@ -101,32 +103,38 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
       _mm256_set1_epi32(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
 
   for (int i = 0; i < p_height; ++i) {
-    __m256i i_base_vec = _mm256_set1_epi32(i);
-    __m256i i_vec = _mm256_add_epi32(p_row_vec, i_base_vec);
-    __m256i src_y = _mm256_slli_epi32(i_vec, subsampling_y);
-
-    __m256i m3_y = _mm256_mullo_epi32(mat_3, src_y);
-    __m256i m3_y_m0 = _mm256_add_epi32(m3_y, mat_0);
-
-    __m256i m5_y = _mm256_mullo_epi32(mat_5, src_y);
-    __m256i m5_y_m1 = _mm256_add_epi32(m5_y, mat_1);
+    const int32_t src_y = (p_row + i) << subsampling_y;
+    const int64_t m3y_m0 = (int64_t)mat[3] * src_y + (int64_t)mat[0];
+    const int64_t m5y_m1 = (int64_t)mat[5] * src_y + (int64_t)mat[1];
+    __m256i m3_y_m0 = _mm256_set1_epi64x(m3y_m0);
+    __m256i m5_y_m1 = _mm256_set1_epi64x(m5y_m1);
     for (int j = 0; j < p_width; j += 8) {
       __m256i col_add_vec =
           _mm256_load_si256((const __m256i *)(&col_vector[j]));
       __m256i j_vec = _mm256_add_epi32(p_col_vec, col_add_vec);
       __m256i src_x = _mm256_slli_epi32(j_vec, subsampling_x);
 
-      __m256i m2_x = _mm256_mullo_epi32(mat_2, src_x);
-      __m256i dst_x = _mm256_add_epi32(m2_x, m3_y_m0);
+      __m256i m2_x_lo = _mm256_mul_epi32(mat_2, src_x);
+      __m256i m2_x_hi = _mm256_mul_epi32(mat_2, _mm256_srli_epi64(src_x, 32));
+      __m256i dst_x_lo = _mm256_add_epi64(m2_x_lo, m3_y_m0);
+      __m256i dst_x_hi = _mm256_add_epi64(m2_x_hi, m3_y_m0);
 
-      __m256i m4_x = _mm256_mullo_epi32(mat_4, src_x);
-      __m256i dst_y = _mm256_add_epi32(m4_x, m5_y_m1);
+      __m256i m4_x_lo = _mm256_mul_epi32(mat_4, src_x);
+      __m256i m4_x_hi = _mm256_mul_epi32(mat_4, _mm256_srli_epi64(src_x, 32));
+      __m256i dst_y_lo = _mm256_add_epi64(m4_x_lo, m5_y_m1);
+      __m256i dst_y_hi = _mm256_add_epi64(m4_x_hi, m5_y_m1);
 
-      __m256i x = _mm256_srai_epi32(dst_x, subsampling_x);
-      __m256i y = _mm256_srai_epi32(dst_y, subsampling_y);
+      __m256i ix_lo =
+          _mm256_srli_epi64(dst_x_lo, WARPEDMODEL_PREC_BITS + subsampling_x);
+      __m256i ix_hi =
+          _mm256_srli_epi64(dst_x_hi, WARPEDMODEL_PREC_BITS + subsampling_x);
+      __m256i iy_lo =
+          _mm256_srli_epi64(dst_y_lo, WARPEDMODEL_PREC_BITS + subsampling_y);
+      __m256i iy_hi =
+          _mm256_srli_epi64(dst_y_hi, WARPEDMODEL_PREC_BITS + subsampling_y);
 
-      __m256i ix = _mm256_srai_epi32(x, WARPEDMODEL_PREC_BITS);
-      __m256i iy = _mm256_srai_epi32(y, WARPEDMODEL_PREC_BITS);
+      __m256i ix = pack_epi64_to_epi32(ix_lo, ix_hi);
+      __m256i iy = pack_epi64_to_epi32(iy_lo, iy_hi);
 
       __m256i ix0 = clamp_vector_avx2(ix, width_minus_1_vec, zeros);
       __m256i iy0 = clamp_vector_avx2(iy, height_minus_1_vec, zeros);
@@ -145,8 +153,14 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
       __m256i iy1_stride_ix0 = _mm256_add_epi32(iy1_stride, ix0);
       __m256i iy1_stride_ix1 = _mm256_add_epi32(iy1_stride, ix1);
 
-      __m256i sx = _mm256_and_si256(x, warpmodel_prec_bits);
-      __m256i sy = _mm256_and_si256(y, warpmodel_prec_bits);
+      __m256i dst_x_32 = pack_epi64_to_epi32(dst_x_lo, dst_x_hi);
+      __m256i dst_y_32 = pack_epi64_to_epi32(dst_y_lo, dst_y_hi);
+
+      __m256i x_32 = _mm256_srai_epi32(dst_x_32, subsampling_x);
+      __m256i y_32 = _mm256_srai_epi32(dst_y_32, subsampling_y);
+
+      __m256i sx = _mm256_and_si256(x_32, warpmodel_prec_bits);
+      __m256i sy = _mm256_and_si256(y_32, warpmodel_prec_bits);
 
       __m256i coeff_x = round_power_of_two_avx2(
           sx, WARPEDMODEL_PREC_BITS - BILINEAR_WARP_PREC_BITS);

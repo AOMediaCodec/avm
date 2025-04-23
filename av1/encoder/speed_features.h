@@ -65,6 +65,9 @@ enum {
 
 enum {
   INTER_ALL = (1 << NEARMV) | (1 << GLOBALMV) | (1 << NEWMV) |
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+              (1 << WARP_NEWMV) |
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
               (1 << NEAR_NEARMV) | (1 << NEW_NEWMV) | (1 << NEAR_NEWMV) |
               (1 << NEW_NEARMV) | (1 << GLOBAL_GLOBALMV),
   INTER_NEAR_GLOBAL = (1 << NEARMV) | (1 << GLOBALMV) | (1 << GLOBAL_GLOBALMV) |
@@ -595,11 +598,6 @@ typedef struct MV_SPEED_FEATURES {
   // Use the rd cost around the best FULLPEL_MV to speed up subpel search
   int use_fullpel_costlist;
 
-  // Set the full pixel search level of obmc
-  // 0: obmc_full_pixel_diamond
-  // 1: obmc_refining_search_sad (faster)
-  int obmc_full_pixel_search_level;
-
   // Accurate full pixel motion search based on TPL stats.
   int full_pixel_search_level;
 
@@ -607,11 +605,10 @@ typedef struct MV_SPEED_FEATURES {
   // This is only active when there are at least 16 rows.
   int use_downsampled_sad;
 
-  // Method to use for refining WARPED_CAUSAL motion vectors
-  // TODO(rachelbarker): Can this be unified with OBMC in some way?
+  // Method to use for refining WARP_CAUSAL motion vectors
   WARP_SEARCH_METHOD warp_search_method;
 
-  // Maximum number of iterations in WARPED_CAUSAL refinement search
+  // Maximum number of iterations in WARP_CAUSAL refinement search
   int warp_search_iters;
 #if CONFIG_EXT_RECUR_PARTITIONS
   // Use faster motion search settings for partition blocks with at least one
@@ -658,6 +655,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // flag to skip NEWMV mode in drl if the motion search result is the same
   int skip_repeated_newmv;
+
+  // flag to skip the evaulation of intrabc mode in inter frame
+  int skip_eval_intrabc_in_inter_frame;
 
   // flag to early terminate jmvd scaling factors
   int early_terminate_jmvd_scale_factor;
@@ -740,12 +740,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // aggressiveness
   int prune_motion_mode_level;
 
-  // Prune obmc search using previous frame stats.
-  int prune_obmc_prob_thresh;
-
-  // Disable obmc.
-  int disable_obmc;
-
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
 
@@ -800,8 +794,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
-  // 1: Reuse the compound type decision
-  int reuse_compound_type_decision;
+  // 1: Reuse the compound type rd data
+  // 2: Reuse the compound type decision
+  int reuse_compound_type_data;
 
   // Enable/disable masked compound.
   int disable_masked_comp;
@@ -887,11 +882,15 @@ typedef struct TX_SPEED_FEATURES {
   // is selected as all zero coefficients.
   int txb_split_cap;
 
-  // Shortcut the transform block partition and type search when the target
-  // rdcost is relatively lower.
-  // Values are 0 (not used) , or 1 - 2 with progressively increasing
-  // aggressiveness
-  int adaptive_txb_search_level;
+  // Prune transform type evaluation when target rdcost is low as
+  // compared to best rdcost and based on eob.
+  // 0: no pruning
+  // 1,4,5: pruning based on best rd
+  // 2,3: pruning based on eob and best rd
+  int adaptive_tx_type_search_idx;
+  // Prune transform partition type evaluation when target rdcost is low as
+  // compared to TX_PARTITION_NONE and based on the transform size.
+  int adaptive_tx_partition_type_search_idx;
 
   // Prune level for tx_size_type search for inter based on rd model
   // 0: no pruning
@@ -1048,10 +1047,7 @@ typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // enable early termination than 4-pel precision
   int terminate_early_4_pel_precision;
 
-  // fast_obmc_search for low precisions
-  int low_prec_obmc_full_pixel_search_level;
-
-  // fast_obmc_search for low precisions
+  // Skip similar ref mvs.
   int skip_similar_ref_mv;
 
   // Skip RDO of the repeated newMV for lower precisions.

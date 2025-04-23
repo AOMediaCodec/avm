@@ -89,8 +89,7 @@ int ifd_inspect_superblock(insp_frame_data *fd, void *decoder) {
   insp_sb_data *sb = &fd->sb_grid[sb_row * fd->max_sb_cols + sb_col];
   sb->partition_tree_luma = copy_partition_tree(luma_tree, NULL);
   // Semi-decoupled partitioning is enabled only for intra-frames.
-  int use_sdp = (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-                 cm->seq_params.enable_sdp);
+  int use_sdp = is_sdp_enabled_in_keyframe(cm);
   if (chroma_tree != NULL && use_sdp) {
     sb->partition_tree_chroma = copy_partition_tree(chroma_tree, NULL);
   } else {

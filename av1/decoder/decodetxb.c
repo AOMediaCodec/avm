@@ -1007,9 +1007,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
   uint16_t *const eob = &(eob_data->eob);
   uint16_t *const max_scan_line = &(eob_data->max_scan_line);
-#if CONFIG_TCQ
-  int tcq_mode = cm->features.tcq_mode;
-#endif  // CONFIG_TCQ
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fDecCoeffLog,
@@ -1050,7 +1047,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 
 #if CONFIG_TCQ
-  int state = tcq_init_state(cm->features.tcq_mode, plane, tx_class);
+  int tcq_mode = tcq_enable(cm->features.tcq_mode, plane, tx_class);
+  int state = tcq_init_state(tcq_mode);
 #endif  // CONFIG_TCQ
 
   {
@@ -1387,8 +1385,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       level &= 0xfffff;
       cul_level += level;
 #if CONFIG_TCQ
-      if (!xd->lossless[mbmi->segment_id] &&
-          tcq_enable(tcq_mode, plane, tx_class)) {
+      if (!xd->lossless[mbmi->segment_id] && tcq_mode) {
         tcoeffs[pos] = sign ? -level : level;
       } else {
         tran_low_t dq_coeff;
@@ -1429,9 +1426,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 #if CONFIG_TCQ
-  if (!xd->lossless[mbmi->segment_id] &&
-      tcq_enable(tcq_mode, plane, tx_class)) {
-    state = tcq_init_state(tcq_mode, plane, tx_class);
+  if (!xd->lossless[mbmi->segment_id] && tcq_mode) {
+    state = tcq_init_state(tcq_mode);
     for (int c = *eob - 1; c >= 0; --c) {
       const int pos = scan[c];
       int Qx = tcq_quant(state);

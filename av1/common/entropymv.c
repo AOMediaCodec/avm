@@ -72,7 +72,7 @@ static const nmv_context default_nmv_context = {
   {
       { AOM_CDF2(3371), 78 },
       { AOM_CDF2(5706), 93 },
-  },  // col_mv_greter_flags_cdf
+  },  // col_mv_greater_flags_cdf
   {
       { AOM_CDF2(13012), 75 },
       { AOM_CDF2(13771), 0 },

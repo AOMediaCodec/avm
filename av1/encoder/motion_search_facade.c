@@ -310,10 +310,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         if (m >= 2 || 4 * sum_weight > 3 * total_weight) break;
       }
     } break;
-    case OBMC_CAUSAL:
-      bestsme = av1_obmc_full_pixel_search(start_mv, &full_ms_params,
-                                           step_param, &best_mv->as_fullmv);
-      break;
     default: assert(0 && "Invalid motion mode!\n");
   }
 
@@ -451,11 +447,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
               &x->pred_sse[ref_pred], NULL);
         }
-        break;
-      case OBMC_CAUSAL:
-        av1_find_best_obmc_sub_pixel_tree_up(
-            xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
-            &x->pred_sse[ref_pred], NULL);
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
@@ -1601,7 +1592,7 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var) {
   MACROBLOCKD *xd = &x->e_mbd;
-  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_index(&cpi->common);
+  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_or_ref0(&cpi->common);
 
   int_mv best_mv = av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
                                             start_mv, 1, use_subpixel);

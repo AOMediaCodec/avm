@@ -171,13 +171,12 @@ void av1_prune_partitions_before_search(
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as
 // the partition nodes that the recursive function rd_pick_partition() can
-// reach. To implement this: only PARTITION_NONE is allowed if the current node
-// equals max_partition_size, only PARTITION_SPLIT is allowed if the current
-// node exceeds max_partition_size.
+// reach.
+struct PartitionSearchState;
+
 void av1_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    int *partition_none_allowed, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *do_square_split);
+    struct PartitionSearchState *partition_search_state, int *do_square_split);
 
 // Prune out AB partitions based on rd decisions made from testing the
 // basic partitions.
@@ -194,7 +193,8 @@ void av1_prune_ab_partitions(
 #if CONFIG_EXT_RECUR_PARTITIONS
 SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
-                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                         int8_t region_type);
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    int mi_row, int mi_col, BLOCK_SIZE bsize
@@ -203,8 +203,10 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ,
                                    ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
-);
-void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs);
+                                   ,
+                                   int8_t region_type);
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs,
+                              int8_t region_type);
 
 static AOM_INLINE void av1_add_mode_search_context_to_cache(
     SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
@@ -237,7 +239,7 @@ static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
-                              PARTITION_TYPE partition);
+                              PARTITION_TYPE partition, int8_t region_type);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for
@@ -304,7 +306,8 @@ static INLINE void init_simple_motion_search_mvs(
 }
 
 PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
-                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                      int8_t region_type);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {

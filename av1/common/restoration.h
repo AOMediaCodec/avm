@@ -29,6 +29,9 @@ extern "C" {
 
 /*!\cond */
 
+#define ISSUE_253 \
+  1  // enable virtual line buffer for cross-component wienerNS filter
+
 // Border for Loop restoration buffer
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
@@ -62,7 +65,12 @@ extern "C" {
 #endif  // SGRPROJ_BORDER_VERT >= WIENER_BORDER_VERT
 
 // How many border pixels do we need for each processing unit?
+#if ISSUE_253
+#define RESTORATION_BORDER \
+  4  // 4 rows/columns are needed for only cross-component wienerns filter,
+#else
 #define RESTORATION_BORDER 3
+#endif  // ISSUE_253
 
 // How many rows of deblocked pixels do we save above/below each processing
 // stripe?
@@ -85,7 +93,7 @@ extern "C" {
 #include "av1/common/pc_wiener_filters.h"
 
 // Maximum number of filter-taps in LR non-separable filtering.
-#define MAX_NUM_DICTIONARY_TAPS 18
+#define MAX_NUM_DICTIONARY_TAPS 28
 
 #define RESTORATION_UNITPELS_HORZ_MAX \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_HORZ + 16)
@@ -186,16 +194,23 @@ extern "C" {
 #define WIENERNS_MIN_ID 1
 #define WIENERNS_PAR_ID 2
 
+#define MAX_WIENERNS_SUBSETS 8
+
 typedef struct {
   NonsepFilterConfig nsfilter_config;
   int ncoeffs;
   const int (*coeffs)[WIENERNS_COEFCFG_LEN];
+  int nsubsets;
+  const int (*subset_config)[WIENERNS_TAPS_MAX];
 } WienernsFilterParameters;
 
 extern const WienernsFilterParameters wienerns_filter_y;
 extern const WienernsFilterParameters wienerns_filter_uv;
 
 extern const int wienerns_simd_config_y[25][3];
+#if CONFIG_WIENERNS_9x9
+extern const int wienerns_simd_large_config_y[33][3];
+#endif  // CONFIG_WIENERNS_9x9
 extern const int wienerns_simd_config_uv_from_uv[13][3];
 extern const int wienerns_simd_config_uv_from_y[13][3];
 extern const int wienerns_simd_subtract_center_config_y[24][3];
@@ -431,8 +446,17 @@ typedef struct {
 
 // A restoration line buffer needs space for two lines plus a horizontal filter
 // margin of RESTORATION_EXTRA_HORZ on each side.
+#if ISSUE_253
+// The maximum picture width is 8192 * 8 for LR to work properly in this
+// software implementation. This is one quick implementation, the buffer size
+// should be allocated based on picture width
+#define MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP (8192 * 8)
+#define RESTORATION_LINEBUFFER_WIDTH \
+  (MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
+#else
 #define RESTORATION_LINEBUFFER_WIDTH \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_EXTRA_HORZ)
+#endif  // ISSUE_253
 
 // Similarly, the column buffers (used when we're at a vertical tile edge
 // that we can't filter across) need space for one processing unit's worth
@@ -443,8 +467,13 @@ typedef struct {
 typedef struct {
   // Temporary buffers to save/restore 3 lines above/below the restoration
   // stripe.
+#if ISSUE_253
+  uint16_t tmp_save_above[2][RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+  uint16_t tmp_save_below[2][RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+#else
   uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
+#endif  // ISSUE_253
 } RestorationLineBuffers;
 /*!\endcond */
 
@@ -611,6 +640,21 @@ static INLINE void set_default_wienerns(WienerNonsepInfo *wienerns_info,
   }
 }
 
+static INLINE void set_default_wienerns_fromparams(
+    WienerNonsepInfo *wienerns_info, int num_classes,
+    const WienernsFilterParameters *nsfilter_params) {
+  wienerns_info->num_classes = num_classes;
+  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    wienerns_info->bank_ref_for_class[c_id] = 0;
+    int16_t *wienerns_info_nsfilter = nsfilter_taps(wienerns_info, c_id);
+    for (int i = 0; i < nsfilter_params->ncoeffs; ++i) {
+      wienerns_info_nsfilter[i] =
+          nsfilter_params->coeffs[i][WIENERNS_MIN_ID] +
+          (1 << nsfilter_params->coeffs[i][WIENERNS_BIT_ID]) / 2;
+    }
+  }
+}
+
 // 0: Skip luma pixels to scale down to chroma (simplest)
 // 1: Average 4 or 2 luma pixels to scale down to chroma
 // 2: Average 2 (top and down) luma pixels to scale down to chroma for 420,
@@ -669,6 +713,11 @@ extern const sgr_params_type av1_sgr_params[SGRPROJ_PARAMS];
 extern int sgrproj_mtable[SGRPROJ_PARAMS][2];
 extern const int32_t av1_x_by_xplus1[256];
 extern const int32_t av1_one_by_x[MAX_NELEM];
+
+#if ISSUE_253
+uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
+                                                uint16_t **luma_hbd);
+#endif  // ISSUE_253
 
 void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
                                   int is_uv);
@@ -829,6 +878,32 @@ void av1_copy_rst_frame_filters(RestorationInfo *to,
                                 const RestorationInfo *from);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
+// returns 1 if sym does not need signaling because there are no asymmetric taps
+// in the config
+// returns 2 if sym does not need signaling because with asymmetric taps the
+// number of taps exceeds the limit of 18 (WIENERNS_SIGNALED_TAPS_MAX).
+// returns 0 if sym bit needs signaling
+static INLINE int skip_sym_bit(const WienernsFilterParameters *nsfilter_params,
+                               int subset) {
+  const int beg_feat = 0;
+  const int end_feat = nsfilter_params->ncoeffs;
+  int ncoeffs1;
+  config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, NULL);
+  int num_taps = 0;
+  int asym_taps = 0;
+  for (int i = beg_feat; i < end_feat; ++i) {
+    if (!nsfilter_params->subset_config[subset][i]) continue;
+    const int is_asym_coeff =
+        (i < nsfilter_params->nsfilter_config.asymmetric ||
+         (i >= ncoeffs1 &&
+          i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
+    num_taps++;
+    asym_taps += is_asym_coeff;
+  }
+  assert(num_taps - (asym_taps >> 1) <= WIENERNS_SIGNALED_TAPS_MAX);
+
+  return (num_taps > WIENERNS_SIGNALED_TAPS_MAX ? 2 : (asym_taps == 0));
+}
 /*!\endcond */
 
 #ifdef __cplusplus

@@ -51,6 +51,8 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
     if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
   }
 
+  // TODO(any): Consider tools like OPFL, DMVR in the match criteria.
+
   // Store the stats for COMPOUND_AVERAGE and COMPOUND_DISTWTD
   for (int comp_type = COMPOUND_AVERAGE; comp_type < COMPOUND_WEDGE;
        comp_type++) {
@@ -1464,9 +1466,14 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int32_t comp_model_rate[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX };
   int64_t comp_model_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX };
   int match_index = 0;
+  const int reuse_compound_type_data =
+      cpi->sf.inter_sf.reuse_compound_type_data;
   const int match_found =
-      find_comp_rd_in_stats(cpi, x, mbmi, comp_rate, comp_dist, comp_model_rate,
-                            comp_model_dist, comp_rs2, &match_index);
+      reuse_compound_type_data
+          ? find_comp_rd_in_stats(cpi, x, mbmi, comp_rate, comp_dist,
+                                  comp_model_rate, comp_model_dist, comp_rs2,
+                                  &match_index)
+          : 0;
   best_mv[0].as_int = cur_mv[0].as_int;
   best_mv[1].as_int = cur_mv[1].as_int;
   *rd = INT64_MAX;
@@ -1513,7 +1520,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
 #endif  // CONFIG_REFINEMV
-      cpi->sf.inter_sf.reuse_compound_type_decision) {
+      (reuse_compound_type_data >= 2)) {
     return populate_reuse_comp_type_data(x, mbmi, &best_type_stats, cur_mv,
                                          comp_rate, comp_dist, comp_rs2,
                                          rate_mv, rd, match_index);
@@ -1667,7 +1674,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
   }
   restore_dst_buf(xd, *orig_dst, 1);
-  if (!match_found)
+  if (!match_found && reuse_compound_type_data)
     save_comp_rd_search_stat(x, mbmi, comp_rate, comp_dist, comp_model_rate,
                              comp_model_dist, cur_mv, comp_rs2);
   return best_type_stats.best_compmode_interinter_cost;

@@ -41,6 +41,7 @@ struct tcq_lf_ctx_t;
 struct prequant_t;
 struct tcq_rate_t;
 struct tcq_coeff_ctx_t;
+struct tcq_param_t;
 struct LV_MAP_COEFF_COST;
 
 enum { NONE, RELU, SOFTSIGN, SIGMOID } UENUM1BYTE(ACTIVATION);
@@ -111,6 +112,8 @@ add_proto qw/void av1_convolve_symmetric_dual_highbd/, "const uint16_t *dgd, int
 specialize qw/av1_convolve_symmetric_dual_highbd avx2/;
 add_proto qw/void av1_convolve_symmetric_dual_subtract_center_highbd/, "const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual, int dgd_dual_stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
 specialize qw/av1_convolve_symmetric_dual_subtract_center_highbd avx2/;
+add_proto qw/void av1_convolve_mixedsymmetric_highbd/, "const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
+specialize qw/av1_convolve_mixedsymmetric_highbd avx2/;
 
 
 # FILTER_INTRA predictor functions
@@ -134,7 +137,7 @@ specialize qw/av1_copy_pred_array_highbd sse4_1/;
 # High bitdepth functions
 
 #inv txfm
-add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
+add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
 specialize qw/inv_stxfm sse4_1 avx2/;
 add_proto qw/void av1_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 if (aom_config("CONFIG_ADST_TUNED") eq "yes"
@@ -323,6 +326,12 @@ else {
     "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
 }
 
+# Data-driven intra prediction (DIP)
+if (aom_config("CONFIG_DIP") eq "yes") {
+  add_proto qw/void av1_dip_matrix_multiplication/, "const uint16_t *A, const uint16_t *B, uint16_t *C, int bd";
+  specialize qw/av1_dip_matrix_multiplication avx2/
+}
+
 # build compound seg mask functions
 add_proto qw/void av1_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint16_t *src0, int src0_stride, const uint16_t *src1, int src1_stride, int h, int w, int bd";
 specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
@@ -342,6 +351,14 @@ if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
 if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes" or aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
     add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
     specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
+}
+
+#
+# Block Adaptive Weighted Prediction
+#
+if (aom_config("CONFIG_BAWP") eq "yes"){
+  add_proto qw/void av1_make_bawp_block/, "uint16_t *dst, int dst_stride, int16_t alpha, int32_t beta, int shift, int bw, int bh, int bd";
+  specialize qw/av1_make_bawp_block avx2/;
 }
 
 # Helper functions.
@@ -369,30 +386,25 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/av1_decide_states avx2/;
     add_proto qw/void av1_pre_quant/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
     specialize qw/av1_pre_quant avx2/;
-    add_proto qw/void av1_calc_diag_ctx/, "int scan_hi, int scan_lo, int bwl, const uint8_t *prev_levels, const int16_t* scan, uint8_t *ctx";
-    specialize qw/av1_calc_diag_ctx avx2/;
 
-    add_proto qw/void av1_get_rate_dist_def_luma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
+    add_proto qw/void av1_get_rate_dist_def_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_def_luma avx2/;
     add_proto qw/void av1_get_rate_dist_def_chroma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int plane, int t_sign, int sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_def_chroma avx2/;
-    add_proto qw/void av1_get_rate_dist_lf_luma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int coeff_sign, struct tcq_rate_t *rd";
+    add_proto qw/void av1_get_rate_dist_lf_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int coeff_sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_lf_luma avx2/;
     add_proto qw/void av1_get_rate_dist_lf_chroma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int plane, int coeff_sign, struct tcq_rate_t *rd";
     specialize qw/av1_get_rate_dist_lf_chroma avx2/;
-
-    add_proto qw/void av1_update_states/, "struct tcq_node_t *decision, int scan_idx, const struct tcq_ctx_t *cur_ctx, struct tcq_ctx_t *nxt_ctx";
+    add_proto qw/void av1_update_states/, "const struct tcq_node_t *decision, int col, struct tcq_ctx_t *tcq_ctx";
     specialize qw/av1_update_states avx2/;
-    add_proto qw/void av1_init_lf_ctx/, "const uint8_t *lev, int scan_hi, int bwl, struct tcq_lf_ctx_t *lf_ctx";
-    specialize qw/av1_init_lf_ctx avx2/;
-    add_proto qw/void av1_calc_lf_ctx_st8/, "const struct tcq_lf_ctx_t *lf_ctx, int scan_pos, struct tcq_coeff_ctx_t *coeff_ctx";
-    specialize qw/av1_calc_lf_ctx_st8 avx2/;
-    add_proto qw/void av1_update_lf_ctx/, "const struct tcq_node_t *decision, struct tcq_lf_ctx_t *lf_ctx";
-    specialize qw/av1_update_lf_ctx avx2/;
     add_proto qw/void av1_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
     specialize qw/av1_calc_block_eob_rate avx2/;
     add_proto qw/int av1_find_best_path/, "const struct tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
     specialize qw/av1_find_best_path avx2/;
+    add_proto qw/void av1_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
+    specialize qw/av1_get_coeff_ctx avx2/;
+    add_proto qw/void av1_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
+    specialize qw/av1_update_nbr_diagonal avx2/;
   }
 
   # fdct functions
@@ -402,11 +414,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   # fwd cctx
   add_proto qw/void av1_fwd_cross_chroma_tx_block/, "tran_low_t *coeff_c1, tran_low_t *coeff_c2,
-                         TX_SIZE tx_size, CctxType cctx_type";
+                         TX_SIZE tx_size, CctxType cctx_type, const int bd";
   specialize qw/av1_fwd_cross_chroma_tx_block avx2/;
 
   #fwd txfm
-  add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
+  add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
   specialize qw/fwd_stxfm sse4_1 avx2/;
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
   if (aom_config("CONFIG_INTER_DDT") eq "yes") {
@@ -658,7 +670,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
 if (aom_config("CONFIG_OPFL_MEMBW_REDUCTION") eq "yes"){
   add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta, int use_damr_padding, ReferenceArea *ref_area";
-  specialize qw/av1_highbd_warp_affine sse4_1/;
+  specialize qw/av1_highbd_warp_affine sse4_1 avx2/;
 }
 else{
   add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
@@ -717,6 +729,12 @@ add_proto qw/void av1_upsample_intra_edge_high/, "uint16_t *p, int sz, int bd";
 specialize qw/av1_upsample_intra_edge_high sse4_1/;
 
 # CFL
+add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int64_t *alpha_q3, int bit_depth, int width, int height, int dir";
+# Temporarily disable the sse4 function since it might overflow.
+if ((aom_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
+  specialize qw/mhccp_predict_hv_hbd sse4_1/;
+}
+
 add_proto qw/cfl_subtract_average_fn cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
 specialize qw/cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
 

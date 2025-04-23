@@ -163,6 +163,18 @@ static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 1, 4, 3, 6, 5, 0, 2 },  // D203_PRED, D67_PRED
   { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
 };
+#if CONFIG_F105_IST_MEM_REDUCE
+static const uint8_t
+    inv_ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+      { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
+      { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 2, 0, 4, 6, 3, 5, 1 },  // D45_PRED
+      { 0, 3, 5, 4, 1, 6, 2 },  // D135_PRED
+      { 2, 1, 6, 4, 0, 5, 3 },  // D113_PRED, D157_PRED
+      { 1, 0, 5, 6, 3, 4, 2 },  // D203_PRED, D67_PRED
+      { 2, 1, 6, 5, 3, 4, 0 },  // SMOOTH_PRED
+    };
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_REDUCTION
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
@@ -778,7 +790,8 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *coeff_c1 = p_c1->coeff + block_offset;
   tran_low_t *coeff_c2 = p_c2->coeff + block_offset;
-  av1_fwd_cross_chroma_tx_block(coeff_c1, coeff_c2, tx_size, cctx_type);
+  av1_fwd_cross_chroma_tx_block(coeff_c1, coeff_c2, tx_size, cctx_type,
+                                x->e_mbd.bd);
 }
 
 // Finds and sets the first position (BOB) index.
@@ -889,13 +902,21 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
     if (!is_inter_block(xd->mi[0], xd->tree_type)) {
       int intra_stx_mode =
           stx_transpose_mapping[AOMMIN(txfm_param->intra_mode, SMOOTH_H_PRED)];
-      uint8_t stx_id = 0;
+      uint8_t stx_id = 0, stx_idx;
       if (txfm_param->tx_type == ADST_ADST) {
         stx_id = AOMMAX(txfm_param->sec_tx_set - IST_DIR_SIZE, 0);
+#if CONFIG_F105_IST_MEM_REDUCE
+        if (width < 8 || height < 8)
+          stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+        else
+          stx_idx = inv_ist_intra_stx_mapping_ADST_ADST[intra_stx_mode][stx_id];
+#else
+        stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
       } else {
         stx_id = txfm_param->sec_tx_set;
+        stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
       }
-      uint8_t stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
       txfm_param->sec_tx_set_idx = stx_idx;
     }
 #endif  // CONFIG_IST_REDUCTION
@@ -1158,7 +1179,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     recon_with_cctx = (eob_c1 || eob_c2) && !skip_cctx;
     max_chroma_eob = AOMMAX(eob_c1, eob_c2);
     if (recon_with_cctx) {
-      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff, tx_size, cctx_type);
+      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff, tx_size, cctx_type,
+                                    xd->bd);
       av1_inverse_transform_block(
           xd, dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, dst_c1,
           pd_c1->dst.stride, max_chroma_eob,
@@ -1832,10 +1854,6 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
   *(args->skip) = 0;
-  if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
-    cfl_store_tx(xd, blk_row, blk_col, tx_size,
-                 cm->seq_params.cfl_ds_filter_index);
-  }
 }
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
@@ -2135,7 +2153,8 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   }
 
   if (*eob_c1 || *eob_c2) {
-    av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type);
+    av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type,
+                                  xd->bd);
     av1_inverse_transform_block(
         xd, dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, dst_c1, dst_stride,
         AOMMAX(*eob_c1, *eob_c2),

@@ -64,6 +64,18 @@ static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 5, 0, 6, 2, 1, 4, 3 },  // D203_PRED, D67_PRED
   { 6, 1, 0, 5, 4, 3, 2 },  // SMOOTH_PRED
 };
+#if CONFIG_F105_IST_MEM_REDUCE
+static const uint8_t
+    ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+      { 6, 1, 0, 4, 5, 3, 2 },  // DC_PRED
+      { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 1, 6, 0, 4, 2, 5, 3 },  // D45_PRED
+      { 0, 4, 6, 1, 3, 2, 5 },  // D135_PRED
+      { 4, 1, 0, 6, 3, 5, 2 },  // D113_PRED, D157_PRED
+      { 1, 0, 6, 4, 5, 2, 3 },  // D203_PRED, D67_PRED
+      { 6, 1, 0, 4, 5, 3, 2 },  // SMOOTH_PRED
+    };
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_REDUCTION
 
 // origin_threshold * 128 / 100
@@ -127,6 +139,16 @@ static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
+// look-up table of transform partition type pruning level used to prune the
+// evaluation of transform partition type based on none rd.
+static const int tx_partition_prune_level[2][6] = { { 0, 1, 3, 3, 2, 3 },
+                                                    { 0, 1, 2, 1, 2, 3 } };
+
+// look-up table of transform type pruning level used to prune the evaluation of
+// transform type based on best rd and eob.
+static const int tx_type_prune_level[2][6] = { { 0, 1, 2, 1, 2, 3 },
+                                               { 0, 1, 3, 3, 2, 3 } };
+
 static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
                                 const uint32_t hash) {
   // Linear search through the circular buffer to find matching hash.
@@ -154,6 +176,8 @@ static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
 }
 
 #if !CONFIG_NEW_TX_PARTITION
+// TODO(any) This feature seems to be broken now. Fix this feature or remove it.
+#define USE_INTER_TXB_HASH 0
 static const RD_RECORD_IDX_NODE rd_record_tree_8x8[] = {
   { 1, { 0 } },
 };
@@ -261,6 +285,14 @@ static const RD_RECORD_IDX_NODE *rd_record_tree[BLOCK_SIZES_ALL] = {
   rd_record_tree_4_1,  // BLOCK_32X8
   rd_record_tree_1_4,  // BLOCK_16X64
   rd_record_tree_4_1,  // BLOCK_64X16
+#if CONFIG_EXT_RECUR_PARTITIONS
+  NULL,  // BLOCK_4X32
+  NULL,  // BLOCK_32X4
+  NULL,  // BLOCK_8X64
+  NULL,  // BLOCK_64X8
+  NULL,  // BLOCK_4X64
+  NULL,  // BLOCK_64X4
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
@@ -291,6 +323,14 @@ static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_32X8
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_16X64
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_64X16
+#if CONFIG_EXT_RECUR_PARTITIONS
+  0,    // BLOCK_4X32
+  0,    // BLOCK_32X4
+  0,    // BLOCK_8X64
+  0,    // BLOCK_64X8
+  0,    // BLOCK_4X64
+  0,    // BLOCK_64X4
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
@@ -317,6 +357,7 @@ static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
 // the form of a quadtree for easier access in actual TX size search.
 static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
                                    TXB_RD_INFO_NODE *dst_rd_info) {
+  int found = 0;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   TXB_RD_RECORD *rd_records_table[4] = { txfm_info->txb_rd_record_8X8,
                                          txfm_info->txb_rd_record_16X16,
@@ -377,6 +418,7 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
           int idx = find_tx_size_rd_info(records, hash);
           dst_rd_info[cur_rd_info_idx].rd_info_array =
               &records->tx_rd_info[idx];
+          found = 1;
         }
         ++cur_rd_info_idx;
       }
@@ -384,7 +426,7 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
     cur_tx_size = next_tx_size;
     ++cur_tx_depth;
   }
-  return 1;
+  return found;
 }
 #endif  // !CONFIG_NEW_TX_PARTITION
 
@@ -1285,7 +1327,8 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           x->plane[AOM_PLANE_V].dqcoeff + BLOCK_OFFSET(block);
       const int max_chroma_eob = AOMMAX(x->plane[AOM_PLANE_U].eobs[block],
                                         x->plane[AOM_PLANE_V].eobs[block]);
-      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type);
+      av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type,
+                                    xd->bd);
       inverse_transform_block_facade(
           x, AOM_PLANE_U, block, blk_row, blk_col, max_chroma_eob,
 #if CONFIG_NEW_TX_PARTITION
@@ -1496,7 +1539,7 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(&cpi->common, PLANE_TYPE_UV));
   av1_inv_cross_chroma_tx_block(tmp_dqcoeff_c1, tmp_dqcoeff_c2, tx_size,
-                                cctx_type);
+                                cctx_type, xd->bd);
   av1_inverse_transform_block(
       xd, tmp_dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, recon_c1, MAX_TX_SIZE,
       max_chroma_eob,
@@ -2343,8 +2386,17 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     int i;
 
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
+#if CONFIG_KEY_OVERLAY
+      // TODO(yunqing): adjust the thresholds.
+      static const int thresh_arr[2][FRAME_UPDATE_TYPES] = {
+        { 10, 15, 15, 10, 15, 15, 15, 0, 0 },
+        { 10, 17, 17, 10, 17, 17, 17, 0, 0 }
+      };
+#else
       static const int thresh_arr[2][7] = { { 10, 15, 15, 10, 15, 15, 15 },
                                             { 10, 17, 17, 10, 17, 17, 17 } };
+#endif  // CONFIG_KEY_OVERLAY
+
       const int thresh =
           thresh_arr[cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats - 1]
                     [update_type];
@@ -2729,7 +2781,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
                           blk_col, best_rd_stats, &block_sse, &block_mse_q8,
                           &per_px_mean, &dc_only_blk);
-    if (best_rd_stats->skip_txfm == 1) return;
+    if (best_rd_stats->skip_txfm == 1) {
+      // Ensure that xd->tx_type_map is initialized.
+      if (plane == 0) update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+      return;
+    }
   } else {
     block_sse = pixel_diff_dist(
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -2837,6 +2893,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       xd, plane, blk_col, blk_row, txw, txh, cm->width, cm->height, NULL, NULL);
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
+  const int max_eob = av1_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -2917,7 +2974,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
-              ? (primary_tx_type == ADST_ADST || txw < 16 || txh < 16)
+              ? (primary_tx_type != DCT_DCT || txw < 16 || txh < 16)
               : (intra_mode >= PAETH_PRED || filter)) ||
 #if CONFIG_IST_NON_ZERO_DEPTH
          dc_only_blk || (eob_found) || !xd->enable_ist);
@@ -2929,17 +2986,42 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
 #if CONFIG_IST_REDUCTION
+#if CONFIG_F105_IST_MEM_REDUCE
+    int max_set_id_ptx_type[4] = { IST_REDUCE_SET_SIZE, 1, 1,
+                                   IST_REDUCE_SET_SIZE_ADST_ADST };
+    if (max_set_id == IST_DIR_SIZE) {
+      assert(primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST);
+      max_set_id = (txw < 8 || txh < 8) ? IST_REDUCE_SET_SIZE
+                                        : max_set_id_ptx_type[primary_tx_type];
+    }
+#else
     if (max_set_id == IST_DIR_SIZE) {
       max_set_id = IST_REDUCE_SET_SIZE;
     }
+#endif  // CONFIG_F105_IST_MEM_REDUCE
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;
       uint8_t set_id = set_idx;
       if (!is_inter_block(mbmi, xd->tree_type)) {
         const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
         int intra_stx_mode = stx_transpose_mapping[mode];
+#if CONFIG_F105_IST_MEM_REDUCE
+        if (txw < 8 || txh < 8) {
+          assert(set_idx < IST_REDUCE_SET_SIZE);
+          set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+        } else {
+          assert((primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST)
+                     ? set_idx < max_set_id_ptx_type[primary_tx_type]
+                     : !set_idx);
+          if (primary_tx_type == ADST_ADST)
+            set_id = ist_intra_stx_mapping_ADST_ADST[intra_stx_mode][set_idx];
+          else
+            set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+        }
+#else
         assert(set_idx < IST_REDUCE_SET_SIZE);
         set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
       }
 #else
     // Iterate through all possible secondary tx sets for given primary tx type
@@ -3227,14 +3309,17 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
 #endif  // COLLECT_TX_SIZE_DATA
 
-        // If the current best RD cost is much worse than the reference RD cost,
-        // terminate early.
-        if (cpi->sf.tx_sf.adaptive_txb_search_level) {
-          if ((best_rd - (best_rd >> cpi->sf.tx_sf.adaptive_txb_search_level)) >
-              ref_best_rd) {
-            skip_idx = true;
-            break;
-          }
+        assert(cpi->sf.tx_sf.adaptive_tx_type_search_idx < 6);
+        // Terminate the search early, If the best rd is higher than the
+        // reference best rd and number of coded coefficients are smaller
+        // than a threshold.
+        const int search_level =
+            tx_type_prune_level[p->eobs[block] < max_eob / 8]
+                               [cpi->sf.tx_sf.adaptive_tx_type_search_idx];
+        if (search_level &&
+            (best_rd - (best_rd >> search_level)) > ref_best_rd) {
+          skip_idx = true;
+          break;
         }
 
         // Terminate transform type search if the block has been quantized to
@@ -3661,7 +3746,7 @@ static AOM_INLINE void try_tx_block_no_split(
   mbmi->inter_tx_size[index] = tx_size;
   tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
              rd_stats, ftxs_mode, ref_best_rd,
-             rd_info_node != NULL ? rd_info_node->rd_info_array : NULL);
+             rd_info_node ? rd_info_node->rd_info_array : NULL);
   assert(rd_stats->rate < INT_MAX);
 
   const int pick_skip_txfm =
@@ -3790,6 +3875,7 @@ static void select_tx_partition_type(
   const int txw = tx_size_wide[max_tx_size];
   const int txh = tx_size_high[max_tx_size];
   const int is_vert_rect = (txh > txw);
+  const int max_txw_txh = AOMMAX(txw, txh);
   assert(max_tx_size < TX_SIZES_ALL);
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
 
@@ -3952,12 +4038,13 @@ static void select_tx_partition_type(
         if (p->eobs[block] == 0) break;
       }
 
-      const int search_level = cpi->sf.tx_sf.adaptive_txb_search_level;
-      if (search_level) {
-        if ((tmp_rd - (tmp_rd >> search_level)) > ref_best_rd) {
-          *is_cost_valid = 0;
-          break;
-        }
+      const int search_level =
+          tx_partition_prune_level[max_txw_txh == 64]
+                                  [cpi->sf.tx_sf
+                                       .adaptive_tx_partition_type_search_idx];
+      if (search_level && (tmp_rd - (tmp_rd >> search_level)) > ref_best_rd) {
+        *is_cost_valid = 0;
+        break;
       }
     }
   }
@@ -4031,8 +4118,11 @@ static AOM_INLINE void select_tx_block(
                           plane_bsize, ta, tl, ctx, rd_stats, ref_best_rd,
                           ftxs_mode, rd_info_node, &no_split);
 
+    assert(cpi->sf.tx_sf.adaptive_tx_partition_type_search_idx < 6);
     // Speed features for early termination.
-    const int search_level = cpi->sf.tx_sf.adaptive_txb_search_level;
+    const int search_level =
+        tx_partition_prune_level[1][cpi->sf.tx_sf
+                                        .adaptive_tx_partition_type_search_idx];
     if (search_level) {
       if ((no_split.rd - (no_split.rd >> (1 + search_level))) > ref_best_rd) {
         *is_cost_valid = 0;
@@ -4336,6 +4426,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_SIZE best_tx_size = max_rect_tx_size;
   int64_t best_rd = INT64_MAX;
+#if CONFIG_WAIP
+  int is_wide_angle_mapped = 0;
+  int mapped_wide_angle = DC_PRED;
+#endif  // CONFIG_WAIP
   const int num_blks = bsize_to_num_blk(bs);
   x->rd_model = FULL_TXFM_RD;
   int64_t rd[MAX_TX_DEPTH + 1] = { INT64_MAX, INT64_MAX, INT64_MAX };
@@ -4351,9 +4445,13 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     rd[depth] = av1_uniform_txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs,
                                      tx_size, FTXS_NONE, skip_trellis);
     if (rd[depth] < best_rd) {
-      av1_copy_array(best_blk_skip, txfm_info->blk_skip, num_blks);
+      av1_copy_array(best_blk_skip, txfm_info->blk_skip[AOM_PLANE_Y], num_blks);
       av1_copy_array(best_txk_type_map, xd->tx_type_map, num_blks);
       best_tx_size = tx_size;
+#if CONFIG_WAIP
+      is_wide_angle_mapped = mbmi->is_wide_angle[0];
+      mapped_wide_angle = mbmi->mapped_intra_mode[0];
+#endif
       best_rd = rd[depth];
       *rd_stats = this_rd_stats;
     }
@@ -4368,8 +4466,12 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+#if CONFIG_WAIP
+    mbmi->is_wide_angle[0] = is_wide_angle_mapped;
+    mbmi->mapped_intra_mode[0] = mapped_wide_angle;
+#endif
     av1_copy_array(xd->tx_type_map, best_txk_type_map, num_blks);
-    av1_copy_array(txfm_info->blk_skip, best_blk_skip, num_blks);
+    av1_copy_array(txfm_info->blk_skip[AOM_PLANE_Y], best_blk_skip, num_blks);
   }
 }
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -4422,8 +4524,6 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
     assert(!is_inter || plane_bsize < BLOCK_8X8);
-    cfl_store_tx(xd, blk_row, blk_col, tx_size,
-                 cm->seq_params.cfl_ds_filter_index);
   }
 
 #if CONFIG_RD_DEBUG
@@ -4584,9 +4684,18 @@ static AOM_INLINE void tx_block_yrd(
     get_txb_ctx(plane_bsize, tx_size, 0, ta, tl, &txb_ctx,
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    const int zero_blk_rate =
+        x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
+            .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
+#else
     const int zero_blk_rate =
         x->coeff_costs.coeff_costs[txs_ctx][get_plane_type(0)]
             .txb_skip_cost[txb_ctx.txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     rd_stats->zero_rate = zero_blk_rate;
     tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
                rd_stats, ftxs_mode, ref_best_rd, NULL);
@@ -4997,6 +5106,10 @@ static AOM_INLINE int model_based_tx_search_prune(const AV1_COMP *cpi,
 
 void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                                         uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
                                          int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
@@ -5006,6 +5119,11 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // If modeled RD cost is a lot worse than the best so far, terminate early.
   if (cpi->sf.tx_sf.model_based_prune_tx_search_level &&
+#if CONFIG_MOTION_MODE_RD_PRUNE
+      enable_modelrd_tx_prune &&
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+
       ref_best_rd != INT64_MAX) {
     if (model_based_tx_search_prune(cpi, x, bsize, ref_best_rd)) return;
   }
@@ -5056,12 +5174,12 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // up TX size/type search.
   TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
   int found_rd_info = 0;
-#if !CONFIG_NEW_TX_PARTITION
+#if !CONFIG_NEW_TX_PARTITION && USE_INTER_TXB_HASH
   if (ref_best_rd != INT64_MAX && within_border &&
       cpi->sf.tx_sf.use_inter_txb_hash) {
     found_rd_info = find_tx_size_rd_records(x, bsize, matched_rd_info);
   }
-#endif  // !CONFIG_NEW_TX_PARTITION
+#endif  // !CONFIG_NEW_TX_PARTITION && USE_INTER_TXB_HASH
 
   const int64_t rd =
       select_tx_size_and_type(cpi, x, rd_stats, bsize, ref_best_rd,
@@ -5373,7 +5491,12 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
 
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-                    RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd) {
+                    RD_STATS *rd_stats_uv, int mode_rate,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                    uint8_t enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+                    int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int skip_ctx = av1_get_skip_txfm_context(xd);
@@ -5407,7 +5530,12 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   );
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       !xd->lossless[mbmi->segment_id]) {
-    av1_pick_recursive_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, rd_thresh);
+    av1_pick_recursive_tx_size_type_yrd(cpi, x, rd_stats_y, bsize,
+#if CONFIG_MOTION_MODE_RD_PRUNE
+                                        enable_modelrd_tx_prune,
+
+#endif  // CONFIG_MOTION_MODE_RD_PRUNE
+                                        rd_thresh);
 #if CONFIG_COLLECT_RD_STATS == 2
     PrintPredictionUnitStats(cpi, tile_data, x, rd_stats_y, bsize);
 #endif  // CONFIG_COLLECT_RD_STATS == 2

@@ -54,7 +54,9 @@ typedef struct IntraModeSearchState {
    * \brief The best mrl index found so far
    */
   int best_mrl_index;
-
+#if CONFIG_MRLS_IMPROVE
+  int best_multi_line_mrl;
+#endif
 #if CONFIG_LOSSLESS_DPCM
   /*!
    * \brief The best dpcm mode found for Y block

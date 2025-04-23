@@ -626,14 +626,6 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FORCE_VIDEO_MODE = 60,
 
-  /*!\brief Codec control function to predict with OBMC mode, unsigned int
-   * parameter
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV1E_SET_ENABLE_OBMC = 61,
-
   /*!\brief Codec control function to enable trellis quantization,
    * unsigned int parameter
    *
@@ -1454,9 +1446,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RESTORATION, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FORCE_VIDEO_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_FORCE_VIDEO_MODE
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_OBMC, unsigned int)
-#define AOM_CTRL_AV1E_SET_ENABLE_OBMC
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TRELLIS_QUANT, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_TRELLIS_QUANT

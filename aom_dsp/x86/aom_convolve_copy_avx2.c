@@ -250,6 +250,24 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       h -= 2;
     } while (h);
 #endif  // CONFIG_SUBBLK_REF_EXT
+  } else if (w == 24) {
+    do {
+      __m256i s[2];
+      __m128i s_rem[2];
+      s[0] = _mm256_loadu_si256((__m256i *)src);
+      s_rem[0] = _mm_loadu_si128((__m128i *)(src + 16));
+      src += src_stride;
+      s[1] = _mm256_loadu_si256((__m256i *)src);
+      s_rem[1] = _mm_loadu_si128((__m128i *)(src + 16));
+      src += src_stride;
+      _mm256_storeu_si256((__m256i *)dst, s[0]);
+      _mm_storeu_si128((__m128i *)(dst + 16), s_rem[0]);
+      dst += dst_stride;
+      _mm256_storeu_si256((__m256i *)dst, s[1]);
+      _mm_storeu_si128((__m128i *)(dst + 16), s_rem[1]);
+      dst += dst_stride;
+      h -= 2;
+    } while (h);
   } else if (w == 32) {
     do {
       __m256i s[4];

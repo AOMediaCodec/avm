@@ -31,11 +31,16 @@ extern "C" {
 #define MVREF_ROW_COLS 3
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_TMVP_MV_COMPRESSION
+// Set the upper limit of the motion vector component magnitude.
+#define REFMVS_LIMIT ((1 << 11) - 1)
+#else
 // Set the upper limit of the motion vector component magnitude.
 // This would make a motion vector fit in 26 bits. Plus 3 bits for the
 // reference frame index. A tuple of motion vector can hence be stored within
 // 32 bit range for efficient load/store operations.
 #define REFMVS_LIMIT ((1 << 12) - 1)
+#endif  // CONFIG_TMVP_MV_COMPRESSION
 
 typedef struct position {
   int row;
@@ -507,13 +512,15 @@ static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
 
 static INLINE int16_t av1_mode_context_pristine(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  int8_t ref_frame = av1_ref_frame_type(rf);
+  if (ref_frame == NONE_FRAME) ref_frame = 0;
   return mode_context[ref_frame];
 }
 
 static INLINE int16_t av1_mode_context_analyzer(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
-  const int8_t ref_frame = av1_ref_frame_type(rf);
+  int8_t ref_frame = av1_ref_frame_type(rf);
+  if (ref_frame == NONE_FRAME) ref_frame = 0;
 
 #if CONFIG_OPT_INTER_MODE_CTX
   return mode_context[ref_frame];
@@ -570,10 +577,10 @@ static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
   den = AOMMIN(den, MAX_FRAME_DISTANCE);
   num = num > 0 ? AOMMIN(num, MAX_FRAME_DISTANCE)
                 : AOMMAX(num, -MAX_FRAME_DISTANCE);
-  const int mv_row =
-      ROUND_POWER_OF_TWO_SIGNED(ref.row * num * div_mult[den], 14);
-  const int mv_col =
-      ROUND_POWER_OF_TWO_SIGNED(ref.col * num * div_mult[den], 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * num * div_mult[den];
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * num * div_mult[den];
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);
@@ -944,7 +951,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                + bottom_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                                ) * SCALE_PX_TO_MV +
-                              dv.row;
+                              dv.row
+#if CONFIG_IBC_SUBPEL_PRECISION
+                              - has_row_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_bottom_edge = tile->mi_row_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_bottom_edge > tile_bottom_edge) return 0;
   const int src_right_edge = (mi_col * MI_SIZE + bw
@@ -952,7 +963,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                               + right_interp_border
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
                               ) * SCALE_PX_TO_MV +
-                             dv.col;
+                             dv.col
+#if CONFIG_IBC_SUBPEL_PRECISION
+                             - has_col_offset
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE * SCALE_PX_TO_MV;
   if (src_right_edge > tile_right_edge) return 0;
 
@@ -1167,25 +1182,27 @@ static INLINE void av1_get_warp_base_params(
 }
 
 // Try to get the neighbor's warp model
-// If this is possible, return true and set *wm_params to the neighbor's warp
-// model.
-// If this is not possible, return false and leave *wm_params unmodified.
-//
-// Encoders should only select warp_extend mode if this function returns true
-// (indicating a useful model was available).
-// But decoders must be prepared for the possibility than an encoder selects
-// warp_extend even if this function returns false. In that case, the decoder
-// should fall back to translational motion, generally by setting
-// mbmi->wm_params[0].invalid = 1;
 static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const MB_MODE_INFO *neighbor_mi,
                                                WarpedMotionParams *wm_params) {
+  const int ref_frame = xd->mi[0]->ref_frame[0];
+  const int neighbor_ref = neighbor_mi->ref_frame[0] == ref_frame ? 0 : 1;
   const WarpedMotionParams *gm_params =
-      &cm->global_motion[neighbor_mi->ref_frame[0]];
+      &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
-    *wm_params = neighbor_mi->wm_params[0];
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    if (neighbor_mi->wm_params[neighbor_ref].invalid)
+      *wm_params = default_warp_params;
+    else
+      *wm_params = neighbor_mi->wm_params[neighbor_ref];
+#else
+    if (neighbor_mi->wm_params[0].invalid)
+      *wm_params = default_warp_params;
+    else
+      *wm_params = neighbor_mi->wm_params[0];
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {
@@ -1197,7 +1214,6 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
     *wm_params = default_warp_params;
     wm_params->wmtype = TRANSLATION;
 
-    int ref_frame = xd->mi[0]->ref_frame[0];
     if (neighbor_mi->ref_frame[0] == ref_frame) {
       wm_params->wmmat[0] =
           neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
@@ -1212,6 +1228,22 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
     }
   }
 }
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+static INLINE int av1_get_warp_causal_ctx(const MACROBLOCKD *xd) {
+  int ctx = 0;
+  int has_warp_neighbor = 0;
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+    if (neighbor != NULL && is_warp_mode(neighbor->motion_mode)) {
+      has_warp_neighbor = 1;
+      ctx += (neighbor->motion_mode == WARP_CAUSAL);
+    }
+  }
+
+  return (ctx + has_warp_neighbor);
+}
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
@@ -1234,7 +1266,11 @@ static INLINE int av1_get_warp_extend_ctx1(const MACROBLOCKD *xd,
   if (mbmi->mode == NEARMV) {
     return 0;
   } else {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    assert(mbmi->mode == WARP_NEWMV);
+#else
     assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const TileInfo *const tile = &xd->tile;
     const POSITION mi_pos = { xd->height - 1, -1 };
     if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
@@ -1262,7 +1298,11 @@ static INLINE int av1_get_warp_extend_ctx2(const MACROBLOCKD *xd,
   if (mbmi->mode == NEARMV) {
     return 0;
   } else {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    assert(mbmi->mode == WARP_NEWMV);
+#else
     assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const TileInfo *const tile = &xd->tile;
     const POSITION mi_pos = { -1, xd->width - 1 };
     if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available))
@@ -1322,15 +1362,13 @@ static INLINE int is_ref_motion_field_eligible(
   return 1;
 }
 
-// Check all 3 neighbors to generate projected points
-int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
-                                 int *np, MV_REFERENCE_FRAME ref_frame);
-
 // Temporal scaling the motion vector
 static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
                                              int scale_factor) {
-  const int mv_row = ROUND_POWER_OF_TWO_SIGNED(ref.row * scale_factor, 14);
-  const int mv_col = ROUND_POWER_OF_TWO_SIGNED(ref.col * scale_factor, 14);
+  const int64_t scale_mv_row = (int64_t)ref.row * scale_factor;
+  const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
+  const int64_t scale_mv_col = (int64_t)ref.col * scale_factor;
+  const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   output->row = (int16_t)clamp(mv_row, clamp_min, clamp_max);

@@ -201,17 +201,25 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   int input_stride = pd->dst.stride;
-  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
+
+  const int row_dst =
+      row + xd->mi[0]->chroma_ref_info.mi_row_chroma_base - xd->mi_row;
+  const int col_dst =
+      col + xd->mi[0]->chroma_ref_info.mi_col_chroma_base - xd->mi_col;
+  uint16_t *dst =
+      &pd->dst.buf[-((-row_dst * pd->dst.stride - col_dst) << MI_SIZE_LOG2)];
 
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
-  const int row_start = ((xd->mi_row + row) << MI_SIZE_LOG2);
-  const int col_start = ((xd->mi_col + col) << MI_SIZE_LOG2);
+  const int row_start =
+      ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base + row) << MI_SIZE_LOG2);
+  const int col_start =
+      ((xd->mi[0]->chroma_ref_info.mi_col_chroma_base + col) << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_U);
 #else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
@@ -365,7 +373,7 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_U);
 #else
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
@@ -418,8 +426,12 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   int pic_width_c = cm->width >> sub_x;
   int pic_height_c = cm->height >> sub_y;
 
-  const int row_start = (((xd->mi_row >> sub_y) + row) << MI_SIZE_LOG2);
-  const int col_start = (((xd->mi_col >> sub_x) + col) << MI_SIZE_LOG2);
+  const int row_start =
+      (((xd->mi[0]->chroma_ref_info.mi_row_chroma_base >> sub_y) + row)
+       << MI_SIZE_LOG2);
+  const int col_start =
+      (((xd->mi[0]->chroma_ref_info.mi_col_chroma_base >> sub_x) + col)
+       << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
@@ -635,18 +647,18 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   int alpha_q3;
 #if CONFIG_ENABLE_MHCCP
   if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
-    mhccp_predict_hv_hbd_c(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
-                               (uint16_t)above_lines * CFL_BUF_LINE * 2,
-                           dst, have_top, have_left, dst_stride,
-                           mbmi->mhccp_implicit_param[plane - 1], xd->bd,
-                           tx_size_wide[tx_size], tx_size_high[tx_size], 0);
+    mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
+                             (uint16_t)above_lines * CFL_BUF_LINE * 2,
+                         dst, have_top, have_left, dst_stride,
+                         mbmi->mhccp_implicit_param[plane - 1], xd->bd,
+                         tx_size_wide[tx_size], tx_size_high[tx_size], 0);
     return;
   } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
-    mhccp_predict_hv_hbd_c(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
-                               (uint16_t)above_lines * CFL_BUF_LINE * 2,
-                           dst, have_top, have_left, dst_stride,
-                           mbmi->mhccp_implicit_param[plane - 1], xd->bd,
-                           tx_size_wide[tx_size], tx_size_high[tx_size], 1);
+    mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
+                             (uint16_t)above_lines * CFL_BUF_LINE * 2,
+                         dst, have_top, have_left, dst_stride,
+                         mbmi->mhccp_implicit_param[plane - 1], xd->bd,
+                         tx_size_wide[tx_size], tx_size_high[tx_size], 1);
     return;
   } else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
     alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
@@ -780,9 +792,9 @@ static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
   return cfl_get_luma_subsampling_444_hbd(tx_size);
 }
 
-static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
-                      const uint16_t *input, int input_stride, int row, int col,
-                      TX_SIZE tx_size, int filter_type) {
+void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
+               int input_stride, int row, int col, TX_SIZE tx_size,
+               int filter_type) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int tx_off_log2 = MI_SIZE_LOG2;
@@ -878,21 +890,6 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
   }
 }
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  int filter_type) {
-  CFL_CTX *const cfl = &xd->cfl;
-  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
-  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
-
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
-  const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
-
-  cfl_store(xd, cfl, dst, pd->dst.stride, row + row_offset, col + col_offset,
-            tx_size, filter_type);
-}
-
 #if !CONFIG_EXT_RECUR_PARTITIONS
 static INLINE int max_intra_block_width(const MACROBLOCKD *xd,
                                         BLOCK_SIZE plane_bsize, int plane,
@@ -941,7 +938,12 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir) {
+                                 int ref_height, int dir
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                 ,
+                                 int is_top_sb_boundary
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -960,31 +962,46 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     for (int j = 1; j < ref_height - 1; ++j) {
       for (int i = 1; i < ref_width - 1; ++i) {
         if ((i >= left_lines && j >= above_lines)) continue;
+        int ref_h_offset = 0;
+#if CONFIG_MHCCP_SB_BOUNDARY
+        if (is_top_sb_boundary && above_lines == (LINE_NUM + 1)) {
+          if (j < above_lines) {
+            ref_h_offset = above_lines - 1 - j;
+          }
+        }
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
         // 7-tap cross
-        A[0][count] = (l[i + j * ref_stride] >> 3);  // C
+        A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
         if (dir == 0) {
-          A[1][count] = (l[i + (j - 1) * ref_stride] >> 3);  // N 1, -1
+          A[1][count] =
+              (l[i + (j + ref_h_offset - 1) * ref_stride] >> 3);  // N 1, -1
 #if !CONFIG_E149_MHCCP_4PARA
-          A[2][count] = (i >= left_lines && j + 1 >= above_lines)
-                            ? (l[i + (j)*ref_stride] >> 3)
-                            : (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
+          A[2][count] =
+              (i >= left_lines && (j + 1 + ref_h_offset) >= above_lines)
+                  ? (l[i + (j + ref_h_offset) * ref_stride] >> 3)
+                  : (l[i + (j + 1 + ref_h_offset) * ref_stride] >>
+                     3);  // S 1,  1
+#endif                    // !CONFIG_E149_MHCCP_4PARA
         } else {
-          A[1][count] = (l[(i - 1) + j * ref_stride] >> 3);  // W 1, -1
+          A[1][count] =
+              (l[(i - 1) + (j + ref_h_offset) * ref_stride] >> 3);  // W 1, -1
 #if !CONFIG_E149_MHCCP_4PARA
           A[2][count] = (i + 1 >= left_lines && j >= above_lines)
-                            ? (l[(i) + j * ref_stride] >> 3)
-                            : (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
+                            ? (l[(i) + (j + ref_h_offset) * ref_stride] >> 3)
+                            : (l[(i + 1) + (j + ref_h_offset) * ref_stride] >>
+                               3);  // E 1,  1
+#endif                              // !CONFIG_E149_MHCCP_4PARA
         }
 #if CONFIG_E149_MHCCP_4PARA
-        A[2][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
+        A[2][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
+                                 mid, xd->bd);
         A[3][count] = mid;
 #else
-        A[3][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
+        A[3][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
+                                 mid, xd->bd);
         A[4][count] = mid;
 #endif  // CONFIG_E149_MHCCP_4PARA
-        YCb[count] = c[i + j * ref_stride];
+        YCb[count] = c[i + (j + ref_h_offset) * ref_stride];
         ++count;
       }
     }
@@ -1298,7 +1315,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
   for (int i = 0; i < numParams; i++) {
-#if CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY
     sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
                              get_msb_signed_64(params[i]),
                              get_msb_signed(vector[i]), 32, NULL);
@@ -1306,10 +1323,11 @@ static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
     sum += params[i] * vector[i];
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
   }
-#if CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY
   return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
 #else
-  return (int16_t)((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS);
+  return (int16_t)clamp64(((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS),
+                          INT16_MIN, INT16_MAX);
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 }
 

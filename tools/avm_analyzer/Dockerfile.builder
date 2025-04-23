@@ -27,7 +27,7 @@ RUN cargo chef cook --release --recipe-path recipe.json --bin avm-analyzer-serve
 FROM chef AS builder_frontend
 COPY --from=cacher_frontend /app .
 COPY tools/avm_analyzer .
-RUN trunk build --release avm_analyzer_app/index.html
+RUN trunk build --config avm_analyzer_app --release
 
 FROM chef AS builder_backend
 COPY --from=cacher_backend /app .

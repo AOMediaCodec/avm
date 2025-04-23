@@ -160,7 +160,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }
-  } else if (this_mode == NEWMV || this_mode == AMVDNEWMV) {
+  } else if (this_mode == NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+             this_mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+             this_mode == AMVDNEWMV) {
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
@@ -182,7 +186,11 @@ static inline int check_mv_precision(const AV1_COMMON *cm,
 
   const PREDICTION_MODE mode = mbmi->mode;
   if (is_pb_mv_precision_active(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
-    if (mode == NEWMV || mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
+    if (mode == NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
       for (int i = 0; i < is_comp_pred + 1; ++i) {
 #if CONFIG_C071_SUBBLK_WARPMV
         MV diff = { mbmi->mv[i].as_mv.row, mbmi->mv[i].as_mv.col };

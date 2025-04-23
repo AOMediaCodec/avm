@@ -241,8 +241,17 @@ static int construct_multi_layer_gf_structure(
       first_frame_update_type == KF_UPDATE, use_altref, &is_ld_map);
   int is_ld_map_first_gop = is_ld_map && first_frame_update_type == KF_UPDATE;
 
+#if CONFIG_KEY_OVERLAY
+  if (first_frame_update_type == KF_UPDATE &&
+      cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
+      has_enough_frames_for_key_filtering(cpi->rc.frames_to_key,
+                                          cpi->oxcf.algo_cfg.arnr_max_frames,
+                                          cpi->oxcf.gf_cfg.lag_in_frames)) {
+#else
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+#endif  // CONFIG_KEY_OVERLAY
+
     gf_group->has_overlay_for_key_frame = 1;
     gf_group->update_type[frame_index] = KFFLT_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
@@ -254,8 +263,13 @@ static int construct_multi_layer_gf_structure(
     gf_group->update_type[frame_index] = KFFLT_OVERLAY_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+#if CONFIG_KEY_OVERLAY
+    gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+    gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+#else
     gf_group->layer_depth[frame_index] = 0;
     gf_group->max_layer_depth = 0;
+#endif  // CONFIG_KEY_OVERLAY
     ++frame_index;
     cur_frame_index++;
   } else if ((first_frame_update_type != ARF_UPDATE && !is_ld_map) ||

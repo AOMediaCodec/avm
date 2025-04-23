@@ -80,6 +80,7 @@ list(
   "${AOM_ROOT}/av1/common/scale.h"
   "${AOM_ROOT}/av1/common/scan.c"
   "${AOM_ROOT}/av1/common/scan.h"
+  "${AOM_ROOT}/av1/common/secondary_tx.h"
   "${AOM_ROOT}/av1/common/seg_common.c"
   "${AOM_ROOT}/av1/common/seg_common.h"
   "${AOM_ROOT}/av1/common/thread_common.c"
@@ -104,15 +105,13 @@ list(
   "${AOM_ROOT}/av1/common/entropy_inits_mv.h"
   "${AOM_ROOT}/av1/common/entropy_sideinfo.h")
 
-if(CONFIG_LPF_MASK)
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
-endif()
-
 if(CONFIG_DIP)
   list(
     APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/intra_matrix.c"
     "${AOM_ROOT}/av1/common/intra_matrix.h"
     "${AOM_ROOT}/av1/common/intra_dip.cc" "${AOM_ROOT}/av1/common/intra_dip.h")
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+       "${AOM_ROOT}/av1/common/x86/intra_matrix_avx2.c")
 endif()
 
 if(CONFIG_AV1_ENCODER)
@@ -340,6 +339,7 @@ list(
   "${AOM_ROOT}/av1/common/x86/av1_convolve_scale_sse4.c"
   "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.c"
   "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.h"
+  "${AOM_ROOT}/av1/common/x86/cfl_sse4.c"
   "${AOM_ROOT}/av1/common/x86/filterintra_sse4.c"
   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
   "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_sse4.c"
@@ -355,6 +355,7 @@ list(
   AOM_AV1_COMMON_INTRIN_AVX2
   "${AOM_ROOT}/av1/common/cdef_block_avx2.c"
   "${AOM_ROOT}/av1/common/x86/affine_optflow_refine_avx2.c"
+  "${AOM_ROOT}/av1/common/x86/bawp_avx2.c"
   "${AOM_ROOT}/av1/common/x86/cfl_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_ccso_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"

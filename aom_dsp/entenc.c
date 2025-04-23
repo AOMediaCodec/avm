@@ -163,16 +163,6 @@ void od_ec_enc_clear(od_ec_enc *enc) {
   free(enc->buf);
 }
 
-#if CONFIG_BYPASS_IMPROVEMENT
-// Scale the CDF to match the range value stored in the entropy decoder.
-static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
-  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
-           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
-          << 1) +
-         EC_MIN_PROB * n;
-}
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-
 /*Encodes a symbol given its frequency in Q15.
   fl: CDF_PROB_TOP minus the cumulative frequency of all symbols that come
   before the
@@ -195,12 +185,12 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
   assert(fh <= fl);
   assert(fl <= 32768U);
   assert(7 - EC_PROB_SHIFT - CDF_SHIFT >= 0);
-  const int N = nsyms - 1;
   if (fl < CDF_PROB_TOP) {
 #if CONFIG_BYPASS_IMPROVEMENT
-    u = od_ec_prob_scale(fl, r, N - (s - 1));
-    v = od_ec_prob_scale(fh, r, N - (s - 0));
+    u = od_ec_prob_scale(fl, r, s - 1, nsyms);
+    v = od_ec_prob_scale(fh, r, s, nsyms);
 #else
+    const int N = nsyms - 1;
     u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
         EC_MIN_PROB * (N - (s - 1));
@@ -212,7 +202,7 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
     r = u - v;
   } else {
 #if CONFIG_BYPASS_IMPROVEMENT
-    v = od_ec_prob_scale(fh, r, N - (s + 0));
+    v = od_ec_prob_scale(fh, r, s, nsyms);
     r -= v;
 #else
     r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
@@ -244,7 +234,7 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
   r = enc->rng;
   assert(32768U <= r);
 #if CONFIG_BYPASS_IMPROVEMENT
-  v = od_ec_prob_scale(f, r, 1);
+  v = od_ec_prob_scale(f, r, 0, 2);
 #else
   v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
   v += EC_MIN_PROB;

@@ -29,6 +29,23 @@ const uint16_t av1_prob_cost[128] = {
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
                               const int *inv_map) {
+#if CONFIG_CDF_SCALE
+  int nsym = 1;
+  for (int i = 1; i < 16; i++) {
+    nsym++;
+    if (cdf[i] == AOM_ICDF(CDF_PROB_TOP)) break;
+  }
+  aom_cdf_prob p0 = CDF_PROB_TOP;
+  for (int i = 0; i < nsym; i++) {
+    aom_cdf_prob p1 = get_adjusted_prob(cdf[i], i, nsym);
+    aom_cdf_prob p15 = p0 - p1;
+    p0 = p1;
+    if (inv_map)
+      costs[inv_map[i]] = av1_cost_symbol(p15);
+    else
+      costs[i] = av1_cost_symbol(p15);
+  }
+#else
   int i;
   aom_cdf_prob prev_cdf = 0;
   for (i = 0;; ++i) {
@@ -44,4 +61,5 @@ void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
     // Stop once we reach the end of the CDF
     if (cdf[i] == AOM_ICDF(CDF_PROB_TOP)) break;
   }
+#endif
 }

@@ -9,12 +9,10 @@ if [ ! -d venv ]; then
         fi
     python3 -m venv venv
     source venv/bin/activate
-    # update pip
-    python3 -m pip install --upgrade pip
     # install required packages
-    python3 -m pip install -r requirements.txt
+    python3 -m pip install --require-hashes -r requirements.txt
     # install package locally
-    python3 -m pip install -e .
+    python3 -m pip install --no-deps -e .
 else
     echo "venv exists: activating"
     source venv/bin/activate

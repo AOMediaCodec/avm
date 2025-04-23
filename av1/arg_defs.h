@@ -213,7 +213,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_interintra_wedge;
   arg_def_t enable_global_motion;
   arg_def_t enable_warped_motion;
-  arg_def_t enable_warped_causal;
+  arg_def_t enable_warp_causal;
   arg_def_t enable_warp_delta;
 #if CONFIG_SIX_PARAM_WARP_DELTA
   arg_def_t enable_six_param_warp_delta;
@@ -227,7 +227,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_paeth_intra;
   arg_def_t enable_cfl_intra;
   arg_def_t force_video_mode;
-  arg_def_t enable_obmc;
   arg_def_t enable_overlay;
   arg_def_t enable_palette;
   arg_def_t enable_intrabc;
@@ -303,6 +302,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_DRL_REORDER_CONTROL
   arg_def_t enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  arg_def_t enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   arg_def_t enable_avg_cdf;
   arg_def_t avg_cdf_type;

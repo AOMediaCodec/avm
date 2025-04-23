@@ -60,11 +60,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ExtHighbdWarpFilterTest,
 #endif  // CONFIG_EXT_WARP_FILTER
 
 #if HAVE_AVX2
-#if !CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdWarpFilterTest,
     libaom_test::AV1HighbdWarpFilter::BuildParams(av1_highbd_warp_affine_avx2));
-#endif  // !CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #endif  // HAVE_AVX2
 
 }  // namespace
@@ -77,6 +77,9 @@ TEST_P(AV1HighbdWarpBilinearFilterTest, DISABLED_Speed) {
 
 TEST_P(AV1HighbdWarpBilinearFilterTest, CheckOutput) {
   RunCheckOutput(std::get<4>(GET_PARAM(0)));
+}
+TEST_P(AV1HighbdWarpBilinearFilterTest, ExtremeValues) {
+  RunTest_ExtremeValues(std::get<4>(GET_PARAM(0)));
 }
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdWarpBilinearFilterTest,

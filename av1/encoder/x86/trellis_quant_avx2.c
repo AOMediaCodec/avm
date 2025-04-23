@@ -28,24 +28,6 @@ static const int32_t kPrevId[TCQ_MAX_STATES / 4][8] = {
   { 0, 4 << 24, 0, 5 << 24, 0, 6 << 24, 0, 7 << 24 },
 };
 
-// av1_calc_lf_ctx_*() constants.
-// Neighbor mask for calculating context sum (base/mid).
-#define Z -1
-#define M MAX_VAL_BR_CTX
-static const int8_t kNbrMask[4][32] = {
-  { 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // diag 0
-    M, M, 0, M, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 5, 5, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // diag 1
-    0, M, M, 0, 0, M, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 5, 5, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0,  // diag 2
-    0, 0, M, M, 0, 0, 0, M, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 5, 5, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0,  // diag 3
-    0, 0, 0, M, M, 0, 0, 0, 0, M, 0, 0, 0, 0, 0, 0 },
-};
-static const int8_t kMaxCtx[16] = { 8, 6, 6, 4, 4, 4, 4, 4,
-                                    4, 4, 4, 4, 4, 4, 4, 4 };
-static const int8_t kScanDiag[MAX_LF_SCAN] = { 0, 1, 1, 2, 2, 2, 3, 3, 3, 3 };
-
 static const uint8_t kGolombExp0Bits[256] = {
   0,  0,  0,  0,  1,  1,  1,  1,  3,  3,  3,  3,  3,  3,  3,  3,  5,  5,  5,
   5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  7,  7,  7,  7,  7,  7,
@@ -63,11 +45,19 @@ static const uint8_t kGolombExp0Bits[256] = {
   11, 11, 11, 11, 11, 11, 11, 11, 11,
 };
 
+#define Z -1
 static const int8_t kGolombShuf[4][16] = {
   { 0, Z, Z, Z, 2, Z, Z, Z, 1, Z, Z, Z, 3, Z, Z, Z },
   { 3, Z, Z, Z, 1, Z, Z, Z, 0, Z, Z, Z, 2, Z, Z, Z },
   { 2, Z, Z, Z, 0, Z, Z, Z, 3, Z, Z, Z, 1, Z, Z, Z },
   { 1, Z, Z, Z, 3, Z, Z, Z, 2, Z, Z, Z, 0, Z, Z, Z }
+};
+
+static const uint8_t kConst[4][16] = {
+  { 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 },
 };
 
 void av1_decide_states_avx2(const struct tcq_node_t *prev,
@@ -239,78 +229,49 @@ void av1_pre_quant_avx2(tran_low_t tqc, struct prequant_t *pqData,
   _mm256_storeu_si256((__m256i *)pqData->deltaDist, dist);
 }
 
-void av1_update_states_avx2(tcq_node_t *decision, int scan_idx,
-                            const struct tcq_ctx_t *cur_ctx,
-                            struct tcq_ctx_t *nxt_ctx) {
-  for (int i = 0; i < TCQ_N_STATES; i++) {
-    int prevId = decision[i].prevId;
-    int absLevel = decision[i].absLevel;
-    if (prevId >= 0) {
-      memcpy(&nxt_ctx[i], &cur_ctx[prevId], sizeof(tcq_ctx_t));
-    } else {
-      // New EOB; reset contexts
-      memset(&nxt_ctx[i], 0, sizeof(tcq_ctx_t));
-      nxt_ctx[i].orig_id = -1;
-    }
-    nxt_ctx[i].lev[scan_idx] = AOMMIN(absLevel, INT8_MAX);
-  }
+void av1_update_states_avx2(const tcq_node_t *decision, int col,
+                            struct tcq_ctx_t *tcq_ctx) {
+  // Extract prevId, absLevel from decision[]
+  __m256i dec01 = _mm256_lddqu_si256((__m256i *)&decision[0]);
+  __m256i dec23 = _mm256_lddqu_si256((__m256i *)&decision[2]);
+  __m256i dec45 = _mm256_lddqu_si256((__m256i *)&decision[4]);
+  __m256i dec67 = _mm256_lddqu_si256((__m256i *)&decision[6]);
+  dec01 = _mm256_srli_si256(dec01, 12);
+  dec23 = _mm256_srli_si256(dec23, 12);
+  dec45 = _mm256_srli_si256(dec45, 12);
+  dec67 = _mm256_srli_si256(dec67, 12);
+  __m256i dec0213 = _mm256_unpacklo_epi32(dec01, dec23);
+  __m256i dec4657 = _mm256_unpacklo_epi32(dec45, dec67);
+  __m256i dec02461357 = _mm256_unpacklo_epi64(dec0213, dec4657);
+  __m256i abs02461357 = _mm256_slli_epi32(dec02461357, 8);
+  abs02461357 = _mm256_srli_epi32(abs02461357, 8);
+  __m256i max_val_br_ctx = _mm256_set1_epi32(MAX_VAL_BR_CTX);
+  abs02461357 = _mm256_min_epi32(abs02461357, max_val_br_ctx);
+  __m256i abs1357 = _mm256_permute4x64_epi64(abs02461357, 0xEE);
+  abs1357 = _mm256_slli_epi32(abs1357, 16);
+  __m128i abs_lev =
+      _mm256_castsi256_si128(_mm256_or_si256(abs02461357, abs1357));
+  abs_lev = _mm_packus_epi16(abs_lev, abs_lev);
+  __m256i prev02461357 = _mm256_srai_epi32(dec02461357, 24);
+  __m256i prev1357 = _mm256_permute4x64_epi64(prev02461357, 0xEE);
+  prev1357 = _mm256_slli_epi32(prev1357, 16);
+  __m128i prev_st =
+      _mm256_castsi256_si128(_mm256_blend_epi16(prev02461357, prev1357, 0xAA));
+  prev_st = _mm_packs_epi16(prev_st, prev_st);
+  _mm_storeu_si64(tcq_ctx->lev_new[col], abs_lev);
+  _mm_storeu_si64(tcq_ctx->prev_st[col], prev_st);
+  __m128i orig_st = _mm_loadu_si64(tcq_ctx->orig_st);
+  orig_st = _mm_shuffle_epi8(orig_st, prev_st);
+  orig_st = _mm_blendv_epi8(orig_st, prev_st, prev_st);
+  _mm_storeu_si64(tcq_ctx->orig_st, orig_st);
 }
 
-void av1_calc_diag_ctx_avx2(int scan_hi, int scan_lo, int bwl,
-                            const uint8_t *prev_levels, const int16_t *scan,
-                            uint8_t *ctx) {
-#define M MAX_VAL_BR_CTX
-  static const int8_t kClip[2][16] = {
-    { 0, 0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 3, 0, 0 },
-    { 0, 0, M, 0, M, M, 0, 0, M, 0, M, M, 0, 0, 0, 0 },
-  };
-#undef M
-  int n_ctx = scan_hi - scan_lo + 1;
-  __m128i zero = _mm_setzero_si128();
-  __m128i one = _mm_set1_epi8(1);
-  __m128i four = _mm_set1_epi8(4);
-  __m128i six = _mm_set1_epi8(6);
-  __m128i clip = _mm_lddqu_si128((__m128i *)&kClip[0][0]);
-  __m128i clip_mid = _mm_lddqu_si128((__m128i *)&kClip[1][0]);
-
-  int blk_pos = scan[scan_lo];
-  int row_inc = (1 << bwl) + (1 << TX_PAD_HOR_LOG2) - 1;
-  const uint8_t *row_ptr = prev_levels + get_padded_idx(blk_pos, bwl) + 1;
-  const uint8_t *min_row_ptr = prev_levels;
-  __m128i nbr2 = _mm_loadu_si64(&row_ptr[row_inc]);
-  __m128i nbr3 = _mm_loadu_si64(&row_ptr[2 * row_inc]);
-  __m128i nbr23 = _mm_unpacklo_epi16(nbr2, nbr3);
-
-  for (int i = 0; i < n_ctx; i += 2) {
-    const uint8_t *p1 = AOMMAX(min_row_ptr, &row_ptr[-row_inc]);
-    __m128i nbr0 = _mm_loadu_si64(p1);
-    __m128i nbr1 = _mm_loadu_si64(&row_ptr[0]);
-    __m128i nbr01 = _mm_unpacklo_epi16(nbr0, nbr1);
-    __m128i nbr0123 = _mm_unpacklo_epi32(nbr01, nbr23);
-    __m128i nbr = _mm_unpacklo_epi64(nbr0123, nbr0123);
-    __m128i nbr_max = _mm_min_epu8(nbr, clip);
-    __m128i sum = _mm_maddubs_epi16(nbr_max, one);
-    sum = _mm_hadd_epi16(sum, zero);
-    sum = _mm_hadd_epi16(sum, zero);
-    __m128i coeff_ctx = _mm_packs_epi16(sum, sum);
-    coeff_ctx = _mm_avg_epu8(coeff_ctx, zero);
-    coeff_ctx = _mm_min_epi8(coeff_ctx, four);
-    __m128i nbr_max_mid = _mm_min_epu8(nbr, clip_mid);
-    __m128i sum_mid = _mm_maddubs_epi16(nbr_max_mid, one);
-    sum_mid = _mm_hadd_epi16(sum_mid, zero);
-    sum_mid = _mm_hadd_epi16(sum_mid, zero);
-    __m128i coeff_mid_ctx = _mm_packs_epi16(sum_mid, sum_mid);
-    coeff_mid_ctx = _mm_avg_epu8(coeff_mid_ctx, zero);
-    coeff_mid_ctx = _mm_min_epi8(coeff_mid_ctx, six);
-    coeff_mid_ctx = _mm_slli_epi16(coeff_mid_ctx, 4);
-    coeff_ctx = _mm_add_epi8(coeff_ctx, coeff_mid_ctx);
-    uint16_t ctx01 = _mm_extract_epi16(coeff_ctx, 0);
-    uint16_t ctx1 = ctx01 >> 8;
-    ctx[i] = (uint8_t)ctx01;
-    ctx[i + 1] = ctx1;
-    row_ptr -= 2 * row_inc;
-    nbr23 = nbr01;
-  }
+void av1_get_coeff_ctx_avx2(const struct tcq_ctx_t *tcq_ctx, int col,
+                            struct tcq_coeff_ctx_t *coeff_ctx) {
+  __m128i orig_st = _mm_loadu_si64(tcq_ctx->orig_st);
+  __m128i mag = _mm_loadu_si64(tcq_ctx->ctx[col]);
+  __m128i ctx = _mm_shuffle_epi8(mag, orig_st);
+  _mm_storeu_si64(coeff_ctx->coef, ctx);
 }
 
 static INLINE int get_mid_cost_def(tran_low_t abs_qc, int coeff_ctx,
@@ -430,15 +391,13 @@ static int get_mid_cost_lf(tran_low_t abs_qc, int coeff_ctx,
   return cost;
 }
 
-void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
+void av1_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
                                      const struct prequant_t *pq,
-                                     const tcq_coeff_ctx_t *coeff_ctx,
-                                     int blk_pos, int bwl, TX_CLASS tx_class,
-                                     int diag_ctx, int eob_rate,
+                                     const struct tcq_coeff_ctx_t *coeff_ctx,
+                                     int blk_pos, int diag_ctx, int eob_rate,
                                      struct tcq_rate_t *rd) {
-  (void)bwl;
+  const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   (void)blk_pos;
-  (void)tx_class;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_zero;
   const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->base_cost_low_tbl;
@@ -447,13 +406,15 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_mid_tbl)[LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+  int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i zero = _mm256_setzero_si256();
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
 
   __m256i coef_ctx = _mm256_castsi128_si256(_mm_loadu_si64(&coeff_ctx->coef));
   __m256i ctx16 = _mm256_unpacklo_epi8(coef_ctx, zero);
@@ -473,7 +434,7 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   int qIdx = pq->qIdx;
   int idx = AOMMIN(qIdx - 1, 4);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi16(diag_ctx);
+  __m256i diag = _mm256_set1_epi16(base_diag_ctx);
   __m256i base_ctx = _mm256_slli_epi16(ctx16, 12);
   base_ctx = _mm256_srli_epi16(base_ctx, 12);
   base_ctx = _mm256_add_epi16(base_ctx, diag);
@@ -513,6 +474,8 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
     rate_eob = _mm_add_epi32(rate_eob, mid_rate_eob);
     _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     __m256i mid_ctx = _mm256_srli_epi16(ctx16, 4);
+    __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
+    mid_ctx = _mm256_add_epi16(mid_ctx, mid_diag);
     for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
       int ctx0 = _mm256_extract_epi16(mid_ctx, 0);
       int ctx1 = _mm256_extract_epi16(mid_ctx, 1);
@@ -580,111 +543,109 @@ void av1_get_rate_dist_def_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   }
 }
 
-void av1_calc_lf_ctx_st8_avx2(const struct tcq_lf_ctx_t *lf_ctx, int scan_pos,
-                              struct tcq_coeff_ctx_t *coeff_ctx) {
-  int diag = kScanDiag[scan_pos];
+static __m128i map_state(__m128i state, __m128i prev_st) {
+  // Track previous states.
+  __m128i map_st = _mm_shuffle_epi8(state, prev_st);
+  // Set state to -1 to indicate eob truncation.
+  map_st = _mm_blendv_epi8(map_st, prev_st, prev_st);
+  return map_st;
+}
+
+// Update neighbor coeff magnitudes state for current diagonal.
+// Diagonal is indicated by its last (col, row) position.
+void av1_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
+                                  int bwl) {
+  int diag = row + col;
+  int idx_start = col;
+  int idx_end = AOMMIN(diag + 1, 1 << bwl);
   __m256i zero = _mm256_setzero_si256();
-  __m256i nbr_mask = _mm256_lddqu_si256((__m256i *)kNbrMask[diag]);
-  __m256i base_mask = _mm256_permute2x128_si256(nbr_mask, nbr_mask, 0);
-  __m256i mid_mask = _mm256_permute2x128_si256(nbr_mask, nbr_mask, 0x11);
 
-  for (int st = 0; st < TCQ_N_STATES; st += 4) {
-    // Load previously decoded LF context values.
-    __m256i last01 = _mm256_lddqu_si256((__m256i *)&lf_ctx[st]);
-    __m256i last23 = _mm256_lddqu_si256((__m256i *)&lf_ctx[st + 2]);
+  __m256i orig_st = _mm256_castsi128_si256(_mm_loadu_si64(tcq_ctx->orig_st));
+  orig_st = _mm256_permute4x64_epi64(orig_st, 0);
+  __m256i mask8 = _mm256_lddqu_si256((__m256i *)kConst[0]);
+  orig_st = _mm256_or_si256(orig_st, mask8);
 
-    // Calc base ctx neighbor sum.
-    __m256i base01 = _mm256_min_epu8(last01, base_mask);
-    __m256i base23 = _mm256_min_epu8(last23, base_mask);
-    __m256i base01_sum = _mm256_sad_epu8(base01, zero);
-    __m256i base23_sum = _mm256_sad_epu8(base23, zero);
-    __m256i base_sum =
-        _mm256_hadd_epi32(base01_sum, base23_sum);  // B0 B0 B2 B2 B1 B1 B3 B3
+  // Update upcoming context and coeff magnitudes.
+  static const int8_t max_tbl[4] = { 0, 8, 6, 4 };
+  int max1 = diag < 5 ? 5 : 3;
+  int max2 = diag < 6 ? 5 : 3;
+  int base_max = max_tbl[AOMMIN(diag, 3)];
+  int idx0 = AOMMAX(idx_start - 2, 0);
+  __m128i state_id = _mm_lddqu_si128((__m128i *)kConst[2]);
+  _mm_storeu_si64(&tcq_ctx->orig_st, state_id);
+  __m128i state0 = state_id;
+  __m128i lev01 = _mm_lddqu_si128((__m128i *)&tcq_ctx->lev_new[idx0]);
+  __m128i prev_st0 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[idx0]);
+  __m128i prev_st1 = _mm_srli_si128(prev_st0, 8);
+  __m128i state1 = map_state(prev_st0, state0);
+  __m128i state2 = map_state(prev_st1, state1);
+  __m128i state01 = _mm_unpacklo_epi64(state0, state1);
+  state01 = _mm_or_si128(state01, _mm256_castsi256_si128(mask8));
+  lev01 = _mm_shuffle_epi8(lev01, state01);
+  __m256i lev__01 = _mm256_set_m128i(lev01, lev01);
 
-    // Calc mid ctx neighbor sum.
-    __m256i mid01 = _mm256_min_epu8(last01, mid_mask);
-    __m256i mid23 = _mm256_min_epu8(last23, mid_mask);
-    __m256i mid01_sum = _mm256_sad_epu8(mid01, zero);
-    __m256i mid23_sum = _mm256_sad_epu8(mid23, zero);
-    __m256i mid_sum =
-        _mm256_hadd_epi32(mid01_sum, mid23_sum);  // M0 M0 M2 M2 M1 M1 M3 M3
+  for (int i = idx0; i < idx_end; i += 4) {
+    // Track state transitions.
+    __m128i prev_st2 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[i + 2]);
+    __m128i prev_st3 = _mm_srli_si128(prev_st2, 8);
+    __m128i prev_st4 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[i + 4]);
+    __m128i prev_st5 = _mm_srli_si128(prev_st4, 8);
+    __m128i state3 = map_state(prev_st2, state2);
+    __m128i state4 = map_state(prev_st3, state3);
+    __m128i state5 = map_state(prev_st4, state4);
+    __m128i state23 = _mm_unpacklo_epi64(state2, state3);
+    __m128i state45 = _mm_unpacklo_epi64(state4, state5);
+    __m256i state2345 = _mm256_set_m128i(state45, state23);
+    __m256i lev2345 = _mm256_lddqu_si256((__m256i *)&tcq_ctx->lev_new[i + 2]);
+    state2345 = _mm256_or_si256(state2345, mask8);
+    lev2345 = _mm256_shuffle_epi8(lev2345, state2345);
+    __m256i lev0123 = _mm256_permute2x128_si256(lev__01, lev2345, 0x21);
+    __m256i lev1234 = _mm256_alignr_epi8(lev2345, lev0123, 8);
 
-    // Context calc; combine and reduce to 8 bits.
-    __m256i base_mid =
-        _mm256_hadd_epi32(base_sum, mid_sum);  // B0B2 M0M2 B1B3 M1M3
-    base_mid = _mm256_hadd_epi16(
-        base_mid, zero);  // reduce to 16 bits B0B2 M0M2 - - B1B3 M1M3 - -
-    base_mid = _mm256_avg_epu16(base_mid, zero);  // x = (x + 1) >> 1
-    base_mid = _mm256_shufflelo_epi16(
-        base_mid, 0xD8);  // shuffle B0M0 B2M2 - - B1M1 B3M3 - -
-    base_mid = _mm256_permute4x64_epi64(
-        base_mid, 0xD8);  // pack into lower half: B0M0 B2M2 B1M1 B3M3
-    base_mid = _mm256_shuffle_epi32(base_mid, 0xD8);  // B0M0 B1M1 B2M2 B3M3
-    __m256i six = _mm256_set1_epi16(6);
-    __m256i mid = _mm256_min_epi16(base_mid, six);
-    __m256i mid_sh4 = _mm256_slli_epi16(mid, 4);
-    __m256i base_max = _mm256_set1_epi16(kMaxCtx[scan_pos]);
-    __m256i base = _mm256_min_epi16(base_mid, base_max);
-    base_mid = _mm256_blend_epi16(base, mid_sh4, 0xAA);
-    __m256i ctx16 = _mm256_hadd_epi16(base_mid, base_mid);
-    __m256i mid_ctx_offset = _mm256_set1_epi16((scan_pos == 0) ? 0 : (7 << 4));
-    ctx16 = _mm256_add_epi16(ctx16, mid_ctx_offset);
-    __m128i ctx8 = _mm256_castsi256_si128(ctx16);
-    ctx8 = _mm_packus_epi16(ctx8, ctx8);
-#if 1
-    // Older compilers don't implement _mm_storeu_si32()
-    _mm_store_ss((float *)&coeff_ctx->coef[st], _mm_castsi128_ps(ctx8));
-#else
-    _mm_storeu_si32(&coeff_ctx->coef[st], ctx8);
-#endif
+    // Calculate base/mid contexts for next diagonal.
+    __m256i base = _mm256_lddqu_si256((__m256i *)tcq_ctx->mag_base[i]);
+    __m256i mid = _mm256_lddqu_si256((__m256i *)tcq_ctx->mag_mid[i]);
+    base = _mm256_shuffle_epi8(base, orig_st);
+    mid = _mm256_shuffle_epi8(mid, orig_st);
+    __m256i lev_max1 = _mm256_set1_epi8(max1);
+    __m256i lev0123_max1 = _mm256_min_epu8(lev0123, lev_max1);
+    __m256i lev1234_max1 = _mm256_min_epu8(lev1234, lev_max1);
+    __m256i base_sum2 = _mm256_adds_epu8(lev0123_max1, lev1234_max1);
+    base = _mm256_adds_epu8(base, base_sum2);
+    base = _mm256_avg_epu8(base, zero);
+    __m256i base_ctx_max = _mm256_set1_epi8(base_max);
+    base = _mm256_min_epu8(base, base_ctx_max);
+    __m256i mid_sum2 = _mm256_adds_epu8(lev0123, lev1234);
+    mid = _mm256_adds_epu8(mid, mid_sum2);
+    mid = _mm256_avg_epu8(mid, zero);
+    __m256i mid_ctx_max = _mm256_set1_epi8(6);
+    mid = _mm256_min_epu8(mid, mid_ctx_max);
+    mid = _mm256_slli_epi16(mid, 4);
+    __m256i ctx = _mm256_or_si256(base, mid);
+    _mm256_storeu_si256((__m256i *)tcq_ctx->ctx[i], ctx);
+
+    // Update base/mid range context for next-next diagonal.
+    __m256i lev_max2 = _mm256_set1_epi8(max2);
+    __m256i lev0123_max2 = _mm256_min_epu8(lev0123, lev_max2);
+    __m256i lev1234_max2 = _mm256_min_epu8(lev1234, lev_max2);
+    __m256i lev2345_max2 = _mm256_min_epu8(lev2345, lev_max2);
+    __m256i base_sum3 = _mm256_adds_epu8(lev0123_max2, lev1234_max2);
+    base_sum3 = _mm256_adds_epu8(base_sum3, lev2345_max2);
+    _mm256_storeu_si256((__m256i *)tcq_ctx->mag_base[i], base_sum3);
+    _mm256_storeu_si256((__m256i *)tcq_ctx->mag_mid[i], lev1234);
+
+    // Prepare for next iteration.
+    lev__01 = lev2345;
+    state2 = map_state(prev_st5, state5);
   }
 }
 
-void av1_update_lf_ctx_avx2(const struct tcq_node_t *decision,
-                            struct tcq_lf_ctx_t *lf_ctx) {
-  __m256i c_zero = _mm256_setzero_si256();
-  __m256i upd_last_a = c_zero;
-  __m256i upd_last_b = c_zero;
-  __m256i upd_last_c = c_zero;
-  __m256i upd_last_d = c_zero;
-
-  for (int st = 0; st < TCQ_N_STATES; st += 2) {
-    int absLevel0 = decision[st].absLevel;
-    int prevId0 = decision[st].prevId;
-    int absLevel1 = decision[st + 1].absLevel;
-    int prevId1 = decision[st + 1].prevId;
-    __m128i upd0 = _mm_setzero_si128();
-    __m128i upd1 = _mm_setzero_si128();
-    if (prevId0 >= 0) {
-      upd0 = _mm_lddqu_si128((__m128i *)lf_ctx[prevId0].last);
-    }
-    if (prevId1 >= 0) {
-      upd1 = _mm_lddqu_si128((__m128i *)lf_ctx[prevId1].last);
-    }
-    upd0 = _mm_slli_si128(upd0, 1);
-    upd1 = _mm_slli_si128(upd1, 1);
-    upd0 = _mm_insert_epi8(upd0, AOMMIN(absLevel0, INT8_MAX), 0);
-    upd1 = _mm_insert_epi8(upd1, AOMMIN(absLevel1, INT8_MAX), 0);
-    __m256i upd01 = _mm256_castsi128_si256(upd0);
-    upd01 = _mm256_inserti128_si256(upd01, upd1, 1);
-    upd_last_d = upd_last_c;
-    upd_last_c = upd_last_b;
-    upd_last_b = upd_last_a;
-    upd_last_a = upd01;
-  }
-  _mm256_storeu_si256((__m256i *)lf_ctx[0].last, upd_last_d);
-  _mm256_storeu_si256((__m256i *)lf_ctx[2].last, upd_last_c);
-  _mm256_storeu_si256((__m256i *)lf_ctx[4].last, upd_last_b);
-  _mm256_storeu_si256((__m256i *)lf_ctx[6].last, upd_last_a);
-}
-
-void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
+void av1_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
                                     const struct prequant_t *pq,
                                     const struct tcq_coeff_ctx_t *coeff_ctx,
                                     int blk_pos, int diag_ctx, int eob_rate,
-                                    int dc_sign_ctx, const int32_t *tmp_sign,
-                                    int bwl, TX_CLASS tx_class, int coeff_sign,
-                                    struct tcq_rate_t *rd) {
+                                    int coeff_sign, struct tcq_rate_t *rd) {
+  const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   static const int8_t kShuf[2][32] = {
     { 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
       0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 },
@@ -700,13 +661,19 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_lf_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
-  const int plane = 0;
+  const int32_t *tmp_sign = p->tmp_sign;
+  int bwl = p->bwl;
+  TX_CLASS tx_class = p->tx_class;
+  int dc_sign_ctx = p->dc_sign_ctx;
+  int plane = 0;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+  int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i shuf = _mm256_lddqu_si256((__m256i *)kShuf[0]);
   cost_zero_dq0 = _mm256_shuffle_epi8(cost_zero_dq0, shuf);
   cost_zero_dq1 = _mm256_shuffle_epi8(cost_zero_dq1, shuf);
@@ -727,9 +694,10 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   // Calc coeff_base rate.
   int qIdx = pq->qIdx;
   int idx = AOMMIN(qIdx - 1, 8);
-  __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi8(diag_ctx);
-  base_ctx = _mm256_add_epi8(base_ctx, diag);
+  __m256i zero = _mm256_setzero_si256();
+  __m128i c_zero = _mm256_castsi256_si128(zero);
+  __m256i base_diag = _mm256_set1_epi8(base_diag_ctx);
+  base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
     int ctx1 = _mm256_extract_epi8(base_ctx, 1);
@@ -793,9 +761,10 @@ void av1_get_rate_dist_lf_luma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
     mid_rate_eob = _mm_unpacklo_epi16(mid_rate_eob, c_zero);
     rate_eob = _mm_add_epi32(rate_eob, mid_rate_eob);
     _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
-    __m256i zero = _mm256_setzero_si256();
     __m256i mid_ctx = _mm256_unpacklo_epi8(ctx, zero);
     mid_ctx = _mm256_srli_epi16(mid_ctx, 4);
+    __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
+    mid_ctx = _mm256_add_epi16(mid_ctx, mid_diag);
     for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
       int ctx0 = _mm256_extract_epi16(mid_ctx, 0);
       int ctx1 = _mm256_extract_epi16(mid_ctx, 1);
@@ -882,12 +851,13 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_lf_eob_cost_uv_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i shuf = _mm256_lddqu_si256((__m256i *)kShuf[0]);
   cost_zero_dq0 = _mm256_shuffle_epi8(cost_zero_dq0, shuf);
   cost_zero_dq1 = _mm256_shuffle_epi8(cost_zero_dq1, shuf);
@@ -908,8 +878,8 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   // Calc coeff_base rate.
   int idx = AOMMIN(pq->qIdx - 1, 8);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi8(diag_ctx);
-  base_ctx = _mm256_add_epi8(base_ctx, diag);
+  __m256i base_diag = _mm256_set1_epi8(base_diag_ctx);
+  base_ctx = _mm256_add_epi8(base_ctx, base_diag);
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
     int ctx1 = _mm256_extract_epi8(base_ctx, 1);
@@ -1004,13 +974,14 @@ void av1_get_rate_dist_def_chroma_avx2(
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_eob_cost_uv_tbl;
   const tran_low_t *absLevel = pq->absLevel;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
 
   // Calc zero coeff costs.
   __m256i zero = _mm256_setzero_si256();
   __m256i cost_zero_dq0 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[0][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[0][base_diag_ctx]);
   __m256i cost_zero_dq1 =
-      _mm256_lddqu_si256((__m256i *)&cost_zero[1][diag_ctx]);
+      _mm256_lddqu_si256((__m256i *)&cost_zero[1][base_diag_ctx]);
   __m256i ctx = _mm256_castsi128_si256(_mm_loadu_si64(&coeff_ctx->coef));
   __m256i ctx16 = _mm256_unpacklo_epi8(ctx, zero);
   __m256i ctx16sh = _mm256_shuffle_epi32(ctx16, 0xD8);
@@ -1028,7 +999,7 @@ void av1_get_rate_dist_def_chroma_avx2(
   // Calc coeff_base rate.
   int idx = AOMMIN(pq->qIdx - 1, 4);
   __m128i c_zero = _mm_setzero_si128();
-  __m256i diag = _mm256_set1_epi16(diag_ctx);
+  __m256i diag = _mm256_set1_epi16(base_diag_ctx);
   __m256i base_ctx = _mm256_slli_epi16(ctx16, 12);
   base_ctx = _mm256_srli_epi16(base_ctx, 12);
   base_ctx = _mm256_add_epi16(base_ctx, diag);
@@ -1076,47 +1047,6 @@ void av1_get_rate_dist_def_chroma_avx2(
                                          txb_costs, tx_class, t_sign, plane);
     rd->rate_eob[0] += eob_mid_cost0;
     rd->rate_eob[1] += eob_mid_cost1;
-  }
-}
-
-void av1_init_lf_ctx_avx2(const uint8_t *lev, int scan_hi, int bwl,
-                          struct tcq_lf_ctx_t *lf_ctx) {
-  // Sample offsets (row/col) in and around the LF region used for ctx calc.
-  const uint8_t diag_scan[21] = { 0x00, 0x10, 0x01, 0x20, 0x11, 0x02, 0x30,
-                                  0x21, 0x12, 0x03, 0x40, 0x31, 0x22, 0x13,
-                                  0x04, 0x50, 0x41, 0x32, 0x23, 0x14, 0x05 };
-  const int8_t kShuf[16] = { 8, 6, 4, 2,  0,  11, 9,  7,
-                             5, 3, 1, -1, -1, -1, -1, -1 };
-  __m128i zero = _mm_setzero_si128();
-
-  int eob_inside_lf_region = scan_hi < MAX_LF_SCAN - 1;
-  if (eob_inside_lf_region) {
-    // Retrive the EOB value and store in LF ctx.
-    int row_col = diag_scan[scan_hi + 1];
-    int row = row_col >> 4;
-    int col = row_col & 15;
-    int blk_pos = (row << bwl) + col;
-    uint8_t lev0 = lev[get_padded_idx(blk_pos, bwl)];
-    __m128i last = _mm_insert_epi8(zero, lev0, 0);
-    _mm_storeu_si128((__m128i *)lf_ctx->last, last);
-  } else {
-    // Retrieve samples in the two diagonals bordering LF region.
-    int offset = (1 << bwl) + TX_PAD_HOR - 1;
-    const uint8_t *p = lev + 4;
-    __m128i row0 = _mm_loadu_si64(p);
-    __m128i row1 = _mm_loadu_si64(p + offset);
-    __m128i row2 = _mm_loadu_si64(p + 2 * offset);
-    __m128i row3 = _mm_loadu_si64(p + 3 * offset);
-    __m128i row4 = _mm_loadu_si64(p + 4 * offset);
-    __m128i row5 = _mm_loadu_si64(p + 5 * offset);
-    __m128i row01 = _mm_unpacklo_epi16(row0, row1);
-    __m128i row23 = _mm_unpacklo_epi16(row2, row3);
-    __m128i row45 = _mm_unpacklo_epi16(row4, row5);
-    __m128i row0123 = _mm_unpacklo_epi32(row01, row23);
-    __m128i row012345 = _mm_unpacklo_epi64(row0123, row45);
-    __m128i shuf = _mm_lddqu_si128((__m128i *)kShuf);
-    __m128i last = _mm_shuffle_epi8(row012345, shuf);
-    _mm_storeu_si128((__m128i *)lf_ctx->last, last);
   }
 }
 

@@ -37,7 +37,7 @@ extern "C" {
 // Maximum size of the first step in full pel units
 #define MAX_FIRST_STEP (1 << (MAX_MVSEARCH_STEPS - 1))
 // Maximum number of neighbors to scan per iteration during
-// WARPED_CAUSAL refinement
+// WARP_CAUSAL refinement
 // Note: The elements of warp_search_config.neighbor_mask must be at least
 // MAX_WARP_SEARCH_NEIGHBORS many bits wide. So the type may need to be
 // widened if this value is increased.
@@ -125,10 +125,6 @@ typedef struct {
   const uint8_t *mask;
   int mask_stride;
   int inv_mask;
-
-  // The weighted source and mask used by OBMC
-  const int32_t *wsrc;
-  const int32_t *obmc_mask;
 } MSBuffers;
 
 static INLINE void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
@@ -181,7 +177,7 @@ typedef struct warp_search_config {
   uint8_t neighbor_mask[MAX_WARP_SEARCH_NEIGHBORS];
 } warp_search_config;
 
-// Methods for refining WARPED_CAUSAL motion vectors
+// Methods for refining WARP_CAUSAL motion vectors
 enum {
   // Search 4 adjacent points in a diamond shape at each iteration
   WARP_SEARCH_DIAMOND,
@@ -231,8 +227,6 @@ typedef struct {
   int fine_search_interval;
 
   int is_intra_mode;
-
-  int fast_obmc_search;
 
   // For calculating mv cost
   MV_COST_PARAMS mv_cost_params;
@@ -344,7 +338,12 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
 // search. The purpose for upscaling the MVD is to increase the search range and
 // obtain a new search point not covered by the traditional local search.
 static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
+  if (mbmi->mode == NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mbmi->mode == WARPMV)
+    return 3;
   return 0;
 }
 
@@ -371,10 +370,6 @@ int av1_intrabc_hash_search(const struct AV1_COMP *cpi, const MACROBLOCKD *xd,
                             const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                             IntraBCHashInfo *intrabc_hash_info,
                             FULLPEL_MV *best_mv);
-
-int av1_obmc_full_pixel_search(const FULLPEL_MV start_mv,
-                               const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                               const int step_param, FULLPEL_MV *best_mv);
 
 static INLINE int av1_is_fullmv_in_range(const FullMvLimits *mv_limits,
                                          FULLPEL_MV mv,
@@ -527,7 +522,6 @@ extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_more;
 extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_evenmore;
 extern fractional_mv_step_fp av1_return_max_sub_pixel_mv;
 extern fractional_mv_step_fp av1_return_min_sub_pixel_mv;
-extern fractional_mv_step_fp av1_find_best_obmc_sub_pixel_tree_up;
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,

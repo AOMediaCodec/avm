@@ -20,7 +20,7 @@ from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      Cleanfolder, CreateClipList, GetEncLogFile, GetDecLogFile, ParseDecLogFile, GatherPerfInfo, \
      GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile, md5, get_total_frame
 import Utils
-from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
+from Config import LogLevels, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
      EnableTimingInfo, CodecNames, EnableMD5, HEVC_QPs, SUFFIX, EnableParallelGopEncoding, \
      GOP_SIZE, EnableSubjectiveTest
@@ -99,7 +99,7 @@ def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
                             False, Path_DecLog, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
-        CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
+        CalculateQualityMetric(clip.file_path, total_frame, decodedYUV,
                                clip.fmt, clip.width, clip.height, clip.bit_depth,
                                Path_QualityLog, Path_VmafLog, LogCmdOnly)
         if SaveMemory:
@@ -134,6 +134,12 @@ def Run_Parallel_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly =
                 bsFile = Encode(method, codec, preset, clip, test_cfg, QP,
                                 num_frames, Path_Bitstreams, Path_TimingLog,
                                 Path_EncLog, start_frame, LogCmdOnly)
+
+                decodedYUV = Decode(clip, method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
+                                False, Path_DecLog, LogCmdOnly)
+                if SaveMemory:
+                    DeleteFile(decodedYUV, LogCmdOnly)
+
                 start_frame += num_frames
 
                 if LogCmdOnly:
@@ -166,7 +172,7 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
                                 False, Path_DecLog, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
-            CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
+            CalculateQualityMetric(clip.file_path, total_frame, decodedYUV,
                                    clip.fmt, clip.width, clip.height, clip.bit_depth,
                                    Path_QualityLog, Path_VmafLog, LogCmdOnly)
             if SaveMemory:
@@ -245,6 +251,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
 
     QPSet = QPs[test_cfg]
     for clip in clip_list:
+        total_frame = get_total_frame(test_cfg, clip.file_name)
         for qp in QPSet:
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
@@ -277,7 +284,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                 missing.write("\nmissing quality in %s" % vmaf_log)
                 continue
 
-            if (frame_num < FrameNum[test_cfg]):
+            if (frame_num < total_frame):
                 print("missing frames in %s" % vmaf_log)
                 missing.write("\nmissing frames in %s" % vmaf_log)
                 continue

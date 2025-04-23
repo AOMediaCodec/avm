@@ -88,18 +88,11 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
 #endif  // CONFIG_LF_SUB_PU
   )
     av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
-                             plane + 1, partial_frame,
-#if CONFIG_LPF_MASK
-                             0,
-#endif
-                             mt_info->workers, num_workers,
-                             &mt_info->lf_row_sync);
+                             plane + 1, partial_frame, mt_info->workers,
+                             num_workers, &mt_info->lf_row_sync);
   else
-    av1_loop_filter_frame(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd,
-#if CONFIG_LPF_MASK
-                          0,
-#endif
-                          plane, plane + 1, partial_frame);
+    av1_loop_filter_frame(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
+                          plane + 1, partial_frame);
 
   filt_err = aom_get_sse_plane(sd, &cm->cur_frame->buf, plane);
 
@@ -120,8 +113,17 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #endif
 ) {
   const AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_DF_PAR_BITS
+  const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
+  const int df_par_min_val = (-(1 << (df_par_bits - 1)));
+  const int df_par_max_val = ((1 << (df_par_bits - 1)) - 1);
+  const int min_filter_offset = df_par_min_val;
+  const int max_filter_offset = df_par_max_val;
+#else
+  const uint8_t df_par_bits = DF_PAR_BITS;
   const int min_filter_offset = DF_PAR_MIN_VAL;
   const int max_filter_offset = DF_PAR_MAX_VAL;
+#endif  // CONFIG_DF_PAR_BITS
   int filt_direction = 0;
   int64_t best_err, start_err;
   int offset_best;
@@ -280,22 +282,21 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   int best_bits = 0;
   int start_bits = 0;
   if (dir == 2) {
-    start_bits = offsets[off_ind] ? DF_PAR_BITS : 0;
-    best_bits = offset_best ? DF_PAR_BITS : 0;
+    start_bits = offsets[off_ind] ? df_par_bits : 0;
+    best_bits = offset_best ? df_par_bits : 0;
   } else if (dir == 0) {
     int hor_q_ind = 1;  // offset for the hor dir
     int hor_offset = last_frame_offsets[(hor_q_ind + 1) + off_ind];
-    int hor_bits = hor_offset ? DF_PAR_BITS : 0;
-    start_bits = hor_bits + (offsets[off_ind] == hor_offset ? 0 : DF_PAR_BITS);
-    best_bits = hor_bits + (offset_best == hor_offset ? 0 : DF_PAR_BITS);
-
+    int hor_bits = hor_offset ? df_par_bits : 0;
+    start_bits = hor_bits + (offsets[off_ind] == hor_offset ? 0 : df_par_bits);
+    best_bits = hor_bits + (offset_best == hor_offset ? 0 : df_par_bits);
   } else {               // dir == 1
     int vert_q_ind = 0;  // offset for the vert dir
     int vert_offset = last_frame_offsets[vert_q_ind + off_ind];
-    int vert_bits = vert_offset ? DF_PAR_BITS : 0;
+    int vert_bits = vert_offset ? df_par_bits : 0;
     start_bits =
-        vert_bits + (offsets[off_ind] == vert_offset ? 0 : DF_PAR_BITS);
-    best_bits = vert_bits + (offset_best == vert_offset ? 0 : DF_PAR_BITS);
+        vert_bits + (offsets[off_ind] == vert_offset ? 0 : df_par_bits);
+    best_bits = vert_bits + (offset_best == vert_offset ? 0 : df_par_bits);
   }
 
   double best_cost =
@@ -307,10 +308,10 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 
 #else
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult * chroma_lambda_mult, offset_best ? DF_PAR_BITS : 0, best_err,
+      x->rdmult * chroma_lambda_mult, offset_best ? df_par_bits : 0, best_err,
       cm->seq_params.bit_depth);
   double start_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult * chroma_lambda_mult, offsets[off_ind] ? DF_PAR_BITS : 0,
+      x->rdmult * chroma_lambda_mult, offsets[off_ind] ? df_par_bits : 0,
       start_err, cm->seq_params.bit_depth);
 #endif  // DF_DUAL
 

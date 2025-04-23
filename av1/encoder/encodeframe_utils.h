@@ -185,6 +185,7 @@ typedef struct PartitionSearchState {
   int do_square_split;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
+  int partition_split_allowed;
   bool prune_partition_none;
 #if CONFIG_ML_PART_SPLIT
   bool prune_partition_split;

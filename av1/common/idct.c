@@ -453,12 +453,24 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   // EOB needs to adjusted after inverse IST
   if (txfm_param->sec_tx_type) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+    const int st_size_class =
+        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
+        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
+#else
     const int st_size_class = (width == 8 && height == 8)   ? 1
                               : (width >= 8 && height >= 8) ? 2
-                                                            : 0;
-    txfm_param->eob = (st_size_class == 0)   ? IST_4x4_HEIGHT
-                      : (st_size_class == 1) ? IST_8x8_HEIGHT_RED
-                                             : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                      : 0;
+    txfm_param->eob =
+        (st_size_class == 0) ? IST_4x4_HEIGHT
+        : (st_size_class == 1)
+            ? IST_8x8_HEIGHT_RED
+#if CONFIG_F105_IST_MEM_REDUCE
+            : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
+                                                            : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
     // txfm_param->eob = av1_get_max_eob(tx_size);
     const int sb_size =
@@ -598,7 +610,7 @@ void av1_highbd_inv_txfm_add_vert_c(const tran_low_t *input, uint16_t *dest,
 // Apply inverse cross chroma component transform
 void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
                                    tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
-                                   CctxType cctx_type) {
+                                   CctxType cctx_type, const int bd) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av1_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)dqcoeff_c1;
@@ -613,6 +625,8 @@ void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
              (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c2[i];
     src_c1[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[0], CCTX_PREC_BITS);
     src_c2[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[1], CCTX_PREC_BITS);
+    src_c1[i] = clamp_value(src_c1[i], 8 + bd);
+    src_c2[i] = clamp_value(src_c2[i], 8 + bd);
   }
 }
 
@@ -671,7 +685,7 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 
 // Inverse secondary transform
 void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
-                 const uint8_t stx_idx, const int size) {
+                 const uint8_t stx_idx, const int size, const int bd) {
   assert(stx_idx < 4);
 #if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -692,7 +706,13 @@ void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
+#if CONFIG_F105_IST_MEM_REDUCE
+    reduced_height = (size == 1)
+                         ? IST_8x8_HEIGHT_RED
+                         : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
     reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
 #else
@@ -717,9 +737,9 @@ void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
 #endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     }
 #if CONFIG_E194_FLEX_SECTX
-    *out++ = ROUND_POWER_OF_TWO_SIGNED(resi, shift);
+    *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(resi, shift), 8 + bd);
 #else
-    *out++ = (resi + offset) >> shift;
+    *out++ = clamp_value((resi + offset) >> shift, 8 + bd);
 #endif  // CONFIG_E194_FLEX_SECTX
     kernel++;
   }
@@ -806,13 +826,19 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
                                       : stx_scan_orders_8x8[log2width - 2];
     }
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+    const int st_size_class =
+        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
+        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
+#else
     const int st_size_class = (width == 8 && height == 8)   ? 1
                               : (width >= 8 && height >= 8) ? 2
-                                                            : 0;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                      : 0;
 #else
     const int st_size_class = sb_size;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-    inv_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
+    inv_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     tmp = buf1;
     src = coeff;
 #if CONFIG_E194_FLEX_SECTX
