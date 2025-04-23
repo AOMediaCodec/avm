@@ -36,7 +36,6 @@
 #include <string.h>
 
 #include "aom/aom_decoder.h"
-#include "aom/aomdx.h"
 #include "common/md5_utils.h"
 #include "common/tools_common.h"
 #include "common/video_reader.h"

@@ -29,11 +29,14 @@
 #include <string.h>
 
 #include "aom/aom_encoder.h"
+#include "aom/aom_decoder.h"
 #include "aom/aomcx.h"
+#include "aom/aomdx.h"
 #include "common/tools_common.h"
+#include "common/video_reader.h"
 #include "common/video_writer.h"
 #include "aom_dsp/aom_dsp_common.h"
-
+#include "common/md5_utils.h"
 static const char *exec_name;
 
 void usage_exit(void) {
@@ -46,64 +49,33 @@ void usage_exit(void) {
           exec_name);
   exit(EXIT_FAILURE);
 }
+static void get_image_md5(const aom_image_t *img, unsigned char digest[16]) {
+  int plane, y;
+  MD5Context md5;
 
-static void set_active_map_from_images(aom_codec_ctx_t *codec,
-                                       aom_active_map_t *map,
-                                       aom_image_t img[2]) {
-  const unsigned int bytespp = (img[0].fmt & AOM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
-  int plane;
-
-  // mark all blocks inactive
-  memset(map->active_map, 0, map->rows * map->cols);
+  MD5Init(&md5);
 
   for (plane = 0; plane < 3; ++plane) {
-    const unsigned char *buf0 = img[0].planes[plane];
-    const unsigned char *buf1 = img[1].planes[plane];
-    const unsigned int stride = img[0].stride[plane];
-    const unsigned int width = aom_img_plane_width(&img[0], plane);
-    const unsigned int height = aom_img_plane_height(&img[0], plane);
-    const unsigned int bs = (plane == 0 ? 16 : 8);
+    const unsigned char *buf = img->planes[plane];
+    const int stride = img->stride[plane];
+    const int w = plane ? (img->d_w + 1) >> 1 : img->d_w;
+    const int h = plane ? (img->d_h + 1) >> 1 : img->d_h;
 
-    for (unsigned int r = 0, map_i = 0; r < map->rows * bs; r += bs) {
-      for (unsigned int c = 0; c < map->cols * bs; c += bs, map_i++) {
-        if (!map->active_map[map_i]) {  // only check if block is not active:
-                                        // once active always active
-          unsigned int bh = AOMMIN(bs, height - r);
-          unsigned int bw = AOMMIN(bs, width - c);
-          for (unsigned int rr = 0; rr < bh; rr++) {
-            for (unsigned int cc = 0; cc < bw; cc++) {
-              unsigned int idx = (r + rr) * stride + (c + cc) * bytespp;
-              for (unsigned int i = 0; i < bytespp; i++) {
-                if (buf0[idx + i] != buf1[idx + i]) {
-                  map->active_map[map_i] = 1;
-                  goto next_block;
-                }
-              }
-            }
-          }
-        }
-      next_block:
-        continue;
-      }
+    for (y = 0; y < h; ++y) {
+      MD5Update(&md5, buf, w);
+      buf += stride;
     }
   }
-  // manually set some inactive one for debugging
 
-#if CONFIG_ARD_DEBUG
-  printf("\nactive_map\n");
-  printf("----------\n");
-  for (unsigned int r = 0; r < map->rows; r++) {
-    for (unsigned int c = 0; c < map->cols; c++) {
-      printf("%d", map->active_map[r * map->cols + c]);
-    }
-    printf("\n");
-  }
-  printf("----------\n");
-#endif
-
-  if (aom_codec_control(codec, AOME_SET_ACTIVEMAP, map))
-    die_codec(codec, "Failed to set active map");
+  MD5Final(digest, &md5);
 }
+
+static void print_md5(FILE *stream, unsigned char digest[16]) {
+  int i;
+
+  for (i = 0; i < 16; ++i) fprintf(stream, "%02x", digest[i]);
+}
+
 
 static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
                         int frame_index, AvxVideoWriter *writer) {
@@ -153,11 +125,10 @@ int main(int argc, char **argv) {
   aom_codec_ctx_t codec;
   aom_codec_enc_cfg_t cfg;
   int frame_count = 0;
-  const int limit = 20;
+  const int limit = 4;
   aom_image_t raw[2];
   int raw_index = 0;
   int bit_depth = 8;
-  int ard_mode = 0;
   int argi = 0;
   aom_codec_err_t res;
   AvxVideoInfo info;
@@ -223,7 +194,8 @@ int main(int argc, char **argv) {
   if (!(infile = fopen(argv[argi++], "rb")))
     die("Failed to open %s for reading.", argv[argi - 1]);
 
-  writer = aom_video_writer_open(argv[argi++], kContainerIVF, &info);
+  const char *bitstream = argv[argi++];
+  writer = aom_video_writer_open(bitstream, kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", argv[argi - 1]);
 
   if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
@@ -240,11 +212,6 @@ int main(int argc, char **argv) {
 
   // Encode frames.
   while (aom_img_read(&raw[raw_index], infile) && frame_count < limit) {
-    // if (frame_count > 0 && ard_mode == 0) {
-    if (frame_count > 0 && ard_mode > 0) {
-      set_active_map_from_images(&codec, &map, raw);
-    }
-
     ++frame_count;
     encode_frame(&codec, &raw[raw_index], frame_count, writer);
     raw_index = !raw_index;
@@ -261,9 +228,46 @@ int main(int argc, char **argv) {
   aom_img_free(&raw[0]);
   aom_img_free(&raw[1]);
   free(map.active_map);
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
-
   aom_video_writer_close(writer);
 
+  AvxVideoReader *reader = NULL;
+  const AvxVideoInfo *info_dec = NULL;
+  reader = aom_video_reader_open(bitstream);
+  
+  if (!reader) die("Failed to open %s for reading.", bitstream);
+  FILE *decfile = NULL;
+  if (!(decfile = fopen("dec.yuv", "wb")))
+    die("Failed to open %s for writing.", "dec.yuv");
+
+  info_dec = aom_video_reader_get_info(reader);
+  aom_codec_iface_t *decoder = get_aom_decoder_by_fourcc(info_dec->codec_fourcc);
+  if (!decoder) die("Unknown input codec.");
+  printf("Using %s\n", aom_codec_iface_name(decoder));
+  frame_count = 0;
+  if (aom_codec_dec_init(&codec, decoder, NULL, 0))
+    die("Failed to initialize decoder");
+    while (aom_video_reader_read_frame(reader)) {
+      aom_codec_iter_t iter = NULL;
+      aom_image_t *img = NULL;
+      size_t frame_size = 0;
+      const unsigned char *frame =
+          aom_video_reader_get_frame(reader, &frame_size);
+      if (aom_codec_decode(&codec, frame, frame_size, NULL))
+        die_codec(&codec, "Failed to decode frame");
+  
+      while ((img = aom_codec_get_frame(&codec, &iter)) != NULL) {
+        unsigned char digest[16];
+  
+        get_image_md5(img, digest);
+        print_md5(decfile, digest);
+        fprintf(decfile, "  img-%ux%u-%04d.i420\n", img->d_w, img->d_h,
+                ++frame_count);
+      }
+    }
+  
+    printf("Processed %d frames.\n", frame_count);
+    aom_video_reader_close(reader);
+  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
+    fclose(decfile);
   return EXIT_SUCCESS;
 }
