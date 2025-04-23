@@ -362,8 +362,8 @@ void gdf_intra_inference_block_avx2(
       aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
                  [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN]) = { 0 };
   gdf_set_lap_and_cls_avx2(i_min, i_max, j_min, j_max, stripe_size,
-                           rec_pnt + rec_stride * i_min + j_min, rec_stride, bit_depth,
-                           aligned_lap, aligned_cls);
+                           rec_pnt + rec_stride * i_min + j_min, rec_stride,
+                           bit_depth, aligned_lap, aligned_cls);
 
   gdf_load_bias_reg(bias_reg0, bias);
   gdf_load_bias_reg(bias_reg1, bias + GDF_NET_INP_GRD_NUM);
@@ -618,8 +618,8 @@ void gdf_inter_inference_block_avx2(
       aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
                  [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN]) = { 0 };
   gdf_set_lap_and_cls_avx2(i_min, i_max, j_min, j_max, stripe_size,
-                           rec_pnt + rec_stride * i_min + j_min, rec_stride, bit_depth,
-                           aligned_lap, aligned_cls);
+                           rec_pnt + rec_stride * i_min + j_min, rec_stride,
+                           bit_depth, aligned_lap, aligned_cls);
 
   gdf_load_bias_reg(bias_reg0, bias);
   gdf_load_bias_reg(bias_reg1, bias + GDF_NET_INP_GRD_NUM);
