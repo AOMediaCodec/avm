@@ -52,7 +52,7 @@ static const nmv_context default_nmv_context = {
       { AOM_CDF2(16384), 75 },
       { AOM_CDF2(16384), 0 },
   },  // shell_offset_class2_cdf
-
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   { {
       { AOM_CDF2(16786), 75 },
       { AOM_CDF2(19319), 78 },
@@ -69,6 +69,7 @@ static const nmv_context default_nmv_context = {
       { AOM_CDF2(16384), 0 },
       { AOM_CDF2(16384), 0 },
   } },  // shell_offset_other_class_cdf
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   {
       { AOM_CDF2(3371), 78 },
       { AOM_CDF2(5706), 93 },

@@ -482,9 +482,9 @@ static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
 #else
       total_rate += get_symbol_cost(mvctx->shell_offset_other_class_cdf[0][i],
                                     (shell_cls_offset >> i) & 1);
-#endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
       update_cdf(mvctx->shell_offset_other_class_cdf[0][i],
                  (shell_cls_offset >> i) & 1, 2);
+#endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     }
   }
 
