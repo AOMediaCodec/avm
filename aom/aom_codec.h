@@ -333,6 +333,7 @@ typedef enum aom_bit_depth {
 typedef enum aom_superblock_size {
   AOM_SUPERBLOCK_SIZE_64X64,   /**< Always use 64x64 superblocks. */
   AOM_SUPERBLOCK_SIZE_128X128, /**< Always use 128x128 superblocks. */
+  AOM_SUPERBLOCK_SIZE_256X256, /**< Always use 256x256 superblocks. */
   AOM_SUPERBLOCK_SIZE_DYNAMIC  /**< Select superblock size dynamically. */
 } aom_superblock_size_t;
 

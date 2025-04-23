@@ -21,7 +21,7 @@
 #include "aom/aom_codec.h"
 
 static const char kSbSizeWarningString[] =
-    "super_block_size has to be 64 or 128.";
+    "super_block_size has to be one of: 64, 128 or 256.";
 static const char kMinpartWarningString[] =
     "min_partition_size has to be smaller or equal to max_partition_size.";
 static const char kMaxpartWarningString[] =
@@ -137,10 +137,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_LF_SUB_PU
     GET_PARAMS(enable_lf_sub_pu);
 #endif  // CONFIG_LF_SUB_PU
-    GET_PARAMS(enable_obmc);
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);
-    GET_PARAMS(enable_warped_causal);
+    GET_PARAMS(enable_warp_causal);
     GET_PARAMS(enable_warp_delta);
 #if CONFIG_SIX_PARAM_WARP_DELTA
     GET_PARAMS(enable_six_param_warp_delta);
@@ -184,6 +183,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_DRL_REORDER_CONTROL
     GET_PARAMS(enable_drl_reorder);
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+    GET_PARAMS(enable_cdef_on_skip_txfm);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     GET_PARAMS(enable_avg_cdf);
     GET_PARAMS(avg_cdf_type);
@@ -202,7 +204,8 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     exit(-1);
   }
 
-  if (config->superblock_size != 128 && config->superblock_size != 64) {
+  if (config->superblock_size != 256 && config->superblock_size != 128 &&
+      config->superblock_size != 64) {
     fprintf(stderr, "\n%s", kSbSizeWarningString);
     exit(-1);
   }

@@ -508,33 +508,6 @@ typedef struct {
   int cwp_idx;
 } COMP_RD_STATS;
 
-/*! \brief Contains buffers used to speed up rdopt for obmc.
- *
- * See the comments for calc_target_weighted_pred for details.
- */
-typedef struct {
-  /*! \brief A new source weighted with the above and left predictors.
-   *
-   * Used to efficiently construct multiple obmc predictors during rdopt.
-   */
-  int32_t *wsrc;
-  /*! \brief A new mask constructed from the original horz/vert mask.
-   *
-   * \copydetails wsrc
-   */
-  int32_t *mask;
-  /*! \brief Prediction from the up predictor.
-   *
-   * Used to build the obmc predictor.
-   */
-  uint16_t *above_pred;
-  /*! \brief Prediction from the up predictor.
-   *
-   * \copydetails above_pred
-   */
-  uint16_t *left_pred;
-} OBMCBuffer;
-
 /*! \brief Contains color maps used in palette mode.
  */
 typedef struct {
@@ -645,9 +618,9 @@ typedef struct SimpleMotionData {
 #define BLOCK_8_COUNT 64
 #define BLOCK_4_COUNT 64
 
-#define MAKE_SM_DATA_BUF(width, height) \
-  SimpleMotionData                      \
-      b_##width##x##height[BLOCK_##width##_COUNT * BLOCK_##height##_COUNT]
+#define MAKE_SM_DATA_BUF(width, height, sdp_flag)                            \
+  SimpleMotionData b_##width##x##height##_##sdp_flag[BLOCK_##width##_COUNT * \
+                                                     BLOCK_##height##_COUNT]
 /*!\endcond */
 
 /*! \brief Simple motion data buffers
@@ -655,53 +628,102 @@ typedef struct SimpleMotionData {
 typedef struct SimpleMotionDataBufs {
   /*!\cond */
   // Square blocks
-  MAKE_SM_DATA_BUF(256, 256);
-  MAKE_SM_DATA_BUF(128, 128);
-  MAKE_SM_DATA_BUF(64, 64);
-  MAKE_SM_DATA_BUF(32, 32);
-  MAKE_SM_DATA_BUF(16, 16);
-  MAKE_SM_DATA_BUF(8, 8);
-  MAKE_SM_DATA_BUF(4, 4);
+  MAKE_SM_DATA_BUF(256, 256, 0);
+  MAKE_SM_DATA_BUF(128, 128, 0);
+  MAKE_SM_DATA_BUF(64, 64, 0);
+  MAKE_SM_DATA_BUF(32, 32, 0);
+  MAKE_SM_DATA_BUF(16, 16, 0);
+  MAKE_SM_DATA_BUF(8, 8, 0);
+  MAKE_SM_DATA_BUF(4, 4, 0);
 
   // 1:2 blocks
-  MAKE_SM_DATA_BUF(128, 256);
-  MAKE_SM_DATA_BUF(64, 128);
-  MAKE_SM_DATA_BUF(32, 64);
-  MAKE_SM_DATA_BUF(16, 32);
-  MAKE_SM_DATA_BUF(8, 16);
-  MAKE_SM_DATA_BUF(4, 8);
+  MAKE_SM_DATA_BUF(128, 256, 0);
+  MAKE_SM_DATA_BUF(64, 128, 0);
+  MAKE_SM_DATA_BUF(32, 64, 0);
+  MAKE_SM_DATA_BUF(16, 32, 0);
+  MAKE_SM_DATA_BUF(8, 16, 0);
+  MAKE_SM_DATA_BUF(4, 8, 0);
 
   // 2:1 blocks
-  MAKE_SM_DATA_BUF(256, 128);
-  MAKE_SM_DATA_BUF(128, 64);
-  MAKE_SM_DATA_BUF(64, 32);
-  MAKE_SM_DATA_BUF(32, 16);
-  MAKE_SM_DATA_BUF(16, 8);
-  MAKE_SM_DATA_BUF(8, 4);
+  MAKE_SM_DATA_BUF(256, 128, 0);
+  MAKE_SM_DATA_BUF(128, 64, 0);
+  MAKE_SM_DATA_BUF(64, 32, 0);
+  MAKE_SM_DATA_BUF(32, 16, 0);
+  MAKE_SM_DATA_BUF(16, 8, 0);
+  MAKE_SM_DATA_BUF(8, 4, 0);
 
   // 1:4 blocks
-  MAKE_SM_DATA_BUF(16, 64);
-  MAKE_SM_DATA_BUF(8, 32);
-  MAKE_SM_DATA_BUF(4, 16);
+  MAKE_SM_DATA_BUF(16, 64, 0);
+  MAKE_SM_DATA_BUF(8, 32, 0);
+  MAKE_SM_DATA_BUF(4, 16, 0);
 
   // 4:1 blocks
-  MAKE_SM_DATA_BUF(64, 16);
-  MAKE_SM_DATA_BUF(32, 8);
-  MAKE_SM_DATA_BUF(16, 4);
+  MAKE_SM_DATA_BUF(64, 16, 0);
+  MAKE_SM_DATA_BUF(32, 8, 0);
+  MAKE_SM_DATA_BUF(16, 4, 0);
 
   // 1:8 blocks
-  MAKE_SM_DATA_BUF(8, 64);
-  MAKE_SM_DATA_BUF(4, 32);
+  MAKE_SM_DATA_BUF(8, 64, 0);
+  MAKE_SM_DATA_BUF(4, 32, 0);
 
   // 8:1 blocks
-  MAKE_SM_DATA_BUF(64, 8);
-  MAKE_SM_DATA_BUF(32, 4);
+  MAKE_SM_DATA_BUF(64, 8, 0);
+  MAKE_SM_DATA_BUF(32, 4, 0);
 
   // 1:16 blocks
-  MAKE_SM_DATA_BUF(4, 64);
+  MAKE_SM_DATA_BUF(4, 64, 0);
 
   // 16:1 blocks
-  MAKE_SM_DATA_BUF(64, 4);
+  MAKE_SM_DATA_BUF(64, 4, 0);
+
+  // Square blocks
+  MAKE_SM_DATA_BUF(256, 256, 1);
+  MAKE_SM_DATA_BUF(128, 128, 1);
+  MAKE_SM_DATA_BUF(64, 64, 1);
+  MAKE_SM_DATA_BUF(32, 32, 1);
+  MAKE_SM_DATA_BUF(16, 16, 1);
+  MAKE_SM_DATA_BUF(8, 8, 1);
+  MAKE_SM_DATA_BUF(4, 4, 1);
+
+  // 1:2 blocks
+  MAKE_SM_DATA_BUF(128, 256, 1);
+  MAKE_SM_DATA_BUF(64, 128, 1);
+  MAKE_SM_DATA_BUF(32, 64, 1);
+  MAKE_SM_DATA_BUF(16, 32, 1);
+  MAKE_SM_DATA_BUF(8, 16, 1);
+  MAKE_SM_DATA_BUF(4, 8, 1);
+
+  // 2:1 blocks
+  MAKE_SM_DATA_BUF(256, 128, 1);
+  MAKE_SM_DATA_BUF(128, 64, 1);
+  MAKE_SM_DATA_BUF(64, 32, 1);
+  MAKE_SM_DATA_BUF(32, 16, 1);
+  MAKE_SM_DATA_BUF(16, 8, 1);
+  MAKE_SM_DATA_BUF(8, 4, 1);
+
+  // 1:4 blocks
+  MAKE_SM_DATA_BUF(16, 64, 1);
+  MAKE_SM_DATA_BUF(8, 32, 1);
+  MAKE_SM_DATA_BUF(4, 16, 1);
+
+  // 4:1 blocks
+  MAKE_SM_DATA_BUF(64, 16, 1);
+  MAKE_SM_DATA_BUF(32, 8, 1);
+  MAKE_SM_DATA_BUF(16, 4, 1);
+
+  // 1:8 blocks
+  MAKE_SM_DATA_BUF(8, 64, 1);
+  MAKE_SM_DATA_BUF(4, 32, 1);
+
+  // 8:1 blocks
+  MAKE_SM_DATA_BUF(64, 8, 1);
+  MAKE_SM_DATA_BUF(32, 4, 1);
+
+  // 1:16 blocks
+  MAKE_SM_DATA_BUF(4, 64, 1);
+
+  // 16:1 blocks
+  MAKE_SM_DATA_BUF(64, 4, 1);
   /*!\endcond */
 } SimpleMotionDataBufs;
 
@@ -960,6 +982,9 @@ typedef struct {
 #else
   int mrl_index_cost[MRL_LINE_NUMBER];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_MRLS_IMPROVE
+  int multi_line_mrl_cost[MRL_INDEX_CONTEXTS][2];
+#endif
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
 #if CONFIG_ENABLE_MHCCP
@@ -992,6 +1017,9 @@ typedef struct {
   //! Cost of signaling secondary transform set index
 #if CONFIG_INTRA_TX_IST_PARSE
   int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
+#if CONFIG_F105_IST_MEM_REDUCE
+  int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCE_SET_SIZE_ADST_ADST];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   int stx_set_flag_cost[IST_DIR_SIZE][IST_DIR_SIZE];
 #endif  // CONFIG_INTRA_TX_IST_PARSE
@@ -1074,6 +1102,10 @@ typedef struct {
 
   //! inter warpmv mode cost
   int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  //! is_warpmv_or_warp_newmv_cost
+  int is_warpmv_or_warp_newmv_cost[2];
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
@@ -1216,31 +1248,28 @@ typedef struct {
    * \name Inter Costs: Motion Modes/Filters
    ****************************************************************************/
   /**@{*/
-  //! obmc_cost
-#if CONFIG_D149_CTX_MODELING_OPT
-  int obmc_cost[2];
+  //! warp_causal_cost
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  int warp_causal_cost[WARP_CAUSAL_MODE_CTX][2];
 #else
-  int obmc_cost[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
-  //! warped_causal_cost
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-  int warped_causal_cost[2];
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+  int warp_causal_cost[2];
 #else
-  int warped_causal_cost[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+  int warp_causal_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
   //! warp_delta_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int warp_delta_cost[2];
 #else
   int warp_delta_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
-  //! warped_causal_warpmv_cost
+  //! warp_causal_warpmv_cost
 #if CONFIG_D149_CTX_MODELING_OPT
-  int warped_causal_warpmv_cost[2];
+  int warp_causal_warpmv_cost[2];
 #else
-  int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
+  int warp_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
   //! warp_delta_param_cost
@@ -1681,8 +1710,6 @@ typedef struct macroblock {
   //! Offset of current coding block's coeff buffer relative to the sb.
   int cb_offset[MAX_MB_PLANE];
 
-  //! Modified source and masks used for fast OBMC search.
-  OBMCBuffer obmc_buffer;
   //! Buffer to store the best palette map.
   PALETTE_BUFFER *palette_buffer;
   //! Buffer used for compound_type_rd().
@@ -1700,11 +1727,7 @@ typedef struct macroblock {
   /*! \brief Temporary buffer to hold prediction.
    *
    * Points to a buffer that is used to hold temporary prediction results. This
-   * is used in two ways:
-   * - This is a temporary buffer used to pingpong the prediction in
-   *   handle_inter_mode.
-   * - xd->tmp_obmc_bufs also points to this buffer, and is used in ombc
-   *   prediction.
+   * is used to pingpong the prediction in handle_inter_mode.
    */
   uint16_t *tmp_pred_bufs[2];
 

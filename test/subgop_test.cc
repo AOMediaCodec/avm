@@ -305,9 +305,20 @@ class SubGopTestLarge
     frame_num_in_subgop_ = 0;
   }
 
+  int is_key_frame() {
+#if CONFIG_KEY_OVERLAY
+    // In the key overlay case, this function is called after the key overlay
+    // frame. Then frame_type_test_ is INTER. Need to add the extra condition
+    // to identify key overlay frame case.
+    return frame_type_test_ == KEY_FRAME || subgop_info_.has_key_overlay;
+#else
+    return frame_type_test_ == KEY_FRAME;
+#endif  // CONFIG_KEY_OVERLAY
+  }
+
   void DetermineSubgopCode(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type_test_);
-    if (frame_type_test_ == KEY_FRAME) {
+    if (is_key_frame()) {
       is_first_frame_in_subgop_key_ = 1;
       return;
     }
@@ -341,7 +352,7 @@ class SubGopTestLarge
 
   void FillTestSubgopConfig() {
     int filtered_frames[REF_FRAMES] = { 0 }, buf_idx = 0;
-    if (frame_type_test_ == KEY_FRAME) return;
+    if (is_key_frame()) return;
 
     subgop_cfg_test_.num_frames = (int8_t)subgop_info_.size;
     subgop_cfg_test_.num_steps = (int8_t)subgop_data_.num_steps;
@@ -576,7 +587,7 @@ class SubGopTestLarge
   }
 
   void ValidateSubgopConfig() {
-    if (frame_type_test_ == KEY_FRAME) return;
+    if (is_key_frame()) return;
     subgop_cfg_ref_ = DetermineSubgopConfig();
     if (subgop_cfg_ref_) {
       EXPECT_EQ((int8_t)subgop_size_, subgop_cfg_ref_->num_frames)
@@ -620,7 +631,7 @@ class SubGopTestLarge
         }
       }
       frames_from_key_ += subgop_info_.size;
-      if (frame_type_test_ == KEY_FRAME) {
+      if (is_key_frame()) {
         frames_from_key_ = 0;
       } else {
         is_first_frame_in_subgop_key_ = 0;
@@ -967,7 +978,12 @@ class SubGopSwitchingTestLarge
       // Compute sub-gop size
       subgop_size_ = subgop_info_.gf_interval;
       // Include KF in sub-gop size
-      if (frame_type == KEY_FRAME) subgop_size_++;
+      if (frame_type == KEY_FRAME
+#if CONFIG_KEY_OVERLAY
+          || subgop_info_.has_key_overlay
+#endif  // CONFIG_KEY_OVERLAY
+      )
+        subgop_size_++;
 
       // Update count of subgop cfg usage by the encoder
       num_subgop_cfg_used_ += subgop_info_.is_user_specified;

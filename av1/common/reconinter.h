@@ -377,8 +377,14 @@ static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
 #endif                                         // CONFIG_SIX_PARAM_WARP_DELTA
       (mbmi->warp_ref_idx == 1);               // 4-parameter
 
-  return (mbmi->mode != WARPMV && cm->features.allow_warpmv_mode &&
-          mbmi->motion_mode == WARP_DELTA && allow_delta_for_this_warp_ref_idx);
+  return (
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      mbmi->mode == WARP_NEWMV &&
+#else
+      mbmi->mode != WARPMV &&
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      cm->features.allow_warpmv_mode && mbmi->motion_mode == WARP_DELTA &&
+      allow_delta_for_this_warp_ref_idx);
 }
 
 // Map the index to weighting factor for compound weighted prediction
@@ -521,10 +527,6 @@ static INLINE void highbd_inter_predictor(
   }
 }
 
-void av1_modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi);
-int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
-                               const struct macroblockd_plane *pd, int dir);
-
 static INLINE int is_interinter_compound_used(COMPOUND_TYPE type,
                                               BLOCK_SIZE sb_type) {
   const int comp_allowed = is_comp_ref_allowed(sb_type);
@@ -591,7 +593,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-                                int build_for_obmc,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
                                 int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -909,13 +910,23 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
 
 #if CONFIG_REFINEMV
 // Compute the SAD between the two predictors when refinemv is ON
-int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
-                     int bd);
-// Genrate two prediction signals and compute SAD of a given mv0 and mv1
+int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
+                     int height, int bd);
+#if CONFIG_16_FULL_SEARCH_DMVR
+// Generate two prediction signals of a given mv0 and mv1
+void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
+                                   uint16_t **mc_buf,
+                                   CalcSubpelParamsFunc calc_subpel_params_func,
+                                   uint16_t *dst_ref0, uint16_t *dst_ref1,
+                                   int dst_stride, MV mv0, MV mv1,
+                                   InterPredParams *inter_pred_params);
+#else
+// Generate two prediction signals and compute SAD of a given mv0 and mv1
 int av1_refinemv_build_predictors_and_get_sad(
     MACROBLOCKD *xd, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst_ref0,
     uint16_t *dst_ref1, MV mv0, MV mv1, InterPredParams *inter_pred_params);
+#endif  // CONFIG_16_FULL_SEARCH_DMVR
 
 // Get the context index to code refinemv flag
 int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -1042,6 +1053,20 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 
+#if !CONFIG_ACROSS_SCALE_REFINEMV
+  // If one of the reference frame is different resolution than the current
+  // frame, refinemv is disabled.
+  const struct scale_factors *const sf0 =
+      is_tip ? cm->tip_ref.ref_scale_factor[0]
+             : get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+  const struct scale_factors *const sf1 =
+      is_tip ? cm->tip_ref.ref_scale_factor[1]
+             : get_ref_scale_factors_const(cm, mbmi->ref_frame[1]);
+  if (av1_is_scaled(sf0) || av1_is_scaled(sf1)) {
+    return 0;
+  }
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+
   if (is_tip) {
     d0 = cm->tip_ref.ref_offset[0];
     d1 = cm->tip_ref.ref_offset[1];
@@ -1083,7 +1108,8 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
   if (is_tip) return 0;
   assert(!mbmi->skip_mode);
   int is_compound = has_second_ref(mbmi);
-  return is_compound && is_refinemv_allowed_bsize(bsize) &&
+  return mbmi->motion_mode == SIMPLE_TRANSLATION && is_compound &&
+         is_refinemv_allowed_bsize(bsize) &&
          is_refinemv_allowed_mode_precision(mbmi->mode, mbmi->pb_mv_precision,
                                             cm) &&
          is_refinemv_allowed_reference(cm, mbmi);
@@ -1407,29 +1433,6 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
   return 1;
 }
 
-// Sets up buffers 'dst_buf1' and 'dst_buf2' from relevant buffers in 'xd' for
-// subsequent use in OBMC prediction.
-void av1_setup_obmc_dst_bufs(MACROBLOCKD *xd, uint16_t **dst_buf1,
-                             uint16_t **dst_buf2);
-
-void av1_setup_build_prediction_by_above_pred(
-    MACROBLOCKD *xd, int rel_mi_col, uint8_t above_mi_width,
-    MB_MODE_INFO *above_mbmi, struct build_prediction_ctxt *ctxt,
-    const int num_planes);
-void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
-                                             uint8_t left_mi_height,
-                                             MB_MODE_INFO *left_mbmi,
-                                             struct build_prediction_ctxt *ctxt,
-                                             const int num_planes);
-void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                     uint16_t *above[MAX_MB_PLANE],
-                                     int above_stride[MAX_MB_PLANE],
-                                     uint16_t *left[MAX_MB_PLANE],
-                                     int left_stride[MAX_MB_PLANE]);
-
-const uint8_t *av1_get_obmc_mask(int length);
-void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd);
-
 #define MASK_MASTER_SIZE ((MAX_WEDGE_SIZE) << 1)
 #define MASK_MASTER_STRIDE (MASK_MASTER_SIZE)
 
@@ -1483,7 +1486,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpTypesAllowed *const warp_types,
                    const WarpedMotionParams *const gm_params, int ref,
-                   int build_for_obmc, const struct scale_factors *const sf,
+                   const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
 // derive the context of the mpp_flag
@@ -1504,9 +1507,11 @@ void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 // Function to check if precision need to be signaled or not
-int is_intraBC_bv_precision_active(const int intrabc_mode);
+int is_intraBC_bv_precision_active(const AV1_COMMON *const cm,
+                                   const int intrabc_mode);
 // Set max value as default precision
-void set_default_intraBC_bv_precision(MB_MODE_INFO *mbmi);
+void set_default_intraBC_bv_precision(const AV1_COMMON *const cm,
+                                      MB_MODE_INFO *mbmi);
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // set the most probable mv precision of the block
@@ -1602,9 +1607,12 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
     }
     if (drl_idx > 0) return 0;
   }
-  return (mbmi->mode == NEWMV || mbmi->mode == JOINT_NEWMV ||
-          mbmi->mode == JOINT_NEWMV_OPTFLOW || mbmi->mode == NEW_NEWMV ||
-          mbmi->mode == NEW_NEWMV_OPTFLOW);
+  return (mbmi->mode == NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW ||
+          mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW);
 }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 

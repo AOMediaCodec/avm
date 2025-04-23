@@ -9,7 +9,6 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-
 #include "av1/common/common.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
@@ -206,12 +205,20 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 }
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
+#if CONFIG_PRIMARY_QP_FIRST
+typedef struct {
+  int idx;          // ref index
+  int qp_diff;      // QP difference of cur and ref
+  int base_qindex;  // cur QP
+  int disp_order;   // display order hint
+} RefCandidate;
+#else
 typedef struct {
   int idx;
   int disp_order;
   int base_qindex;
 } PrimaryRefCand;
-
+#endif  // CONFIG_PRIMARY_QP_FIRST
 // Check if one reference frame is better based on its distance to the current
 // frame.
 static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
@@ -228,6 +235,67 @@ static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
+#if CONFIG_PRIMARY_QP_FIRST
+// This change also include the aspect 1 from
+// CONFIG_IMPROVED_SECONDARY_REFERENC, to have a clear logic of the primary and
+// secondary reference frame.
+void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
+                                        int *ref_frame) {
+  const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
+                         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+  if (intra_only || cm->features.error_resilient_mode) {
+    ref_frame[0] = PRIMARY_REF_NONE;
+    ref_frame[1] = PRIMARY_REF_NONE;
+    return;
+  }
+
+  if (cm->tiles.large_scale) {
+    ref_frame[0] = 0;
+    ref_frame[1] = 0;
+    return;
+  }
+
+  // initialize
+  RefCandidate primary_cand = { -1, INT_MAX, -1, -1 };
+  RefCandidate secondary_cand = { -1, INT_MAX, -1, -1 };
+
+  const int current_qp = cm->quant_params.base_qindex;
+  const int cur_frame_disp = cm->current_frame.display_order_hint;
+  const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
+
+  const int n_refs = cm->ref_frames_info.num_total_refs;
+  const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
+
+  for (int i = 0; i < n_refs; i++) {
+    RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (cur_ref.disp_order == -1 || cur_ref.frame_type != INTER_FRAME) continue;
+
+    const int ref_qp = cur_ref.base_qindex;
+    const int qp_diff = abs(ref_qp - current_qp);
+
+    // comparision
+    if (qp_diff < primary_cand.qp_diff ||
+        (qp_diff == primary_cand.qp_diff &&
+         is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+                       primary_cand.disp_order))) {
+      secondary_cand = primary_cand;  // secondary pick the previous primary
+      primary_cand =
+          (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+    } else if (qp_diff < secondary_cand.qp_diff ||
+               (qp_diff == secondary_cand.qp_diff &&
+                is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+                              secondary_cand.disp_order))) {
+      secondary_cand =
+          (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+    }
+  }
+
+  // final result
+  ref_frame[0] = primary_cand.idx != -1 ? primary_cand.idx : PRIMARY_REF_NONE;
+  ref_frame[1] =
+      secondary_cand.idx != -1 ? secondary_cand.idx : PRIMARY_REF_NONE;
+}
+#else
 void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
                                         int *ref_frame) {
   const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
@@ -309,11 +377,23 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
   else if (secondary_cand_higher_qp.idx != -1)
     secondary_ref_frame = secondary_cand_higher_qp.idx;
 
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+  if (primary_ref_frame == cand_lower_qp.idx && cand_higher_qp.idx != -1 &&
+      secondary_cand_lower_qp.idx != -1) {
+    if (abs(cm->quant_params.base_qindex -
+            secondary_cand_lower_qp.base_qindex) >
+        abs(cm->quant_params.base_qindex - cand_higher_qp.base_qindex)) {
+      secondary_ref_frame = cand_higher_qp.idx;
+    }
+  }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
+
   ref_frame[0] = primary_ref_frame;
   ref_frame[1] = secondary_ref_frame;
 
   return;
 }
+#endif  // CONFIG_PRIMARY_QP_FIRST
 #else
 // Derive the primary reference frame from the reference list based on qindex
 // and frame distances.
@@ -611,6 +691,80 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   }
 }
 #endif  // CONFIG_CCSO_IMPROVE
+
+#if CONFIG_CDEF_ENHANCEMENTS
+// This funtion is to check if the 1st mbmi of the current cdef unit is inside
+// the current tile. The 1st mbmi is used to signal the cdef block control flag
+// for the current cdef unit.
+bool av1_check_cdef_mbmi_inside_tile(const MACROBLOCKD *xd,
+                                     const MB_MODE_INFO *const mbmi) {
+  const TileInfo *const tile = &xd->tile;
+  // CDEF unit size is 64x64 irrespective of the superblock size.
+  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
+  const int block_mask = ~(cdef_size - 1);
+
+  return (((mbmi->mi_row_start & block_mask) >= tile->mi_row_start) &&
+          ((mbmi->mi_col_start & block_mask) >= tile->mi_col_start) &&
+          ((mbmi->mi_row_start & block_mask) < tile->mi_row_end) &&
+          ((mbmi->mi_col_start & block_mask) < tile->mi_col_end));
+}
+
+// This function is the derive the neighboring context of cdef_cdf. -- means
+// neighbouring cdef unit or cdef flag is not available. 0 -
+// neighbor0_cdef_false/neighbor1_cdef_false, neighbor0_cdef_false/--,
+// --/neighbor1_cdef_false, --/-- 1 - neighbor0_cdef_true/neighbor0_cdef_false,
+// neighbor0_cdef_false/neighbor1_cdef_true 2 - neighbor0_cdef_true/--,
+// --/neighbor1_cdef_true, neighbor0_cdef_true/neighbor1_cdef_true &&
+// neighbor0_cdef_unit==neighbor1_cdef_unit 3 -
+// neighbor0_cdef_true/neighbor1_cdef_true &&
+// neighbor0_cdef_unit!=neighbor1_cdef_unit
+int av1_get_cdef_context(const MACROBLOCKD *xd) {
+  // CDEF unit size is 64x64 irrespective of the superblock size.
+  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
+  const int block_mask = ~(cdef_size - 1);
+
+  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
+  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
+
+  bool neighbor0_cdef_available = 0;
+  bool neighbor1_cdef_available = 0;
+
+  if (neighbor0) {
+    neighbor0_cdef_available = av1_check_cdef_mbmi_inside_tile(xd, neighbor0);
+  }
+
+  if (neighbor1) {
+    neighbor1_cdef_available = av1_check_cdef_mbmi_inside_tile(xd, neighbor1);
+  }
+
+  if (neighbor0_cdef_available && neighbor1_cdef_available) {
+    const int is_neighbor0_cdef_index0 = (neighbor0->cdef_strength == 0);
+    const int is_neighbor1_cdef_index0 = (neighbor1->cdef_strength == 0);
+
+    if ((neighbor0->mi_row_start & block_mask) !=
+            (neighbor1->mi_row_start & block_mask) ||
+        (neighbor0->mi_col_start & block_mask) !=
+            (neighbor1->mi_col_start & block_mask)) {
+      // neighbor0 and neighbor1 belong to different superblocks
+      return is_neighbor0_cdef_index0 && is_neighbor1_cdef_index0
+                 ? 3
+                 : (is_neighbor0_cdef_index0 || is_neighbor1_cdef_index0);
+    } else {
+      // neighbor0 and neighbor1 belong to the same superblock
+      return is_neighbor0_cdef_index0 ? 2 : 0;
+    }
+  } else if (neighbor0_cdef_available || neighbor1_cdef_available) {
+    const MB_MODE_INFO *const neighbor =
+        neighbor0_cdef_available ? neighbor0 : neighbor1;
+
+    const int is_neighbor_cdef_index0 = (neighbor->cdef_strength == 0);
+
+    return is_neighbor_cdef_index0 ? 2 : 0;
+  } else {
+    return 0;
+  }
+}
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 #define IS_BACKWARD_REF_FRAME(ref_frame) \
   (get_dir_rank(cm, ref_frame, NULL) == 1)

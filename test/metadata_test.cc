@@ -73,6 +73,9 @@ class MetadataEncodeTest
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
       encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, max_partition_size_);
+#if CONFIG_KEY_OVERLAY
+      encoder->Control(AV1E_SET_ENABLE_KEYFRAME_FILTERING, 0);
+#endif  // CONFIG_KEY_OVERLAY
     }
 
     aom_image_t *current_frame = video->img();

@@ -8,11 +8,7 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(CONFIG_TENSORFLOW_LITE)
-  cmake_minimum_required(VERSION 3.16)
-else()
-  cmake_minimum_required(VERSION 3.9)
-endif()
+cmake_minimum_required(VERSION 3.16)
 
 set(AOM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(AOM_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}")

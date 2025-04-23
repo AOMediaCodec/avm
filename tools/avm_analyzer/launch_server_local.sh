@@ -19,7 +19,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [[ -z ${streams_dir} || -z ${avm_build_dir} ]]; then
-  echo "Usage: ./launch_server_docker.sh --streams_dir <STREAMS_PATH> --avm_build_dir <AVM_BUILD_PATH> [--port <PORT>]"
+  echo "Usage: ./launch_server_local.sh --streams_dir <STREAMS_PATH> --avm_build_dir <AVM_BUILD_PATH> [--port <PORT>]"
   exit 1
 fi
 mkdir -p ${streams_dir}
@@ -29,10 +29,10 @@ SERVER_ARGS=(--extract-proto ${avm_build_dir}/extract_proto\
   --frontend-root ${GIT_ROOT}/tools/avm_analyzer/avm_analyzer_app/dist --ip "127.0.0.1" --port ${port})
 
 if [[ ${watch} -eq 1 ]]; then
-trunk watch --release ${GIT_ROOT}/tools/avm_analyzer/avm_analyzer_app/index.html &
+trunk watch --config avm_analyzer_app --release &
 WATCH_CMD="run --release --bin avm-analyzer-server -- ${SERVER_ARGS[@]}"
 cargo watch -w avm_analyzer_server -x "${WATCH_CMD}"
 else
-trunk build --release ${GIT_ROOT}/tools/avm_analyzer/avm_analyzer_app/index.html
+trunk build --config avm_analyzer_app --release
 cargo run --release --bin avm-analyzer-server -- ${SERVER_ARGS[@]}
 fi

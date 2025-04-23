@@ -406,7 +406,7 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
   // Setting up motion search
   int ref_list[1];
-  ref_list[0] = get_closest_pastcur_ref_index(&cpi->common);
+  ref_list[0] = get_closest_pastcur_ref_or_ref0(&cpi->common);
 
   const int num_refs = 1;
   const int use_subpixel = 1;
@@ -1369,13 +1369,15 @@ void av1_prune_partitions_before_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!*partition_none_allowed) {
       av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
-                               PARTITION_HORZ);
+                               PARTITION_HORZ, (int8_t)pc_tree->region_type);
       const int mi_step = block_size_high[bsize] / 2;
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                               cm->sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT,
+                               (int8_t)pc_tree->region_type);
       av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
-                               cm->sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT,
+                               (int8_t)pc_tree->region_type);
     }
     (void)pc_tree;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1402,8 +1404,13 @@ void av1_prune_partitions_before_search(
 
 void av1_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    int *partition_none_allowed, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *do_square_split) {
+    PartitionSearchState *partition_search_state, int *do_square_split) {
+  if (!is_partition_point(bsize) ||
+      partition_search_state->forced_partition != PARTITION_INVALID) {
+    // Special case. We can't enforce min/max constraints here.
+    return;
+  }
+
   assert(is_bsize_square(sb_enc->max_partition_size));
   assert(is_bsize_square(sb_enc->min_partition_size));
   assert(sb_enc->min_partition_size <= sb_enc->max_partition_size);
@@ -1429,27 +1436,58 @@ void av1_prune_partitions_by_max_min_bsize(
   assert(min_partition_size_1d <= max_partition_size_1d);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-  if (is_gt_max_sq_part) {
-    // If current block size is larger than max, only allow split.
-    *partition_none_allowed = 0;
+  if (is_gt_max_sq_part) {  // current block size is larger than max size.
+    // Disable some partition types to partition down to max allowed size.
+    partition_search_state->prune_partition_none = true;
 #if CONFIG_EXT_RECUR_PARTITIONS
-    *partition_horz_allowed = 1;
-    *partition_vert_allowed = 1;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-    *partition_horz_allowed = 0;
-    *partition_vert_allowed = 0;
+    partition_search_state->prune_partition_3[HORZ] = true;
+    partition_search_state->prune_partition_3[VERT] = true;
+    partition_search_state->prune_partition_4a[HORZ] = true;
+    partition_search_state->prune_partition_4a[VERT] = true;
+    partition_search_state->prune_partition_4b[HORZ] = true;
+    partition_search_state->prune_partition_4b[VERT] = true;
+    if (partition_search_state->partition_split_allowed) {  // only allow split
+      partition_search_state->prune_rect_part[HORZ] = true;
+      partition_search_state->prune_rect_part[VERT] = true;
+    } else {  // only allow one of horz or vert
+      assert(partition_search_state->partition_rect_allowed[HORZ] ||
+             partition_search_state->partition_rect_allowed[VERT]);
+      assert(!partition_search_state->prune_rect_part[HORZ] ||
+             !partition_search_state->prune_rect_part[VERT]);
+      if (partition_search_state->partition_rect_allowed[HORZ] &&
+          partition_search_state->partition_rect_allowed[VERT] &&
+          !partition_search_state->prune_rect_part[HORZ] &&
+          !partition_search_state->prune_rect_part[VERT]) {
+        if (is_wide_block(bsize)) {  // Allow VERT partition only.
+          partition_search_state->prune_rect_part[HORZ] = true;
+        } else {  // Allow HORZ partition only.
+          assert(is_square_block(bsize) || is_tall_block(bsize));
+          partition_search_state->prune_rect_part[VERT] = true;
+        }
+      }
+    }
+#else                              // CONFIG_EXT_RECUR_PARTITIONS
+    // Only allow split partition.
+    partition_search_state->partition_rect_allowed[HORZ] = 0;
+    partition_search_state->partition_rect_allowed[VERT] = 0;
     *do_square_split = 1;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-  } else if (is_le_min_sq_part) {
-    // If current block size is less or equal to min, only allow none if valid
-    // block large enough; only allow split otherwise.
-    *partition_horz_allowed = 0;
-    *partition_vert_allowed = 0;
+#endif                             // CONFIG_EXT_RECUR_PARTITIONS
+  } else if (is_le_min_sq_part) {  // current block size is less or equal to min
+    // Disallow all 2-way partitions.
+    partition_search_state->prune_rect_part[HORZ] = true;
+    partition_search_state->prune_rect_part[VERT] = true;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    // Disallow all H and uneven-4way partitions.
+    partition_search_state->prune_partition_3[HORZ] = true;
+    partition_search_state->prune_partition_3[VERT] = true;
+    partition_search_state->prune_partition_4a[HORZ] = true;
+    partition_search_state->prune_partition_4a[VERT] = true;
+    partition_search_state->prune_partition_4b[HORZ] = true;
+    partition_search_state->prune_partition_4b[VERT] = true;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    // only allow none if valid block large enough; only allow split otherwise.
     // only disable square split when current block is not at the picture
     // boundary. otherwise, inherit the square split flag from previous logic
-#if CONFIG_EXT_RECUR_PARTITIONS
-    *partition_none_allowed = 1;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
     if (is_not_edge_block) *do_square_split = 0;
     *partition_none_allowed = !(*do_square_split);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1673,72 +1711,129 @@ static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
   return idx;
 }
 
-#define MAKE_SMS_ARR_SWITCH_CASE(width, height) \
-  case BLOCK_##width##X##height: {              \
-    return sms_bufs->b_##width##x##height;      \
+#define MAKE_SMS_ARR_SWITCH_CASE(width, height, sdp_flag) \
+  case BLOCK_##width##X##height: {                        \
+    return sms_bufs->b_##width##x##height##_##sdp_flag;   \
   }
 
 // Returns the buffer in SimpleMotionDataBufs that correspond to bsize.
 static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
-                                            BLOCK_SIZE bsize) {
-  switch (bsize) {
-    // Square blocks
-    MAKE_SMS_ARR_SWITCH_CASE(256, 256);
-    MAKE_SMS_ARR_SWITCH_CASE(128, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 4);
+                                            BLOCK_SIZE bsize,
+                                            int8_t region_type) {
+  if (region_type == 1) {
+    switch (bsize) {
+      // Square blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 1);
 
-    // 1:2 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(128, 256);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 8);
+      // 1:2 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 1);
 
-    // 2:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(256, 128);
-    MAKE_SMS_ARR_SWITCH_CASE(128, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(64, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 4);
+      // 2:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 1);
 
-    // 1:4 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(16, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(8, 32);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 16);
+      // 1:4 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 1);
 
-    // 4:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 16);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(16, 4);
+      // 4:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 1);
 
-    // 1:8 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(8, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 32);
+      // 1:8 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 1);
 
-    // 8:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 8);
-    MAKE_SMS_ARR_SWITCH_CASE(32, 4);
+      // 8:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 1);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 1);
 
-    // 16:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(64, 4);
+      // 16:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 1);
 
-    // 1:16 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(4, 64);
+      // 1:16 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 1);
 
-    default: assert(0 && "Invalid bsize"); return NULL;
+      default: assert(0 && "Invalid bsize"); return NULL;
+    }
+  } else {  // region_type = 0
+    switch (bsize) {
+      // Square blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 0);
+
+      // 1:2 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 0);
+
+      // 2:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 0);
+
+      // 1:4 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 0);
+
+      // 4:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 0);
+
+      // 1:8 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 0);
+
+      // 8:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 0);
+      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 0);
+
+      // 16:1 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 0);
+
+      // 1:16 blocks
+      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 0);
+
+      default: assert(0 && "Invalid bsize"); return NULL;
+    }
   }
 }
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
-void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs) {
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs,
+                              int8_t region_type) {
   for (BLOCK_SIZE bsize = BLOCK_4X4; bsize < BLOCK_SIZES_ALL; bsize++) {
-    SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+    SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize, region_type);
     const int mi_wide = mi_size_wide[bsize];
     const int mi_high = mi_size_high[bsize];
     const int sms_wide = get_sms_count_from_length(mi_wide);
@@ -1752,7 +1847,8 @@ void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs) {
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs
 SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
-                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                         int8_t region_type) {
   assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
   assert(bsize < BLOCK_SIZES_ALL);
   const int mi_in_sb = mi_size_high[sb_size];
@@ -1765,15 +1861,15 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
   const int idx_col_in_sb = get_sms_arr_1d_idx(mi_wide, mi_col_in_sb);
   if (idx_col_in_sb == -1) return NULL;
   const int arr_stride = get_sms_count_from_length(mi_wide);
-  SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+  SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize, region_type);
   return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
 }
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
-                              PARTITION_TYPE partition) {
-  SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+                              PARTITION_TYPE partition, int8_t region_type) {
+  SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   cur_block->has_prev_partition = 1;
   cur_block->prev_partition = partition;
 }
@@ -1794,7 +1890,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
 #endif  // CONFIG_ML_PART_SPLIT
 ) {
   const AV1_COMMON *const cm = &cpi->common;
-  const int ref_frame = get_closest_pastcur_ref_index(cm);
+  const int ref_frame = get_closest_pastcur_ref_or_ref0(cm);
   assert(ref_frame >= 0);
   if (mi_col >= cm->mi_params.mi_cols || mi_row >= cm->mi_params.mi_rows) {
     // If the whole block is outside of the image, set the var and sse to 0.
@@ -1806,6 +1902,12 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     sms_data->ref_frame = -1;
     sms_data->rdmult = 0;
     sms_data->valid = 1;
+#if CONFIG_ML_PART_SPLIT
+    if (need_residual_stats) {
+      sms_data->residual_stats_valid = true;
+      memset(&sms_data->residual_stats, 0, sizeof(sms_data->residual_stats));
+    }
+#endif  // CONFIG_ML_PART_SPLIT
     return;
   }
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
@@ -1948,7 +2050,7 @@ static INLINE void add_start_mv_to_partition(
     const int sub_col =
         mi_col + step_multiplier[partition][idx][1] * eighth_step_w / 4;
     SimpleMotionData *subblock = av1_get_sms_data_entry(
-        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size);
+        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size, 1);
     add_start_mv_to_block(subblock, start_mv);
   }
 }
@@ -1962,12 +2064,14 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    ,
                                    ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT
-) {
+                                   ,
+                                   int8_t region_type) {
+  assert(region_type == 1);
   const AV1_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
-  SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   if (!cur_block->valid
 #if CONFIG_ML_PART_SPLIT
       || (need_residual_stats && !cur_block->residual_stats_valid)
@@ -1989,10 +2093,11 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
 }
 
 PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
-                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                      int8_t region_type) {
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
-  const SimpleMotionData *cur_block =
-      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  const SimpleMotionData *cur_block = av1_get_sms_data_entry(
+      sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
   if (cur_block && cur_block->has_prev_partition) {
     return cur_block->prev_partition;
   } else {
@@ -2030,7 +2135,8 @@ void av1_gather_erp_rect_features(
       ,
       NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-  );
+      ,
+      1);
 
   const BLOCK_SIZE h_size = get_partition_subsize(bsize, PARTITION_HORZ);
   const SimpleMotionData *blk_h1 =
@@ -2041,7 +2147,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
   const SimpleMotionData *blk_h2 =
       h_size != BLOCK_INVALID
@@ -2051,7 +2158,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
 
   const BLOCK_SIZE v_size = get_partition_subsize(bsize, PARTITION_VERT);
@@ -2063,7 +2171,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
   const SimpleMotionData *blk_v2 =
       v_size != BLOCK_INVALID
@@ -2073,7 +2182,8 @@ void av1_gather_erp_rect_features(
                              ,
                              NULL, false
 #endif  // CONFIG_ML_PART_SPLIT
-                             )
+                             ,
+                             1)
           : NULL;
 
   // Results of SMS on the subblocks
@@ -2269,8 +2379,8 @@ static AOM_INLINE void av1_ml_part_split_features_square(AV1_COMP *const cpi,
         // Don't process beyond the tile boundary
         if (mi_col_left < 0) break;
         int src_off = (row_off << 2) * x->plane[0].src.stride + (col_off << 2);
-        xd->mb_to_top_edge = (-mi_row - row_off) << MI_SUBPEL_SIZE_LOG2;
-        xd->mb_to_left_edge = (-mi_col - col_off) << MI_SUBPEL_SIZE_LOG2;
+        xd->mb_to_top_edge = -GET_MV_SUBPEL((mi_row + row_off) * MI_SIZE);
+        xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col + col_off) * MI_SIZE);
         mbmi->sb_type[0] = subsize_sq;
         xd->up_available = (mi_row + row_off) > 0;
         xd->left_available = (mi_col + col_off) > 0;
@@ -2340,8 +2450,8 @@ static AOM_INLINE void av1_ml_part_split_features_none(AV1_COMP *const cpi,
   unsigned int tx_h = tx_size_high_unit[tx_size];
   DECLARE_ALIGNED(16, uint16_t, intrapred[MAX_BLK_SQUARE]);
 
-  xd->mb_to_top_edge = -mi_row << MI_SUBPEL_SIZE_LOG2;
-  xd->mb_to_left_edge = -mi_col << MI_SUBPEL_SIZE_LOG2;
+  xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
+  xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
   mbmi->sb_type[0] = bsize;
   unsigned int best_sse[3] = { INT_MAX, INT_MAX, INT_MAX };
   unsigned int best_var[3] = { 0, 0, 0 };
@@ -2444,6 +2554,10 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   int old2 = xd->mb_to_left_edge;
   int old3 = mbmi->sb_type[0];
   int old4 = mbmi->mrl_index;
+#if CONFIG_MRLS_IMPROVE
+  int old5 = mbmi->multi_line_mrl;
+  mbmi->multi_line_mrl = 0;
+#endif
   mbmi->mrl_index = 0;
 
   av1_ml_part_split_features_square(cpi, x, mi_row, mi_col, bsize,
@@ -2454,7 +2568,9 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   xd->mb_to_left_edge = old2;
   mbmi->sb_type[0] = old3;
   mbmi->mrl_index = old4;
-
+#if CONFIG_MRLS_IMPROVE
+  mbmi->multi_line_mrl = old5;
+#endif
   aom_clear_system_state();
 }
 
@@ -2604,7 +2720,7 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (cpi->common.current_frame.frame_type != INTER_FRAME) return;
 
   SimpleMotionData *blk_none =
-      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, true);
+      av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize, td, true, 1);
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
       get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
@@ -2616,15 +2732,16 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
   if (subsize_sq != BLOCK_INVALID) {
     int w_sub_mi = mi_size_wide[subsize_sq];
     int h_sub_mi = mi_size_high[subsize_sq];
-    SimpleMotionData *blk_sq_0 = av1_get_sms_data(cpi, tile_info, x, mi_row,
-                                                  mi_col, subsize_sq, td, true);
+
+    SimpleMotionData *blk_sq_0 = av1_get_sms_data(
+        cpi, tile_info, x, mi_row, mi_col, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, true);
+        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_2 = av1_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, true);
+        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_3 =
         av1_get_sms_data(cpi, tile_info, x, mi_row + h_sub_mi,
-                         mi_col + w_sub_mi, subsize_sq, td, true);
+                         mi_col + w_sub_mi, subsize_sq, td, true, 1);
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];
@@ -2654,6 +2771,13 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
 int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                             int mi_col, BLOCK_SIZE bsize,
                             const TileInfo *tile_info, ThreadData *td) {
+  const int mi_high = mi_size_high[bsize];
+  const int mi_wide = mi_size_wide[bsize];
+  const AV1_COMMON *const cm = &cpi->common;
+  if (mi_col + mi_wide > cm->mi_params.mi_cols ||
+      mi_row + mi_high > cm->mi_params.mi_rows)
+    return ML_PART_NOT_SURE;
+
   const MACROBLOCKD *xd = &x->e_mbd;
   int qp = cpi->common.quant_params.base_qindex;
   bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
@@ -2672,7 +2796,6 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     if (had_error) return ML_PART_NOT_SURE;
   }
 
-  const AV1_COMMON *const cm = &cpi->common;
   int qp_offset;
   switch (cm->seq_params.bit_depth) {
     case AOM_BITS_10: qp_offset = qindex_10b_offset[1]; break;

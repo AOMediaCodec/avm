@@ -54,11 +54,9 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_ML_PART_SPLIT
 );
 #if CONFIG_EXT_RECUR_PARTITIONS
-void av1_build_partition_tree_fixed_partitioning(AV1_COMMON *const cm,
-                                                 TREE_TYPE tree_type,
-                                                 int mi_row, int mi_col,
-                                                 BLOCK_SIZE bsize,
-                                                 PARTITION_TREE *ptree);
+void av1_build_partition_tree_fixed_partitioning(
+    AV1_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                         int mi_row, int mi_col, BLOCK_SIZE bsize,

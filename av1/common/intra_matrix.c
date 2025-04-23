@@ -15,14 +15,8 @@
 #include "intra_dip.h"
 #include "intra_matrix.h"
 
-#define ROWS 64
-#define COLS 11
-#define BITS 12
-#define OFFSET (1 << (12 - 1))
-#define SCALE 4
-
-static const uint16_t
-    av1_intra_matrix_weights[INTRA_DIP_MODE_CNT][ROWS][COLS] = {
+const uint16_t
+    av1_intra_matrix_weights[INTRA_DIP_MODE_CNT][DIP_ROWS][DIP_COLS] = {
       {
           { 776, 1714, 1077, 998, 1043, 1437, 1157, 1027, 1027, 1011, 1023 },
           { 845, 1519, 1598, 892, 1088, 988, 1219, 1079, 1039, 1000, 1022 },
@@ -426,17 +420,17 @@ static const uint16_t
 // B - pointer to feature vector
 // C - 8x8 output prediction
 // bd - bit depth
-static void matrix_multiplication(const uint16_t *A, const uint16_t *B,
-                                  uint16_t *C, int bd) {
+void av1_dip_matrix_multiplication_c(const uint16_t *A, const uint16_t *B,
+                                     uint16_t *C, int bd) {
   int sum = 0;
-  for (int j = 0; j < COLS; j++) sum += B[j];
+  for (int j = 0; j < DIP_FEATURES; j++) sum += B[j];
 
-  for (int i = 0; i < ROWS; i++) {
+  for (int i = 0; i < DIP_ROWS; i++) {
     int c = 0;
-    for (int j = 0; j < COLS; j++) {
-      c += SCALE * A[i * COLS + j] * B[j];
+    for (int j = 0; j < DIP_FEATURES; j++) {
+      c += DIP_SCALE * A[i * DIP_COLS + j] * B[j];
     }
-    c = ((c + OFFSET) >> BITS) - sum;
+    c = ((c + DIP_OFFSET) >> DIP_BITS) - sum;
     C[i] = clip_pixel_highbd(c, bd);
   }
 }
@@ -447,5 +441,5 @@ void av1_intra_matrix_pred(const uint16_t *input, int mode, uint16_t *output,
   assert(mode >= 0 && mode < INTRA_DIP_MODE_CNT);
   const uint16_t *A = &av1_intra_matrix_weights[mode][0][0];
 
-  matrix_multiplication(A, input, output, bd);
+  av1_dip_matrix_multiplication(A, input, output, bd);
 }

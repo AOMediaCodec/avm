@@ -41,6 +41,27 @@ typedef struct mvp_unit_status {
 } MVP_UNIT_STATUS;
 #endif  // CONFIG_MVP_SIMPLIFY
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+enum {
+  /**
+   * Coding block width is 4
+   */
+  BLOCK_WIDTH_4 = 0,
+  /**
+   * Coding block width is 8
+   */
+  BLOCK_WIDTH_8,
+  /**
+   * Coding block width no less than 16
+   */
+  BLOCK_WIDTH_OTHERS,
+  /**
+   * Coding block width types
+   */
+  BLOCK_WIDTH_TYPES,
+} UENUM1BYTE(BLOCK_WIDTH_TYPE);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+
 #if CONFIG_TMVP_MEM_OPT
 #define TIP_MFMV_STACK_SIZE 3  // The limit for original TMVP w/ TIP.
 #define MFMV_STACK_SIZE 4      // The total limit of motion field candidates.
@@ -260,6 +281,13 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -353,6 +381,13 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -514,6 +549,13 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -598,6 +640,13 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_TMVP_MV_COMPRESSION
+      for (int idx = 0; idx < 2; ++idx) {
+        if (is_inter_ref_frame(mv->ref_frame[idx])) {
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+        }
+      }
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -2569,6 +2618,10 @@ static AOM_INLINE void add_tmvp_candidate(
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
+  if (cm->features.allow_ref_frame_mvs == 0 ||
+      cm->seq_params.order_hint_info.enable_order_hint == 0)
+    return 0;
+
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
   if (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
@@ -2579,6 +2632,319 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
   return 0;
 }
 #endif  // CONFIG_DRL_REORDER_CONTROL
+
+static AOM_INLINE void add_derived_smvp_candidates(
+    const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
+    MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
+    uint8_t *const refmv_count,
+    CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+    CANDIDATE_MV derived_mv_stack[MAX_REF_MV_STACK_SIZE],
+    uint8_t derived_mv_count) {
+#if CONFIG_MVP_IMPROVEMENT
+  const int max_ref_mv_count =
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+      xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
+          ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
+          :
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+          AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+  if (xd->mi[0]->skip_mode) derived_mv_count = 0;
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+  if (*refmv_count < max_ref_mv_count && derived_mv_count > 0) {
+    fill_mvp_from_derived_smvp(rf, ref_mv_stack, ref_mv_weight, refmv_count,
+                               derived_mv_stack, derived_mv_count,
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+                               xd->mi[0], ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+                               max_ref_mv_count);
+  }
+#endif  // CONFIG_MVP_IMPROVEMENT
+}
+
+static AOM_INLINE void add_ref_mv_bank_candidates(
+    const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
+    MV_REFERENCE_FRAME ref_frame, MV_REFERENCE_FRAME *ref_frame_idx0,
+    MV_REFERENCE_FRAME *ref_frame_idx1, uint8_t *const refmv_count,
+    CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]) {
+  const int ref_mv_limit =
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+      xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
+          ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
+          :
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+          AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+  // If open slots are available, fetch reference MVs from the ref mv banks.
+  if (*refmv_count < ref_mv_limit
+#if !CONFIG_IBC_BV_IMPROVEMENT
+      && ref_frame != INTRA_FRAME
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+  ) {
+    const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
+#if CONFIG_LC_REF_MV_BANK
+    const int rmb_list_index = get_rmb_list_index(ref_frame);
+#else
+    const int rmb_list_index = ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+    const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
+#if CONFIG_LC_REF_MV_BANK
+    const MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+    const int count = ref_mv_bank->rmb_count[rmb_list_index];
+    const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
+    const int is_comp = is_inter_ref_frame(rf[1]);
+    const int block_width = xd->width * MI_SIZE;
+    const int block_height = xd->height * MI_SIZE;
+    for (int idx_bank = 0; idx_bank < count && *refmv_count < ref_mv_limit;
+         ++idx_bank) {
+      const int idx = (start_idx + count - 1 - idx_bank) % REF_MV_BANK_SIZE;
+      const CANDIDATE_MV cand_mv = queue[idx];
+#if CONFIG_LC_REF_MV_BANK
+      if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS &&
+          rmb_ref_frame[idx] != ref_frame)
+        continue;
+#endif  // CONFIG_LC_REF_MV_BANK
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+      bool rmb_candi_exist =
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+          check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
+                         is_comp, xd->mi_row, xd->mi_col, block_width,
+                         block_height, cm->width, cm->height);
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+      if (xd->mi[0]->skip_mode && rmb_candi_exist) {
+        ref_frame_idx0[*refmv_count - 1] = rf[0];
+        ref_frame_idx1[*refmv_count - 1] = rf[1];
+      }
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+    }
+  }
+}
+
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+// Compute the offset between 8x8 aligned spatial neighbor block and mi_col
+static AOM_INLINE int compute_aligned_offset(int mi_col, int col_offset) {
+  // Around the super-block boundary, align mi_col to 8x8 grid
+  const int aligned_mi_col = (mi_col >> 1) << 1;
+  return aligned_mi_col + col_offset - mi_col;
+}
+
+// Check if the above spatial neighbor block is within the tile
+static AOM_INLINE int is_above_smvp_available(const MACROBLOCKD *xd, int mi_col,
+                                              int col_offset) {
+  if (!xd->up_available) return 0;
+  // Around the super-block boundary, align mi_col to 8x8 grid
+  const int aligned_smvp_mi_col = ((mi_col >> 1) << 1) + col_offset;
+  return aligned_smvp_mi_col >= xd->tile.mi_col_start &&
+         aligned_smvp_mi_col < xd->tile.mi_col_end;
+}
+
+// Compute the availability and the offset of the above row neighbor block
+static AOM_INLINE void get_row_smvp_states(const AV1_COMMON *cm,
+                                           const MACROBLOCKD *xd,
+                                           MVP_UNIT_STATUS row_smvp_state[4]) {
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int has_tr = has_top_right(cm, xd, mi_row, mi_col, xd->width);
+#else
+  const int bs = AOMMAX(xd->width, xd->height);
+  const int has_tr = has_top_right(cm, xd, mi_row, mi_col, bs);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  const int block_width_type =
+      xd->width == 1 ? BLOCK_WIDTH_4
+                     : (xd->width == 2 ? BLOCK_WIDTH_8 : BLOCK_WIDTH_OTHERS);
+  const int is_sb_boundary = (mi_row % cm->mib_size == 0);
+
+  const MVP_UNIT_STATUS row_smvp_all_states[2][BLOCK_WIDTH_TYPES][4] = {
+    {
+        // Within the super-block, similar to the existing algorithm,
+        // access to information is allowed for each 4x4 unit.
+        {
+            // Block width is 4
+            { xd->up_available, -1, (xd->width - 1) },
+            { 0, -1, 0 },
+            { has_tr, -1, xd->width },
+            { xd->up_available && xd->left_available, -1, -1 },
+        },
+        {
+            // Block width is 8
+            { xd->up_available, -1, (xd->width - 1) },
+            { xd->up_available, -1, 0 },
+            { has_tr, -1, xd->width },
+            { xd->up_available && xd->left_available, -1, -1 },
+        },
+        {
+            // Block width is no less than 8
+            { xd->up_available, -1, (xd->width - 1) },
+            { xd->up_available, -1, 0 },
+            { has_tr, -1, xd->width },
+            { xd->up_available && xd->left_available, -1, -1 },
+        },
+    },
+    {
+        // Around the super-block boundary, to reduce the size of the line
+        // buffer, access to information is allowed for each 8x8 unit. The
+        // bottom-left 4x4 block's information is used to represent the entire
+        // 8x8 block.
+        {
+            // Block width is 4
+            { is_above_smvp_available(xd, mi_col, 0), -1,
+              compute_aligned_offset(mi_col, 0) },
+            { 0, -1, 0 },
+            { is_above_smvp_available(xd, mi_col, 2), -1,
+              compute_aligned_offset(mi_col, 2) },
+            { is_above_smvp_available(xd, mi_col, -2), -1,
+              compute_aligned_offset(mi_col, -2) },
+        },
+        {
+            // Block width is 8
+            { is_above_smvp_available(xd, mi_col, 0), -1,
+              compute_aligned_offset(mi_col, 0) },
+            { 0, -1, 0 },
+            { is_above_smvp_available(xd, mi_col, 2), -1,
+              compute_aligned_offset(mi_col, 2) },
+            { is_above_smvp_available(xd, mi_col, -2), -1,
+              compute_aligned_offset(mi_col, -2) },
+        },
+        {
+            // Block width is no less than 8
+            { is_above_smvp_available(xd, mi_col, xd->width - 2), -1,
+              compute_aligned_offset(mi_col, xd->width - 2) },
+            { is_above_smvp_available(xd, mi_col, 0), -1,
+              compute_aligned_offset(mi_col, 0) },
+            { is_above_smvp_available(xd, mi_col, xd->width), -1,
+              compute_aligned_offset(mi_col, xd->width) },
+            { is_above_smvp_available(xd, mi_col, -2), -1,
+              compute_aligned_offset(mi_col, -2) },
+        },
+    }
+  };
+
+  for (int i = 0; i < 4; i++) {
+    row_smvp_state[i] =
+        row_smvp_all_states[is_sb_boundary][block_width_type][i];
+  }
+}
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+
+// return 1 if valid point is found
+// return 0 if the point is not valid
+static AOM_INLINE int fill_warp_corner_projected_point(
+    const MACROBLOCKD *xd, const MB_MODE_INFO *neighbor_mi,
+    MV_REFERENCE_FRAME this_ref, const int pos_col, const int pos_row, int *pts,
+    int *mvs, int *n_points) {
+  // return if the source point is invalid
+  if (pos_col < 0 || pos_row < 0) return 0;
+
+  if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
+  if (neighbor_mi->ref_frame[0] != this_ref) return 0;
+  int mv_row;
+  int mv_col;
+  if (is_warp_mode(neighbor_mi->motion_mode)) {
+    int_mv warp_mv =
+        get_warp_motion_vector_xy_pos(xd, &neighbor_mi->wm_params[0], pos_col,
+                                      pos_row, MV_PRECISION_ONE_EIGHTH_PEL);
+    mv_row = warp_mv.as_mv.row;
+    mv_col = warp_mv.as_mv.col;
+  } else {
+    mv_row = neighbor_mi->mv[0].as_mv.row;
+    mv_col = neighbor_mi->mv[0].as_mv.col;
+  }
+  pts[2 * (*n_points)] = pos_col;
+  pts[2 * (*n_points) + 1] = pos_row;
+  mvs[2 * (*n_points)] = mv_col;
+  mvs[2 * (*n_points) + 1] = mv_row;
+  ++(*n_points);
+  return 1;
+}
+
+// Check all 3 neighbors to generate projected points
+static AOM_INLINE int generate_points_from_corners(
+    const MACROBLOCKD *xd,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    MVP_UNIT_STATUS row_smvp_state[4],
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    int *pts, int *mvs, int *np, MV_REFERENCE_FRAME ref_frame) {
+  const TileInfo *const tile = &xd->tile;
+  POSITION mi_pos;
+  int valid_points = 0;
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame);
+  MV_REFERENCE_FRAME this_ref = rf[0];
+  const int bw = xd->width * MI_SIZE;
+  const int bh = xd->height * MI_SIZE;
+
+  // top-left
+  mi_pos.row = -1;
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.col = row_smvp_state[3].col_offset;
+#else
+  mi_pos.col = -1;
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      row_smvp_state[3].is_available
+#else
+      xd->up_available && xd->left_available
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  ) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE;
+    int pos_col = xd->mi_col * MI_SIZE;
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  // top-right
+  mi_pos.row = -1;
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.col = row_smvp_state[0].col_offset;
+#else
+  mi_pos.col = xd->width - 1;
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      row_smvp_state[0].is_available
+#else
+      xd->up_available
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  ) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE;
+    int pos_col = xd->mi_col * MI_SIZE + bw;
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  // bottom-left
+  mi_pos.row = xd->height - 1;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE + bh;
+    int pos_col = xd->mi_col * MI_SIZE;
+    int valid = fill_warp_corner_projected_point(
+        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  assert(valid_points <= 3);
+  return valid_points;
+}
 
 static AOM_INLINE void setup_ref_mv_list(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
@@ -2598,13 +2964,17 @@ static AOM_INLINE void setup_ref_mv_list(
     WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES],
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_tr = has_top_right(cm, xd, mi_row, mi_col, xd->width);
+#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_MVP_IMPROVEMENT
   const int has_bl = has_bottom_left(cm, xd, mi_row, mi_col, xd->height);
 #endif  // CONFIG_MVP_IMPROVEMENT
 #else
   const int bs = AOMMAX(xd->width, xd->height);
+#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_tr = has_top_right(cm, xd, mi_row, mi_col, bs);
+#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_MVP_IMPROVEMENT
   const int has_bl = has_bottom_left(cm, xd, mi_row, mi_col, bs);
 #endif  // CONFIG_MVP_IMPROVEMENT
@@ -2653,6 +3023,11 @@ static AOM_INLINE void setup_ref_mv_list(
     ref_mv_stack[k].cwp_idx = CWP_EQUAL;
   }
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  MVP_UNIT_STATUS row_smvp_state[4] = { 0 };
+  get_row_smvp_states(cm, xd, row_smvp_state);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+
   // derive a warp model from the 3 corner MVs
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
@@ -2661,7 +3036,11 @@ static AOM_INLINE void setup_ref_mv_list(
     int np = 0;
     WarpedMotionParams cand_warp_param = default_warp_params;
     const int valid_points =
-        generate_points_from_corners(xd, pts, mvs_32, &np, ref_frame);
+        generate_points_from_corners(xd,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                                     row_smvp_state,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                                     pts, mvs_32, &np, ref_frame);
     const int valid_model =
         get_model_from_corner_mvs(&cand_warp_param, pts, valid_points, mvs_32,
                                   xd->mi[0]->sb_type[PLANE_TYPE_Y]
@@ -2721,7 +3100,9 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
+#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int width_at_least_two = xd->up_available ? (xd->width > 1) : 0;
+#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int height_at_least_two = xd->left_available ? (xd->height > 1) : 0;
 #endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
@@ -2757,9 +3138,19 @@ static AOM_INLINE void setup_ref_mv_list(
     update_processed_cols(xd, mi_row, mi_col, (xd->height - 1), -1,
                           max_col_offset, &processed_cols);
   }
+
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (row_smvp_state[0].is_available) {
+#else
   if (xd->up_available) {
-    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, (xd->width - 1), ref_mv_stack,
-                  ref_mv_weight, &row_match_count, &newmv_count,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  row_smvp_state[0].row_offset, row_smvp_state[0].col_offset,
+#else
+                  -1, (xd->width - 1),
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
                   ref_frame_idx0, ref_frame_idx1,
@@ -2791,13 +3182,23 @@ static AOM_INLINE void setup_ref_mv_list(
     update_processed_cols(xd, mi_row, mi_col, 0, -1, max_col_offset,
                           &processed_cols);
   }
+
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (row_smvp_state[1].is_available) {
+#else
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   if (width_at_least_two) {
 #else
   if (xd->up_available) {
 #endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, 0, ref_mv_stack,
-                  ref_mv_weight, &row_match_count, &newmv_count,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  row_smvp_state[1].row_offset, row_smvp_state[1].col_offset,
+#else
+                  -1, 0,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
                   ref_frame_idx0, ref_frame_idx1,
@@ -2823,9 +3224,19 @@ static AOM_INLINE void setup_ref_mv_list(
                   warp_param_stack, max_num_of_warp_candidates,
                   valid_num_warp_candidates, ref_frame, refmv_count);
   }
+
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (row_smvp_state[2].is_available) {
+#else
   if (has_tr) {
-    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, xd->width, ref_mv_stack,
-                  ref_mv_weight, &row_match_count, &newmv_count,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  row_smvp_state[2].row_offset, row_smvp_state[2].col_offset,
+#else
+                  -1, xd->width,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
                   gm_mv_candidates,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
                   ref_frame_idx0, ref_frame_idx1,
@@ -2965,12 +3376,21 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (row_smvp_state[3].is_available) {
+#else
   if (xd->up_available && xd->left_available) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     uint8_t dummy_ref_match_count = 0;
     uint8_t dummy_new_mv_count = 0;
-    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack,
-                  ref_mv_weight, &dummy_ref_match_count, &dummy_new_mv_count,
-                  gm_mv_candidates,
+    scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  row_smvp_state[3].row_offset, row_smvp_state[3].col_offset,
+#else
+                  -1, -1,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                  ref_mv_stack, ref_mv_weight, &dummy_ref_match_count,
+                  &dummy_new_mv_count, gm_mv_candidates,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -3224,85 +3644,28 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
-#if CONFIG_MVP_IMPROVEMENT
-  if (cm->seq_params.enable_refmvbank) {
-    const int ref_mv_limit =
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-            ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-            :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-            AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
-    // If open slots are available, fetch reference MVs from the ref mv banks.
-    if (*refmv_count < ref_mv_limit
-#if !CONFIG_IBC_BV_IMPROVEMENT
-        && ref_frame != INTRA_FRAME
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-    ) {
-      const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
-#if CONFIG_LC_REF_MV_BANK
-      const int rmb_list_index = get_rmb_list_index(ref_frame);
-#else
-      const int rmb_list_index = ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
-      const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
-#if CONFIG_LC_REF_MV_BANK
-      const MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
-      const int count = ref_mv_bank->rmb_count[rmb_list_index];
-      const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
-      const int is_comp = is_inter_ref_frame(rf[1]);
-      const int block_width = xd->width * MI_SIZE;
-      const int block_height = xd->height * MI_SIZE;
-
-      for (int idx_bank = 0; idx_bank < count && *refmv_count < ref_mv_limit;
-           ++idx_bank) {
-        const int idx = (start_idx + count - 1 - idx_bank) % REF_MV_BANK_SIZE;
-        const CANDIDATE_MV cand_mv = queue[idx];
-#if CONFIG_LC_REF_MV_BANK
-        if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS &&
-            rmb_ref_frame[idx] != ref_frame)
-          continue;
-#endif  // CONFIG_LC_REF_MV_BANK
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-        bool rmb_candi_exist =
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-            check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
-                           is_comp, xd->mi_row, xd->mi_col, block_width,
-                           block_height, cm->width, cm->height);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-        if (xd->mi[0]->skip_mode && rmb_candi_exist) {
-          ref_frame_idx0[*refmv_count - 1] = rf[0];
-          ref_frame_idx1[*refmv_count - 1] = rf[1];
-        }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-      }
-    }
+#if CONFIG_DSMVP_REFBANK_MV_SWAP
+  const int is_compound = is_inter_ref_frame(rf[1]);
+  if (is_compound) {
+    add_derived_smvp_candidates(cm, xd, rf, ref_frame_idx0, ref_frame_idx1,
+                                refmv_count, ref_mv_stack, ref_mv_weight,
+                                derived_mv_stack, derived_mv_count);
+    if (cm->seq_params.enable_refmvbank)
+      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, ref_frame_idx0,
+                                 ref_frame_idx1, refmv_count, ref_mv_stack,
+                                 ref_mv_weight);
+  } else {
+#endif  // CONFIG_DSMVP_REFBANK_MV_SWAP
+    if (cm->seq_params.enable_refmvbank)
+      add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, ref_frame_idx0,
+                                 ref_frame_idx1, refmv_count, ref_mv_stack,
+                                 ref_mv_weight);
+    add_derived_smvp_candidates(cm, xd, rf, ref_frame_idx0, ref_frame_idx1,
+                                refmv_count, ref_mv_stack, ref_mv_weight,
+                                derived_mv_stack, derived_mv_count);
+#if CONFIG_DSMVP_REFBANK_MV_SWAP
   }
-#endif  // CONFIG_MVP_IMPROVEMENT
-
-#if CONFIG_MVP_IMPROVEMENT
-  const int max_ref_mv_count =
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-      xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-          ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-          :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-          AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
-
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-  if (xd->mi[0]->skip_mode) derived_mv_count = 0;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-
-  if (*refmv_count < max_ref_mv_count && derived_mv_count > 0) {
-    fill_mvp_from_derived_smvp(rf, ref_mv_stack, ref_mv_weight, refmv_count,
-                               derived_mv_stack, derived_mv_count,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-                               xd->mi[0], ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-                               max_ref_mv_count);
-  }
-#endif  // CONFIG_MVP_IMPROVEMENT
+#endif  // CONFIG_DSMVP_REFBANK_MV_SWAP
 
 #if CONFIG_MVP_SIMPLIFY
   for (int idx = 0; idx < *refmv_count; ++idx) {
@@ -3725,6 +4088,7 @@ void av1_initialize_warp_wrl_list(
     uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]) {
   for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ref_frame++) {
     for (int warp_idx = 0; warp_idx < MAX_WARP_REF_CANDIDATES; warp_idx++) {
+      warp_param_stack[ref_frame][warp_idx].wm_params = default_warp_params;
       warp_param_stack[ref_frame][warp_idx].wm_params.invalid = 1;
     }
     valid_num_warp_candidates[ref_frame] = 0;
@@ -3776,6 +4140,18 @@ void av1_find_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 }
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
+// Initialize ref_mv_stack with zero MVs.
+void av1_initialize_ref_mv_stack(
+    CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE], int max_cand_num) {
+  for (int i = 0; i < max_cand_num; ++i) {
+    ref_mv_stack[i].this_mv.as_int = 0;
+    ref_mv_stack[i].comp_mv.as_int = 0;
+    ref_mv_stack[i].row_offset = OFFSET_NONSPATIAL;
+    ref_mv_stack[i].col_offset = OFFSET_NONSPATIAL;
+    ref_mv_stack[i].cwp_idx = CWP_EQUAL;
+  }
+}
+
 void av1_find_mv_refs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MB_MODE_INFO *mi,
     MV_REFERENCE_FRAME ref_frame, uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
@@ -3794,12 +4170,7 @@ void av1_find_mv_refs(
   const int mi_col = xd->mi_col;
   int_mv gm_mv[2];
 
-  if (ref_frame == INTRA_FRAME) {
-    gm_mv[0].as_int = gm_mv[1].as_int = 0;
-    if (global_mvs != NULL) {
-      global_mvs[ref_frame].as_int = INVALID_MV;
-    }
-  } else if (is_tip_ref_frame(ref_frame)) {
+  if (ref_frame == INTRA_FRAME || is_tip_ref_frame(ref_frame)) {
     gm_mv[0].as_int = gm_mv[1].as_int = 0;
   } else {
     const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
@@ -3837,6 +4208,12 @@ void av1_find_mv_refs(
   if (mi->skip_mode) {
     SKIP_MODE_MVP_LIST *skip_list =
         (SKIP_MODE_MVP_LIST *)&(xd->skip_mvp_candidate_list);
+    memset(skip_list->ref_frame0, 0,
+           USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame0[0]));
+    memset(skip_list->ref_frame1, 0,
+           USABLE_REF_MV_STACK_SIZE * sizeof(skip_list->ref_frame1[0]));
+    av1_initialize_ref_mv_stack(skip_list->ref_mv_stack,
+                                USABLE_REF_MV_STACK_SIZE);
     setup_ref_mv_list(
         cm, xd, ref_frame, &(skip_list->ref_mv_count), skip_list->ref_mv_stack,
         skip_list->weight, skip_list->ref_frame0, skip_list->ref_frame1,
@@ -3860,6 +4237,16 @@ void av1_find_mv_refs(
                                         fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1].as_int = 0;
     }
+    if (ref_frame == INTRA_FRAME) {
+#if CONFIG_IBC_MAX_DRL
+      av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]],
+                                  cm->features.max_bvp_drl_bits + 1);
+#else
+      av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]], MAX_REF_BV_STACK_SIZE);
+#endif  // CONFIG_IBC_MAX_DRL
+    } else {
+      av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]], MAX_REF_MV_STACK_SIZE);
+    }
     setup_ref_mv_list(cm, xd, rf[0], &ref_mv_count[rf[0]], ref_mv_stack[rf[0]],
                       ref_mv_weight[rf[0]], NULL, NULL,
                       mv_ref_list ? mv_ref_list[rf[0]] : NULL, gm_mv, mi_row,
@@ -3882,6 +4269,7 @@ void av1_find_mv_refs(
                                         fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1].as_int = 0;
 
+      av1_initialize_ref_mv_stack(ref_mv_stack[rf[1]], MAX_REF_MV_STACK_SIZE);
       setup_ref_mv_list(cm, xd, rf[1], &ref_mv_count[rf[1]],
                         ref_mv_stack[rf[1]], ref_mv_weight[rf[1]], NULL, NULL,
                         mv_ref_list ? mv_ref_list[rf[1]] : NULL, gm_mv, mi_row,
@@ -3897,6 +4285,18 @@ void av1_find_mv_refs(
     }
     if (derive_wrl) assert(rf[0] == ref_frame);
 #else
+    if (ref_frame == INTRA_FRAME) {
+#if CONFIG_IBC_MAX_DRL
+      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
+                                  cm->features.max_bvp_drl_bits + 1);
+#else
+      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
+                                  MAX_REF_BV_STACK_SIZE);
+#endif  // CONFIG_IBC_MAX_DRL
+    } else {
+      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
+                                  MAX_REF_MV_STACK_SIZE);
+    }
     setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
                       ref_mv_stack[ref_frame], ref_mv_weight[ref_frame], NULL,
                       NULL, mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
@@ -3914,6 +4314,16 @@ void av1_find_mv_refs(
 #endif  // CONFIG_SEP_COMP_DRL
   }
 #else
+  if (ref_frame == INTRA_FRAME) {
+#if CONFIG_IBC_MAX_DRL
+    av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
+                                cm->features.max_bvp_drl_bits + 1);
+#else
+    av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame], MAX_REF_BV_STACK_SIZE);
+#endif  // CONFIG_IBC_MAX_DRL
+  } else {
+    av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame], MAX_REF_MV_STACK_SIZE);
+  }
   setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
                     ref_mv_stack[ref_frame], ref_mv_weight[ref_frame],
                     mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv, mi_row,
@@ -4311,6 +4721,10 @@ static int motion_field_projection_start_target(
   int ref_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
 
+  if (abs(ref_frame_offset) > MAX_FRAME_DISTANCE) {
+    return 0;
+  }
+
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
@@ -4376,6 +4790,9 @@ static int motion_field_projection_start_target(
             ref_order_hints[mv_ref->ref_frame[mv_idx]];
         if (ref_frame_order_hint == target_order_hint) {
           MV ref_mv = mv_ref->mv[mv_idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+          fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           int scaled_blk_col = blk_col;
           int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
@@ -4592,7 +5009,9 @@ static int motion_field_projection_side(AV1_COMMON *cm,
       const MV_REFERENCE_FRAME ref_frame = mv_ref->ref_frame[side_idx];
       if (is_inter_ref_frame(ref_frame)) {
         MV ref_mv = mv_ref->mv[side_idx].as_mv;
-
+#if CONFIG_TMVP_MV_COMPRESSION
+        fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         int scaled_blk_col = blk_col;
         int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
@@ -5084,8 +5503,15 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
             abs((int)buf->display_order_hint -
                 (int)buf->ref_display_order_hint[mv_ref->ref_frame[side]]);
         if (dist != 0) {
+#if CONFIG_TMVP_MV_COMPRESSION
+          MV ref_mv = mv_ref->mv[side].as_mv;
+          fetch_mv_from_tmvp(&ref_mv);
+          avg_row += abs(ref_mv.row * 2 / dist);
+          avg_col += abs(ref_mv.col * 2 / dist);
+#else
           avg_row += abs(mv_ref->mv[side].as_mv.row * 2 / dist);
           avg_col += abs(mv_ref->mv[side].as_mv.col * 2 / dist);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           count++;
         }
       }
@@ -5243,6 +5669,9 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                           ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
           if (pos_valid) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+            fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
@@ -5398,6 +5827,9 @@ static int motion_field_projection(AV1_COMMON *cm,
                           ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
           if (pos_valid) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+            fetch_mv_from_tmvp(&ref_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
@@ -5972,6 +6404,9 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  const int is_sb_border = (mi_row % cm->mib_size == 0);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   // scan the nearest above rows
   if (up_available) {
     const int mi_row_offset = -1;
@@ -5981,16 +6416,31 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
     if (above_mc_offset_start < 0) do_top_left = 0;
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    int adjust_mi_col_offset = 0;
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     for (i = above_mc_offset_start;
          i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      adjust_mi_col_offset =
+          (((mi_col + i) >> is_sb_border) << is_sb_border) - mi_col;
+      above_mbmi = xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+#else
       above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
       above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
       mi_step = above_block_width;
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
         if (above_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
+          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1,
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                         adjust_mi_col_offset,
+#else
+                         i,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+                         1);
           pts += 2;
           pts_inref += 2;
           if (++np >= LEAST_SQUARES_SAMPLES_MAX)
@@ -6010,7 +6460,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
     }
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    do_top_right = (adjust_mi_col_offset >= xd->width) &&
+                   (adjust_mi_col_offset < cm->mi_params.mi_cols - mi_col);
+#else
     do_top_right = (i == xd->width) && (i < cm->mi_params.mi_cols - mi_col);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   }
 
   // Scan the nearest left columns
@@ -6058,8 +6513,15 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (do_top_left && left_available && up_available) {
     const int mi_row_offset = -1;
     const int mi_col_offset = -1;
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    const int adjust_mi_col_offset =
+        (((mi_col + mi_col_offset) >> is_sb_border) << is_sb_border) - mi_col;
+    const MB_MODE_INFO *top_left_mbmi =
+        xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+#else
     const MB_MODE_INFO *top_left_mbmi =
         xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
     for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
       if (top_left_mbmi->ref_frame[ref] == ref_frame) {
@@ -6093,8 +6555,15 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     if (is_inside(tile, mi_col, mi_row, &top_right_block_pos)) {
       const int mi_row_offset = -1;
       const int mi_col_offset = xd->width;
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      const int adjust_mi_col_offset =
+          (((mi_col + mi_col_offset) >> is_sb_border) << is_sb_border) - mi_col;
+      const MB_MODE_INFO *top_right_mbmi =
+          xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+#else
       const MB_MODE_INFO *top_right_mbmi =
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
         if (top_right_mbmi->ref_frame[ref] == ref_frame) {
@@ -6618,8 +7087,11 @@ void av1_find_warp_delta_base_candidates(
     return;
   }
 
+  // Copy the entire wrl_list where all candidates have been properly defined.
+  // Note that the first num_wrl_cand have been filled, and the rest have been
+  // initialized as default_warp_params.
   memcpy(&warp_param_stack[0], &wrl_list[0],
-         num_wrl_cand * sizeof(wrl_list[0]));
+         MAX_WARP_REF_CANDIDATES * sizeof(wrl_list[0]));
   if (p_valid_num_candidates) {
     // for NEARMV mode, the maximum number of candidates is 1
     *p_valid_num_candidates = (mbmi->mode == NEARMV || mbmi->mode == AMVDNEWMV
@@ -6651,7 +7123,13 @@ bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
   }
   return true;
 }
-
+static int is_same_ref_frame(const MB_MODE_INFO *neighbor_mi,
+                             const MB_MODE_INFO *mbmi) {
+  return (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+          neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) ||
+         (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
+          neighbor_mi->ref_frame[1] == mbmi->ref_frame[0]);
+}
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors) {
   const TileInfo *const tile = &xd->tile;
@@ -6679,8 +7157,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6694,8 +7171,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6709,8 +7185,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6724,8 +7199,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6738,8 +7212,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_bl) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6752,8 +7225,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_tr) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6767,8 +7239,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -6776,40 +7247,49 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
-  mi_pos.row = (xd->height >> 1);
-  mi_pos.col = -1;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
-      allow_new_ext |= 1;
-      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
-      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
-        num_of_warp_neighbors++;
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  if (p_num_of_warp_neighbors) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    mi_pos.row = (xd->height >> 1);
+    mi_pos.col = -1;
+    if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+        xd->left_available) {
+      const MB_MODE_INFO *neighbor_mi =
+          xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+      if (is_same_ref_frame(neighbor_mi, mbmi)) {
+        allow_new_ext |= 1;
+        allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+        if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+          num_of_warp_neighbors++;
+      }
     }
-  }
 
-  mi_pos.row = -1;
-  mi_pos.col = (xd->width >> 1);
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
-      allow_new_ext |= 1;
-      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
-      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
-        num_of_warp_neighbors++;
+    mi_pos.row = -1;
+    mi_pos.col = (xd->width >> 1);
+    if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+      const MB_MODE_INFO *neighbor_mi =
+          xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+      if (is_same_ref_frame(neighbor_mi, mbmi)) {
+        allow_new_ext |= 1;
+        allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+        if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+          num_of_warp_neighbors++;
+      }
     }
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   }
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 
   if (p_num_of_warp_neighbors) {
     *p_num_of_warp_neighbors = num_of_warp_neighbors;
     return num_of_warp_neighbors;
   }
 
-  if (mbmi->mode == NEWMV) {
+  if (mbmi->mode == NEWMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      || mbmi->mode == WARP_NEWMV
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  ) {
     return allow_new_ext;
   } else if (mbmi->mode == NEARMV) {
     return allow_near_ext;
@@ -6818,6 +7298,93 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 }
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+static AOM_INLINE POSITION get_pos_from_pos_idx(const AV1_COMMON *cm,
+                                                const MACROBLOCKD *xd,
+                                                int pos_idx) {
+  MVP_UNIT_STATUS row_smvp_state[4] = { 0 };
+  if (pos_idx == 2 || pos_idx == 4 || pos_idx == 6 || pos_idx == 7) {
+    get_row_smvp_states(cm, xd, row_smvp_state);
+  }
+
+  POSITION ret_pos = { 0, 0 };
+  // 1/3/5 are left neighbors, 2/4/6/7 are above neighbors
+  if (pos_idx == 5) {
+    ret_pos.row = xd->height;
+    ret_pos.col = -1;
+  } else if (pos_idx == 1) {
+    ret_pos.row = (xd->height - 1);
+    ret_pos.col = -1;
+  } else if (pos_idx == 3) {
+    ret_pos.row = 0;
+    ret_pos.col = -1;
+  } else if (pos_idx == 7) {
+    if (row_smvp_state[3].is_available) {
+      ret_pos.row = -1;
+      ret_pos.col = row_smvp_state[3].col_offset;
+    }
+  } else if (pos_idx == 4) {
+    if (row_smvp_state[1].is_available) {
+      ret_pos.row = -1;
+      ret_pos.col = row_smvp_state[1].col_offset;
+    }
+  } else if (pos_idx == 2) {
+    if (row_smvp_state[0].is_available) {
+      ret_pos.row = -1;
+      ret_pos.col = row_smvp_state[0].col_offset;
+    }
+  } else if (pos_idx == 6) {
+    if (row_smvp_state[2].is_available) {
+      ret_pos.row = -1;
+      ret_pos.col = row_smvp_state[2].col_offset;
+    }
+  } else {
+    assert(0);
+  }
+
+  return ret_pos;
+}
+
+static AOM_INLINE int get_cand_from_pos_idx(const AV1_COMMON *cm,
+                                            const MACROBLOCKD *xd,
+                                            int pos_idx) {
+  MVP_UNIT_STATUS row_smvp_state[4] = { 0 };
+  if (pos_idx == 2 || pos_idx == 4 || pos_idx == 6 || pos_idx == 7) {
+    get_row_smvp_states(cm, xd, row_smvp_state);
+  }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int has_bl =
+      has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, xd->height);
+#else
+  const int bs = AOMMAX(xd->width, xd->height);
+  const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  int ret_cand = 0;
+
+  // 1/3/5 are left neighbors, 2/4/6/7 are above neighbors
+  if (pos_idx == 5) {
+    ret_cand = has_bl;
+  } else if (pos_idx == 1) {
+    ret_cand = xd->left_available;
+  } else if (pos_idx == 3) {
+    ret_cand = xd->left_available;
+  } else if (pos_idx == 7) {
+    ret_cand = row_smvp_state[3].is_available;
+  } else if (pos_idx == 4) {
+    ret_cand = row_smvp_state[1].is_available;
+  } else if (pos_idx == 2) {
+    ret_cand = row_smvp_state[0].is_available;
+  } else if (pos_idx == 6) {
+    ret_cand = row_smvp_state[2].is_available;
+  } else {
+    assert(0);
+  }
+
+  return ret_cand;
+}
+#else
 static AOM_INLINE POSITION get_pos_from_pos_idx(const MACROBLOCKD *xd,
                                                 int pos_idx) {
   POSITION ret_pos = { 0, 0 };
@@ -6884,6 +7451,7 @@ static AOM_INLINE int get_cand_from_pos_idx(const AV1_COMMON *cm,
   }
   return ret_cand;
 }
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 
 static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
                                                  const MACROBLOCKD *xd,
@@ -6891,16 +7459,20 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
                                                  POSITION *base_pos,
                                                  int pos_idx) {
   const TileInfo *const tile = &xd->tile;
-  POSITION mi_pos = get_pos_from_pos_idx(xd, pos_idx);
+  POSITION mi_pos = get_pos_from_pos_idx(
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      cm,
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      xd, pos_idx);
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
       get_cand_from_pos_idx(cm, xd, pos_idx)) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if ((is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
-         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) ||
-        (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
-         neighbor_mi->ref_frame[1] == mbmi->ref_frame[0])) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mbmi->mode == NEWMV) {
         base_pos->row = mi_pos.row;
         base_pos->col = mi_pos.col;
@@ -6918,6 +7490,9 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mvp_row_offset * xd->mi_stride + mvp_col_offset];
     if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        mbmi->mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         mbmi->mode == NEWMV) {
       base_pos->row = mvp_row_offset;
       base_pos->col = mvp_col_offset;
@@ -6925,7 +7500,11 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
-  for (int pos_idx = 1; pos_idx <= 8; pos_idx++) {
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  for (int pos_idx = 1; pos_idx <= 7; pos_idx++) {
+#else
+  for (int pos_idx = 1; pos_idx <= 9; pos_idx++) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     if (check_pos_and_get_base_pos(cm, xd, mbmi, base_pos, pos_idx)) return 1;
   }
   return 0;
@@ -6938,99 +7517,4 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   assert(num_of_warp_neighbors == ctx);
   assert(ctx < WARPMV_MODE_CONTEXT);
   return ctx;
-}
-
-// return 1 if valid point is found
-// return 0 if the point is not valid
-static int fill_warp_corner_projected_point(const MACROBLOCKD *xd,
-                                            const MB_MODE_INFO *neighbor_mi,
-                                            MV_REFERENCE_FRAME this_ref,
-                                            const int pos_col,
-                                            const int pos_row, int *pts,
-                                            int *mvs, int *n_points) {
-  // return if the source point is invalid
-  if (pos_col < 0 || pos_row < 0) return 0;
-
-  if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
-  if (neighbor_mi->ref_frame[0] != this_ref) return 0;
-  int mv_row;
-  int mv_col;
-  if (is_warp_mode(neighbor_mi->motion_mode)) {
-    int_mv warp_mv =
-        get_warp_motion_vector_xy_pos(xd, &neighbor_mi->wm_params[0], pos_col,
-                                      pos_row, MV_PRECISION_ONE_EIGHTH_PEL);
-    mv_row = warp_mv.as_mv.row;
-    mv_col = warp_mv.as_mv.col;
-  } else {
-    mv_row = neighbor_mi->mv[0].as_mv.row;
-    mv_col = neighbor_mi->mv[0].as_mv.col;
-  }
-  pts[2 * (*n_points)] = pos_col;
-  pts[2 * (*n_points) + 1] = pos_row;
-  mvs[2 * (*n_points)] = mv_col;
-  mvs[2 * (*n_points) + 1] = mv_row;
-  ++(*n_points);
-  return 1;
-}
-
-// Check all 3 neighbors to generate projected points
-int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
-                                 int *np, MV_REFERENCE_FRAME ref_frame) {
-  const TileInfo *const tile = &xd->tile;
-  POSITION mi_pos;
-  int valid_points = 0;
-  MV_REFERENCE_FRAME rf[2];
-  av1_set_ref_frame(rf, ref_frame);
-  MV_REFERENCE_FRAME this_ref = rf[0];
-  const int bw = xd->width * MI_SIZE;
-  const int bh = xd->height * MI_SIZE;
-
-  // top-left
-  mi_pos.row = -1;
-  mi_pos.col = -1;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available &&
-      xd->left_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    int pos_row = xd->mi_row * MI_SIZE;
-    int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_corner_projected_point(
-        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
-    if (valid) {
-      valid_points++;
-    }
-  }
-
-  // top-right
-  mi_pos.row = -1;
-  mi_pos.col = xd->width - 1;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    int pos_row = xd->mi_row * MI_SIZE;
-    int pos_col = xd->mi_col * MI_SIZE + bw;
-    int valid = fill_warp_corner_projected_point(
-        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
-    if (valid) {
-      valid_points++;
-    }
-  }
-
-  // bottom-left
-  mi_pos.row = xd->height - 1;
-  mi_pos.col = -1;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    int pos_row = xd->mi_row * MI_SIZE + bh;
-    int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_corner_projected_point(
-        xd, neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
-    if (valid) {
-      valid_points++;
-    }
-  }
-
-  assert(valid_points <= 3);
-  return valid_points;
 }

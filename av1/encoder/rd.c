@@ -177,6 +177,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   for (i = 0; i < MRL_INDEX_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost[i],
                              fc->mrl_index_cdf[i], NULL);
+#if CONFIG_MRLS_IMPROVE
+    av1_cost_tokens_from_cdf(mode_costs->multi_line_mrl_cost[i],
+                             fc->multi_line_mrl_cdf[i], NULL);
+#endif
   }
 #else
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
@@ -517,6 +521,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #if CONFIG_INTRA_TX_IST_PARSE
   av1_cost_tokens_from_cdf(mode_costs->most_probable_stx_set_flag_cost,
                            fc->most_probable_stx_set_cdf, NULL);
+#if CONFIG_F105_IST_MEM_REDUCE
+  av1_cost_tokens_from_cdf(
+      mode_costs->most_probable_stx_set_flag_cost_ADST_ADST,
+      fc->most_probable_stx_set_cdf_ADST_ADST, NULL);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   for (i = 0; i < IST_DIR_SIZE; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->stx_set_flag_cost[i],
@@ -604,6 +613,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->inter_warp_mode_cost[i],
                                fc->inter_warp_mode_cdf[i], NULL);
     }
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    av1_cost_tokens_from_cdf(mode_costs->is_warpmv_or_warp_newmv_cost,
+                             fc->is_warpmv_or_warp_newmv_cdf, NULL);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
     for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[0][i],
@@ -751,30 +765,29 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_D149_CTX_MODELING_OPT
-    av1_cost_tokens_from_cdf(mode_costs->obmc_cost, fc->obmc_cdf, NULL);
-#else
-    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    for (i = 0; i < WARP_CAUSAL_MODE_CTX; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warp_causal_cost[i],
+                               fc->warp_causal_cdf[i], NULL);
     }
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-    av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost,
-                             fc->warped_causal_cdf, NULL);
+#else
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+    av1_cost_tokens_from_cdf(mode_costs->warp_causal_cost, fc->warp_causal_cdf,
+                             NULL);
 #else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost[i],
-                               fc->warped_causal_cdf[i], NULL);
+      av1_cost_tokens_from_cdf(mode_costs->warp_causal_cost[i],
+                               fc->warp_causal_cdf[i], NULL);
     }
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
-    av1_cost_tokens_from_cdf(mode_costs->warped_causal_warpmv_cost,
-                             fc->warped_causal_warpmv_cdf, NULL);
+    av1_cost_tokens_from_cdf(mode_costs->warp_causal_warpmv_cost,
+                             fc->warp_causal_warpmv_cdf, NULL);
 #else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->warped_causal_warpmv_cost[i],
-                               fc->warped_causal_warpmv_cdf[i], NULL);
+      av1_cost_tokens_from_cdf(mode_costs->warp_causal_warpmv_cost[i],
+                               fc->warp_causal_warpmv_cdf[i], NULL);
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -801,6 +814,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       }
     }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->warp_delta_cost, fc->warp_delta_cdf,
                              NULL);
@@ -810,6 +824,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->warp_delta_cdf[i], NULL);
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     for (i = 0; i < 2; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warp_delta_param_cost[i],
                                fc->warp_delta_param_cdf[i], NULL);

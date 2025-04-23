@@ -99,10 +99,11 @@ class UniformTileConfigTestLarge
         encoder->Control(AOME_SET_QP, 210);
       }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AV1E_SET_SUPERBLOCK_SIZE,
-                       tile_config_param_.sb_size == 64
-                           ? AOM_SUPERBLOCK_SIZE_64X64
-                           : AOM_SUPERBLOCK_SIZE_128X128);
+      encoder->Control(
+          AV1E_SET_SUPERBLOCK_SIZE,
+          tile_config_param_.sb_size == 64    ? AOM_SUPERBLOCK_SIZE_64X64
+          : tile_config_param_.sb_size == 128 ? AOM_SUPERBLOCK_SIZE_128X128
+                                              : AOM_SUPERBLOCK_SIZE_256X256);
     }
   }
 
@@ -176,10 +177,11 @@ class NonUniformTileConfigTestLarge
         encoder->Control(AOME_SET_QP, 210);
       }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AV1E_SET_SUPERBLOCK_SIZE,
-                       tile_config_param_.sb_size == 64
-                           ? AOM_SUPERBLOCK_SIZE_64X64
-                           : AOM_SUPERBLOCK_SIZE_128X128);
+      encoder->Control(
+          AV1E_SET_SUPERBLOCK_SIZE,
+          tile_config_param_.sb_size == 64    ? AOM_SUPERBLOCK_SIZE_64X64
+          : tile_config_param_.sb_size == 128 ? AOM_SUPERBLOCK_SIZE_128X128
+                                              : AOM_SUPERBLOCK_SIZE_256X256);
     }
   }
 

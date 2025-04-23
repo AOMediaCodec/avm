@@ -523,6 +523,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_DRL_REORDER_CONTROL
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
@@ -894,7 +897,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       CHECK_MEM_ERROR(cm, x->tmp_pred_bufs[i],
                       aom_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
                                            sizeof(*x->tmp_pred_bufs[i])));
-      x->e_mbd.tmp_obmc_bufs[i] = x->tmp_pred_bufs[i];
     }
   }
 
@@ -1240,8 +1242,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
-  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
-
   for (int x = 0; x < 2; x++)
     for (int y = 0; y < 2; y++)
       CHECK_MEM_ERROR(
@@ -1329,6 +1329,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
                      &cm->quant_params);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
 
+#if CONFIG_DF_PAR_BITS
+  cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
+#endif  // CONFIG_DF_PAR_BITS
   av1_loop_filter_init(cm);
   cm->superres_scale_denominator = SCALE_NUMERATOR;
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
@@ -1386,7 +1389,6 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     for (int j = 0; j < 2; ++j) {
       aom_free(thread_data->td->tmp_pred_bufs[j]);
     }
-    release_obmc_buffers(&thread_data->td->obmc_buffer);
     aom_free(thread_data->td->vt64x64);
 
     aom_free(thread_data->td->mb.inter_modes_info);
@@ -2275,12 +2277,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   }
 
   if (!is_stat_generation_stage(cpi) && cm->seq_params.enable_tip) {
+    setup_tip_frame_size(cpi);
     RefCntBuffer *buf = get_ref_frame_buf(cm, TIP_FRAME);
-    if (buf == NULL || (buf->buf.y_crop_width != cm->width ||
-                        buf->buf.y_crop_height != cm->height)) {
-      setup_tip_frame_size(cpi);
-      buf = get_ref_frame_buf(cm, TIP_FRAME);
-    }
+
     if (buf != NULL) {
       struct scale_factors *sf = get_ref_scale_factors(cm, TIP_FRAME);
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
@@ -2552,6 +2551,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
     // Find CDEF parameters
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
+#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+                    &cpi->td,
+#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
@@ -2567,7 +2569,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -2708,17 +2712,10 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 #endif  // CONFIG_LF_SUB_PU
     )
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
-#if CONFIG_LPF_MASK
-                               0,
-#endif
                                mt_info->workers, num_workers,
                                &mt_info->lf_row_sync);
     else
-      av1_loop_filter_frame(&cm->cur_frame->buf, cm, xd,
-#if CONFIG_LPF_MASK
-                            0,
-#endif
-                            0, num_planes, 0);
+      av1_loop_filter_frame(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);
@@ -3255,6 +3252,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
                                                     int64_t *sse, int64_t *rate,
                                                     int *largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
+
   if (allow_tip_direct_output(cm)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
@@ -3561,7 +3559,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3745,6 +3745,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
+#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  loopfilter_frame(cpi, cm);
+#else
   if (!is_global_intrabc_allowed(cm)) {
     loopfilter_frame(cpi, cm);
   } else {
@@ -3753,7 +3756,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
 #else
+#if !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_bits = 0;
+#endif  // !CONFIG_CDEF_ENHANCEMENTS
     cm->cdef_info.cdef_strengths[0] = 0;
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
@@ -3772,7 +3777,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
 #endif  // CONFIG_CCSO_IMPROVE
   }
-
+#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
   compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,
@@ -3857,6 +3862,12 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                          "Uninitialized entropy context.");
 
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+    int ref_frame_used = PRIMARY_REF_NONE;
+    int secondary_map_idx = INVALID_IDX;
+    get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
+    avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+#else
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
                                    ? cm->features.derived_secondary_ref_frame
@@ -3871,6 +3882,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                           &cm->ref_frame_map[secondary_map_idx]->frame_context,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   }
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
@@ -4283,10 +4295,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                    cm->cur_frame->buf.y_crop_height);
     }
 
+#if !CONFIG_KEY_OVERLAY
     // current_frame->frame_number is incremented already for
     // keyframe overlays.
     if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key))
+#endif  // !CONFIG_KEY_OVERLAY
       ++current_frame->frame_number;
 
     return AOM_CODEC_OK;
@@ -4535,6 +4549,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // takes a space in the gf group. Therefore, even when
   // it is not shown, we still need update the count down.
   if (cm->show_frame) {
+#if !CONFIG_KEY_OVERLAY
     // Don't increment frame counters if this is a key frame overlay
     if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key))
@@ -4542,6 +4557,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   } else if (av1_check_keyframe_arf(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key)) {
     // TODO(bohanli) Hack here: increment kf overlay before it is encoded
+#endif  // !CONFIG_KEY_OVERLAY
     ++current_frame->frame_number;
   }
 
@@ -4584,7 +4600,12 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->display_order_hint = current_frame->order_hint;
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
-      current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
+#if CONFIG_KEY_OVERLAY
+      current_frame->display_order_hint, cpi->gf_group.max_layer_depth,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
+#else
+        current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
+#endif  // CONFIG_KEY_OVERLAY
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;

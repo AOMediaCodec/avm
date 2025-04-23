@@ -62,6 +62,7 @@ static const struct arg_enum_list superblock_size_enum[] = {
   { "dynamic", AOM_SUPERBLOCK_SIZE_DYNAMIC },
   { "64", AOM_SUPERBLOCK_SIZE_64X64 },
   { "128", AOM_SUPERBLOCK_SIZE_128X128 },
+  { "256", AOM_SUPERBLOCK_SIZE_256X256 },
   { NULL, 0 }
 };
 
@@ -330,12 +331,20 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "RDO based on frame temporal dependency "
                               "(0: off, 1: backward source based). "
                               "This is required for deltaq mode."),
+#if CONFIG_KEY_OVERLAY
+  .enable_keyframe_filtering =
+      ARG_DEF(NULL, "enable-keyframe-filtering", 1,
+              "Apply temporal filtering on key frame"
+              "(0: no filter, 1: filter without overlay, "
+              "2: filter with overlay (default)) "),
+#else
   .enable_keyframe_filtering = ARG_DEF(
       NULL, "enable-keyframe-filtering", 1,
       "Apply temporal filtering on key frame"
       "(0: no filter, 1: filter without overlay (default), "
       "2: filter with overlay - experimental, may break random access in "
       "players.)"),
+#endif  // CONFIG_KEY_OVERLAY
   .tile_width = ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)"),
   .tile_height =
       ARG_DEF(NULL, "tile-height", 1, "Tile heights (command separated)"),
@@ -558,9 +567,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_warped_motion = ARG_DEF(NULL, "enable-warped-motion", 1,
                                   "Enable local warped motion "
                                   "(0: false, 1: true (default))"),
-  .enable_warped_causal = ARG_DEF(NULL, "enable-warped-causal", 1,
-                                  "Enable spatial warp prediction "
-                                  "(0: false, 1: true (default))"),
+  .enable_warp_causal = ARG_DEF(NULL, "enable-warp-causal", 1,
+                                "Enable spatial warp prediction "
+                                "(0: false, 1: true (default))"),
   .enable_warp_delta = ARG_DEF(NULL, "enable-warp-delta", 1,
                                "Enable explicit warp models "
                                "(0: false, 1: true (default))"),
@@ -593,8 +602,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "(0: false, 1: true (default))"),
   .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
                               "Force video mode (0: false, 1: true (default))"),
-  .enable_obmc = ARG_DEF(NULL, "enable-obmc", 1,
-                         "Enable OBMC (0: false (default), 1: true)"),
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   .enable_overlay =
       ARG_DEF(NULL, "enable-overlay", 1,
@@ -852,6 +859,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable DRL reorder (0: no reorder, 1: reorder with constraints "
               "(default), 2: always reorder"),
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  .enable_cdef_on_skip_txfm = ARG_DEF(
+      NULL, "enable-cdef-on-skip-txfm", 1,
+      "Enable CDEF on skip_txfm = 1 blocks (0: always off, 1: always on "
+      "(default), 2: adptive, allow on or off at the frame level"),
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   .enable_avg_cdf = ARG_DEF(NULL, "enable-avg-cdf", 1,
                             "Enable frame/tile cdfs average for initialization "

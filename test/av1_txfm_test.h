@@ -33,6 +33,9 @@ namespace libaom_test {
 enum {
   TYPE_DCT = 0,
   TYPE_ADST,
+#if CONFIG_INTER_DDT
+  TYPE_DDT,
+#endif  // CONFIG_INTER_DDT
   TYPE_IDTX,
   TYPE_IDCT,
   TYPE_IADST,
@@ -47,12 +50,17 @@ void reference_dct_1d(const double *in, double *out, int size);
 void reference_idct_1d(const double *in, double *out, int size);
 
 void reference_adst_1d(const double *in, double *out, int size);
-
+#if CONFIG_INTER_DDT
+void reference_ddt_1d(const double *in, double *out, int size);
+#endif  // CONFIG_INTER_DDT
 void reference_hybrid_1d(double *in, double *out, int size, int type);
 
 double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size);
 
 void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type,
+#if CONFIG_INTER_DDT
+                         int use_ddt,
+#endif  // CONFIG_INTER_DDT
                          TX_SIZE tx_size);
 template <typename Type1, typename Type2>
 static double compute_avg_abs_error(const Type1 *a, const Type2 *b,

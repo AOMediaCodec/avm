@@ -37,12 +37,6 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
       td->rd_counts.tx_type_used[i][j] += td_t->rd_counts.tx_type_used[i][j];
   }
 
-  for (int i = 0; i < BLOCK_SIZES_ALL; i++) {
-    for (int j = 0; j < 2; j++) {
-      td->rd_counts.obmc_used[i][j] += td_t->rd_counts.obmc_used[i][j];
-    }
-  }
-
   for (int i = 0; i < 2; i++) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
   }
@@ -558,8 +552,6 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
       av1_setup_sms_bufs(cm, thread_data->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-      alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
-
       for (int x = 0; x < 2; x++)
         for (int y = 0; y < 2; y++)
           CHECK_MEM_ERROR(
@@ -793,7 +785,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
       thread_data->td->rd_counts = cpi->td.rd_counts;
-      thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
 
       for (int x = 0; x < 2; x++) {
         for (int y = 0; y < 2; y++) {
@@ -849,11 +840,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
           thread_data->td->mb.opfl_gxy_bufs;
       thread_data->td->mb.e_mbd.opfl_dst_bufs =
           thread_data->td->mb.opfl_dst_bufs;
-
-      for (int j = 0; j < 2; ++j) {
-        thread_data->td->mb.e_mbd.tmp_obmc_bufs[j] =
-            thread_data->td->mb.tmp_pred_bufs[j];
-      }
     }
     av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
 #if !CONFIG_MVP_IMPROVEMENT
@@ -1330,7 +1316,6 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
-      thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
       thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
     }
 

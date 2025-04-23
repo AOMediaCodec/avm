@@ -169,7 +169,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_PAETH_INTRA,
                                         AV1E_SET_ENABLE_CFL_INTRA,
                                         AV1E_SET_FORCE_VIDEO_MODE,
-                                        AV1E_SET_ENABLE_OBMC,
                                         AV1E_SET_ENABLE_OVERLAY,
                                         AV1E_SET_ENABLE_PALETTE,
                                         AV1E_SET_ENABLE_INTRABC,
@@ -376,7 +375,6 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_paeth_intra,
   &g_av1_codec_arg_defs.enable_cfl_intra,
   &g_av1_codec_arg_defs.force_video_mode,
-  &g_av1_codec_arg_defs.enable_obmc,
   &g_av1_codec_arg_defs.enable_overlay,
   &g_av1_codec_arg_defs.enable_palette,
   &g_av1_codec_arg_defs.enable_intrabc,
@@ -486,6 +484,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_DRL_REORDER_CONTROL
   &g_av1_codec_arg_defs.enable_drl_reorder,
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   &g_av1_codec_arg_defs.enable_avg_cdf,
   &g_av1_codec_arg_defs.avg_cdf_type,
@@ -514,7 +515,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_mvd_sign_derive,
 #endif  // CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_parity_hiding,
-  &g_av1_codec_arg_defs.enable_warped_causal,
+  &g_av1_codec_arg_defs.enable_warp_causal,
   &g_av1_codec_arg_defs.enable_warp_delta,
 #if CONFIG_SIX_PARAM_WARP_DELTA
   &g_av1_codec_arg_defs.enable_six_param_warp_delta,
@@ -723,9 +724,8 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_LF_SUB_PU
   config->enable_lf_sub_pu = 1;
 #endif  // CONFIG_LF_SUB_PU
-  config->enable_obmc = 0;
   config->enable_warped_motion = 1;
-  config->enable_warped_causal = 1;
+  config->enable_warp_causal = 1;
   config->enable_warp_delta = 1;
 #if CONFIG_SIX_PARAM_WARP_DELTA
   config->enable_six_param_warp_delta = 1;
@@ -768,6 +768,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_DRL_REORDER_CONTROL
   config->enable_drl_reorder = 1;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  config->enable_cdef_on_skip_txfm = 1;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   config->enable_avg_cdf = 1;
   config->avg_cdf_type = 1;
@@ -1618,26 +1621,24 @@ static void show_stream_config(struct stream_state *stream,
       "                               : Adaptive Down sample filter: (%d)\n",
       encoder_cfg->select_cfl_ds_filter);
 
-  fprintf(stdout,
-          "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "
-          "Warp (%d)\n",
-          encoder_cfg->enable_interintra_comp, encoder_cfg->enable_obmc,
-          encoder_cfg->enable_warped_motion);
+  fprintf(
+      stdout, "Tool setting (Inter)           : InterIntra (%d), Warp (%d)\n",
+      encoder_cfg->enable_interintra_comp, encoder_cfg->enable_warped_motion);
 
   if (encoder_cfg->enable_warped_motion) {
 #if CONFIG_SIX_PARAM_WARP_DELTA
     fprintf(stdout,
-            "                               : WARPED_CAUSAL (%d), "
+            "                               : WARP_CAUSAL (%d), "
             "WARP_DELTA (%d), Six-param-warp-delta (%d), WARP_EXTEND (%d)\n",
-            encoder_cfg->enable_warped_causal, encoder_cfg->enable_warp_delta,
+            encoder_cfg->enable_warp_causal, encoder_cfg->enable_warp_delta,
             encoder_cfg->enable_six_param_warp_delta,
             encoder_cfg->enable_warp_extend);
 
 #else
     fprintf(stdout,
-            "                               : WARPED_CAUSAL (%d), "
+            "                               : WARP_CAUSAL (%d), "
             "WARP_DELTA (%d), WARP_EXTEND (%d)\n",
-            encoder_cfg->enable_warped_causal, encoder_cfg->enable_warp_delta,
+            encoder_cfg->enable_warp_causal, encoder_cfg->enable_warp_delta,
             encoder_cfg->enable_warp_extend);
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   }
@@ -1706,9 +1707,12 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
-          "CCSO (%d), "
+          "CDEF on skip_txfm = 1(%d), CCSO (%d), "
           "LoopRestoration (%d: [%d/%d/%d/%d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
+#if CONFIG_CDEF_ENHANCEMENTS
+          encoder_cfg->enable_cdef_on_skip_txfm,
+#endif  // CONFIG_CDEF_ENHANCEMENTS
           encoder_cfg->enable_ccso, encoder_cfg->enable_restoration,
           encoder_cfg->enable_wiener, encoder_cfg->enable_sgrproj,
           encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);

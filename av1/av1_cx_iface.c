@@ -77,7 +77,6 @@ struct av1_extracfg {
   unsigned int enable_lf_sub_pu;
 #endif  // CONFIG_LF_SUB_PU
   unsigned int force_video_mode;
-  unsigned int enable_obmc;
   unsigned int enable_trellis_quant;
   unsigned int enable_qm;
   unsigned int qm_y;
@@ -189,7 +188,7 @@ struct av1_extracfg {
   int enable_interintra_wedge;    // enable interintra-wedge compound usage
   int enable_global_motion;       // enable global motion usage for sequence
   int enable_warped_motion;       // enable local warped motion for sequence
-  int enable_warped_causal;       // enable spatial warp prediction for sequence
+  int enable_warp_causal;         // enable spatial warp prediction for sequence
   int enable_warp_delta;          // enable explicit warp models for sequence
 #if CONFIG_SIX_PARAM_WARP_DELTA
   int enable_six_param_warp_delta;  // enable explicit six-parameter warp models
@@ -249,6 +248,9 @@ struct av1_extracfg {
 #if CONFIG_DRL_REORDER_CONTROL
   int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  int enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int enable_avg_cdf;
   int avg_cdf_type;
@@ -392,17 +394,21 @@ const subgop_config_str_preset_map_type subgop_config_str_preset_map[] = {
 };
 
 static struct av1_extracfg default_extra_cfg = {
-  0,              // cpu_used
-  1,              // enable_auto_alt_ref
-  0,              // enable_auto_bwd_ref
-  0,              // noise_sensitivity
-  0,              // sharpness
-  0,              // static_thresh
-  1,              // row_mt
-  0,              // tile_columns
-  0,              // tile_rows
-  1,              // enable_tpl_model
-  1,              // enable_keyframe_filtering
+  0,  // cpu_used
+  1,  // enable_auto_alt_ref
+  0,  // enable_auto_bwd_ref
+  0,  // noise_sensitivity
+  0,  // sharpness
+  0,  // static_thresh
+  1,  // row_mt
+  0,  // tile_columns
+  0,  // tile_rows
+  1,  // enable_tpl_model
+#if CONFIG_KEY_OVERLAY
+  2,  // enable_keyframe_filtering
+#else
+  1,    // enable_keyframe_filtering
+#endif            // CONFIG_KEY_OVERLAY
   7,              // arnr_max_frames
   5,              // arnr_strength
   0,              // min_gf_interval; 0 -> default decision
@@ -430,7 +436,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable_lf_sub_pu
 #endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
-  0,                            // enable_obmc
   3,                            // enable_trellis_quant
   0,                            // enable_qm
   DEFAULT_QM_Y,                 // qm_y
@@ -537,7 +542,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable interintra wedge compound
   0,  // enable_global_motion usage
   1,  // enable_warped_motion at sequence level
-  1,  // enable_warped_causal at sequence level
+  1,  // enable_warp_causal at sequence level
   1,  // enable_warp_delta at sequence level
 #if CONFIG_SIX_PARAM_WARP_DELTA
   1,    // enable_six_param_warp_delta at sequence level
@@ -603,6 +608,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_DRL_REORDER_CONTROL
   1,    // enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  1,    // enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   1,  // enable_avg_cdf
   1,  // avg_cdf_type
@@ -986,6 +994,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->superblock_size =
       (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_64X64)     ? 64
       : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_128X128) ? 128
+      : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_256X256) ? 256
                                                                     : 0;
   cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
@@ -1058,7 +1067,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_interinter_wedge = extra_cfg->enable_interinter_wedge;
   cfg->enable_interintra_wedge = extra_cfg->enable_interintra_wedge;
   cfg->enable_global_motion = extra_cfg->enable_global_motion;
-  cfg->enable_warped_causal = extra_cfg->enable_warped_causal;
+  cfg->enable_warp_causal = extra_cfg->enable_warp_causal;
   cfg->enable_warp_delta = extra_cfg->enable_warp_delta;
 #if CONFIG_SIX_PARAM_WARP_DELTA
   cfg->enable_six_param_warp_delta = extra_cfg->enable_six_param_warp_delta;
@@ -1071,7 +1080,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
-  cfg->enable_obmc = extra_cfg->enable_obmc;
   cfg->enable_palette = extra_cfg->enable_palette;
   cfg->enable_intrabc = extra_cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1093,6 +1101,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_DRL_REORDER_CONTROL
   cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
@@ -1125,6 +1136,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->superblock_size =
       (cfg->superblock_size == 64)    ? AOM_SUPERBLOCK_SIZE_64X64
       : (cfg->superblock_size == 128) ? AOM_SUPERBLOCK_SIZE_128X128
+      : (cfg->superblock_size == 256) ? AOM_SUPERBLOCK_SIZE_256X256
                                       : AOM_SUPERBLOCK_SIZE_DYNAMIC;
   extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
@@ -1198,7 +1210,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_interinter_wedge = cfg->enable_interinter_wedge;
   extra_cfg->enable_interintra_wedge = cfg->enable_interintra_wedge;
   extra_cfg->enable_global_motion = cfg->enable_global_motion;
-  extra_cfg->enable_warped_causal = cfg->enable_warped_causal;
+  extra_cfg->enable_warp_causal = cfg->enable_warp_causal;
   extra_cfg->enable_warp_delta = cfg->enable_warp_delta;
 #if CONFIG_SIX_PARAM_WARP_DELTA
   extra_cfg->enable_six_param_warp_delta = cfg->enable_six_param_warp_delta;
@@ -1211,7 +1223,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
   extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
-  extra_cfg->enable_obmc = cfg->enable_obmc;
   extra_cfg->enable_palette = cfg->enable_palette;
   extra_cfg->enable_intrabc = cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1232,6 +1243,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_DRL_REORDER_CONTROL
   extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  extra_cfg->enable_cdef_on_skip_txfm = cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   extra_cfg->enable_avg_cdf = cfg->enable_avg_cdf;
   extra_cfg->avg_cdf_type = cfg->avg_cdf_type;
@@ -1449,9 +1463,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_LF_SUB_PU
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   if (tool_cfg->enable_lf_sub_pu) {
-    if (cfg->g_lag_in_frames == 0) {
-      tool_cfg->enable_lf_sub_pu = 0;
-    }
     if (cfg->kf_max_dist == 0) {
       tool_cfg->enable_lf_sub_pu = 0;
     }
@@ -1516,10 +1527,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  tool_cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   tool_cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   if (tool_cfg->enable_avg_cdf) {
-    if (extra_cfg->tile_columns <= 1 && extra_cfg->tile_rows <= 1) {
+    if (extra_cfg->tile_columns == 0 && extra_cfg->tile_rows == 0) {
       tool_cfg->avg_cdf_type = 0;
     } else {
       tool_cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
@@ -1646,7 +1660,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
+
+#if CONFIG_KEY_OVERLAY
+  kf_cfg->enable_keyframe_filtering =
+      kf_cfg->fwd_kf_enabled ? AOMMIN(extra_cfg->enable_keyframe_filtering, 1)
+                             : extra_cfg->enable_keyframe_filtering;
+#else
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
+#endif  // CONFIG_KEY_OVERLAY
+
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
   kf_cfg->enable_intrabc_ext = extra_cfg->enable_intrabc_ext;
@@ -1725,12 +1747,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tile_cfg->enable_ext_tile_debug = extra_cfg->ext_tile_debug;
 
   if (tile_cfg->enable_large_scale_tile) {
-    // The superblock_size can only be AOM_SUPERBLOCK_SIZE_64X64 or
-    // AOM_SUPERBLOCK_SIZE_128X128 while tile_cfg->enable_large_scale_tile = 1.
+    // The superblock_size must be fixed when enable_large_scale_tile = 1.
     // If superblock_size = AOM_SUPERBLOCK_SIZE_DYNAMIC, hard set it to
-    // AOM_SUPERBLOCK_SIZE_64X64(default value in large_scale_tile).
-    if (extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_64X64 &&
-        extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_128X128)
+    // AOM_SUPERBLOCK_SIZE_64X64 (default value in large_scale_tile).
+    if (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC)
       tool_cfg->superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
   }
 
@@ -1760,12 +1780,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (extra_cfg->enable_interintra_comp) {
     seq_enabled_motion_modes |= (1 << INTERINTRA);
   }
-  if (extra_cfg->enable_obmc) {
-    seq_enabled_motion_modes |= (1 << OBMC_CAUSAL);
-  }
   if (extra_cfg->enable_warped_motion) {
-    if (extra_cfg->enable_warped_causal) {
-      seq_enabled_motion_modes |= (1 << WARPED_CAUSAL);
+    if (extra_cfg->enable_warp_causal) {
+      seq_enabled_motion_modes |= (1 << WARP_CAUSAL);
     }
     if (extra_cfg->enable_warp_delta) {
       seq_enabled_motion_modes |= (1 << WARP_DELTA);
@@ -1797,7 +1814,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #else
   part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  part_cfg->enable_sdp = extra_cfg->enable_sdp;
+  part_cfg->enable_sdp =
+      tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_sdp;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
   part_cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
@@ -2028,10 +2046,18 @@ static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
   const SubGOPCfg *const subgop_cfg = gf_group->subgop_cfg;
   subgop_info->gf_interval = cpi->rc.baseline_gf_interval;
   subgop_info->frames_to_key = cpi->rc.frames_to_key;
+#if CONFIG_KEY_OVERLAY
+  subgop_info->has_key_overlay =
+      gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE;
+#endif  // CONFIG_KEY_OVERLAY
 
   // As key frame is not part of sub-gop configuration,
   // parameters are assigned separately.
-  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+  if (cpi->common.current_frame.frame_type == KEY_FRAME
+#if CONFIG_KEY_OVERLAY
+      || gf_group->update_type[1] == KFFLT_OVERLAY_UPDATE
+#endif  // CONFIG_KEY_OVERLAY
+  ) {
     subgop_info->size = 1;
     subgop_info->is_user_specified = 0;
     return AOM_CODEC_OK;
@@ -2253,13 +2279,6 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.force_video_mode = CAST(AV1E_SET_FORCE_VIDEO_MODE, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static aom_codec_err_t ctrl_set_enable_obmc(aom_codec_alg_priv_t *ctx,
-                                            va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_obmc = CAST(AV1E_SET_ENABLE_OBMC, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3058,9 +3077,24 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
+
+#if CONFIG_KEY_OVERLAY
+      // Currently, "enable_keyframe_filtering > 1" is the only exception case
+      // in AVM. Later, if more cases arise, this condition can be made general
+      // based on frame type.
+      const int valid_ref_case =
+          (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) &&
+          (cm->cur_frame->frame_type == INTER_FRAME);
+      ref_poc[ref_idx] =
+          ((ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) &&
+           !valid_ref_case)
+              ? -1
+              : ref_poc[ref_idx];
+#else
       ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
                              ? -1
                              : ref_poc[ref_idx];
+#endif  // CONFIG_KEY_OVERLAY
     }
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
@@ -3888,9 +3922,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_video_mode,
                               argv, err_string)) {
     extra_cfg.force_video_mode = arg_parse_uint_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_obmc, argv,
-                              err_string)) {
-    extra_cfg.enable_obmc = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_trellis_quant,
                               argv, err_string)) {
     extra_cfg.enable_trellis_quant = arg_parse_uint_helper(&arg, err_string);
@@ -4160,9 +4191,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warped_motion,
                               argv, err_string)) {
     extra_cfg.enable_warped_motion = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warped_causal,
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warp_causal,
                               argv, err_string)) {
-    extra_cfg.enable_warped_causal = arg_parse_int_helper(&arg, err_string);
+    extra_cfg.enable_warp_causal = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warp_delta,
                               argv, err_string)) {
     extra_cfg.enable_warp_delta = arg_parse_int_helper(&arg, err_string);
@@ -4299,6 +4330,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_drl_reorder = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
+                              argv, err_string)) {
+    extra_cfg.enable_cdef_on_skip_txfm = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_avg_cdf, argv,
                               err_string)) {
@@ -4388,7 +4425,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_CDEF, ctrl_set_enable_cdef },
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
-  { AV1E_SET_ENABLE_OBMC, ctrl_set_enable_obmc },
   { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
   { AV1E_SET_ENABLE_QM, ctrl_set_enable_qm },
   { AV1E_SET_QM_Y, ctrl_set_qm_y },
@@ -4617,7 +4653,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_LF_SUB_PU
         1,
 #endif  // CONFIG_LF_SUB_PU
-        1, 1,   1,   1,
+        1, 1,   1,
 #if CONFIG_SIX_PARAM_WARP_DELTA
         1,
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
@@ -4641,6 +4677,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_DRL_REORDER_CONTROL
         1,
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+        1,
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
         1,  // enable_avg_cdf
         1,  // avg_cdf_type

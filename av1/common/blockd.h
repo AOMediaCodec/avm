@@ -115,19 +115,22 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEWMV,          // NEWMV
     NEWMV,          // AMVDNEWMV
     WARPMV,         // WARPMV
-    NEARMV,         // NEAR_NEARMV
-    NEARMV,         // NEAR_NEWMV
-    NEWMV,          // NEW_NEARMV
-    GLOBALMV,       // GLOBAL_GLOBALMV
-    NEWMV,          // NEW_NEWMV
-    NEWMV,          // JOINT_NEWMV
-    NEWMV,          // JOINT_AMVDNEWMV
-    NEARMV,         // NEAR_NEARMV_OPTFLOW
-    NEARMV,         // NEAR_NEWMV_OPTFLOW
-    NEWMV,          // NEW_NEARMV_OPTFLOW
-    NEWMV,          // NEW_NEWMV_OPTFLOW
-    NEWMV,          // JOINT_NEWMV_OPTFLOW
-    NEWMV,          // JOINT_AMVDNEWMV_OPTFLOW
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    WARP_NEWMV,  // WARP_NEWMV
+#endif           // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    NEARMV,      // NEAR_NEARMV
+    NEARMV,      // NEAR_NEWMV
+    NEWMV,       // NEW_NEARMV
+    GLOBALMV,    // GLOBAL_GLOBALMV
+    NEWMV,       // NEW_NEWMV
+    NEWMV,       // JOINT_NEWMV
+    NEWMV,       // JOINT_AMVDNEWMV
+    NEARMV,      // NEAR_NEARMV_OPTFLOW
+    NEARMV,      // NEAR_NEWMV_OPTFLOW
+    NEWMV,       // NEW_NEARMV_OPTFLOW
+    NEWMV,       // NEW_NEWMV_OPTFLOW
+    NEWMV,       // JOINT_NEWMV_OPTFLOW
+    NEWMV,       // JOINT_AMVDNEWMV_OPTFLOW
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -154,6 +157,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEWMV
     MB_MODE_COUNT,  // AMVDNEWMV
     MB_MODE_COUNT,  // WARPMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    MB_MODE_COUNT,  // WARP_NEWMV
+#endif              // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     NEARMV,         // NEAR_NEARMV
     NEWMV,          // NEAR_NEWMV
     NEARMV,         // NEW_NEARMV
@@ -192,8 +198,11 @@ static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
 }
 
 static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
-  return mode == NEWMV || mode == AMVDNEWMV || mode == NEW_NEWMV_OPTFLOW ||
-         mode == NEW_NEWMV;
+  return mode == NEWMV || mode == AMVDNEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+         mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+         mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEWMV;
 }
 
 // return whether current mode is joint AMVD coding mode
@@ -235,6 +244,9 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
 
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          mode == WARP_NEWMV ||
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mode == AMVDNEWMV || is_joint_mvd_coding_mode(mode) ||
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
           mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEARMV);
@@ -332,19 +344,21 @@ typedef struct {
 #if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_WIDTH                                                   \
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-   2 * SUBBLK_REF_EXT_LINES)
+   2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
 #else
-#define REF_BUFFER_WIDTH \
-  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_WIDTH                                                   \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+   2 * DMVR_SEARCH_EXT_LINES)
 #endif
 #endif  // CONFIG_ACROSS_SCALE_REFINEMV
 #if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_HEIGHT                                                   \
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-   2 * SUBBLK_REF_EXT_LINES)
+   2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
 #else
-#define REF_BUFFER_HEIGHT \
-  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_HEIGHT                                                   \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+   2 * DMVR_SEARCH_EXT_LINES)
 #endif  // CONFIG_SUBBLK_REF_EXT
 typedef struct PadBlock {
   int x0;
@@ -505,9 +519,6 @@ typedef struct MB_MODE_INFO {
 #else
   uint8_t num_proj_ref;
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-  /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
-   * mode. */
-  uint8_t overlappable_neighbors[2];
   /*! \brief The parameters used in warp motion mode. */
   WarpedMotionParams wm_params[2];
 #if CONFIG_AFFINE_REFINEMENT
@@ -570,6 +581,11 @@ typedef struct MB_MODE_INFO {
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
+#if CONFIG_MRLS_IMPROVE
+  /*! \brief Enable or disable using more than one reference line for multiple
+   * reference line selection. */
+  bool multi_line_mrl;
+#endif
 #if CONFIG_WAIP
 #if CONFIG_NEW_TX_PARTITION
   /*! \brief Whether this luma/chroma mode is wide angle mode. */
@@ -1192,13 +1208,11 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
   }
 }
 
-// For a square block size 'bsize', returns the size of the sub-blocks used by
-// the given partition type. If the partition produces sub-blocks of different
-// sizes, then the function returns the largest sub-block size.
-// Implements the Partition_Subsize lookup table in the spec (Section 9.3.
-// Conversion tables).
-// Note: the input block size should be square.
-// Otherwise it's considered invalid.
+// For a block size 'bsize', returns the size of the sub-blocks used by the
+// given partition type. If the partition produces sub-blocks of different
+// sizes, then the function returns the size of the first sub-block. If given
+// partition type is not allowed for given block size, returns
+// PARTITION_INVALID.
 static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
                                                PARTITION_TYPE partition) {
   if (partition == PARTITION_INVALID) {
@@ -1598,8 +1612,9 @@ static INLINE void set_chroma_ref_offset_size(
               parent_info->mi_row_chroma_base + mi_size_high[BLOCK_8X8];
           info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
           info->bsize_base = BLOCK_8X16;
-        } else {  // Nothing to do: `info` is already initialized correctly.
+        } else {
           assert(bsize == BLOCK_8X8);
+          info->offset_started = 0;  // as block is a chroma ref by itself
         }
       } else {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
@@ -1615,8 +1630,9 @@ static INLINE void set_chroma_ref_offset_size(
           info->mi_col_chroma_base =
               parent_info->mi_col_chroma_base + mi_size_wide[BLOCK_8X8];
           info->bsize_base = BLOCK_16X8;
-        } else {  // Nothing to do: `info` is already initialized correctly.
+        } else {
           assert(bsize == BLOCK_8X8);
+          info->offset_started = 0;  // as block is a chroma ref by itself
         }
       } else {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
@@ -2061,6 +2077,7 @@ static inline void print_match_indices(int plane, int num_classes,
 // Need two of the WIENERNS_TAPS_MAX to store potential center taps. Adjust
 // accordingly.
 #define WIENERNS_TAPS_MAX 32
+#define WIENERNS_SIGNALED_TAPS_MAX 18
 // Special symbol to indicate the set of all classes.
 #define ALL_WIENERNS_CLASSES -17
 /*!
@@ -2758,17 +2775,6 @@ typedef struct macroblockd {
    * during the OPFL/DMVR.
    */
   uint16_t *opfl_dst_bufs;
-  /*!
-   * Temporary buffers used to build OBMC prediction by above (index 0) and left
-   * (index 1) predictors respectively.
-   * tmp_obmc_bufs[i][p * MAX_SB_SQUARE] is the buffer used for plane 'p'.
-   * There are pointers to actual buffers allocated elsewhere: e.g.
-   * - In decoder, 'pbi->td.tmp_obmc_bufs' or
-   * 'pbi->thread_data[t].td->xd.tmp_conv_dst' and
-   * -In encoder, 'x->tmp_pred_bufs' or
-   * 'cpi->tile_thr_data[t].td->mb.tmp_pred_bufs'.
-   */
-  uint16_t *tmp_obmc_bufs[2];
 
   /*!
    *  Temporary buffer used for upsampled prediction.
@@ -3934,9 +3940,15 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+  const int st_size_class =
+      (width == 8 && height == 8 && primary_tx_type == DCT_DCT) ? 1
+      : (width >= 8 && height >= 8) ? (primary_tx_type == DCT_DCT ? 2 : 3)
+#else
   const int st_size_class = (width == 8 && height == 8)   ? 1
                             : (width >= 8 && height >= 8) ? 2
-                                                          : 0;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                    : 0;
 #else
   const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
@@ -3945,7 +3957,11 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #if CONFIG_E124_IST_REDUCE_METHOD4
   if (((st_size_class == 0) && (eob > IST_4x4_HEIGHT)) ||
       ((st_size_class == 1) && (eob > IST_8x8_HEIGHT_RED)) ||
-      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT))) {
+      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT))
+#if CONFIG_F105_IST_MEM_REDUCE
+      || ((st_size_class == 3) && (eob > IST_ADST_NZ_CNT))
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+  ) {
 #else
   if (((sb_size == 4) && (eob > IST_4x4_HEIGHT)) ||
       ((sb_size == 8) && (eob > IST_8x8_HEIGHT))) {
@@ -4434,6 +4450,9 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
   if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame)
@@ -4494,34 +4513,13 @@ static INLINE int is_motion_variation_allowed_compound(
   return !has_second_ref(mbmi);
 }
 
-#if CONFIG_EXT_RECUR_PARTITIONS
-static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4, 4 };
-#else
-// input: log2 of length, 0(4), 1(8), ...
-static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4 };
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
-  return !(mbmi->overlappable_neighbors[0] == 0 &&
-           mbmi->overlappable_neighbors[1] == 0);
-}
-
-static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
-                                           int tree_type) {
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-
-#if CONFIG_IBC_SR_EXT
-  return (is_inter_block(mbmi, tree_type) &&
-          !is_intrabc_block(mbmi, tree_type));
-#else
-  return (is_inter_block(mbmi, tree_type));
-#endif  // CONFIG_IBC_SR_EXT
-}
-
 #if CONFIG_BAWP
 static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
                                         mi_col) &&
@@ -4676,7 +4674,11 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+static AOM_INLINE PARTITION_TREE *get_partition_subtree_const(
+#else
 static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const PARTITION_TREE *partition_tree, int idx) {
   if (!partition_tree) {
     return NULL;

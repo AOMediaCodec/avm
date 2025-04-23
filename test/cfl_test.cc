@@ -406,6 +406,106 @@ TEST_P(CFLPredictHBDTest, DISABLED_PredictHBDSpeedTest) {
   assertFaster(ref_elapsed_time, elapsed_time);
 }
 
+// Temporarily disable the sse4 function since it might overflow.
+// Re-enable the test when the parameter range is restricted to 32 bits,
+// or an updated sse4 function could handle intermediate 64 bits.
+#if HAVE_SSE4_1 && 0
+typedef void (*mhccp_predict_hv_hbd_fn)(const uint16_t *input, uint16_t *dst,
+                                        bool have_top, bool have_left,
+                                        int dst_stride, int64_t *alpha_q3,
+                                        int bit_depth, int width, int height,
+                                        int dir);
+typedef std::tuple<bool, bool, int, int, int, int> mhccp_param;
+class MhccpPredictHVHBDTest : public ::testing::TestWithParam<mhccp_param> {
+ public:
+  virtual void SetUp() {
+    have_top_ = std::get<0>(this->GetParam());
+    have_left_ = std::get<1>(this->GetParam());
+    bit_depth_ = std::get<2>(this->GetParam());
+    width_ = std::get<3>(this->GetParam());
+    height_ = std::get<4>(this->GetParam());
+    dir_ = std::get<5>(this->GetParam());
+    tgt_fn_ = mhccp_predict_hv_hbd_sse4_1;
+    ref_fn_ = mhccp_predict_hv_hbd_c;
+    memset(tgt_buffer_, 0, sizeof(uint16_t) * CFL_BUF_SQUARE);
+    memset(ref_buffer_, 0, sizeof(uint16_t) * CFL_BUF_SQUARE);
+  }
+  virtual ~MhccpPredictHVHBDTest() {}
+
+ protected:
+  mhccp_predict_hv_hbd_fn tgt_fn_;
+  mhccp_predict_hv_hbd_fn ref_fn_;
+  bool have_top_;
+  bool have_left_;
+  int64_t alpha_q3_[MHCCP_NUM_PARAMS];
+  int bit_depth_;
+  int width_;
+  int height_;
+  int dir_;
+  uint16_t input_buffer_[(LINE_NUM + 1 + CFL_BUF_LINE * 2) *
+                         (LINE_NUM + 1 + CFL_BUF_LINE * 2)];
+  uint16_t tgt_buffer_[CFL_BUF_SQUARE];
+  uint16_t ref_buffer_[CFL_BUF_SQUARE];
+  ACMRandom rnd_;
+
+  void randData() {
+    for (int i = 0; i < MHCCP_NUM_PARAMS; ++i) {
+      alpha_q3_[i] = this->rnd_(33);
+    }
+    for (int j = 0; j < height_; j++) {
+      for (int i = 0; i < width_; i++) {
+        input_buffer_[j * CFL_BUF_LINE + i] = this->rnd_.Rand16();
+      }
+    }
+  }
+};
+
+TEST_P(MhccpPredictHVHBDTest, PredictTest) {
+  const int input_stride = 2 * CFL_BUF_LINE;
+  const int offset = (LINE_NUM + 1) + (LINE_NUM + 1) * input_stride;
+  for (int it = 0; it < NUM_ITERATIONS; it++) {
+    randData();
+    tgt_fn_(input_buffer_ + offset, tgt_buffer_, have_top_, have_left_,
+            CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
+    ref_fn_(input_buffer_ + offset, ref_buffer_, have_top_, have_left_,
+            CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
+    assert_eq<uint16_t>(ref_buffer_, tgt_buffer_, width_, height_);
+  }
+}
+
+TEST_P(MhccpPredictHVHBDTest, DISABLED_PredictSpeedTest) {
+  aom_usec_timer ref_timer;
+  aom_usec_timer timer;
+  randData();
+  aom_usec_timer_start(&ref_timer);
+  const int input_stride = 2 * CFL_BUF_LINE;
+  const int offset = (LINE_NUM + 1) + (LINE_NUM + 1) * input_stride;
+  for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
+    ref_fn_(input_buffer_ + offset, tgt_buffer_, have_top_, have_left_,
+            CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  const int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  aom_usec_timer_start(&timer);
+  for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
+    tgt_fn_(input_buffer_ + offset, tgt_buffer_, have_top_, have_left_,
+            CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
+  }
+  aom_usec_timer_mark(&timer);
+  const int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  printSpeed(ref_elapsed_time, elapsed_time, width_, height_);
+  assertFaster(ref_elapsed_time, elapsed_time);
+}
+
+INSTANTIATE_TEST_SUITE_P(SSE4_1, MhccpPredictHVHBDTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(10, 12),
+                                            ::testing::Values(4, 8, 16, 32, 64),
+                                            ::testing::Values(4, 8, 16, 32, 64),
+                                            ::testing::Values(0, 1)));
+#endif  // HAVE_SSE4_1
+
 #if HAVE_SSE2
 const sub_avg_param sub_avg_sizes_sse2[] = { ALL_CFL_TX_SIZES(
     cfl_get_subtract_average_fn_sse2) };

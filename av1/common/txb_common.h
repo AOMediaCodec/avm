@@ -1028,7 +1028,6 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
 #if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
       // This is the algorithm to generate table skip_contexts[top][left].
       //    const int diag = top + left;
-      //    const int min = AOMMIN(AOMMIN(top, left), 4);
       //    if (diag == 0)
       //      txb_skip_ctx = 1;
       //    else if (diag==1 || diag==2)
@@ -1044,6 +1043,10 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
                                                    { 2, 3, 3, 4, 4 },
                                                    { 3, 3, 4, 4, 5 },
                                                    { 3, 4, 4, 5, 5 } };
+      // The above table look-up or conditional operations can be alternatively
+      // implemented as follows,
+      //     const int diag = top + left;
+      //     txb_skip_ctx = ((diag + 3) >> 1)
 #else
       // This is the algorithm to generate table skip_contexts[top][left].
       //    const int max = AOMMIN(top | left, 4);
@@ -1063,12 +1066,12 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
                                                    { 2, 4, 4, 4, 5 },
                                                    { 2, 4, 4, 4, 5 },
                                                    { 3, 5, 5, 5, 6 } };
-#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
       // For top and left, we only care about which of the following three
       // categories they belong to: { 0 }, { 1, 2, 3 }, or { 4, 5, ... }. The
       // spec calculates top and left with the Max() function. We can calculate
       // an approximate max with bitwise OR because the real max and the
       // approximate max belong to the same category.
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
       int top = 0;
       int left = 0;
 

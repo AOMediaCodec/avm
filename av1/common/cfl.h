@@ -118,7 +118,12 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 // Derive multi parameters for MHCCP
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir);
+                                 int ref_height, int dir
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                 ,
+                                 int is_top_sb_boundary
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+);
 #if CONFIG_E125_MHCCP_SIMPLIFY
 // Apply the back substitution process to generate the MHCCP parameters
 void gauss_back_substitute(int64_t *x,
@@ -158,11 +163,6 @@ bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t diag[MHCCP_NUM_PARAMS], int numEq);
 #endif  // !CONFIG_E125_MHCCP_SIMPLIFY
-
-// Get chroma prediction with MHCCP
-void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
-                            bool have_left, int dst_stride, int64_t *alpha_q3,
-                            int bit_depth, int width, int height, int dir);
 #endif  // CONFIG_ENABLE_MHCCP
 
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
@@ -187,8 +187,9 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  int filter_type);
+void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
+               int input_stride, int row, int col, TX_SIZE tx_size,
+               int filter_type);
 
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,

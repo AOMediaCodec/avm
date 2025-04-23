@@ -165,7 +165,7 @@ static unsigned int get_sby_perpixel_diff_variance(const AV1_COMP *const cpi,
   unsigned int sse, var;
   uint16_t *last_y;
   const YV12_BUFFER_CONFIG *last = get_ref_frame_yv12_buf(
-      &cpi->common, get_closest_pastcur_ref_index(&cpi->common));
+      &cpi->common, get_closest_pastcur_ref_or_ref0(&cpi->common));
 
   assert(last != NULL);
   last_y =
@@ -438,9 +438,10 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
                          SIMPLE_MOTION_DATA_TREE *sms_node, int mi_row,
-                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
-  SimpleMotionData *sms_data =
-      av1_get_sms_data_entry(data_buf, mi_row, mi_col, bsize, sb_size);
+                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                         int8_t sdp_flag) {
+  SimpleMotionData *sms_data = av1_get_sms_data_entry(data_buf, mi_row, mi_col,
+                                                      bsize, sb_size, sdp_flag);
   sms_data->old_sms = sms_node;
   if (bsize >= BLOCK_8X8) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -452,8 +453,8 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
       const int sub_mi_row = mi_row + (r_idx >> 1) * h_mi / 2;
       SIMPLE_MOTION_DATA_TREE *sub_tree = sms_node->split[r_idx];
 
-      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize,
-                   sb_size);
+      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize, sb_size,
+                   sdp_flag);
     }
   }
 }
@@ -505,8 +506,10 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *data_bufs = x->sms_bufs;
   av1_init_sms_data_bufs(data_bufs);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size);
-
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+               0);
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+               1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));
@@ -533,6 +536,9 @@ typedef struct SbMultiPassParams {
  */
 static AOM_INLINE void perform_one_partition_pass(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    TokenExtra **tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const int mi_row, const int mi_col,
     const SB_MULTI_PASS_MODE multi_pass_mode,
     const SbMultiPassParams *multi_pass_params) {
@@ -546,12 +552,10 @@ static AOM_INLINE void perform_one_partition_pass(
   const int ss_y = cm->seq_params.subsampling_y;
   RD_STATS dummy_rdc;
   av1_invalid_rd_stats(&dummy_rdc);
-
-  const int total_loop_num =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-       cm->seq_params.enable_sdp)
-          ? 2
-          : 1;
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+  const int total_loop_num = intra_sdp_enabled ? 2 : 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
   x->is_whole_sb = mi_row + mi_size_high[sb_size] <= cm->mi_params.mi_rows &&
                    mi_col + mi_size_wide[sb_size] <= cm->mi_params.mi_cols;
@@ -586,7 +590,14 @@ static AOM_INLINE void perform_one_partition_pass(
     int force_prune_flags[3] = { 0, 0, 0 };
 #endif  // CONFIG_ML_PART_SPLIT
     av1_rd_pick_partition(
-        cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+        cpi, td, tile_data,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+        (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp
+#else
+        tp
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+        ,
+        mi_row, mi_col, sb_size,
 #if CONFIG_EXTENDED_SDP
         PARTITION_NONE,
 #endif  // CONFIG_EXTENDED_SDP
@@ -603,6 +614,7 @@ static AOM_INLINE void perform_one_partition_pass(
     );
     sb_enc->min_partition_size = min_partition_size;
   }
+
   xd->tree_type = SHARED_PART;
 #if CONFIG_EXT_RECUR_PARTITIONS
   x->is_whole_sb = 0;
@@ -617,6 +629,9 @@ static AOM_INLINE void perform_one_partition_pass(
  */
 static AOM_INLINE void perform_two_partition_passes(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    TokenExtra **tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const int mi_row, const int mi_col) {
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   AV1_COMMON *const cm = &cpi->common;
@@ -631,8 +646,11 @@ static AOM_INLINE void perform_two_partition_passes(
 #if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
-  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_DRY_PASS, NULL);
+  perform_one_partition_pass(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                             tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                             mi_row, mi_col, SB_DRY_PASS, NULL);
 
   // Second pass
   RD_STATS dummy_rdc;
@@ -648,8 +666,11 @@ static AOM_INLINE void perform_two_partition_passes(
 #if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
-  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_WET_PASS, NULL);
+  perform_one_partition_pass(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                             tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                             mi_row, mi_col, SB_WET_PASS, NULL);
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -704,6 +725,9 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
  */
 static AOM_INLINE void perform_two_pass_partition_search(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    TokenExtra **tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const int mi_row, const int mi_col) {
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   AV1_COMMON *const cm = &cpi->common;
@@ -718,8 +742,11 @@ static AOM_INLINE void perform_two_pass_partition_search(
   av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   const BLOCK_SIZE fp_min_bsize = BLOCK_16X16;
   x->sb_enc.min_partition_size = fp_min_bsize;
-  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_DRY_PASS, NULL);
+  perform_one_partition_pass(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                             tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                             mi_row, mi_col, SB_DRY_PASS, NULL);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
   // Set this to NULL otherwise part_ref will get freed in the second pass.
   xd->sbi->ptree_root[0] = NULL;
@@ -734,8 +761,11 @@ static AOM_INLINE void perform_two_pass_partition_search(
 
   SbMultiPassParams multi_pass_params = { part_ref };
   av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_WET_PASS, &multi_pass_params);
+  perform_one_partition_pass(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                             tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                             mi_row, mi_col, SB_WET_PASS, &multi_pass_params);
 
   av1_free_ptree_recursive(part_ref);
 }
@@ -749,6 +779,9 @@ static AOM_INLINE void perform_two_pass_partition_search(
  */
 static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                     TileDataEnc *tile_data, TokenExtra **tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                    TokenExtra **tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
                                     const int mi_row, const int mi_col,
                                     const int seg_skip) {
   AV1_COMMON *const cm = &cpi->common;
@@ -769,11 +802,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   (void)num_planes;
   (void)mi;
 
-  const int total_loop_num =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-       cm->seq_params.enable_sdp)
-          ? 2
-          : 1;
+  const int total_loop_num = is_sdp_enabled_in_keyframe(cm) ? 2 : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
   x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
@@ -783,6 +812,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
@@ -802,19 +834,27 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col, bsize,
-          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+          xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       PC_TREE *const pc_root =
           av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
                                  PARTITION_NONE, 0, 1, ss_x, ss_y);
-      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1,
-#if CONFIG_EXT_RECUR_PARTITIONS
-                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+      av1_rd_use_partition(
+          cpi, td, tile_data, mi,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp
 #else
-                           NULL,
+          tp
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          ,
+          mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+          NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-                           pc_root);
+          pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;
     }
@@ -840,16 +880,24 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col, bsize,
-          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+          xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1,
-#if CONFIG_EXT_RECUR_PARTITIONS
-                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+      av1_rd_use_partition(
+          cpi, td, tile_data, mi,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp
 #else
-                           NULL,
+          tp
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          ,
+          mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+          NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-                           pc_root);
+          pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;
     }
@@ -875,17 +923,28 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
     if (cpi->oxcf.unit_test_cfg.sb_multipass_unit_test) {
-      perform_two_partition_passes(cpi, td, tile_data, tp, mi_row, mi_col);
+      perform_two_partition_passes(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                   tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                   mi_row, mi_col);
     }
 #if CONFIG_EXT_RECUR_PARTITIONS
     else if (!frame_is_intra_only(cm) &&
              sf->part_sf.two_pass_partition_search) {
-      perform_two_pass_partition_search(cpi, td, tile_data, tp, mi_row, mi_col);
+      perform_two_pass_partition_search(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                        tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                        mi_row, mi_col);
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     else {
-      perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                                 SB_SINGLE_PASS, NULL);
+      perform_one_partition_pass(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                 tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                 mi_row, mi_col, SB_SINGLE_PASS, NULL);
     }
 
     // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
@@ -913,7 +972,12 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
  */
 static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                                      TileDataEnc *tile_data, int mi_row,
-                                     TokenExtra **tp) {
+                                     TokenExtra **tp
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                     ,
+                                     TokenExtra **tp_chroma
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+) {
   AV1_COMMON *const cm = &cpi->common;
   const TileInfo *const tile_info = &tile_data->tile_info;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -1001,7 +1065,11 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     }
 
     // encode the superblock
-    encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
+    encode_rd_sb(cpi, td, tile_data, tp,
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                 tp_chroma,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                 mi_row, mi_col, seg_skip);
 
     // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&
@@ -1106,16 +1174,43 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
   get_start_tok(cpi, tile_row, tile_col, mi_row, &tok,
                 cm->mib_size_log2 + MI_SIZE_LOG2, num_planes);
   tplist[sb_row_in_tile].start = tok;
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  /* tok chroma takes a pointer after one channel length assoicated with
+    storage of palette information. tok parameter will be associated with luma
+    channel. tok chroma is associated with chroma channel.
+    Only in key frames tok chroma will be used to store palette infomation of
+    chroma.
+   */
+  const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
+  int temp_num_mb_rows_in_sb = num_mb_rows_in_sb;
+  TokenExtra *tok_chroma =
+      tok + get_token_alloc(temp_num_mb_rows_in_sb, tile_mb_cols,
+                            cm->mib_size_log2 + MI_SIZE_LOG2, 1);
+  tplist[sb_row_in_tile].start_chroma = tok_chroma;
 
-  encode_sb_row(cpi, td, this_tile, mi_row, &tok);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+  encode_sb_row(cpi, td, this_tile, mi_row, &tok
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                ,
+                &tok_chroma
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+  );
 
   tplist[sb_row_in_tile].count =
       (unsigned int)(tok - tplist[sb_row_in_tile].start);
 
-  assert((unsigned int)(tok - tplist[sb_row_in_tile].start) <=
-         get_token_alloc(num_mb_rows_in_sb, tile_mb_cols,
-                         cm->mib_size_log2 + MI_SIZE_LOG2, num_planes));
-
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  tplist[sb_row_in_tile].count_chroma =
+      (unsigned int)(tok_chroma - tplist[sb_row_in_tile].start_chroma);
+  if (intra_sdp_enabled) {
+    assert((unsigned int)(tok_chroma - tplist[sb_row_in_tile].start) <=
+           get_token_alloc(temp_num_mb_rows_in_sb, tile_mb_cols,
+                           cm->mib_size_log2 + MI_SIZE_LOG2, num_planes));
+  } else
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+    assert((unsigned int)(tok - tplist[sb_row_in_tile].start) <=
+           get_token_alloc(num_mb_rows_in_sb, tile_mb_cols,
+                           cm->mib_size_log2 + MI_SIZE_LOG2, num_planes));
   (void)tile_mb_cols;
   (void)num_mb_rows_in_sb;
 }
@@ -1443,7 +1538,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_zero(*td->counts);
   av1_zero(rdc->comp_pred_diff);
   av1_zero(rdc->tx_type_used);
-  av1_zero(rdc->obmc_used);
   av1_zero(rdc->warped_used);
 
 #if CONFIG_CCSO_IMPROVE
@@ -1468,12 +1562,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   // TODO(rachelbarker): Rework pruning into something more unified in phase 2
   int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
 
-  if ((enabled_motion_modes & (1 << WARPED_CAUSAL)) != 0 &&
+  if ((enabled_motion_modes & (1 << WARP_CAUSAL)) != 0 &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     if (frame_probs->warped_probs[update_type] <
         cpi->sf.inter_sf.prune_warped_prob_thresh)
-      enabled_motion_modes &= ~(1 << WARPED_CAUSAL);
+      enabled_motion_modes &= ~(1 << WARP_CAUSAL);
   }
 
   features->enabled_motion_modes = enabled_motion_modes;
@@ -1618,7 +1712,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     cm->last_frame_seg_map = cm->prev_frame->seg_map;
   else
     cm->last_frame_seg_map = NULL;
-  if (is_global_intrabc_allowed(cm) || features->coded_lossless) {
+  if (
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      is_global_intrabc_allowed(cm) ||
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+      features->coded_lossless) {
     av1_set_default_ref_deltas(cm->lf.ref_deltas);
     av1_set_default_mode_deltas(cm->lf.mode_deltas);
   } else if (cm->prev_frame) {
@@ -1696,10 +1794,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   if (features->allow_intrabc && !cpi->intrabc_used) {
     features->allow_intrabc = 0;
   }
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) {
     cm->delta_q_info.delta_lf_present_flag = 0;
   }
-
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (cm->delta_q_info.delta_q_present_flag && cpi->deltaq_used == 0) {
     cm->delta_q_info.delta_q_present_flag = 0;
   }
@@ -1735,22 +1834,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         if (j == 0) prob += left;
         frame_probs->tx_type_probs[update_type][i][j] = prob;
       }
-    }
-  }
-
-  // TODO(rachelbarker): Improve pruning logic in phase 2
-  if (!cpi->sf.inter_sf.disable_obmc &&
-      cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-
-    for (i = 0; i < BLOCK_SIZES_ALL; i++) {
-      int sum = 0;
-      for (int j = 0; j < 2; j++) sum += cpi->td.rd_counts.obmc_used[i][j];
-
-      const int new_prob =
-          sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
-      frame_probs->obmc_probs[update_type][i] =
-          (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
     }
   }
 

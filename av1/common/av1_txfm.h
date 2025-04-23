@@ -21,6 +21,7 @@
 
 #include "av1/common/enums.h"
 #include "av1/common/blockd.h"
+#include "av1/common/secondary_tx.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
 
@@ -94,6 +95,13 @@ static INLINE const int32_t *cospi_arr(int n) {
 
 static INLINE const int32_t *sinpi_arr(int n) {
   return av1_sinpi_arr_data[n - cos_bit_min];
+}
+
+static INLINE int32_t clamp_value(int32_t value, int8_t bit) {
+  if (bit <= 0) return value;  // Do nothing for invalid clamp bit.
+  const int64_t max_value = (1LL << (bit - 1)) - 1;
+  const int64_t min_value = -(1LL << (bit - 1));
+  return (int32_t)clamp64(value, min_value, max_value);
 }
 
 static INLINE int32_t range_check_value(int32_t value, int8_t bit) {

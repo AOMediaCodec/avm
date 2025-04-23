@@ -51,6 +51,12 @@ extern "C" {
 #define SUBBLK_REF_EXT_LINES 2
 #endif  // CONFIG_SUBBLK_REF_EXT
 
+#if CONFIG_16_FULL_SEARCH_DMVR
+#define DMVR_SEARCH_EXT_LINES 2
+#else
+#define DMVR_SEARCH_EXT_LINES 0
+#endif  // CONFIG_16_FULL_SEARCH_DMVR
+
 #if CONFIG_WARP_PRECISION
 #define WARP_STATS_BUFFER_SIZE \
   (MAX_WARP_REF_CANDIDATES * NUM_WARP_PRECISION_MODES)
@@ -276,6 +282,9 @@ enum {
 #define IST_8x8_WIDTH 48
 #define IST_8x8_HEIGHT_MAX 32
 #define IST_8x8_HEIGHT 32
+#if CONFIG_F105_IST_MEM_REDUCE
+#define IST_ADST_NZ_CNT 20
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
@@ -738,6 +747,13 @@ enum {
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM2BYTE(TX_TYPE);
 
+#if CONFIG_IST_REDUCTION
+#define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
+#if CONFIG_F105_IST_MEM_REDUCE
+#define IST_REDUCE_SET_SIZE_ADST_ADST 4
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+#endif  // CONFIG_IST_REDUCTION
+
 #define CCTX_CONTEXTS 3
 
 // Drop C2 channel for some cctx_types.
@@ -907,8 +923,13 @@ enum {
   GLOBALMV,
   NEWMV,
   AMVDNEWMV,
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  WARPMV,      // WARPMV mode (original WARPMV)
+  WARP_NEWMV,  // WARP_NEWMV mode (original warp modes under NEWMV)
+#else
   WARPMV,  // WARPMV mode
-           // Compound ref compound modes
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        // Compound ref compound modes
   NEAR_NEARMV,
   NEAR_NEWMV,
   NEW_NEARMV,
@@ -984,10 +1005,9 @@ enum {
 enum {
   SIMPLE_TRANSLATION,
   INTERINTRA,
-  OBMC_CAUSAL,    // 2-sided OBMC
-  WARPED_CAUSAL,  // Warp estimation from spatial MVs
-  WARP_DELTA,     // Directly-signaled warp model
-  WARP_EXTEND,    // Extension of an existing warp model into another block
+  WARP_CAUSAL,  // Warp estimation from spatial MVs
+  WARP_DELTA,   // Directly-signaled warp model
+  WARP_EXTEND,  // Extension of an existing warp model into another block
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
 
@@ -1081,18 +1101,25 @@ enum {
 #define ANGLE_STEP 3
 
 #if CONFIG_D149_CTX_MODELING_OPT && CONFIG_COMPOUND_WARP_CAUSAL
-#define NO_D149_FOR_WARPED_CAUSAL 1
+#define NO_D149_FOR_WARP_CAUSAL 1
 #else
-#define NO_D149_FOR_WARPED_CAUSAL 0
+#define NO_D149_FOR_WARP_CAUSAL 0
 #endif  // CONFIG_D149_CTX_MODELING_OPT && CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_AIMC
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7
 #endif
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+// The warpmv and warpmv_new mode is signalled as a separate flag
+// So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-2)
+#define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 2)
+#else
 // The warpmv mode is signalled as a separate flag
 // So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-1)
 #define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 1)
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
 #define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
@@ -1195,7 +1222,13 @@ enum {
 #define MAX_AMVD_INDEX 8
 #endif  // CONFIG_VQ_MVD_CODING
 
+#if CONFIG_DELTAQ_OPT
+#define DELTA_Q_SMALL 7
+#else
 #define DELTA_Q_SMALL 3
+#endif
+
+#define DELTA_Q_SMALL_MINUS_2 (DELTA_Q_SMALL - 2)
 #define DELTA_Q_PROBS (DELTA_Q_SMALL)
 #define DEFAULT_DELTA_Q_RES_PERCEPTUAL 4
 #define DEFAULT_DELTA_Q_RES_OBJECTIVE 4
@@ -1248,6 +1281,10 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #endif  // CONFIG_EXTENDED_SDP
 
 #define TIP_CONTEXTS 3
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+#define WARP_CAUSAL_MODE_CTX 4
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
 #define TIP_PRED_MODES 3

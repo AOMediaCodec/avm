@@ -527,10 +527,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
 #endif
                                   start_plane, av1_num_planes(cm) - 1);
-    if (mbmi->motion_mode == OBMC_CAUSAL) {
-      assert(cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL));
-      av1_build_obmc_inter_predictors_sb(cm, xd);
-    }
 
 #if CONFIG_MISMATCH_DEBUG
     if (dry_run == OUTPUT_ENABLED) {
@@ -1252,7 +1248,18 @@ static void update_warp_delta_param_stats(int index, int coded_value,
 #endif  // CONFIG_WARP_PRECISION
 
 #if CONFIG_ENTROPY_STATS
-  counts->warp_delta_param[index_type][coded_value]++;
+  const int low_coded_value =
+#if CONFIG_WARP_PRECISION
+      coded_value >= coded_value_low_max ? coded_value_low_max :
+#endif  // CONFIG_WARP_PRECISION
+                                         coded_value;
+  counts->warp_delta_param[index_type][low_coded_value]++;
+#if CONFIG_WARP_PRECISION
+  if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
+      coded_value >= coded_value_low_max) {
+    counts->warp_delta_param_high[index_type][coded_value - 7]++;
+  }
+#endif  // CONFIG_WARP_PRECISION
 #endif  // CONFIG_ENTROPY_STATS
 }
 
@@ -1358,6 +1365,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_EXTENDED_SDP
         && mbmi->region_type != INTRA_REGION
 #endif  // CONFIG_EXTENDED_SDP
+#if CONFIG_DISABLE_4X4_INTER
+        && mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4
+#endif
     ) {
       const int intra_inter_ctx = av1_get_intra_inter_context(xd);
 #if CONFIG_ENTROPY_STATS
@@ -1552,7 +1562,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_IBC_MAX_DRL
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-      if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+      if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
         int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
         assert(index < av1_intraBc_precision_sets.num_precisions);
         assert(index < NUM_ALLOWED_BV_PRECISIONS);
@@ -1779,19 +1789,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       MOTION_MODE motion_mode = mbmi->motion_mode;
 
       if (mbmi->mode == WARPMV) {
-        if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+        if (allowed_motion_modes & (1 << WARP_CAUSAL)) {
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS
-          counts->warped_causal_warpmv[motion_mode == WARPED_CAUSAL]++;
+          counts->warp_causal_warpmv[motion_mode == WARP_CAUSAL]++;
 #endif
-          update_cdf(fc->warped_causal_warpmv_cdf, motion_mode == WARPED_CAUSAL,
-                     2);
+          update_cdf(fc->warp_causal_warpmv_cdf, motion_mode == WARP_CAUSAL, 2);
 #else
 #if CONFIG_ENTROPY_STATS
-          counts->warped_causal_warpmv[bsize][motion_mode == WARPED_CAUSAL]++;
+          counts->warp_causal_warpmv[bsize][motion_mode == WARP_CAUSAL]++;
 #endif
-          update_cdf(fc->warped_causal_warpmv_cdf[bsize],
-                     motion_mode == WARPED_CAUSAL, 2);
+          update_cdf(fc->warp_causal_warpmv_cdf[bsize],
+                     motion_mode == WARP_CAUSAL, 2);
 #endif  // CONFIG_D149_CTX_MODELING_OPT
         }
       }
@@ -1799,9 +1808,69 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       bool continue_motion_mode_signaling =
           (mbmi->mode == WARPMV) ? false : true;
 
-      assert(IMPLIES(mbmi->mode == WARPMV,
-                     mbmi->motion_mode == WARP_DELTA ||
-                         mbmi->motion_mode == WARPED_CAUSAL));
+      assert(IMPLIES(
+          mbmi->mode == WARPMV,
+          mbmi->motion_mode == WARP_DELTA || mbmi->motion_mode == WARP_CAUSAL));
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+      if (continue_motion_mode_signaling &&
+          is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
+          mbmi->mode == WARP_NEWMV) {
+        continue_motion_mode_signaling =
+            (allowed_motion_modes & (1 << WARP_CAUSAL)) ||
+            (allowed_motion_modes & (1 << WARP_DELTA));
+
+        if (continue_motion_mode_signaling &&
+            allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+          const int ctx = av1_get_warp_extend_ctx(xd);
+#if CONFIG_ENTROPY_STATS
+          counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
+#endif
+          update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
+                     2);
+#else
+          const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+          const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
+#if CONFIG_ENTROPY_STATS
+          counts->warp_extend[ctx1][ctx2][mbmi->motion_mode == WARP_EXTEND]++;
+#endif
+          update_cdf(fc->warp_extend_cdf[ctx1][ctx2],
+                     mbmi->motion_mode == WARP_EXTEND, 2);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+          if (motion_mode == WARP_EXTEND) {
+            continue_motion_mode_signaling = false;
+          }
+        }
+
+        if (continue_motion_mode_signaling &&
+            (allowed_motion_modes & (1 << WARP_DELTA)) &&
+            (allowed_motion_modes & (1 << WARP_CAUSAL))) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+          const int ctx = av1_get_warp_causal_ctx(xd);
+          const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
+#if CONFIG_ENTROPY_STATS
+          counts->warp_causal_cnt[ctx][use_warp_causal]++;
+#endif
+          update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
+#else
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+#if CONFIG_ENTROPY_STATS
+          counts->warp_causal_cnt[motion_mode == WARP_CAUSAL]++;
+#endif
+          update_cdf(fc->warp_causal_cdf, motion_mode == WARP_CAUSAL, 2);
+#else
+#if CONFIG_ENTROPY_STATS
+          counts->warp_causal_cnt[bsize][motion_mode == WARP_CAUSAL]++;
+#endif
+          update_cdf(fc->warp_causal_cdf[bsize], motion_mode == WARP_CAUSAL, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        }
+
+        continue_motion_mode_signaling = false;
+      }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << INTERINTRA))) {
@@ -1852,24 +1921,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-      if (continue_motion_mode_signaling &&
-          (allowed_motion_modes & (1 << OBMC_CAUSAL))) {
-#if CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_ENTROPY_STATS
-        counts->obmc[motion_mode == OBMC_CAUSAL]++;
-#endif
-        update_cdf(fc->obmc_cdf, motion_mode == OBMC_CAUSAL, 2);
-#else
-#if CONFIG_ENTROPY_STATS
-        counts->obmc[bsize][motion_mode == OBMC_CAUSAL]++;
-#endif
-        update_cdf(fc->obmc_cdf[bsize], motion_mode == OBMC_CAUSAL, 2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-        if (motion_mode == OBMC_CAUSAL) {
-          continue_motion_mode_signaling = false;
-        }
-      }
-
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_EXTEND)) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -1892,26 +1944,36 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           continue_motion_mode_signaling = false;
         }
       }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       if (continue_motion_mode_signaling &&
-          (allowed_motion_modes & (1 << WARPED_CAUSAL))) {
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+          (allowed_motion_modes & (1 << WARP_CAUSAL))) {
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+        const int ctx = av1_get_warp_causal_ctx(xd);
+        const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
 #if CONFIG_ENTROPY_STATS
-        counts->warped_causal[motion_mode == WARPED_CAUSAL]++;
+        counts->warp_causal_cnt[ctx][use_warp_causal]++;
 #endif
-        update_cdf(fc->warped_causal_cdf, motion_mode == WARPED_CAUSAL, 2);
+        update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
+#else
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+#if CONFIG_ENTROPY_STATS
+        counts->warp_causal_cnt[motion_mode == WARP_CAUSAL]++;
+#endif
+        update_cdf(fc->warp_causal_cdf, motion_mode == WARP_CAUSAL, 2);
 #else
 #if CONFIG_ENTROPY_STATS
-        counts->warped_causal[bsize][motion_mode == WARPED_CAUSAL]++;
+        counts->warp_causal_cnt[bsize][motion_mode == WARP_CAUSAL]++;
 #endif
-        update_cdf(fc->warped_causal_cdf[bsize], motion_mode == WARPED_CAUSAL,
-                   2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-        if (motion_mode == WARPED_CAUSAL) {
+        update_cdf(fc->warp_causal_cdf[bsize], motion_mode == WARP_CAUSAL, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+        if (motion_mode == WARP_CAUSAL) {
           continue_motion_mode_signaling = false;
         }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       }
 
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << WARP_DELTA))) {
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -1926,9 +1988,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         update_cdf(fc->warp_delta_cdf[bsize], motion_mode == WARP_DELTA, 2);
 #endif  // CONFIG_D149_CTX_MODELING_OPT
       }
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       if (motion_mode == WARP_DELTA ||
-          (motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)) {
+          (motion_mode == WARP_CAUSAL && mbmi->mode == WARPMV)) {
         update_warp_delta_stats(cm, mbmi, mbmi_ext,
 #if CONFIG_ENTROPY_STATS
                                 counts,
@@ -1977,12 +2040,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(xd, mbmi)));
+                is_compound_warp_causal_allowed(cm, xd, mbmi)));
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(mbmi)));
+                is_compound_warp_causal_allowed(cm, mbmi)));
 #endif  // CONFIG_COMPOUND_4XN
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
@@ -2521,10 +2584,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
 
-    // Gather obmc and warped motion count to update the probability.
-    if ((!cpi->sf.inter_sf.disable_obmc &&
-         cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
-        cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||
+    // Gather warped motion count to update the probability.
+    if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||
         cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
       const int inter_block = is_inter_block(mbmi, xd->tree_type);
       const int seg_ref_active = 0;
@@ -2532,14 +2593,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         const int allowed_motion_modes = motion_mode_allowed(
             cm, xd, x->mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
         if (mbmi->motion_mode != INTERINTRA) {
-          if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
-            td->rd_counts.obmc_used[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
-          }
-          int is_warp_allowed = (allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
+          int is_warp_allowed = (allowed_motion_modes & (1 << WARP_CAUSAL)) ||
                                 (allowed_motion_modes & (1 << WARP_DELTA)) ||
                                 (allowed_motion_modes & (1 << WARP_EXTEND));
           if (is_warp_allowed) {
-            td->rd_counts.warped_used[mbmi->motion_mode >= WARPED_CAUSAL]++;
+            td->rd_counts.warped_used[mbmi->motion_mode >= WARP_CAUSAL]++;
           }
           // TODO(rachelbarker): Add counts and pruning for WARP_DELTA and
           // WARP_EXTEND
@@ -2591,18 +2649,18 @@ static void update_partition_stats(
   const bool ss_y = xd->plane[1].subsampling_y;
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
-      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma,
-      chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
-    assert(partition == derived_partition &&
-           "Partition does not match normatively derived partition.");
-    return;
-  }
+      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
                                         mi_row, mi_col, ss_x, ss_y, bsize,
                                         chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
+    assert(partition == derived_partition &&
+           "Partition does not match normatively derived partition.");
+    return;
+  }
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
     assert(partition == derived_partition);
@@ -3330,14 +3388,15 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                 BLOCK_SIZE final_bsize,
-                                 PARTITION_TREE *ptree) {
+                                 BLOCK_SIZE final_bsize, PARTITION_TREE *ptree,
+                                 const PARTITION_TREE *ptree_luma) {
   assert(block_size_high[bsize] == block_size_wide[bsize]);
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
 
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
+  ptree->bsize = bsize;
 
   PARTITION_TREE *parent = ptree->parent;
   set_chroma_ref_info(tree_type, mi_row, mi_col, ptree->index, bsize,
@@ -3353,41 +3412,57 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
   const CHROMA_REF_INFO *chroma_ref_info = &ptree->chroma_ref_info;
 
-  // Handle boundary for first partition.
-  PARTITION_TYPE implied_first_partition;
-  const bool is_first_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-      chroma_ref_info, &implied_first_partition);
-
-  if (!is_first_part_implied &&
-      (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
-      (block_size_high[bsize] <= block_size_high[final_bsize])) {
-    ptree->partition = PARTITION_NONE;
-    return;
-  }
-
   // In general, we simulate SPLIT partition as HORZ followed by VERT partition.
   // But in case first partition is implied to be VERT, we are forced to use
   // VERT followed by HORZ.
   PARTITION_TYPE first_partition = PARTITION_INVALID;
-  if (is_first_part_implied) {
-    first_partition = implied_first_partition;
-  } else if (check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize,
-                                        mi_row, mi_col, ss_x, ss_y,
-                                        chroma_ref_info)) {
-    first_partition = PARTITION_HORZ;
-  } else if (check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize,
-                                        mi_row, mi_col, ss_x, ss_y,
-                                        chroma_ref_info)) {
-    first_partition = PARTITION_VERT;
+  {
+    PARTITION_TYPE implied_first_partition = PARTITION_INVALID;
+    const PARTITION_TYPE derived_partition =
+        av1_get_normative_forced_partition_type(&cm->mi_params, tree_type, ss_x,
+                                                ss_y, mi_row, mi_col, bsize,
+                                                ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
+                                          mi_row, mi_col, ss_x, ss_y, bsize,
+                                          chroma_ref_info);
+    if (derived_partition != PARTITION_INVALID &&
+        partition_allowed[derived_partition]) {
+      assert(derived_partition == PARTITION_HORZ ||
+             derived_partition == PARTITION_VERT ||
+             derived_partition == PARTITION_NONE ||
+             derived_partition == PARTITION_SPLIT);
+      implied_first_partition = derived_partition;
+    }
+    if (implied_first_partition != PARTITION_INVALID) {
+      first_partition = implied_first_partition;
+    } else if (partition_allowed[PARTITION_NONE] &&
+               (block_size_wide[bsize] <= block_size_wide[final_bsize]) &&
+               (block_size_high[bsize] <= block_size_high[final_bsize])) {
+      first_partition = PARTITION_NONE;
+    } else if (partition_allowed[PARTITION_SPLIT]) {
+      first_partition = PARTITION_SPLIT;
+    } else if (partition_allowed[PARTITION_HORZ]) {
+      first_partition = PARTITION_HORZ;
+    } else if (partition_allowed[PARTITION_VERT]) {
+      first_partition = PARTITION_VERT;
+    }
   }
   assert(first_partition != PARTITION_INVALID);
+
+  if (first_partition == PARTITION_NONE) {
+    ptree->partition = first_partition;
+    return;
+  }
 
   const BLOCK_SIZE subsize = subsize_lookup[PARTITION_SPLIT][bsize];
   const int hbs_w = mi_size_wide[bsize] >> 1;
   const int hbs_h = mi_size_high[bsize] >> 1;
 
   ptree->partition = first_partition;
+  const int track_ptree_luma =
+      is_luma_chroma_share_same_partition(tree_type, ptree_luma, bsize);
 
   if (first_partition == PARTITION_SPLIT) {
     ptree->partition = first_partition;
@@ -3396,13 +3471,17 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
     ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
     ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
     build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]);
+                         ptree->sub_tree[0],
+                         track_ptree_luma ? ptree_luma->sub_tree[0] : NULL);
     build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]);
+                         final_bsize, ptree->sub_tree[1],
+                         track_ptree_luma ? ptree_luma->sub_tree[1] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[2]);
+                         final_bsize, ptree->sub_tree[2],
+                         track_ptree_luma ? ptree_luma->sub_tree[2] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[3]);
+                         final_bsize, ptree->sub_tree[3],
+                         track_ptree_luma ? ptree_luma->sub_tree[3] : NULL);
     return;
   }
 
@@ -3414,28 +3493,43 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
 #ifndef NDEBUG
   // Boundary sanity checks for 2nd partitions.
+  const BLOCK_SIZE subsize_of_first_partition =
+      subsize_lookup[first_partition][bsize];
   {
-    PARTITION_TYPE implied_second_first_partition;
-    const bool is_second_first_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col,
-        subsize_lookup[first_partition][bsize],
-        &ptree->sub_tree[0]->chroma_ref_info, &implied_second_first_partition);
-    assert(IMPLIES(is_second_first_part_implied,
-                   implied_second_first_partition == second_partition));
+    const PARTITION_TYPE derived_second_first_partition =
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col,
+            subsize_of_first_partition, ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, tree_type, mi_row, mi_col, ss_x, ss_y,
+        subsize_of_first_partition, chroma_ref_info);
+    if (derived_second_first_partition != PARTITION_INVALID &&
+        partition_allowed[derived_second_first_partition]) {
+      assert(second_partition == derived_second_first_partition);
+    }
   }
 
   {
     const int mi_row_second_second =
-        (second_partition == PARTITION_HORZ) ? mi_row + hbs_h : mi_row;
+        (first_partition == PARTITION_HORZ) ? mi_row + hbs_h : mi_row;
     const int mi_col_second_second =
-        (second_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
-    PARTITION_TYPE implied_second_second_partition;
-    const bool is_second_second_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, tree_type, ss_x, ss_y, mi_row_second_second,
-        mi_col_second_second, subsize_lookup[first_partition][bsize],
-        &ptree->sub_tree[0]->chroma_ref_info, &implied_second_second_partition);
-    assert(IMPLIES(is_second_second_part_implied,
-                   implied_second_second_partition == second_partition));
+        (first_partition == PARTITION_VERT) ? mi_col + hbs_w : mi_col;
+    const PARTITION_TYPE derived_second_second_partition =
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row_second_second,
+            mi_col_second_second, subsize_of_first_partition, ptree_luma);
+
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, tree_type, mi_row_second_second,
+        mi_col_second_second, ss_x, ss_y, subsize_of_first_partition,
+        chroma_ref_info);
+    if (derived_second_second_partition != PARTITION_INVALID &&
+        partition_allowed[derived_second_second_partition]) {
+      assert(second_partition == derived_second_second_partition);
+    }
   }
 #endif  // NDEBUG
 
@@ -3447,38 +3541,59 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
   ptree->sub_tree[1]->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
   ptree->sub_tree[1]->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
 
+  const int track_subtree0_luma =
+      track_ptree_luma && is_luma_chroma_share_same_partition(
+                              tree_type, ptree_luma->sub_tree[0], bsize);
+  const int track_subtree1_luma =
+      track_ptree_luma && is_luma_chroma_share_same_partition(
+                              tree_type, ptree_luma->sub_tree[1], bsize);
   if (first_partition == PARTITION_HORZ) {
     assert(second_partition == PARTITION_VERT);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[0]->sub_tree[1]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[1]);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[0],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[1],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[0],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[1],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   } else {
     assert(first_partition == PARTITION_VERT);
     assert(second_partition == PARTITION_HORZ);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-                         ptree->sub_tree[0]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[0]->sub_tree[1]);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[0]);
-    build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1]->sub_tree[1]);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[0],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        ptree->sub_tree[0]->sub_tree[1],
+        track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[0],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
+    build_one_split_tree(
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        ptree->sub_tree[1]->sub_tree[1],
+        track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   }
 }
 
-void av1_build_partition_tree_fixed_partitioning(AV1_COMMON *const cm,
-                                                 TREE_TYPE tree_type,
-                                                 int mi_row, int mi_col,
-                                                 BLOCK_SIZE bsize,
-                                                 PARTITION_TREE *ptree) {
+void av1_build_partition_tree_fixed_partitioning(
+    AV1_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
   const BLOCK_SIZE sb_size = cm->sb_size;
 
-  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, bsize, ptree);
+  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, bsize, ptree,
+                       ptree_luma);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -3487,18 +3602,6 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
                                            int mi_col, BLOCK_SIZE bsize,
                                            PARTITION_TREE *ptree) {
   if (ptree) {
-#ifndef NDEBUG
-#if CONFIG_EXT_RECUR_PARTITIONS
-    const bool ss_x = cm->cur_frame->buf.subsampling_x;
-    const bool ss_y = cm->cur_frame->buf.subsampling_y;
-    const PARTITION_TYPE derived_partition =
-        av1_get_normative_forced_partition_type(
-            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-            /* ptree_luma= */ NULL, &ptree->chroma_ref_info);
-    assert(IMPLIES(derived_partition != PARTITION_INVALID,
-                   ptree->partition == derived_partition));
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#endif  // NDEBUG
     return ptree->partition;
   }
   if (bsize >= BLOCK_8X8) {
@@ -3519,16 +3622,16 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   memset(partition_cost, 0, ALL_PARTITION_TYPES * sizeof(*partition_cost));
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
-      &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma,
-      chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
-    return;  // keep signaling costs zero.
-  }
+      &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize, ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
+    return;  // keep signaling costs zero.
+  }
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
     return;  // keep signaling costs zero.
@@ -4220,7 +4323,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 #if CONFIG_EXTENDED_SDP
     REGION_TYPE cur_region_type,
 #endif  // CONFIG_EXTENDED_SDP
-    const CHROMA_REF_INFO *chroma_ref_info) {
+    const bool *partition_allowed) {
   // Partition types forced by bitstream syntax.
   const MACROBLOCKD *xd = &x->e_mbd;
   const bool ss_x = cm->seq_params.subsampling_x;
@@ -4228,8 +4331,9 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
-                                              ptree_luma, chroma_ref_info);
-  if (derived_partition != PARTITION_INVALID) {
+                                              ptree_luma);
+  if (derived_partition != PARTITION_INVALID &&
+      partition_allowed[derived_partition]) {
     return derived_partition;
   }
 
@@ -4243,30 +4347,21 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
       && !is_inter_sdp_chroma(cm, cur_region_type, xd->tree_type)
 #endif  // CONFIG_EXTENDED_SDP
   ) {
-    return av1_get_prev_partition(x, mi_row, mi_col, bsize, cm->sb_size);
+    return av1_get_prev_partition(x, mi_row, mi_col, bsize, cm->sb_size,
+                                  (int8_t)cur_region_type);
   }
   return PARTITION_INVALID;
 }
 
 static AOM_INLINE void init_allowed_partitions(
-    const AV1_COMMON *const cm, PartitionSearchState *part_search_state,
-    const PartitionCfg *part_cfg, const CHROMA_REF_INFO *chroma_ref_info,
-    TREE_TYPE tree_type) {
+    PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
+    const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const int mi_row = blk_params->mi_row;
-  const int mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
-  const bool ss_x = part_search_state->ss_x;
-  const bool ss_y = part_search_state->ss_y;
   const bool allow_rect = part_cfg->enable_rect_partitions ||
                           !(blk_params->has_rows && blk_params->has_cols);
 
   part_search_state->do_rectangular_split = allow_rect;
-
-  bool partition_allowed[ALL_PARTITION_TYPES];
-  init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
-                                        mi_row, mi_col, ss_x, ss_y, bsize,
-                                        chroma_ref_info);
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
@@ -4318,6 +4413,10 @@ static AOM_INLINE void init_allowed_partitions(
   part_search_state->partition_4b_allowed[VERT] =
       partition_allowed[PARTITION_VERT_4B] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4B),
+                   blk_params->min_partition_size);
+  part_search_state->partition_split_allowed =
+      partition_allowed[PARTITION_SPLIT] &&
+      is_bsize_geq(get_partition_subsize(bsize, PARTITION_SPLIT),
                    blk_params->min_partition_size);
 
   // Reset the flag indicating whether a partition leading to a rdcost lower
@@ -4436,15 +4535,22 @@ static void init_partition_search_state_params(
   av1_zero(part_search_state->prune_partition_4a);
   av1_zero(part_search_state->prune_partition_4b);
 
+  const bool ss_x = cm->seq_params.subsampling_x;
+  const bool ss_y = cm->seq_params.subsampling_y;
+  bool partition_allowed[ALL_PARTITION_TYPES];
+  init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
+                                        mi_row, mi_col, ss_x, ss_y, bsize,
+                                        &pc_tree->chroma_ref_info);
+
   part_search_state->forced_partition = get_forced_partition_type(
       cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
 #if CONFIG_EXTENDED_SDP
       (pc_tree ? pc_tree->region_type : MIXED_INTER_INTRA_REGION),
 #endif  // CONFIG_EXTENDED_SDP
-      &pc_tree->chroma_ref_info);
+      partition_allowed);
 
-  init_allowed_partitions(cm, part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, tree_type);
+  init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
+                          partition_allowed);
 
   if (max_recursion_depth == 0) {
     part_search_state->prune_rect_part[HORZ] =
@@ -5472,7 +5578,6 @@ static void prune_4_way_partition_search(
 
 // Set PARTITION_NONE allowed flag.
 static AOM_INLINE void set_part_none_allowed_flag(
-    const AV1_COMP *const cpi,
 #if CONFIG_EXT_RECUR_PARTITIONS
     TREE_TYPE tree_type,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -5508,11 +5613,6 @@ static AOM_INLINE void set_part_none_allowed_flag(
     return;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-  // Set PARTITION_NONE for screen content.
-  if (cpi->is_screen_content_type)
-    part_search_state->partition_none_allowed =
-        blk_params.has_rows && blk_params.has_cols;
 }
 
 // Set params needed for PARTITION_NONE search.
@@ -5786,14 +5886,14 @@ static void none_partition_search(
       is_inter_sdp_chroma(cm, pc_tree->region_type, x->e_mbd.tree_type);
 #endif  // CONFIG_EXTENDED_SDP
   // Set PARTITION_NONE allowed flag.
-  set_part_none_allowed_flag(cpi,
+  set_part_none_allowed_flag(
 #if CONFIG_EXT_RECUR_PARTITIONS
-                             x->e_mbd.tree_type,
+      x->e_mbd.tree_type,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXTENDED_SDP
-                             sdp_inter_chroma_flag,
+      sdp_inter_chroma_flag,
 #endif  // CONFIG_EXTENDED_SDP
-                             part_search_state);
+      part_search_state);
   if (!part_search_state->partition_none_allowed) {
     return;
   }
@@ -5833,8 +5933,8 @@ static void none_partition_search(
   }
 #endif
 #if CONFIG_EXT_RECUR_PARTITIONS
-  SimpleMotionData *sms_data =
-      av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size);
+  SimpleMotionData *sms_data = av1_get_sms_data_entry(
+      x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)cur_region_type);
   av1_set_best_mode_cache(x, sms_data->mode_cache);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -5993,6 +6093,7 @@ static void split_partition_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
   (void)sms_tree;
   if (part_search_state->terminate_partition_search ||
+      !part_search_state->partition_split_allowed ||
       !is_square_split_eligible(bsize, cm->sb_size)) {
     return;
   }
@@ -8767,7 +8868,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   {
     SimpleMotionData *sms_data =
-        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size);
+        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               (int8_t)pc_tree->region_type);
     sms_tree = sms_data->old_sms;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -8794,13 +8896,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
         partition_vert_allowed, &part_search_state.do_rectangular_split,
         sqr_split_ptr, prune_horz, prune_vert, pc_tree);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    part_search_state.forced_partition =
-        get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
-                                  blk_params.bsize, ptree_luma, template_tree,
-#if CONFIG_EXTENDED_SDP
-                                  pc_tree->region_type,
-#endif  // CONFIG_EXTENDED_SDP
-                                  &pc_tree->chroma_ref_info);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -8808,12 +8903,13 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // outside the min and max bsize limitations set from the encoder.
   av1_prune_partitions_by_max_min_bsize(
       &x->sb_enc, bsize, blk_params.has_rows && blk_params.has_cols,
-      &part_search_state.partition_none_allowed, partition_horz_allowed,
+      &part_search_state,
 #if CONFIG_EXT_RECUR_PARTITIONS
-      partition_vert_allowed, NULL);
+      NULL
 #else
-      partition_vert_allowed, &part_search_state.do_square_split);
+      &part_search_state.do_square_split
 #endif
+  );
 
   int luma_split_flag = 0;
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -8837,8 +8933,14 @@ BEGIN_PARTITION_SEARCH:
   // limitations on partition types.
   if (x->must_find_valid_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    init_allowed_partitions(cm, &part_search_state, &cpi->oxcf.part_cfg,
-                            &pc_tree->chroma_ref_info, xd->tree_type);
+    const bool ss_x = cm->seq_params.subsampling_x;
+    const bool ss_y = cm->seq_params.subsampling_y;
+    bool partition_allowed[ALL_PARTITION_TYPES];
+    init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
+                                          mi_row, mi_col, ss_x, ss_y, bsize,
+                                          &pc_tree->chroma_ref_info);
+    init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg,
+                            partition_allowed);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -8910,7 +9012,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
 #if CONFIG_EXTENDED_SDP
-  int partition_none_allowed = 1;
+  int partition_none_allowed = part_search_state.partition_none_allowed;
   if (pc_tree->parent && pc_tree->region_type == INTRA_REGION &&
       pc_tree->parent->region_type == MIXED_INTER_INTRA_REGION &&
       xd->tree_type != CHROMA_PART)
@@ -9305,6 +9407,15 @@ BEGIN_PARTITION_SEARCH:
         &level_banks,
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
         multi_pass_mode, ext_recur_depth, parent_partition);
+
+    if (part_search_state.found_best_partition) {
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)pc_tree->region_type);
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)(1 - pc_tree->region_type));
+    }
   }
 #endif  // CONFIG_EXTENDED_SDP
 
@@ -9321,8 +9432,10 @@ BEGIN_PARTITION_SEARCH:
     av1_invalid_rd_stats(&pc_tree->rd_cost);
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
-                             pc_tree->partitioning);
+    if (xd->tree_type != CHROMA_PART)
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               pc_tree->partitioning,
+                               (int8_t)pc_tree->region_type);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 

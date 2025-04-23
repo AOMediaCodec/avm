@@ -514,6 +514,9 @@ class SFramePresenceTestLarge
         encoder->Control(AOME_SET_QP, 210);
       }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
+#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+      encoder->Control(AV1E_SET_ENABLE_CDF_AVERAGING, 0);
+#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
   }
 

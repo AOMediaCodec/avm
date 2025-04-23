@@ -17,9 +17,9 @@ import logging
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling,\
      GetUpScaledOutFile
-from Config import DnScaleRatio, FrameNum, QualityList, LoggerName,\
+from Config import DnScaleRatio, QualityList, LoggerName,\
      Path_ScalingResults, AS_DOWNSCALE_ON_THE_FLY
-from Utils import Cleanfolder, GetShortContentName, Clip, DeleteFile
+from Utils import Cleanfolder, GetShortContentName, Clip, DeleteFile, get_total_frame
 import Utils
 
 subloggername = "ScalingTest"
@@ -33,6 +33,7 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
                 % os.path.basename(clip.file_name))
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
+    total_frame = get_total_frames('AS', clip)
     for i in range(len(DnScaledRes)):
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
@@ -47,15 +48,15 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
         dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
                                          path_dnscl, ScaleMethod, dnScalAlgo)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
+            dnscalyuv = DownScaling(ScaleMethod, clip, total_frame, DnScaledW, DnScaledH,
                                     path_dnscl, path_cfg, dnScalAlgo, LogCmdOnly)
         dnscaled_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m',
                              dnscalyuv, "", DnScaledW, DnScaledH,
                              clip.fmt, clip.fps_num, clip.fps_denom,
                              clip.bit_depth)
-        upscaleyuv = UpScaling(ScaleMethod, dnscaled_clip, FrameNum['AS'], clip.width, clip.height,
+        upscaleyuv = UpScaling(ScaleMethod, dnscaled_clip, total_frame, clip.width, clip.height,
                                path_upscl, path_cfg, upScalAlgo, LogCmdOnly)
-        CalculateQualityMetric(clip.file_path, FrameNum['AS'], upscaleyuv, clip.fmt,
+        CalculateQualityMetric(clip.file_path, total_frame, upscaleyuv, clip.fmt,
                                clip.width, clip.height, clip.bit_depth,
                                path_log, LogCmdOnly)
         if savememory:

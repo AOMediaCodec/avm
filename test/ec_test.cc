@@ -14,8 +14,14 @@
 
 #include <cstdlib>
 
+#include "config/aom_config.h"
+#if CONFIG_CDF_SCALE
+#include "config/aom_dsp_rtcd.h"
+#endif
+
 #include "aom_dsp/entenc.h"
 #include "aom_dsp/entdec.h"
+#include "aom_dsp/prob.h"
 
 TEST(EC_TEST, random_ec_test_Large) {
   od_ec_enc enc;
@@ -223,10 +229,10 @@ TEST(EC_TEST, random_ec_test_Large) {
   }
   od_ec_enc_reset(&enc);
   if (CDF_SHIFT == 0) {
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
+    od_ec_encode_literal_bypass(&enc, 0, 1);
+    od_ec_encode_literal_bypass(&enc, 0, 1);
+    od_ec_encode_literal_bypass(&enc, 0, 1);
+    od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
     od_ec_enc_patch_initial_bits(&enc, 3, 2);
     EXPECT_FALSE(enc.error) << "od_ec_enc_patch_initial_bits() failed.\n";
@@ -234,8 +240,8 @@ TEST(EC_TEST, random_ec_test_Large) {
     EXPECT_TRUE(enc.error)
         << "od_ec_enc_patch_initial_bits() didn't fail when it should have.\n";
     od_ec_enc_reset(&enc);
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(16384));
+    od_ec_encode_literal_bypass(&enc, 0, 1);
+    od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_bool_q15(&enc, 1, OD_ICDF(32256));
     od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
     od_ec_enc_patch_initial_bits(&enc, 0, 2);

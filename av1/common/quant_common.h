@@ -90,7 +90,7 @@ static INLINE bool tcq_enable(int enable_tcq, int plane, TX_CLASS tx_class) {
 // Find parity of absLevel. Used to find the next state in trellis coded quant
 int tcq_parity(int absLevel);
 // Set the initial state at beginning of trellis coding
-int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class);
+int tcq_init_state(int tcq_mode);
 // Find the next state in trellis codec quant
 int tcq_next_state(const int curState, const int absLevel);
 #endif  // CONFIG_TCQ

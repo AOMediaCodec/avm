@@ -1508,14 +1508,26 @@ static void define_gf_group_pass0(AV1_COMP *cpi, FRAME_TYPE curr_frame_type) {
   // TODO(sarahparker) Extend this to work with pyramid structure.
   for (int cur_index = 0; cur_index < gf_group->size; ++cur_index) {
     const FRAME_UPDATE_TYPE cur_update_type = gf_group->update_type[cur_index];
+#if CONFIG_KEY_OVERLAY
+    const int is_key_frame =
+        cur_update_type == KF_UPDATE || cur_update_type == KFFLT_UPDATE;
+#endif  // CONFIG_KEY_OVERLAY
     if (oxcf->rc_cfg.mode == AOM_CBR) {
+#if CONFIG_KEY_OVERLAY
+      if (is_key_frame) {
+#else
       if (cur_update_type == KEY_FRAME) {
+#endif  // CONFIG_KEY_OVERLAY
         target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
       } else {
         target = av1_calc_pframe_target_size_one_pass_cbr(cpi, cur_update_type);
       }
     } else {
+#if CONFIG_KEY_OVERLAY
+      if (is_key_frame) {
+#else
       if (cur_update_type == KEY_FRAME) {
+#endif  // CONFIG_KEY_OVERLAY
         target = av1_calc_iframe_target_size_one_pass_vbr(cpi);
       } else {
         target = av1_calc_pframe_target_size_one_pass_vbr(cpi, cur_update_type);

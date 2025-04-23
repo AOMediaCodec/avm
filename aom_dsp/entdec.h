@@ -19,6 +19,13 @@
 extern "C" {
 #endif
 
+/* Minimum # of preloaded bits to maintain in od_ec_window. */
+#if CONFIG_BYPASS_IMPROVEMENT
+#define OD_EC_MIN_BITS 8
+#else
+#define OD_EC_MIN_BITS 0
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 typedef struct od_ec_dec od_ec_dec;
 
 #if defined(OD_ACCOUNTING) && OD_ACCOUNTING
@@ -73,9 +80,11 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
+#if !CONFIG_CDF_SCALE
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,
                                                const uint16_t *cdf, int nsyms)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+#endif
 
 OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb)
     OD_ARG_NONNULL(1);
@@ -84,6 +93,91 @@ OD_WARN_UNUSED_RESULT int od_ec_dec_tell(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
+
+/*This is meant to be a large, positive constant that can still be efficiently
+   loaded as an immediate (on platforms like ARM, for example).
+  Even relatively modest values like 100 would work fine.*/
+#define OD_EC_LOTS_OF_BITS (0x4000)
+
+/*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
+   call.*/
+static void od_ec_dec_refill(od_ec_dec *dec) {
+  int s;
+  od_ec_window dif;
+  int16_t cnt;
+  const unsigned char *bptr;
+  const unsigned char *end;
+  dif = dec->dif;
+  cnt = dec->cnt;
+  bptr = dec->bptr;
+  end = dec->end;
+  s = OD_EC_WINDOW_SIZE - 9 - (cnt + 15);
+  for (; s >= 0 && bptr < end; s -= 8, bptr++) {
+    /*Each time a byte is inserted into the window (dif), bptr advances and cnt
+       is incremented by 8, so the total number of consumed bits (the return
+       value of od_ec_dec_tell) does not change.*/
+    assert(s <= OD_EC_WINDOW_SIZE - 8);
+    dif ^= (od_ec_window)bptr[0] << s;
+    cnt += 8;
+  }
+  if (bptr >= end) {
+    /*We've reached the end of the buffer. It is perfectly valid for us to need
+       to fill the window with additional bits past the end of the buffer (and
+       this happens in normal operation). These bits should all just be taken
+       as zero. But we cannot increment bptr past 'end' (this is undefined
+       behavior), so we start to increment dec->tell_offs. We also don't want
+       to keep testing bptr against 'end', so we set cnt to OD_EC_LOTS_OF_BITS
+       and adjust dec->tell_offs so that the total number of unconsumed bits in
+       the window (dec->cnt - dec->tell_offs) does not change. This effectively
+       puts lots of zero bits into the window, and means we won't try to refill
+       it from the buffer for a very long time (at which point we'll put lots
+       of zero bits into the window again).*/
+    dec->tell_offs += OD_EC_LOTS_OF_BITS - cnt;
+    cnt = OD_EC_LOTS_OF_BITS;
+  }
+  dec->dif = dif;
+  dec->cnt = cnt;
+  dec->bptr = bptr;
+}
+
+/*Takes updated dif and range values, renormalizes them so that
+   32768 <= rng < 65536 (reading more bytes from the stream into dif if
+   necessary), and stores them back in the decoder context.
+  dif: The new value of dif.
+  rng: The new value of the range.
+  ret: The value to return.
+  Return: ret.
+          This allows the compiler to jump to this function via a tail-call.*/
+static INLINE int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif,
+                                      unsigned rng, int ret) {
+  int d;
+  assert(rng <= 65535U);
+  /*The number of leading zeros in the 16-bit binary representation of rng.*/
+  d = 16 - OD_ILOG_NZ(rng);
+  /*d bits in dec->dif are consumed.*/
+  dec->cnt -= d;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << d) - 1;
+  dec->rng = rng << d;
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
+  return ret;
+}
+
+#if CONFIG_BYPASS_IMPROVEMENT
+/* This function performs renormalization after decoding bypass symbols.
+   This is a simplified version of od_ec_dec_normalize(), as bypass
+   symbol decoding only requires shifting in new bits, and the range
+   value remains unchanged. */
+static INLINE int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
+                                             int n_bypass, int ret) {
+  /*n_bypass bits in dec->dif are consumed.*/
+  dec->cnt -= n_bypass;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << n_bypass) - 1;
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
+  return ret;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"

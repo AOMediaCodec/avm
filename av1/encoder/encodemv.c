@@ -178,7 +178,7 @@ static void update_tu_quasi_uniform(nmv_context *mvctx,
     int context_index =
         (bit_idx < max_num_of_ctx ? bit_idx : max_num_of_ctx - 1);
     assert(context_index < max_num_of_ctx);
-    update_cdf(mvctx->col_mv_greter_flags_cdf[context_index],
+    update_cdf(mvctx->col_mv_greater_flags_cdf[context_index],
                coded_col != bit_idx, 2);
 
     if (coded_col == bit_idx) break;
@@ -211,7 +211,7 @@ static void write_tu_quasi_uniform(aom_writer *w, nmv_context *mvctx,
         (bit_idx < max_num_of_ctx ? bit_idx : max_num_of_ctx - 1);
     assert(context_index < max_num_of_ctx);
     aom_write_symbol(w, coded_col != bit_idx,
-                     mvctx->col_mv_greter_flags_cdf[context_index], 2);
+                     mvctx->col_mv_greater_flags_cdf[context_index], 2);
     if (coded_col == bit_idx) break;
   }
   if (max_coded_value > max_trunc_unary_value && col >= max_trunc_unary_value) {
@@ -1004,7 +1004,7 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
   int col_mv_greater_flags_cost[NUM_CTX_COL_MV_GTX][2];
   for (int i = 0; i < NUM_CTX_COL_MV_GTX; i++) {
     av1_cost_tokens_from_cdf(col_mv_greater_flags_cost[i],
-                             ctx->col_mv_greter_flags_cdf[i], NULL);
+                             ctx->col_mv_greater_flags_cdf[i], NULL);
   }
 
   for (int i = 0; i < NUM_CTX_COL_MV_INDEX; i++) {

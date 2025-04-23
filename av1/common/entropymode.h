@@ -93,6 +93,11 @@ extern "C" {
 #define CCSO_CONTEXT 4
 #endif  // CONFIG_CCSO_IMPROVE
 
+#if CONFIG_CDEF_ENHANCEMENTS
+#define CDEF_STRENGTH_INDEX0_CTX 4
+#define CDEF_STRENGTHS_NUM 7
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+
 // Parameters which determine the warp delta coding
 // The raw values which can be signaled are
 //   {-WARP_DELTA_CODED_MAX, ..., 0, ..., +WARP_DELTA_CODED_MAX}
@@ -280,6 +285,9 @@ typedef struct frame_contexts {
                                     [CDF_SIZE(INTER_SINGLE_MODES)];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
   aom_cdf_prob inter_warp_mode_cdf[WARPMV_MODE_CONTEXT][CDF_SIZE(2)];
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  aom_cdf_prob is_warpmv_or_warp_newmv_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -355,25 +363,24 @@ typedef struct frame_contexts {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS]
                                   [CDF_SIZE(INTERINTRA_MODES)];
-#if CONFIG_D149_CTX_MODELING_OPT
-  aom_cdf_prob obmc_cdf[CDF_SIZE(2)];
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  aom_cdf_prob warp_causal_cdf[WARP_CAUSAL_MODE_CTX][CDF_SIZE(2)];
 #else
-  aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-  aom_cdf_prob warped_causal_cdf[CDF_SIZE(2)];
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+  aom_cdf_prob warp_causal_cdf[CDF_SIZE(2)];
 #else
-  aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
+  aom_cdf_prob warp_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
 #if CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob warp_delta_cdf[CDF_SIZE(2)];
 #else
   aom_cdf_prob warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
-  aom_cdf_prob warped_causal_warpmv_cdf[CDF_SIZE(2)];
+  aom_cdf_prob warp_causal_warpmv_cdf[CDF_SIZE(2)];
 #else
-  aom_cdf_prob warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+  aom_cdf_prob warp_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob warp_ref_idx_cdf[3][WARP_REF_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -536,11 +543,15 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob ccso_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_CCSO_IMPROVE
-
+#if CONFIG_CDEF_ENHANCEMENTS
+  // CDF for CDEF strength index 0
+  aom_cdf_prob cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)];
+  // CDF for CDEF all other strength index
+  aom_cdf_prob cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)];
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_GDF
-
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_length_cdf[2][CDF_SIZE(2)];
@@ -558,6 +569,9 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_MRLS_IMPROVE
+  aom_cdf_prob multi_line_mrl_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(2)];
+#endif
 #if CONFIG_LOSSLESS_DPCM
   aom_cdf_prob dpcm_cdf[CDF_SIZE(2)];
   aom_cdf_prob dpcm_vert_horz_cdf[CDF_SIZE(2)];
@@ -655,6 +669,10 @@ typedef struct frame_contexts {
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob most_probable_stx_set_cdf[CDF_SIZE(IST_DIR_SIZE)];
+#if CONFIG_F105_IST_MEM_REDUCE
+  aom_cdf_prob most_probable_stx_set_cdf_ADST_ADST[CDF_SIZE(
+      IST_REDUCE_SET_SIZE_ADST_ADST)];
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
 #endif  // CONFIG_INTRA_TX_IST_PARSE

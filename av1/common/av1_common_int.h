@@ -242,6 +242,28 @@ enum {
 } UENUM1BYTE(DRL_REORDER_TYPE);
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
+#if CONFIG_CDEF_ENHANCEMENTS
+enum {
+  /**
+   * Always disable the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_DISABLED = 0,
+  /**
+   * Always enable the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_ALWAYS_ON,
+  /**
+   * Allow to turn on or off the CDEF on the blocks with skip_txfm = 1 at
+   * the frame level
+   */
+  CDEF_ON_SKIP_TXFM_ADAPTIVE,
+  /**
+   * Types of allowing the CDEF on the blocks with skip_txfm = 1
+   */
+  CDEF_ON_SKIP_TXFM_TYPES,
+} UENUM1BYTE(CDEF_ON_SKIP_TXFM_TYPE);
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;
@@ -452,7 +474,12 @@ typedef struct {
   int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
                                                 chroma */
-  int cdef_bits; /*!< Number of CDEF strength values in bits */
+#if CONFIG_CDEF_ENHANCEMENTS
+  int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
+                                         skip_txfm = 1 */
+#else
+  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
 #endif                   // CONFIG_FIX_CDEF_SYNTAX
@@ -646,12 +673,17 @@ typedef struct SequenceHeader {
                                // 1 - DRL reorder with constraints
                                // 2 - Always reorder DRL
 #endif                         // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
+  // 1 - CDEF on skip_txfm = 1 is always on
+  // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t enable_avg_cdf;  // enable CDF averaging
   uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization
                            // 1 - Tile averaging for CDF initialization
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  uint8_t enable_tiles_cdfs_avg;   // To turn on/off tiles cdfs average
+  uint8_t enable_tiles_cdfs_avg;  // To turn on/off tiles cdfs average
 #endif                               // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
@@ -702,6 +734,10 @@ typedef struct SequenceHeader {
   uint8_t display_model_info_present_flag;
   AV1_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
+
+#if CONFIG_DF_PAR_BITS
+  uint8_t df_par_bits_minus2;
+#endif  // CONFIG_DF_PAR_BITS
 
   // IMPORTANT: the op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
@@ -1119,6 +1155,10 @@ struct CommonModeInfoParams {
    * Buffer that stores pc-wiener classification information.
    */
   uint8_t *wiener_class_id[MAX_MB_PLANE];
+  /*!
+   * wiener_class_id buffer allocated for each 4x4 block
+   */
+  uint32_t wiener_class_id_buf_size[MAX_MB_PLANE];
   /*!
    * wiener_class_id stride
    */
@@ -1916,10 +1956,6 @@ typedef struct AV1Common {
   int64_t txcoeff_cost_count;
 #endif  // TXCOEFF_COST_TIMER
 
-#if CONFIG_LPF_MASK
-  int is_decoding;
-#endif  // CONFIG_LPF_MASK
-
 #if DEBUG_EXTQUANT
   FILE *fEncCoeffLog;
   FILE *fDecCoeffLog;
@@ -2005,6 +2041,8 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
 
 #define ILLEGAL_TXK_SKIP_VALUE 255
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_set_txk_skip_array_stride(CommonModeInfoParams *mi_params,
+                                   AV1_COMMON *cm);
 void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
 void av1_reset_txk_skip_array(AV1_COMMON *cm);
 void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params);
@@ -2021,6 +2059,8 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          int plane, int blk_row, int blk_col);
 void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
+                                   AV1_COMMON *cm);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
@@ -2144,6 +2184,49 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
              ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }
+
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
+                                                     int *ref_frame_used,
+                                                     int *secondary_map_idx) {
+  const int map_idx = get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
+  *ref_frame_used =
+      (cm->features.primary_ref_frame == cm->features.derived_primary_ref_frame)
+          ? cm->features.derived_secondary_ref_frame
+          : cm->features.derived_primary_ref_frame;
+  *secondary_map_idx = get_ref_frame_map_idx(cm, *ref_frame_used);
+  if ((*ref_frame_used == PRIMARY_REF_NONE) || (map_idx == INVALID_IDX) ||
+      (*ref_frame_used == cm->features.primary_ref_frame)) {
+    int iter_map_idx = 0;
+    int ref_frame = 0;
+    for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
+      iter_map_idx = get_ref_frame_map_idx(cm, ref_frame);
+      if (iter_map_idx == INVALID_IDX ||
+          ref_frame == cm->features.primary_ref_frame)
+        continue;
+      RefFrameMapPair cur_ref = cm->ref_frame_map_pairs[iter_map_idx];
+      if (cur_ref.disp_order == -1) continue;
+      if (cur_ref.frame_type != INTER_FRAME) continue;
+      break;
+    }
+    *secondary_map_idx = iter_map_idx;
+    *ref_frame_used = ref_frame;
+  }
+}
+
+static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
+                                                    int ref_frame_used,
+                                                    int map_idx) {
+  if ((map_idx != INVALID_IDX) &&
+      (ref_frame_used != cm->features.primary_ref_frame) &&
+      (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+      !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
+      (ref_frame_used != PRIMARY_REF_NONE)) {
+    av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
+                        AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+  }
+}
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
@@ -2662,6 +2745,19 @@ static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
 }
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
+#if CONFIG_MRLS_IMPROVE
+static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
+                                               const MB_MODE_INFO *neighbor1) {
+  int ctx0 = neighbor0 && !is_inter_block(neighbor0, SHARED_PART) &&
+             !is_intrabc_block(neighbor0, SHARED_PART) &&
+             neighbor0->multi_line_mrl != 0;
+  int ctx1 = neighbor1 && !is_inter_block(neighbor1, SHARED_PART) &&
+             !is_intrabc_block(neighbor1, SHARED_PART) &&
+             neighbor1->multi_line_mrl != 0;
+  return ctx0 + ctx1;
+}
+#endif  // CONFIG_MRLS_IMPROVE
+
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
                                             BLOCK_SIZE bsize) {
@@ -3157,8 +3253,14 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
     int mi_col = 0;
     while (mi_col < block_mi_wide && row_hits < BANK_SB_ABOVE_ROW_MAX_HITS) {
       // Previous row position of SB boundary
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      const int col_aligned_to_8x8 = ((mi_col >> 1) << 1);
+      const int mi_grid_idx = get_mi_grid_idx(mi_params, sb_mi_row - 1,
+                                              sb_mi_col + col_aligned_to_8x8);
+#else
       const int mi_grid_idx =
           get_mi_grid_idx(mi_params, sb_mi_row - 1, sb_mi_col + mi_col);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
       const MB_MODE_INFO *const candidate =
           mi_params->mi_grid_base[mi_grid_idx];
       const int candidate_bsize = candidate->sb_type[0];
@@ -3174,6 +3276,13 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
   }
 }
 #endif  // CONFIG_BANK_IMPROVE
+
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+static AOM_INLINE int is_sdp_enabled_in_keyframe(const AV1_COMMON *const cm) {
+  return (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+          cm->seq_params.enable_sdp);
+}
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 // The blocksize above which chroma and luma partitions will stayed coupled.
@@ -3248,10 +3357,23 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
 }
 
 static INLINE int check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     TREE_TYPE tree_type, PARTITION_TYPE partition, BLOCK_SIZE bsize, int mi_row,
     int mi_col, int ss_x, int ss_y,
     const CHROMA_REF_INFO *parent_chroma_ref_info) {
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
+  bool sdp_tree_type = ((tree_type == LUMA_PART) ||
+                        (intra_sdp_enabled && tree_type == SHARED_PART));
+  // After interleave luma and chroma at 64X64
+  // tree type will be set to SHARED_PART for blocks
+  // greater than 64x64 in key frames
+  if (sdp_tree_type) {
+#else
   if (tree_type == LUMA_PART) {
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     // If we handling luma tree and the current luma tree is decoupled from
     // chroma tree, we don't need to concern with chroma bsize. But if they are
     // still coupled, then we need to make sure the corresponding chroma bsize
@@ -3285,9 +3407,8 @@ static INLINE int check_is_chroma_size_valid(
 // sets `implied_partition` appropriately.
 // Note: `implied_partition` can be passed NULL.
 static AOM_INLINE bool is_partition_implied_at_boundary(
-    const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, bool ss_x,
-    bool ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
-    const CHROMA_REF_INFO *chroma_ref_info, PARTITION_TYPE *implied_partition) {
+    const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, PARTITION_TYPE *implied_partition) {
   if (bsize >= BLOCK_SIZES_ALL) return false;
   bool is_implied = false;
   PARTITION_TYPE tmp_implied_partition = PARTITION_INVALID;
@@ -3344,34 +3465,6 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
       }
     }
   }
-  if (is_implied) {
-    assert(tmp_implied_partition == PARTITION_HORZ ||
-           tmp_implied_partition == PARTITION_VERT);
-    if (!check_is_chroma_size_valid(tree_type, tmp_implied_partition, bsize,
-                                    mi_row, mi_col, ss_x, ss_y,
-                                    chroma_ref_info)) {
-      is_implied = false;
-      tmp_implied_partition = PARTITION_INVALID;
-    }
-#if CONFIG_CB1TO4_SPLIT
-    if (tree_type == SHARED_PART) {
-      // Make sure that chroma ref block is not completely outside frame
-      // boundary, to ensure that coding of chroma ref block is not skipped.
-      if ((tmp_implied_partition == PARTITION_HORZ) &&
-          have_nz_chroma_ref_offset(bsize, PARTITION_HORZ, ss_x, ss_y) &&
-          !has_rows) {
-        is_implied = false;
-        tmp_implied_partition = PARTITION_INVALID;
-      }
-      if ((tmp_implied_partition == PARTITION_VERT) &&
-          have_nz_chroma_ref_offset(bsize, PARTITION_VERT, ss_x, ss_y) &&
-          !has_cols) {
-        is_implied = false;
-        tmp_implied_partition = PARTITION_INVALID;
-      }
-    }
-#endif  // CONFIG_CB1TO4_SPLIT
-  }
   assert(IMPLIES(is_implied && implied_partition,
                  tmp_implied_partition == PARTITION_HORZ ||
                      tmp_implied_partition == PARTITION_VERT));
@@ -3389,7 +3482,7 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
 static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
     const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
     int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
-    const PARTITION_TREE *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info) {
+    const PARTITION_TREE *ptree_luma) {
   // Return NONE if this block size is not splittable
   if (!is_partition_point(bsize)) {
     return PARTITION_NONE;
@@ -3411,8 +3504,7 @@ static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
   // Partitions forced by boundary
   PARTITION_TYPE implied_partition;
   const bool is_part_implied = is_partition_implied_at_boundary(
-      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, chroma_ref_info,
-      &implied_partition);
+      mi_params, mi_row, mi_col, bsize, &implied_partition);
   if (is_part_implied) return implied_partition;
 
   // No forced partitions
@@ -3497,16 +3589,26 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const bool is_chroma_ref =
       chroma_ref_info ? chroma_ref_info->is_chroma_ref : true;
   int num_allowed_partitions = 0;
+  const RECT_PART_TYPE implied_rect_type =
+      rect_type_implied_by_bsize(bsize, tree_type);
 
-  const int is_horz_size_valid =
-      is_partition_valid(bsize, PARTITION_HORZ) &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_horz_size_valid = is_partition_valid(bsize, PARTITION_HORZ) &&
+                                 implied_rect_type != VERT &&
+                                 check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                     cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                     tree_type, PARTITION_HORZ, bsize, mi_row,
+                                     mi_col, ss_x, ss_y, chroma_ref_info);
 
-  const int is_vert_size_valid =
-      is_partition_valid(bsize, PARTITION_VERT) &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_vert_size_valid = is_partition_valid(bsize, PARTITION_VERT) &&
+                                 implied_rect_type != HORZ &&
+                                 check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                                     cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+                                     tree_type, PARTITION_VERT, bsize, mi_row,
+                                     mi_col, ss_x, ss_y, chroma_ref_info);
 
   const bool is_block_splittable = is_partition_point(bsize);
   partition_allowed[PARTITION_NONE] =
@@ -3537,11 +3639,15 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       is_block_splittable && cm->seq_params.enable_ext_partitions;
 
   partition_allowed[PARTITION_HORZ_3] =
-      ext_partition_allowed &&
+      ext_partition_allowed && implied_rect_type != VERT &&
       is_ext_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_3, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_3, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_3, ss_x, ss_y)
@@ -3550,11 +3656,15 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_3];
 
   partition_allowed[PARTITION_VERT_3] =
-      ext_partition_allowed &&
+      ext_partition_allowed && implied_rect_type != HORZ &&
       is_ext_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_3, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_3, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_3, ss_x, ss_y)
@@ -3565,44 +3675,60 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const bool uneven_4way_partition_allowed =
       ext_partition_allowed && cm->seq_params.enable_uneven_4way_partitions;
   partition_allowed[PARTITION_HORZ_4A] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_4A, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4A, ss_x,
                                     ss_y);
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4A];
 
   partition_allowed[PARTITION_HORZ_4B] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_HORZ_4B, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4B, ss_x,
                                     ss_y);
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4B];
 
   partition_allowed[PARTITION_VERT_4A] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_4A, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4A, ss_x,
                                     ss_y);
   num_allowed_partitions += partition_allowed[PARTITION_VERT_4A];
 
   partition_allowed[PARTITION_VERT_4B] =
-      uneven_4way_partition_allowed &&
+      uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+          cm,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+          tree_type, PARTITION_VERT_4B, bsize, mi_row, mi_col, ss_x, ss_y,
+          chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4B, ss_x,
                                     ss_y);
@@ -4462,10 +4588,6 @@ static const uint8_t angle_to_mode_index[90] = {
   10, 0,  0,  0,  9,  0,  0,  8,  0,  0,  7,  0,  0,  6,  0,  0,  5,  0,
   0,  4,  0,  0,  3,  0,  0,  0,  0,  2,  0,  0,  1,  0,  0,  0,  0,  0
 };
-#if CONFIG_IBP_WEIGHT
-static const int is_ibp_enabled[16] = { 0, 1, 0, 0, 1, 0, 1, 0,
-                                        1, 0, 0, 1, 0, 1, 0, 1 };
-#endif  // CONFIG_IBP_WEIGHT
 #else
 static const uint8_t angle_to_mode_index[90] = {
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0,
@@ -4474,6 +4596,11 @@ static const uint8_t angle_to_mode_index[90] = {
   0, 5, 0,  0, 4, 0,  0, 3, 0,  0, 0, 0, 2, 0,  0, 1, 0,  0, 0, 0,  0
 };
 #endif  // CONFIG_WAIP
+
+#if CONFIG_IBP_WEIGHT
+static const int is_ibp_enabled[16] = { 0, 1, 0, 0, 1, 0, 1, 0,
+                                        1, 0, 0, 1, 0, 1, 0, 1 };
+#endif  // CONFIG_IBP_WEIGHT
 
 // Generate weights for IBP of one directional mode
 static INLINE void init_ibp_info_per_mode(
@@ -4692,7 +4819,7 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
-
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT
   return frame_is_intra_only(cm) && cm->features.allow_intrabc &&
@@ -4701,6 +4828,7 @@ static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
   return cm->features.allow_intrabc;
 #endif
 }
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 /*!\endcond */
 
 static inline int is_this_mv_precision_compliant(
@@ -4713,7 +4841,7 @@ static inline int is_this_mv_precision_compliant(
 }
 
 static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
-  return (motion_mode >= WARPED_CAUSAL);
+  return (motion_mode >= WARP_CAUSAL);
 }
 
 /* Evaluate which motion modes are allowed for the current block
@@ -4735,20 +4863,40 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors);
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
-static INLINE int is_compound_warp_causal_allowed(
+static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
-    const MACROBLOCKD *xd,
+                                                  const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
-    const MB_MODE_INFO *mbmi) {
+                                                  const MB_MODE_INFO *mbmi) {
   return
 #if CONFIG_COMPOUND_4XN
       (AOMMIN(block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
               block_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]]) >=
        8) &&
 #endif  // CONFIG_COMPOUND_4XN
-      (mbmi->mode == NEW_NEWMV);
+      (mbmi->mode == NEW_NEWMV) &&
+      (cm->features.opfl_refine_type != REFINE_ALL);
 }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
+                                        const MACROBLOCKD *xd,
+                                        const MB_MODE_INFO *mbmi,
+                                        const BLOCK_SIZE bsize) {
+  const int allow_warped_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_motion_variation_allowed_compound(mbmi) &&
+      is_inter_ref_frame(mbmi->ref_frame[0]) &&
+      !is_tip_ref_frame(mbmi->ref_frame[0]) &&
+#if !CONFIG_ACROSS_SCALE_WARP
+      !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
+      !xd->cur_frame_force_integer_mv;
+
+  return allow_warped_motion;
+}
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
@@ -4758,20 +4906,50 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int enabled_motion_modes = cm->features.enabled_motion_modes;
 
-  // only WARP_DELTA and WARPED_CAUSAL are supported for WARPMV mode
+  // only WARP_DELTA and WARP_CAUSAL are supported for WARPMV mode
   if (mbmi->mode == WARPMV) {
     int allowed_motion_mode_warpmv = (1 << WARP_DELTA);
     int frame_warp_causal_allowed =
-        cm->features.enabled_motion_modes & (1 << WARPED_CAUSAL);
+        cm->features.enabled_motion_modes & (1 << WARP_CAUSAL);
 #if CONFIG_COMPOUND_WARP_CAUSAL
     if (frame_warp_causal_allowed && mbmi->num_proj_ref[0] >= 1) {
 #else
     if (frame_warp_causal_allowed && mbmi->num_proj_ref >= 1) {
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-      allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL);
+      allowed_motion_mode_warpmv |= (1 << WARP_CAUSAL);
     }
     return (allowed_motion_mode_warpmv & enabled_motion_modes);
   }
+
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
+    int allowed_motion_modes = 0;
+
+    if (
+#if CONFIG_COMPOUND_WARP_CAUSAL
+        mbmi->num_proj_ref[0] >= 1
+#else
+        mbmi->num_proj_ref >= 1
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+    ) {
+      allowed_motion_modes |= (1 << WARP_CAUSAL);
+    }
+
+    if (allow_extend_nb(cm, xd, mbmi, NULL)) {
+      allowed_motion_modes |= (1 << WARP_EXTEND);
+    }
+
+    bool warp_delta_allowed =
+        AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >=
+        MIN_BSIZE_WARP_DELTA;
+
+    if (warp_delta_allowed) {
+      allowed_motion_modes |= (1 << WARP_DELTA);
+    }
+
+    return (allowed_motion_modes & enabled_motion_modes);
+  }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
     return (1 << SIMPLE_TRANSLATION);
@@ -4820,17 +4998,29 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     }
   }
 
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  const int allow_compound_warp_causal_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      mbmi->mode == NEW_NEWMV &&
+#if !CONFIG_ACROSS_SCALE_WARP
+      !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+#endif  // !CONFIG_ACROSS_SCALE_WARP
+      !xd->cur_frame_force_integer_mv &&
+      is_compound_warp_causal_allowed(cm,
+#if CONFIG_COMPOUND_4XN
+                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                      mbmi) &&
+      mbmi->num_proj_ref[0] >= 1 && mbmi->num_proj_ref[1] >= 1;
+  if (allow_compound_warp_causal_motion) {
+    allowed_motion_modes |= (1 << WARP_CAUSAL);
+  }
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#else
   bool motion_variation_allowed =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       is_inter_mode(mbmi->mode) && is_motion_variation_allowed_compound(mbmi);
-
-  bool obmc_allowed =
-      motion_variation_allowed && check_num_overlappable_neighbors(mbmi);
-
-  if (obmc_allowed) {
-    allowed_motion_modes |= (1 << OBMC_CAUSAL);
-  }
-
   // From here on, all modes are warped, so have some common criteria:
   const int allow_warped_motion =
       motion_variation_allowed &&
@@ -4848,19 +5038,19 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
       (is_motion_variation_allowed_compound(mbmi) ||
-       is_compound_warp_causal_allowed(
+       is_compound_warp_causal_allowed(cm,
 #if CONFIG_COMPOUND_4XN
-           xd,
+                                       xd,
 #endif  // CONFIG_COMPOUND_4XN
-           mbmi));
+                                       mbmi));
   if (allow_warp_causal_motion &&
       (mbmi->num_proj_ref[0] >= 1 &&
        (!has_second_ref(mbmi) || mbmi->num_proj_ref[1] >= 1))
 #else
-  if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1
+  if (allow_warped_motion && mbmi->num_proj_ref >= 1
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
       && mbmi->mode != NEARMV) {
-    allowed_motion_modes |= (1 << WARPED_CAUSAL);
+    allowed_motion_modes |= (1 << WARP_CAUSAL);
   }
 
   bool warp_extend_allowed = false;
@@ -4886,6 +5076,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   if (warp_delta_allowed) {
     allowed_motion_modes |= (1 << WARP_DELTA);
   }
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   return (allowed_motion_modes & enabled_motion_modes);
 }

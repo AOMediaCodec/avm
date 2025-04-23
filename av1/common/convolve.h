@@ -58,9 +58,41 @@ typedef struct NonsepFilterConfig {
 
   // Symmetry can be derived from the config but convenient to have
   // explicitly specified
-  int symmetric;   // whether config is symmetric
-  int symmetric2;  // whether config2 is symmetric
+  int asymmetric;   // number of pixels that are asymmetric in config; the value
+                    // is always equal to zero since luma filter is symmetric in
+                    // AV2
+  int asymmetric2;  // number of pixels that are asymmetric in config2
 } NonsepFilterConfig;
+
+static INLINE int config2ncoeffs(const NonsepFilterConfig *config, int *ncoeff,
+                                 int *ncoeff2) {
+  int nc, nc2;
+  int symmetric = (config->num_pixels & ~1) - config->asymmetric;
+  int symmetric2 = (config->num_pixels2 & ~1) - config->asymmetric2;
+  nc = (config->num_pixels & ~1) - (symmetric >> 1);
+  nc2 = (config->num_pixels2 & ~1) - (symmetric2 >> 1);
+  if (ncoeff) *ncoeff = nc;
+  if (ncoeff2) *ncoeff2 = nc2;
+  return (nc + nc2);
+}
+
+static INLINE int config2ncoeffs_select(const NonsepFilterConfig *config,
+                                        const int *select, int *ncoeff,
+                                        int *ncoeff2) {
+  int nc, nc2;
+  int symmetric = (config->num_pixels & ~1) - config->asymmetric;
+  int symmetric2 = (config->num_pixels2 & ~1) - config->asymmetric2;
+  nc = (config->num_pixels & ~1) - (symmetric >> 1);
+  nc2 = (config->num_pixels2 & ~1) - (symmetric2 >> 1);
+  int ncs = 0, ncs2 = 0;
+  for (int i = 0; i < nc; ++i)
+    if (select[i]) ncs++;
+  for (int i = nc; i < nc2; ++i)
+    if (select[i]) ncs2++;
+  if (ncoeff) *ncoeff = ncs;
+  if (ncoeff2) *ncoeff2 = ncs2;
+  return (ncs + ncs2);
+}
 
 // Nonseparable convolution.
 void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,

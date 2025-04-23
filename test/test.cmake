@@ -73,7 +73,6 @@ list(
   "${AOM_ROOT}/test/i420_video_source.h"
   "${AOM_ROOT}/test/level_test.cc"
   "${AOM_ROOT}/test/monochrome_test.cc"
-  "${AOM_ROOT}/test/obmc_encode_test.cc"
   "${AOM_ROOT}/test/resize_test.cc"
   "${AOM_ROOT}/test/y4m_test.cc"
   "${AOM_ROOT}/test/y4m_video_source.h"
@@ -90,6 +89,7 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AOM_UNIT_TEST_COMMON_SOURCES
     "${AOM_ROOT}/test/av1_common_int_test.cc"
+    "${AOM_ROOT}/test/bawp_test.cc"
     "${AOM_ROOT}/test/cdef_test.cc"
     "${AOM_ROOT}/test/cfl_test.cc"
     "${AOM_ROOT}/test/convolve_test.cc"
@@ -103,6 +103,11 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/selfguided_filter_test.cc"
     "${AOM_ROOT}/test/simd_cmp_impl.h"
     "${AOM_ROOT}/test/simd_impl.h")
+
+  if(CONFIG_DIP)
+    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
+         "${AOM_ROOT}/test/intra_matrix_test.cc")
+  endif()
 
   if(CONFIG_ACCOUNTING)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
@@ -210,8 +215,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/masked_variance_test.cc"
     "${AOM_ROOT}/test/motion_vector_test.cc"
     "${AOM_ROOT}/test/noise_model_test.cc"
-    "${AOM_ROOT}/test/obmc_sad_test.cc"
-    "${AOM_ROOT}/test/obmc_variance_test.cc"
     "${AOM_ROOT}/test/pickrst_test.cc"
     "${AOM_ROOT}/test/quantize_func_test.cc"
     "${AOM_ROOT}/test/sad_test.cc"

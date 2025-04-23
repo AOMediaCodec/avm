@@ -29,12 +29,18 @@ extern "C" {
 #define DF_TWO_PARAM 0
 #define DF_DUAL 1
 
+#if CONFIG_DF_PAR_BITS
+#define DF_PAR_BITS 3
+#else
 #define DF_PAR_BITS 5
+#endif  // CONFIG_DF_PAR_BITS
 #define DF_DELTA_SCALE 8
 #define DF_SEARCH_STEP_SIZE 2
+#if !CONFIG_DF_PAR_BITS
 #define DF_PAR_OFFSET (1 << (DF_PAR_BITS - 1))
 #define DF_PAR_MIN_VAL (-(1 << (DF_PAR_BITS - 1)))
 #define DF_PAR_MAX_VAL ((1 << (DF_PAR_BITS - 1)) - 1)
+#endif  // !CONFIG_DF_PAR_BITS
 
 #define DF_FILT26 1
 #define DF_CHROMA_WIDE 1
@@ -64,47 +70,6 @@ typedef struct {
   uint64_t bits[4];
 } FilterMask;
 
-#if CONFIG_LPF_MASK
-// This structure holds bit masks for all 4x4 blocks in a 64x64 region.
-// Each 1 bit represents a position in which we want to apply the loop filter.
-// For Y plane, 4x4 in 64x64 requires 16x16 = 256 bit, therefore we use 4
-// uint64_t; For U, V plane, for 420 format, plane size is 32x32, thus we use
-// a uint64_t to represent bitmask.
-// Left_ entries refer to whether we apply a filter on the border to the
-// left of the block.   Above_ entries refer to whether or not to apply a
-// filter on the above border.
-// Since each transform is accompanied by a potentially different type of
-// loop filter there is a different entry in the array for each transform size.
-typedef struct {
-  FilterMask left_y[TX_SIZES];
-  FilterMask above_y[TX_SIZES];
-  FilterMask left_u[TX_SIZES];
-  FilterMask above_u[TX_SIZES];
-  FilterMask left_v[TX_SIZES];
-  FilterMask above_v[TX_SIZES];
-
-  // Y plane vertical edge and horizontal edge filter level
-  uint8_t lfl_y_hor[MI_SIZE_64X64][MI_SIZE_64X64];
-  uint8_t lfl_y_ver[MI_SIZE_64X64][MI_SIZE_64X64];
-
-  // U plane filter level
-  uint8_t lfl_u_ver[MI_SIZE_64X64][MI_SIZE_64X64];
-  uint8_t lfl_u_hor[MI_SIZE_64X64][MI_SIZE_64X64];
-
-  // V plane filter level
-  uint8_t lfl_v_ver[MI_SIZE_64X64][MI_SIZE_64X64];
-  uint8_t lfl_v_hor[MI_SIZE_64X64][MI_SIZE_64X64];
-
-  // other info
-  FilterMask skip;
-  FilterMask is_vert_border;
-  FilterMask is_horz_border;
-  // Y or UV planes, 5 tx sizes: 4x4, 8x8, 16x16, 32x32, 64x64
-  FilterMask tx_size_ver[2][5];
-  FilterMask tx_size_hor[2][5];
-} LoopFilterMask;
-#endif  // CONFIG_LPF_MASK
-
 struct loopfilter {
   int filter_level[2];
   int filter_level_u;
@@ -133,11 +98,6 @@ struct loopfilter {
 
   int combine_vert_horz_lf;
 
-#if CONFIG_LPF_MASK
-  LoopFilterMask *lfm;
-  size_t lfm_num;
-  int lfm_stride;
-#endif  // CONFIG_LPF_MASK
 #if CONFIG_LF_SUB_PU
   int tip_filter_level;
   int tip_delta_idx;
@@ -189,15 +149,9 @@ void av1_loop_filter_frame_init(struct AV1Common *cm, int plane_start,
  * \ingroup in_loop_filter
  * \callgraph
  */
-#if CONFIG_LPF_MASK
-void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
-                           struct macroblockd *xd, int is_decoding,
-                           int plane_start, int plane_end, int partial_frame);
-#else
 void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
                            struct macroblockd *xd, int plane_start,
                            int plane_end, int partial_frame);
-#endif
 
 #if CONFIG_LF_SUB_PU
 void loop_filter_tip_plane(struct AV1Common *cm, const int plane, uint16_t *dst,
@@ -222,46 +176,6 @@ void av1_filter_block_plane_horz(const struct AV1Common *const cm,
 int df_quant_from_qindex(int q_index, int bit_depth);
 
 int df_side_from_qindex(int q_index, int bit_depth);
-#if CONFIG_LPF_MASK
-void av1_filter_block_plane_ver(struct AV1Common *const cm,
-                                struct macroblockd_plane *const plane_ptr,
-                                int pl, int mi_row, int mi_col);
-
-void av1_filter_block_plane_hor(struct AV1Common *const cm,
-                                struct macroblockd_plane *const plane, int pl,
-                                int mi_row, int mi_col);
-
-int get_index_shift(int mi_col, int mi_row, int *index);
-
-void av1_build_bitmask_vert_info(
-    struct AV1Common *const cm, const struct macroblockd_plane *const plane_ptr,
-    int plane);
-
-void av1_build_bitmask_horz_info(
-    struct AV1Common *const cm, const struct macroblockd_plane *const plane_ptr,
-    int plane);
-
-void av1_filter_block_plane_bitmask_vert(
-    struct AV1Common *const cm, struct macroblockd_plane *const plane_ptr,
-    int pl, int mi_row, int mi_col);
-
-void av1_filter_block_plane_bitmask_horz(
-    struct AV1Common *const cm, struct macroblockd_plane *const plane_ptr,
-    int pl, int mi_row, int mi_col);
-
-void av1_store_bitmask_univariant_tx(struct AV1Common *cm, int mi_row,
-                                     int mi_col, BLOCK_SIZE bsize,
-                                     MB_MODE_INFO *mbmi);
-
-void av1_store_bitmask_other_info(struct AV1Common *cm, int mi_row, int mi_col,
-                                  BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
-                                  int is_horz_coding_block_border,
-                                  int is_vert_coding_block_border);
-
-void av1_store_bitmask_vartx(struct AV1Common *cm, int mi_row, int mi_col,
-                             BLOCK_SIZE bsize, TX_SIZE tx_size,
-                             MB_MODE_INFO *mbmi);
-#endif  // CONFIG_LPF_MASK
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -105,7 +105,16 @@ enum {
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
 static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+#if CONFIG_KEY_OVERLAY
+                                     int max_layer_depth, int is_key_overlay) {
+#else
                                      int max_layer_depth) {
+#endif  // CONFIG_KEY_OVERLAY
+
+#if CONFIG_KEY_OVERLAY
+  if (is_key_overlay) return max_layer_depth;
+#endif  // CONFIG_KEY_OVERLAY
+
   if (frame_order == 0) {
     // Keyframe case
     return 1;
@@ -931,6 +940,10 @@ typedef struct {
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
+#if CONFIG_CDEF_ENHANCEMENTS
+  // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
+  int enable_cdef_on_skip_txfm;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if cdf average (frame or tile) should be enabled for
   // initialization.
@@ -1013,6 +1026,9 @@ typedef struct {
   int gf_interval;
   int size;
   int num_steps;
+#if CONFIG_KEY_OVERLAY
+  int has_key_overlay;
+#endif  // CONFIG_KEY_OVERLAY
   SUBGOP_IN_GOP_CODE pos_code;
   SubGOPCfg subgop_cfg;
 } SubGOPInfo;
@@ -1232,13 +1248,6 @@ static INLINE int is_lossless_requested(const RateControlCfg *const rc_cfg) {
  */
 typedef struct {
   /*!
-   * obmc_probs[i][j] is the probability of OBMC being the best motion mode for
-   * jth block size and ith frame update type, averaged over past frames. If
-   * obmc_probs[i][j] < thresh, then OBMC search is pruned.
-   */
-  int obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL];
-
-  /*!
    * warped_probs[i] is the probability of warped motion being the best motion
    * mode for ith frame update type, averaged over past frames. If
    * warped_probs[i] < thresh, then warped motion search is pruned.
@@ -1351,6 +1360,9 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int mrl_index[MRL_LINE_NUMBER];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_MRLS_IMPROVE
+  unsigned int multi_line_mrl[MRL_INDEX_CONTEXTS][2];
+#endif
   unsigned int cfl_index[CFL_TYPE_COUNT];
 #if CONFIG_REFINEMV
   unsigned int refinemv_flag_cnts[NUM_REFINEMV_CTX]
@@ -1362,6 +1374,9 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  unsigned int is_warpmv_or_warp_newmv_cnt[2];
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   unsigned int cfl_sign[CFL_JOINT_SIGNS];
   unsigned int cfl_alpha[CFL_ALPHA_CONTEXTS][CFL_ALPHABET_SIZE];
@@ -1611,32 +1626,36 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int compound_type[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  unsigned int warp_causal_cnt[WARP_CAUSAL_MODE_CTX][2];
+#else
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+  unsigned int warp_causal_cnt[2];
+#else
+  unsigned int warp_causal_cnt[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
-  unsigned int obmc[2];
+  unsigned int warp_causal_warpmv[CDF_SIZE(2)];
 #else
-  unsigned int obmc[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-  unsigned int warped_causal[2];
-#else
-  unsigned int warped_causal[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
-#if CONFIG_D149_CTX_MODELING_OPT
-  unsigned int warped_causal_warpmv[CDF_SIZE(2)];
-#else
-  unsigned int warped_causal_warpmv[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+  unsigned int warp_causal_warpmv[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warpmv_with_mvd_flag[CDF_SIZE(2)];
 #else
   unsigned int warpmv_with_mvd_flag[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warp_delta[2];
 #else
   unsigned int warp_delta[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int warp_delta_param[2][WARP_DELTA_NUMSYMBOLS_LOW];
+#if CONFIG_WARP_PRECISION
+  unsigned int warp_delta_param_high[2][WARP_DELTA_NUMSYMBOLS_HIGH];
+#endif  // CONFIG_WARP_PRECISION
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int warp_extend[WARP_EXTEND_CTX][2];
 #else
@@ -1721,6 +1740,10 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_CCSO_IMPROVE
   unsigned int default_ccso_cnts[3][CCSO_CONTEXT][2];
 #endif
+#if CONFIG_CDEF_ENHANCEMENTS
+  unsigned int cdef_strength_index0_cnts[CDEF_STRENGTH_INDEX0_CTX][2];
+  unsigned int cdef_cnts[CDEF_STRENGTHS_NUM - 1][CDEF_STRENGTHS_NUM];
+#endif  // CONFIG_CDEF_ENHANCEMENTS
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
 #if CONFIG_INTRA_TX_IST_PARSE
@@ -1966,7 +1989,6 @@ typedef struct RD_COUNTS {
   int compound_ref_used_flag;
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];
-  int obmc_used[BLOCK_SIZES_ALL][2];
   int warped_used[2];
 } RD_COUNTS;
 
@@ -1982,7 +2004,6 @@ typedef struct ThreadData {
   BLOCK_SIZE sb_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   uint32_t *hash_value_buffer[2][2];
-  OBMCBuffer obmc_buffer;
   PALETTE_BUFFER *palette_buffer;
   CompoundTypeRdBuffers comp_rd_buffer;
   CONV_BUF_TYPE *tmp_conv_dst;

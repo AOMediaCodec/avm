@@ -68,6 +68,9 @@ static const int mode_lf_lut[] = {
   1, 0, 1,                                // INTER_SINGLE_MODES (GLOBALMV == 0)
   1,                                      // AMVDNEWMV
   1,                                      // WARPMV
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  1,              // WARP_NEWMV
+#endif            // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
   1, 1, 1, 1, 1, 1, 1, 1,
 };
@@ -526,13 +529,12 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
 #if CONFIG_LF_SUB_PU
 // Check whether current block is TIP mode
 static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
-                                      const int scale_horz,
-                                      const int scale_vert, TX_SIZE *ts,
+                                      const int scale, TX_SIZE *ts,
                                       int32_t *tip_edge) {
   const bool is_tip_mode = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip_mode) {
     *tip_edge = 1;
-    const int tip_ts = (scale_horz || scale_vert) ? TX_4X4 : TX_8X8;
+    const int tip_ts = scale ? TX_4X4 : TX_8X8;
     *ts = tip_ts;
   }
 }
@@ -544,13 +546,22 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
                                        const MB_MODE_INFO *const mbmi,
-                                       TX_SIZE *ts, int32_t *opfl_edge) {
-  if (plane > 0) return;
+                                       const int scale, TX_SIZE *ts,
+                                       int32_t *opfl_edge) {
   const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                        mbmi);
+#if CONFIG_AFFINE_REFINEMENT
+  if (is_opfl_mode && plane &&
+      mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START) {
+    *opfl_edge = 1;
+    *ts = scale ? TX_4X4 : TX_8X8;
+    return;
+  }
+#endif  // CONFIG_AFFINE_REFINEMENT
+  if (plane > 0) return;
   if (is_opfl_mode) {
     *opfl_edge = 1;
     const int opfl_ts = TX_8X8;
@@ -560,15 +571,29 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
 
 #if CONFIG_REFINEMV
 // Check whether current block is RFMV mode
-static AOM_INLINE void check_rfmv_edge(const MB_MODE_INFO *const mbmi,
-                                       const int scale_horz,
-                                       const int scale_vert, TX_SIZE *ts,
+static AOM_INLINE void check_rfmv_edge(const AV1_COMMON *const cm,
+                                       const MB_MODE_INFO *const mbmi,
+                                       const int scale, TX_SIZE *ts,
                                        int32_t *rfmv_edge) {
-  const int is_rfmv_mode =
-      mbmi->refinemv_flag && !is_tip_ref_frame(mbmi->ref_frame[0]);
+  const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
+  int is_rfmv_mode = mbmi->refinemv_flag &&
+#if CONFIG_AFFINE_REFINEMENT
+                     (is_damr_allowed_with_refinemv(mbmi->mode) ||
+                      mbmi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
+#endif  // CONFIG_AFFINE_REFINEMENT
+                     !tip_ref_frame;
+
+#if CONFIG_AFFINE_REFINEMENT
+  if (is_rfmv_mode && default_refinemv_modes(cm, mbmi))
+#else
+  if (is_rfmv_mode && default_refinemv_modes(mbmi))
+#endif  // CONFIG_AFFINE_REFINEMENT
+    is_rfmv_mode &= (mbmi->comp_group_idx == 0 &&
+                     mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+
   if (is_rfmv_mode) {
     *rfmv_edge = 1;
-    const int rfmv_ts = (scale_horz || scale_vert) ? TX_8X8 : TX_16X16;
+    const int rfmv_ts = scale ? TX_8X8 : TX_16X16;
     *ts = rfmv_ts;
   }
 }
@@ -589,16 +614,16 @@ static AOM_INLINE void check_sub_pu_edge(
   int temp_edge = 0;
   TX_SIZE temp_ts = 0;
 
-  check_tip_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
+  int scale = edge_dir == VERT_EDGE ? scale_horz : scale_vert;
+  check_tip_edge(mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge)
     check_opfl_edge(cm, plane,
 #if CONFIG_COMPOUND_4XN
                     xd,
 #endif  // CONFIG_COMPOUND_4XN
-                    mbmi, &temp_ts, &temp_edge);
+                    mbmi, scale, &temp_ts, &temp_edge);
 #if CONFIG_REFINEMV
-  if (!temp_edge)
-    check_rfmv_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
+  if (!temp_edge) check_rfmv_edge(cm, mbmi, scale, &temp_ts, &temp_edge);
 #endif  // CONFIG_REFINEMV
 
   if (temp_edge) {
@@ -1211,56 +1236,12 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
 
 static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV1_COMMON *cm,
                              MACROBLOCKD *xd, int start, int stop,
-#if CONFIG_LPF_MASK
-                             int is_decoding,
-#endif
                              int plane_start, int plane_end) {
   struct macroblockd_plane *pd = xd->plane;
   const int col_start = 0;
   const int col_end = cm->mi_params.mi_cols;
   int mi_row, mi_col;
   int plane;
-
-#if CONFIG_LPF_MASK
-  if (is_decoding) {
-    cm->is_decoding = is_decoding;
-    for (plane = plane_start; plane < plane_end; plane++) {
-      if (plane == 0 && !(cm->lf.filter_level[0]) && !(cm->lf.filter_level[1]))
-        break;
-      else if (plane == 1 && !(cm->lf.filter_level_u))
-        continue;
-      else if (plane == 2 && !(cm->lf.filter_level_v))
-        continue;
-
-      av1_setup_dst_planes(pd, frame_buffer, 0, 0, plane, plane + 1, NULL);
-
-      av1_build_bitmask_vert_info(cm, &pd[plane], plane);
-      av1_build_bitmask_horz_info(cm, &pd[plane], plane);
-
-      // apply loop filtering which only goes through buffer once
-      for (mi_row = start; mi_row < stop; mi_row += MI_SIZE_64X64) {
-        for (mi_col = col_start; mi_col < col_end; mi_col += MI_SIZE_64X64) {
-          av1_setup_dst_planes(pd, frame_buffer, mi_row, mi_col, plane,
-                               plane + 1, NULL);
-          av1_filter_block_plane_bitmask_vert(cm, &pd[plane], plane, mi_row,
-                                              mi_col);
-          if (mi_col - MI_SIZE_64X64 >= 0) {
-            av1_setup_dst_planes(pd, frame_buffer, mi_row,
-                                 mi_col - MI_SIZE_64X64, plane, plane + 1,
-                                 NULL);
-            av1_filter_block_plane_bitmask_horz(cm, &pd[plane], plane, mi_row,
-                                                mi_col - MI_SIZE_64X64);
-          }
-        }
-        av1_setup_dst_planes(pd, frame_buffer, mi_row, mi_col - MI_SIZE_64X64,
-                             plane, plane + 1, NULL);
-        av1_filter_block_plane_bitmask_horz(cm, &pd[plane], plane, mi_row,
-                                            mi_col - MI_SIZE_64X64);
-      }
-    }
-    return;
-  }
-#endif
 
   const int mib_size = cm->mib_size;
   for (plane = plane_start; plane < plane_end; plane++) {
@@ -1319,11 +1300,8 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV1_COMMON *cm,
 }
 
 void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
-                           MACROBLOCKD *xd,
-#if CONFIG_LPF_MASK
-                           int is_decoding,
-#endif
-                           int plane_start, int plane_end, int partial_frame) {
+                           MACROBLOCKD *xd, int plane_start, int plane_end,
+                           int partial_frame) {
   int start_mi_row, end_mi_row, mi_rows_to_filter;
   start_mi_row = 0;
   mi_rows_to_filter = cm->mi_params.mi_rows;
@@ -1334,11 +1312,8 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
   end_mi_row = start_mi_row + mi_rows_to_filter;
   av1_loop_filter_frame_init(cm, plane_start, plane_end);
-  loop_filter_rows(frame, cm, xd, start_mi_row, end_mi_row,
-#if CONFIG_LPF_MASK
-                   is_decoding,
-#endif
-                   plane_start, plane_end);
+  loop_filter_rows(frame, cm, xd, start_mi_row, end_mi_row, plane_start,
+                   plane_end);
 }
 #if CONFIG_LF_SUB_PU
 // Apply loop filtering on TIP plane
@@ -1352,34 +1327,40 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int n = 8;
+  int sub_bw = 8;
+  int sub_bh = 8;
   if (plane > 0) {
     const int subsampling_x = cm->seq_params.subsampling_x;
     const int subsampling_y = cm->seq_params.subsampling_y;
-    if (subsampling_x || subsampling_y) n = 4;
+    sub_bw >>= subsampling_x;
+    sub_bh >>= subsampling_y;
   }
-  const int filter_length = n;
+  // select vert/horz filter lengths based on block width/height
+  int filter_length_vert = sub_bw;
+  int filter_length_horz = sub_bh;
 
   // start filtering
-  const int h = bh - n;
-  const int w = bw - n;
-  const int rw = bw - (bw % n);
-  for (int j = 0; j <= h; j += n) {
-    for (int i = 0; i <= w; i += n) {
+  const int h = bh - sub_bh;
+  const int w = bw - sub_bw;
+  const int rw = bw - (bw % sub_bw);
+  for (int j = 0; j <= h; j += sub_bh) {
+    for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length,
-                                          &q_vert, &side_vert, bit_depth, n);
+        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
+                                          &q_vert, &side_vert, bit_depth,
+                                          sub_bh);
       }
       // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length,
-                                            &q_horz, &side_horz, bit_depth, n);
+        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
+                                            &q_horz, &side_horz, bit_depth,
+                                            sub_bw);
       }
-      dst += n;
+      dst += sub_bw;
     }
     dst -= rw;
-    dst += n * dst_stride;
+    dst += sub_bh * dst_stride;
   }
 }
 

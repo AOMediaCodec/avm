@@ -17,6 +17,7 @@
 #include "av1/common/idct.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/common/scan.h"
+#include "av1/common/secondary_tx.h"
 
 /* 4-point reversible, orthonormal Walsh-Hadamard in 3.5 adds, 0.5 shifts per
    pixel. */
@@ -477,7 +478,8 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
 
 // Apply forward cross chroma component transform
 void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
-                                     TX_SIZE tx_size, CctxType cctx_type) {
+                                     TX_SIZE tx_size, CctxType cctx_type,
+                                     const int bd) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av1_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)coeff_c1;
@@ -492,6 +494,8 @@ void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
              (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c2[i];
     src_c1[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[0], CCTX_PREC_BITS);
     src_c2[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[1], CCTX_PREC_BITS);
+    src_c1[i] = clamp_value(src_c1[i], 8 + bd);
+    src_c2[i] = clamp_value(src_c2[i], 8 + bd);
   }
 }
 
@@ -580,18 +584,30 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     }
 #endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E124_IST_REDUCE_METHOD4
+#if CONFIG_F105_IST_MEM_REDUCE
+    const int st_size_class =
+        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
+        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
+#else
     const int st_size_class = (width == 8 && height == 8)   ? 1
                               : (width >= 8 && height >= 8) ? 2
-                                                            : 0;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
+                                      : 0;
 #else
     const int st_size_class = sb_size;
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class);
+    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     if (sec_tx_sse != NULL) {
 #if CONFIG_E124_IST_REDUCE_METHOD4
-      const int reduced_height = (st_size_class == 0)   ? IST_4x4_HEIGHT
-                                 : (st_size_class == 1) ? IST_8x8_HEIGHT_RED
-                                                        : IST_8x8_HEIGHT;
+      const int reduced_height =
+          (st_size_class == 0) ? IST_4x4_HEIGHT
+          : (st_size_class == 1)
+              ? IST_8x8_HEIGHT_RED
+#if CONFIG_F105_IST_MEM_REDUCE
+              : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
+#else
+              : IST_8x8_HEIGHT;
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
       const int reduced_height =
           (sb_size == 4) ? IST_4x4_HEIGHT : IST_8x8_HEIGHT;

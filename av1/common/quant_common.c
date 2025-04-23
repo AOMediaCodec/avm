@@ -93,14 +93,8 @@ int tcq_parity(int absLevel) {
   return par;
 }
 
-int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class) {
+int tcq_init_state(int tcq_mode) {
   int state = tcq_mode << 8;
-  if (TCQ_DIS_CHR && plane != 0) {
-    state = 0;
-  }
-  if (TCQ_DIS_1D && tx_class != TX_CLASS_2D) {
-    state = 0;
-  }
   return state;
 }
 
@@ -331,8 +325,8 @@ const qm_val_t *av1_get_qmatrix(const CommonQuantParams *quant_params,
 static qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
 static qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
 static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
-static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
-static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
+static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
+static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
 
 // Upsamples base matrix using indexing according to input and output
 // dimensions.
@@ -387,7 +381,7 @@ void scale_tx(const int txsize, const int level, const int plane,
     upsample(4, 8, width, height, source_4x8_iwt_base_matrix[level][plane],
              output);
   } else {
-    /*height > width*/
+    // width > height
     upsample(8, 4, width, height, source_8x4_iwt_base_matrix[level][plane],
              output);
   }
@@ -458,18 +452,18 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes) {
 
   // Generate base matrices
   if(q < 13){
-    gen_mother_matrix(
+    generate_base_matrix(
         8, 8, iwt_matrix_para[BASE_TX_8X8][c][q],
         iwt_matrix_para_fp[BASE_TX_8X8],
         &gen_source_8x8_iwt_base_matrix[q][c][0]);
 
     // 8x4
-    gen_mother_matrix(
+    generate_base_matrix(
         8, 4, iwt_matrix_para[BASE_TX_8X4][c][q],
         iwt_matrix_para_fp[BASE_TX_8X4],
         &gen_source_8x4_iwt_base_matrix[q][c][0]);
     // 4x8
-    gen_mother_matrix(
+    generate_base_matrix(
         4, 8, iwt_matrix_para[BASE_TX_4X8][c][q],
         iwt_matrix_para_fp[BASE_TX_4X8],
         &gen_source_4x8_iwt_base_matrix[q][c][0]);
@@ -486,7 +480,7 @@ enum {
 } UENUM1BYTE(BASE_TX_SIZE);
 
 void generate_base_matrix(const int outw, const int outh, const int* para,
-                       const int* para_fp, qm_val_t* output) {
+                          const int* para_fp, qm_val_t* output) {
   for (int y = 0; y < outh; ++y) {
     for (int x = 0; x < outw; ++x) {
       // The model is fitted in 32x32 domain so 8x8 idx has to be multiplied
@@ -886,7 +880,7 @@ static const qm_val_t source_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
         },
     },
 };
-static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
+static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
     {
         {
             /* Luma */
@@ -1071,7 +1065,7 @@ static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = 
         },
     },
 };
-static const qm_val_t source_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
+static const qm_val_t source_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
     {
         {
             /* Luma */

@@ -138,7 +138,7 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   for (int i = 0; i < NUM_CTX_CLASS_OFFSETS; i++) {
     RESET_CDF_COUNTER(nmv->shell_offset_other_class_cdf[i], 2);
   }
-  RESET_CDF_COUNTER(nmv->col_mv_greter_flags_cdf, 2);
+  RESET_CDF_COUNTER(nmv->col_mv_greater_flags_cdf, 2);
   RESET_CDF_COUNTER(nmv->col_mv_index_cdf, 2);
 #else
   RESET_CDF_COUNTER(nmv->joints_cdf, 4);
@@ -206,6 +206,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->inter_single_mode_cdf, INTER_SINGLE_MODES);
   RESET_CDF_COUNTER(fc->inter_warp_mode_cdf, 2);
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  RESET_CDF_COUNTER(fc->is_warpmv_or_warp_newmv_cdf, 2);
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
@@ -250,10 +253,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->refinemv_flag_cdf, REFINEMV_NUM_MODES);
 #endif  // CONFIG_REFINEMV
 
-  RESET_CDF_COUNTER(fc->obmc_cdf, 2);
-  RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
+  RESET_CDF_COUNTER(fc->warp_causal_cdf, 2);
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
-  RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, 2);
+#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  RESET_CDF_COUNTER(fc->warp_causal_warpmv_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[2], 2);
@@ -352,6 +356,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);
   RESET_CDF_COUNTER(fc->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->mrl_index_cdf, MRL_LINE_NUMBER);
+#if CONFIG_MRLS_IMPROVE
+  RESET_CDF_COUNTER(fc->multi_line_mrl_cdf, 2);
+#endif
   RESET_CDF_COUNTER(fc->fsc_mode_cdf, FSC_MODES);
 
 #if CONFIG_LOSSLESS_DPCM
@@ -389,11 +396,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     RESET_CDF_COUNTER(fc->ccso_cdf[plane], 2);
   }
 #endif  // CONFIG_CCSO_IMPROVE
-
+#if CONFIG_CDEF_ENHANCEMENTS
+  RESET_CDF_COUNTER(fc->cdef_strength_index0_cdf, 2);
+  for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
+    RESET_CDF_COUNTER_STRIDE(fc->cdef_cdf[j], j + 2,
+                             CDF_SIZE(CDEF_STRENGTHS_NUM));
+  }
+#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   RESET_CDF_COUNTER(fc->gdf_cdf, 2);
 #endif  // CONFIG_GDF
-
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);
@@ -517,6 +529,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_INTRA_TX_IST_PARSE
   RESET_CDF_COUNTER(fc->most_probable_stx_set_cdf, IST_DIR_SIZE);
+#if CONFIG_F105_IST_MEM_REDUCE
+  RESET_CDF_COUNTER(fc->most_probable_stx_set_cdf_ADST_ADST,
+                    IST_REDUCE_SET_SIZE_ADST_ADST);
+#endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
   RESET_CDF_COUNTER(fc->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_INTRA_TX_IST_PARSE

@@ -96,7 +96,13 @@ TEST(AV1, TestTell) {
   const int kSymbols = 1024;
   // Coders are noisier at low probabilities, so we start at p = 4.
   for (int p = 4; p < 256; p++) {
-    double probability = p / 256.;
+#if CONFIG_CDF_SCALE
+    int cdf0 = 32768 - (p << 7);
+    int adj_prob = get_adjusted_prob(cdf0, 0, 2);
+    double probability = (32768 - adj_prob) / 32768.0;
+#else
+    double probability = p / 256.0;
+#endif
     aom_start_encode(&bw, bw_buffer);
     for (int i = 0; i < kSymbols; i++) {
       aom_write(&bw, 0, p);

@@ -35,7 +35,7 @@ int av1_get_tx_scale(const TX_SIZE tx_size);
 
 void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
                                    tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
-                                   CctxType cctx_type);
+                                   CctxType cctx_type, const int bd);
 
 void av1_inverse_transform_block(const MACROBLOCKD *xd,
                                  const tran_low_t *dqcoeff, int plane,
