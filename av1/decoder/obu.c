@@ -265,6 +265,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params);
+#if CONFIG_QM_EXTENSION
+  int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
+  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
+                              seq_params->quantizer_matrix_8x4,
+                              seq_params->quantizer_matrix_4x8 };
+  av1_qm_init(&cm->quant_params, num_planes, fund_mat);
+#endif  // CONFIG_QM_EXTENSION
 #if CONFIG_BRU
   if (seq_params->enable_bru && !seq_params->explicit_ref_frame_map) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,

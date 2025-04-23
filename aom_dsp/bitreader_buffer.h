@@ -42,7 +42,11 @@ uint32_t aom_rb_read_unsigned_literal(struct aom_read_bit_buffer *rb, int bits);
 
 int aom_rb_read_inv_signed_literal(struct aom_read_bit_buffer *rb, int bits);
 
+// Reads a variable length unsigned number.
 uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
+
+// Reads a variable length signed number.
+int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb);
 
 int16_t aom_rb_read_signed_primitive_refsubexpfin(
     struct aom_read_bit_buffer *rb, uint16_t n, uint16_t k, int16_t ref);

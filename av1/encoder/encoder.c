@@ -627,6 +627,19 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->ref_frames = REF_FRAMES;
   seq->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_QM_EXTENSION
+  const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
+  seq->user_defined_qmatrix = q_cfg->using_qm && q_cfg->user_defined_qmatrix;
+#if CONFIG_QM_DEBUG
+  printf("[encoder.c av1_init_seq_coding_tools] user defined qmatrix: %d\n",
+         seq->user_defined_qmatrix);
+#endif  // CONFIG_QM_DEBUG
+  if (seq->user_defined_qmatrix) {
+    for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+      seq->qm_data_present[i] = q_cfg->qm_data_present[i];
+    }
+  }
+#endif  // CONFIG_QM_EXTENSION
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -1399,7 +1412,30 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
    * av1_init_quantizer() for every frame.
    */
   av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
+
+#if CONFIG_QM_EXTENSION
+  SequenceHeader *seq = &cm->seq_params;
+
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+    seq->qm_data_present[i] = false;
+  }
+
+  // Allocate memory for fundamental QM arrays, in case the coded video
+  // sequence requires custom QMs (i.e. seq->user_defined_qmatrix == 1)
+  av1_alloc_qm(&seq->quantizer_matrix_8x8, 8, 8);
+  av1_alloc_qm(&seq->quantizer_matrix_8x4, 8, 4);
+  av1_alloc_qm(&seq->quantizer_matrix_4x8, 4, 8);
+
+  // Initialize QMs with default fundamental matrices.
+  av1_init_qmatrix(seq->quantizer_matrix_8x8, seq->quantizer_matrix_8x4,
+                   seq->quantizer_matrix_4x8, av1_num_planes(cm));
+  qm_val_t ***fund_mat[3] = { seq->quantizer_matrix_8x8,
+                              seq->quantizer_matrix_8x4,
+                              seq->quantizer_matrix_4x8 };
+  av1_qm_init(&cm->quant_params, av1_num_planes(cm), fund_mat);
+#else
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
+#endif  // CONFIG_QM_EXTENSION
 
 #if CONFIG_DF_PAR_BITS
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
@@ -3132,7 +3168,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   if (!frame_is_intra_only(cm))
     av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
 
-  av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
+  av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
@@ -3339,7 +3375,15 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif
 
-    av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
+#if CONFIG_QM_EXTENSION
+    if (cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test > 0) {
+      /* Prepare testing of qm_index by enabling segmentation */
+      av1_enable_segmentation(&cm->seg);
+      av1_apply_active_map(cpi);
+    }
+#endif  // CONFIG_QM_EXTENSION
+
+    av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT

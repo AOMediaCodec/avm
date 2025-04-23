@@ -21,6 +21,76 @@
 
 namespace {
 
+#if CONFIG_QM_EXTENSION
+// Level 6 of the default quantization matrices.
+// clang-format off
+constexpr uint8_t user_defined_qm_8x8[2][8 * 8] = {
+    {
+        /* Luma */
+        32,  31,  30,  32,  37,  44,  53,  65,
+        31,  28,  29,  31,  36,  44,  52,  62,
+        30,  29,  29,  35,  39,  45,  53,  63,
+        32,  31,  35,  37,  44,  51,  57,  66,
+        37,  36,  39,  44,  51,  57,  65,  74,
+        44,  44,  45,  51,  57,  65,  74,  85,
+        53,  52,  53,  57,  65,  74,  84,  97,
+        65,  62,  63,  66,  74,  85,  97,  112,
+    },
+    {
+        /* Chroma */
+        32,  30,  36,  40,  44,  47,  51,  53,
+        30,  32,  37,  40,  43,  45,  48,  49,
+        36,  37,  41,  43,  46,  47,  51,  52,
+        40,  40,  43,  45,  47,  49,  51,  53,
+        44,  43,  46,  47,  51,  52,  56,  58,
+        47,  45,  47,  49,  52,  53,  59,  62,
+        51,  48,  51,  51,  56,  59,  65,  71,
+        53,  49,  52,  53,  58,  62,  71,  79,
+    },
+};
+constexpr uint8_t user_defined_qm_8x4[2][8 * 4] = {
+    {
+        /* Luma */
+        32,  31,  31,  33,  38,  44,  54,  65,
+        30,  30,  32,  35,  40,  46,  54,  62,
+        38,  38,  41,  45,  53,  58,  67,  77,
+        57,  54,  56,  61,  68,  77,  89,  103,
+    },
+    {
+        /* Chroma */
+        32,  31,  37,  41,  45,  48,  52,  54,
+        37,  38,  42,  43,  46,  47,  51,  52,
+        45,  44,  47,  48,  52,  53,  57,  61,
+        51,  48,  51,  53,  57,  62,  70,  76,
+    },
+};
+constexpr uint8_t user_defined_qm_4x8[2][4 * 8] = {
+    {
+        /* Luma */
+        32,  30,  38,  57,
+        31,  30,  38,  54,
+        31,  32,  41,  56,
+        33,  35,  45,  61,
+        38,  40,  53,  68,
+        44,  46,  58,  77,
+        54,  54,  67,  89,
+        65,  62,  77,  103,
+    },
+    {
+        /* Chroma */
+        32,  37,  45,  51,
+        31,  38,  44,  48,
+        37,  42,  47,  51,
+        41,  43,  48,  53,
+        45,  46,  52,  57,
+        48,  47,  53,  62,
+        52,  51,  57,  70,
+        54,  52,  61,  76,
+    },
+};
+// clang-format off
+#endif  // CONFIG_QM_EXTENSION
+
 class QMTest
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
       public ::libaom_test::EncoderTest {
@@ -41,6 +111,30 @@ class QMTest
       encoder->Control(AV1E_SET_ENABLE_QM, 1);
       encoder->Control(AV1E_SET_QM_MIN, qm_min_);
       encoder->Control(AV1E_SET_QM_MAX, qm_max_);
+#if CONFIG_QM_EXTENSION
+      if (user_defined_qmatrix_) {
+        ASSERT_EQ(qm_min_, qm_max_);
+        aom_user_defined_qm_t qm;
+        qm.level = qm_min_;
+        qm.num_planes = monochrome_ ? 1 : 3;
+        if (monochrome_) {
+          qm.qm_8x8[0] = user_defined_qm_8x8[0];
+          qm.qm_8x4[0] = user_defined_qm_8x4[0];
+          qm.qm_4x8[0] = user_defined_qm_4x8[0];
+        } else {
+          qm.qm_8x8[0] = user_defined_qm_8x8[0];
+          qm.qm_8x8[1] = user_defined_qm_8x8[1];
+          qm.qm_8x8[2] = user_defined_qm_8x8[1];
+          qm.qm_8x4[0] = user_defined_qm_8x4[0];
+          qm.qm_8x4[1] = user_defined_qm_8x4[1];
+          qm.qm_8x4[2] = user_defined_qm_8x4[1];
+          qm.qm_4x8[0] = user_defined_qm_4x8[0];
+          qm.qm_4x8[1] = user_defined_qm_4x8[1];
+          qm.qm_4x8[2] = user_defined_qm_4x8[1];
+        }
+        encoder->Control(AV1E_SET_USER_DEFINED_QMATRIX, &qm);
+      }
+#endif  // CONFIG_QM_EXTENSION
 
       encoder->Control(AOME_SET_MAX_INTRA_BITRATE_PCT, 100);
     }
@@ -49,6 +143,9 @@ class QMTest
   void DoTest(int qm_min, int qm_max) {
     qm_min_ = qm_min;
     qm_max_ = qm_max;
+    if (monochrome_) {
+      cfg_.monochrome = 1;
+    }
     cfg_.kf_max_dist = 12;
     cfg_.rc_min_quantizer = 32;
     cfg_.rc_max_quantizer = 224;
@@ -63,9 +160,13 @@ class QMTest
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
+  bool monochrome_ = false;
   int set_cpu_used_;
   int qm_min_;
   int qm_max_;
+#if CONFIG_QM_EXTENSION
+  bool user_defined_qmatrix_ = false;
+#endif  // CONFIG_QM_EXTENSION
 };
 
 // encodes and decodes without a mismatch.
@@ -76,6 +177,27 @@ TEST_P(QMTest, TestNoMisMatchQM2) { DoTest(0, 8); }
 
 // encodes and decodes without a mismatch.
 TEST_P(QMTest, TestNoMisMatchQM3) { DoTest(9, 15); }
+
+// encodes and decodes without a mismatch.
+TEST_P(QMTest, TestNoMisMatchQM4) {
+  monochrome_ = true;
+  DoTest(5, 9);
+}
+
+#if CONFIG_QM_EXTENSION
+// encodes and decodes without a mismatch.
+TEST_P(QMTest, TestNoMisMatchQM5) {
+  user_defined_qmatrix_ = true;
+  DoTest(0, 0);
+}
+
+// encodes and decodes without a mismatch.
+TEST_P(QMTest, TestNoMisMatchQM6) {
+  monochrome_ = true;
+  user_defined_qmatrix_ = true;
+  DoTest(0, 0);
+}
+#endif  // CONFIG_QM_EXTENSION
 
 AV1_INSTANTIATE_TEST_SUITE(QMTest,
                            ::testing::Values(::libaom_test::kOnePassGood),

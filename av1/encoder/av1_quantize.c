@@ -18,6 +18,7 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
+#include "av1/common/entropymode.h"
 #include "av1/common/idct.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/scan.h"
@@ -483,8 +484,6 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   const int use_qmatrix = av1_use_qmatrix(quant_params, xd, segment_id);
 
   // Y
-  const int qmlevel_y =
-      use_qmatrix ? quant_params->qmatrix_level_y : NUM_QM_LEVELS - 1;
   x->plane[0].quant_QTX = quants->y_quant[qindex];
   x->plane[0].quant_fp_QTX = quants->y_quant_fp[qindex];
   x->plane[0].round_fp_QTX = quants->y_round_fp[qindex];
@@ -492,6 +491,14 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[0].zbin_QTX = quants->y_zbin[qindex];
   x->plane[0].round_QTX = quants->y_round[qindex];
   x->plane[0].dequant_QTX = dequants->y_dequant_QTX[qindex];
+#if CONFIG_QM_EXTENSION
+  const int qm_index = quant_params->qm_index[segment_id];
+  const int qmlevel_y =
+      use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
+#else
+  const int qmlevel_y =
+      use_qmatrix ? quant_params->qmatrix_level_y : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_EXTENSION
   memcpy(&xd->plane[0].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_y][0],
          sizeof(quant_params->gqmatrix[qmlevel_y][0]));
@@ -500,8 +507,6 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
          sizeof(quant_params->giqmatrix[qmlevel_y][0]));
 
   // U
-  const int qmlevel_u =
-      use_qmatrix ? quant_params->qmatrix_level_u : NUM_QM_LEVELS - 1;
   x->plane[1].quant_QTX = quants->u_quant[qindex];
   x->plane[1].quant_fp_QTX = quants->u_quant_fp[qindex];
   x->plane[1].round_fp_QTX = quants->u_round_fp[qindex];
@@ -509,15 +514,21 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[1].zbin_QTX = quants->u_zbin[qindex];
   x->plane[1].round_QTX = quants->u_round[qindex];
   x->plane[1].dequant_QTX = dequants->u_dequant_QTX[qindex];
+#if CONFIG_QM_EXTENSION
+  const int qmlevel_u =
+      use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
+#else
+  const int qmlevel_u =
+      use_qmatrix ? quant_params->qmatrix_level_u : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_EXTENSION
   memcpy(&xd->plane[1].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_u][1],
          sizeof(quant_params->gqmatrix[qmlevel_u][1]));
   memcpy(&xd->plane[1].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_u][1],
          sizeof(quant_params->giqmatrix[qmlevel_u][1]));
+
   // V
-  const int qmlevel_v =
-      use_qmatrix ? quant_params->qmatrix_level_v : NUM_QM_LEVELS - 1;
   x->plane[2].quant_QTX = quants->v_quant[qindex];
   x->plane[2].quant_fp_QTX = quants->v_quant_fp[qindex];
   x->plane[2].round_fp_QTX = quants->v_round_fp[qindex];
@@ -525,12 +536,20 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[2].zbin_QTX = quants->v_zbin[qindex];
   x->plane[2].round_QTX = quants->v_round[qindex];
   x->plane[2].dequant_QTX = dequants->v_dequant_QTX[qindex];
+#if CONFIG_QM_EXTENSION
+  const int qmlevel_v =
+      use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
+#else
+  const int qmlevel_v =
+      use_qmatrix ? quant_params->qmatrix_level_v : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_EXTENSION
   memcpy(&xd->plane[2].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_v][2],
          sizeof(quant_params->gqmatrix[qmlevel_v][2]));
   memcpy(&xd->plane[2].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_v][2],
          sizeof(quant_params->giqmatrix[qmlevel_v][2]));
+
   x->seg_skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
   x->qindex = qindex;
 
@@ -592,11 +611,107 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
 #endif  // !CONFIG_ADJ_Q_OFFSET
 }
 
-void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
+#if CONFIG_QM_EXTENSION
+// A version of set_qm_params() used when the
+// AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST codec control is set to a nonzero
+// value. Only used in quantization matrix unit test.
+static void set_qm_test_params(AV1_COMMON *const cm,
+                               CommonQuantParams *const quant_params,
+                               int min_qmlevel, int max_qmlevel,
+                               uint8_t pic_qm_num) {
+  // Test qm_y/u/v
+  const int qm_range = max_qmlevel + 1 - min_qmlevel;
+
+  // Set pic_qm_num, as provided by the caller
+  assert(pic_qm_num > 0);
+  quant_params->pic_qm_num = pic_qm_num;
+
+  quant_params->qm_index_bits = aom_ceil_log2(quant_params->pic_qm_num);
+  const int num_planes = av1_num_planes(cm);
+  for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+    quant_params->qm_y[i] = min_qmlevel + rand() % qm_range;
+
+    if (num_planes > 1) {
+      const int qm_uv_same_as_y = rand() % 1;
+      if (qm_uv_same_as_y) {
+        quant_params->qm_u[i] = quant_params->qm_y[i];
+        quant_params->qm_v[i] = quant_params->qm_y[i];
+      } else {
+        quant_params->qm_u[i] = min_qmlevel + rand() % qm_range;
+        quant_params->qm_v[i] = cm->seq_params.separate_uv_delta_q
+                                    ? min_qmlevel + rand() % qm_range
+                                    : quant_params->qm_u[i];
+      }
+    }
+  }
+
+#if CONFIG_QM_DEBUG
+  printf("[DEBUG] pic_qm_num=%d\n", quant_params->pic_qm_num);
+  for (int i = 0; i < quant_params->pic_qm_num; i++) {
+    if (num_planes > 1) {
+      printf("[DEBUG] qm_y/u/v[%d]=(%d,%d,%d)\n", i, quant_params->qm_y[i],
+             quant_params->qm_u[i], quant_params->qm_v[i]);
+    } else {
+      printf("[DEBUG] qm_y[%d]=(%d)\n", i, quant_params->qm_y[i]);
+    }
+  }
+#endif
+
+  /* Test qm_index */
+  const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+  if (max_segments == 1) {
+    quant_params->qm_index[0] = 0;
+  } else {
+    for (int i = 0; i < max_segments; i++) {
+      quant_params->qm_index[i] = rand() % quant_params->pic_qm_num;
+    }
+#if CONFIG_QM_DEBUG
+    printf("[DEBUG] max_segments=%d\n", max_segments);
+    for (int i = 0; i < max_segments; i++) {
+      printf("[DEBUG] qm_index[%d]=%d\n", i, quant_params->qm_index[i]);
+    }
+#endif
+  }
+}
+
+// Sets qm_y[i], qm_u[i], and qm_v[i] in quant_params.
+// Note: This function is not fully implemented if quant_params->pic_qm_num > 1.
+// In that case, this function simply sets qm_y[i] to the same value for all i.
+// Similarly for qm_u[i], and qm_v[i].
+// TODO(wtc): No need to set qm_u[i], and qm_v[i] if monochrome.
+static void set_qm_params(AV1_COMMON *const cm,
+                          CommonQuantParams *const quant_params,
+                          int min_qmlevel, int max_qmlevel) {
+  int qm_y = aom_get_qmlevel(quant_params->base_qindex, min_qmlevel,
+                             max_qmlevel, cm->seq_params.bit_depth);
+  int qm_u =
+      aom_get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
+                      min_qmlevel, max_qmlevel, cm->seq_params.bit_depth);
+
+  int qm_v = qm_u;
+  if (cm->seq_params.separate_uv_delta_q) {
+    qm_v =
+        aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
+                        min_qmlevel, max_qmlevel, cm->seq_params.bit_depth);
+  }
+
+  quant_params->pic_qm_num = 1;
+  quant_params->qm_index_bits = 0;
+  for (int i = 0; i < quant_params->pic_qm_num; i++) {
+    quant_params->qm_y[i] = qm_y;
+    quant_params->qm_u[i] = qm_u;
+    quant_params->qm_v[i] = qm_v;
+  }
+}
+#endif  // CONFIG_QM_EXTENSION
+
+void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
                        int q, int enable_chroma_deltaq) {
+  AV1_COMMON *const cm = &cpi->common;
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
+
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q, enable_chroma_deltaq,
@@ -608,6 +723,14 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
 
+#if CONFIG_QM_EXTENSION
+  if (cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test == 0) {
+    set_qm_params(cm, quant_params, min_qmlevel, max_qmlevel);
+  } else {
+    set_qm_test_params(cm, quant_params, min_qmlevel, max_qmlevel,
+                       cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test);
+  }
+#else  // CONFIG_QM_EXTENSION
   quant_params->qmatrix_level_y =
       aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel,
                       cm->seq_params.bit_depth);
@@ -621,6 +744,8 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
     quant_params->qmatrix_level_v =
         aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
                         min_qmlevel, max_qmlevel, cm->seq_params.bit_depth);
+
+#endif  // CONFIG_QM_EXTENSION
 }
 
 // Table that converts 0-63 Q-range values passed in outside to the Qindex

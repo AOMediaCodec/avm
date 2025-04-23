@@ -25,6 +25,7 @@
 #include "aom/internal/aom_image_internal.h"
 
 #include "av1/av1_iface_common.h"
+#include "av1/common/quant_common.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
@@ -83,6 +84,11 @@ struct av1_extracfg {
   unsigned int qm_v;
   unsigned int qm_min;
   unsigned int qm_max;
+#if CONFIG_QM_EXTENSION
+  unsigned int user_defined_qmatrix;
+  unsigned int qm_data_present[NUM_CUSTOM_QMS];
+  unsigned int frame_multi_qmatrix_unit_test;
+#endif  // CONFIG_QM_EXTENSION
   unsigned int num_tg;
   unsigned int mtu_size;
 
@@ -398,6 +404,7 @@ const subgop_config_str_preset_map_type subgop_config_str_preset_map[] = {
   { "ld", subgop_config_str_ld },
 };
 
+// clang-format off
 static struct av1_extracfg default_extra_cfg = {
   0,  // cpu_used
   1,  // enable_auto_alt_ref
@@ -447,6 +454,11 @@ static struct av1_extracfg default_extra_cfg = {
   DEFAULT_QM_V,                 // qm_v
   DEFAULT_QM_FIRST,             // qm_min
   DEFAULT_QM_LAST,              // qm_max
+#if CONFIG_QM_EXTENSION
+  0,                                                // user-defined qmatrix
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // qm_data_present
+  0,                            // enable frame multi qmatrix unit test
+#endif                          // CONFIG_QM_EXTENSION
   1,                            // max number of tile groups
   0,                            // mtu_size
   AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
@@ -634,6 +646,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,    // enable_bru
 #endif  // CONFIG_BRU
 };
+// clang-format on
 
 struct aom_codec_alg_priv {
   aom_codec_priv_t base;
@@ -903,6 +916,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
   RANGE_CHECK_HI(extra_cfg, enable_trellis_quant, 3);
+#if CONFIG_QM_EXTENSION
+  RANGE_CHECK_HI(extra_cfg, frame_multi_qmatrix_unit_test, 4);
+#endif  // CONFIG_QM_EXTENSION
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
@@ -1649,6 +1665,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->using_qm = extra_cfg->enable_qm;
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
+#if CONFIG_QM_EXTENSION
+  q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+    q_cfg->qm_data_present[i] = extra_cfg->qm_data_present[i];
+  }
+#endif  // CONFIG_QM_EXTENSION
   q_cfg->quant_b_adapt = extra_cfg->quant_b_adapt;
   q_cfg->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
   q_cfg->aq_mode = extra_cfg->aq_mode;
@@ -1996,6 +2018,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
+#if CONFIG_QM_EXTENSION
+  oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
+      extra_cfg->frame_multi_qmatrix_unit_test;
+#endif  // CONFIG_QM_EXTENSION
 
   oxcf->border_in_pixels = (resize_cfg->resize_mode
 #if CONFIG_ENABLE_SR
@@ -2373,6 +2399,70 @@ static aom_codec_err_t ctrl_set_qm_max(aom_codec_alg_priv_t *ctx,
   extra_cfg.qm_max = CAST(AV1E_SET_QM_MAX, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+
+#if CONFIG_QM_EXTENSION
+static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  const aom_user_defined_qm_t *user_defined_qm =
+      CAST(AV1E_SET_USER_DEFINED_QMATRIX, args);
+  if (!user_defined_qm) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  const int level = user_defined_qm->level;
+  if (level < 0 || level >= NUM_CUSTOM_QMS) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  const int num_planes = user_defined_qm->num_planes;
+  if (num_planes != 1 && num_planes != 3) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+
+  AV1_COMP *cpi = ctx->cpi;
+  SequenceHeader *seq_params = &cpi->common.seq_params;
+  // Copy user-defined QMs for level.
+  for (int c = 0; c < num_planes; c++) {
+    if (!user_defined_qm->qm_8x8[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    memcpy(seq_params->quantizer_matrix_8x8[level][c],
+           user_defined_qm->qm_8x8[c], 8 * 8 * sizeof(qm_val_t));
+    if (!user_defined_qm->qm_8x4[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    memcpy(seq_params->quantizer_matrix_8x4[level][c],
+           user_defined_qm->qm_8x4[c], 8 * 4 * sizeof(qm_val_t));
+    if (!user_defined_qm->qm_4x8[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    memcpy(seq_params->quantizer_matrix_4x8[level][c],
+           user_defined_qm->qm_4x8[c], 4 * 8 * sizeof(qm_val_t));
+  }
+
+  // Re-initialize QMs with user-defined matrices for level
+  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
+                              seq_params->quantizer_matrix_8x4,
+                              seq_params->quantizer_matrix_4x8 };
+  av1_qm_replace_level(&cpi->common.quant_params, level, num_planes, fund_mat);
+
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.user_defined_qmatrix = 1;
+  extra_cfg.qm_data_present[level] = 1;
+  // We need to send a new sequence header OBU to signal the user-defined QM
+  // data. Since the sequence header OBU has changed, it marks the beginning of
+  // a new coded video sequence, so the next frame must be a key frame.
+  ctx->next_frame_flags |= AOM_EFLAG_FORCE_KF;
+
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_frame_multi_qmatrix_unit_test(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.frame_multi_qmatrix_unit_test =
+      CAST(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CONFIG_QM_EXTENSION
 
 static aom_codec_err_t ctrl_set_num_tg(aom_codec_alg_priv_t *ctx,
                                        va_list args) {
@@ -4528,6 +4618,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_QM_V, ctrl_set_qm_v },
   { AV1E_SET_QM_MIN, ctrl_set_qm_min },
   { AV1E_SET_QM_MAX, ctrl_set_qm_max },
+#if CONFIG_QM_EXTENSION
+  { AV1E_SET_USER_DEFINED_QMATRIX, ctrl_set_user_defined_qmatrix },
+  { AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST,
+    ctrl_set_frame_multi_qmatrix_unit_test },
+#endif  // CONFIG_QM_EXTENSION
   { AV1E_SET_NUM_TG, ctrl_set_num_tg },
   { AV1E_SET_MTU, ctrl_set_mtu },
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },

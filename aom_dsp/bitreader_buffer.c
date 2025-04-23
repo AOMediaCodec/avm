@@ -69,6 +69,16 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
   return base + value;
 }
 
+int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb) {
+  const uint32_t value = aom_rb_read_uvlc(rb);
+  // UINT32_MAX = 2^32 - 1 is converted to 2^31, which cannot be represented as
+  // int32_t.
+  // TODO(wtc): Replace with proper error handling.
+  assert(value != UINT32_MAX);
+  const int32_t ceil_half = (int32_t)((value + 1) / 2);
+  return (value % 2) ? ceil_half : -ceil_half;
+}
+
 uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
                                         uint16_t n) {
   if (n <= 1) return 0;

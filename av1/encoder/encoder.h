@@ -737,6 +737,11 @@ typedef struct {
   unsigned int sb_multipass_unit_test;
   // Indicates if subgop unit test is enabled or not.
   unsigned int enable_subgop_stats;
+#if CONFIG_QM_EXTENSION
+  // Indicates how many frame-level quantization matrix sets are defined for
+  // unit test.
+  uint8_t frame_multi_qmatrix_unit_test;
+#endif  // CONFIG_QM_EXTENSION
 } UnitTestCfg;
 
 typedef struct {
@@ -797,6 +802,11 @@ typedef struct {
   bool enable_chroma_deltaq;
   // Indicates if encoding with quantization matrices should be enabled.
   bool using_qm;
+#if CONFIG_QM_EXTENSION
+  // Indicates whether user-defined quantization matrices should be used
+  bool user_defined_qmatrix;
+  bool qm_data_present[NUM_CUSTOM_QMS];
+#endif  // CONFIG_QM_EXTENSION
 } QuantizationCfg;
 
 /*!\endcond */

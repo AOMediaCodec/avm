@@ -1253,6 +1253,19 @@ enum aome_enc_control_id {
    */
   AV1E_GET_ENABLE_BRU = 170,
 #endif  // CONFIG_BRU
+#if CONFIG_QM_EXTENSION
+  /*!\brief Control to set the user defined quantization matrices for a level,
+   * const aom_user_defined_qm_t* parameter
+   */
+  AV1E_SET_USER_DEFINED_QMATRIX = 171,
+
+  /*!\brief Control to set the number of frame multi quantization matrices for
+   * unit test, unsigned int parameter
+   *
+   * \note This is only used in quantization matrix unit test.
+   */
+  AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST = 172,
+#endif  // CONFIG_QM_EXTENSION
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1323,6 +1336,18 @@ typedef struct aom_scaling_mode {
   AOM_SCALING_MODE h_scaling_mode; /**< horizontal scaling mode */
   AOM_SCALING_MODE v_scaling_mode; /**< vertical scaling mode   */
 } aom_scaling_mode_t;
+
+/*!brief user-defined quantization matrices for a given level */
+typedef struct aom_user_defined_qm {
+  int level;      /**< QM level in the range of 0..14 */
+  int num_planes; /**< Number of planes: 1 or 3 */
+  // Index for the qm_8x8, qm_8x4, qm_4x8 arrays: 0:Y, 1:U, 2:V
+  // qm_8x8[i], qm_8x4[i], qm_4x8[i] each point to a flattened matrix in
+  // row-major order.
+  const uint8_t *qm_8x8[3]; /**< width=8, height=8 */
+  const uint8_t *qm_8x4[3]; /**< width=8, height=4 */
+  const uint8_t *qm_4x8[3]; /**< width=4, height=8 */
+} aom_user_defined_qm_t;
 
 /*!brief AV1 encoder content type */
 typedef enum {
@@ -1475,6 +1500,14 @@ AOM_CTRL_USE_TYPE(AV1E_SET_QM_U, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_QM_V, unsigned int)
 #define AOM_CTRL_AV1E_SET_QM_V
+
+#if CONFIG_QM_EXTENSION
+AOM_CTRL_USE_TYPE(AV1E_SET_USER_DEFINED_QMATRIX, const aom_user_defined_qm_t *)
+#define AOM_CTRL_AV1E_SET_USER_DEFINED_QMATRIX
+
+AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, unsigned int)
+#define AOM_CTRL_AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST
+#endif  // CONFIG_QM_EXTENSION
 
 AOM_CTRL_USE_TYPE(AV1E_SET_NUM_TG, unsigned int)
 #define AOM_CTRL_AV1E_SET_NUM_TG

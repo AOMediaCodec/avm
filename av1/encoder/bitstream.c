@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "aom/aom_encoder.h"
 #include "aom_dsp/aom_dsp_common.h"
@@ -5374,12 +5375,49 @@ static AOM_INLINE void encode_quantization(
   }
   aom_wb_write_bit(wb, quant_params->using_qmatrix);
   if (quant_params->using_qmatrix) {
+#if CONFIG_QM_EXTENSION
+    aom_wb_write_literal(wb, quant_params->pic_qm_num - 1, 2);
+#if CONFIG_QM_DEBUG
+    printf("[ENC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
+#endif
+    for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+      aom_wb_write_literal(wb, quant_params->qm_y[i], QM_LEVEL_BITS);
+      if (num_planes > 1) {
+        const int qm_uv_same_as_y =
+            (quant_params->qm_y[i] == quant_params->qm_u[i] &&
+             quant_params->qm_u[i] == quant_params->qm_v[i]);
+        aom_wb_write_bit(wb, qm_uv_same_as_y);
+#if CONFIG_QM_DEBUG
+        printf("[ENC-FRM] qm_uv_same_as_y: %d\n", qm_uv_same_as_y);
+#endif
+        if (!qm_uv_same_as_y) {
+          aom_wb_write_literal(wb, quant_params->qm_u[i], QM_LEVEL_BITS);
+          if (!separate_uv_delta_q) {
+            assert(quant_params->qm_u[i] == quant_params->qm_v[i]);
+          } else {
+            aom_wb_write_literal(wb, quant_params->qm_v[i], QM_LEVEL_BITS);
+          }
+        }
+      }
+#if CONFIG_QM_DEBUG
+      if (num_planes > 1) {
+        printf("[ENC-FRM] qm_y/u/v[%d]: %d/%d/%d\n", i, quant_params->qm_y[i],
+               quant_params->qm_u[i],
+               separate_uv_delta_q ? quant_params->qm_v[i]
+                                   : quant_params->qm_u[i]);
+      } else {
+        printf("[ENC-FRM] qm_y[%d]: %d\n", i, quant_params->qm_y[i]);
+      }
+#endif
+    }
+#else
     aom_wb_write_literal(wb, quant_params->qmatrix_level_y, QM_LEVEL_BITS);
     aom_wb_write_literal(wb, quant_params->qmatrix_level_u, QM_LEVEL_BITS);
     if (!separate_uv_delta_q)
       assert(quant_params->qmatrix_level_u == quant_params->qmatrix_level_v);
     else
       aom_wb_write_literal(wb, quant_params->qmatrix_level_v, QM_LEVEL_BITS);
+#endif  // CONFIG_QM_EXTENSION
   }
 }
 #if CONFIG_BRU
@@ -5935,6 +5973,108 @@ static AOM_INLINE void write_film_grain_params(
   aom_wb_write_bit(wb, pars->clip_to_restricted_range);
 }
 
+#if CONFIG_QM_EXTENSION
+static bool qm_matrices_are_equal(const qm_val_t *mat_a, const qm_val_t *mat_b,
+                                  int width, int height) {
+  return memcmp(mat_a, mat_b, width * height * sizeof(qm_val_t)) == 0;
+}
+
+/*!\brief Verifies if the candidate matrix is a transpose of the current matrix
+ *
+ * \param[in] cand_mat  Pointer to the candidate matrix
+ * \param[in] curr_mat  Pointer to the current matrix
+ * \param[in] width     Width of the current matrix (height of the candidate
+ * matrix)
+ * \param[in] height    Height of the current matrix (width of the candidate
+ * matrix)
+ */
+static bool qm_candidate_is_transpose_of_current_matrix(
+    const qm_val_t *cand_mat, const qm_val_t *curr_mat, int width, int height) {
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (curr_mat[j] != cand_mat[j * height]) {
+        // Candidate matrix isn't a transpose of current matrix
+        return false;
+      }
+    }
+    cand_mat += 1;
+    curr_mat += width;
+  }
+
+  // Candidate matrix is a transpose of current matrix
+  return true;
+}
+
+// Encodes the user-defined quantization matrices for the given level in
+// seq_params.
+static AOM_INLINE void code_qm_data(const SequenceHeader *const seq_params,
+                                    struct aom_write_bit_buffer *wb, int level,
+                                    int num_planes) {
+  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
+  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
+                              seq_params->quantizer_matrix_8x4,
+                              seq_params->quantizer_matrix_4x8 };
+
+  for (int t = 0; t < 3; t++) {
+    const TX_SIZE tsize = fund_tsize[t];
+    const int width = tx_size_wide[tsize];
+    const int height = tx_size_high[tsize];
+    const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
+
+    for (int c = 0; c < num_planes; c++) {
+      if (c > 0) {
+        const qm_val_t *mat_a = fund_mat[t][level][c - 1];
+        const qm_val_t *mat_b = fund_mat[t][level][c];
+        const bool qm_copy_from_previous_plane =
+            qm_matrices_are_equal(mat_a, mat_b, width, height);
+
+        aom_wb_write_bit(wb, qm_copy_from_previous_plane);
+        if (qm_copy_from_previous_plane) {
+          continue;
+        }
+      }
+
+      if (tsize == TX_4X8) {
+        assert(fund_tsize[t - 1] == TX_8X4);
+        const qm_val_t *cand_mat = fund_mat[t - 1][level][c];
+        const qm_val_t *curr_mat = fund_mat[t][level][c];
+        const bool qm_4x8_is_transpose_of_8x4 =
+            qm_candidate_is_transpose_of_current_matrix(cand_mat, curr_mat,
+                                                        width, height);
+        aom_wb_write_bit(wb, qm_4x8_is_transpose_of_8x4);
+        if (qm_4x8_is_transpose_of_8x4) {
+          continue;
+        }
+      }
+
+      const qm_val_t *mat = fund_mat[t][level][c];
+      int16_t prev = 32;
+      for (int i = 0; i < tx_size_2d[tsize]; i++) {
+        int16_t coeff = mat[s->scan[i]];
+        aom_wb_write_svlc(wb, coeff - prev);
+        prev = coeff;
+      }
+    }
+  }
+}
+
+// Encodes all user-defined quantization matrices in seq_params.
+static AOM_INLINE void code_user_defined_qm(
+    struct aom_write_bit_buffer *wb, const SequenceHeader *const seq_params,
+    int num_planes) {
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+#if CONFIG_QM_DEBUG
+    printf("[ENC-SEQ] qm_data_present[%d]=%d\n", i,
+           seq_params->qm_data_present[i]);
+#endif
+    aom_wb_write_bit(wb, seq_params->qm_data_present[i]);
+    if (seq_params->qm_data_present[i]) {
+      code_qm_data(seq_params, wb, i, num_planes);
+    }
+  }
+}
+#endif  // CONFIG_QM_EXTENSION
+
 static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
                                      struct aom_write_bit_buffer *wb) {
   (void)seq_params;
@@ -6232,6 +6372,18 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_EXT_SEG
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_QM_EXTENSION
+
+#if CONFIG_QM_DEBUG
+  printf("[ENC-SEQ] user_defined_qmatrix=%d\n",
+         seq_params->user_defined_qmatrix);
+#endif
+  aom_wb_write_bit(wb, seq_params->user_defined_qmatrix);
+  if (seq_params->user_defined_qmatrix) {
+    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
+    code_user_defined_qm(wb, seq_params, num_planes);
+  }
+#endif  // CONFIG_QM_EXTENSION
 }
 
 static AOM_INLINE void write_global_motion_params(
@@ -7057,6 +7209,40 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
   }
+
+#if CONFIG_QM_EXTENSION
+  if (quant_params->using_qmatrix) {
+    const struct segmentation *seg = &cm->seg;
+    for (int i = 0; i < MAX_SEGMENTS; i++) {
+      const int qindex = av1_get_qindex(seg, i, quant_params->base_qindex,
+                                        cm->seq_params.bit_depth);
+
+      bool lossless =
+          qindex == 0 &&
+          (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <=
+           0) &&
+          (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
+           0) &&
+          (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
+           0) &&
+#if CONFIG_EXT_QUANT_UPD
+          (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <=
+           0) &&
+          (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+#else
+          quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
+#endif  // CONFIG_EXT_QUANT_UPD
+
+      if (!lossless && (quant_params->qm_index_bits > 0)) {
+#if CONFIG_QM_DEBUG
+        printf("[ENC-FRM] qm_index[%d]: %d\n", i, quant_params->qm_index[i]);
+#endif
+        aom_wb_write_literal(wb, quant_params->qm_index[i],
+                             quant_params->qm_index_bits);
+      }
+    }
+  }
+#endif  // CONFIG_QM_EXTENSION
 
 #if CONFIG_TCQ
   // Encode adaptive frame-level TCQ flag, if applicable.

@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
@@ -20,6 +21,7 @@
 #endif  // CONFIG_BRU
 #include "av1/common/enums.h"
 #include "av1/common/filter.h"
+#include "av1/common/scan.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
@@ -4079,6 +4081,52 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_ac_delta_q = 0;
   }
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
+#if CONFIG_QM_EXTENSION
+#if CONFIG_QM_DEBUG
+  printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
+#endif
+  if (quant_params->using_qmatrix) {
+    quant_params->pic_qm_num = aom_rb_read_literal(rb, 2) + 1;
+#if CONFIG_QM_DEBUG
+    printf("[DEC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
+#endif
+    quant_params->qm_index_bits = aom_ceil_log2(quant_params->pic_qm_num);
+    for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+      quant_params->qm_y[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
+      if (num_planes > 1) {
+        const bool qm_uv_same_as_y = aom_rb_read_bit(rb);
+#if CONFIG_QM_DEBUG
+        printf("[DEC-FRM] qm_uv_same_as_y: %d\n", qm_uv_same_as_y);
+#endif
+        if (qm_uv_same_as_y) {
+          quant_params->qm_u[i] = quant_params->qm_y[i];
+          quant_params->qm_v[i] = quant_params->qm_y[i];
+        } else {
+          quant_params->qm_u[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
+          if (!seq_params->separate_uv_delta_q) {
+            quant_params->qm_v[i] = quant_params->qm_u[i];
+          } else {
+            quant_params->qm_v[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
+          }
+        }
+      }
+#if CONFIG_QM_DEBUG
+      if (num_planes > 1) {
+        printf("[DEC-FRM] qm_y/u/v[%d]: (%d,%d,%d)\n", i, quant_params->qm_y[i],
+               quant_params->qm_u[i], quant_params->qm_v[i]);
+      } else {
+        printf("[DEC-FRM] qm_y[%d]: (%d)\n", i, quant_params->qm_y[i]);
+      }
+#endif
+    }
+  } else {
+    for (uint8_t i = 0; i < 4; i++) {
+      quant_params->qm_y[i] = 0;
+      quant_params->qm_u[i] = 0;
+      quant_params->qm_v[i] = 0;
+    }
+  }
+#else
   if (quant_params->using_qmatrix) {
     quant_params->qmatrix_level_y = aom_rb_read_literal(rb, QM_LEVEL_BITS);
     quant_params->qmatrix_level_u = aom_rb_read_literal(rb, QM_LEVEL_BITS);
@@ -4091,6 +4139,7 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->qmatrix_level_u = 0;
     quant_params->qmatrix_level_v = 0;
   }
+#endif  // CONFIG_QM_EXTENSION
 }
 
 // Build y/uv dequant values based on segmentation.
@@ -4166,6 +4215,38 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
     const int use_qmatrix = av1_use_qmatrix(quant_params, xd, i);
     // NB: depends on base index so there is only 1 set per frame
     // No quant weighting when lossless or signalled not using QM
+#if CONFIG_QM_EXTENSION
+    const int qm_index = quant_params->qm_index[i];
+    const int qmlevel_y =
+        use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
+    for (int j = 0; j < TX_SIZES_ALL; ++j) {
+      quant_params->y_iqmatrix[i][j] =
+          av1_iqmatrix(quant_params, qmlevel_y, AOM_PLANE_Y, j);
+    }
+    const int num_planes = av1_num_planes(cm);
+    if (num_planes > 1) {
+      const int qmlevel_u =
+          use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
+      for (int j = 0; j < TX_SIZES_ALL; ++j) {
+        quant_params->u_iqmatrix[i][j] =
+            av1_iqmatrix(quant_params, qmlevel_u, AOM_PLANE_U, j);
+      }
+      const int qmlevel_v =
+          use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
+      for (int j = 0; j < TX_SIZES_ALL; ++j) {
+        quant_params->v_iqmatrix[i][j] =
+            av1_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
+      }
+#if CONFIG_QM_DEBUG
+      printf("[DEC-FRM] qmlevel_y/u/v[%d]: (%d,%d,%d)\n", i, qmlevel_y,
+             qmlevel_u, qmlevel_v);
+#endif
+    } else {
+#if CONFIG_QM_DEBUG
+      printf("[DEC-FRM] qmlevel_y[%d]: (%d)\n", i, qmlevel_y);
+#endif
+    }
+#else
     const int qmlevel_y =
         use_qmatrix ? quant_params->qmatrix_level_y : NUM_QM_LEVELS - 1;
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
@@ -4184,6 +4265,7 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
       quant_params->v_iqmatrix[i][j] =
           av1_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
     }
+#endif  // CONFIG_QM_EXTENSION
   }
 }
 
@@ -6896,6 +6978,81 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   }
 }
 
+#if CONFIG_QM_EXTENSION
+// Decodes the user-defined quantization matrices for the given level and stores
+// them in seq_params.
+static AOM_INLINE void decode_qm_data(SequenceHeader *const seq_params,
+                                      struct aom_read_bit_buffer *rb, int level,
+                                      int num_planes) {
+  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
+  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
+                              seq_params->quantizer_matrix_8x4,
+                              seq_params->quantizer_matrix_4x8 };
+
+  for (int t = 0; t < 3; t++) {
+    const TX_SIZE tsize = fund_tsize[t];
+    const int width = tx_size_wide[tsize];
+    const int height = tx_size_high[tsize];
+    const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
+
+    for (int c = 0; c < num_planes; c++) {
+      if (c > 0) {
+        const bool qm_copy_from_previous_plane = aom_rb_read_bit(rb);
+
+        if (qm_copy_from_previous_plane) {
+          const qm_val_t *src_mat = fund_mat[t][level][c - 1];
+          qm_val_t *dst_mat = fund_mat[t][level][c];
+          memcpy(dst_mat, src_mat, width * height * sizeof(qm_val_t));
+          continue;
+        }
+      }
+      if (tsize == TX_4X8) {
+        const bool qm_4x8_is_transpose_of_8x4 = aom_rb_read_bit(rb);
+
+        if (qm_4x8_is_transpose_of_8x4) {
+          assert(fund_tsize[t - 1] == TX_8X4);
+          const qm_val_t *src_mat = fund_mat[t - 1][level][c];
+          qm_val_t *dst_mat = fund_mat[t][level][c];
+
+          for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+              dst_mat[j] = src_mat[j * height];
+            }
+            src_mat += 1;
+            dst_mat += width;
+          }
+          continue;
+        }
+      }
+
+      qm_val_t *mat = fund_mat[t][level][c];
+      int16_t prev = 32;
+      for (int i = 0; i < tx_size_2d[tsize]; i++) {
+        const int32_t delta = aom_rb_read_svlc(rb);
+        prev = (prev + delta + NUM_QM_VALS) % NUM_QM_VALS;
+        mat[s->scan[i]] = prev;
+      }
+    }
+  }
+}
+
+// Decodes all user-defined quantization matrices and stores them in seq_params.
+static AOM_INLINE void decode_user_defined_qm(SequenceHeader *const seq_params,
+                                              struct aom_read_bit_buffer *rb,
+                                              int num_planes) {
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+    seq_params->qm_data_present[i] = aom_rb_read_bit(rb);
+#if CONFIG_QM_DEBUG
+    printf("[DEC-SEQ] qm_data_present[%d]: %d\n", i,
+           seq_params->qm_data_present[i]);
+#endif
+    if (seq_params->qm_data_present[i]) {
+      decode_qm_data(seq_params, rb, i, num_planes);
+    }
+  }
+}
+#endif  // CONFIG_QM_EXTENSION
+
 void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
                                          SequenceHeader *seq_params) {
   // printf("print sps\n");
@@ -7067,6 +7224,24 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_EXT_SEG
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_QM_EXTENSION
+  int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
+  av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
+                   seq_params->quantizer_matrix_8x4,
+                   seq_params->quantizer_matrix_4x8, num_planes);
+  seq_params->user_defined_qmatrix = aom_rb_read_bit(rb);
+#if CONFIG_QM_DEBUG
+  printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
+         seq_params->user_defined_qmatrix);
+#endif
+  if (seq_params->user_defined_qmatrix) {
+    decode_user_defined_qm(seq_params, rb, num_planes);
+  } else {
+    for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
+      seq_params->qm_data_present[i] = false;
+    }
+  }
+#endif  // CONFIG_QM_EXTENSION
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -8814,6 +8989,25 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
 #endif  // CONFIG_EXT_QUANT_UPD
     xd->qindex[i] = qindex;
+#if CONFIG_QM_EXTENSION
+    if (av1_use_qmatrix(quant_params, xd, i)) {
+      if (quant_params->qm_index_bits > 0) {
+        quant_params->qm_index[i] =
+            aom_rb_read_literal(rb, quant_params->qm_index_bits);
+#if CONFIG_QM_DEBUG
+        printf("[DEC-FRM] qm_index[%d]: %d\n", i, quant_params->qm_index[i]);
+#endif
+        if (quant_params->qm_index[i] >= quant_params->pic_qm_num) {
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Invalid qm_index[%d]=%d >= %d", i,
+                             quant_params->qm_index[i],
+                             quant_params->pic_qm_num);
+        }
+      } else {
+        quant_params->qm_index[i] = 0;
+      }
+    }
+#endif  // CONFIG_QM_EXTENSION
   }
   features->coded_lossless = is_coded_lossless(cm, xd);
   features->all_lossless = features->coded_lossless
