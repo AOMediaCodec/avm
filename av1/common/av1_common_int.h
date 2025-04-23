@@ -464,7 +464,7 @@ typedef struct {
   int16_t *err_ptr;
   uint16_t *inp_ptr;
   uint16_t *inp_pad_ptr;
-} gdf_info;
+} GdfInfo;
 #endif  // CONFIG_GDF
 
 /*!\brief Parameters related to CDEF */
@@ -1761,7 +1761,7 @@ typedef struct AV1Common {
   /**@}*/
 
 #if CONFIG_GDF
-  gdf_info gdf_info;
+  GdfInfo gdf_info;
 #endif  // CONFIG_GDF
 
   /*!
