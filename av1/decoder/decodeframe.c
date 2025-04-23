@@ -43,7 +43,7 @@
 
 #if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  //
+#endif  // CONFIG_GDF
 
 #include "av1/common/ccso.h"
 #include "av1/common/cfl.h"
@@ -3776,7 +3776,7 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
         aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
   }
 }
-#endif  //
+#endif  // CONFIG_GDF
 
 static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
@@ -8292,7 +8292,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_GDF
     cm->gdf_info.gdf_mode = 0;
-#endif  //
+#endif  // CONFIG_GDF
 
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
@@ -8470,7 +8470,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!features->coded_lossless) {
     setup_gdf(cm, rb);
   }
-#endif  //
+#endif  // CONFIG_GDF
 
   if (!features->coded_lossless && seq_params->enable_cdef) {
     setup_cdef(cm, rb);
@@ -8800,7 +8800,7 @@ void av1_gdf_frame_dec(AV1_COMMON *cm) {
   }
   gdf_close_info(cm);
 }
-#endif  //
+#endif  // CONFIG_GDF
 
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
@@ -8923,11 +8923,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_superres = av1_superres_scaled(cm);
 #if CONFIG_GDF
     const int do_gdf = cm->gdf_info.gdf_mode;
-#endif
+#endif  // CONFIG_GDF
     const int optimized_loop_restoration =
 #if CONFIG_GDF
         !do_gdf &&
-#endif  //
+#endif  // CONFIG_GDF
         !use_ccso && !do_cdef && !do_superres;
 
     if (!optimized_loop_restoration) {
@@ -8948,7 +8948,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_gdf) {
           gdf_copy_guided_frame(cm);
       }
-#endif  //
+#endif  // CONFIG_GDF
 
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
@@ -8974,7 +8974,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         av1_gdf_frame_dec(cm);
         gdf_free_guided_frame(cm);
       }
-#endif  //
+#endif  // CONFIG_GDF
 
     } else {
       // In no cdef and no superres case. Provide an optimized version of

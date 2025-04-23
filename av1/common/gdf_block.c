@@ -600,4 +600,4 @@ void gdf_inter_inference_block_c(const int iMin, const int iMax,
   }
 }
 
-#endif
+#endif  // CONFIG_GDF

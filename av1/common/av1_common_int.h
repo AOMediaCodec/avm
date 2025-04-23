@@ -443,7 +443,7 @@ typedef struct {
     uint16_t* inp_ptr;
     uint16_t* inp_pad_ptr;
 } gdf_info;
-#endif  //
+#endif  // CONFIG_GDF
 
 /*!\brief Parameters related to CDEF */
 typedef struct {
@@ -1722,7 +1722,7 @@ typedef struct AV1Common {
 
 #if CONFIG_GDF
   gdf_info gdf_info;
-#endif  //
+#endif  // CONFIG_GDF
 
   /*!
    * CDEF (Constrained Directional Enhancement Filter) parameters.

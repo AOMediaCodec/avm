@@ -40,7 +40,7 @@
 
 #if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif
+#endif  // CONFIG_GDF
 
 #define DEC_MISMATCH_DEBUG 0
 
@@ -64,7 +64,7 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
     }
   }
 }
-#endif
+#endif  // CONFIG_GDF
 
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   assert(xd->tree_type != CHROMA_PART);
@@ -2272,7 +2272,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
 #if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) read_gdf(cm, r, xd);
-#endif
+#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) read_cdef(cm, r, xd);
 
@@ -4676,7 +4676,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_GDF
   read_gdf(cm, r, xd);
-#endif
+#endif  // CONFIG_GDF
 
   read_cdef(cm, r, xd);
 

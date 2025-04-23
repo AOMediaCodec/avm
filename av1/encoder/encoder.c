@@ -87,7 +87,7 @@
 
 #if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  //
+#endif  // CONFIG_GDF
 
 #if CONFIG_ML_PART_SPLIT
 #include "av1/encoder/part_split_prune_tflite.h"
@@ -2488,7 +2488,7 @@ void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
   gdf_close_info(cm);
 }
-#endif  //
+#endif  // CONFIG_GDF
 
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
@@ -2544,7 +2544,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
 #if CONFIG_GDF
   const int use_gdf = !cm->features.coded_lossless && !cm->tiles.large_scale;
-#endif
+#endif  // CONFIG_GDF
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2627,7 +2627,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   if (use_gdf) {
     gdf_copy_guided_frame(cm);
   }
-#endif
+#endif  // CONFIG_GDF
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
@@ -2658,7 +2658,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     av1_gdf_optimize_frame(cpi, cm);
     gdf_free_guided_frame(cm);
   }
-#endif
+#endif  // CONFIG_GDF
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);

@@ -317,6 +317,6 @@ void gdf_free_guided_frame(AV1_COMMON *cm);
 int gdf_get_ref_dst_idx(AV1_COMMON *cm);
 int gdf_get_qp_idx_base(AV1_COMMON *cm);
 void gdf_filter_frame(AV1_COMMON *cm);
-#endif  //
+#endif  // CONFIG_GDF
 
 #endif  // GDF_H

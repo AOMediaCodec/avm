@@ -392,7 +392,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 
 #if CONFIG_GDF
   RESET_CDF_COUNTER(fc->gdf_cdf, 2);
-#endif  //
+#endif  // CONFIG_GDF
 
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);

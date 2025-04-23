@@ -849,4 +849,4 @@ void gdf_inter_inference_block_avx2(
 #endif  //
 }
 
-#endif
+#endif  // CONFIG_GDF

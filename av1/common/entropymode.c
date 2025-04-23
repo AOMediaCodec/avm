@@ -7830,7 +7830,7 @@ static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 
 #if CONFIG_GDF
 static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
-#endif  //
+#endif  // CONFIG_GDF
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = {
@@ -8544,7 +8544,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 
 #if CONFIG_GDF
   av1_copy(fc->gdf_cdf, default_gdf_cdf);
-#endif  //
+#endif  // CONFIG_GDF
 
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);

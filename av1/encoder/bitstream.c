@@ -60,7 +60,7 @@
 
 #if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif
+#endif  // CONFIG_GDF
 
 // Silence compiler warning for unused static functions
 static void image2yuvconfig_upshift(aom_image_t *hbd_img,
@@ -1925,7 +1925,7 @@ static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
     }
   }
 }
-#endif
+#endif  // CONFIG_GDF
 
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                   aom_writer *w, int skip) {
@@ -2550,7 +2550,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_GDF
   write_gdf(cm, xd, w);
-#endif
+#endif  // CONFIG_GDF
 
   write_cdef(cm, xd, w, skip);
 
@@ -3211,7 +3211,7 @@ static AOM_INLINE void write_mb_modes_kf(
 
 #if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
-#endif
+#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
@@ -4928,7 +4928,7 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                          GDF_RDO_SCALE_NUM_LOG2);
   }
 }
-#endif
+#endif  // CONFIG_GDF
 
 static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
@@ -6632,7 +6632,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
 #if CONFIG_GDF
       encode_gdf(cm, wb);
-#endif
+#endif  // CONFIG_GDF
 
       encode_cdef(cm, wb);
     }

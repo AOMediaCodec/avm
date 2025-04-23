@@ -174,4 +174,4 @@ void gdf_filter_frame(AV1_COMMON *cm) {
   }
 }
 
-#endif  //
+#endif  // CONFIG_GDF

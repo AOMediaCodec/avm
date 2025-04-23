@@ -1705,7 +1705,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 
 #if CONFIG_GDF
   AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
-#endif  //
+#endif  // CONFIG_GDF
 
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);

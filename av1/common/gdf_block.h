@@ -1,10 +1,10 @@
 
 #ifndef GDF_BLOCK_H
 #define GDF_BLOCK_H
-
 #include "av1/common/odintrin.h"
 #include "av1/common/gdf.h"
 
+#if CONFIG_GDF
 #define GDF_BLOCK_PAD_SIZE 6
 #define GDF_OPTS_INP_TOT (GDF_NET_INP_REC_NUM + GDF_NET_INP_GRD_NUM)
 
@@ -20,5 +20,5 @@ void gdf_set_lap_and_cls_c(
                         [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
                         [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]);
-
+#endif   // CONFIG_GDF
 #endif  // GDF_BLOCK_H
