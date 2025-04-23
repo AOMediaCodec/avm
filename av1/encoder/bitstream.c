@@ -220,6 +220,11 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   }
   int max_idx_bits = mbmi->max_num_warp_candidates - 1;
   for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    if ((CONFIG_CTX_WARP_REFIDX_REDUCTION >> bit_idx) & 1) {
+      aom_write_literal(w, mbmi->warp_ref_idx != bit_idx, 1);
+      if (mbmi->warp_ref_idx == bit_idx) break;
+      continue;
+    }
     aom_cdf_prob *warp_ref_idx_cdf = av1_get_warp_ref_idx_cdf(ec_ctx, bit_idx);
     aom_write_symbol(w, mbmi->warp_ref_idx != bit_idx, warp_ref_idx_cdf, 2);
 

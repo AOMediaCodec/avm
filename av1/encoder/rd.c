@@ -795,9 +795,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_WARP_PRECISION
 
     for (i = 0; i < 3; i++) {
-      for (j = 0; j < WARP_REF_CONTEXTS; j++) {
-        av1_cost_tokens_from_cdf(mode_costs->warp_ref_idx_cost[i][j],
-                                 fc->warp_ref_idx_cdf[i][j], NULL);
+      if ((CONFIG_CTX_WARP_REFIDX_REDUCTION >> i) & 1) {
+        for (j = 0; j < WARP_REF_CONTEXTS; j++) {
+          mode_costs->warp_ref_idx_cost[i][j][0] = av1_cost_literal(1);
+          mode_costs->warp_ref_idx_cost[i][j][1] = av1_cost_literal(1);
+        }
+      } else {
+        for (j = 0; j < WARP_REF_CONTEXTS; j++) {
+          av1_cost_tokens_from_cdf(mode_costs->warp_ref_idx_cost[i][j],
+                                   fc->warp_ref_idx_cdf[i][j], NULL);
+        }
       }
     }
 

@@ -150,6 +150,8 @@ set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
 set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
 set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
+set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 7
+                   "FG8-Test19, Test20, Test21")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
