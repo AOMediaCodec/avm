@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   aom_codec_ctx_t codec;
   aom_codec_enc_cfg_t cfg;
   int frame_count = 0;
-  const int limit = 4;
+  const int limit = 20;
   aom_image_t raw[2];
   int raw_index = 0;
   int bit_depth = 8;
