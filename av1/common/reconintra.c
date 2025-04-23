@@ -2349,7 +2349,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   int height = tx_size_high[tx_size] << sub_y;
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, 0);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, 1);
 #else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
@@ -2382,30 +2382,37 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                 : 0;
   // Distance between the bottom edge of this prediction block to
   // the frame bottom edge
-  int hpx = block_size_high[bsize];
-  int txw = block_size_wide[bsize];
-
-  const int x = col << MI_SIZE_LOG2;
-  const int xr =
-      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_col_end - mi_col - mi_wide, 2 - sub_x) +
-      txw - x - width;
-  const int y = row << MI_SIZE_LOG2;
-  const int txh = tx_size_high_unit[tx_size];
-  const int yd =
-      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_row_end - mi_row - mi_high, 2 - sub_y) +
-      hpx - y - height;
-  const int right_available =
-      xd->mi_col + (col + (txw >> MI_SIZE_LOG2)) <
-      AOMMIN(xd->tile.mi_col_end, cm->width >> MI_SIZE_LOG2);
-  const int bottom_available =
-      (yd > 0) && (xd->mi_row + (row + (txh >> MI_SIZE_LOG2)) <
-                   AOMMIN(xd->tile.mi_row_end, cm->height >> MI_SIZE_LOG2));
+  // txw,txh width/height in samples of transform block
+  // wpx,hpx width/height in pixels of chroma block
+  // width,height width height in pixels of transform block
+  // wpx - x - width is pixels to right of transform block to edge of chroma
+  // block tx_mi_col/tx_mi_row is mi location of transform block
 
   const BLOCK_SIZE init_bsize = bsize;
   // force 4x4 chroma component block size.
   if (sub_x || sub_y) {
     bsize = mbmi->chroma_ref_info.bsize_base;
   }
+  const int hpx = block_size_high[bsize];
+  const int wpx = block_size_wide[bsize];
+  const int tx_mi_col = xd->mi[0]->chroma_ref_info.mi_col_chroma_base + col;
+  const int tx_mi_row = xd->mi[0]->chroma_ref_info.mi_row_chroma_base + row;
+
+  const int x = col << MI_SIZE_LOG2;
+  const int xr =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_col_end - mi_col - mi_wide, 2 - sub_x) +
+      ((wpx - x - width) >> sub_x);
+
+  const int y = row << MI_SIZE_LOG2;
+  const int yd =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_row_end - mi_row - mi_high, 2 - sub_y) +
+      ((hpx - y - height) >> sub_y);
+
+  const int right_available =
+      tx_mi_col + (width >> MI_SIZE_LOG2) < xd->tile.mi_col_end;
+  const int bottom_available =
+      (yd > 0) && (tx_mi_row + (height >> MI_SIZE_LOG2)) < xd->tile.mi_row_end;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   int px_top_right = 0;
   const int have_top_right = has_top_right(
@@ -2440,23 +2447,30 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                (have_top_right && width > 4
                                     ? AOMMIN((px_top_right << sub_x), width)
                                     : 0));
-  if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width +
-       (have_top_right ? AOMMIN((px_top_right << sub_x), width) : 0)) >
+
+  if ((((tx_mi_col) << MI_SIZE_LOG2) + width +
+       (have_top_right && width > 4 ? AOMMIN((px_top_right << sub_x), width)
+                                    : 0)) >=
       (int)(xd->tile.mi_col_end << MI_SIZE_LOG2)) {
     *ref_width = (xd->tile.mi_col_end << MI_SIZE_LOG2) -
-                 ((xd->mi_col + col) << MI_SIZE_LOG2) + *left_lines - 1;
+                 ((tx_mi_col) << MI_SIZE_LOG2) + *left_lines - 1;
   }
 
   *ref_height = AOMMIN(128, *above_lines + height +
                                 (have_bottom_left && height > 4
                                      ? AOMMIN((px_bottom_left << sub_y), height)
                                      : 0));
-  if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height +
-       (have_bottom_left ? AOMMIN((px_bottom_left << sub_y), height) : 0)) >
-      (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
+
+  if ((((tx_mi_row) << MI_SIZE_LOG2) + height +
+       (have_bottom_left && height > 4
+            ? AOMMIN((px_bottom_left << sub_y), height)
+            : 0)) >= (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
     *ref_height = *above_lines + (xd->tile.mi_row_end << MI_SIZE_LOG2) -
-                  ((xd->mi_row + row) << MI_SIZE_LOG2) - 1;
+                  ((tx_mi_row) << MI_SIZE_LOG2) - 1;
   }
+
+  *ref_width = AOMMIN(*ref_width, 128);
+  *ref_height = AOMMIN(*ref_height, 128);
 
   memset(cfl->mhccp_ref_buf_q3[0], 0, sizeof(cfl->mhccp_ref_buf_q3[0]));
 
