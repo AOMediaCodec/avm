@@ -309,7 +309,7 @@ void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
   }
 }
 
-#define GDF_NORM_IDX(_va)                                              \
+#define GDF_NORM_IDX(_va)                                               \
   ((((_va) > 0)                                                         \
         ? (((gdf_idx_scale) * (_va) + (gdf_shift_half)) >> (gdf_shift)) \
         : (-(((gdf_idx_scale) * (-(_va)) + (gdf_shift_half)) >>         \
@@ -330,8 +330,8 @@ void gdf_intra_inference_block_c(const int i_min, const int i_max,
                   aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
                              [GDF_TEST_BLK_SIZE * 2 + 16]) = { 0 };
   gdf_set_lap_and_cls_c(i_min, i_max, j_min, j_max, sb_size,
-                        rec_pnt + rec_stride * i_min + j_min, rec_stride, bit_depth,
-                        aligned_lap, aligned_cls);
+                        rec_pnt + rec_stride * i_min + j_min, rec_stride,
+                        bit_depth, aligned_lap, aligned_cls);
 
   const int blk_height = i_max - i_min;
   const int blk_width = j_max - j_min;
@@ -472,8 +472,8 @@ void gdf_inter_inference_block_c(const int iMin, const int iMax,
                   aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
                              [GDF_TEST_BLK_SIZE * 2 + 16]) = { 0 };
   gdf_set_lap_and_cls_c(iMin, iMax, j_min, j_max, sb_size,
-                        rec_pnt + rec_stride * iMin + j_min, rec_stride, bit_depth,
-                        aligned_lap, aligned_cls);
+                        rec_pnt + rec_stride * iMin + j_min, rec_stride,
+                        bit_depth, aligned_lap, aligned_cls);
 
   const int blk_height = iMax - iMin;
   const int blk_width = j_max - j_min;

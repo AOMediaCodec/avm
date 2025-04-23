@@ -54,14 +54,15 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
 #if CONFIG_GDF
 static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
-  if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1))
-    return;
+#endif  //! CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
 
   if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
     for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
-      cm->gdf_info.gdf_block_flags[blk_idx] = aom_read_symbol(
-          r, xd->tile_ctx->gdf_cdf, 2, ACCT_INFO("gdf_onoff"));
+      cm->gdf_info.gdf_block_flags[blk_idx] =
+          aom_read_symbol(r, xd->tile_ctx->gdf_cdf, 2, ACCT_INFO("gdf_onoff"));
     }
   }
 }

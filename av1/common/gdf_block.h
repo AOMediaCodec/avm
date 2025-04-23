@@ -20,5 +20,5 @@ void gdf_set_lap_and_cls_c(
                         [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
                         [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]);
-#endif   // CONFIG_GDF
+#endif  // CONFIG_GDF
 #endif  // GDF_BLOCK_H

@@ -445,25 +445,25 @@ typedef struct BufferPool {
 
 #if CONFIG_GDF
 typedef struct {
-    int gdf_mode;
+  int gdf_mode;
 
-    int gdf_slice_qp_idx;
-    int gdf_slice_scale_idx;
+  int gdf_slice_qp_idx;
+  int gdf_slice_scale_idx;
 
-    int gdf_block_size;
-    int gdf_block_num_h;
-    int gdf_block_num_w;
-    int gdf_block_num;
-    int gdf_stripe_size;
-    int gdf_unit_size;
+  int gdf_block_size;
+  int gdf_block_num_h;
+  int gdf_block_num_w;
+  int gdf_block_num;
+  int gdf_stripe_size;
+  int gdf_unit_size;
 
-    int gdf_block_flags[2400];     // TODO_KD: maximum number of blocks is 600
+  int gdf_block_flags[2400];  // TODO_KD: maximum number of blocks is 600
 
-    int err_height;
-    int err_stride;
-    int16_t* err_ptr;
-    uint16_t* inp_ptr;
-    uint16_t* inp_pad_ptr;
+  int err_height;
+  int err_stride;
+  int16_t *err_ptr;
+  uint16_t *inp_ptr;
+  uint16_t *inp_pad_ptr;
 } gdf_info;
 #endif  // CONFIG_GDF
 

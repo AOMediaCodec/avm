@@ -3706,8 +3706,10 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 
 #if CONFIG_GDF
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
-                                  struct aom_read_bit_buffer *rb) {
+                                 struct aom_read_bit_buffer *rb) {
+#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
+#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   gdf_open_info(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode) {
@@ -8958,7 +8960,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_GDF
       if (do_gdf) {
-          gdf_copy_guided_frame(cm);
+        gdf_copy_guided_frame(cm);
       }
 #endif  // CONFIG_GDF
 
