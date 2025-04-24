@@ -1125,8 +1125,8 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
   cfg->enable_bru = extra_cfg->enable_bru;
-#endif  // CONFIG_BRU  
-#if CONFIG_BRU          
+#endif  // CONFIG_BRU
+#if CONFIG_BRU
   if (cfg->enable_bru)
     cfg->explicit_ref_frame_map = 1;
   else

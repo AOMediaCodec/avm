@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/ bin / sh
 ## Copyright (c) 2021, Alliance for Open Media. All rights reserved
 ##
 ## This source code is subject to the terms of the BSD 3-Clause Clear License and the
@@ -14,16 +14,14 @@
 ##   2. Add the function to bru_tests (on a new line).
 ##
 . $(dirname $0)/tools_common.sh
-
-# Environment check: $YUV_RAW_INPUT is required.
+#Environment check : $YUV_RAW_INPUT is required.
 bru_tests_verify_environment() {
-  if [ ! -e "${YUV_RAW_INPUT}" ]; then
-    echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
-    return 1
-  fi
+  if
+    [!-e "${YUV_RAW_INPUT}"];
+  then echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH." return 1 fi
 }
 
-# Runs BRU tests using the codec with a frame limit of 100.
+#Runs BRU tests using the codec with a frame limit of 100.
 bru_tests() {
   #overwrite for local debug
   AOM_TEST_OUTPUT_DIR="."
@@ -39,7 +37,7 @@ bru_tests() {
   YUV_RAW_INPUT_WIDTH=480
   YUV_RAW_INPUT_HEIGHT=270
 
-  if [ ! -x "${encoder_decoder}" ]; then
+      if[!-x "${encoder_decoder}"]; then
     elog "${encoder_decoder} does not exist or is not executable."
     return 1
   fi
@@ -50,7 +48,7 @@ bru_tests() {
       ${devnull} || return 1
   [ -e "${output_md5_1_opt}" ] || return 1
   [ -e "${output_md5_1_reg}" ] || return 1
-  #compare md5 of enable-bru = 1
+#compare md5 of enable - bru = 1
   awk 'NR==FNR{a[$0];next}(!($0 in a)){print}' ${output_md5_1_opt} ${output_md5_1_reg} || return 1
 if [ $? -ne 0 ]; then
     return 1
@@ -65,20 +63,18 @@ fi
 
   [ -e "${output_md5_0_opt}" ] || return 1
   [ -e "${output_md5_0_reg}" ] || return 1
-  #compare md5 of enable-bru = 0
+#compare md5 of enable - bru = 0
   awk 'NR==FNR{a[$0];next}(!($0 in a)){print}' ${output_md5_0_opt} ${output_md5_0_reg} || return 1
-if [ $? -ne 0 ]; then
-    return 1
-fi
+if [ $? -ne 0 ];
+  then return 1 fi
 }
-
 
 bru_tests_av2() {
-  if [ "$(av1_encode_available)" = "yes" -a "$(av1_decode_available)" = "yes" ]; then
-    bru_tests || return 1
-  fi
+  if
+    ["$(av1_encode_available)" = "yes" - a "$(av1_decode_available)" = "yes"];
+  then bru_tests || return 1 fi
 }
 
-bru_tests="bru_tests_av2"
+bru_tests = "bru_tests_av2"
 
-run_tests bru_tests_verify_environment "${bru_tests}"
+    run_tests bru_tests_verify_environment "${bru_tests}"
