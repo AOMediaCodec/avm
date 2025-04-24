@@ -716,12 +716,14 @@ if(CONFIG_AV1_ENCODER)
         break()
       endif()
     endwhile()
-    # Suppress the warnings for each target defined in the dependecy directories.
+    # Suppress the warnings for each target defined in the dependecy
+    # directories.
     foreach(DEP_DIR ${ALL_DEP_DIRS})
-      get_directory_property(DEP_TARGETS DIRECTORY ${DEP_DIR} BUILDSYSTEM_TARGETS)
+      get_directory_property(DEP_TARGETS DIRECTORY ${DEP_DIR}
+                                                   BUILDSYSTEM_TARGETS)
       foreach(DEP_TARGET ${DEP_TARGETS})
         get_target_property(DEP_TYPE ${DEP_TARGET} TYPE)
-        if (${DEP_TYPE} STREQUAL "INTERFACE_LIBRARY")
+        if(${DEP_TYPE} STREQUAL "INTERFACE_LIBRARY")
           target_compile_options(${DEP_TARGET} INTERFACE -w)
         elseif(NOT (${DEP_TYPE} STREQUAL "UTILITY"))
           # There is a custom UTILITY type, so do not deal with it.
