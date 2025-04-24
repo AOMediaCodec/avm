@@ -290,7 +290,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_PALETTE_LINE_COPY
   RESET_CDF_COUNTER(fc->identity_row_cdf_y, 3);
   RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   RESET_CDF_COUNTER(fc->palette_direction_cdf, 2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   RESET_CDF_COUNTER(fc->identity_row_cdf_y, 2);
   RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 2);

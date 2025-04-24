@@ -288,8 +288,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+#if CONFIG_PLT_DIR_CTX
+  mode_costs->palette_direction_cost[0] = av1_cost_literal(1);
+  mode_costs->palette_direction_cost[1] = av1_cost_literal(1);
+#else
   av1_cost_tokens_from_cdf(mode_costs->palette_direction_cost,
                            fc->palette_direction_cdf, NULL);
+#endif  // CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_LINE_COPY
   for (i = 0; i < PALETTE_ROW_FLAG_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->palette_y_row_flag_cost[i],
@@ -903,7 +908,7 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
 #else
   av1_cost_tokens_from_cdf(mode_costs->merged_param_cost, fc->merged_param_cdf,
                            NULL);
-#endif // !CONFIG_MERGE_PARA_CTX
+#endif  // !CONFIG_MERGE_PARA_CTX
 }
 
 // Values are now correlated to quantizer.

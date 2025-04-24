@@ -41,7 +41,7 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
     direction = aom_read_bit(r, ACCT_INFO());
 #else
     direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_INFO());
-#endif
+#endif  // CONFIG_PLT_DIR_CTX
   } else {
     direction = 0;
   }
@@ -199,9 +199,11 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
 #if CONFIG_PALETTE_IMPROVEMENTS
   params.identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                   : xd->tile_ctx->identity_row_cdf_y;
+#if !CONFIG_PLT_DIR_CTX
 #if CONFIG_PALETTE_LINE_COPY
   params.direction_cdf = xd->tile_ctx->palette_direction_cdf;
 #endif  // CONFIG_PALETTE_LINE_COPY
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   params.n_colors = mbmi->palette_mode_info.palette_size[plane];

@@ -3120,8 +3120,7 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfoBank *bank,
                                           aom_reader *rb) {
 #if CONFIG_MERGE_PARA_CTX
-    const int exact_match = aom_read_bit(rb,
-                                            ACCT_INFO("exact_match"));
+  const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
 #else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
@@ -3207,7 +3206,7 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfoBank *bank,
                                            aom_reader *rb) {
 #if CONFIG_MERGE_PARA_CTX
-    const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
+  const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
 #else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
@@ -3370,7 +3369,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   for (int c_id = 0; c_id < num_classes; ++c_id) {
 #if CONFIG_MERGE_PARA_CTX
-      const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
+    const int exact_match = aom_read_bit(rb, ACCT_INFO("exact_match"));
 #else
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
@@ -4797,7 +4796,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }

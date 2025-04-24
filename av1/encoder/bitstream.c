@@ -950,7 +950,7 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
     aom_write_bit(w, p->direction);
 #else
     aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
-#endif
+#endif  // CONFIG_PLT_DIR_CTX
   }
 #else
   const int direction = 0;

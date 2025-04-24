@@ -6792,9 +6792,11 @@ static const aom_cdf_prob
       { AOM_CDF3(10923, 21845), 30 },
       { AOM_CDF3(10923, 21845), 56 },
     };
+#if !CONFIG_PLT_DIR_CTX
 static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(21697), 6
 };
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
 static const aom_cdf_prob default_identity_row_cdf_y[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 28 },
@@ -6944,9 +6946,11 @@ static const aom_cdf_prob
       { AOM_CDF3(10923, 21845) },
       { AOM_CDF3(10923, 21845) }
     };
+#if !CONFIG_PLT_DIR_CTX
 static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(16384)
 };
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
 static const aom_cdf_prob
     default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)] = {
@@ -8389,9 +8393,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->identity_row_cdf_y, default_identity_row_cdf_y);
   av1_copy(fc->identity_row_cdf_uv, default_identity_row_cdf_uv);
+#if !CONFIG_PLT_DIR_CTX
 #if CONFIG_PALETTE_LINE_COPY
   av1_copy(fc->palette_direction_cdf, default_palette_direction_cdf);
 #endif  // CONFIG_PALETTE_LINE_COPY
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
@@ -8934,8 +8940,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->identity_row_cdf_y, 3);
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
                          ctx_tr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_direction_cdf,
                          ctx_tr->palette_direction_cdf, 2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
                          ctx_tr->identity_row_cdf_y, 2);
@@ -9396,7 +9404,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #if CONFIG_PALETTE_LINE_COPY
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 3);
   SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   SHIFT_CDF(ctx_ptr->palette_direction_cdf, 2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 2);
   SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 2);
@@ -9845,8 +9855,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_PALETTE_LINE_COPY
   AVERAGE_CDF(ctx_left->identity_row_cdf_y, ctx_tr->identity_row_cdf_y, 3);
   AVERAGE_CDF(ctx_left->identity_row_cdf_uv, ctx_tr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   AVERAGE_CDF(ctx_left->palette_direction_cdf, ctx_tr->palette_direction_cdf,
               2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
                          ctx_tr->identity_row_cdf_y, 2);
