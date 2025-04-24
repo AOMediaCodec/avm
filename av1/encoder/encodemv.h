@@ -160,11 +160,14 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }
-  } else if (this_mode == NEWMV ||
+  } else if (this_mode == NEWMV
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-             this_mode == WARP_NEWMV ||
+             || this_mode == WARP_NEWMV
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-             this_mode == AMVDNEWMV) {
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+             || this_mode == AMVDNEWMV
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+  ) {
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;

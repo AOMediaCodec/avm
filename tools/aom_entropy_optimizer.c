@@ -1295,7 +1295,16 @@ int main(int argc, const char **argv) {
                      "INTER_COMPOUND_REF_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  cts_each_dim[0] = NUM_AMVD_MODES;
+  cts_each_dim[1] = AMVD_MODE_CONTEXTS;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.amvd_mode[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_amvd_mode_cdf"
+                     "[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;
   cts_each_dim[1] = 2;
@@ -1453,10 +1462,18 @@ int main(int argc, const char **argv) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.skip_drl_cnts[0][0], probsfile, 2, cts_each_dim,
+  optimize_cdf_table(&fc.skip_drl_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_skip_drl_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  cts_each_dim[0] = 3;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.tip_drl_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_tip_drl_cdf[3][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   cts_each_dim[0] = WARPMV_MODE_CONTEXT;

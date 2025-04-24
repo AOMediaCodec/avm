@@ -429,6 +429,9 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   MvSubpelPrecision mv_precision;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } NEW_NEWMV_STATS;
 
@@ -436,12 +439,18 @@ typedef struct {
   int8_t ref_frame_type;
   int_mv start_mv;
   int_mv ref_mv;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } NEAR_NEWMV_STATS;
 
 typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv;
 } NEW_NEARMV_STATS;
 
@@ -451,6 +460,9 @@ typedef struct {
   MvSubpelPrecision mv_precision;
   int joint_newmv_scale_idx;
   int8_t cwp_idx;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } JOINT_NEWMV_STATS;
 
@@ -459,6 +471,9 @@ typedef struct {
   int ref_mv_idx_type;
   int joint_amvd_scale_idx;
   int8_t cwp_idx;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } JOINT_AMVDNEWMV_STATS;
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
@@ -493,7 +508,12 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1);
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+void av1_amvd_joint_motion_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, int_mv *cur_mv,
+                                  const uint8_t *mask, int mask_stride,
+                                  int *rate_mv);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const MV *start_mv, MV *bestmv,

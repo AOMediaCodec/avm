@@ -3720,12 +3720,21 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       const MV cur_mvd = { cur_mv.row - ref_mv.row, cur_mv.col - ref_mv.col };
       MV other_mvd = { 0, 0 };
       MV other_cand_mv = { 0, 0 };
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        if (!check_mvd_valid_amvd(cur_mvd)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
       do_refine_search_grid[grid_coord] = 1;
       if (av1_is_subpelmv_in_range(mv_limits, cur_mv)) {
         // fprintf(stdout, "has happened\n");
         get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-        scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+        scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                        ,
+                        mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+        );
 #if !CONFIG_C071_SUBBLK_WARPMV
         lower_mv_precision(&other_mvd, cm->features.fr_mv_precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -3803,9 +3812,18 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
       const MV final_mvd = { candidate_mv[0].row - ref_mv.row,
                              candidate_mv[0].col - ref_mv.col };
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        if (!check_mvd_valid_amvd(final_mvd)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
       get_mv_projection(&other_mvd, final_mvd, other_ref_dist, cur_ref_dist);
-      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                      ,
+                      mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+      );
 
 #if !CONFIG_C071_SUBBLK_WARPMV
       lower_mv_precision(&other_mvd, cm->features.fr_mv_precision);
@@ -3908,7 +3926,12 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
       if (av1_is_subpelmv_in_range(mv_limits, cur_mv)) {
         get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-        scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+        scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                        ,
+                        mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+        );
 #if !CONFIG_C071_SUBBLK_WARPMV
         lower_mv_precision(&other_mvd, cm->features.fr_mv_precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -3951,6 +3974,213 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
   return besterr;
 }
+
+#if CONFIG_INTER_MODE_CONSOLIDATION
+void av1_amvd_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, int_mv *cur_mv,
+                                  const uint8_t *mask, int mask_stride,
+                                  int *rate_mv) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+  const int pw = block_size_wide[bsize];
+  const int ph = block_size_high[bsize];
+  const int plane = 0;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  // This function should only ever be called for compound modes
+  assert(has_second_ref(mbmi));
+
+  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+  assert(!is_pb_mv_precision_active(cm, mbmi, bsize));
+#if BUGFIX_AMVD_AMVR
+  set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
+#else
+  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif  // BUGFIX_AMVD_AMVR
+
+  const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
+
+  const int cand_pos[4][2] = {
+    { 0, -1 },  // left
+    { 0, +1 },  // right
+    { -1, 0 },  // above
+    { +1, 0 }   // down
+  };
+
+  const MV_REFERENCE_FRAME refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
+  const MvCosts *mv_costs = &x->mv_costs;
+  int_mv ref_mv[2];
+  int ite, ref;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
+  // Do joint motion search in compound mode to get more accurate mv.
+  struct buf_2d backup_yv12[2][MAX_MB_PLANE];
+  unsigned int last_besterr[2] = { UINT_MAX, UINT_MAX };
+  const YV12_BUFFER_CONFIG *const scaled_ref_frame[2] = {
+    av1_get_scaled_ref_frame(cpi, refs[0]),
+    av1_get_scaled_ref_frame(cpi, refs[1])
+  };
+
+  // Prediction buffer from second frame.
+  DECLARE_ALIGNED(16, uint16_t, second_pred[MAX_SB_SQUARE]);
+  int_mv best_mv;
+
+  cur_mv[0] = av1_get_ref_mv(x, 0);
+  cur_mv[1] = av1_get_ref_mv(x, 1);
+
+  // Allow joint search multiple times iteratively for each reference frame
+  // and break out of the search loop if it couldn't find a better mv.
+  for (ite = 0; ite < 4; ite++) {
+    struct buf_2d ref_yv12[2];
+    unsigned int bestsme = UINT_MAX;
+    // Even iterations search in the first reference frame, odd iterations
+    // search in the second. The predictor found for the 'other' reference
+    // frame is factored in.
+    int id = ite % 2;
+
+    for (ref = 0; ref < 2; ++ref) {
+      ref_mv[ref] = av1_get_ref_mv(x, ref);
+      // Swap out the reference frame for a version that's been scaled to
+      // match the resolution of the current frame, allowing the existing
+      // motion search code to be used without additional modifications.
+      if (scaled_ref_frame[ref]) {
+        int i;
+        for (i = 0; i < num_planes; i++)
+          backup_yv12[ref][i] = xd->plane[i].pre[ref];
+        av1_setup_pre_planes(xd, ref, scaled_ref_frame[ref], mi_row, mi_col,
+                             NULL, num_planes, &mbmi->chroma_ref_info);
+      }
+    }
+
+    assert(IMPLIES(scaled_ref_frame[0] != NULL,
+                   cm->width == scaled_ref_frame[0]->y_crop_width &&
+                       cm->height == scaled_ref_frame[0]->y_crop_height));
+    assert(IMPLIES(scaled_ref_frame[1] != NULL,
+                   cm->width == scaled_ref_frame[1]->y_crop_width &&
+                       cm->height == scaled_ref_frame[1]->y_crop_height));
+
+    // Initialize based on (possibly scaled) prediction buffers.
+    ref_yv12[0] = xd->plane[plane].pre[0];
+    ref_yv12[1] = xd->plane[plane].pre[1];
+
+    InterPredParams inter_pred_params;
+    const InterpFilter interp_filters = EIGHTTAP_REGULAR;
+
+    av1_init_inter_params(&inter_pred_params, pw, ph, mi_row * MI_SIZE,
+                          mi_col * MI_SIZE, 0, 0, xd->bd, 0, &cm->sf_identity,
+                          &ref_yv12[!id], interp_filters);
+    inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
+
+    // Since we have scaled the reference frames to match the size of the
+    // current frame we must use a unit scaling factor during mode selection.
+    av1_enc_build_one_inter_predictor(second_pred, pw, &cur_mv[!id].as_mv,
+                                      &inter_pred_params);
+    // Do full-pixel compound motion search on the current reference frame.
+    if (id) {
+      xd->plane[plane].pre[0] = ref_yv12[id];
+      const struct scale_factors *tmp_sf = xd->block_ref_scale_factors[0];
+      xd->block_ref_scale_factors[0] = xd->block_ref_scale_factors[id];
+      xd->block_ref_scale_factors[id] = tmp_sf;
+    }
+
+#if CONFIG_IBC_BV_IMPROVEMENT
+    const int is_ibc_cost = 0;
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+
+    // Make motion search params
+    FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+    av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
+                                       &ref_mv[id].as_mv, pb_mv_precision,
+#if CONFIG_IBC_BV_IMPROVEMENT
+                                       is_ibc_cost,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+
+                                       NULL,
+                                       /*fine_search_interval=*/0);
+
+    av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
+                             mask_stride, id);
+
+    // Restore the pointer to the first (possibly scaled) prediction buffer.
+    if (id) xd->plane[plane].pre[0] = ref_yv12[0];
+
+    for (ref = 0; ref < 2; ++ref) {
+      if (scaled_ref_frame[ref]) {
+        // Swap back the original buffers for subpel motion search.
+        for (int i = 0; i < num_planes; i++) {
+          xd->plane[i].pre[ref] = backup_yv12[ref][i];
+        }
+        // Re-initialize based on unscaled prediction buffers.
+        ref_yv12[ref] = xd->plane[plane].pre[ref];
+      }
+    }
+
+    // Do sub-pixel compound motion search on the current reference frame.
+    if (id) xd->plane[plane].pre[0] = ref_yv12[id];
+
+    SUBPEL_MOTION_SEARCH_PARAMS ms_params;
+    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+                                      &ref_mv[id].as_mv, pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                      NULL);
+    av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
+                             mask, mask_stride, id);
+    ms_params.forced_stop = EIGHTH_PEL;
+
+    for (int curr_index = 1; curr_index <= MAX_AMVD_INDEX; curr_index++) {
+      MV candidate_mv[2];
+      int dummy = 0;
+      // loop 4 directions, left, right, above, and right
+      for (int i = 0; i < 4; ++i) {
+        const MV cur_mvd_idx = { cand_pos[i][0] * curr_index,
+                                 cand_pos[i][1] * curr_index };
+        //  printf("curr_index = %d row = %d col = %d \n ", curr_index
+        //  ,cur_mvd_idx.row, cur_mvd_idx.col);
+
+        const MV cur_mvd = { get_mvd_from_amvd_index(cur_mvd_idx.row),
+                             get_mvd_from_amvd_index(cur_mvd_idx.col) };
+        candidate_mv[0].row = ref_mv[id].as_mv.row + cur_mvd.row;
+        candidate_mv[0].col = ref_mv[id].as_mv.col + cur_mvd.col;
+        assert(is_valid_amvd_mvd(cur_mvd));
+
+        unsigned int sse1;
+        int distortion;
+        (void)sse1;
+        (void)distortion;
+        check_better(xd, cm, &candidate_mv[0], &best_mv.as_mv,
+                     &ms_params.mv_limits, &ms_params.var_params,
+                     &ms_params.mv_cost_params, &bestsme, &sse1, &distortion,
+                     &dummy);
+      }
+    }
+
+    // Restore the pointer to the first prediction buffer.
+    if (id) {
+      xd->plane[plane].pre[0] = ref_yv12[0];
+      const struct scale_factors *tmp_sf = xd->block_ref_scale_factors[0];
+      xd->block_ref_scale_factors[0] = xd->block_ref_scale_factors[id];
+      xd->block_ref_scale_factors[id] = tmp_sf;
+    }
+    if (bestsme < last_besterr[id]) {
+      cur_mv[id] = best_mv;
+      last_besterr[id] = bestsme;
+    } else {
+      break;
+    }
+  }
+
+  *rate_mv = 0;
+  for (ref = 0; ref < 2; ++ref) {
+    const int_mv curr_ref_mv = av1_get_ref_mv(x, ref);
+    *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
+                                mbmi->pb_mv_precision, mv_costs, MV_COST_WEIGHT,
+                                is_adaptive_mvd);
+  }
+}
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
 // motion search for near_new and new_near mode when adaptive MVD resolution is
 // applied
@@ -4179,7 +4409,12 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       candidate_mv[0].col = iter_center_mv.col + cur_mvd.col;
 
       get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                      ,
+                      mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+      );
 #if !CONFIG_C071_SUBBLK_WARPMV
       lower_mv_precision(&other_mvd,
 #if BUGFIX_AMVD_AMVR
@@ -4204,7 +4439,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         best_other_mv->col = candidate_mv[1].col;
       }
     }
-
     int abs_mvd_from_idx = get_mvd_from_amvd_index(curr_index);
 
     if (abs_mvd_from_idx >= 16) {
@@ -5151,6 +5385,14 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        MV diff_mv = { this_mv.row - ms_params->mv_cost_params.ref_mv->row,
+                       this_mv.col - ms_params->mv_cost_params.ref_mv->col };
+        if (!check_mvd_valid_amvd(diff_mv)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
         memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
@@ -5361,6 +5603,13 @@ static void refine_translational_mv(
     for (int idx = 0; idx < num_neighbors; ++idx) {
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        MV diff_mv = { this_mv.row - ms_params->mv_cost_params.ref_mv->row,
+                       this_mv.col - ms_params->mv_cost_params.ref_mv->col };
+        if (!check_mvd_valid_amvd(diff_mv)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
         // Update model and costs according to the motion vector which
         // is being tried out this iteration
@@ -5948,6 +6197,13 @@ int av1_refine_mv_for_base_param_warp_model(
 
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        MV diff_mv = { this_mv.row - ms_params->mv_cost_params.ref_mv->row,
+                       this_mv.col - ms_params->mv_cost_params.ref_mv->col };
+        if (!check_mvd_valid_amvd(diff_mv)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
         // Update model and costs according to the motion vector which
         // is being tried out this iteration
@@ -6036,6 +6292,13 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      if (mbmi->use_amvd) {
+        MV diff_mv = { this_mv.row - ms_params->mv_cost_params.ref_mv->row,
+                       this_mv.col - ms_params->mv_cost_params.ref_mv->col };
+        if (!check_mvd_valid_amvd(diff_mv)) continue;
+      }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
         if (!av1_extend_warp_model(
                 neighbor_is_above, bsize, &this_mv, mi_row, mi_col,

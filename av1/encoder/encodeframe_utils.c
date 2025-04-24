@@ -1629,6 +1629,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
@@ -1639,9 +1642,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->inter_compound_mode_non_joint_type_cdf,
               ctx_tr->inter_compound_mode_non_joint_type_cdf,
               NUM_OPTIONS_NON_JOINT_TYPE);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   AVERAGE_CDF(ctx_left->inter_compound_mode_joint_type_cdf,
               ctx_tr->inter_compound_mode_joint_type_cdf,
               NUM_OPTIONS_JOINT_TYPE);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
@@ -1652,6 +1657,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->inter_compound_mode_same_refs_cdf,
               INTER_COMPOUND_SAME_REFS_TYPES);
 #endif  // CONFIG_OPT_INTER_MODE_CTX
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  AVERAGE_CDF(ctx_left->amvd_mode_cdf, ctx_tr->amvd_mode_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   AVERAGE_CDF(ctx_left->cwp_idx_cdf, ctx_tr->cwp_idx_cdf, 2);
   AVERAGE_CDF(ctx_left->jmvd_scale_mode_cdf, ctx_tr->jmvd_scale_mode_cdf,
               JOINT_NEWMV_SCALE_FACTOR_CNT);

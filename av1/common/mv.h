@@ -391,6 +391,7 @@ static INLINE int16_t get_index_from_amvd_mvd(int this_mvd_comp) {
   index = this_mvd_comp < 0 ? -1 * index : index;
   return index;
 }
+
 // Get the MVD value from the index for AMVD mode
 static INLINE int get_mvd_from_amvd_index(int index) {
   int this_mvd_comp = 0;
@@ -398,6 +399,7 @@ static INLINE int get_mvd_from_amvd_index(int index) {
   this_mvd_comp = index < 0 ? -1 * this_mvd_comp : this_mvd_comp;
   return this_mvd_comp;
 }
+
 // Check if the MVD is valid for AMVD mode or not
 static INLINE int is_valid_amvd_mvd(const MV mvd) {
   const MV mvd_index = { get_index_from_amvd_mvd(mvd.row),
@@ -409,11 +411,33 @@ static INLINE int is_valid_amvd_mvd(const MV mvd) {
   return (abs(mvd_index.row) <= MAX_AMVD_INDEX &&
           abs(mvd_index.col) <= MAX_AMVD_INDEX);
 }
+
 // Compute the MVD value from the MV and refMV for AMVD mode
 static INLINE void get_adaptive_mvd_from_ref_mv(MV mv, MV ref_mv, MV *mvd) {
   mvd->row = mv.row - ref_mv.row;
   mvd->col = mv.col - ref_mv.col;
 }
+
+#if CONFIG_INTER_MODE_CONSOLIDATION
+static INLINE int16_t get_amvd_index_from_mvd(int mve) {
+  int index = -1;
+  for (index = 0; index <= MAX_AMVD_INDEX; index++) {
+    if (abs(mve) == amvd_index_to_mvd[abs(index)]) break;
+  }
+  index = mve < 0 ? -1 * index : index;
+  return index;
+}
+
+static INLINE int check_mvd_valid_amvd(const MV mvd) {
+  int row_index = get_amvd_index_from_mvd(mvd.row);
+  int col_index = get_amvd_index_from_mvd(mvd.col);
+
+  if (row_index == 0 && col_index == 0) return 0;
+  if (row_index != 0 && col_index != 0) return 0;
+
+  return (abs(row_index) <= MAX_AMVD_INDEX && abs(col_index) <= MAX_AMVD_INDEX);
+}
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_VQ_MVD_CODING
 
 // Calculation precision for warp models

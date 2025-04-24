@@ -610,7 +610,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->inter_single_mode_cost[i],
                                fc->inter_single_mode_cdf[i], NULL);
     }
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    for (j = 0; j < NUM_AMVD_MODES; ++j) {
+      for (i = 0; i < AMVD_MODE_CONTEXTS; ++i) {
+        av1_cost_tokens_from_cdf(mode_costs->amvd_mode_cost[j][i],
+                                 fc->amvd_mode_cdf[j][i], NULL);
+      }
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
     for (i = 0; i < WARPMV_MODE_CONTEXT; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_warp_mode_cost[i],
                                fc->inter_warp_mode_cdf[i], NULL);
@@ -634,6 +641,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      av1_cost_tokens_from_cdf(mode_costs->tip_drl_mode_cost[i],
+                               fc->tip_drl_cdf[i], NULL);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
     }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
@@ -680,11 +691,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
           mode_costs->inter_compound_mode_non_joint_type_cost[i],
           fc->inter_compound_mode_non_joint_type_cdf[i], NULL);
     }
+#if !CONFIG_INTER_MODE_CONSOLIDATION
     for (i = 0; i < NUM_CTX_JOINT_TYPE; ++i) {
       av1_cost_tokens_from_cdf(
           mode_costs->inter_compound_mode_joint_type_cost[i],
           fc->inter_compound_mode_joint_type_cdf[i], NULL);
     }
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
     for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],

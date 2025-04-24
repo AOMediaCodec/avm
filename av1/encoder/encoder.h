@@ -1578,6 +1578,9 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int skip_drl_mode[3][2];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  unsigned int tip_drl_mode[3][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
   unsigned int
       jmvd_scale_mode_cnts[JOINT_NEWMV_SCALE_FACTOR_CNT];  // placeholder
@@ -1609,7 +1612,9 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
                                   [INTER_COMPOUND_REF_TYPES];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  unsigned int amvd_mode[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_REDUCE_SYMBOL_SIZE

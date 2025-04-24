@@ -3927,7 +3927,13 @@ void av1_build_one_bawp_inter_predictor(
                                                                  { -2, 2 },
                                                                  { -3, 3 } };
       const int list_index =
-          (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          (mbmi->mode == NEARMV)
+              ? 0
+#if CONFIG_INTER_MODE_CONSOLIDATION
+              : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
+#else
+              : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_BAWP_CHROMA
       int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag[0] - 2];
 #else

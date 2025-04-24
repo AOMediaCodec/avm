@@ -676,7 +676,11 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
                                             const int16_t mode_ctx, int idx) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    return ec_ctx->tip_drl_cdf[AOMMIN(idx, 2)];
+#else
     return ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
@@ -760,6 +764,47 @@ static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
       || is_tip_ref_frame(mbmi->ref_frame[0]));
 }
 #endif  // CONFIG_IMPROVE_REFINED_MV
+
+#if CONFIG_INTER_MODE_CONSOLIDATION
+static INLINE int allow_amvd_mode(PREDICTION_MODE mode) {
+  return (mode == NEAR_NEWMV || mode == NEW_NEARMV ||
+          mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
+          mode == NEWMV || mode == JOINT_NEWMV || mode == JOINT_NEWMV_OPTFLOW ||
+          mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW);
+}
+
+static INLINE int amvd_mode_to_index(PREDICTION_MODE mode) {
+  switch (mode) {
+    case NEAR_NEWMV: return 0;
+    case NEW_NEARMV: return 1;
+    case NEAR_NEWMV_OPTFLOW: return 2;
+    case NEW_NEARMV_OPTFLOW: return 3;
+    case NEWMV: return 4;
+    case JOINT_NEWMV: return 5;
+    case JOINT_NEWMV_OPTFLOW: return 6;
+    case NEW_NEWMV: return 7;
+    case NEW_NEWMV_OPTFLOW: return 8;
+    default: return -1;
+  }
+}
+
+static INLINE int av1_amvd_context(const MACROBLOCKD *const xd) {
+  int ctx = 0;
+
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+    if (neighbor != NULL) {
+      if (allow_amvd_mode(neighbor->mode)) {
+        if (neighbor->ref_frame[0] == mbmi->ref_frame[0])
+          ctx += !!neighbor->use_amvd;
+      }
+    }
+  }
+  return ctx;
+}
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
 #if CONFIG_REFINED_MVS_IN_TMVP
 void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,

@@ -650,6 +650,8 @@ set_aom_config_var(CONFIG_DELTAQ_OPT 1
                    "Enable delta-q entropy coding optimization.")
 set_aom_config_var(CONFIG_TX_PARTITION_RESTRICT 1
                    "Disallow transform partition for large coding blocks.")
+set_aom_config_var(CONFIG_INTER_MODE_CONSOLIDATION 1
+                   "Inter modes redesign and consolidation.")
 
 set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
                    "Symbol size reduction from 16 to 8.")

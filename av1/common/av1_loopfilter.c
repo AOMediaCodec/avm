@@ -66,13 +66,18 @@ static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 0, 1,                                // INTER_SINGLE_MODES (GLOBALMV == 0)
-  1,                                      // AMVDNEWMV
-  1,                                      // WARPMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  1,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+  1,    // WARPMV
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1,              // WARP_NEWMV
 #endif            // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
-  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  1, 1,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 
 // Function obtains q_threshold from the quantization index.

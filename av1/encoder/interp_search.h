@@ -129,7 +129,6 @@ typedef struct {
   JOINT_AMVDNEWMV_STATS joint_amvdnewmv_stats[MAX_COMP_MV_STATS];
   int joint_amvdnewmv_stats_idx;
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
-
 } HandleInterModeArgs;
 
 /*!\cond */

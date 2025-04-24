@@ -232,14 +232,19 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  RESET_CDF_COUNTER(fc->tip_drl_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   RESET_CDF_COUNTER(fc->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);
   RESET_CDF_COUNTER(fc->inter_compound_mode_non_joint_type_cdf,
                     NUM_OPTIONS_NON_JOINT_TYPE);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->inter_compound_mode_joint_type_cdf,
                     NUM_OPTIONS_JOINT_TYPE);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else   // CONFIG_INTER_COMPOUND_BY_JOINT
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
 #endif  // CONFIG_INTER_COMPOUND_BY_JOINT
@@ -248,7 +253,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->inter_compound_mode_same_refs_cdf,
                     INTER_COMPOUND_SAME_REFS_TYPES);
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  RESET_CDF_COUNTER(fc->amvd_mode_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);

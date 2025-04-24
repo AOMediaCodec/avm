@@ -446,12 +446,18 @@ static INLINE int get_cwp_coding_idx(int val, int encode,
 static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   const int mode = mbmi->mode;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  if (allow_amvd_mode(mode) == 0) return 0;
+  if (cm->seq_params.enable_adaptive_mvd == 0) return 0;
 
+  return mbmi->use_amvd;
+#else
   return (mode == NEAR_NEWMV || mode == NEW_NEARMV ||
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
           mode == JOINT_AMVDNEWMV_OPTFLOW || mode == AMVDNEWMV ||
           mode == JOINT_AMVDNEWMV) &&
          cm->seq_params.enable_adaptive_mvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 }
 
 // get the base reference frame list for joint MVD coding, the MVD for base
@@ -1038,8 +1044,11 @@ static INLINE int is_refinemv_allowed_mode_precision(
 #endif  // CONFIG_AFFINE_REFINEMENT
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      (mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV || mode == NEAR_NEWMV ||
-       mode == NEW_NEARMV || mode == NEW_NEWMV))
+      (mode == JOINT_NEWMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+       || mode == JOINT_AMVDNEWMV
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+       || mode == NEAR_NEWMV || mode == NEW_NEARMV || mode == NEW_NEWMV))
     return 0;
 
 #if CONFIG_AFFINE_REFINEMENT
@@ -1049,7 +1058,11 @@ static INLINE int is_refinemv_allowed_mode_precision(
     return mode == NEAR_NEARMV;
   }
 #endif
-  return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
+  return (mode >= NEAR_NEARMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+          && mode <= JOINT_AMVDNEWMV_OPTFLOW
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+  );
 }
 
 // check if the prediction mode infered to refimemv to always 1.
@@ -1558,7 +1571,10 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
 
 #if CONFIG_EXPLICIT_BAWP
 static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
-  return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
+  return mbmi->mode == NEWMV || mbmi->mode == NEARMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+         || mbmi->mode == AMVDNEWMV
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 }
 #endif  // CONFIG_EXPLICIT_BAWP
 

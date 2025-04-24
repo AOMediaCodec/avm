@@ -306,6 +306,9 @@ typedef struct frame_contexts {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  aom_cdf_prob tip_drl_cdf[3][CDF_SIZE(2)];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
 #if CONFIG_REFINEMV
   aom_cdf_prob refinemv_flag_cdf[NUM_REFINEMV_CTX]
@@ -329,10 +332,12 @@ typedef struct frame_contexts {
   aom_cdf_prob
       inter_compound_mode_non_joint_type_cdf[NUM_CTX_NON_JOINT_TYPE][CDF_SIZE(
           NUM_OPTIONS_NON_JOINT_TYPE)];
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   // The inter_compound_mode_joint_type_cdf is for coding modes JOINT_NEWMV,
   // JOINT_AMVDNEWMV.
   aom_cdf_prob inter_compound_mode_joint_type_cdf[NUM_CTX_JOINT_TYPE][CDF_SIZE(
       NUM_OPTIONS_JOINT_TYPE)];
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
   aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
@@ -345,7 +350,9 @@ typedef struct frame_contexts {
   aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  aom_cdf_prob amvd_mode_cdf[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   aom_cdf_prob cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)];
   aom_cdf_prob jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)];
   aom_cdf_prob jmvd_amvd_scale_mode_cdf[CDF_SIZE(JOINT_AMVD_SCALE_FACTOR_CNT)];
@@ -988,8 +995,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
-  NEAR_NEARMV_OPTFLOW, NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW,      -1,
-  NEW_NEWMV_OPTFLOW,   JOINT_NEWMV_OPTFLOW, JOINT_AMVDNEWMV_OPTFLOW,
+  NEAR_NEARMV_OPTFLOW,     NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW, -1,
+  NEW_NEWMV_OPTFLOW,       JOINT_NEWMV_OPTFLOW,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  JOINT_AMVDNEWMV_OPTFLOW,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 
 static INLINE int opfl_get_comp_idx(int mode) {
@@ -1005,8 +1015,10 @@ static INLINE int opfl_get_comp_idx(int mode) {
     case GLOBAL_GLOBALMV: return INTER_COMPOUND_OFFSET(GLOBAL_GLOBALMV);
     case JOINT_NEWMV:
     case JOINT_NEWMV_OPTFLOW: return INTER_COMPOUND_OFFSET(JOINT_NEWMV);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
     case JOINT_AMVDNEWMV:
     case JOINT_AMVDNEWMV_OPTFLOW: return INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
     default: assert(0); return 0;
   }
 }

@@ -229,6 +229,9 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[0].src.stride = stride;
   xd->plane[0].pre[0].buf = ref_frame_buf;
   xd->plane[0].pre[0].stride = stride_ref;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  xd->mi[0]->use_amvd = 0;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
   step_param = tpl_sf->reduce_first_step_size;
   step_param = AOMMIN(step_param, MAX_MVSEARCH_STEPS - 2);

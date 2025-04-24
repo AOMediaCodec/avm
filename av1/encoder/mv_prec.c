@@ -662,7 +662,10 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 
-  if (mode == NEWMV || mode == AMVDNEWMV ||
+  if (mode == NEWMV ||
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+      mode == AMVDNEWMV ||
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       mode == WARP_NEWMV ||
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW

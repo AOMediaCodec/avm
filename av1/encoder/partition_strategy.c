@@ -1930,6 +1930,9 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   mbmi->chroma_ref_info.bsize_base = bsize;
   mbmi->chroma_ref_info.is_chroma_ref = 1;
 
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  mbmi->use_amvd = 0;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);

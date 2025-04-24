@@ -1103,7 +1103,9 @@ typedef struct {
 #else
   int inter_single_mode_cost[INTER_SINGLE_MODE_CONTEXTS][INTER_SINGLE_MODES];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int amvd_mode_cost[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   //! inter warpmv mode cost
   int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -1122,6 +1124,9 @@ typedef struct {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int tip_drl_mode_cost[3][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   /**@}*/
 
@@ -1176,8 +1181,10 @@ typedef struct {
   int inter_compound_mode_is_joint_cost[NUM_CTX_IS_JOINT][NUM_OPTIONS_IS_JOINT];
   int inter_compound_mode_non_joint_type_cost[NUM_CTX_NON_JOINT_TYPE]
                                              [NUM_OPTIONS_NON_JOINT_TYPE];
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   int inter_compound_mode_joint_type_cost[NUM_CTX_JOINT_TYPE]
                                          [NUM_OPTIONS_JOINT_TYPE];
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
   int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_REF_TYPES];
 #endif  // CONFIG_INTER_COMPOUND_BY_JOINT

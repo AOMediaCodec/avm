@@ -209,11 +209,17 @@ enum {
 } UENUM1BYTE(TIP_FRAME_MODE);
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+static const int tip_pred_mode_to_index[INTER_SINGLE_MODES] = { 0, -1, 1 };
+#else
 static const int tip_pred_mode_to_index[INTER_SINGLE_MODES] = { 0, -1, 1, 2 };
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 static const int tip_pred_index_to_mode[TIP_PRED_MODES] = {
   NEARMV,
   NEWMV,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   AMVDNEWMV,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
