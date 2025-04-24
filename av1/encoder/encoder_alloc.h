@@ -16,6 +16,10 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 
+#if CONFIG_ML_PART_SPLIT
+#include "av1/encoder/part_split_prune_tflite.h"
+#endif  // CONFIG_ML_PART_SPLIT
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -228,6 +232,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
 
   aom_free(cpi->td.mb.palette_buffer);
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);

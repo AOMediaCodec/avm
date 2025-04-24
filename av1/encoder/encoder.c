@@ -958,6 +958,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 #if CONFIG_EXT_RECUR_PARTITIONS
       av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+      av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
       av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
@@ -2169,6 +2172,9 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
 #if CONFIG_EXT_RECUR_PARTITIONS
       av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+      av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
       av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);

@@ -618,6 +618,9 @@ void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
   av1_free_pmc(cpi->td.firstpass_ctx, num_planes);
   cpi->td.firstpass_ctx = NULL;
   alloc_compressor_data(cpi);
@@ -715,6 +718,9 @@ void av1_setup_frame(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+    av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
     av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
