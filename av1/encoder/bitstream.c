@@ -437,17 +437,26 @@ static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd, int segment_id,
                                       aom_writer *w, const int is_inter) {
+  MB_MODE_INFO *const mbmi = xd->mi[0];
 #if CONFIG_DISABLE_4X4_INTER
-  if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
+  if (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
     assert(!is_inter);
     return;
   }
 #endif
-  if (xd->mi[0]->region_type == INTRA_REGION) return;
+  if (mbmi->region_type == INTRA_REGION) return;
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(is_inter);
     return;
   }
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+  if (mbmi->tree_type == SHARED_PART &&
+      mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+      mbmi->chroma_ref_info.offset_started) {
+    assert(is_inter);
+    return;
+  }
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[ctx], 2);
@@ -3278,9 +3287,12 @@ static AOM_INLINE void write_partition(
       ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
-  init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
-                                        mi_row, mi_col, ssx, ssy, bsize,
-                                        &ptree->chroma_ref_info);
+  init_allowed_partitions_for_signaling(
+      partition_allowed, cm, xd->tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      (ptree->parent ? ptree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+      mi_row, mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
 #if CONFIG_BRU

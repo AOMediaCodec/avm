@@ -253,7 +253,19 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                    !xd->mi[0]->warp_inter_intra));
 #endif  // CONFIG_WARP_INTER_INTRA
 
-    if (is_interintra_pred(xd->mi[0])) {
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+    int is_intra_inter_allowed = 1;
+    if (mbmi->tree_type == SHARED_PART &&
+        mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+        mbmi->chroma_ref_info.offset_started && plane > 0) {
+      is_intra_inter_allowed = 0;
+    }
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+    if (is_interintra_pred(xd->mi[0])
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        && is_intra_inter_allowed
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+    ) {
       BUFFER_SET default_ctx = {
         { xd->plane[0].dst.buf, xd->plane[1].dst.buf, xd->plane[2].dst.buf },
         { xd->plane[0].dst.stride, xd->plane[1].dst.stride,

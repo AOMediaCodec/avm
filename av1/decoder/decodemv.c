@@ -3559,6 +3559,14 @@ static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     return 1;
   }
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  if (mbmi->tree_type == SHARED_PART &&
+      mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+      mbmi->chroma_ref_info.offset_started) {
+    return 1;
+  }
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int is_inter =

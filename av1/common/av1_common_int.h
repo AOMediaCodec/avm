@@ -3762,6 +3762,20 @@ static AOM_INLINE bool is_chroma_ref_within_boundary(
           mi_col + chroma_ref_col_offset < cm->mi_params.mi_cols);
 }
 
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+// 4x4 block partition is not allowed in mixed_intra_inter_region.
+// Therefore, any block partition resulting in 4x4 blocks are be
+// regarded as invalid block partition.
+static INLINE int is_valid_partition_in_mixed_region(
+    BLOCK_SIZE bsize, PARTITION_TYPE p, REGION_TYPE cur_region_type) {
+  if (cur_region_type == INTRA_REGION) return 1;
+  if (is_partition_point(bsize) && get_partition_subsize(bsize, p) == BLOCK_4X4)
+    return 0;
+  else
+    return 1;
+}
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+
 #if CONFIG_MAX_PB_RATIO
 static bool check_partition_aspect_ratio(BLOCK_SIZE bsize,
                                          PARTITION_TYPE partition,
@@ -3782,6 +3796,9 @@ static bool check_partition_aspect_ratio(BLOCK_SIZE bsize,
 // Initialize allowed partition types for the coding block.
 static AOM_INLINE void init_allowed_partitions_for_signaling(
     bool *partition_allowed, const AV1_COMMON *const cm, TREE_TYPE tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+    REGION_TYPE parent_region_type,
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
     int mi_row, int mi_col, int ss_x, int ss_y, BLOCK_SIZE bsize,
     const CHROMA_REF_INFO *chroma_ref_info) {
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -3816,11 +3833,19 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
 
   partition_allowed[PARTITION_HORZ] =
       is_block_splittable && is_horz_size_valid &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_HORZ,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ, ss_x, ss_y);
   num_allowed_partitions += partition_allowed[PARTITION_HORZ];
   partition_allowed[PARTITION_VERT] =
       is_block_splittable && is_vert_size_valid &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_VERT,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT, ss_x, ss_y);
   num_allowed_partitions += partition_allowed[PARTITION_VERT];
@@ -3832,6 +3857,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != VERT &&
       is_ext_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_HORZ_3,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_3, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
@@ -3843,6 +3872,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != HORZ &&
       is_ext_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_VERT_3,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_3, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
@@ -3856,6 +3889,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_HORZ_4A,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_4A, bsize,
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
@@ -3867,6 +3904,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_HORZ_4B,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_4B, bsize,
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
@@ -3878,6 +3919,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_VERT_4A,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_4A, bsize,
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
@@ -3889,6 +3934,10 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      is_valid_partition_in_mixed_region(bsize, PARTITION_VERT_4B,
+                                         parent_region_type) &&
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_4B, bsize,
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,

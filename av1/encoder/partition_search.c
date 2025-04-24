@@ -1010,7 +1010,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
       td->counts->intra_inter[intra_inter_ctx][inter_block]++;
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->intra_inter_cdf[intra_inter_ctx], inter_block, 2);
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      int update_inter_intra_cdf_flag = 1;
+      if (mbmi->tree_type == SHARED_PART &&
+          mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+          mbmi->chroma_ref_info.offset_started) {
+        update_inter_intra_cdf_flag = 0;
+      }
+      if (update_inter_intra_cdf_flag)
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        update_cdf(fc->intra_inter_cdf[intra_inter_ctx], inter_block, 2);
     }
     if (!inter_block &&
         av1_allow_intrabc(cm, xd
@@ -2136,6 +2145,9 @@ static void update_partition_stats(
 #if CONFIG_ENTROPY_STATS
     FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+    REGION_TYPE parent_region_type,
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
     int allow_update_cdf, const CommonModeInfoParams *const mi_params,
     PARTITION_TREE const *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info,
     PARTITION_TYPE partition, const int mi_row, const int mi_col,
@@ -2155,6 +2167,9 @@ static void update_partition_stats(
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+                                        parent_region_type,
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
                                         mi_row, mi_col, ss_x, ss_y, bsize,
                                         chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
@@ -2350,13 +2365,16 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   if (subsize == BLOCK_INVALID) return;
 
   if (!dry_run && is_partition_root)
-    update_partition_stats(cm, xd,
+    update_partition_stats(
+        cm, xd,
 #if CONFIG_ENTROPY_STATS
-                           td->counts,
+        td->counts,
 #endif  // CONFIG_ENTROPY_STATS
-                           tile_data->allow_update_cdf, mi_params, ptree_luma,
-                           &pc_tree->chroma_ref_info, partition, mi_row, mi_col,
-                           bsize, ctx);
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        tile_data->allow_update_cdf, mi_params, ptree_luma,
+        &pc_tree->chroma_ref_info, partition, mi_row, mi_col, bsize, ctx);
 
   PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
 #if CONFIG_SDP_CFL_LATENCY_FIX
@@ -2716,9 +2734,12 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
                                                 ptree_luma);
 
     bool partition_allowed[ALL_PARTITION_TYPES];
-    init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
-                                          mi_row, mi_col, ss_x, ss_y, bsize,
-                                          chroma_ref_info);
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (parent ? parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        mi_row, mi_col, ss_x, ss_y, bsize, chroma_ref_info);
     if (derived_partition != PARTITION_INVALID &&
         partition_allowed[derived_partition]) {
       assert(derived_partition == PARTITION_HORZ ||
@@ -2795,8 +2816,12 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
     bool partition_allowed[ALL_PARTITION_TYPES];
     init_allowed_partitions_for_signaling(
-        partition_allowed, cm, tree_type, mi_row, mi_col, ss_x, ss_y,
-        subsize_of_first_partition, chroma_ref_info);
+        partition_allowed, cm, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (parent ? parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        mi_row, mi_col, ss_x, ss_y, subsize_of_first_partition,
+        chroma_ref_info);
     if (derived_second_first_partition != PARTITION_INVALID &&
         partition_allowed[derived_second_first_partition]) {
       assert(second_partition == derived_second_first_partition);
@@ -2815,9 +2840,12 @@ static void build_one_split_tree(AV1_COMMON *const cm, TREE_TYPE tree_type,
 
     bool partition_allowed[ALL_PARTITION_TYPES];
     init_allowed_partitions_for_signaling(
-        partition_allowed, cm, tree_type, mi_row_second_second,
-        mi_col_second_second, ss_x, ss_y, subsize_of_first_partition,
-        chroma_ref_info);
+        partition_allowed, cm, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (parent ? parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        mi_row_second_second, mi_col_second_second, ss_x, ss_y,
+        subsize_of_first_partition, chroma_ref_info);
     if (derived_second_second_partition != PARTITION_INVALID &&
         partition_allowed[derived_second_second_partition]) {
       assert(second_partition == derived_second_second_partition);
@@ -2904,6 +2932,9 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
 
 static void init_partition_costs(const AV1_COMMON *const cm,
                                  const MACROBLOCK *const x, TREE_TYPE tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+                                 REGION_TYPE parent_region_type,
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
                                  int mi_row, int mi_col, int ssx, int ssy,
                                  BLOCK_SIZE bsize,
                                  const PARTITION_TREE *ptree_luma,
@@ -2916,6 +2947,9 @@ static void init_partition_costs(const AV1_COMMON *const cm,
 
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+                                        parent_region_type,
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
                                         mi_row, mi_col, ssx, ssy, bsize,
                                         chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
@@ -3320,9 +3354,13 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   if (last_part_rdc.rate < INT_MAX) {
     int partition_cost[ALL_PARTITION_TYPES];
-    init_partition_costs(cm, x, xd->tree_type, mi_row, mi_col, ss_x, ss_y,
-                         bsize, NULL, &pc_tree->chroma_ref_info,
-                         partition_cost);
+    init_partition_costs(
+        cm, x, xd->tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        mi_row, mi_col, ss_x, ss_y, bsize, NULL, &pc_tree->chroma_ref_info,
+        partition_cost);
     last_part_rdc.rate += partition_cost[partition];
     last_part_rdc.rdcost =
         RDCOST(x->rdmult, last_part_rdc.rate, last_part_rdc.dist);
@@ -3568,10 +3606,14 @@ static void init_partition_search_state_params(
   }
 
   // Partition cost buffer update
-  init_partition_costs(cm, x, tree_type, mi_row, mi_col,
-                       part_search_state->ss_x, part_search_state->ss_y, bsize,
-                       ptree_luma, &pc_tree->chroma_ref_info,
-                       part_search_state->partition_cost);
+  init_partition_costs(
+      cm, x, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      (pc_tree && pc_tree->parent ? pc_tree->parent->region_type
+                                  : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+      mi_row, mi_col, part_search_state->ss_x, part_search_state->ss_y, bsize,
+      ptree_luma, &pc_tree->chroma_ref_info, part_search_state->partition_cost);
 
   if (xd->tree_type != CHROMA_PART) {
     const int ctx = get_intra_region_context(bsize);
@@ -3609,9 +3651,12 @@ static void init_partition_search_state_params(
   const bool ss_x = cm->seq_params.subsampling_x;
   const bool ss_y = cm->seq_params.subsampling_y;
   bool partition_allowed[ALL_PARTITION_TYPES];
-  init_allowed_partitions_for_signaling(partition_allowed, cm, tree_type,
-                                        mi_row, mi_col, ss_x, ss_y, bsize,
-                                        &pc_tree->chroma_ref_info);
+  init_allowed_partitions_for_signaling(
+      partition_allowed, cm, tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+      mi_row, mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
 
   part_search_state->forced_partition = get_forced_partition_type(
       cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
@@ -6464,7 +6509,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_SDP_CFL_LATENCY_FIX
   if (bsize == cm->sb_size && pc_tree)
     pc_tree->is_cfl_allowed_for_this_chroma = CFL_DISALLOWED_FOR_CHROMA;
-  ;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
   // Initialization of state variables used in partition search.
   init_partition_search_state_params(
@@ -6650,9 +6694,12 @@ BEGIN_PARTITION_SEARCH:
     const bool ss_x = cm->seq_params.subsampling_x;
     const bool ss_y = cm->seq_params.subsampling_y;
     bool partition_allowed[ALL_PARTITION_TYPES];
-    init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
-                                          mi_row, mi_col, ss_x, ss_y, bsize,
-                                          &pc_tree->chroma_ref_info);
+    init_allowed_partitions_for_signaling(
+        partition_allowed, cm, xd->tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+        mi_row, mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
     init_allowed_partitions(
         &part_search_state, &cpi->oxcf.part_cfg,
 #if CONFIG_BRU

@@ -397,6 +397,8 @@ set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 
 set_aom_config_var(CONFIG_BRU 1 "enable BRU update")
 set_aom_config_var(CONFIG_SDP_CFL_LATENCY_FIX 1 "Reduce SDP-CFL latency")
+set_aom_config_var(CONFIG_CHROMA_MERGE_LATENCY_FIX 1
+                   "Fix the latency issue in chroma merge region")
 
 # IST for sub-TU partitions from CWG-E151
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1

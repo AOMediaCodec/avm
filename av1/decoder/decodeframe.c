@@ -1007,7 +1007,20 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                    !is_interintra_mode(xd->mi[0])));
 #endif  // CONFIG_WARP_INTER_INTRA
 
-    if (is_interintra_pred(xd->mi[0])) {
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+    int is_intra_inter_allowed = 1;
+    if (mbmi->tree_type == SHARED_PART &&
+        mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+        mbmi->chroma_ref_info.offset_started && plane > 0) {
+      is_intra_inter_allowed = 0;
+    }
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+
+    if (is_interintra_pred(xd->mi[0])
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+        && is_intra_inter_allowed
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+    ) {
       BUFFER_SET ctx = { { xd->plane[0].dst.buf, xd->plane[1].dst.buf,
                            xd->plane[2].dst.buf },
                          { xd->plane[0].dst.stride, xd->plane[1].dst.stride,
@@ -1945,9 +1958,12 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       ptree_luma);
 
   bool partition_allowed[ALL_PARTITION_TYPES];
-  init_allowed_partitions_for_signaling(partition_allowed, cm, xd->tree_type,
-                                        mi_row, mi_col, ssx, ssy, bsize,
-                                        &ptree->chroma_ref_info);
+  init_allowed_partitions_for_signaling(
+      partition_allowed, cm, xd->tree_type,
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      (ptree->parent ? ptree->parent->region_type : INTRA_REGION),
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+      mi_row, mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
     return derived_partition;
