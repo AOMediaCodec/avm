@@ -655,6 +655,16 @@ static INLINE int16_t av1_mode_context_analyzer(
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
+#if CONFIG_OPFL_CTX_OPT
+static INLINE int get_optflow_context(const int mode) {
+  int opfl_ctx = mode;
+  opfl_ctx = opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
+  opfl_ctx -= NEAR_NEARMV_OPTFLOW;
+  opfl_ctx = (opfl_ctx > 0);
+  return opfl_ctx;
+}
+#endif  // CONFIG_OPFL_CTX_OPT
+
 static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
                                             FRAME_CONTEXT *ec_ctx,
                                             const int16_t mode_ctx, int idx) {

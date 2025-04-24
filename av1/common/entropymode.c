@@ -6058,7 +6058,7 @@ static const aom_cdf_prob
       { AOM_CDF2(19455) }
 #endif  // CONFIG_ENTROPY_PARA
     };
-#endif
+#endif  // CONFIG_OPFL_CTX_OPT
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
 

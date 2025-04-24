@@ -1224,8 +1224,7 @@ enum {
 
 #if CONFIG_OPFL_CTX_OPT
 #define OPFL_MODE_CONTEXTS 2
-#endif
-// Simplification for opfl flag context model
+#endif  // CONFIG_OPFL_CTX_OPT
 
 #if CONFIG_OPT_INTER_MODE_CTX
 #define INTER_MODE_CONTEXTS 5

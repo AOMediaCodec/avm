@@ -1206,14 +1206,22 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Inter");
 
 #if CONFIG_OPT_INTER_MODE_CTX
-  /* Optical flow MV refinement */
+/* Optical flow MV refinement */
+#if CONFIG_OPFL_CTX_OPT
+  cts_each_dim[0] = OPFL_MODE_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.use_optflow[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\ndefault_use_optflow_cdf"
+                     "[OPFL_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = INTER_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.use_optflow[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob\ndefault_use_optflow_cdf"
                      "[INTER_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-
+#endif  // CONFIG_OPFL_CTX_OPT
   /* ext_inter experiment */
   /* New compound mode */
 

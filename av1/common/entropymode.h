@@ -317,7 +317,7 @@ typedef struct frame_contexts {
   aom_cdf_prob use_optflow_cdf[OPFL_MODE_CONTEXTS][CDF_SIZE(2)];
 #else
   aom_cdf_prob use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)];
-#endif
+#endif  // CONFIG_OPFL_CTX_OPT
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   // The inter_compound_mode_is_joint_cdf is for coding whether the mode is

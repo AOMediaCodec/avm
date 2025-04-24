@@ -1177,11 +1177,7 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
     if (allow_affine || allow_translational)
 #if CONFIG_OPFL_CTX_OPT
     {
-      int16_t opfl_ctx = comp_idx_to_opfl_mode[mode];
-      opfl_ctx =
-          opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
-      opfl_ctx -= NEAR_NEARMV_OPTFLOW;
-      opfl_ctx = (opfl_ctx == 0) ? 0 : 1;
+      const int opfl_ctx = get_optflow_context(comp_idx_to_opfl_mode[mode]);
       use_optical_flow =
           aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[opfl_ctx], 2,
                           ACCT_INFO("use_optical_flow"));
@@ -1189,7 +1185,7 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
 #else
       use_optical_flow = aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx],
                                          2, ACCT_INFO("use_optical_flow"));
-#endif
+#endif  // CONFIG_OPFL_CTX_OPT
     mbmi->comp_refine_type = use_optical_flow
                                  ? COMP_REFINE_SUBBLK2P + allow_affine
                                  : COMP_REFINE_NONE;

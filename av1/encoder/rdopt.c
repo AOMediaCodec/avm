@@ -522,18 +522,15 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_OPFL_CTX_OPT
       {
-        int16_t opfl_ctx = comp_idx_to_opfl_mode[comp_mode_idx];
-        opfl_ctx =
-            opfl_ctx >= JOINT_NEWMV_OPTFLOW ? JOINT_NEWMV_OPTFLOW : opfl_ctx;
-        opfl_ctx -= NEAR_NEARMV_OPTFLOW;
-        opfl_ctx = (opfl_ctx == 0) ? 0 : 1;
+        const int opfl_ctx =
+            get_optflow_context(comp_idx_to_opfl_mode[comp_mode_idx]);
         use_optical_flow_cost +=
             mode_costs->use_optflow_cost[opfl_ctx][use_optical_flow];
       }
 #else
       use_optical_flow_cost +=
           mode_costs->use_optflow_cost[mode_context][use_optical_flow];
-#endif
+#endif  // CONFIG_OPFL_CTX_OPT
     }
 
 #if CONFIG_OPT_INTER_MODE_CTX

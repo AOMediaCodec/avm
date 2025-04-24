@@ -651,7 +651,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
                                fc->use_optflow_cdf[i], NULL);
     }
-#endif
+#endif  // CONFIG_OPFL_CTX_OPT
 
     for (j = 0; j < NUM_MV_PREC_MPP_CONTEXT; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->pb_block_mv_mpp_flag_costs[j],
