@@ -897,13 +897,13 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   av1_cost_tokens_from_cdf(mode_costs->pc_wiener_restore_cost,
                            fc->pc_wiener_restore_cdf, NULL);
   // Bit cost for parameter to designate whether unit coeffs are merged.
+#if CONFIG_MERGE_PARA_CTX
+  mode_costs->merged_param_cost[0] = av1_cost_literal(1);
+  mode_costs->merged_param_cost[1] = av1_cost_literal(1);
+#else
   av1_cost_tokens_from_cdf(mode_costs->merged_param_cost, fc->merged_param_cdf,
                            NULL);
-    // Can set the cost here to av1_cost_literal(1), to avoid changes in other places
-#if CONFIG_MERGE_PARA_CTX
-    //mode_costs->merged_param_cost[0] = av1_cost_literal(1);
-    //mode_costs->merged_param_cost[1] = av1_cost_literal(1);
-#endif
+#endif // !CONFIG_MERGE_PARA_CTX
 }
 
 // Values are now correlated to quantizer.
