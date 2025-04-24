@@ -1046,8 +1046,10 @@ typedef struct {
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+#if !CONFIG_PLT_DIR_CTX
   //! palette_direction_cost
   int palette_direction_cost[2];
+#endif  // !CONFIG_PLT_DIR_CTX
   //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
   //! palette_uv_row_flag_cost

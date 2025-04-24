@@ -55,7 +55,9 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   int identity_row_flag = 0;
   const int axis1_limit = direction ? rows : cols;
   const int axis2_limit = direction ? cols : rows;
+#if !CONFIG_PLT_DIR_CTX
   PaletteDirectionCost direction_cost = param->direction_cost;
+#endif  // !CONFIG_PLT_DIR_CTX
   if (calc_rate && plane_block_width < 64 && plane_block_height < 64) {
 #if CONFIG_PLT_DIR_CTX
     this_rate += av1_cost_literal(1);  // direction_cost
@@ -357,8 +359,8 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
 #if CONFIG_PALETTE_LINE_COPY
 #if !CONFIG_PLT_DIR_CTX
   params->direction_cdf = xd->tile_ctx->palette_direction_cdf;
-#endif  // !CONFIG_PLT_DIR_CTX
   params->direction_cost = &x->mode_costs.palette_direction_cost;
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_LINE_COPY
   params->identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                    : xd->tile_ctx->identity_row_cdf_y;
