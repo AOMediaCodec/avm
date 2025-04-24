@@ -146,11 +146,11 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
-set_aom_config_var(CONFIG_PLT_DIR_CTX 0
-                   "enables data collection for ParaKit training.")
+set_aom_config_var(CONFIG_PLT_DIR_CTX 1
+                   "by-pass coding PLT dir.")
                    
-set_aom_config_var(CONFIG_MERGE_PARA_CTX 0
-                   "enables data collection for ParaKit training.")
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
+                   "by-pass coding merge para.")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
