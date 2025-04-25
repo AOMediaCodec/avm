@@ -3,7 +3,7 @@
 
 #if CONFIG_GDF
 
-void gdf_open_info(AV1_COMMON *cm) {
+void init_gdf(AV1_COMMON *cm) {
   const int rec_height = cm->cur_frame->buf.y_height;
   const int rec_width = cm->cur_frame->buf.y_width;
 
@@ -22,15 +22,18 @@ void gdf_open_info(AV1_COMMON *cm) {
   cm->gdf_info.gdf_unit_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
   cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_TGT_STRIDE_MARGIN;
-  cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
-      32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
 
   for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
     cm->gdf_info.gdf_block_flags[blk_idx] = 1;
   }
 }
 
-void gdf_close_info(AV1_COMMON *cm) { aom_free(cm->gdf_info.err_ptr); }
+void alloc_gdf_buffers(AV1_COMMON *cm) {
+  cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
+      32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
+}
+
+void free_gdf_buffers(AV1_COMMON *cm) { aom_free(cm->gdf_info.err_ptr); }
 
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   printf("%s[%3d]: gdf_info = [ flag = %d ", info, poc, cm->gdf_info.gdf_mode);

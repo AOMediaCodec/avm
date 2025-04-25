@@ -2477,7 +2477,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 }
 
 void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
-  gdf_open_info(cm);
+  init_gdf(cm);
+  alloc_gdf_buffers(cm);
   av1_gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
@@ -2485,7 +2486,7 @@ void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   if (cm->gdf_info.gdf_mode) {
     gdf_filter_frame(cm);
   }
-  gdf_close_info(cm);
+  free_gdf_buffers(cm);
 }
 #endif  // CONFIG_GDF
 

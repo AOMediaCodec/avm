@@ -309,8 +309,9 @@ static const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM
   },
 };
 // clang-format on
-void gdf_open_info(AV1_COMMON *cm);
-void gdf_close_info(AV1_COMMON *cm);
+void init_gdf(AV1_COMMON *cm);
+void alloc_gdf_buffers(AV1_COMMON *cm);
+void free_gdf_buffers(AV1_COMMON *cm);
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc);
 void gdf_copy_guided_frame(AV1_COMMON *cm);
 void gdf_free_guided_frame(AV1_COMMON *cm);

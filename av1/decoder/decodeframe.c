@@ -3710,9 +3710,10 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  gdf_open_info(cm);
+  init_gdf(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode) {
+    alloc_gdf_buffers(cm);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
     }
@@ -8812,7 +8813,7 @@ void av1_gdf_frame_dec(AV1_COMMON *cm) {
   if (cm->gdf_info.gdf_mode) {
     gdf_filter_frame(cm);
   }
-  gdf_close_info(cm);
+  free_gdf_buffers(cm);
 }
 #endif  // CONFIG_GDF
 
