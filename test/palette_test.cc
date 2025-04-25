@@ -3,6 +3,9 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cassert>
+
+#include "config/aom_config.h"
+
 #define PALETTE_MAX_SIZE 8
 #define NUM_PALETTE_NEIGHBORS 3
 #define MAX_COLOR_CONTEXT_HASH 8
@@ -107,14 +110,14 @@ int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
   return color_index_ctx;
 }
 
-int new_av1_get_palette_color_index_context(
-    const uint8_t *color_map, int stride, int r, int c, int palette_size,
-    uint8_t *color_order,
-    int *color_idx
-    // #if CONFIG_PALETTE_IMPROVEMENTS
-    ,
-    int row_flag, int prev_row_flag
-    // #endif  // CONFIG_PALETTE_IMPROVEMENTS
+int new_av1_get_palette_color_index_context(const uint8_t *color_map,
+                                            int stride, int r, int c,
+                                            int palette_size,
+                                            uint8_t *color_order, int *color_idx
+#if CONFIG_PALETTE_IMPROVEMENTS
+                                            ,
+                                            int row_flag, int prev_row_flag
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 ) {
   assert(palette_size <= PALETTE_MAX_SIZE);
   assert(r > 0 || c > 0);
@@ -122,23 +125,23 @@ int new_av1_get_palette_color_index_context(
 
   int color_index_ctx =
       derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
-  // #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS
   // Special context value for the first (and only) index of an identity row
   // and when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
-  // #endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   return color_index_ctx;
 }
 
-int old_av1_get_palette_color_index_context(
-    const uint8_t *color_map, int stride, int r, int c, int palette_size,
-    uint8_t *color_order,
-    int *color_idx
-    // #if CONFIG_PALETTE_IMPROVEMENTS
-    ,
-    int row_flag, int prev_row_flag
-    // #endif  // CONFIG_PALETTE_IMPROVEMENTS
+int old_av1_get_palette_color_index_context(const uint8_t *color_map,
+                                            int stride, int r, int c,
+                                            int palette_size,
+                                            uint8_t *color_order, int *color_idx
+#if CONFIG_PALETTE_IMPROVEMENTS
+                                            ,
+                                            int row_flag, int prev_row_flag
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 ) {
   assert(palette_size <= PALETTE_MAX_SIZE);
   assert(r > 0 || c > 0);
@@ -200,12 +203,12 @@ int old_av1_get_palette_color_index_context(
   if (color_idx != NULL)
     *color_idx = inverse_color_order[color_map[r * stride + c]];
 
-  // #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS
   // Special context value for the first (and only) index of an identity row and
   // when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-  // #endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
   // Get hash value of context.
   int color_index_ctx_hash = 0;
