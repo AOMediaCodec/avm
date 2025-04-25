@@ -31,6 +31,9 @@
 #include <fenv.h>
 #endif
 
+typedef std::unique_ptr<TfLiteDelegate, decltype(&TfLiteXNNPackDelegateDelete)>
+    TfLiteDelegateType;
+
 struct Context {
   std::unique_ptr<tflite::Interpreter> model_128X128;
   std::unique_ptr<tflite::Interpreter> model_64X64;
@@ -41,14 +44,13 @@ struct Context {
   std::unique_ptr<tflite::Interpreter> model_inter_16x16;
   std::unique_ptr<tflite::Interpreter> model_inter_8x8;
 
-  std::vector<std::unique_ptr<TfLiteDelegate>> to_delete;
+  std::vector<TfLiteDelegateType> to_delete;
 };
 
 std::mutex tfliteMutex;
 
 static std::unique_ptr<tflite::Interpreter> create_interpreter(
-    unsigned char *model_def,
-    std::vector<std::unique_ptr<TfLiteDelegate>> &to_delete) {
+    unsigned char *model_def, std::vector<TfLiteDelegateType> &to_delete) {
   std::lock_guard<std::mutex> lock(tfliteMutex);
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
@@ -56,8 +58,9 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = AOMMAX(num_threads, 1);
-  std::unique_ptr<TfLiteDelegate> xnnpack_delegate(
-      TfLiteXNNPackDelegateCreate(&xnnpack_options));
+  TfLiteDelegateType xnnpack_delegate(
+      TfLiteXNNPackDelegateCreate(&xnnpack_options),
+      &TfLiteXNNPackDelegateDelete);
 
   tflite::MutableOpResolver resolver;
   RegisterSelectedOps(&resolver);
