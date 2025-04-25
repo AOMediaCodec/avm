@@ -4281,12 +4281,10 @@ static AOM_INLINE void encode_restoration_mode(
 
 static AOM_INLINE void write_wiener_filter(
 #if !CONFIG_MERGE_PARA_CTX
-                                           MACROBLOCKD *xd,
+    MACROBLOCKD *xd,
 #endif  // !CONFIG_MERGE_PARA_CTX
-                                           int wiener_win,
-                                           const WienerInfo *wiener_info,
-                                           WienerInfoBank *bank,
-                                           aom_writer *wb) {
+    int wiener_win, const WienerInfo *wiener_info, WienerInfoBank *bank,
+    aom_writer *wb) {
   const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
   const int exact_match = (equal_ref >= 0);
 #if CONFIG_MERGE_PARA_CTX
@@ -4351,10 +4349,11 @@ static AOM_INLINE void write_wiener_filter(
   return;
 }
 
-static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
-                                            const SgrprojInfo *sgrproj_info,
-                                            SgrprojInfoBank *bank,
-                                            aom_writer *wb) {
+static AOM_INLINE void write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+    MACROBLOCKD *xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+    const SgrprojInfo *sgrproj_info, SgrprojInfoBank *bank, aom_writer *wb) {
   const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
   const int exact_match = (equal_ref >= 0);
 #if CONFIG_MERGE_PARA_CTX
@@ -4415,6 +4414,7 @@ static int check_and_write_merge_info(
                              wiener_class_id, ref_for_class);
   const int exact_match = (is_equal >= 0);
 #if CONFIG_MERGE_PARA_CTX
+  (void)xd;
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
@@ -4447,6 +4447,7 @@ static int check_and_write_exact_match(
       check_wienerns_eq(wienerns_info, ref_wienerns_info,
                         nsfilter_params->ncoeffs, wiener_class_id);
 #if CONFIG_MERGE_PARA_CTX
+  (void)xd;
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
@@ -4740,14 +4741,16 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
       case RESTORE_WIENER:
         write_wiener_filter(
 #if !CONFIG_MERGE_PARA_CTX
-                          xd,
+            xd,
 #endif  // !CONFIG_MERGE_PARA_CTX
-                            wiener_win, &rui->wiener_info,
-                            &xd->wiener_info[plane], w);
+            wiener_win, &rui->wiener_info, &xd->wiener_info[plane], w);
         break;
       case RESTORE_SGRPROJ:
-        write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
-                             w);
+        write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+            xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+            &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
         break;
       case RESTORE_WIENER_NONSEP:
         write_wienerns_filter(xd, plane, rsi, &rui->wienerns_info,
@@ -4767,10 +4770,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     if (unit_rtype != RESTORE_NONE) {
       write_wiener_filter(
 #if !CONFIG_MERGE_PARA_CTX
-                          xd,
+          xd,
 #endif  // !CONFIG_MERGE_PARA_CTX
-                          wiener_win, &rui->wiener_info,
-                          &xd->wiener_info[plane], w);
+          wiener_win, &rui->wiener_info, &xd->wiener_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
@@ -4779,7 +4781,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
+      write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+          xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+          &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
