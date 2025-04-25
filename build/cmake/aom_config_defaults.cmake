@@ -153,9 +153,9 @@ set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
 set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 7
                    "FG8-Test19, Test20, Test21")
 
-set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding.")
+set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding. FG8-Test24")
 
-set_aom_config_var(CONFIG_MERGE_PARA_CTX 1 "by-pass merge para coding.")
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 1 "by-pass merge para coding. FG8-Test26")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
