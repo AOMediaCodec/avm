@@ -3126,7 +3126,7 @@ static AOM_INLINE void read_wiener_filter(
 #else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
     if (aom_read_literal(rb, 1, ACCT_INFO("bank_size"))) break;
@@ -3213,7 +3213,7 @@ static AOM_INLINE void read_sgrproj_filter(
 #else
   const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
                                           ACCT_INFO("exact_match"));
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
     if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
@@ -3376,7 +3376,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
     skip_filter_read_for_class[c_id] = exact_match;
   }
   const WienernsFilterParameters *nsfilter_params =
@@ -3465,7 +3465,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #else
     const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
                                             2, ACCT_INFO("exact_match"));
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
     int ref;
     for (ref = 0; ref < bank->bank_size_for_class[c_id] - 1; ++ref) {
       if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;

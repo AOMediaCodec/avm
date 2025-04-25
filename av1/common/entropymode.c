@@ -7887,6 +7887,7 @@ static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = {
 };
 #endif
 
+#if !CONFIG_MERGE_PARA_CTX
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(14319), 7
@@ -7895,7 +7896,7 @@ static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = {
 static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     16855) };
 #endif  // CONFIG_ENTROPY_PARA
-
+#endif  // !CONFIG_MERGE_PARA_CTX
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF4(8192, 16384, 24576), 0
@@ -8549,7 +8550,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->wienerns_uv_sym_cdf, default_wienerns_uv_sym_cdf);
   av1_copy(fc->wienerns_4part_cdf, default_wienerns_4part_cdf);
   av1_copy(fc->pc_wiener_restore_cdf, default_pc_wiener_restore_cdf);
+#if !CONFIG_MERGE_PARA_CTX
   av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
+#endif  // CONFIG_MERGE_PARA_CTX
 #if CONFIG_AIMC
   av1_copy(fc->y_mode_set_cdf, default_y_mode_set_cdf);
   av1_copy(fc->y_mode_idx_cdf_0, default_y_first_mode_cdf);
@@ -9048,8 +9051,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->wienerns_4part_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf,
                          ctx_tr->pc_wiener_restore_cdf, 2);
+#if !CONFIG_MERGE_PARA_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf,
                          2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf,
                          FSC_MODES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf,
@@ -9478,7 +9483,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->wienerns_uv_sym_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_4part_cdf, 4);
   SHIFT_CDF(ctx_ptr->pc_wiener_restore_cdf, 2);
+#if !CONFIG_MERGE_PARA_CTX
   SHIFT_CDF(ctx_ptr->merged_param_cdf, 2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   SHIFT_CDF(ctx_ptr->fsc_mode_cdf, FSC_MODES);
   SHIFT_CDF(ctx_ptr->mrl_index_cdf, MRL_LINE_NUMBER);
 
@@ -9937,7 +9944,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
   AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf, ctx_tr->pc_wiener_restore_cdf,
               2);
+#if !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
 

@@ -4279,7 +4279,11 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
-static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
+static AOM_INLINE void write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+                                           MACROBLOCKD *xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+                                           int wiener_win,
                                            const WienerInfo *wiener_info,
                                            WienerInfoBank *bank,
                                            aom_writer *wb) {
@@ -4289,7 +4293,7 @@ static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   const int ref = wiener_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4357,7 +4361,7 @@ static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   const int ref = sgrproj_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4414,7 +4418,7 @@ static int check_and_write_merge_info(
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   if (!exact_match) {
     ref_for_class[wiener_class_id] =
         wienerns_info->bank_ref_for_class[wiener_class_id];
@@ -4446,7 +4450,7 @@ static int check_and_write_exact_match(
   aom_write_bit(wb, exact_match);
 #else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-#endif
+#endif  // CONFIG_MERGE_PARA_CTX
   return exact_match;
 }
 
@@ -4734,7 +4738,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
     switch (unit_rtype) {
       case RESTORE_WIENER:
-        write_wiener_filter(xd, wiener_win, &rui->wiener_info,
+        write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+                          xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+                            wiener_win, &rui->wiener_info,
                             &xd->wiener_info[plane], w);
         break;
       case RESTORE_SGRPROJ:
@@ -4757,7 +4765,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_wiener_filter(xd, wiener_win, &rui->wiener_info,
+      write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+                          xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+                          wiener_win, &rui->wiener_info,
                           &xd->wiener_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {

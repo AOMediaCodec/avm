@@ -544,7 +544,9 @@ typedef struct frame_contexts {
   aom_cdf_prob wienerns_uv_sym_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
   aom_cdf_prob pc_wiener_restore_cdf[CDF_SIZE(2)];
+#if !CONFIG_MERGE_PARA_CTX
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
+#endif  // !CONFIG_MERGE_PARA_CTX
 #if !CONFIG_AIMC
   aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
