@@ -118,6 +118,7 @@ int new_av1_get_palette_color_index_context(
 ) {
   assert(palette_size <= PALETTE_MAX_SIZE);
   assert(r > 0 || c > 0);
+  (void)palette_size;
 
   int color_index_ctx =
       derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
@@ -226,8 +227,6 @@ int old_av1_get_palette_color_index_context(
 TEST(PaletteContextTest, TestTopAndLeftNeighbor) {
   uint8_t color_map[3];
   uint8_t color_order[8];
-  int old_color_idx;
-  int new_color_idx;
   const int stride = 1;
   const int r = 1;
   const int c = 1;
@@ -253,8 +252,6 @@ TEST(PaletteContextTest, TestTopAndLeftNeighbor) {
 TEST(PaletteContextTest, TestLeftNeighbor) {
   uint8_t color_map[3];
   uint8_t color_order[8];
-  int old_color_idx;
-  int new_color_idx;
   const int stride = 1;
   const int r = 0;
   const int c = 1;
@@ -280,8 +277,6 @@ TEST(PaletteContextTest, TestLeftNeighbor) {
 TEST(PaletteContextTest, TestTopNeighbor) {
   uint8_t color_map[3];
   uint8_t color_order[8];
-  int old_color_idx;
-  int new_color_idx;
   const int stride = 1;
   const int r = 1;
   const int c = 0;
