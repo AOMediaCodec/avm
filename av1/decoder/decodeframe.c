@@ -4812,7 +4812,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-  (void)width;
+    (void)width;
 #endif
   return 1;
 }
