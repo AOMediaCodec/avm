@@ -3710,6 +3710,7 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
+  if (av1_superres_scaled(cm)) return;
   init_gdf(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode) {
@@ -8937,7 +8938,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     const int do_superres = av1_superres_scaled(cm);
 #if CONFIG_GDF
-    const int do_gdf = cm->gdf_info.gdf_mode;
+    const int do_gdf = !av1_superres_scaled(cm) && cm->gdf_info.gdf_mode;
 #endif  // CONFIG_GDF
     const int optimized_loop_restoration =
 #if CONFIG_GDF
