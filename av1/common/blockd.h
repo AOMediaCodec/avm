@@ -413,7 +413,7 @@ typedef struct CHROMA_REF_INFO {
   BLOCK_SIZE bsize_base;
 } CHROMA_REF_INFO;
 
-#define MAX_TX_PARTITIONS 4
+#define MAX_TX_PARTITIONS 5
 
 #if CONFIG_NEW_TX_PARTITION
 // txfm block position information inside a coding block.

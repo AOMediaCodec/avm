@@ -101,7 +101,7 @@ static AOM_INLINE int inter_tx_partition_cost(
 #endif  // CONFIG_IMPROVEIDTX
     } else if (allow_horz || allow_vert) {
       int has_first_split = 0;
-      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+      if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       if (txsize_group_h_or_v) {
@@ -205,7 +205,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
 #endif  // CONFIG_IMPROVEIDTX
     } else if (allow_horz || allow_vert) {
       int has_first_split = 0;
-      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+      if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       if (txsize_group_h_or_v) {

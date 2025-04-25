@@ -1710,7 +1710,7 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
 
           const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
           TXB_POS_INFO txb_pos;
-          TX_SIZE sub_txs[4];
+          TX_SIZE sub_txs[MAX_TX_PARTITIONS];
           get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
                                  &txb_pos, sub_txs);
           for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {

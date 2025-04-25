@@ -3962,22 +3962,33 @@ static void select_tx_partition_type(
       }
     }
 
-    if ((type == TX_PARTITION_HORZ_M &&
+    if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition == TX_PARTITION_VERT) ||
-        (type == TX_PARTITION_VERT_M &&
+        (type == TX_PARTITION_VERT4 &&
          best_tx_partition == TX_PARTITION_HORZ)) {
       continue;
     }
 
     if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
-      if ((type == TX_PARTITION_HORZ_M &&
+      if ((type == TX_PARTITION_HORZ4 &&
            best_tx_partition != TX_PARTITION_HORZ) ||
-          (type == TX_PARTITION_VERT_M &&
+          (type == TX_PARTITION_VERT4 &&
            best_tx_partition != TX_PARTITION_VERT)) {
         continue;
       }
 
-      if (type >= TX_PARTITION_HORZ_M && !is_rect) {
+      if (cpi->sf.tx_sf.restrict_tx_partition_type_search > 1) {
+        if ((type == TX_PARTITION_HORZ5 &&
+             best_tx_partition != TX_PARTITION_HORZ &&
+             best_tx_partition != TX_PARTITION_HORZ4) ||
+            (type == TX_PARTITION_VERT5 &&
+             best_tx_partition != TX_PARTITION_VERT &&
+             best_tx_partition != TX_PARTITION_VERT4)) {
+          continue;
+        }
+      }
+
+      if (type >= TX_PARTITION_HORZ4 && !is_rect) {
         continue;
       }
     }
@@ -4368,25 +4379,35 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     }
 #endif
     if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
-        txsize_sqr_up_map[cur_tx_size] == TX_64X64)
+        txsize_sqr_up_map[cur_tx_size] == TX_64X64) {
       continue;
+    }
 
-    if ((type == TX_PARTITION_HORZ_M &&
+    if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition_type == TX_PARTITION_VERT) ||
-        (type == TX_PARTITION_VERT_M &&
+        (type == TX_PARTITION_VERT4 &&
          best_tx_partition_type == TX_PARTITION_HORZ)) {
       continue;
     }
 
     if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
-      if ((type == TX_PARTITION_HORZ_M &&
+      if ((type == TX_PARTITION_HORZ4 &&
            best_tx_partition_type != TX_PARTITION_HORZ) ||
-          (type == TX_PARTITION_VERT_M &&
+          (type == TX_PARTITION_VERT4 &&
            best_tx_partition_type != TX_PARTITION_VERT)) {
         continue;
       }
 
-      if (type >= TX_PARTITION_HORZ_M && !is_rect) {
+      if ((type == TX_PARTITION_HORZ5 &&
+           best_tx_partition_type != TX_PARTITION_HORZ &&
+           best_tx_partition_type != TX_PARTITION_HORZ4) ||
+          (type == TX_PARTITION_VERT5 &&
+           best_tx_partition_type != TX_PARTITION_VERT &&
+           best_tx_partition_type != TX_PARTITION_VERT4)) {
+        continue;
+      }
+
+      if (type >= TX_PARTITION_HORZ4 && !is_rect) {
         continue;
       }
     }
@@ -5506,7 +5527,6 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
         for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
           TX_SIZE sub_tx_size = mbmi->sub_txs[txb_idx];
           mbmi->txb_idx = txb_idx;
-
           const uint8_t txw_unit = tx_size_wide_unit[sub_tx_size];
           const uint8_t txh_unit = tx_size_high_unit[sub_tx_size];
           const int step = txw_unit * txh_unit;

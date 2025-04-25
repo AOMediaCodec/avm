@@ -388,14 +388,14 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
 
-    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M) {
+    if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
 #if CONFIG_LF_SUB_PU
       if (is_tx_m_partition != NULL) {
         *is_tx_m_partition =
             (edge_dir == VERT_EDGE && mi_size_wide[mbmi->sb_type[0]] == 4 &&
-             partition == TX_PARTITION_VERT_M) ||
+             partition == TX_PARTITION_VERT5) ||
             (edge_dir == HORZ_EDGE && mi_size_high[mbmi->sb_type[0]] == 4 &&
-             partition == TX_PARTITION_HORZ_M);
+             partition == TX_PARTITION_HORZ5);
       }
 #endif  // CONFIG_LF_SUB_PU
       TXB_POS_INFO txb_pos;
@@ -423,6 +423,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
           *tu_edge = true;
         }
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+
         if (mi_blk_row >= txb_pos.row_offset[txb_idx] &&
             mi_blk_row < txb_pos.row_offset[txb_idx] + txh &&
             mi_blk_col >= txb_pos.col_offset[txb_idx] &&

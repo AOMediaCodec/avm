@@ -909,7 +909,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->use_largest_tx_size_for_small_bsize = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_NEW_TX_PARTITION
-  tx_sf->restrict_tx_partition_type_search = false;
+  tx_sf->restrict_tx_partition_type_search = 0;
   tx_sf->prune_inter_tx_part_rd_eval = false;
 #endif  // CONFIG_NEW_TX_PARTITION
 }
@@ -1417,15 +1417,26 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;
-#if CONFIG_NEW_TX_PARTITION
-        sf->tx_sf.restrict_tx_partition_type_search = true;
-#endif  // CONFIG_NEW_TX_PARTITION
       }
     }
   }
 
   if (cpi->oxcf.mode == GOOD && speed >= 0) {
     const int qindex_thresh = 135 + qindex_offset;
+#if CONFIG_NEW_TX_PARTITION
+    const int qindex_thresh2 = 113 + qindex_offset;
+    if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+      if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
+                                               ? qindex_thresh2
+                                               : qindex_thresh)) {
+        sf->tx_sf.restrict_tx_partition_type_search = 2;
+      }
+    } else {
+      if (cm->quant_params.base_qindex <= qindex_thresh2) {
+        sf->tx_sf.restrict_tx_partition_type_search = 1;
+      }
+    }
+#endif  // CONFIG_NEW_TX_PARTITION
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;

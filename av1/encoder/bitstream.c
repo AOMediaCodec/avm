@@ -445,8 +445,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
                          TX_PARTITION_TYPE_NUM);
       } else if (allow_horz || allow_vert) {
         int has_first_split = 0;
-        if (partition == TX_PARTITION_VERT_M ||
-            partition == TX_PARTITION_HORZ_M)
+        if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
           has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
         if (txsize_group_h_or_v) {
