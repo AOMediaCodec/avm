@@ -146,7 +146,6 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
-
 set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
 set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
@@ -154,12 +153,9 @@ set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
 set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 7
                    "FG8-Test19, Test20, Test21")
 
-set_aom_config_var(CONFIG_PLT_DIR_CTX 1
-                   "by-pass PLT dir coding.")
-                   
-set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
-                   "by-pass merge para coding.")
+set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding.")
 
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 1 "by-pass merge para coding.")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_IMPROVEIDTX 1

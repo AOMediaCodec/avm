@@ -424,7 +424,7 @@ typedef struct frame_contexts {
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
 #if !CONFIG_PLT_DIR_CTX
   aom_cdf_prob palette_direction_cdf[CDF_SIZE(2)];
-#endif // !CONFIG_PLT_DIR_CTX
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
