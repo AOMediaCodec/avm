@@ -906,7 +906,12 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     CONV_BUF_TYPE *tmp_conv_dst) {
   av1_setup_tip_motion_field(cm, 0);
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
-                      dec_calc_subpel_params_and_extend);
+                      dec_calc_subpel_params_and_extend
+#if CONFIG_IMPROVE_REFINED_MV
+                      ,
+                      1 /* copy_refined_mvs */
+#endif                  // CONFIG_IMPROVE_REFINED_MV
+  );
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (cm->seq_params.enable_tip_explicit_qp == 0) {
     const int avg_u_ac_delta_q =
@@ -1499,8 +1504,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #if !CONFIG_TX_PARTITION_CTX
   const int is_rect = is_rect_tx(max_tx_size);
 #endif  // !CONFIG_TX_PARTITION_CTX
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
   TX_PARTITION_TYPE partition = 0;
 #if CONFIG_IMPROVEIDTX
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
@@ -1865,6 +1870,9 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   if (!frame_is_intra_only(cm) &&
       cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     MB_MODE_INFO *const mi = xd->mi[0];
+#if CONFIG_IMPROVE_REFINED_MV
+    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
+#else
     if (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
@@ -1874,6 +1882,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
         || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV
     ) {
+#endif  // CONFIG_IMPROVE_REFINED_MV
       const int bw = mi_size_wide[bsize];
       const int bh = mi_size_high[bsize];
       const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
@@ -2767,6 +2776,9 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   seg->update_map = 0;
   seg->update_data = 0;
   seg->temporal_update = 0;
+#if CONFIG_EXT_SEG
+  seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 
   seg->enabled = aom_rb_read_bit(rb);
   if (!seg->enabled) {
@@ -2779,6 +2791,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     segfeatures_copy(&cm->cur_frame->seg, seg);
     return;
   }
+
   if (cm->seg.enabled && cm->prev_frame &&
       (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
       (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
@@ -2809,8 +2822,13 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   // Segmentation data update
   if (seg->update_data) {
     av1_clearall_segfeatures(seg);
-
-    for (int i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (int i = 0; i < max_seg_num; i++) {
       for (int j = 0; j < SEG_LVL_MAX; j++) {
         int data = 0;
         const int feature_enabled = aom_rb_read_bit(rb);
@@ -6864,6 +6882,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  seq_params->enable_ext_seg = aom_rb_read_bit(rb);
+#endif  // CONFIG_EXT_SEG
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -8505,6 +8526,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   else
     features->enable_bawp = 0;
 #endif  // CONFIG_BAWP
+#if CONFIG_MORPH_PRED
+  features->enable_intra_bawp = seq_params->enable_bawp;
+#endif  // CONFIG_MORPH_PRED
 
   features->enable_cwp = seq_params->enable_cwp;
   features->allow_warpmv_mode = 0;
@@ -8541,6 +8565,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     av1_set_single_tile_decoding_mode(cm);
   }
 #endif  // EXT_TILE_DEBUG
+
+#if CONFIG_EXT_SEG
+  features->enable_ext_seg = seq_params->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+
   return 0;
 }
 
@@ -8589,6 +8618,9 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 #endif  // CONFIG_TIP_LD
   ) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#if CONFIG_IMPROVE_REFINED_MV
+      xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
+#endif  // CONFIG_IMPROVE_REFINED_MV
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
 #if !CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
@@ -8607,7 +8639,9 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
 #endif  // CONFIG_CCSO_IMPROVE
+#if !CONFIG_IMPROVE_REFINED_MV
     av1_copy_tip_frame_tmvp_mvs(cm);
+#endif  // !CONFIG_IMPROVE_REFINED_MV
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {

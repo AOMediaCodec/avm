@@ -2986,8 +2986,12 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
       shell_cls_offset |=
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+          aom_read_bit(r, ACCT_INFO("offset"))
+#else
           aom_read_symbol(r, ctx->shell_offset_other_class_cdf[0][i], 2,
                           ACCT_INFO("offset"))
+#endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
           << i;
     }
   }
@@ -3882,14 +3886,14 @@ static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                const int skip_txfm
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 ) {
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    return 1;
-  }
 #if CONFIG_DISABLE_4X4_INTER
   if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
     return 0;
   }
 #endif
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    return 1;
+  }
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int is_inter =

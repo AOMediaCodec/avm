@@ -51,11 +51,11 @@ extern "C" {
 #define SUBBLK_REF_EXT_LINES 2
 #endif  // CONFIG_SUBBLK_REF_EXT
 
-#if CONFIG_16_FULL_SEARCH_DMVR
+#if CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 #define DMVR_SEARCH_EXT_LINES 2
 #else
 #define DMVR_SEARCH_EXT_LINES 0
-#endif  // CONFIG_16_FULL_SEARCH_DMVR
+#endif  // CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 
 #if CONFIG_WARP_PRECISION
 #define WARP_STATS_BUFFER_SIZE \
@@ -140,7 +140,11 @@ enum {
 // Cross-Component Sample Offset (CCSO)
 #define CCSO_BLK_SIZE 7
 #define CCSO_PADDING_SIZE 5
+#if CONFIG_CCSO_BO_REDUCE
+#define CCSO_BAND_NUM 64
+#else
 #define CCSO_BAND_NUM 128
+#endif  // CONFIG_CCSO_BO_REDUCE
 #define CCSO_NUM_COMPONENTS 3
 
 #define BUGFIX_AMVD_AMVR 1
@@ -161,7 +165,11 @@ enum {
 
 #if CONFIG_ENABLE_MHCCP
 #define MHCCP_CONTEXT_GROUP_SIZE 7
+#if MHCCP_BUFFER_4LINES
+#define LINE_NUM 2
+#else
 #define LINE_NUM 3
+#endif  // MHCCP_BUFFER_4LINES
 #define MHCCP_MODE_NUM 2
 #if CONFIG_E149_MHCCP_4PARA
 #define MHCCP_NUM_PARAMS 4
@@ -309,9 +317,11 @@ enum {
 #define IBC_BOTTOM_INTERP_BORDER 1
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_16_FULL_SEARCH_DMVR
+#if CONFIG_24_FULL_SEARCH_DMVR
+#define DMVR_SEARCH_NUM_NEIGHBORS 24
+#elif CONFIG_16_FULL_SEARCH_DMVR
 #define DMVR_SEARCH_NUM_NEIGHBORS 16
-#endif  // CONFIG_16_FULL_SEARCH_DMVR
+#endif  // CONFIG_24_FULL_SEARCH_DMVR
 
 #define PROFILE_BITS 3
 // The following three profiles are currently defined.
@@ -998,6 +1008,7 @@ enum {
 // Number of top model rd to store for pruning y modes in intra mode decision
 #define TOP_INTRA_MODEL_COUNT 6
 #define TOP_TX_PART_COUNT 4
+#define TOP_INTER_TX_PART_COUNT 8
 // Total number of luma intra prediction modes (include both directional and
 // non-directional modes)
 #define LUMA_MODE_COUNT 61

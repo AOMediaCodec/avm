@@ -107,8 +107,10 @@ typedef struct {
 
   aom_cdf_prob
       shell_offset_class2_cdf[3][CDF_SIZE(2)];  // 3 bins for truncated unary
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   aom_cdf_prob shell_offset_other_class_cdf[NUM_CTX_CLASS_OFFSETS]
                                            [SHELL_INT_OFFSET_BIT][CDF_SIZE(2)];
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   aom_cdf_prob col_mv_greater_flags_cdf[NUM_CTX_COL_MV_GTX][CDF_SIZE(2)];
   aom_cdf_prob col_mv_index_cdf[NUM_CTX_COL_MV_INDEX][CDF_SIZE(2)];
 #endif  // !CONFIG_VQ_MVD_CODING

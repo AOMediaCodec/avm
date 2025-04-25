@@ -393,8 +393,8 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
 #if !CONFIG_TX_PARTITION_CTX
     const int is_rect = is_rect_tx(max_tx_size);
 #endif  // !CONFIG_TX_PARTITION_CTX
-    const int allow_horz = allow_tx_horz_split(max_tx_size);
-    const int allow_vert = allow_tx_vert_split(max_tx_size);
+    const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+    const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
 #if CONFIG_TX_PARTITION_CTX
     const int bsize_group = size_to_tx_part_group_lookup[bsize];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
@@ -610,16 +610,16 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const int skip_txfm
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 ) {
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    assert(is_inter);
-    return;
-  }
 #if CONFIG_DISABLE_4X4_INTER
   if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
     assert(!is_inter);
     return;
   }
 #endif
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    assert(is_inter);
+    return;
+  }
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -5613,7 +5613,13 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // Segmentation data
   if (seg->update_data) {
-    for (i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (i = 0; i < max_seg_num; i++) {
       for (j = 0; j < SEG_LVL_MAX; j++) {
         const int active = segfeature_active(seg, i, j);
         aom_wb_write_bit(wb, active);
@@ -6359,6 +6365,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_REFRESH_FLAG
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#endif  // CONFIG_EXT_SEG
 }
 
 static AOM_INLINE void write_global_motion_params(

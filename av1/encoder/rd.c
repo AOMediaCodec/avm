@@ -1409,9 +1409,11 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
           for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
             av1_cost_tokens_from_cdf(pcost->v_dc_sign_cost[i][ctx],
                                      fc->v_dc_sign_cdf[i][ctx], NULL);
+#if !CONFIG_CTX_V_AC_SIGN
         for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i)
           av1_cost_tokens_from_cdf(pcost->v_ac_sign_cost[i],
                                    fc->v_ac_sign_cdf[i], NULL);
+#endif  // !CONFIG_CTX_V_AC_SIGN
       }
 #endif  // CONFIG_CONTEXT_DERIVATION
 

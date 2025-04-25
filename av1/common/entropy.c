@@ -57,7 +57,9 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->dc_sign_cdf, av1_default_dc_sign_cdfs[index]);
 #if CONFIG_CONTEXT_DERIVATION
   av1_copy(cm->fc->v_dc_sign_cdf, av1_default_v_dc_sign_cdfs[index]);
+#if !CONFIG_CTX_V_AC_SIGN
   av1_copy(cm->fc->v_ac_sign_cdf, av1_default_v_ac_sign_cdfs[index]);
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   av1_copy(cm->fc->coeff_base_lf_cdf,
            av1_default_coeff_base_lf_multi_cdfs[index]);
@@ -135,9 +137,11 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   }
   RESET_CDF_COUNTER(nmv->shell_offset_low_class_cdf, 2);
   RESET_CDF_COUNTER(nmv->shell_offset_class2_cdf, 2);
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   for (int i = 0; i < NUM_CTX_CLASS_OFFSETS; i++) {
     RESET_CDF_COUNTER(nmv->shell_offset_other_class_cdf[i], 2);
   }
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   RESET_CDF_COUNTER(nmv->col_mv_greater_flags_cdf, 2);
   RESET_CDF_COUNTER(nmv->col_mv_index_cdf, 2);
 #else
@@ -177,7 +181,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
   RESET_CDF_COUNTER(fc->v_dc_sign_cdf, 2);
+#if !CONFIG_CTX_V_AC_SIGN
   RESET_CDF_COUNTER(fc->v_ac_sign_cdf, 2);
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   RESET_CDF_COUNTER(fc->eob_flag_cdf16, EOB_MAX_SYMS - 6);
   RESET_CDF_COUNTER(fc->eob_flag_cdf32, EOB_MAX_SYMS - 5);

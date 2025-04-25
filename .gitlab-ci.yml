@@ -42,8 +42,8 @@ Style Check:
         exit_code=0
         clang-format -i --style=file $f -n -Werror || exit_code=$?
         if [ ${exit_code} -ne 0 ]; then
-          echo "Please format your code by following instructions here:"
-          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
+          echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
           exit 1
         fi
       done
@@ -54,8 +54,8 @@ Style Check:
         exit_code=0
         cmake-format --check $f || exit_code=$?
         if [ ${exit_code} -ne 0 ]; then
-          echo "Please format your code by following instructions here:"
-          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
+          echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
           exit 1
         fi
       done
@@ -259,11 +259,11 @@ Test Data Check:
     - cmake --build aom_build -j 2 || exit_code=$?
     - |
       if [ ${exit_code} -ne 0 ]; then
-        echo "You may reproduce the compile failure by following instructions here:"
-        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations"
-        echo "Using following values:"
-        echo "CMAKE_FLAGS = ${CMAKE_FLAGS}"
-        echo "EXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}"
+        echo -e "\e[31mYou may reproduce the compile failure by following instructions here:\e[0m"
+        echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations\e[0m"
+        echo -e "\e[31mUsing following values:\e[0m"
+        echo -e "\e[31mCMAKE_FLAGS = ${CMAKE_FLAGS}\e[0m"
+        echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"
         exit 1
       fi
     - cmake --build aom_build --target dist
@@ -936,8 +936,15 @@ Static Analyzer:
       scan_build() {
         scan-build --exclude third_party --exclude _deps --exclude abseil-cpp --exclude benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude fft2d --exclude flatbuffers --exclude flatbuffers-flatc --exclude fp16  --exclude FP16 --exclude FXdiv --exclude psimd  --exclude ml_dtypes --exclude neon2sse  --exclude protobuf --exclude pthreadpool --exclude pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK  --exclude googletest -o output-${ANALYZER_MODE} -analyzer-config mode=${ANALYZER_MODE} $*
       }
-    - scan_build cmake -B aom_build -GNinja -DCMAKE_BUILD_TYPE=Debug
-    - scan_build --status-bugs cmake --build aom_build
+    - |
+      scan_build cmake -B aom_build -GNinja -DCMAKE_BUILD_TYPE=Debug
+      exit_code=0
+      scan_build --status-bugs cmake --build aom_build || exit_code=$?
+      if [ ${exit_code} -ne 0 ]; then
+        echo -e "\e[31mstatic analyzer HTML warning report can be browsed by following this wiki page:\e[0m"
+        echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#viewing-static-analysis-report-from-gitlab-ci\e[0m"
+        exit 1
+      fi
   artifacts:
     expire_in: 2 weeks
     when: on_failure

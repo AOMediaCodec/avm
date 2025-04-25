@@ -751,6 +751,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
+  part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
@@ -906,6 +907,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_NEW_TX_PARTITION
   tx_sf->restrict_tx_partition_type_search = false;
+  tx_sf->prune_inter_tx_part_rd_eval = false;
 #endif  // CONFIG_NEW_TX_PARTITION
 }
 
@@ -1102,6 +1104,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       // on b2 testset. Disable this for now until we figure out how to avoid
       // the loss.
       // sf->part_sf.end_part_search_after_consec_failures = 1;
+      sf->part_sf.prune_part_4b_with_part_4a = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 4:
       sf->part_sf.prune_ext_part_with_part_rect = 1;
@@ -1424,6 +1427,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;
+#if CONFIG_NEW_TX_PARTITION
+      sf->tx_sf.prune_inter_tx_part_rd_eval = true;
+#endif
     }
   }
 

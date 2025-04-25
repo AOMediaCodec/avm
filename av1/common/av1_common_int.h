@@ -706,6 +706,10 @@ typedef struct SequenceHeader {
 #if CONFIG_REFRESH_FLAG
   uint8_t enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  uint8_t enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -917,6 +921,19 @@ typedef struct {
    */
   bool enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_MORPH_PRED
+  /*!
+   * Enables/disables intra BAWP (Morph Pred)
+   * In the current implementation, both |enable_bawp| and
+   * |enable_intra_bawp| are controlled by command line
+   * control flag |enable_bawp|.
+   * Becaseu both CONFIG_BAWP and CONFIG_MORPH_PRED share (almost) the same
+   * linear derivation process.
+   * Eventually CONFIG flags will be merged. It makes sense to use only
+   * one command line control flag for BAWP.
+   */
+  bool enable_intra_bawp;
+#endif  // CONFIG_MORPH_PRED
   /*!
    * Enables/disables compound weighted prediction
    */
@@ -967,6 +984,12 @@ typedef struct {
    */
   int tcq_mode;
 #endif  // CONFIG_TCQ
+#if CONFIG_EXT_SEG
+  /*!
+   * Enables/disables max # of segments to be 16
+   */
+  bool enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 } FeatureFlags;
 
 /*!
@@ -4119,28 +4142,55 @@ static INLINE int get_vert_or_horz_group(BLOCK_SIZE bsize) {
 
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 
-static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+static INLINE bool coding_block_disallows_tx_partitioning(BLOCK_SIZE bsize) {
+  if (bsize >= BLOCK_64X128 && bsize <= BLOCK_256X256) return true;
+  return false;
+}
+#endif  // CONFIG_TX_PARTITION_RESTRICT
+
+static INLINE int allow_tx_horz_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size];
   const int sub_txh = tx_size_high[max_tx_size] >> 1;
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_vert_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_vert_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size] >> 1;
   const int sub_txh = tx_size_high[max_tx_size];
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_horz4_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_horz4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size];
   const int sub_txh = tx_size_high[max_tx_size] >> 2;
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
   return sub_tx_size != TX_INVALID;
 }
 
-static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
+static INLINE int allow_tx_vert4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
   const int sub_txw = tx_size_wide[max_tx_size] >> 2;
   const int sub_txh = tx_size_high[max_tx_size];
   const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
@@ -4148,11 +4198,11 @@ static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
 }
 
 static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
-                                   TX_SIZE max_tx_size) {
-  const int allow_horz = allow_tx_horz_split(max_tx_size);
-  const int allow_vert = allow_tx_vert_split(max_tx_size);
-  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
-  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+                                   BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+  const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
+  const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(bsize, max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(bsize, max_tx_size);
 
   switch (partition) {
     case TX_PARTITION_NONE: return 1;
@@ -4819,6 +4869,33 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
+
+#if CONFIG_IMPROVE_REFINED_MV
+// Check if the optical flow MV refinement is enabled for a given block.
+static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+                                                    const MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                    const MB_MODE_INFO *mi,
+                                                    int plane,
+                                                    int tip_ref_frame) {
+  if (tip_ref_frame) {
+    return (opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                      mi) &&
+            plane == 0);
+  } else {
+    return (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                       mi));
+  }
+}
+#endif  // CONFIG_IMPROVE_REFINED_MV
+
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT

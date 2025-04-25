@@ -1469,10 +1469,12 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
               nmv_tr->shell_offset_low_class_cdf, 2);
   AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
               nmv_tr->shell_offset_class2_cdf, 2);
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   for (int i = 0; i < NUM_CTX_CLASS_OFFSETS; i++) {
     AVERAGE_CDF(nmv_left->shell_offset_other_class_cdf[i],
                 nmv_tr->shell_offset_other_class_cdf[i], 2);
   }
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   AVERAGE_CDF(nmv_left->col_mv_greater_flags_cdf,
               nmv_tr->col_mv_greater_flags_cdf, 2);
   AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf, 2);

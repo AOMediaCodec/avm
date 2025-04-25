@@ -264,6 +264,9 @@ struct av1_extracfg {
 #if CONFIG_REFRESH_FLAG
   int enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  int enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 };
 
 // Example subgop configs. Currently not used by default.
@@ -624,6 +627,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_REFRESH_FLAG
   1,    // enable_short_refresh_frame_flags
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  0,    // enable_ext_seg
+#endif  // CONFIG_EXT_SEG
 };
 
 struct aom_codec_alg_priv {
@@ -1118,6 +1124,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1260,6 +1269,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1594,6 +1606,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  tool_cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
   q_cfg->qm_minlevel = extra_cfg->qm_min;
@@ -4363,6 +4379,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.enable_short_refresh_frame_flags =
         arg_parse_uint_helper(&arg, err_string);
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ext_seg, argv,
+                              err_string)) {
+    extra_cfg.enable_ext_seg = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_EXT_SEG
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4693,7 +4714,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_REFRESH_FLAG
         1,
 #endif  // CONFIG_REFRESH_FLAG
-    },  // cfg
+#if CONFIG_EXT_SEG
+        0,  // enable_ext_seg
+#endif      // CONFIG_EXT_SEG
+    },      // cfg
 } };
 
 // This data structure and function are exported in aom/aomcx.h

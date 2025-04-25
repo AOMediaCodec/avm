@@ -146,6 +146,9 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
+
 # AV2 experiment flags.
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
@@ -191,6 +194,10 @@ set_aom_config_var(
   1
   "AV2 remove 2-stage search and early termination in neighbors for DMVR with 16-neighbor full search"
 )
+
+set_aom_config_var(CONFIG_24_FULL_SEARCH_DMVR 1
+                   "AV2 DMVR with 24-neighbor full search")
+
 set_aom_config_var(
   CONFIG_IDIF 1
   "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
@@ -322,6 +329,9 @@ set_aom_config_var(CONFIG_E191_OFS_PRED_RES_HANDLE 1
 
 set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")
 
+set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
+                   "Enable ext warp filter for chroma blocks with bw=4 or bh=4")
+
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
@@ -423,6 +433,9 @@ set_aom_config_var(
   CONFIG_MHCCP_SB_BOUNDARY 1
   "Using only 1 lines when MHCCP block at the superblock top boundary")
 
+set_aom_config_var(MHCCP_BUFFER_4LINES 1
+                   "Using 2 lines for the chroma reference region in MHCCP")
+
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 
@@ -469,6 +482,8 @@ set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
 
 set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
                    "Enable the redesign of warp modes signaling flow")
+set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
+                   "Derive palette context using three neighbors")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MOTION_MODE_RD_PRUNE 1
@@ -490,6 +505,8 @@ set_aom_config_var(CONFIG_IST_ANY_SET 1
 set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
                    "Enable CCSO frame level joint flag.")
 
+set_aom_config_var(CONFIG_CCSO_BO_REDUCE 1 "Reduce band only 128 case.")
+
 set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
   "CWG-D086: Context modeling for transform block zero flag signaling")
@@ -499,6 +516,8 @@ set_aom_config_var(
   "Enable implicit quantization derivation for TIP direct mode")
 set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
+set_aom_config_var(CONFIG_IMPROVE_REFINED_MV 1
+                   "Keep refined MVs in TMVP list for TIP modes.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
@@ -574,12 +593,20 @@ set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
 
 set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
+
 set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
 set_aom_config_var(CONFIG_DF_PAR_BITS 1
                    "Flexible control of deblocking parameter bits.")
+
+set_aom_config_var(CONFIG_EXT_SEG 1
+                   "Extend the maximum number of segments to 16, CWG-F069.")
+
 set_aom_config_var(CONFIG_DELTAQ_OPT 1
                    "Enable delta-q entropy coding optimization.")
+set_aom_config_var(CONFIG_TX_PARTITION_RESTRICT 1
+                   "Disallow transform partition for large coding blocks.")
 set_aom_config_var(CONFIG_GDF 1 "Enable guided detail filter.")
+
 #
 # Variables in this section control optional features of the build system.
 #

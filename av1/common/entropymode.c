@@ -7962,11 +7962,16 @@ static const aom_cdf_prob default_delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(
 static const aom_cdf_prob default_delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)] = {
   AOM_CDF4(28160, 32120, 32677)
 };
-#endif  // CONFIG_ENTROPY_PARA
 
+#endif  // CONFIG_ENTROPY_PARA
 // FIXME(someone) need real defaults here
 static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(MAX_SEGMENTS)] = {
+#if CONFIG_EXT_SEG
+  AOM_CDF16(2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384, 18432, 20480,
+            22528, 24576, 26624, 28672, 30720)
+#else   // CONFIG_EXT_SEG
   AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672)
+#endif  // CONFIG_EXT_SEG
 };
 
 static const aom_cdf_prob
@@ -7977,6 +7982,23 @@ static const aom_cdf_prob
 static const aom_cdf_prob
     default_spatial_pred_seg_tree_cdf[SPATIAL_PREDICTION_PROBS][CDF_SIZE(
         MAX_SEGMENTS)] = {
+#if CONFIG_EXT_SEG
+      {
+          // all different
+          AOM_CDF16(5622, 6757, 7893, 11993, 16093, 17163, 18233, 23021, 27809,
+                    28091, 28373, 30453, 32533, 32650, 32762),
+      },
+      {
+          // either of three pair of two neighbors is the same
+          AOM_CDF16(14274, 16252, 18230, 20393, 22557, 23746, 24935, 27362,
+                    29980, 30415, 30851, 31597, 32344, 32553, 32762),
+      },
+      {
+          // UL == L && UL == U, all the same
+          AOM_CDF16(27527, 28007, 28487, 28605, 28723, 28806, 28890, 30643,
+                    32397, 32522, 32647, 32663, 32679, 32720, 32762),
+      },
+#else   // CONFIG_EXT_SEG
       {
           AOM_CDF8(5622, 7893, 16093, 18233, 27809, 28373, 32533),
       },
@@ -7986,6 +8008,7 @@ static const aom_cdf_prob
       {
           AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),
       },
+#endif  // CONFIG_EXT_SEG
     };
 
 #if CONFIG_NEW_TX_PARTITION
@@ -8211,13 +8234,126 @@ static const aom_cdf_prob default_pb_mv_precision_cdf
 #endif  // CONFIG_ENTROPY_PARA
 
 #define MAX_COLOR_CONTEXT_HASH 8
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
 // Negative values are invalid
 static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
                                                     1] = { -1, -1, 0, -1, -1,
                                                            4,  3,  2, 1 };
+#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 
 #define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
+#if CONFIG_PALETTE_THREE_NEIGHBOR
+static INLINE void swap_color_order(uint8_t *color_order,
+                                    uint8_t *color_order_status, int switch_idx,
+                                    int max_idx, int *color_order_cnt) {
+  color_order[switch_idx] = max_idx;
+  color_order_status[max_idx] = 1;
+  (*color_order_cnt)++;
+}
+
+static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
+                                         const uint8_t *color_map, int stride,
+                                         int r, int c) {
+  int color_index_ctx = 0;
+  uint8_t color_status[PALETTE_MAX_SIZE] = { 0 };
+  int color_cnt = 0;
+  for (int j = 0; j < PALETTE_MAX_SIZE; ++j) {
+    color_order[j] = j;
+  }
+
+  if (r > 0 && c > 0) {
+    int color_neighbors[3] = { 0 };
+    color_neighbors[0] = color_map[r * stride + c - 1];
+    color_neighbors[1] = color_map[(r - 1) * stride + c - 1];
+    color_neighbors[2] = color_map[(r - 1) * stride + c];
+
+    if (color_neighbors[0] == color_neighbors[1] &&
+        color_neighbors[0] == color_neighbors[2]) {
+      color_index_ctx = 4;
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+    } else if (color_neighbors[0] == color_neighbors[2]) {
+      color_index_ctx = 3;
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[1],
+                       &color_cnt);
+    } else if (color_neighbors[0] == color_neighbors[1]) {
+      color_index_ctx = 2;
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[2],
+                       &color_cnt);
+    } else if (color_neighbors[1] == color_neighbors[2]) {
+      color_index_ctx = 2;
+      swap_color_order(color_order, color_status, 0, color_neighbors[2],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[0],
+                       &color_cnt);
+    } else {
+      color_index_ctx = 1;
+      int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
+      int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
+      swap_color_order(color_order, color_status, 0, min_color, &color_cnt);
+      swap_color_order(color_order, color_status, 1, max_color, &color_cnt);
+      swap_color_order(color_order, color_status, 2, color_neighbors[1],
+                       &color_cnt);
+    }
+  } else if (c == 0 && r > 0) {
+    color_index_ctx = 0;
+    const int color_neighbor = color_map[(r - 1) * stride + c];
+    swap_color_order(color_order, color_status, 0, color_neighbor, &color_cnt);
+  } else if (c > 0 && r == 0) {
+    color_index_ctx = 0;
+    const int color_neighbor = color_map[r * stride + c - 1];
+    swap_color_order(color_order, color_status, 0, color_neighbor, &color_cnt);
+  }
+
+  int write_idx = color_cnt;
+  for (int read_idx = 0; read_idx < PALETTE_MAX_SIZE; read_idx++) {
+    if (color_status[read_idx] == 0) {
+      color_order[write_idx] = read_idx;
+      write_idx++;
+    }
+  }
+
+  if (color_idx != NULL) {
+    // If any of the neighbor color has higher index than current color index,
+    // then we move up by 1 unless the current color is the same as one of the
+    // neighbor
+    const int current_color = *color_idx = color_map[r * stride + c];
+    for (int idx = 0; idx < PALETTE_MAX_SIZE; idx++) {
+      if (color_order[idx] == current_color) {
+        *color_idx = idx;
+        break;
+      }
+    }
+  }
+  return color_index_ctx;
+}
+
+int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
+                                        int r, int c, uint8_t *color_order,
+                                        int *color_idx
+#if CONFIG_PALETTE_IMPROVEMENTS
+                                        ,
+                                        int row_flag, int prev_row_flag
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+) {
+  assert(r > 0 || c > 0);
+
+  int color_index_ctx =
+      derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
+#if CONFIG_PALETTE_IMPROVEMENTS
+  // Special context value for the first (and only) index of an identity row
+  // and when the previous row is also an identity row.
+  if (c == 0 && row_flag && prev_row_flag)
+    color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
+  return color_index_ctx;
+}
+#else
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx
@@ -8306,7 +8442,9 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
   assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
   return color_index_ctx;
 }
+#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
 
+#if !CONFIG_PALETTE_THREE_NEIGHBOR
 int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int r, int c, int *color_idx
 #if CONFIG_PALETTE_IMPROVEMENTS
@@ -8425,6 +8563,7 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
   assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
   return color_index_ctx;
 }
+#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 #undef NUM_PALETTE_NEIGHBORS
 #undef MAX_COLOR_CONTEXT_HASH
 
@@ -8773,8 +8912,10 @@ static void cumulative_avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr,
                          nmv_tr->shell_offset_low_class_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
                          nmv_tr->shell_offset_class2_cdf, 2);
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   CUMULATIVE_AVERAGE_CDF(nmv_left->shell_offset_other_class_cdf,
                          nmv_tr->shell_offset_other_class_cdf, 2);
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   CUMULATIVE_AVERAGE_CDF(nmv_left->col_mv_greater_flags_cdf,
                          nmv_tr->col_mv_greater_flags_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf,
@@ -8829,7 +8970,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
   CUMULATIVE_AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
+#if !CONFIG_CTX_V_AC_SIGN
   CUMULATIVE_AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf16, ctx_tr->eob_flag_cdf16,
                          EOB_MAX_SYMS - 6);
@@ -9331,7 +9474,9 @@ static void shift_nmv(nmv_context *nmv_ptr, int total_tiles_log2) {
   }
   SHIFT_CDF(nmv_ptr->shell_offset_low_class_cdf, 2);
   SHIFT_CDF(nmv_ptr->shell_offset_class2_cdf, 2);
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   SHIFT_CDF(nmv_ptr->shell_offset_other_class_cdf, 2);
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   SHIFT_CDF(nmv_ptr->col_mv_greater_flags_cdf, 2);
   SHIFT_CDF(nmv_ptr->col_mv_index_cdf, 2);
 
@@ -9372,7 +9517,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
   SHIFT_CDF(ctx_ptr->v_dc_sign_cdf, 2);
+#if !CONFIG_CTX_V_AC_SIGN
   SHIFT_CDF(ctx_ptr->v_ac_sign_cdf, 2);
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   SHIFT_CDF(ctx_ptr->eob_flag_cdf16, EOB_MAX_SYMS - 6);
   SHIFT_CDF(ctx_ptr->eob_flag_cdf32, EOB_MAX_SYMS - 5);
@@ -9742,10 +9889,12 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
               nmv_tr->shell_offset_low_class_cdf, 2);
   AVERAGE_CDF(nmv_left->shell_offset_class2_cdf,
               nmv_tr->shell_offset_class2_cdf, 2);
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   for (int i = 0; i < NUM_CTX_CLASS_OFFSETS; i++) {
     AVERAGE_CDF(nmv_left->shell_offset_other_class_cdf[i],
                 nmv_tr->shell_offset_other_class_cdf[i], 2);
   }
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   AVERAGE_CDF(nmv_left->col_mv_greater_flags_cdf,
               nmv_tr->col_mv_greater_flags_cdf, 2);
   AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf, 2);
@@ -9797,7 +9946,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
   AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
+#if !CONFIG_CTX_V_AC_SIGN
   AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   AVERAGE_CDF(ctx_left->eob_flag_cdf16, ctx_tr->eob_flag_cdf16,
               EOB_MAX_SYMS - 6);

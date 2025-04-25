@@ -553,6 +553,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  seq->enable_ext_seg = tool_cfg->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -3259,7 +3262,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av1_enc_calc_subpel_params);
+                        av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                        ,
+                        0 /* copy_refined_mvs */
+#endif                    // CONFIG_IMPROVE_REFINED_MV
+    );
 #endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
 #if !CONFIG_TIP_DIRECT_FRAME_MV
     av1_finalize_encoded_frame(cpi);
@@ -3354,7 +3362,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
         cm->tip_global_motion.as_int = ref_mv.as_int;
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params);
+                            av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                            ,
+                            0 /* copy_refined_mvs */
+#endif                        // CONFIG_IMPROVE_REFINED_MV
+        );
 #if CONFIG_LF_SUB_PU
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3395,7 +3408,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
       cm->tip_interp_filter = interp_filter;
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                          av1_enc_calc_subpel_params);
+                          av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                          ,
+                          0 /* copy_refined_mvs */
+#endif                      // CONFIG_IMPROVE_REFINED_MV
+      );
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
         loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
@@ -3539,11 +3557,18 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     }
 
     const int num_planes = av1_num_planes(cm);
+#if !CONFIG_IMPROVE_REFINED_MV
     av1_copy_tip_frame_tmvp_mvs(cm);
+#endif  // !CONFIG_IMPROVE_REFINED_MV
 #if CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av1_enc_calc_subpel_params);
+                        av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                        ,
+                        1 /* copy_refined_mvs */
+#endif                    // CONFIG_IMPROVE_REFINED_MV
+    );
 #if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
@@ -3687,6 +3712,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   start_timing(cpi, encode_with_recode_loop_time);
 #endif
   int err;
+
   if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
   else
@@ -4242,11 +4268,19 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;
 #endif
+#if CONFIG_MORPH_PRED
+  features->enable_intra_bawp = seq_params->enable_bawp;
+#endif  // CONFIG_MORPH_PRED
   features->enable_cwp = seq_params->enable_cwp;
 
 #if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
+
+#if CONFIG_EXT_SEG
+  features->enable_ext_seg = seq_params->enable_ext_seg;
+  cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
 
   cpi->last_frame_type = current_frame->frame_type;
 

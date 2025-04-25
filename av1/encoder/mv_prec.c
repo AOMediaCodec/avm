@@ -477,10 +477,14 @@ static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
   } else {
     const int num_of_bits_for_this_offset = shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      total_rate += av1_cost_literal(1);
+#else
       total_rate += get_symbol_cost(mvctx->shell_offset_other_class_cdf[0][i],
                                     (shell_cls_offset >> i) & 1);
       update_cdf(mvctx->shell_offset_other_class_cdf[0][i],
                  (shell_cls_offset >> i) & 1, 2);
+#endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     }
   }
 

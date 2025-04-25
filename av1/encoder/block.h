@@ -279,8 +279,10 @@ typedef struct LV_MAP_COEFF_COST {
 #if CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding the AOM_PLANE_V txfm coefficient dc_sign
   int v_dc_sign_cost[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS][2];
+#if !CONFIG_CTX_V_AC_SIGN
   //! Cost for encoding the AOM_PLANE_V txfm coefficient ac_sign
   int v_ac_sign_cost[CROSS_COMPONENT_CONTEXTS][2];
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding an increment to the coefficient
   int lps_cost[LEVEL_CONTEXTS][COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
@@ -2013,6 +2015,8 @@ typedef struct macroblock {
   int prune_tx_partition;
   /*! \brief Keep records of top rdcosts of transform partition search. */
   int64_t top_tx_part_rd[TOP_TX_PART_COUNT];
+  int64_t top_tx_part_rd_inter[MAX_TX_BLOCKS_IN_MAX_SB]
+                              [TOP_INTER_TX_PART_COUNT];
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

@@ -508,6 +508,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_VERT_4A/4B based on PARTITION_VERT_3 search result.
   int prune_part_4_with_part_3;
 
+  // Prunes PARTITION_HORZ/VERT_4B based on PARTITION_HORZ/VERT_4A result.
+  int prune_part_4b_with_part_4a;
+
   int two_pass_partition_search;
 
   // Prunes rect partition with ml model
@@ -923,6 +926,10 @@ typedef struct TX_SPEED_FEATURES {
 #if CONFIG_NEW_TX_PARTITION
   // tx_type search pruning at low qp and resolution >= 1080p
   bool restrict_tx_partition_type_search;
+
+  // Prune RD evaluation of transform block using RD Cost of NONE transform
+  // partition of inter modes that are evaluated so far
+  bool prune_inter_tx_part_rd_eval;
 #endif  // CONFIG_NEW_TX_PARTITION
 } TX_SPEED_FEATURES;
 

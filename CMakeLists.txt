@@ -699,6 +699,38 @@ if(CONFIG_AV1_ENCODER)
     include_directories(${AOM_ROOT}/third_party/tensorflow)
     include_directories("${CMAKE_CURRENT_BINARY_DIR}/flatbuffers/include/")
     add_dependencies(aom_av1_common tensorflow-lite)
+
+    # Figure out all the directories that were add_subdirectory-ed.
+    set(ALL_DEP_DIRS ${AOM_ROOT}/third_party/tensorflow/tensorflow/lite/c)
+    while(TRUE)
+      list(LENGTH ALL_DEP_DIRS ALL_DEP_DIRS_LEN)
+      set(DIR_LIST ${ALL_DEP_DIRS})
+      foreach(DIR ${DIR_LIST})
+        get_directory_property(SUBDIRS DIRECTORY ${DIR} SUBDIRECTORIES)
+        list(APPEND ALL_DEP_DIRS ${SUBDIRS})
+      endforeach()
+      list(REMOVE_DUPLICATES ALL_DEP_DIRS)
+      list(LENGTH ALL_DEP_DIRS NEW_ALL_DEP_DIRS_LEN)
+      # Break when no new folder is found.
+      if(${ALL_DEP_DIRS_LEN} EQUAL ${NEW_ALL_DEP_DIRS_LEN})
+        break()
+      endif()
+    endwhile()
+    # Suppress the warnings for each target defined in the dependecy
+    # directories.
+    foreach(DEP_DIR ${ALL_DEP_DIRS})
+      get_directory_property(DEP_TARGETS DIRECTORY ${DEP_DIR}
+                                                   BUILDSYSTEM_TARGETS)
+      foreach(DEP_TARGET ${DEP_TARGETS})
+        get_target_property(DEP_TYPE ${DEP_TARGET} TYPE)
+        if(${DEP_TYPE} STREQUAL "INTERFACE_LIBRARY")
+          target_compile_options(${DEP_TARGET} INTERFACE -w)
+        elseif(NOT (${DEP_TYPE} STREQUAL "UTILITY"))
+          # There is a custom UTILITY type, so do not deal with it.
+          target_compile_options(${DEP_TARGET} PUBLIC -w)
+        endif()
+      endforeach()
+    endforeach()
   endif()
 
   if(CONFIG_USE_VMAF_RC AND NOT CONFIG_TUNE_VMAF)

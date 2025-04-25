@@ -1010,9 +1010,20 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                         ref_area
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
     );
+#if CONFIG_IMPROVE_REFINED_MV
+    REFINEMV_SUBMB_INFO *refinemv_subinfo = &xd->refinemv_subinfo[0];
+    fill_subblock_refine_mv(refinemv_subinfo, bw, bh, best_mv_ref[0],
+                            best_mv_ref[1]);
+#endif  // CONFIG_IMPROVE_REFINED_MV
   }
 
 #endif  // CONFIG_REFINEMV
+#if CONFIG_IMPROVE_REFINED_MV
+  if (plane == 0) {
+    mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[0]);
+    mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[1]);
+  }
+#endif  // CONFIG_IMPROVE_REFINED_MV
 
   // Arrays to hold optical flow offsets.
   int vxy_bufs[4 * 4] = { 0 };
@@ -1094,7 +1105,20 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
         best_mv_ref, bw, bh
 #endif  // CONFIG_REFINEMV
     );
+#if CONFIG_IMPROVE_REFINED_MV
+    xd->opfl_vxy_bufs[0] = *vx0;
+    xd->opfl_vxy_bufs[N_OF_OFFSETS * 1] = *vx1;
+    xd->opfl_vxy_bufs[N_OF_OFFSETS * 2] = *vy0;
+    xd->opfl_vxy_bufs[N_OF_OFFSETS * 3] = *vy1;
+#endif  // CONFIG_IMPROVE_REFINED_MV
   }
+
+#if CONFIG_IMPROVE_REFINED_MV
+  if (plane == 0) {
+    xd->mv_refined[0] = mv_refined[0];
+    xd->mv_refined[1] = mv_refined[1];
+  }
+#endif  // CONFIG_IMPROVE_REFINED_MV
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
@@ -1165,12 +1189,23 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif  // CONFIG_WARP_BD_BOX
       );
     } else {
+#if CONFIG_IMPROVE_REFINED_MV
+#if CONFIG_REFINEMV
+      const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&best_mv_ref[ref]);
+#else
+      const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&mv[ref]);
+#endif
+#endif  // CONFIG_IMPROVE_REFINED_MV
       av1_build_one_inter_predictor(dst, dst_stride,
+#if CONFIG_IMPROVE_REFINED_MV
+                                    &mv_1_16th_pel,
+#else
 #if CONFIG_REFINEMV
                                     &best_mv_ref[ref],
 #else
                                     &mv[ref],
 #endif  // CONFIG_REFINEMV
+#endif  // CONFIG_IMPROVE_REFINED_MV
                                     &inter_pred_params, xd, mi_x, mi_y, ref,
                                     mc_buf, calc_subpel_params_func);
     }
@@ -1194,6 +1229,14 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   xd->mb_to_bottom_edge = GET_MV_SUBPEL(height - bh - mi_y);
   xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_x);
   xd->mb_to_right_edge = GET_MV_SUBPEL(width - bw - mi_x);
+#if CONFIG_IMPROVE_REFINED_MV
+  const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
+  const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
+  const int comp_pixel_x = (mi_x >> ss_x);
+  const int comp_pixel_y = (mi_y >> ss_y);
+  const int comp_bw = bw >> ss_x;
+  const int comp_bh = bh >> ss_y;
+#endif  // CONFIG_IMPROVE_REFINED_MV
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
@@ -1222,7 +1265,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   int apply_refinemv = (plane == 0);
 #endif  // CONFIG_TIP_LD
   ReferenceArea ref_area[2];
+#if CONFIG_IMPROVE_REFINED_MV
+  const int do_ref_area_pad =
+#if CONFIG_TIP_LD
+      cm->has_both_sides_refs &&
+#endif
+      (comp_bw > 4 || comp_bh > 4);
+  if (do_ref_area_pad) {
+#else
   if (apply_refinemv) {
+#endif  // CONFIG_IMPROVE_REFINED_MV
     MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));
     mbmi->mv[0].as_mv = mv[0];
     mbmi->mv[1].as_mv = mv[1];
@@ -1239,8 +1291,19 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
     mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, mv, bw, bh, mi_x,
-                                        mi_y, ref_area, bw, bh);
+#if CONFIG_IMPROVE_REFINED_MV
+    const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+    const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+    mbmi->chroma_ref_info.mi_row_chroma_base = mi_row;
+    mbmi->chroma_ref_info.mi_col_chroma_base = mi_col;
+#endif  // CONFIG_IMPROVE_REFINED_MV
+    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, mv,
+#if CONFIG_IMPROVE_REFINED_MV
+                                        comp_bw, comp_bh,
+#else
+                                        bw, bh,
+#endif  // CONFIG_IMPROVE_REFINED_MV
+                                        mi_x, mi_y, ref_area, bw, bh);
     aom_free(mbmi);
   }
 #endif  // CONFIG_REFINEMV
@@ -1277,12 +1340,19 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
   const int bd = cm->seq_params.bit_depth;
 
+#if CONFIG_IMPROVE_REFINED_MV
+  if (plane == 0) {
+    xd->mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&mv[0]);
+    xd->mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&mv[1]);
+  }
+#else
   const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
   const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
   const int comp_pixel_x = (mi_x >> ss_x);
   const int comp_pixel_y = (mi_y >> ss_y);
   const int comp_bw = bw >> ss_x;
   const int comp_bh = bh >> ss_y;
+#endif  // CONFIG_IMPROVE_REFINED_MV
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
@@ -1318,7 +1388,22 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     inter_pred_params.conv_params =
         get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
 
-    av1_build_one_inter_predictor(dst, dst_buf->stride, &mv[ref],
+#if CONFIG_IMPROVE_REFINED_MV
+    if (do_ref_area_pad) {
+      inter_pred_params.use_ref_padding = 1;
+      inter_pred_params.ref_area = &ref_area[ref];
+    }
+
+    const MV mv_1_16th_pel =
+        plane ? xd->mv_refined[ref].as_mv : convert_mv_to_1_16th_pel(&mv[ref]);
+#endif  // CONFIG_IMPROVE_REFINED_MV
+
+    av1_build_one_inter_predictor(dst, dst_buf->stride,
+#if CONFIG_IMPROVE_REFINED_MV
+                                  &mv_1_16th_pel,
+#else
+                                  &mv[ref],
+#endif  // CONFIG_IMPROVE_REFINED_MV
                                   &inter_pred_params, xd, mi_x, mi_y, ref,
                                   mc_buf, calc_subpel_params_func);
   }
@@ -1367,10 +1452,19 @@ static AOM_INLINE void tip_component_setup_dst_planes(AV1_COMMON *const cm,
 }
 
 static void tip_setup_tip_frame_plane(
-    AV1_COMMON *cm, MACROBLOCKD *xd, int plane, int blk_row_start,
-    int blk_col_start, int blk_row_end, int blk_col_end, int mvs_stride,
-    int unit_blk_size, int max_allow_blk_size, uint16_t **mc_buf,
-    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func) {
+    AV1_COMMON *cm, MACROBLOCKD *xd,
+#if !CONFIG_IMPROVE_REFINED_MV
+    int plane,
+#endif  // !CONFIG_IMPROVE_REFINED_MV
+    int blk_row_start, int blk_col_start, int blk_row_end, int blk_col_end,
+    int mvs_stride, int unit_blk_size, int max_allow_blk_size,
+    uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
+    CalcSubpelParamsFunc calc_subpel_params_func
+#if CONFIG_IMPROVE_REFINED_MV
+    ,
+    int copy_refined_mvs
+#endif  // CONFIG_IMPROVE_REFINED_MV
+) {
   TIP *tip_ref = &cm->tip_ref;
   const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
 
@@ -1424,6 +1518,50 @@ static void tip_setup_tip_frame_plane(
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
       }
 
+#if CONFIG_IMPROVE_REFINED_MV
+      for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+        if (plane == 0 && copy_refined_mvs) {
+          REFINEMV_SUBMB_INFO *refinemv_subinfo = &xd->refinemv_subinfo[0];
+          fill_subblock_refine_mv(refinemv_subinfo, unit_blk_size,
+                                  unit_blk_size, mv[0], mv[1]);
+          xd->opfl_vxy_bufs[0] = 0;
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 1] = 0;
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 2] = 0;
+          xd->opfl_vxy_bufs[N_OF_OFFSETS * 3] = 0;
+        }
+
+        setup_pred_planes_for_tip(&cm->tip_ref, xd, plane, plane + 1,
+                                  tpl_col >> MI_SIZE_LOG2,
+                                  tpl_row >> MI_SIZE_LOG2);
+
+        tip_component_setup_dst_planes(cm, plane, tpl_row, tpl_col);
+        tip_component_build_inter_predictors(
+            cm, xd, plane, tip_ref->tip_plane, mv, blk_width, blk_height,
+            tpl_col, tpl_row, mc_buf, tmp_conv_dst, calc_subpel_params_func);
+
+        if (plane == 0 && copy_refined_mvs) {
+          MB_MODE_INFO mbmi;
+          av1_zero(mbmi);
+          mbmi.sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
+          mbmi.sb_type[PLANE_TYPE_UV] = BLOCK_4X4;
+          mbmi.ref_frame[0] = TIP_FRAME;
+          mbmi.ref_frame[1] = NONE_FRAME;
+          mbmi.mv[0].as_mv = mv[0];
+          mbmi.mv[1].as_mv = mv[1];
+          mbmi.mode = NEWMV;
+          mbmi.skip_mode = 0;
+          mbmi.motion_mode = SIMPLE_TRANSLATION;
+          mbmi.interinter_comp.type = COMPOUND_AVERAGE;
+          mbmi.cwp_idx = 0;
+          mbmi.comp_refine_type = COMP_REFINE_SUBBLK2P;
+          mbmi.refinemv_flag = 0;
+          av1_copy_frame_refined_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
+                                     blk_col << TMVP_SHIFT_BITS,
+                                     step << TMVP_SHIFT_BITS,
+                                     step << TMVP_SHIFT_BITS);
+        }
+      }
+#else
       setup_pred_planes_for_tip(&cm->tip_ref, xd, plane, plane + 1,
                                 tpl_col >> MI_SIZE_LOG2,
                                 tpl_row >> MI_SIZE_LOG2);
@@ -1432,6 +1570,7 @@ static void tip_setup_tip_frame_plane(
       tip_component_build_inter_predictors(
           cm, xd, plane, tip_ref->tip_plane, mv, blk_width, blk_height, tpl_col,
           tpl_row, mc_buf, tmp_conv_dst, calc_subpel_params_func);
+#endif  // CONFIG_IMPROVE_REFINED_MV
     }
   }
 }
@@ -1439,7 +1578,18 @@ static void tip_setup_tip_frame_plane(
 static AOM_INLINE void tip_setup_tip_frame_planes(
     AV1_COMMON *cm, MACROBLOCKD *xd, int blk_row_start, int blk_col_start,
     int blk_row_end, int blk_col_end, int mvs_stride, uint16_t **mc_buf,
-    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func) {
+    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func
+#if CONFIG_IMPROVE_REFINED_MV
+    ,
+    int copy_refined_mvs
+#endif  // CONFIG_IMPROVE_REFINED_MV
+) {
+#if CONFIG_IMPROVE_REFINED_MV
+  tip_setup_tip_frame_plane(cm, xd, blk_row_start, blk_col_start, blk_row_end,
+                            blk_col_end, mvs_stride, TMVP_MI_SIZE,
+                            MAX_BLOCK_SIZE_WITH_SAME_MV, mc_buf, tmp_conv_dst,
+                            calc_subpel_params_func, copy_refined_mvs);
+#else
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane == 0) {
@@ -1456,19 +1606,30 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
                                 mc_buf, tmp_conv_dst, calc_subpel_params_func);
     }
   }
+#endif  // CONFIG_IMPROVE_REFINED_MV
 
   aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
 }
 
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CONV_BUF_TYPE *tmp_conv_dst,
-                         CalcSubpelParamsFunc calc_subpel_params_func) {
+                         CalcSubpelParamsFunc calc_subpel_params_func
+#if CONFIG_IMPROVE_REFINED_MV
+                         ,
+                         int copy_refined_mvs
+#endif  // CONFIG_IMPROVE_REFINED_MV
+) {
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   tip_setup_tip_frame_planes(cm, xd, 0, 0, mvs_rows, mvs_cols, mvs_cols, mc_buf,
-                             tmp_conv_dst, calc_subpel_params_func);
+                             tmp_conv_dst, calc_subpel_params_func
+#if CONFIG_IMPROVE_REFINED_MV
+                             ,
+                             copy_refined_mvs
+#endif  // CONFIG_IMPROVE_REFINED_MV
+  );
 }
 
 void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {

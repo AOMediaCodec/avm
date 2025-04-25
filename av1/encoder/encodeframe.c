@@ -1464,7 +1464,12 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
         cm->features.use_optflow_tip = 1;
 #endif  // CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params);
+                            av1_enc_calc_subpel_params
+#if CONFIG_IMPROVE_REFINED_MV
+                            ,
+                            0 /* copy_refined_mvs */
+#endif                        // CONFIG_IMPROVE_REFINED_MV
+        );
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, av1_enc_setup_tip_frame_time);

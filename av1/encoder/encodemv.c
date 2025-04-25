@@ -350,8 +350,12 @@ void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      aom_write_bit(w, (shell_cls_offset >> i) & 1);
+#else
       aom_write_symbol(w, (shell_cls_offset >> i) & 1,
                        mvctx->shell_offset_other_class_cdf[0][i], 2);
+#endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     }
   }
 
@@ -437,12 +441,14 @@ void av1_update_mv_stats(nmv_context *mvctx, const MV mv_diff,
     update_truncated_unary(mvctx, max_coded_value, coded_value, 3, 0);
 
   } else {
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
       update_cdf(mvctx->shell_offset_other_class_cdf[0][i],
                  (shell_cls_offset >> i) & 1, 2);
     }
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   }
 
   assert(scaled_mv_diff.col <= shell_index);
@@ -997,8 +1003,13 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
   }
   for (int j = 0; j < NUM_CTX_CLASS_OFFSETS; j++) {
     for (int i = 0; i < SHELL_INT_OFFSET_BIT; i++) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      shell_offset_other_class_cost[j][i][0] =
+          shell_offset_other_class_cost[j][i][1] = av1_cost_literal(1);
+#else
       av1_cost_tokens_from_cdf(shell_offset_other_class_cost[j][i],
                                ctx->shell_offset_other_class_cdf[j][i], NULL);
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     }
   }
   int col_mv_greater_flags_cost[NUM_CTX_COL_MV_GTX][2];

@@ -155,10 +155,14 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[t_sign][sign];
       else
         cost += av1_cost_literal(1);
+#endif  // CONFIG_CTX_V_AC_SIGN
     }
 #else
     if (ci == 0) {
@@ -228,16 +232,24 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                      int diag_ctx, int plane,
                                      const LV_MAP_COEFF_COST *txb_costs,
                                      int q_i, int t_sign, int sign) {
+#if CONFIG_CTX_V_AC_SIGN
+  (void)t_sign;
+  (void)sign;
+#endif  // CONFIG_CTX_V_AC_SIGN
   int base_ctx = get_base_diag_ctx(diag_ctx) + get_base_ctx(coeff_ctx);
   int mid_ctx = get_mid_ctx(coeff_ctx);
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   int cost = base_cost_ptr[base_ctx][q_i][AOMMIN(abs_qc, 3)];
   if (abs_qc != 0) {
+#if CONFIG_CTX_V_AC_SIGN
+    cost += av1_cost_literal(1);
+#else
     if (plane == AOM_PLANE_V)
       cost += txb_costs->v_ac_sign_cost[t_sign][sign];
     else
       cost += av1_cost_literal(1);
+#endif  // CONFIG_CTX_V_AC_SIGN
     if (abs_qc > NUM_BASE_LEVELS) {
       if (plane == 0) {
         cost += get_br_cost_tcq(abs_qc, txb_costs->lps_cost[mid_ctx]);
@@ -277,10 +289,14 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
       else
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
       else
         cost += av1_cost_literal(1);
+#endif  // CONFIG_CTX_V_AC_SIGN
     }
     if (plane > 0) {
       if (limits) {

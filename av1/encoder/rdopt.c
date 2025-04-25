@@ -10635,7 +10635,19 @@ static INLINE int is_compound_mode_disallowed(PREDICTION_MODE mode,
   return 0;
 }
 #endif  // CONFIG_OPT_INTER_MODE_CTX
+#if CONFIG_NEW_TX_PARTITION
+// Initialize the table that stores best RD Costs of NONE transform partition
+static INLINE void init_top_tx_part_rd_for_inter_modes(
+    MACROBLOCK *const x, bool prune_inter_tx_part_rd_eval) {
+  if (!prune_inter_tx_part_rd_eval) return;
 
+  for (int i = 0; i < MAX_TX_BLOCKS_IN_MAX_SB; i++) {
+    for (int j = 0; j < TOP_INTER_TX_PART_COUNT; j++) {
+      x->top_tx_part_rd_inter[i][j] = INT64_MAX;
+    }
+  }
+}
+#endif
 // TODO(chiyotsai@google.com): See the todo for av1_rd_pick_intra_mode_sb.
 void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -10945,6 +10957,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     // Higher multiplication factor values for lower quantizers.
     mode_thresh_mul_fact = mode_threshold_mul_factor[x->qindex];
   }
+
+#if CONFIG_NEW_TX_PARTITION
+  init_top_tx_part_rd_for_inter_modes(x, sf->tx_sf.prune_inter_tx_part_rd_eval);
+#endif
 
   // Initialize arguments for mode loop speed features
   InterModeSFArgs sf_args = { &args.skip_motion_mode,

@@ -824,6 +824,7 @@ int main(int argc, const char **argv) {
                        "[3][CDF_SIZE(2)]",
                        0, &total_count, 0, mem_wanted, "Inter");
 
+#if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     cts_each_dim[0] = NUM_CTX_CLASS_OFFSETS;
     cts_each_dim[1] = SHELL_INT_OFFSET_BIT;
     cts_each_dim[2] = 2;
@@ -833,7 +834,7 @@ int main(int argc, const char **argv) {
         "static aom_cdf_prob shell_offset_other_class_cdf_placeholder"
         "[NUM_CTX_CLASS_OFFSETS][SHELL_INT_OFFSET_BIT][CDF_SIZE(2)]",
         0, &total_count, 0, mem_wanted, "Inter");
-
+#endif  // !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
     cts_each_dim[0] = NUM_CTX_COL_MV_GTX;
     cts_each_dim[1] = 2;
     optimize_cdf_table(&nmvc_cnts->col_mv_greter_flags_cnts[0][0], probsfile, 2,
@@ -2614,6 +2615,7 @@ int main(int argc, const char **argv) {
       "[CDF_SIZE(2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
 
+#if !CONFIG_CTX_V_AC_SIGN
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = CROSS_COMPONENT_CONTEXTS;
   cts_each_dim[2] = 2;
@@ -2622,6 +2624,7 @@ int main(int argc, const char **argv) {
                      "[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]"
                      "[CDF_SIZE(2)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
   if (mem_wanted) {
     printf("Total RAM in bits %d \n", total_count);

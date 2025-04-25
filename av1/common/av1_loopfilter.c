@@ -188,7 +188,14 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
     else if (plane == 2 && !cm->lf.filter_level_v)
       continue;
 
-    for (seg_id = 0; seg_id < MAX_SEGMENTS; seg_id++) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+
+    for (seg_id = 0; seg_id < max_seg_num; seg_id++) {
       for (int dir = 0; dir < 2; ++dir) {
         int q_ind_seg = (dir == 0) ? q_ind[plane] : q_ind_r[plane];
         int side_ind_seg = (dir == 0) ? side_ind[plane] : side_ind_r[plane];

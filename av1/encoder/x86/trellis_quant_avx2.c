@@ -278,9 +278,15 @@ static INLINE int get_mid_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                    const LV_MAP_COEFF_COST *txb_costs,
                                    int plane, int t_sign, int sign) {
   int cost = 0;
+#if CONFIG_CTX_V_AC_SIGN
+  (void)t_sign;
+  (void)sign;
+  cost += av1_cost_literal(1);
+#else
   if (plane == AOM_PLANE_V) {
     cost += txb_costs->v_ac_sign_cost[t_sign][sign] - av1_cost_literal(1);
   }
+#endif  // CONFIG_CTX_V_AC_SIGN
   if (abs_qc > NUM_BASE_LEVELS) {
     int mid_ctx = coeff_ctx >> 4;
     if (plane == 0) {
@@ -309,9 +315,13 @@ static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
         cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
       }
     } else {
+#if CONFIG_CTX_V_AC_SIGN
+      cost += av1_cost_literal(1);
+#else
       if (plane == AOM_PLANE_V) {
         cost += txb_costs->v_ac_sign_cost[t_sign][sign] - av1_cost_literal(1);
       }
+#endif  // CONFIG_CTX_V_AC_SIGN
     }
     if (plane > 0) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
@@ -325,9 +335,13 @@ static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
       }
     }
   } else {
+#if CONFIG_CTX_V_AC_SIGN
+    cost += av1_cost_literal(1);
+#else
     if (plane == AOM_PLANE_V) {
       cost += txb_costs->v_ac_sign_cost[t_sign][sign] - av1_cost_literal(1);
     }
+#endif  // CONFIG_CTX_V_AC_SIGN
     if (plane > 0) {
       if (abs_qc > NUM_BASE_LEVELS) {
         int br_ctx = 0; /* get_br_ctx_eob_chroma */

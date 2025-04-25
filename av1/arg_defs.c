@@ -886,6 +886,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                           "Enable mean removed sse "
                           "(0: false (default), 1: true)"),
 #endif  // CONFIG_MRSSE
+#if CONFIG_EXT_SEG
+  .enable_ext_seg = ARG_DEF(NULL, "enable-ext-seg", 1,
+                            "Enable extended # of segments "
+                            "(0: false (default), 1: true)"),
+#endif  // CONFIG_EXT_SEG
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),
