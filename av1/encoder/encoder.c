@@ -2426,8 +2426,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             slice_error += flt_slice_errors[scale_idx][qp_idx][blk_idx];
           } else {
             double best_block_cost = DBL_MAX;
-            int best_block_rate;
-            int64_t best_block_error;
+            int best_block_rate = 0;
+            int64_t best_block_error = 0;
             int cost_from_cdf[2];
             av1_cost_tokens_from_cdf(cost_from_cdf, gdf_cdf, NULL);
             for (int block_flag = 0; block_flag < 2; block_flag++) {
