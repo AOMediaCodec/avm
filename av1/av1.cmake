@@ -370,9 +370,8 @@ list(
   "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
   "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c")
 
-list(APPEND
-  AOM_AV1_COMMON_INTRIN_AVX2
-  "${AOM_ROOT}/av1/common/gdf_block_avx2.c")
+list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+     "${AOM_ROOT}/av1/common/gdf_block_avx2.c")
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm")
 
