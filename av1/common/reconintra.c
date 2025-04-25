@@ -2644,15 +2644,15 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 #if CONFIG_MHCCP_SB_BOUNDARY
           // For the top boundary of the superblock, we need to offset the
           // reference region
-          if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
-            if (h < *above_lines) {
+          if (*above_lines == (LINE_NUM + 1)) {
+            if (is_top_sb_boundary && (h < *above_lines)) {
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
-            }
-          } else {
-            if (h == 0) {
-              // For the 1 padding lines above, we need to offset the reference
-              // region
-              ref_h_c_off = 1;
+            } else {
+              if (h == 0) {
+                // For the 1 padding lines above, we need to offset the
+                // reference region
+                ref_h_c_off = 1;
+              }
             }
           }
           // For the 1 padding lines left, we need to offset the reference
