@@ -35,6 +35,7 @@ void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
     aom_cdf_prob p15 = AOM_ICDF(cdf[i]) - prev_cdf;
     p15 = (p15 < EC_MIN_PROB) ? EC_MIN_PROB : p15;
     prev_cdf = AOM_ICDF(cdf[i]);
+
     if (inv_map)
       costs[inv_map[i]] = av1_cost_symbol(p15);
     else
