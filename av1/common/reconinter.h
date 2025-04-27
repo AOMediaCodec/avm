@@ -1575,6 +1575,7 @@ static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
 #if !CONFIG_INTER_MODE_CONSOLIDATION
          || mbmi->mode == AMVDNEWMV
 #endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+      ;
 }
 #endif  // CONFIG_EXPLICIT_BAWP
 

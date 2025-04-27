@@ -1073,7 +1073,11 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
                                             int_mv *cur_mv, int_mv start_mv) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  if (mbmi->mode == NEW_NEWMV) {
+  if (mbmi->mode == NEW_NEWMV
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      && mbmi->use_amvd == 0
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  ) {
     if (args->new_newmv_stats_idx < MAX_COMP_MV_STATS) {
       NEW_NEWMV_STATS stat = {
         av1_ref_frame_type(mbmi->ref_frame),
@@ -1087,13 +1091,32 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
       args->new_newmv_stats[args->new_newmv_stats_idx] = stat;
       args->new_newmv_stats_idx++;
     }
-  } else if (mbmi->mode == NEAR_NEWMV) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEWMV && mbmi->use_amvd == 1) {
+    if (args->new_newmv_amvd_stats_idx < MAX_COMP_MV_STATS) {
+      NEW_NEWMV_AMVD_STATS stat = {
+        av1_ref_frame_type(mbmi->ref_frame),
+        av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
+        { av1_get_ref_mv(x, 0), av1_get_ref_mv(x, 1) },
+        mbmi->use_amvd,
+        { cur_mv[0], cur_mv[1] },
+      };
+      args->new_newmv_amvd_stats[args->new_newmv_amvd_stats_idx] = stat;
+      args->new_newmv_amvd_stats_idx++;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEAR_NEWMV
+#if CONFIG_INTER_MODE_CONSOLIDATION
+             && mbmi->use_amvd == 0
+#endif
+  ) {
     if (args->near_newmv_stats_idx < MAX_COMP_MV_STATS) {
       NEAR_NEWMV_STATS stat = {
         av1_ref_frame_type(mbmi->ref_frame),
         start_mv,
         av1_get_ref_mv(x, 1),
 #if CONFIG_INTER_MODE_CONSOLIDATION
+        mbmi->pb_mv_precision,
         mbmi->use_amvd,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
         { cur_mv[0], cur_mv[1] },
@@ -1101,12 +1124,31 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
       args->near_newmv_stats[args->near_newmv_stats_idx] = stat;
       args->near_newmv_stats_idx++;
     }
-  } else if (mbmi->mode == NEW_NEARMV) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEAR_NEWMV && mbmi->use_amvd == 1) {
+    if (args->near_newmv_amvd_stats_idx < MAX_COMP_MV_STATS) {
+      NEAR_NEWMV_AMVD_STATS stat = {
+        av1_ref_frame_type(mbmi->ref_frame),
+        start_mv,
+        av1_get_ref_mv(x, 1),
+        mbmi->use_amvd,
+        { cur_mv[0], cur_mv[1] },
+      };
+      args->near_newmv_amvd_stats[args->near_newmv_amvd_stats_idx] = stat;
+      args->near_newmv_amvd_stats_idx++;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEARMV
+#if CONFIG_INTER_MODE_CONSOLIDATION
+             && mbmi->use_amvd == 0
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  ) {
     if (args->new_nearmv_stats_idx < MAX_COMP_MV_STATS) {
       NEW_NEARMV_STATS stat = {
         av1_ref_frame_type(mbmi->ref_frame),
         av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
 #if CONFIG_INTER_MODE_CONSOLIDATION
+        mbmi->pb_mv_precision,
         mbmi->use_amvd,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
         cur_mv[0]
@@ -1114,6 +1156,17 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
       args->new_nearmv_stats[args->new_nearmv_stats_idx] = stat;
       args->new_nearmv_stats_idx++;
     }
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEARMV && mbmi->use_amvd == 1) {
+    if (args->new_nearmv_amvd_stats_idx < MAX_COMP_MV_STATS) {
+      NEW_NEARMV_AMVD_STATS stat = {
+        av1_ref_frame_type(mbmi->ref_frame),
+        av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx), mbmi->use_amvd, cur_mv[0]
+      };
+      args->new_nearmv_amvd_stats[args->new_nearmv_amvd_stats_idx] = stat;
+      args->new_nearmv_amvd_stats_idx++;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   } else if (mbmi->mode == JOINT_NEWMV
 #if CONFIG_INTER_MODE_CONSOLIDATION
              && !mbmi->use_amvd
@@ -1175,7 +1228,11 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
   int match_idx = -1;
   int ref_mv_idx = 0;
 
-  if (mbmi->mode == NEW_NEWMV_OPTFLOW) {
+  if (mbmi->mode == NEW_NEWMV_OPTFLOW
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      && mbmi->use_amvd == 0
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  ) {
     for (int i = 0; i < args->new_newmv_stats_idx; i++) {
       NEW_NEWMV_STATS st = args->new_newmv_stats[i];
       if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
@@ -1194,7 +1251,30 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
       cur_mv[0].as_int = args->new_newmv_stats[match_idx].mv[0].as_int;
       cur_mv[1].as_int = args->new_newmv_stats[match_idx].mv[1].as_int;
     }
-  } else if (mbmi->mode == NEAR_NEWMV_OPTFLOW) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEWMV_OPTFLOW && mbmi->use_amvd == 1) {
+    for (int i = 0; i < args->new_newmv_amvd_stats_idx; i++) {
+      NEW_NEWMV_AMVD_STATS st = args->new_newmv_amvd_stats[i];
+      if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
+          st.ref_mv_idx_type == av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx) &&
+          st.ref_mv[0].as_int == av1_get_ref_mv(x, 0).as_int &&
+          st.ref_mv[1].as_int == av1_get_ref_mv(x, 1).as_int &&
+          st.use_amvd == mbmi->use_amvd) {
+        match_idx = i;
+        break;
+      }
+    }
+
+    if (match_idx != -1) {
+      cur_mv[0].as_int = args->new_newmv_amvd_stats[match_idx].mv[0].as_int;
+      cur_mv[1].as_int = args->new_newmv_amvd_stats[match_idx].mv[1].as_int;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEAR_NEWMV_OPTFLOW
+#if CONFIG_INTER_MODE_CONSOLIDATION
+             && mbmi->use_amvd == 0
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  ) {
     for (int i = 0; i < args->near_newmv_stats_idx; i++) {
       NEAR_NEWMV_STATS st = args->near_newmv_stats[i];
       if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
@@ -1202,7 +1282,8 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
           st.start_mv.as_int == cur_mv[1].as_int &&
           st.ref_mv.as_int == av1_get_ref_mv(x, 1).as_int
 #if CONFIG_INTER_MODE_CONSOLIDATION
-          && st.use_amvd == mbmi->use_amvd
+          && st.mv_precision == cur_mv_precision &&
+          st.use_amvd == mbmi->use_amvd
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
       ) {
         match_idx = i;
@@ -1214,13 +1295,37 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
       cur_mv[1].as_int = args->near_newmv_stats[match_idx].mv[1].as_int;
       ref_mv_idx = 1;
     }
-  } else if (mbmi->mode == NEW_NEARMV_OPTFLOW) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEAR_NEWMV_OPTFLOW && mbmi->use_amvd == 1) {
+    for (int i = 0; i < args->near_newmv_amvd_stats_idx; i++) {
+      NEAR_NEWMV_AMVD_STATS st = args->near_newmv_amvd_stats[i];
+      if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
+          st.mv[0].as_int == cur_mv[0].as_int &&
+          st.start_mv.as_int == cur_mv[1].as_int &&
+          st.ref_mv.as_int == av1_get_ref_mv(x, 1).as_int &&
+          st.use_amvd == mbmi->use_amvd) {
+        match_idx = i;
+        break;
+      }
+    }
+
+    if (match_idx != -1) {
+      cur_mv[1].as_int = args->near_newmv_amvd_stats[match_idx].mv[1].as_int;
+      ref_mv_idx = 1;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEARMV_OPTFLOW
+#if CONFIG_INTER_MODE_CONSOLIDATION
+             && mbmi->use_amvd == 0
+#endif
+  ) {
     for (int i = 0; i < args->new_nearmv_stats_idx; i++) {
       NEW_NEARMV_STATS st = args->new_nearmv_stats[i];
       if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
           st.ref_mv_idx_type == av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx)
 #if CONFIG_INTER_MODE_CONSOLIDATION
-          && st.use_amvd == mbmi->use_amvd
+          && st.mv_precision == cur_mv_precision &&
+          st.use_amvd == mbmi->use_amvd
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
       ) {
         match_idx = i;
@@ -1232,6 +1337,23 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
       cur_mv[0].as_int = args->new_nearmv_stats[match_idx].mv.as_int;
       ref_mv_idx = 0;
     }
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  } else if (mbmi->mode == NEW_NEARMV_OPTFLOW && mbmi->use_amvd == 1) {
+    for (int i = 0; i < args->new_nearmv_amvd_stats_idx; i++) {
+      NEW_NEARMV_AMVD_STATS st = args->new_nearmv_amvd_stats[i];
+      if (st.ref_frame_type == av1_ref_frame_type(mbmi->ref_frame) &&
+          st.ref_mv_idx_type == av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx) &&
+          st.use_amvd == mbmi->use_amvd) {
+        match_idx = i;
+        break;
+      }
+    }
+
+    if (match_idx != -1) {
+      cur_mv[0].as_int = args->new_nearmv_amvd_stats[match_idx].mv.as_int;
+      ref_mv_idx = 0;
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   } else if (mbmi->mode == JOINT_NEWMV_OPTFLOW
 #if CONFIG_INTER_MODE_CONSOLIDATION
              && !mbmi->use_amvd
@@ -1361,11 +1483,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
 #if CONFIG_SKIP_ME_FOR_OPFL_MODES
-      if (
-#if CONFIG_INTER_MODE_CONSOLIDATION
-          !mbmi->use_amvd &&
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-          reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
+      if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
       } else {
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
@@ -1429,14 +1547,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
           }
         }
 #if CONFIG_SKIP_ME_FOR_OPFL_MODES
-#if CONFIG_INTER_MODE_CONSOLIDATION
-        if (!mbmi->use_amvd) {
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-          int_mv start_mv = { 0 };
-          save_comp_mv_search_stat(x, args, cur_mv, start_mv);
-#if CONFIG_INTER_MODE_CONSOLIDATION
-        }
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+        int_mv start_mv = { 0 };
+        save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       }
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
     } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
@@ -1456,17 +1568,15 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-      if (cm->seq_params.enable_adaptive_mvd
-#if CONFIG_INTER_MODE_CONSOLIDATION
-          && mbmi->use_amvd
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-      ) {
+      if (cm->seq_params.enable_adaptive_mvd) {
 #if CONFIG_SKIP_ME_FOR_OPFL_MODES
         if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
           return 0;
         }
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
+#if !CONFIG_INTER_MODE_CONSOLIDATION
         assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_SKIP_ME_FOR_OPFL_MODES
         int_mv start_mv = cur_mv[1];
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
@@ -1578,12 +1688,10 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-      if (cm->seq_params.enable_adaptive_mvd
-#if CONFIG_INTER_MODE_CONSOLIDATION
-          && mbmi->use_amvd
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-      ) {
+      if (cm->seq_params.enable_adaptive_mvd) {
+#if !CONFIG_INTER_MODE_CONSOLIDATION
         assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
 #if CONFIG_VQ_MVD_CODING
@@ -11059,6 +11167,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     0,
     { { 0 } },
     0,
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    { { 0 } },
+    0,
+    { { 0 } },
+    0,
+    { { 0 } },
+    0,
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
   };
 

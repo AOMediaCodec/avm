@@ -440,6 +440,7 @@ typedef struct {
   int_mv start_mv;
   int_mv ref_mv;
 #if CONFIG_INTER_MODE_CONSOLIDATION
+  MvSubpelPrecision mv_precision;
   int use_amvd;
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
@@ -449,11 +450,35 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
 #if CONFIG_INTER_MODE_CONSOLIDATION
+  MvSubpelPrecision mv_precision;
   int use_amvd;
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv;
 } NEW_NEARMV_STATS;
 
+#if CONFIG_INTER_MODE_CONSOLIDATION
+typedef struct {
+  int8_t ref_frame_type;
+  int_mv start_mv;
+  int_mv ref_mv;
+  int use_amvd;
+  int_mv mv[2];
+} NEAR_NEWMV_AMVD_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int_mv ref_mv[2];
+  int use_amvd;
+  int_mv mv[2];
+} NEW_NEWMV_AMVD_STATS;
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int use_amvd;
+  int_mv mv;
+} NEW_NEARMV_AMVD_STATS;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
