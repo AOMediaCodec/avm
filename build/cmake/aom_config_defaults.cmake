@@ -176,6 +176,7 @@ set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
 set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")
+set_aom_config_var(CONFIG_TCQ_IMP 1 "AV2 TCQ improvement")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
