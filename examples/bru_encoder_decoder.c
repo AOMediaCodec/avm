@@ -9,18 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-// AOM Set Active Maps
+// BRU encoder and decoder test
 // ===========================
 //
-// This is an example demonstrating how to control the AOM encoder's
-// Active maps.
+// This is an example demonstrating how to encode with BRU mode and decode with
+// BRU optimized decoder and regular decoder.
 //
-// Active maps are a way for the application to specify on a
-// macroblock-by-macroblock basis whether there is any activity in that
-// macroblock.
-//
-// This example is different from set_maps in that we compute the active
-// maps by comparing successive input frames at the block level.
+// This test also test encode with BRU off mode decode with BRU optimized
+// decoder and regular decoder
 //
 
 #include <assert.h>
@@ -45,7 +41,7 @@ void usage_exit(void) {
 #if CONFIG_BRU
           "<enable_bru> "
 #endif
-          "<infile> <outfile>\n",
+          "<infile> <outfile> <md5_file_opt> <md5_file_reg>\n",
           exec_name);
   exit(EXIT_FAILURE);
 }

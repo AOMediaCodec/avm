@@ -32,8 +32,8 @@ bru_tests() {
   local output_md5_0_opt="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_opt.md5"
   local output_md5_0_reg="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_reg.md5"
   local output_bin_0="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0.ivf"
-  #overwrite input
-  YUV_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/debug_480_270_30_420.yuv"
+  #overwrite input when bru test sequence is ready
+  YUV_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/Debugging_480x270p3000_yuv420p_20frames.yuv"
   YUV_RAW_INPUT_WIDTH=480
   YUV_RAW_INPUT_HEIGHT=270
 
@@ -54,7 +54,6 @@ if [ $? -ne 0 ]; then
     return 1
 fi
   
- vlog "here here"
 
  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${YUV_RAW_INPUT_WIDTH}" \
      "${YUV_RAW_INPUT_HEIGHT}" 8 0 "${YUV_RAW_INPUT}" "${output_bin_0}" \
@@ -77,4 +76,4 @@ bru_tests_av2() {
 
 bru_tests = "bru_tests_av2"
 
-    run_tests bru_tests_verify_environment "${bru_tests}"
+run_tests bru_tests_verify_environment "${bru_tests}"

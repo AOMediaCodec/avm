@@ -148,6 +148,32 @@ static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
   return (BruActiveMode)sb_active_mode;
 }
 
+static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
+  // this can only be called after all the SBs are decoded
+  if (!cm->bru.enabled) return 1;
+  if (cm->bru.frame_inactive_flag) return 1;
+  const uint8_t *act = cm->bru.active_mode_map;
+  const int stride = cm->bru.unit_cols;
+  for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
+    for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
+      // if active must surrounded by active/support
+      if (*act == BRU_SUPPORT_SB) {
+        uint8_t top_inactive = col > 0 ? *(act - stride) == BRU_INACTIVE_SB : 0;
+        uint8_t bot_inactive = col + 1 < cm->bru.unit_cols
+                                   ? *(act + stride) == BRU_INACTIVE_SB
+                                   : 0;
+        uint8_t left_inactive = row > 0 ? *(act - 1) == BRU_ACTIVE_SB : 0;
+        uint8_t right_inactive =
+            row + 1 < cm->bru.unit_rows ? *(act + 1) == BRU_ACTIVE_SB : 0;
+        if (top_inactive || bot_inactive || left_inactive || right_inactive)
+          return 0;
+      }
+    }
+    act += stride;
+  }
+  return 1;
+}
+
 // todo: find a better way to address this
 static AOM_INLINE bool is_bru_not_active_and_not_on_partial_border(
     const AV1_COMMON *cm, int mi_col, int mi_row, BLOCK_SIZE bsize) {

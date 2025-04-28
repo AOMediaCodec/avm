@@ -3935,6 +3935,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+    if (!bru_active_map_validation(cm)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
+    }
     enc_bru_swap_stage(cpi);
   }
 #endif
