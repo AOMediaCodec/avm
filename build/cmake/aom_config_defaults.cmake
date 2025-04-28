@@ -546,6 +546,7 @@ set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
 set_aom_config_var(CONFIG_IMPROVE_REFINED_MV 1
                    "Keep refined MVs in TMVP list for TIP modes.")
+set_aom_config_var(CONFIG_IMPROVE_TMVP_LIST 1 "Improve TMVP list population.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
