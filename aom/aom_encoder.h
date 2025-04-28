@@ -357,12 +357,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_orip;
-#if CONFIG_IDIF
-  /*!\brief enable Intra Directional Interpolation Filter
-   *
-   */
-  unsigned int enable_idif;
-#endif  // CONFIG_IDIF
   /*!\brief enable Intra secondary transform
    *
    */

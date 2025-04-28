@@ -454,9 +454,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
   seq->enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
   seq->enable_orip = oxcf->intra_mode_cfg.enable_orip;
-#if CONFIG_IDIF
-  seq->enable_idif = oxcf->intra_mode_cfg.enable_idif;
-#endif  // CONFIG_IDIF
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
 #if CONFIG_CHROMA_TX

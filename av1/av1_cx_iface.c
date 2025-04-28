@@ -139,11 +139,8 @@ struct av1_extracfg {
   int enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-  int enable_fsc;   // enable forward skip coding
-  int enable_orip;  // enable ORIP
-#if CONFIG_IDIF
-  int enable_idif;       // enable IDIF
-#endif                   // CONFIG_IDIF
+  int enable_fsc;        // enable forward skip coding
+  int enable_orip;       // enable ORIP
   int enable_ist;        // enable intra secondary transform
   int enable_inter_ist;  // enable inter secondary transform
 #if CONFIG_CHROMA_TX
@@ -496,9 +493,6 @@ static struct av1_extracfg default_extra_cfg = {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   1,    // enable forward skip coding
   1,    // enable ORIP
-#if CONFIG_IDIF
-  1,    // enable IDIF
-#endif  // CONFIG_IDIF
   1,    // enable intra secondary transform
   1,    // enable inter secondary transform
 #if CONFIG_CHROMA_TX
@@ -1037,9 +1031,6 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_D071_IMP_MSK_BLD
   cfg->enable_fsc = extra_cfg->enable_fsc;
   cfg->enable_orip = extra_cfg->enable_orip;
-#if CONFIG_IDIF
-  cfg->enable_idif = extra_cfg->enable_idif;
-#endif  // CONFIG_IDIF
   cfg->enable_ist = extra_cfg->enable_ist;
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
 #if CONFIG_CHROMA_TX
@@ -1182,9 +1173,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // CONFIG_D071_IMP_MSK_BLD
   extra_cfg->enable_fsc = cfg->enable_fsc;
   extra_cfg->enable_orip = cfg->enable_orip;
-#if CONFIG_IDIF
-  extra_cfg->enable_idif = cfg->enable_idif;
-#endif  // CONFIG_IDIF
   extra_cfg->enable_ist = cfg->enable_ist;
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
 #if CONFIG_CHROMA_TX
@@ -1854,9 +1842,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
-#if CONFIG_IDIF
-  intra_mode_cfg->enable_idif = extra_cfg->enable_idif;
-#endif  // CONFIG_IDIF
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
@@ -4086,11 +4071,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
                               err_string)) {
     extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_IDIF
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idif, argv,
-                              err_string)) {
-    extra_cfg.enable_idif = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_IDIF
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
@@ -4649,9 +4629,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_D071_IMP_MSK_BLD
         1, 1,
-#if CONFIG_IDIF
-        1,
-#endif      // CONFIG_IDIF
         1,  // IST
         1,  // inter IST
 #if CONFIG_CHROMA_TX

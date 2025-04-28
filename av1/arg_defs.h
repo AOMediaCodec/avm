@@ -172,9 +172,6 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_fsc;
   arg_def_t enable_orip;
-#if CONFIG_IDIF
-  arg_def_t enable_idif;
-#endif  // CONFIG_IDIF
   arg_def_t enable_ist;
   arg_def_t enable_inter_ist;
 #if CONFIG_CHROMA_TX

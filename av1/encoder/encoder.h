@@ -308,12 +308,6 @@ typedef struct {
    * Flag to indicate if ORIP should be enabled
    */
   bool enable_orip;
-#if CONFIG_IDIF
-  /*!
-   * Flag to indicate if IDIF should be enabled
-   */
-  bool enable_idif;
-#endif
   /*!
    * Flag to indicate if IBP should be enabled
    */

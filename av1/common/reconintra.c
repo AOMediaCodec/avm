@@ -1543,10 +1543,6 @@ static void build_intra_predictors_high(
 #else
     uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
 #endif  // CONFIG_IBP_WEIGHT
-#if CONFIG_IDIF
-    ,
-    const int enable_idif
-#endif  // CONFIG_IDIF
 ) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
@@ -1956,38 +1952,34 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_MRLS_IMPROVE
         }
       }
-#if CONFIG_IDIF
-      if (!enable_idif) {
-#endif  // CONFIG_IDIF
-        upsample_above = av1_use_intra_edge_upsample(txwpx, txhpx, angle_above,
-                                                     filt_type_above);
-        if (need_above && upsample_above) {
-          const int n_px = txwpx + (need_right ? txhpx : 0);
+#if !CONFIG_IDIF
+      upsample_above = av1_use_intra_edge_upsample(txwpx, txhpx, angle_above,
+                                                   filt_type_above);
+      if (need_above && upsample_above) {
+        const int n_px = txwpx + (need_right ? txhpx : 0);
 #if CONFIG_MRLS_IMPROVE
-          av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
+        av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
 #else
         av1_upsample_intra_edge_high(above_row, n_px, xd->bd);
 #endif  // CONFIG_MRLS_IMPROVE
-        }
-        upsample_left = av1_use_intra_edge_upsample(txhpx, txwpx, angle_left,
-                                                    filt_type_left);
-        if (need_left && upsample_left) {
-          const int n_px = txhpx + (need_bottom ? txwpx : 0);
+      }
+      upsample_left =
+          av1_use_intra_edge_upsample(txhpx, txwpx, angle_left, filt_type_left);
+      if (need_left && upsample_left) {
+        const int n_px = txhpx + (need_bottom ? txwpx : 0);
 #if CONFIG_MRLS_IMPROVE
-          av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
+        av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
 #else
         av1_upsample_intra_edge_high(left_col, n_px, xd->bd);
 #endif  // CONFIG_MRLS_IMPROVE
-        }
-#if CONFIG_IDIF
       }
-#endif  // CONFIG_IDIF
+#endif  // !CONFIG_IDIF
     }
 #if CONFIG_MRLS_IMPROVE
     const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
 #endif
 #if CONFIG_IDIF
-    if (enable_idif && plane == AOM_PLANE_Y) {
+    if (plane == AOM_PLANE_Y) {
 #if CONFIG_MRLS_IMPROVE
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
                                left_col_1st, p_angle, xd->bd, mrl_index);
@@ -2053,7 +2045,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[tx_size][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif && plane == AOM_PLANE_Y) {
+            if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
@@ -2097,7 +2089,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[transpose_tsize][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif && plane == AOM_PLANE_Y) {
+            if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
@@ -2300,9 +2292,6 @@ void av1_predict_intra_block(
       row_off, col_off, ss_x, ss_y, yd, &px_bottom_left, bsize != init_bsize);
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
-#if CONFIG_IDIF
-  const int enable_idif = cm->seq_params.enable_idif;
-#endif  // CONFIG_IDIF
 
   const int is_sb_boundary =
       (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
@@ -2319,12 +2308,7 @@ void av1_predict_intra_block(
       have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
       have_bottom_left ? px_bottom_left : 0, plane, is_sb_boundary,
       cm->seq_params.enable_orip, cm->seq_params.enable_ibp,
-      cm->ibp_directional_weights
-#if CONFIG_IDIF
-      ,
-      enable_idif
-#endif  // CONFIG_IDIF
-  );
+      cm->ibp_directional_weights);
   return;
 }
 #if CONFIG_ENABLE_MHCCP

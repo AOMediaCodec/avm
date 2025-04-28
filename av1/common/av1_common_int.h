@@ -596,10 +596,6 @@ typedef struct SequenceHeader {
 #endif                               // CONFIG_DIP
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
   uint8_t enable_orip;               // To turn on/off sub-block based ORIP
-#if CONFIG_IDIF
-  uint8_t
-      enable_idif;  // enables/disables Intra Directional Interpolation Filter
-#endif              // CONFIG_IDIF
   uint8_t enable_ist;        // enables/disables intra secondary transform
   uint8_t enable_inter_ist;  // enables/disables inter secondary transform
 #if CONFIG_CHROMA_TX

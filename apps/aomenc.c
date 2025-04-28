@@ -461,9 +461,6 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_fsc,
   &g_av1_codec_arg_defs.enable_orip,
-#if CONFIG_IDIF
-  &g_av1_codec_arg_defs.enable_idif,
-#endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
   &g_av1_codec_arg_defs.enable_inter_ist,
 #if CONFIG_CHROMA_TX
@@ -692,9 +689,6 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   config->enable_fsc = 1;
   config->enable_orip = 1;
-#if CONFIG_IDIF
-  config->enable_idif = 1;
-#endif  // CONFIG_IDIF
   config->enable_ist = 1;
   config->enable_inter_ist = 1;
 #if CONFIG_CHROMA_TX
@@ -1608,19 +1602,11 @@ static void show_stream_config(struct stream_state *stream,
           ", MRLS(%d)"
           ", FSC(%d)"
           ", ORIP(%d)"
-#if CONFIG_IDIF
-          ", IDIF(%d)"
-#endif  // CONFIG_IDIF
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
-          encoder_cfg->enable_fsc, encoder_cfg->enable_orip
-#if CONFIG_IDIF
-          ,
-          encoder_cfg->enable_idif
-#endif  //  CONFIG_IDIF
-          ,
+          encoder_cfg->enable_fsc, encoder_cfg->enable_orip,
           encoder_cfg->enable_ibp);
   fprintf(
       stdout,
