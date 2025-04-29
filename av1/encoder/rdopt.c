@@ -244,7 +244,8 @@ void av1_inter_mode_data_fit(TileDataEnc *tile_data, int rdmult) {
 
       if (mx == dx) {
         // Avoid division by 0
-        // Reset all mean values and retain all the "sum" variables to continue collecting data
+        // Reset all mean values and retain all the "sum" variables to continue
+        // collecting data
         md->ready = 0;
         md->dist_mean = 0;
         md->ld_mean = 0;
