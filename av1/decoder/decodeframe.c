@@ -2410,6 +2410,16 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     }
   } else {
     partition = ptree->partition;
+#if CONFIG_EXTENDED_SDP
+    const PARTITION_TREE *parent = ptree->parent;
+    if (!is_sb_root && parent) {
+      if (!frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+          ptree->partition && parent->region_type != INTRA_REGION &&
+          ptree->region_type == INTRA_REGION) {
+        xd->tree_type = LUMA_PART;
+      }
+    }
+#endif  // CONFIG_EXTENDED_SDP
   }
 
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
