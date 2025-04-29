@@ -3418,11 +3418,7 @@ static AOM_INLINE void write_mb_modes_kf(
   struct segmentation_probs *const segp = &ec_ctx->seg;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
 
-  if (seg->segid_preskip && seg->update_map
-#if CONFIG_EXTENDED_SDP
-      && !(!frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART)
-#endif  // CONFIG_EXTENDED_SDP
-  )
+  if (seg->segid_preskip && xd->tree_type != CHROMA_PART)
     write_segment_id(cpi, mbmi, w, seg, segp, 0);
 
 #if CONFIG_SKIP_TXFM_OPT
@@ -3450,11 +3446,7 @@ static AOM_INLINE void write_mb_modes_kf(
 #else
   const int skip = write_skip(cm, xd, mbmi->segment_id, mbmi, w);
 #endif  // CONFIG_SKIP_TXFM_OPT
-  if (!seg->segid_preskip && seg->update_map
-#if CONFIG_EXTENDED_SDP
-      && !(!frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART)
-#endif  // CONFIG_EXTENDED_SDP
-  )
+  if (!seg->segid_preskip && seg->update_map && xd->tree_type != CHROMA_PART)
     write_segment_id(cpi, mbmi, w, seg, segp, skip);
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
