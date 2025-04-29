@@ -239,6 +239,10 @@ set_aom_config_var(
   "Frame-level, nonsep Wiener filter for chroma experiment flag")
 
 set_aom_config_var(
+  CONFIG_RETRAIN_PC_WIENER 1 NUMBER
+  "Precision Adjustment and Retraining for RESTORE_PC_WIENER flag")
+
+set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for cross-plane non-sep wiener filter")
 
