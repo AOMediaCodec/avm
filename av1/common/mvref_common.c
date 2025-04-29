@@ -1322,16 +1322,16 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
             continue;
 #if CONFIG_WEDGE_TMVP
-            if (is_wedge) {
-              const int this_decision =
-                  decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
+          if (is_wedge) {
+            const int this_decision =
+                decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
 
-              if (this_decision == 0 && idx == 1) continue;
-              if (this_decision == 1 && idx == 0) continue;
-            }
+            if (this_decision == 0 && idx == 1) continue;
+            if (this_decision == 1 && idx == 0) continue;
+          }
 #endif  // CONFIG_WEDGE_TMVP
-            mv->ref_frame[0] = ref_frame;
-            mv->mv[0].as_int = mi->mv[idx].as_int;
+          mv->ref_frame[0] = ref_frame;
+          mv->mv[0].as_int = mi->mv[idx].as_int;
 #endif  // CONFIG_IMPROVE_TMVP_LIST
           }
         }
