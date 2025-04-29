@@ -855,9 +855,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   // Search palette mode
+#if !CONFIG_DISABLE_PALC
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
+      av1_allow_palette(PLANE_TYPE_UV,
+                        cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_UV]);
   if (try_palette) {
     uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
@@ -868,6 +870,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         &best_mbmi, tmp_cctx_type_map, &best_rd, rate, rate_tokenonly,
         distortion, skippable, ctx->num_4x4_blk_chroma);
   }
+#endif
 
   *mbmi = best_mbmi;
 #if CONFIG_SDP_CFL_LATENCY_FIX
@@ -1303,7 +1306,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
     const int try_palette =
         cpi->oxcf.tool_cfg.enable_palette &&
-        av1_allow_palette(cm->features.allow_screen_content_tools,
+        av1_allow_palette(PLANE_TYPE_UV,
+                          cm->features.allow_screen_content_tools,
                           mbmi->sb_type[PLANE_TYPE_Y]);
     // If no good uv-predictor had been found, search for it.
     const int rate_y = rd_stats_y->rate;
@@ -1653,7 +1657,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
+      av1_allow_palette(PLANE_TYPE_Y,
+                        cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;

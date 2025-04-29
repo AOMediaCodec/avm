@@ -213,9 +213,9 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
   // Can only activate one mode.
   assert(((mbmi->mode != DC_PRED) + use_palette + use_intrabc) <= 1);
-  const int try_palette =
-      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_Y]);
+  const int try_palette = av1_allow_palette(
+      PLANE_TYPE_Y, cpi->common.features.allow_screen_content_tools,
+      mbmi->sb_type[PLANE_TYPE_Y]);
   if (try_palette && mbmi->mode == DC_PRED) {
 #if !CONFIG_PALETTE_CTX_REDUCTION
     const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
@@ -304,9 +304,9 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   assert(mbmi->use_intrabc[PLANE_TYPE_UV] == 0);
   assert(((mode != UV_DC_PRED) + use_palette +
           mbmi->use_intrabc[PLANE_TYPE_UV]) <= 1);
-  const int try_palette =
-      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_UV]);
+  const int try_palette = av1_allow_palette(
+      PLANE_TYPE_UV, cpi->common.features.allow_screen_content_tools,
+      mbmi->sb_type[PLANE_TYPE_UV]);
   if (try_palette && mode == UV_DC_PRED) {
     const PALETTE_MODE_INFO *pmi = &mbmi->palette_mode_info;
     total_rate +=

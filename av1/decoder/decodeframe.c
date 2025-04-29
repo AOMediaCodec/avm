@@ -1638,7 +1638,8 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
               xd->mi[0]->chroma_mi_row_start;
           xd->mi[y * idx + x]->chroma_mi_col_start =
               xd->mi[0]->chroma_mi_col_start;
-          if (av1_allow_palette(cm->features.allow_screen_content_tools,
+          if (av1_allow_palette(PLANE_TYPE_UV,
+                                cm->features.allow_screen_content_tools,
                                 bsize)) {
             xd->mi[y * idx + x]->palette_mode_info.palette_size[PLANE_TYPE_UV] =
                 xd->mi[0]->palette_mode_info.palette_size[PLANE_TYPE_UV];

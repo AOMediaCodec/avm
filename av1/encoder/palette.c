@@ -432,8 +432,8 @@ void av1_rd_pick_palette_intra_sby(
 
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
   assert(!is_inter_block(mbmi, xd->tree_type));
-  assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
-                           bsize));
+  assert(av1_allow_palette(
+      PLANE_TYPE_Y, cpi->common.features.allow_screen_content_tools, bsize));
   assert(PALETTE_MAX_SIZE == 8);
   assert(PALETTE_MIN_SIZE == 2);
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
@@ -647,7 +647,8 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(!is_inter_block(mbmi, xd->tree_type));
   assert(xd->tree_type != LUMA_PART);
-  assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
+  assert(av1_allow_palette(PLANE_TYPE_UV,
+                           cpi->common.features.allow_screen_content_tools,
                            mbmi->sb_type[PLANE_TYPE_UV]));
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_UV];

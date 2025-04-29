@@ -9881,7 +9881,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // Only try palette mode when the best mode so far is an intra mode.
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(features->allow_screen_content_tools,
+      av1_allow_palette(PLANE_TYPE_Y, features->allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]) &&
       !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
   int search_palette_mode = try_palette;

@@ -1309,7 +1309,8 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
                                                aom_writer *w) {
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-  assert(av1_allow_palette(cm->features.allow_screen_content_tools, bsize));
+  assert(av1_allow_palette(PLANE_TYPE_Y,
+                           cm->features.allow_screen_content_tools, bsize));
 #if CONFIG_PALETTE_CTX_REDUCTION
   (void)bsize;
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
@@ -1342,6 +1343,7 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
     }
   }
 
+#if !CONFIG_DISABLE_PALC
   const int uv_dc_pred = num_planes > 1 && xd->tree_type != LUMA_PART &&
                          mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
   if (uv_dc_pred) {
@@ -1367,6 +1369,7 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
       write_palette_colors_uv(xd, pmi, cm->seq_params.bit_depth, w);
     }
   }
+#endif
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
@@ -2011,7 +2014,8 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     }
   }
   // Palette.
-  if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
+  if (av1_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
+                        bsize)) {
     write_palette_mode_info(cm, xd, mbmi, w);
   }
   // Intra ML prediction
@@ -3156,7 +3160,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     assert(!mbmi->skip_mode || !palette_size_plane);
     if (palette_size_plane > 0) {
       assert(mbmi->use_intrabc[plane] == 0);
-      assert(av1_allow_palette(cm->features.allow_screen_content_tools,
+      assert(av1_allow_palette(plane, cm->features.allow_screen_content_tools,
                                mbmi->sb_type[plane]));
       assert(!plane || xd->is_chroma_ref);
       int rows, cols;

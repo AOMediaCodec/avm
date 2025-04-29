@@ -1349,7 +1349,8 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-  assert(av1_allow_palette(cm->features.allow_screen_content_tools, bsize));
+  assert(av1_allow_palette(PLANE_TYPE_Y,
+                           cm->features.allow_screen_content_tools, bsize));
 #if CONFIG_PALETTE_CTX_REDUCTION
   (void)bsize;
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
@@ -1383,6 +1384,7 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       read_palette_colors_y(xd, cm->seq_params.bit_depth, pmi, r);
     }
   }
+#if !CONFIG_DISABLE_PALC
   if (num_planes > 1 && xd->tree_type != LUMA_PART &&
       mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref) {
 #if !CONFIG_PALETTE_CTX_REDUCTION
@@ -1411,6 +1413,7 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       read_palette_colors_uv(xd, cm->seq_params.bit_depth, pmi, r);
     }
   }
+#endif
 }
 
 static void read_intra_dip_mode_info(const AV1_COMMON *const cm,
@@ -2270,7 +2273,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   if (xd->tree_type != CHROMA_PART) mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
-  if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
+  if (av1_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
+                        bsize))
     read_palette_mode_info(cm, xd, r);
   if (xd->tree_type != CHROMA_PART) {
     mbmi->use_intra_dip = 0;
@@ -3058,7 +3062,8 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   if (xd->tree_type != LUMA_PART) xd->cfl.store_y = store_cfl_required(cm, xd);
   if (xd->tree_type != CHROMA_PART) mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
-  if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
+  if (av1_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
+                        bsize))
     read_palette_mode_info(cm, xd, r);
   if (xd->tree_type != CHROMA_PART) {
     mbmi->use_intra_dip = 0;

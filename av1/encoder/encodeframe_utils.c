@@ -492,6 +492,7 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
           n - PALETTE_MIN_SIZE, PALETTE_SIZES);
     }
   }
+#if !CONFIG_DISABLE_PALC
   if (mbmi->uv_mode == UV_DC_PRED && xd->tree_type != LUMA_PART) {
     const int n = pmi->palette_size[1];
 #if !CONFIG_PALETTE_CTX_REDUCTION
@@ -529,6 +530,7 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
           n - PALETTE_MIN_SIZE, PALETTE_SIZES);
     }
   }
+#endif
 }
 
 static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,
@@ -778,7 +780,8 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       }
     }
   }
-  if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
+  if (av1_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
+                        bsize)) {
     update_palette_cdf(xd, mbmi, counts);
   }
 }

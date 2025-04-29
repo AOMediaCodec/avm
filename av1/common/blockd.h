@@ -3726,11 +3726,16 @@ static INLINE int is_motion_variation_allowed_compound(
   return !has_second_ref(mbmi);
 }
 
-static INLINE int av1_allow_palette(int allow_screen_content_tools,
+static INLINE int av1_allow_palette(int plane_type,
+                                    int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
   assert(sb_type < BLOCK_SIZES_ALL);
-  return allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
-         block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
+  return
+#if CONFIG_DISABLE_PALC
+      plane_type == PLANE_TYPE_Y &&
+#endif
+      allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
+      block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
 }
 
 // Returns sub-sampled dimensions of the given block.

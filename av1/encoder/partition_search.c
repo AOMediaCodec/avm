@@ -257,7 +257,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
 
     xd->cfl.store_y = 0;
-    if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
+    if (av1_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
+                          bsize)) {
       for (int plane = plane_start; plane < AOMMIN(2, plane_end); ++plane) {
         if (mbmi->palette_mode_info.palette_size[plane] > 0) {
           if (!dry_run) {
