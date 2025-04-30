@@ -1551,6 +1551,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       tool_cfg->enable_bru = 0;
     }
   }
+  if (cfg->rc_resize_mode != RESIZE_NONE) {
+    tool_cfg->enable_bru = 0;
+  }
 #endif
 #if CONFIG_BAWP
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
