@@ -76,6 +76,7 @@ set_aom_config_var(CONFIG_GCC 0 "Building with GCC (detect).")
 set_aom_config_var(CONFIG_GCOV 0 "Enable gcov support.")
 set_aom_config_var(CONFIG_GPROF 0 "Enable gprof support.")
 set_aom_config_var(CONFIG_LIBYUV 1 "Enables libyuv scaling/conversion support.")
+set_aom_config_var(CONFIG_LANCZOS_RESAMPLE 1 "Enables lanczos resize support.")
 
 set_aom_config_var(CONFIG_MULTITHREAD 1 "Multithread support.")
 set_aom_config_var(CONFIG_OS_SUPPORT 0 "Internal flag.")
@@ -541,6 +542,10 @@ set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
                    "Derive palette context using three neighbors")
 
 # This is an encode-only change.
+
+set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
+                   "Fix PSNR computation of resize mode in coded resolution")
+
 set_aom_config_var(CONFIG_MOTION_MODE_RD_PRUNE 1
                    "Enable fast motion mode search")
 

@@ -153,6 +153,7 @@ enum {
   RESIZE_FIXED = 1,    // All frames are coded at the specified scale.
   RESIZE_RANDOM = 2,   // All frames are coded at a random scale.
   RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
+  RESIZE_PATTERN = 4,  // Fixed pattern for resize-mode common test conditions
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 
