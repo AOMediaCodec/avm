@@ -224,6 +224,9 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   assert(cm->bru.update_ref_idx >= 0);
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif
   // todo find del idx
   mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;
