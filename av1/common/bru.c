@@ -17,100 +17,6 @@
 #include "config/av1_rtcd.h"
 #include "av1/common/reconinter.h"
 
-static AOM_INLINE uint16_t *highbd_build_mc_border(
-    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int x,
-    int y, int b_w, int b_h, int w, int h) {
-  // Get a pointer to the start of the real data for this row.
-  const uint16_t *ref_row = src - x - y * src_stride;
-  if (y >= h)
-    ref_row += (h - 1) * src_stride;
-  else if (y > 0)
-    ref_row += y * src_stride;
-
-  do {
-    int right = 0, copy;
-    int left = x < 0 ? -x : 0;
-    int dont_cp = 0;
-    if (left > b_w) left = b_w;
-
-    if (x + b_w > w) right = x + b_w - w;
-
-    if (right > b_w) right = b_w;
-
-    copy = b_w - left - right;
-
-    if (dst + left == ref_row + x + left) dont_cp = 1;
-    if (left) aom_memset16(dst, ref_row[0], left);
-
-    if (copy && !dont_cp)
-      memcpy(dst + left, ref_row + x + left, copy * sizeof(uint16_t));
-
-    if (right) aom_memset16(dst + left + copy, ref_row[w - 1], right);
-
-    dst += dst_stride;
-    ++y;
-
-    if (y > 0 && y < h) ref_row += src_stride;
-  } while (--b_h);
-  return dst;
-}
-
-void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
-                          BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src) {
-  const int bw = mi_size_wide[bsize];
-  const int bh = mi_size_high[bsize];
-  const int W = bw << MI_SIZE_LOG2;
-  const int H = bh << MI_SIZE_LOG2;
-  const int X = mi_col << MI_SIZE_LOG2;
-  const int Y = mi_row << MI_SIZE_LOG2;
-  const int ss_x = src->uv_width < src->y_width;
-  const int ss_y = src->uv_height < src->y_height;
-  uint16_t *src_data;
-  uint16_t *dst_data;
-  for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-    const int is_uv = plane > 0;
-    const int s_x = is_uv ? ss_x : 0;
-    const int s_y = is_uv ? ss_y : 0;
-    int x = X >> s_x;
-    int y = Y >> s_y;
-    int w = W >> s_x;
-    int h = H >> s_y;
-    const int border = src->border >> is_uv;
-    // const int frame_H = src->heights[is_uv];
-    const int frame_H = is_uv ? src->uv_crop_height : src->y_crop_height;
-    // const int frame_W = src->widths[is_uv];
-    const int frame_W = is_uv ? src->uv_crop_width : src->y_crop_width;
-    const int extend_left = x == 0;
-    const int extend_right = (x + w) >= frame_W;
-    const int extend_top = y == 0;
-    const int extend_bottom = (y + h) >= frame_H;
-    if (extend_left || extend_top || extend_right || extend_bottom) {
-      int x_end = (x + w) >= frame_W ? frame_W : x + w;
-      int y_end = (y + h) >= frame_H ? frame_H : y + h;
-      if (extend_left) {
-        x -= (w > border ? border : w);
-      }
-      if (extend_top) {
-        y -= (h > border ? border : h);
-      }
-      if (extend_right) {
-        x_end += border;
-      }
-      if (extend_bottom) {
-        y_end += border;
-      }
-      int b_w = x_end - x;
-      int b_h = y_end - y;
-      int stride = src->strides[is_uv];
-      // Get reference block pointer.
-      src_data = src->buffers[plane] + scaled_buffer_offset(x, y, stride, NULL);
-      dst_data = src->buffers[plane] + scaled_buffer_offset(x, y, stride, NULL);
-      highbd_build_mc_border(src_data, stride, dst_data, stride, x, y, b_w, b_h,
-                             frame_W, frame_H);
-    }
-  }
-}
-
 void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                                TREE_TYPE tree_type,
                                const CHROMA_REF_INFO *chroma_ref_info,
@@ -222,8 +128,6 @@ void bru_copy_sb(const struct AV1Common *cm, const int mi_col,
     bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary >> MI_SIZE_LOG2,
                     y_inside_boundary >> MI_SIZE_LOG2);
   }
-  // check if still necessary
-  bru_extend_mc_border(cm, mi_row, mi_col, sb_size, rec_dst);
   return;
 }
 

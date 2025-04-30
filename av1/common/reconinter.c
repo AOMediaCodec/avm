@@ -4165,6 +4165,99 @@ static void build_inter_predictors_sub8x8(
   xd->mb_to_right_edge = mb_to_right_edge_start;
 }
 
+#if CONFIG_BRU
+AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
+                                       uint16_t *dst, int dst_stride, int x,
+                                       int y, int b_w, int b_h, int w, int h) {
+  // Get a pointer to the start of the real data for this row.
+  const uint16_t *ref_row = src - x - y * src_stride;
+
+  if (y >= h)
+    ref_row += (h - 1) * src_stride;
+  else if (y > 0)
+    ref_row += y * src_stride;
+
+  do {
+    int right = 0, copy;
+    int left = x < 0 ? -x : 0;
+
+    if (left > b_w) left = b_w;
+
+    if (x + b_w > w) right = x + b_w - w;
+
+    if (right > b_w) right = b_w;
+
+    copy = b_w - left - right;
+
+    if (left) aom_memset16(dst, ref_row[0], left);
+
+    if (copy) memcpy(dst + left, ref_row + x + left, copy * sizeof(uint16_t));
+
+    if (right) aom_memset16(dst + left + copy, ref_row[w - 1], right);
+
+    dst += dst_stride;
+    ++y;
+
+    if (y > 0 && y < h) ref_row += src_stride;
+  } while (--b_h);
+}
+
+void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
+                          BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src) {
+  const int org_bw = mi_size_wide[bsize];
+  const int org_bh = mi_size_high[bsize];
+  const int ss_x = src->uv_width < src->y_width;
+  const int ss_y = src->uv_height < src->y_height;
+  uint16_t *src_data;
+  uint16_t *dst_data;
+  for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+    const int is_uv = plane > 0;
+    const int s_x = is_uv ? ss_x : 0;
+    const int s_y = is_uv ? ss_y : 0;
+    PadBlock block;
+    PadBlock block_cur;
+    const int frame_H = is_uv ? src->uv_crop_height : src->y_crop_height;
+    const int frame_W = is_uv ? src->uv_crop_width : src->y_crop_width;
+    block.x0 = mi_col << (MI_SIZE_LOG2 - s_x);
+    block.y0 = mi_row << (MI_SIZE_LOG2 - s_y);
+    block.x1 = block.x0 + (org_bw << (MI_SIZE_LOG2 - s_x));
+    block.y1 = block.y0 + (org_bh << (MI_SIZE_LOG2 - s_y));
+    block_cur = block;
+    if (block.x1 > frame_W) block.x1 = frame_W;
+    if (block.y1 > frame_H) block.y1 = frame_H;
+    block.x0 -= AOM_INTERP_EXTEND - 1;
+    block.x1 += AOM_INTERP_EXTEND;
+    block.y0 -= AOM_INTERP_EXTEND - 1;
+    block.y1 += AOM_INTERP_EXTEND;
+    if (block.x0 < 0 || block.x1 > frame_W - 1 || block.y0 < 0 ||
+        block.y1 > frame_H - 1) {
+      // BRU extend border should not touch any pixel in the frame , but only in
+      // the extend region if block - AOM_INTERP_EXTEND >= 0, means this is not
+      // on the top/left border, then reset to current block
+      if (block.x0 >= 0) block.x0 = block_cur.x0;
+      if (block.y0 >= 0) block.y0 = block_cur.y0;
+      // if block + AOM_INTERP_EXTEND <= W/H, means this is not on the
+      // bottom/right border, then reset to current block
+      if (block.x1 <= frame_W) block.x1 = block_cur.x1;
+      if (block.y1 <= frame_H) block.y1 = block_cur.y1;
+
+      int b_w = block.x1 - block.x0;
+      int b_h = block.y1 - block.y0;
+
+      int stride = src->strides[is_uv];
+      // Get reference block pointer.
+      src_data = src->buffers[plane] +
+                 scaled_buffer_offset(block.x0, block.y0, stride, NULL);
+      dst_data = src->buffers[plane] +
+                 scaled_buffer_offset(block.x0, block.y0, stride, NULL);
+
+      highbd_build_mc_border(src_data, stride, dst_data, stride, block.x0,
+                             block.y0, b_w, b_h, frame_W, frame_H);
+    }
+  }
+}
+#endif
+
 #if CONFIG_REFINEMV
 static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,
                                           int count) {

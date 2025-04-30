@@ -655,6 +655,7 @@ typedef struct PadBlock {
 } PadBlock;
 #endif  //! CONFIG_REFINEMV
 
+#if !CONFIG_BRU
 static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
                                               int src_stride, uint16_t *dst,
                                               int dst_stride, int x, int y,
@@ -691,6 +692,7 @@ static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
     if (y > 0 && y < h) ref_row += src_stride;
   } while (--b_h);
 }
+#endif
 
 #if !CONFIG_REFINEMV
 int update_extend_mc_border_params(const struct scale_factors *const sf,
@@ -9505,6 +9507,12 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_IMPROVED_SECONDARY_REFERENCE
+      int ref_frame_used = PRIMARY_REF_NONE;
+      int map_idx = INVALID_IDX;
+      get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+      avg_primary_secondary_references(cm, ref_frame_used, map_idx);
+#else
       const int ref_frame_used = (cm->features.primary_ref_frame ==
                                   cm->features.derived_primary_ref_frame)
                                      ? cm->features.derived_secondary_ref_frame
@@ -9518,6 +9526,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
         av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
       }
+#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
     *p_data_end = data + uncomp_hdr_size;
@@ -9772,6 +9781,58 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     release_ref_buffer(tmp_buf, pool);
     unlock_buffer_pool(pool);
     xd->cur_buf = &cm->cur_frame->buf;
+    // correctly extend borders after swap
+    // todo: this can be simplified by only extend support SB border
+    // aom_extend_frame_borders(&cm->cur_frame->buf, num_planes);
+    // Note, do not touch any recon region except the border
+    // first col of sb
+    const int sb_cols =
+        (cm->mi_params.mi_cols + cm->mib_size - 1) / cm->mib_size;
+    const int sb_rows =
+        (cm->mi_params.mi_rows + cm->mib_size - 1) / cm->mib_size;
+    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
+      const int sb_mi_row = sb_row << cm->mib_size_log2;
+      const int sb_mi_col = 0;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // first row of sb
+    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
+      const int sb_mi_row = 0;
+      const int sb_mi_col = sb_col << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // last col of sb
+    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
+      const int sb_mi_row = sb_row << cm->mib_size_log2;
+      const int sb_mi_col = (sb_cols - 1) << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // last row of sb
+    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
+      const int sb_mi_row = (sb_rows - 1) << cm->mib_size_log2;
+      const int sb_mi_col = sb_col << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
   }
 #endif  // CONFIG_BRU
 

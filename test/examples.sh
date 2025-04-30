@@ -1,4 +1,4 @@
-#!/ bin / sh
+#!/bin/sh
 ## Copyright (c) 2021, Alliance for Open Media. All rights reserved
 ##
 ## This source code is subject to the terms of the BSD 3-Clause Clear License and the
@@ -10,8 +10,8 @@
 ##
 ## This file runs all of the tests for the libaom examples.
 ##
-export LIBAOM_TEST_DATA_PATH=/Users/jgmao/Projects/av2/test_data
 . $(dirname $0)/tools_common.sh
+
 example_tests=$(ls -r $(dirname $0)/*.sh)
 
 # List of script names to exclude.

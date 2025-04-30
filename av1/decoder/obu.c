@@ -321,7 +321,7 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
   uint32_t saved_bit_offset = rb->bit_offset;
   int tile_start_and_end_present_flag = 0;
   const int num_tiles = tiles->rows * tiles->cols;
-#if CONFIG_BRU
+  #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
     *start_tile = 0;
     *end_tile = num_tiles - 1;

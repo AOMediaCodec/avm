@@ -392,8 +392,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           : -1;
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
-#endif  // CONFIG_BRU
-#if CONFIG_BRU
   if (seq->enable_bru)
     seq->explicit_ref_frame_map = 1;
   else
@@ -4114,7 +4112,16 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     int ref_frame_used = PRIMARY_REF_NONE;
     int secondary_map_idx = INVALID_IDX;
     get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
-    avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+#if CONFIG_BRU
+    if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
+#endif
+      avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+#if CONFIG_BRU
+    } else {
+      av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
+                          AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+    }
+#endif
 #else
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
