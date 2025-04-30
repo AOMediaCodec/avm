@@ -157,16 +157,22 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
   for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
     for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
       // if active must surrounded by active/support
-      if (*act == BRU_SUPPORT_SB) {
-        uint8_t top_inactive = col > 0 ? *(act - stride) == BRU_INACTIVE_SB : 0;
-        uint8_t bot_inactive = col + 1 < cm->bru.unit_cols
-                                   ? *(act + stride) == BRU_INACTIVE_SB
+      if (*(act + col) == BRU_ACTIVE_SB) {
+        uint8_t top_inactive =
+            row > 0 ? *(act + col - stride) == BRU_INACTIVE_SB : 0;
+        uint8_t bot_inactive = row + 1 < cm->bru.unit_rows
+                                   ? *(act + col + stride) == BRU_INACTIVE_SB
                                    : 0;
-        uint8_t left_inactive = row > 0 ? *(act - 1) == BRU_ACTIVE_SB : 0;
-        uint8_t right_inactive =
-            row + 1 < cm->bru.unit_rows ? *(act + 1) == BRU_ACTIVE_SB : 0;
-        if (top_inactive || bot_inactive || left_inactive || right_inactive)
+        uint8_t left_inactive =
+            col > 0 ? *(act + col - 1) == BRU_INACTIVE_SB : 0;
+        uint8_t right_inactive = col + 1 < cm->bru.unit_cols
+                                     ? *(act + col + 1) == BRU_INACTIVE_SB
+                                     : 0;
+        if (top_inactive || bot_inactive || left_inactive || right_inactive) {
+          printf("@sb %d %d: %d, %d, %d, %d\n", col, row, top_inactive,
+                 bot_inactive, left_inactive, right_inactive);
           return 0;
+        }
       }
     }
     act += stride;

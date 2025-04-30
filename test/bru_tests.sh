@@ -21,8 +21,9 @@ BRU_RAW_INPUT_HEIGHT=270
 
 #Environment check : $BRU_RAW_INPUT is required.
 bru_tests_verify_environment() {
-  if [!-e "${BRU_RAW_INPUT}"]; then
-    echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH." return 1
+  if [ ! -e "${BRU_RAW_INPUT}" ]; then
+    echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
+    return 1
   fi
 }
 
@@ -36,7 +37,7 @@ bru_tests() {
   local output_md5_0_reg="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_reg.md5"
   local output_bin_0="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0.bin"
 
-  if [!-x "${encoder_decoder}"]; then
+  if [ ! -x "${encoder_decoder}" ]; then
     elog "${encoder_decoder} does not exist or is not executable."
     return 1
   fi
@@ -68,7 +69,7 @@ bru_tests() {
 }
 
 bru_tests_av2() {
-  if ["$(av1_encode_available)" = "yes" - a "$(av1_decode_available)" = "yes"]; then
+  if [ "$(av1_encode_available)" = "yes" -a "$(av1_decode_available)" = "yes" ]; then
     bru_tests || return 1
   fi
 }
