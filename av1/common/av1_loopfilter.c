@@ -922,9 +922,7 @@ static TX_SIZE set_lpf_parameters(
       return ts;
 #if CONFIG_BRU
     if (cm->bru.enabled) {
-      if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
-        return TX_64X64;
-      }
+      assert(mbmi->sb_active_mode != BRU_ACTIVE_SB);
     }
 #endif  // CONFIG_BRU
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
@@ -1276,6 +1274,15 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    MB_MODE_INFO **mi =
+        cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
+    if (mi[0]->sb_active_mode != BRU_ACTIVE_SB) {
+      return;
+    }
+  }
+#endif  // CONFIG_BRU
   uint16_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
   const int y_range = (mib_size >> scale_vert);
@@ -1356,6 +1363,15 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    MB_MODE_INFO **mi =
+        cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
+    if (mi[0]->sb_active_mode != BRU_ACTIVE_SB) {
+      return;
+    }
+  }
+#endif  // CONFIG_BRU
   uint16_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
   const int y_range = (mib_size >> scale_vert);

@@ -1769,6 +1769,12 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }
+    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+      aom_internal_error(
+          rui->error, AOM_CODEC_ERROR,
+          "Invalid BRU activity in LR: only active SB can be filtered");
+      return;
+    }
 #endif
     // The function update_accumulator() is used to compute the accumulated
     // result of tx_skip and feature direction filtering output at
@@ -2034,6 +2040,12 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
     if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
+    }
+    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+      aom_internal_error(
+          rui->error, AOM_CODEC_ERROR,
+          "Invalid BRU activity in LR: only active SB can be filtered");
+      return;
     }
 #endif
     apply_wienerns_class_id_highbd(
@@ -2487,6 +2499,12 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
       copy_tile(w, stripe_height, src_p, src_stride, dst_p, dst_stride);
       continue;
     }
+    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+      aom_internal_error(
+          rui->error, AOM_CODEC_ERROR,
+          "Invalid BRU activity in LR: only active SB can be filtered");
+      return;
+    }
 #endif
     av1_highbd_wiener_convolve_add_src(src_p, src_stride, dst_p, dst_stride,
                                        rui->wiener_info.hfilter, 16,
@@ -2508,6 +2526,12 @@ static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
     if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
+    }
+    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
+      aom_internal_error(
+          rui->error, AOM_CODEC_ERROR,
+          "Invalid BRU activity in LR: only active SB can be filtered");
+      return;
     }
 #endif
     av1_apply_selfguided_restoration(
@@ -2620,6 +2644,7 @@ void av1_loop_restoration_filter_unit(
     tmp_rui->mbmi_ptr =
         mbmi_base_ptr + (i >> (MI_SIZE_LOG2 - ss_y)) * rui->mi_stride;
     tmp_rui->mi_stride = rui->mi_stride;
+    tmp_rui->error = rui->error;
 #endif  // CONFIG_BRU
     setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h, data,
                                      stride, rlbs, copy_above, copy_below,
@@ -2701,6 +2726,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   rsi->unit_info[rest_unit_idx].mbmi_ptr =
       ctxt->mi_params->mi_grid_base + mbmi_idx;
   rsi->unit_info[rest_unit_idx].mi_stride = ctxt->mi_params->mi_stride;
+  rsi->unit_info[rest_unit_idx].error = ctxt->error;
 #endif  // CONFIG_BRU
   av1_loop_restoration_filter_unit(
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs, tile_rect,
@@ -2778,6 +2804,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
 #if CONFIG_BRU
     lr_plane_ctxt->mi_params = &cm->mi_params;
     lr_plane_ctxt->order_hint = cm->current_frame.order_hint;
+    lr_plane_ctxt->error = &cm->error;
 #endif  // CONFIG_BRU
   }
 }

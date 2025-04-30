@@ -445,6 +445,7 @@ typedef struct {
   int mi_stride;
   int ss_x;
   int ss_y;
+  struct aom_internal_error_info *error;
 #endif  // CONFIG_BRU
 } RestorationUnitInfo;
 
@@ -709,6 +710,7 @@ typedef struct FilterFrameCtxt {
 #if CONFIG_BRU
   const struct CommonModeInfoParams *mi_params;
   int order_hint;
+  struct aom_internal_error_info *error;
 #endif  // CONFIG_BRU
 } FilterFrameCtxt;
 
