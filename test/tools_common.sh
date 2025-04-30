@@ -449,6 +449,10 @@ YUV_RAW_INPUT_HEIGHT=288
 Y4M_NOSQ_PAR_INPUT="${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420_a10-1.y4m"
 Y4M_720P_INPUT="${LIBAOM_TEST_DATA_PATH}/niklas_1280_720_30.y4m"
 
+BRU_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/Debugging_480x270p3000_yuv420p_20frames.yuv"
+BRU_RAW_INPUT_WIDTH=480
+BRU_RAW_INPUT_HEIGHT=270
+
 # Setup a trap function to clean up after tests complete.
 trap cleanup EXIT
 

@@ -14,9 +14,10 @@
 ##   2. Add the function to bru_tests (on a new line).
 ##
 . $(dirname $0)/tools_common.sh
-#Environment check : $YUV_RAW_INPUT is required.
+
+#Environment check : $BRU_RAW_INPUT is required.
 bru_tests_verify_environment() {
-  if [!-e "${YUV_RAW_INPUT}"]; then
+  if [!-e "${BRU_RAW_INPUT}"]; then
     echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH." return 1
   fi
 }
@@ -30,18 +31,14 @@ bru_tests() {
   local output_md5_0_opt="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_opt.md5"
   local output_md5_0_reg="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_reg.md5"
   local output_bin_0="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0.bin"
-  #overwrite input when bru test sequence is ready
-  YUV_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/Debugging_480x270p3000_yuv420p_20frames.yuv"
-  YUV_RAW_INPUT_WIDTH=480
-  YUV_RAW_INPUT_HEIGHT=270
 
   if [!-x "${encoder_decoder}"]; then
     elog "${encoder_decoder} does not exist or is not executable."
     return 1
   fi
 
-  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${YUV_RAW_INPUT_WIDTH}" \
-    "${YUV_RAW_INPUT_HEIGHT}" 8 1 "${YUV_RAW_INPUT}" "${output_bin_1}" \
+  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
+    "${BRU_RAW_INPUT_HEIGHT}" 8 1 "${BRU_RAW_INPUT}" "${output_bin_1}" \
     "${output_md5_1_opt}" "${output_md5_1_reg}" \
     ${devnull} || return 1
   [ -e "${output_md5_1_opt}" ] || return 1
@@ -52,8 +49,8 @@ bru_tests() {
     return 1
   fi
 
-  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${YUV_RAW_INPUT_WIDTH}" \
-    "${YUV_RAW_INPUT_HEIGHT}" 8 0 "${YUV_RAW_INPUT}" "${output_bin_0}" \
+  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
+    "${BRU_RAW_INPUT_HEIGHT}" 8 0 "${BRU_RAW_INPUT}" "${output_bin_0}" \
     "${output_md5_0_opt}" "${output_md5_0_reg}" \
     ${devnull} || return 1
 
