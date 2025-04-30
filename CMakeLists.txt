@@ -155,6 +155,8 @@ list(
   "${AOM_ROOT}/common/args.h"
   "${AOM_ROOT}/common/av1_config.c"
   "${AOM_ROOT}/common/av1_config.h"
+  "${AOM_ROOT}/common/lanczos_resample.h"
+  "${AOM_ROOT}/common/lanczos_resample.c"
   "${AOM_ROOT}/common/md5_utils.c"
   "${AOM_ROOT}/common/md5_utils.h"
   "${AOM_ROOT}/common/tools_common.c"

@@ -56,12 +56,49 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
 }
 #endif  // CONFIG_ENABLE_SR
 
+// This function is used to compute the resolution for low delay mode
+static uint8_t get_resolution_ratio_pattern1(const int display_order_hint) {
+  uint8_t new_denom = 8;
+  const uint8_t denom_indices8[8] = { 8, 10, 12, 14, 16, 15, 13, 9 };
+  const uint8_t denom_indices16[16] = { 8,  9,  10, 11, 12, 13, 14, 15,
+                                        16, 15, 14, 13, 12, 11, 10, 9 };
+  int chunk_size = display_order_hint % 48;
+  if (chunk_size < 8) {
+    new_denom = denom_indices8[chunk_size];
+  } else if (chunk_size < 16) {
+    new_denom = 8;
+  } else if (chunk_size < 32) {
+    new_denom = denom_indices16[chunk_size - 16];
+  } else {
+    new_denom = 8;
+  }
+  return new_denom;
+}
+
+// This function is used to compute the resolution for RA mode
+static uint8_t get_resolution_ratio_pattern2(const int display_order_hint) {
+  uint8_t new_denom = 8;
+  int chunk_size = display_order_hint % 65;
+  if (chunk_size < 17) {
+    new_denom = 8;
+  } else if (chunk_size < 33) {
+    new_denom = 16;
+  } else if (chunk_size < 49) {
+    new_denom = 8;
+  } else {
+    new_denom = 12;
+  }
+  return new_denom;
+}
+
 static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 56789;
   const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
+  const int display_order_hint = cpi->common.current_frame.display_order_hint;
+  const uint8_t is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
 
   if (cpi->common.seq_params.reduced_still_picture_hdr) return SCALE_NUMERATOR;
   switch (resize_cfg->resize_mode) {
@@ -73,6 +110,11 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
         new_denom = resize_cfg->resize_scale_denominator;
       break;
     case RESIZE_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
+    case RESIZE_PATTERN:
+      new_denom = is_low_delay_enc
+                      ? get_resolution_ratio_pattern1(display_order_hint)
+                      : get_resolution_ratio_pattern2(display_order_hint);
+      break;
     default: assert(0);
   }
   return new_denom;
@@ -281,7 +323,8 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
       AOMMAX(DIVIDE_AND_ROUND(owidth * SCALE_NUMERATOR, rsz->resize_width),
              DIVIDE_AND_ROUND(oheight * SCALE_NUMERATOR, rsz->resize_height));
 
-  if (resize_mode != RESIZE_RANDOM && superres_mode == AOM_SUPERRES_RANDOM) {
+  if ((resize_mode != RESIZE_RANDOM && resize_mode != RESIZE_PATTERN) &&
+      superres_mode == AOM_SUPERRES_RANDOM) {
     // Alter superres scale as needed to enforce conformity.
     rsz->superres_denom =
         (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / resize_denom;
@@ -290,7 +333,7 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
     }
   } else
 #endif  // CONFIG_ENABLE_SR
-    if (resize_mode == RESIZE_RANDOM
+    if ((resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_PATTERN)
 #if CONFIG_ENABLE_SR
         && superres_mode != AOM_SUPERRES_RANDOM
 #endif  // CONFIG_ENABLE_SR
@@ -315,7 +358,8 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
         }
       }
 #if CONFIG_ENABLE_SR
-    } else if (resize_mode == RESIZE_RANDOM &&
+    } else if ((resize_mode == RESIZE_RANDOM ||
+                resize_mode == RESIZE_PATTERN) &&
                superres_mode == AOM_SUPERRES_RANDOM) {
       // Alter both resize and superres scales as needed to enforce conformity.
       do {
