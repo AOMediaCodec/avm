@@ -1782,16 +1782,6 @@ static AOM_INLINE void add_ref_mv_candidate(
         derived_mv.as_mv.col =
             cand_mvs[0].as_mv.col - cand_projected_mv_0.as_mv.col;
 
-        int_mv cand_projected_mv_1;
-        tip_get_mv_projection(&cand_projected_mv_1.as_mv, cand_linear_mv.as_mv,
-                              tip_ref->ref_frames_offset_sf[1]);
-
-        int_mv this_refmv1;
-        this_refmv1.as_mv.row =
-            cand_mvs[1].as_mv.row - cand_projected_mv_1.as_mv.row;
-        this_refmv1.as_mv.col =
-            cand_mvs[1].as_mv.col - cand_projected_mv_1.as_mv.col;
-
         const int clamp_max = MV_UPP - 1;
         const int clamp_min = MV_LOW + 1;
         derived_mv.as_mv.row =
