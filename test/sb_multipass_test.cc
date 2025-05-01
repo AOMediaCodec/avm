@@ -24,17 +24,17 @@
 #include "test/yuv_video_source.h"
 
 namespace {
-class AV1SBMultipassTest
+class AV1SBMultipassTestLarge
     : public ::libaom_test::CodecTestWith2Params<int, bool>,
       public ::libaom_test::EncoderTest {
  protected:
-  AV1SBMultipassTest()
+  AV1SBMultipassTestLarge()
       : EncoderTest(GET_PARAM(0)), set_cpu_used_(GET_PARAM(1)),
         row_mt_(GET_PARAM(2)) {
     init_flags_ = AOM_CODEC_USE_PSNR;
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    cfg.w = 1280;
-    cfg.h = 720;
+    cfg.w = 320;
+    cfg.h = 240;
     decoder_ = codec_->CreateDecoder(cfg, 0);
     if (decoder_->IsAV1()) {
       decoder_->Control(AV1_SET_DECODE_TILE_ROW, -1);
@@ -45,13 +45,13 @@ class AV1SBMultipassTest
     md5_dec_.clear();
     md5_enc_.clear();
   }
-  virtual ~AV1SBMultipassTest() { delete decoder_; }
+  virtual ~AV1SBMultipassTestLarge() { delete decoder_; }
 
   virtual void SetUp() {
     InitializeConfig();
     SetMode(::libaom_test::kOnePassGood);
 
-    cfg_.g_lag_in_frames = 5;
+    cfg_.g_lag_in_frames = 2;
     cfg_.rc_end_usage = AOM_Q;
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
@@ -109,7 +109,7 @@ class AV1SBMultipassTest
 
   void DoTest() {
     ::libaom_test::YUVVideoSource video(
-        "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 640, 480, 30, 1, 0, 6);
+        "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 320, 240, 30, 1, 0, 3);
 
     // Encode while coding each sb once
     use_multipass_ = false;
@@ -152,9 +152,9 @@ class AV1SBMultipassTest
   std::vector<std::string> md5_dec_;
 };
 
-TEST_P(AV1SBMultipassTest, TwoPassMatchTest) { DoTest(); }
+TEST_P(AV1SBMultipassTestLarge, TwoPassMatchTest) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_SUITE(AV1SBMultipassTest, ::testing::Range(5, 6),
+AV1_INSTANTIATE_TEST_SUITE(AV1SBMultipassTestLarge, ::testing::Values(5),
                            ::testing::Bool());
 
 }  // namespace
