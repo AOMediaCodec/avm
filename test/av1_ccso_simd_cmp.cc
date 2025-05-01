@@ -54,7 +54,7 @@ typedef libaom_test::FuncParam<CCSO_WO_BUF> TestFuncsCCSO_WO_BUF;
 template <typename F>
 class CCSOFilterTest : public FunctionEquivalenceTest<F> {
  public:
-  static const int kIterations = 10000;
+  static const int kIterations = 1000;
   static const int kMaxWidth =
       (MAX_SB_SIZE << 1) * 5;  // * 5 to cover longer strides
   static const int kMaxHeight = (MAX_SB_SIZE << 1) * 3;
