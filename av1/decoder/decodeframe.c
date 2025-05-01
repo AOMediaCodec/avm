@@ -3640,6 +3640,12 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
       lf->filter_level_u = lf->filter_level_v = 0;
     }
   }
+#if CONFIG_ASYM_DF
+  else {
+    lf->filter_level_u = lf->filter_level_v = 0;
+  }
+#endif
+
   //  lf->sharpness_level = 0;
 
 #if CONFIG_DF_PAR_BITS
