@@ -333,6 +333,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  /*!\brief enable mv trajectory tracking
+   *
+   */
+  unsigned int enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   /*!\brief enable block adaptive weighted prediction
    *

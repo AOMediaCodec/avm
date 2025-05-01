@@ -424,6 +424,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_TIP_IMPLICIT_QUANT
   seq->enable_tip_explicit_qp = 0;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  seq->enable_mv_traj = tool_cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   seq->enable_bawp = tool_cfg->enable_bawp;
 #endif  // CONFIG_BAWP

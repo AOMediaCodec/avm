@@ -890,6 +890,10 @@ typedef struct {
 #endif  // CONFIG_DERIVED_MVD_SIGN
   // enable temporal interpolated prediction
   int enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  // enable MV trajectory tracking
+  int enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   // enable block adaptive weighted prediction
   int enable_bawp;

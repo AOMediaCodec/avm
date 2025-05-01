@@ -131,6 +131,9 @@ struct av1_extracfg {
   int enable_sdp;   // enable semi-decoupled partitioning
   int enable_mrls;  // enable multiple reference line selection
   int enable_tip;   // enable temporal interpolated prediction
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  int enable_mv_traj;  // enable MV trajectory tracking
+#endif                 // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
@@ -484,6 +487,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable semi-decoupled partitioning
   1,  // enable multiple reference line selection
   1,  // enable temporal interpolated prediction (TIP)
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  1,    // enable mv trajectory tracking
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   1,    // enable block adaptive weighted prediction (BAWP)
 #endif  // CONFIG_BAWP
@@ -1022,6 +1028,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_sdp = extra_cfg->enable_sdp;
   cfg->enable_mrls = extra_cfg->enable_mrls;
   cfg->enable_tip = extra_cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -1164,6 +1173,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
   extra_cfg->enable_tip = cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  extra_cfg->enable_mv_traj = cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   extra_cfg->enable_bawp = cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -1547,6 +1559,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs) {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+    tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
     if (tool_cfg->enable_tip) {
 #if !CONFIG_TIP_LD
       if (cfg->g_lag_in_frames == 0) {
@@ -1560,6 +1575,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   } else {
     tool_cfg->enable_tip = 0;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+    tool_cfg->enable_mv_traj = 0;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -4052,6 +4070,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tip, argv,
                               err_string)) {
     extra_cfg.enable_tip = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mv_traj, argv,
+                              err_string)) {
+    extra_cfg.enable_mv_traj = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bawp, argv,
                               err_string)) {
@@ -4621,6 +4644,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,
 #endif      // CONFIG_EXT_RECUR_PARTITIONS
         0, 1,   1,   1,
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+        1,  // MV traj
+#endif      // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
         1,
 #endif  // CONFIG_BAWP

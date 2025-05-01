@@ -452,6 +452,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_pc_wiener,
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
   &g_av1_codec_arg_defs.enable_tip,
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  &g_av1_codec_arg_defs.enable_mv_traj,
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
@@ -1637,6 +1640,10 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout, "                               : TIP (%d)\n",
           encoder_cfg->enable_tip);
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  fprintf(stdout, "                               : MV traj (%d)\n",
+          encoder_cfg->enable_mv_traj);
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   fprintf(stdout, "                               : BAWP (%d)\n",
           encoder_cfg->enable_bawp);

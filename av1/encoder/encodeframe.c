@@ -1752,10 +1752,25 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
-  if (features->allow_ref_frame_mvs) av1_setup_motion_field(cm);
+
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  cm->tmvp_sample_step = 1;
+  if (features->allow_ref_frame_mvs) {
+    cm->tmvp_sample_step = -1;
+    av1_setup_motion_field(cm);
+    if (cm->tmvp_sample_step < 0) {
+      cm->tmvp_sample_step = 1;
+    }
+  }
+#else
+  if (features->allow_ref_frame_mvs) {
+    av1_setup_motion_field(cm);
+  }
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MVP_IMPROVEMENT
-  else
+  else {
     av1_setup_ref_frame_sides(cm);
+  }
 #endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);

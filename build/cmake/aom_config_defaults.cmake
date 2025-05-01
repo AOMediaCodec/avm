@@ -402,6 +402,10 @@ set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
 
 set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
                    "Enable the optimization of CDEF strengths")
+
+set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
+                   "Improvements to TMVP & MV trajectory")
+
 set_aom_config_var(CONFIG_TMVP_SIMPLIFICATION 1
                    "Enable to reduce the number of TMVP candidates")
 

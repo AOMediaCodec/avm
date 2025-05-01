@@ -6824,6 +6824,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   } else {
     seq_params->enable_tip_hole_fill = 0;
   }
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  seq_params->enable_mv_traj = aom_rb_read_bit(rb);
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   seq_params->enable_bawp = aom_rb_read_bit(rb);
 #endif  // CONFIG_BAWP
@@ -8075,6 +8078,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_ref_frame_mvs = aom_rb_read_bit(rb);
       else
         features->allow_ref_frame_mvs = 0;
+
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+      if (features->allow_ref_frame_mvs &&
+          cm->ref_frames_info.num_total_refs > 1 &&
+          seq_params->order_hint_info.enable_order_hint) {
+        // Get the TMVP sampling mode
+        cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
+      } else {
+        cm->tmvp_sample_step = 1;
+      }
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {

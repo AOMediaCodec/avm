@@ -118,7 +118,11 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
     return 0;
 
 #if CONFIG_TMVP_MEM_OPT
-  if (cm->tmvp_sample_step > 1) {
+  if (cm->tmvp_sample_step > 1
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+      || (sb_size < 256 && sb_size != 64)
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
+  ) {
 #endif  // CONFIG_TMVP_MEM_OPT
 #if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
@@ -154,6 +158,116 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
 
   return 1;
 }
+
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+static AOM_INLINE void get_proc_size_and_offset(const AV1_COMMON *cm,
+                                                int *proc_blk_size,
+                                                int *row_blk_offset,
+                                                int *col_blk_offset) {
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int sb_size = block_size_high[seq_params->sb_size];
+  const int mf_sb_size_log2 =
+      get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
+  const int mf_sb_size = (1 << mf_sb_size_log2);
+  const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
+
+  *proc_blk_size = sb_tmvp_size;
+
+  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
+    *row_blk_offset = 0;
+    *col_blk_offset = sb_tmvp_size;
+  } else {
+    *row_blk_offset = 0;
+    *col_blk_offset = (sb_tmvp_size >> 1);
+  }
+}
+
+static AOM_INLINE int check_block_position(const AV1_COMMON *cm, int row,
+                                           int col, int blk_row, int blk_col) {
+#if CONFIG_MF_IMPROVEMENT
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int sb_size = block_size_high[seq_params->sb_size];
+  const int mf_sb_size_log2 = get_mf_sb_size_log2(sb_size, cm->mib_size_log2
+#if CONFIG_TMVP_MEM_OPT
+                                                  ,
+                                                  cm->tmvp_sample_step
+#endif  // CONFIG_TMVP_MEM_OPT
+  );
+  const int mf_sb_size = (1 << mf_sb_size_log2);
+  const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
+  const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
+  const int base_blk_row = (blk_row >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+  const int base_blk_col = (blk_col >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+#else
+  const int base_blk_row = (blk_row >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
+  const int base_blk_col = (blk_col >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
+#endif  // CONFIG_MF_IMPROVEMENT
+
+  if (row < 0 || row >= (cm->mi_params.mi_rows >> TMVP_SHIFT_BITS) || col < 0 ||
+      col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
+    return 0;
+
+#if CONFIG_TMVP_MEM_OPT
+  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
+#endif  // CONFIG_TMVP_MEM_OPT
+#if CONFIG_MF_IMPROVEMENT
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - sb_tmvp_size ||
+        col >= base_blk_col + (sb_tmvp_size << 1))
+#else
+  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+      row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
+      col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
+      col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+#endif  // CONFIG_MF_IMPROVEMENT
+      return 0;
+#if CONFIG_TMVP_MEM_OPT
+  } else {
+#if CONFIG_MF_IMPROVEMENT
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - (sb_tmvp_size >> 1) ||
+        col >= base_blk_col + sb_tmvp_size + (sb_tmvp_size >> 1))
+#else
+    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
+        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
+        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+#endif  // CONFIG_MF_IMPROVEMENT
+      return 0;
+  }
+#endif  // CONFIG_TMVP_MEM_OPT
+
+  return 1;
+}
+
+static AOM_INLINE int get_block_position_no_constraint(const AV1_COMMON *cm,
+                                                       int *mi_r, int *mi_c,
+                                                       int blk_row, int blk_col,
+                                                       MV mv, int sign_bias) {
+  // The motion vector in units of 1/8-pel
+  const int shift = (3 + TMVP_MI_SZ_LOG2);
+  const int row_offset =
+      (mv.row >= 0) ? (mv.row >> shift) : -((-mv.row) >> shift);
+  const int col_offset =
+      (mv.col >= 0) ? (mv.col >> shift) : -((-mv.col) >> shift);
+
+  const int row =
+      (sign_bias == 1) ? blk_row - row_offset : blk_row + row_offset;
+  const int col =
+      (sign_bias == 1) ? blk_col - col_offset : blk_col + col_offset;
+
+  if (row < 0 || row >= (cm->mi_params.mi_rows >> TMVP_SHIFT_BITS) || col < 0 ||
+      col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
+    return 0;
+
+  *mi_r = row;
+  *mi_c = col;
+
+  return 1;
+}
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units

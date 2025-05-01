@@ -581,6 +581,9 @@ typedef struct SequenceHeader {
 #if CONFIG_TIP_IMPLICIT_QUANT
   uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
 #endif                             // CONFIG_TIP_IMPLICIT_QUANT
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  uint8_t enable_mv_traj;  // enables/disables mv trajectory tracking
+#endif                     // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
@@ -1882,6 +1885,20 @@ typedef struct AV1Common {
    * Step size for tmvp sampling. Should be 1 (no sampling) or 2.
    */
   int tmvp_sample_step;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  /*!
+   * The processing unit size used
+   */
+  int tmvp_proc_size;
+  /*!
+   * Projection range extension in row
+   */
+  int tmvp_row_offset;
+  /*!
+   * Projection range extension in col
+   */
+  int tmvp_col_offset;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #endif  // CONFIG_TMVP_MEM_OPT
 
 #if CONFIG_MV_TRAJECTORY
@@ -1892,7 +1909,11 @@ typedef struct AV1Common {
   /*!
    * Mapping table from block location to trajectory id.
    */
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  int *blk_id_map[3][INTER_REFS_PER_FRAME];
+#else
   int *blk_id_map[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #endif  // CONFIG_MV_TRAJECTORY
 
   /*!
@@ -2361,11 +2382,21 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 #if CONFIG_MV_TRAJECTORY
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(cm->id_offset_map[rf]);
-      aom_free(cm->blk_id_map[rf]);
       cm->id_offset_map[rf] =
           (int_mv *)aom_malloc(mem_size * sizeof(*cm->id_offset_map[rf]));
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+      for (int k = 0; k < 3; k++) {
+        aom_free(cm->blk_id_map[k][rf]);
+      }
+      for (int k = 0; k < 3; k++) {
+        cm->blk_id_map[k][rf] =
+            (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[k][rf]));
+      }
+#else
+      aom_free(cm->blk_id_map[rf]);
       cm->blk_id_map[rf] =
           (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[rf]));
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
     }
 #endif  // CONFIG_MV_TRAJECTORY
   }

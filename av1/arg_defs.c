@@ -432,6 +432,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(0: disable TIP, "
               " 1: TIP frame is used as reference or direct output (default), "
               " 2: TIP frame is only used as reference)"),
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  .enable_mv_traj = ARG_DEF(NULL, "enable-mv-traj", 1,
+                            "Enable MV trajectory tracking"
+                            "(0: disable MV traj tracking, "
+                            " 1: enable MV traj tracking (default))"),
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   .enable_bawp = ARG_DEF(NULL, "enable-bawp", 1,
                          "Enable block adaptive weighted prediction (BAWP)"
