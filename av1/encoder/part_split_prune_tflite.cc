@@ -31,6 +31,9 @@
 #include <fenv.h>
 #endif
 
+typedef std::unique_ptr<TfLiteDelegate, decltype(&TfLiteXNNPackDelegateDelete)>
+    TfLiteDelegateType;
+
 struct Context {
   std::unique_ptr<tflite::Interpreter> model_128X128;
   std::unique_ptr<tflite::Interpreter> model_64X64;
@@ -40,12 +43,14 @@ struct Context {
   std::unique_ptr<tflite::Interpreter> model_inter_32x32;
   std::unique_ptr<tflite::Interpreter> model_inter_16x16;
   std::unique_ptr<tflite::Interpreter> model_inter_8x8;
+
+  std::vector<TfLiteDelegateType> to_delete;
 };
 
 std::mutex tfliteMutex;
 
 static std::unique_ptr<tflite::Interpreter> create_interpreter(
-    unsigned char *model_def) {
+    unsigned char *model_def, std::vector<TfLiteDelegateType> &to_delete) {
   std::lock_guard<std::mutex> lock(tfliteMutex);
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
@@ -53,8 +58,9 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = AOMMAX(num_threads, 1);
-  TfLiteDelegate *xnnpack_delegate =
-      TfLiteXNNPackDelegateCreate(&xnnpack_options);
+  TfLiteDelegateType xnnpack_delegate(
+      TfLiteXNNPackDelegateCreate(&xnnpack_options),
+      &TfLiteXNNPackDelegateDelete);
 
   tflite::MutableOpResolver resolver;
   RegisterSelectedOps(&resolver);
@@ -63,7 +69,8 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
   tflite::ErrorReporter *reporter(tflite::DefaultErrorReporter());
   std::unique_ptr<tflite::Interpreter> interpreter;
   builder(&interpreter);
-  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate.get()) !=
+      kTfLiteOk) {
     reporter->Report("Failed at modifying graph with XNNPack delegate");
     exit(1);
   }
@@ -73,6 +80,7 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
     exit(1);
   }
 
+  to_delete.push_back(std::move(xnnpack_delegate));
   return interpreter;
 }
 
@@ -84,50 +92,50 @@ static void ensure_tflite_init(void **context, MODEL_TYPE model_type) {
   switch (model_type) {
     case MODEL_128X128:
       if (!ctx->model_128X128) {
-        ctx->model_128X128 =
-            create_interpreter(a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
+        ctx->model_128X128 = create_interpreter(
+            a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite, ctx->to_delete);
       }
       break;
     case MODEL_64X64:
       if (!ctx->model_64X64) {
-        ctx->model_64X64 =
-            create_interpreter(a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite);
+        ctx->model_64X64 = create_interpreter(
+            a3_qp96_128_160_luma_BLOCK_64X64_intra_tflite, ctx->to_delete);
       }
       break;
     case MODEL_32X32:
       if (!ctx->model_32X32) {
-        ctx->model_32X32 =
-            create_interpreter(a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
+        ctx->model_32X32 = create_interpreter(
+            a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite, ctx->to_delete);
       }
       break;
     case MODEL_16X16:
       if (!ctx->model_16X16) {
-        ctx->model_16X16 =
-            create_interpreter(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
+        ctx->model_16X16 = create_interpreter(
+            a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite, ctx->to_delete);
       }
       break;
     case MODEL_INTER_64X64:
       if (!ctx->model_inter_64x64) {
-        ctx->model_inter_64x64 =
-            create_interpreter(sms_part_split_prune_tflite_model_bs12);
+        ctx->model_inter_64x64 = create_interpreter(
+            sms_part_split_prune_tflite_model_bs12, ctx->to_delete);
       }
       break;
     case MODEL_INTER_32X32:
       if (!ctx->model_inter_32x32) {
-        ctx->model_inter_32x32 =
-            create_interpreter(sms_part_split_prune_tflite_model_bs9);
+        ctx->model_inter_32x32 = create_interpreter(
+            sms_part_split_prune_tflite_model_bs9, ctx->to_delete);
       }
       break;
     case MODEL_INTER_16X16:
       if (!ctx->model_inter_16x16) {
-        ctx->model_inter_16x16 =
-            create_interpreter(sms_part_split_prune_tflite_model_bs6);
+        ctx->model_inter_16x16 = create_interpreter(
+            sms_part_split_prune_tflite_model_bs6, ctx->to_delete);
       }
       break;
     case MODEL_INTER_8X8:
       if (!ctx->model_inter_8x8) {
-        ctx->model_inter_8x8 =
-            create_interpreter(sms_part_split_prune_tflite_model_bs3);
+        ctx->model_inter_8x8 = create_interpreter(
+            sms_part_split_prune_tflite_model_bs3, ctx->to_delete);
       }
       break;
     default: break;
