@@ -1311,6 +1311,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         }
       }
     }
+    if (cm->bru.enabled) {
+      // display active map
+      printf("Display active map: \n");
+      for (unsigned int y = 0; y < cm->bru.unit_rows; y++) {
+        for (unsigned int x = 0; x < cm->bru.unit_cols; x++) {
+          printf("%d, ", cm->bru.active_mode_map[x + y * cm->bru.unit_cols]);
+        }
+        printf("\n");
+      }
+    }
 #endif
     // clean up active sb queue if any left over
     // it may happen if encoder decide not using BRU for lots of active sbs

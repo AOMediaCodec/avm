@@ -920,11 +920,7 @@ static TX_SIZE set_lpf_parameters(
     if (!tu_edge)
 #endif  // CONFIG_LF_SUB_PU
       return ts;
-#if CONFIG_BRU
-    if (cm->bru.enabled) {
-      assert(mbmi->sb_active_mode != BRU_ACTIVE_SB);
-    }
-#endif  // CONFIG_BRU
+
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =
