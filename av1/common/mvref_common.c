@@ -1669,6 +1669,28 @@ static AOM_INLINE void add_ref_mv_candidate(
     assert(!mbmi->skip_mode);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
+#if CONFIG_IMPROVE_TIP_SMVP
+    int_mv cand_tip_mvs[2];
+    MV_REFERENCE_FRAME cand_tip_ref_frames[2];
+    if (is_tip_ref_frame(candidate->ref_frame[0])) {
+      const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
+      const int cand_tpl_col = (mi_col_cand >> TMVP_SHIFT_BITS);
+#if CONFIG_C071_SUBBLK_WARPMV
+      int_mv cand_mv = candidate->mv[0];
+#else
+      int_mv cand_mv = get_block_mv(candidate, 0);
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      get_tip_mv(cm, &cand_mv.as_mv, cand_tpl_col, cand_tpl_row, cand_tip_mvs);
+      cand_tip_ref_frames[0] = cm->tip_ref.ref_frame[0];
+      cand_tip_ref_frames[1] = cm->tip_ref.ref_frame[1];
+    } else {
+      cand_tip_mvs[0].as_int = INVALID_MV;
+      cand_tip_mvs[1].as_int = INVALID_MV;
+      cand_tip_ref_frames[0] = NONE_FRAME;
+      cand_tip_ref_frames[1] = NONE_FRAME;
+    }
+#endif  // CONFIG_IMPROVE_TIP_SMVP
+
     // single reference frame
     for (ref = 0; ref < 2; ++ref) {
       if (candidate->ref_frame[ref] == rf[0]) {
@@ -1708,23 +1730,138 @@ static AOM_INLINE void add_ref_mv_candidate(
         }
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
+#if CONFIG_IMPROVE_TIP_SMVP
+      } else if (cand_tip_ref_frames[ref] == rf[0]) {
+        int_mv this_refmv = cand_tip_mvs[ref];
+        clamp_tip_smvp_refmv(cm, &this_refmv.as_mv, mi_row, mi_col);
+
+        for (index = 0; index < *refmv_count; ++index) {
+          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+            ref_mv_weight[index] += weight;
+            break;
+          }
+        }
+
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[index].this_mv = this_refmv;
+          ref_mv_stack[index].row_offset = row_offset;
+          ref_mv_stack[index].col_offset = col_offset;
+          ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+          ref_mv_weight[index] = weight;
+          ++(*refmv_count);
+        }
+        if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
+        ++*ref_match_count;
+      } else if (add_more_mvs && ref == 0 && is_tip_ref_frame(rf[0]) &&
+                 candidate->ref_frame[0] == tip_ref->ref_frame[0] &&
+                 candidate->ref_frame[1] == tip_ref->ref_frame[1] &&
+                 cm->features.tip_frame_mode) {
+        int_mv cand_mvs[2];
+#if CONFIG_C071_SUBBLK_WARPMV
+        cand_mvs[0] = candidate->mv[0];
+        cand_mvs[1] = candidate->mv[1];
+#else
+        cand_mvs[0] = get_block_mv(candidate, 0);
+        cand_mvs[1] = get_block_mv(candidate, 1);
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+
+        int_mv cand_linear_mv;
+        cand_linear_mv.as_mv.row =
+            cand_mvs[0].as_mv.row - cand_mvs[1].as_mv.row;
+        cand_linear_mv.as_mv.col =
+            cand_mvs[0].as_mv.col - cand_mvs[1].as_mv.col;
+
+        int_mv cand_projected_mv_0;
+        tip_get_mv_projection(&cand_projected_mv_0.as_mv, cand_linear_mv.as_mv,
+                              tip_ref->ref_frames_offset_sf[0]);
+
+        int_mv derived_mv;
+        derived_mv.as_mv.row =
+            cand_mvs[0].as_mv.row - cand_projected_mv_0.as_mv.row;
+        derived_mv.as_mv.col =
+            cand_mvs[0].as_mv.col - cand_projected_mv_0.as_mv.col;
+
+        int_mv cand_projected_mv_1;
+        tip_get_mv_projection(&cand_projected_mv_1.as_mv, cand_linear_mv.as_mv,
+                              tip_ref->ref_frames_offset_sf[1]);
+
+        int_mv this_refmv1;
+        this_refmv1.as_mv.row =
+            cand_mvs[1].as_mv.row - cand_projected_mv_1.as_mv.row;
+        this_refmv1.as_mv.col =
+            cand_mvs[1].as_mv.col - cand_projected_mv_1.as_mv.col;
+
+        const int clamp_max = MV_UPP - 1;
+        const int clamp_min = MV_LOW + 1;
+        derived_mv.as_mv.row =
+            clamp(derived_mv.as_mv.row, clamp_min, clamp_max);
+        derived_mv.as_mv.col =
+            clamp(derived_mv.as_mv.col, clamp_min, clamp_max);
+
+#if !CONFIG_C071_SUBBLK_WARPMV
+        lower_mv_precision(&derived_mv.as_mv, precision);
+#endif  // !CONFIG_C071_SUBBLK_WARPMV
+
+        for (index = 0; index < *derived_mv_count; ++index) {
+          if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
+            derived_mv_weight[index] += weight;
+            break;
+          }
+        }
+        // Add a new item to the list.
+        if (index == *derived_mv_count &&
+            *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
+          derived_mv_stack[index].this_mv = derived_mv;
+          derived_mv_weight[index] = weight;
+          derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+          ++(*derived_mv_count);
+        }
+#endif  // CONFIG_IMPROVE_TIP_SMVP
       }
 #if CONFIG_MVP_IMPROVEMENT
-      else if (add_more_mvs && is_inter_ref_frame(candidate->ref_frame[ref]) &&
+      else if (add_more_mvs &&
+               (is_inter_ref_frame(candidate->ref_frame[ref])
+#if CONFIG_IMPROVE_TIP_SMVP
+                || is_tip_ref_frame(candidate->ref_frame[0])
+#endif
+                    ) &&
 #if CONFIG_IBC_SR_EXT
                rf[0] != INTRA_FRAME &&
 #endif  // CONFIG_IBC_SR_EXT
+#if !CONFIG_IMPROVE_TIP_SMVP
                !is_tip_ref_frame(rf[0]) &&
-               !is_tip_ref_frame(candidate->ref_frame[ref]) &&
+#endif
                cm->seq_params.order_hint_info.enable_order_hint) {
+        int_mv cand_refmv;
+        MV_REFERENCE_FRAME cand_ref_frame;
+#if CONFIG_IMPROVE_TIP_SMVP
+        if (is_tip_ref_frame(candidate->ref_frame[0])) {
+          cand_refmv.as_int = cand_tip_mvs[ref].as_int;
+          cand_ref_frame = cand_tip_ref_frames[ref];
+        } else {
+          const int is_gm_block = is_global_mv_block(
+              candidate, gm_params[candidate->ref_frame[ref]].wmtype);
+          cand_refmv = is_gm_block ? gm_mv_candidates[0]
+                                   : get_block_mv(candidate,
+#if CONFIG_C071_SUBBLK_WARPMV
+                                                  submi,
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+                                                  ref);
+          cand_ref_frame = candidate->ref_frame[ref];
+        }
+#else
         const int is_gm_block = is_global_mv_block(
             candidate, gm_params[candidate->ref_frame[ref]].wmtype);
-        const int_mv cand_refmv = is_gm_block ? gm_mv_candidates[0]
-                                              : get_block_mv(candidate,
+        cand_refmv = is_gm_block ? gm_mv_candidates[0]
+                                 : get_block_mv(candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
-                                                             submi,
+                                                submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-                                                             ref);
+                                                ref);
+        cand_ref_frame = candidate->ref_frame[ref];
+#endif  // CONFIG_IMPROVE_TIP_SMVP
+
 #if CONFIG_MV_TRAJECTORY
         const int frame_mvs_stride =
             ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
@@ -1748,17 +1885,15 @@ static AOM_INLINE void add_ref_mv_candidate(
                                      cand_refmv.as_mv, 0);
         }
         int traj_id = valid
-                          ? cm->blk_id_map[candidate->ref_frame[ref]]
+                          ? cm->blk_id_map[cand_ref_frame]
                                           [cand_ref_mv_row * frame_mvs_stride +
                                            cand_ref_mv_col]
                           : -1;
         if (traj_id >= 0 && cm->features.allow_ref_frame_mvs &&
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
             cm->id_offset_map[rf[0]][traj_id].as_int != INVALID_MV &&
-            cm->id_offset_map[candidate->ref_frame[ref]][traj_id].as_int !=
-                INVALID_MV) {
-          int_mv mv_traj_cand_ref =
-              cm->id_offset_map[candidate->ref_frame[ref]][traj_id];
+            cm->id_offset_map[cand_ref_frame][traj_id].as_int != INVALID_MV) {
+          int_mv mv_traj_cand_ref = cm->id_offset_map[cand_ref_frame][traj_id];
           int_mv mv_traj_cur_ref = cm->id_offset_map[rf[0]][traj_id];
 
           const int clamp_max = MV_UPP - 1;
@@ -1794,8 +1929,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         } else {
 #endif  // CONFIG_MV_TRAJECTORY
           const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
-          const int cand_blk_ref_side =
-              cm->ref_frame_side[candidate->ref_frame[ref]];
+          const int cand_blk_ref_side = cm->ref_frame_side[cand_ref_frame];
 
           const int same_side =
               (cur_blk_ref_side > 0 && cand_blk_ref_side > 0) ||
@@ -1804,7 +1938,7 @@ static AOM_INLINE void add_ref_mv_candidate(
           if (same_side) {
             const int cur_to_ref_dist = cm->ref_frame_relative_dist[rf[0]];
             const int cand_to_ref_dist =
-                cm->ref_frame_relative_dist[candidate->ref_frame[ref]];
+                cm->ref_frame_relative_dist[cand_ref_frame];
 
             int_mv this_refmv;
             get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
