@@ -420,8 +420,7 @@ set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
 
 set_aom_config_var(CONFIG_TMVP_SIMPLIFICATION 1
                    "Enable to reduce the number of TMVP candidates")
-set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1
-                   "Improve SMVP with TIP (F043)")
+set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1 "Improve SMVP with TIP (F043)")
 
 set_aom_config_var(
   CONFIG_MRLS_IMPROVE 1
