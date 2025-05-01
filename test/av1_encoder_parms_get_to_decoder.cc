@@ -28,12 +28,11 @@ struct ParamPassingTestVideo {
   const char *name;
   uint32_t width;
   uint32_t height;
-  uint32_t bitrate;
   int frames;
 };
 
 const ParamPassingTestVideo kAV1ParamPassingTestVector = {
-  "niklas_640_480_30.yuv", 640, 480, 600, 3
+  "niklas_640_480_30.yuv", 320, 240, 2
 };
 
 struct EncodeParameters {
@@ -74,7 +73,7 @@ const EncodeParameters kAV1EncodeParameterSet[] = {
     AOM_CICP_MC_BT_2020_NCL,
     AOM_CR_FULL_RANGE,
     AOM_CSP_RESERVED,
-    { 320, 240 } },
+    { 160, 120 } },
 };
 
 class AVxEncoderParmsGetToDecoder
