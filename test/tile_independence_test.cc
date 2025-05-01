@@ -70,8 +70,7 @@ class TileIndependenceTest
   }
 
   virtual void SetCpuUsed(libaom_test::Encoder *encoder) {
-    static const int kCpuUsed = 3;
-    encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
+    encoder->Control(AOME_SET_CPUUSED, 5);
   }
 
   void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
@@ -136,8 +135,7 @@ TEST_P(TileIndependenceTest, MD5Match) {
 
 class TileIndependenceTestLarge : public TileIndependenceTest {
   virtual void SetCpuUsed(libaom_test::Encoder *encoder) {
-    static const int kCpuUsed = 0;
-    encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
+    encoder->Control(AOME_SET_CPUUSED, 1);
   }
 };
 
