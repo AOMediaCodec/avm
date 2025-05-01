@@ -367,7 +367,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
   const int blk_log2_y = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size_y = 1 << blk_log2_y;
-  const int blk_size_x = blk_size_x;
+  const int blk_size_x = 1 << blk_log2_y;
 #endif  // CONFIG_CCSO_FU_BUGFIX
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size_y) {
@@ -448,7 +448,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
   const int blk_log2_y = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size_y = 1 << blk_log2_y;
-  const int blk_size_x = blk_size_x;
+  const int blk_size_x = 1 << blk_log2_y;
 #endif  // CONFIG_CCSO_FU_BUGFIX
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size_y) {
