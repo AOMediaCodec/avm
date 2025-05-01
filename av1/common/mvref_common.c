@@ -1819,8 +1819,9 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_IBC_SR_EXT
                rf[0] != INTRA_FRAME &&
 #endif  // CONFIG_IBC_SR_EXT
-#if !CONFIG_IMPROVE_TIP_SMVP
                !is_tip_ref_frame(rf[0]) &&
+#if !CONFIG_IMPROVE_TIP_SMVP
+               !is_tip_ref_frame(candidate->ref_frame[0]) &&
 #endif
                cm->seq_params.order_hint_info.enable_order_hint) {
         int_mv cand_refmv;
