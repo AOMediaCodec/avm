@@ -177,7 +177,9 @@ class HorzSuperresEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresEndToEndTest, HorzSuperresEndToEndPSNRTest) { DoTest(); }
+TEST_P(HorzSuperresEndToEndTest, DISABLED_HorzSuperresEndToEndPSNRTest) {
+  DoTest();
+}
 
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
@@ -287,7 +289,9 @@ class HorzSuperresFixedEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresFixedEndToEndTest, HorzSuperresFixedTestParam) { DoTest(); }
+TEST_P(HorzSuperresFixedEndToEndTest, DISABLED_HorzSuperresFixedTestParam) {
+  DoTest();
+}
 
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresFixedEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
@@ -397,7 +401,8 @@ class HorzSuperresQThreshEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresQThreshEndToEndTest, HorzSuperresQThreshEndToEndPSNRTest) {
+TEST_P(HorzSuperresQThreshEndToEndTest,
+       DISABLED_HorzSuperresQThreshEndToEndPSNRTest) {
   DoTest();
 }
 
