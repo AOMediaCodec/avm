@@ -1662,6 +1662,10 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_WARP_INTER_INTRA
+  mbmi->warp_inter_intra = 0;
+#endif  // CONFIG_WARP_INTER_INTRA
+
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
