@@ -371,7 +371,7 @@ void gdf_intra_inference_block_c(const int i_min, const int i_max,
     }
   }
   const int16_t *rec_ptr = (const int16_t *)(rec_y);
-  const int16_t *s_pos_fwd, *s_pos_bwd;
+  const int16_t *s_pos_fwd = 0, *s_pos_bwd = 0;
   for (int i = 0; i < blk_height; i++) {
     int vertical_spatial_support_min =
         -GDF_TEST_LINE_BUFFER - ((i + i_min + GDF_TEST_STRIPE_OFF) % sb_size);
@@ -513,7 +513,7 @@ void gdf_inter_inference_block_c(const int iMin, const int iMax,
     }
   }
   const int16_t *rec_ptr = (const int16_t *)(rec_y);
-  const int16_t *s_pos_fwd, *s_pos_bwd;
+  const int16_t *s_pos_fwd = 0, *s_pos_bwd = 0;
   for (int i = 0; i < blk_height; i++) {
     int vertical_spatial_support_min =
         -GDF_TEST_LINE_BUFFER - ((i + iMin + GDF_TEST_STRIPE_OFF) % sb_size);

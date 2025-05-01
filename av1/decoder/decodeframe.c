@@ -3725,6 +3725,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 #if CONFIG_GDF
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
+  cm->gdf_info.gdf_mode = 0;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC

@@ -2548,6 +2548,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_GDF
   const int use_gdf = !cm->features.coded_lossless && !cm->tiles.large_scale &&
                       !av1_superres_scaled(cm);
+  if (!use_gdf) {
+    cm->gdf_info.gdf_mode = 0;
+  }
 #endif  // CONFIG_GDF
 
   if (use_cdef) {

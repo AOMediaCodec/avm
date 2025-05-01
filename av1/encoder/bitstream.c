@@ -2024,7 +2024,7 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
 #if CONFIG_GDF
 static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                  aom_writer *w) {
-  if (cm->features.coded_lossless) return;
+  if (cm->features.coded_lossless && av1_superres_scaled(cm)) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
@@ -5344,6 +5344,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                                   struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
+  if (av1_superres_scaled(cm)) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
