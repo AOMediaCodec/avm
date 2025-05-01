@@ -1524,6 +1524,44 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
+#if CONFIG_BAWP
+static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
+                                 const MB_MODE_INFO *mbmi, int mi_row,
+                                 int mi_col) {
+  if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_BAWP_ACROSS_SCALES
+  (void)cm;
+#else
+  // If one of the reference frame is different resolution than the current
+  // frame, bawp is disabled.
+  const struct scale_factors *const sf0 =
+      get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+  const struct scale_factors *const sf1 =
+      get_ref_scale_factors_const(cm, mbmi->ref_frame[1]);
+  if ((sf0 != NULL && av1_is_scaled(sf0)) ||
+      (sf1 != NULL && av1_is_scaled(sf1))) {
+    return 0;
+  }
+#endif  // !CONFIG_BAWP_ACROSS_SCALES
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
+                                        mi_col) &&
+      is_inter_singleref_mode(mbmi->mode))
+    return 1;
+  else
+    return 0;
+}
+#endif  // CONFIG_BAWP
+
+#if CONFIG_EXPLICIT_BAWP
+static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
+  return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
+}
+#endif  // CONFIG_EXPLICIT_BAWP
+
 // derive the context of the mpp_flag
 int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);
 

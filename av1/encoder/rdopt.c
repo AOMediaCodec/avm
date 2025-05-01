@@ -3316,7 +3316,7 @@ static int64_t motion_mode_rd(
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
             if (cm->features.enable_bawp &&
-                av1_allow_bawp(mbmi, mi_row, mi_col))
+                av1_allow_bawp(cm, mbmi, mi_row, mi_col))
 #if CONFIG_EXPLICIT_BAWP
             {
               rd_stats->rate +=
@@ -3343,7 +3343,7 @@ static int64_t motion_mode_rd(
             }
 #else
             if (cm->features.enable_bawp &&
-                av1_allow_bawp(mbmi, mi_row, mi_col))
+                av1_allow_bawp(cm, mbmi, mi_row, mi_col))
 #if CONFIG_EXPLICIT_BAWP
             {
               rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag > 0];
@@ -5596,8 +5596,8 @@ static int64_t handle_inter_mode(
 #if CONFIG_EXPLICIT_BAWP
   for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
 #else
-  const int is_bawp_allowed =
-      cm->features.enable_bawp && av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col);
+  const int is_bawp_allowed = cm->features.enable_bawp &&
+                              av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
   const int bawp_limit = is_bawp_allowed ? 2 : 1;
 
   for (int bawp = 0; bawp < bawp_limit; ++bawp) {
@@ -5747,7 +5747,7 @@ static int64_t handle_inter_mode(
           bsize, ref_set, flex_mv_cost[pb_mv_precision]);
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
           mbmi->bawp_flag[0] = bawp;
@@ -5764,7 +5764,7 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_EXPLICIT_BAWP
 #else
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
           mbmi->bawp_flag = bawp;
@@ -5810,7 +5810,7 @@ static int64_t handle_inter_mode(
 
 #if CONFIG_BAWP_CHROMA
     if (cm->features.enable_bawp &&
-        av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+        av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
       for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
         mbmi->bawp_flag[0] = bawp;
@@ -5826,7 +5826,7 @@ static int64_t handle_inter_mode(
 #endif
 #else
     if (cm->features.enable_bawp &&
-        av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+        av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
       for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
         mbmi->bawp_flag = bawp;
@@ -6120,7 +6120,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                                !mbmi->refinemv_flag &&
 #endif  // CONFIG_REFINEMV
-                               av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col);
+                               av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
 #if CONFIG_EXPLICIT_BAWP
             if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
               bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
@@ -6153,7 +6153,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                                !mbmi->refinemv_flag &&
 #endif  // CONFIG_REFINEMV
-                               av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col);
+                               av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
 #if CONFIG_EXPLICIT_BAWP
             if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
               bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;

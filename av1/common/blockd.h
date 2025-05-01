@@ -4527,29 +4527,6 @@ static INLINE int is_motion_variation_allowed_compound(
   return !has_second_ref(mbmi);
 }
 
-#if CONFIG_BAWP
-static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
-                                 int mi_col) {
-  if (mbmi->mode == WARPMV) return 0;
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == WARP_NEWMV) return 0;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
-                                        mi_col) &&
-      is_inter_singleref_mode(mbmi->mode))
-    return 1;
-  else
-    return 0;
-}
-#endif  // CONFIG_BAWP
-
-#if CONFIG_EXPLICIT_BAWP
-static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
-  return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
-}
-#endif  // CONFIG_EXPLICIT_BAWP
-
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
   assert(sb_type < BLOCK_SIZES_ALL);

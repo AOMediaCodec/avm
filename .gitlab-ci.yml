@@ -232,7 +232,7 @@ Test Data Check:
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_ENTROPY_STATS=1"
           ;;
         bawp-across-scales-fix)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_BAWP_ACROSS_SCALES_FIX=1"
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_BAWP_ACROSS_SCALES=1"
           ;;
         nasm)
           CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_NASM=1"

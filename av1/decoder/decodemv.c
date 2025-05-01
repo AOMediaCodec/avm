@@ -4249,7 +4249,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag[0] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[0], 2,
                                              ACCT_INFO("bawp_flag_luma"));
 #if CONFIG_EXPLICIT_BAWP
@@ -4277,7 +4277,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
 #else
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag = aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2,
                                           ACCT_INFO("bawp_flag"));
 #if CONFIG_EXPLICIT_BAWP

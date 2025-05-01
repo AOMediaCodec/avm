@@ -309,8 +309,8 @@ set_aom_config_var(
   "Fix BAWP from CWG-E245, only use up to 16 samples from left and above and remove division using 8, 16 , or 32 samples"
 )
 
-set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES_FIX 0 NUMBER
-                   "Fix on BAWP across scales prediction")
+set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
+                   "Enable BAWP across scales prediction")
 set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")
 set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
                    "Enable single reference mode for frame boundary")

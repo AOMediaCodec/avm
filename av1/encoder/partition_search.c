@@ -1736,7 +1736,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
         if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
@@ -1762,7 +1762,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 #else
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         update_cdf(fc->bawp_cdf, mbmi->bawp_flag > 0, 2);
         if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi)) {
