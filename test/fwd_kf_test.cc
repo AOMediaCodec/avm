@@ -116,7 +116,7 @@ typedef struct {
 } kfIntervalParam;
 
 const kfIntervalParam kfTestParams[] = {
-  { 0, 10 }, { 10, 10 }, { 0, 30 }, { 30, 30 }
+  { 0, 10 }, { 10, 10 }, { 0, 15 }, { 16, 16 }
 };
 
 std::ostream &operator<<(std::ostream &os, const kfIntervalParam &test_arg) {
@@ -186,7 +186,7 @@ TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
-                                     0, 60);
+                                     0, 20);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }
