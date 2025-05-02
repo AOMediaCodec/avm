@@ -822,7 +822,12 @@ static TX_SIZE set_lpf_parameters(
 #else
     const ptrdiff_t mode_step,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-    const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
+#if CONFIG_BRU
+    AV1_COMMON *const cm, 
+#else    
+    const AV1_COMMON *const cm, 
+#endif    
+    const MACROBLOCKD *const xd,
     const EDGE_DIR edge_dir, const uint32_t x, const uint32_t y,
     const int plane, const struct macroblockd_plane *const plane_ptr) {
   // reset to initial values
@@ -920,7 +925,16 @@ static TX_SIZE set_lpf_parameters(
     if (!tu_edge)
 #endif  // CONFIG_LF_SUB_PU
       return ts;
-
+#if CONFIG_BRU
+    if (cm->bru.enabled) {
+      if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
+        printf("lpf pli %d, mi %d, %d, dir %d, active mode %d failed\n", plane, mi_col, mi_row, edge_dir, mbmi->sb_active_mode);
+        aom_internal_error(
+          &cm->error, AOM_CODEC_ERROR,
+          "Invalid BRU activity in deblocking: only active SB can be filtered");
+      }
+    }
+#endif  // CONFIG_BRU
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =
@@ -1261,8 +1275,11 @@ static TX_SIZE set_lpf_parameters(
   }
   return ts;
 }
-
+#if CONFIG_BRU
+void av1_filter_block_plane_vert(AV1_COMMON *const cm,
+#else
 void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
+#endif
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
@@ -1350,8 +1367,11 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
     }
   }
 }
-
+#if CONFIG_BRU
+void av1_filter_block_plane_horz(AV1_COMMON *const cm,
+#else
 void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
+#endif
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
