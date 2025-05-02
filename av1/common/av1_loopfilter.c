@@ -823,13 +823,13 @@ static TX_SIZE set_lpf_parameters(
     const ptrdiff_t mode_step,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 #if CONFIG_BRU
-    AV1_COMMON *const cm, 
-#else    
-    const AV1_COMMON *const cm, 
-#endif    
-    const MACROBLOCKD *const xd,
-    const EDGE_DIR edge_dir, const uint32_t x, const uint32_t y,
-    const int plane, const struct macroblockd_plane *const plane_ptr) {
+    AV1_COMMON *const cm,
+#else
+    const AV1_COMMON *const cm,
+#endif
+    const MACROBLOCKD *const xd, const EDGE_DIR edge_dir, const uint32_t x,
+    const uint32_t y, const int plane,
+    const struct macroblockd_plane *const plane_ptr) {
   // reset to initial values
 
 #if CONFIG_ASYM_DF
@@ -928,10 +928,11 @@ static TX_SIZE set_lpf_parameters(
 #if CONFIG_BRU
     if (cm->bru.enabled) {
       if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
-        printf("lpf pli %d, mi %d, %d, dir %d, active mode %d failed\n", plane, mi_col, mi_row, edge_dir, mbmi->sb_active_mode);
-        aom_internal_error(
-          &cm->error, AOM_CODEC_ERROR,
-          "Invalid BRU activity in deblocking: only active SB can be filtered");
+        printf("lpf pli %d, mi %d, %d, dir %d, active mode %d failed\n", plane,
+               mi_col, mi_row, edge_dir, mbmi->sb_active_mode);
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid BRU activity in deblocking: only active SB "
+                           "can be filtered");
       }
     }
 #endif  // CONFIG_BRU
