@@ -2780,17 +2780,21 @@ static int64_t motion_mode_rd(
                 &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
           }
 
+          int l0_invalid = av1_find_projection(
+              mbmi->num_proj_ref, pts, pts_inref, bsize, mbmi->mv[0].as_mv,
+              &mbmi->wm_params[0], mi_row, mi_col
+#if CONFIG_ACROSS_SCALE_WARP
+              ,
+              get_ref_scale_factors((AV1_COMMON *const)cm, mbmi->ref_frame[0])
+#endif  // CONFIG_ACROSS_SCALE_WARP
+          );
+
+          if (l0_invalid) continue;
+          if (!mbmi->num_proj_ref) continue;
+
           // Compute the warped motion parameters with a least squares fit
           //  using the collected samples
-          if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                                   mbmi->mv[0].as_mv, &mbmi->wm_params[0],
-                                   mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                                   ,
-                                   get_ref_scale_factors((AV1_COMMON *const)cm,
-                                                         mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
-                                       )) {
+          if (!l0_invalid) {
             assert(!is_comp_pred);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_COMPOUND_WARP_CAUSAL
@@ -2922,8 +2926,9 @@ static int64_t motion_mode_rd(
                   assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1],
                                 mi_row, mi_col, 1);
 #else
-                assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                              mi_col);
+                if (!mbmi->wm_params[0].invalid)
+                  assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0],
+                                mi_row, mi_col);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -10610,7 +10615,9 @@ static void tx_search_best_inter_candidates(
         assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
                       1);
 #else
-      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
+      if (!mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
+                      mi_col);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
     }
 #endif  // CONFIG_C071_SUBBLK_WARPMV

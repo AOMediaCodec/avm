@@ -4724,7 +4724,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                     1);
 #endif
 #else
-    mbmi->wm_params[0].invalid = 0;
+    mbmi->wm_params[0].invalid = 1;
     MV mv = mbmi->mv[0].as_mv;
 
     if (mbmi->num_proj_ref > 1) {
@@ -4732,20 +4732,25 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                              mbmi->num_proj_ref, bsize);
     }
 
-    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
-                            &mbmi->wm_params[0], mi_row, mi_col
+    if (mbmi->num_proj_ref > 0 &&
+        !av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
+                             &mbmi->wm_params[0], mi_row, mi_col
 #if CONFIG_ACROSS_SCALE_WARP
-                            ,
-                            get_ref_scale_factors(cm, mbmi->ref_frame[0])
+                             ,
+                             get_ref_scale_factors(cm, mbmi->ref_frame[0])
 #endif  // CONFIG_ACROSS_SCALE_WARP
-                                )) {
-#if WARPED_MOTION_DEBUG
-      printf("Warning: unexpected warped model from aomenc\n");
-#endif
-      mbmi->wm_params[0].invalid = 1;
+                                 )) {
+      mbmi->wm_params[0].invalid = 0;
     }
+
+#if WARPED_MOTION_DEBUG
+    if (mbmi->wm_params[0].invalid)
+      printf("Warning: unexpected warped model from aomenc\n");
+#endif  // WARPED_MOTION_DEBUG
+
 #if CONFIG_C071_SUBBLK_WARPMV
-    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
+    if (!mbmi->wm_params[0].invalid)
+      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
   }

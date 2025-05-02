@@ -7013,6 +7013,7 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
     if (!mbmi->wm_params[ref_idx].invalid) {
       const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
 #else
+  if (mbmi->wm_params[0].invalid) return;
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
       WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];

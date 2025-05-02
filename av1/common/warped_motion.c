@@ -1875,11 +1875,7 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
                                      MvSubpelPrecision precision) {
   int_mv res;
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
   if (model->invalid || model->wmtype == IDENTITY) {
-#else
-  if (model->wmtype == IDENTITY) {
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     res.as_int = 0;
     return res;
   }
