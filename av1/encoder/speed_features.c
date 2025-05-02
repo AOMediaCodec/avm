@@ -506,10 +506,14 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
     // loss.
+#if CONFIG_ENABLE_AV1_WIENER
     sf->lpf_sf.prune_sgr_based_on_wiener = allow_screen_content_tools ? 1 : 2;
+#endif  // CONFIG_ENABLE_AV1_WIENER
     sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
+#if CONFIG_ENABLE_AV1_WIENER
     sf->lpf_sf.reduce_wiener_window_size = !boosted;
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   }
 
   if (speed >= 4) {
@@ -886,10 +890,14 @@ static AOM_INLINE void init_winner_mode_sf(
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_loop_restoration_chroma = 0;
+#if CONFIG_ENABLE_AV1_WIENER
   lpf_sf->prune_wiener_based_on_src_var = 0;
   lpf_sf->prune_sgr_based_on_wiener = 0;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   lpf_sf->enable_sgr_ep_pruning = 0;
+#if CONFIG_ENABLE_AV1_WIENER
   lpf_sf->reduce_wiener_window_size = 0;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   lpf_sf->lpf_pick = LPF_PICK_FROM_FULL_IMAGE;
   lpf_sf->cdef_pick_method = CDEF_FULL_SEARCH;
   // Set decoder side speed feature to use less dual sgr modes

@@ -68,7 +68,9 @@ struct av1_extracfg {
   unsigned int enable_deblocking;
   unsigned int enable_cdef;
   unsigned int enable_restoration;
+#if CONFIG_ENABLE_AV1_WIENER
   unsigned int enable_wiener;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   unsigned int enable_sgrproj;
   unsigned int enable_pc_wiener;
   unsigned int enable_wiener_nonsep;
@@ -433,11 +435,13 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_deblocking
   1,                                         // enable_cdef
   1,                                         // enable_restoration
-  0,                                         // enable_wiener
-  1,                                         // enable_sgrproj
-  1,                                         // enable_pc_wiener
-  1,                                         // enable_wiener_nonsep
-  1,                                         // enable_ccso
+#if CONFIG_ENABLE_AV1_WIENER
+  0,    // enable_wiener
+#endif  // CONFIG_ENABLE_AV1_WIENER
+  1,    // enable_sgrproj
+  1,    // enable_pc_wiener
+  1,    // enable_wiener_nonsep
+  1,    // enable_ccso
 #if CONFIG_LF_SUB_PU
   1,                            // enable_lf_sub_pu
 #endif                          // CONFIG_LF_SUB_PU
@@ -992,7 +996,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_deblocking = extra_cfg->enable_deblocking;
   cfg->enable_cdef = extra_cfg->enable_cdef;
   cfg->enable_restoration = extra_cfg->enable_restoration;
+#if CONFIG_ENABLE_AV1_WIENER
   cfg->enable_wiener = extra_cfg->enable_wiener;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   cfg->enable_sgrproj = extra_cfg->enable_sgrproj;
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
   cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
@@ -1143,7 +1149,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_deblocking = cfg->enable_deblocking;
   extra_cfg->enable_cdef = cfg->enable_cdef;
   extra_cfg->enable_restoration = cfg->enable_restoration;
+#if CONFIG_ENABLE_AV1_WIENER
   extra_cfg->enable_wiener = cfg->enable_wiener;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   extra_cfg->enable_sgrproj = cfg->enable_sgrproj;
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
   extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
@@ -1477,17 +1485,22 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_deblocking = extra_cfg->enable_deblocking;
   tool_cfg->enable_cdef = extra_cfg->enable_cdef;
   tool_cfg->enable_restoration = extra_cfg->enable_restoration;
+#if CONFIG_ENABLE_AV1_WIENER
   tool_cfg->enable_wiener =
       tool_cfg->enable_restoration & extra_cfg->enable_wiener;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   tool_cfg->enable_sgrproj =
       tool_cfg->enable_restoration & extra_cfg->enable_sgrproj;
   tool_cfg->enable_pc_wiener =
       tool_cfg->enable_restoration & extra_cfg->enable_pc_wiener;
   tool_cfg->enable_wiener_nonsep =
       tool_cfg->enable_restoration & extra_cfg->enable_wiener_nonsep;
-  tool_cfg->enable_restoration &=
-      (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj |
-       tool_cfg->enable_pc_wiener | tool_cfg->enable_wiener_nonsep);
+  tool_cfg->enable_restoration &= (
+#if CONFIG_ENABLE_AV1_WIENER
+      tool_cfg->enable_wiener |
+#endif  // CONFIG_ENABLE_AV1_WIENER
+      tool_cfg->enable_sgrproj | tool_cfg->enable_pc_wiener |
+      tool_cfg->enable_wiener_nonsep);
   tool_cfg->enable_ccso = extra_cfg->enable_ccso;
 #if CONFIG_LF_SUB_PU
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
@@ -3992,9 +4005,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_restoration,
                               argv, err_string)) {
     extra_cfg.enable_restoration = arg_parse_uint_helper(&arg, err_string);
+#if CONFIG_ENABLE_AV1_WIENER
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_wiener, argv,
                               err_string)) {
     extra_cfg.enable_wiener = arg_parse_uint_helper(&arg, err_string);
+#endif  // CONFIG_ENABLE_AV1_WIENER
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_sgrproj, argv,
                               err_string)) {
     extra_cfg.enable_sgrproj = arg_parse_uint_helper(&arg, err_string);
@@ -4757,8 +4772,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN
         1,   1, 1, 1,
-        1,   1, 1, 1,
+#if CONFIG_ENABLE_AV1_WIENER
         1,
+#endif  // CONFIG_ENABLE_AV1_WIENER
+        1,   1, 1, 1,
 #if CONFIG_LF_SUB_PU
         1,
 #endif  // CONFIG_LF_SUB_PU

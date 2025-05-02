@@ -4519,6 +4519,7 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                            const WienerInfo *wiener_info,
                                            WienerInfoBank *bank,
@@ -4582,6 +4583,7 @@ static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
   av1_add_to_wiener_bank(bank, wiener_info);
   return;
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
                                             const SgrprojInfo *sgrproj_info,
@@ -4994,7 +4996,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   (void)counts;
   assert(!cm->features.all_lossless);
 
+#if CONFIG_ENABLE_AV1_WIENER
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
   RestorationType unit_rtype = rui->restoration_type;
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
@@ -5012,10 +5016,12 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         !found,
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
     switch (unit_rtype) {
+#if CONFIG_ENABLE_AV1_WIENER
       case RESTORE_WIENER:
         write_wiener_filter(xd, wiener_win, &rui->wiener_info,
                             &xd->wiener_info[plane], w);
         break;
+#endif  // CONFIG_ENABLE_AV1_WIENER
       case RESTORE_SGRPROJ:
         write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                              w);
@@ -5029,6 +5035,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         break;
       default: assert(unit_rtype == RESTORE_NONE); break;
     }
+#if CONFIG_ENABLE_AV1_WIENER
   } else if (frame_rtype == RESTORE_WIENER) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
                      xd->tile_ctx->wiener_restore_cdf, 2);
@@ -5039,6 +5046,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
       write_wiener_filter(xd, wiener_win, &rui->wiener_info,
                           &xd->wiener_info[plane], w);
     }
+#endif  // CONFIG_ENABLE_AV1_WIENER
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
                      xd->tile_ctx->sgrproj_restore_cdf, 2);

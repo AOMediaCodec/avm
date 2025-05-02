@@ -2490,6 +2490,7 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
   return aug_luma;
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                         int stripe_width, int stripe_height,
                                         int procunit_width, const uint16_t *src,
@@ -2522,6 +2523,7 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                        stripe_height, &conv_params, bit_depth);
   }
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                          int stripe_width, int stripe_height,
@@ -2555,11 +2557,19 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int procunit_width, const uint16_t *src,
                                   int src_stride, uint16_t *dst, int dst_stride,
                                   int32_t *tmpbuf, int bit_depth);
+#if CONFIG_ENABLE_AV1_WIENER
 #define NUM_STRIPE_FILTERS 4
+#else
+#define NUM_STRIPE_FILTERS 3
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
-  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
-  pc_wiener_stripe_highbd, wiener_nsfilter_stripe_highbd
+#if CONFIG_ENABLE_AV1_WIENER
+  wiener_filter_stripe_highbd,
+#endif  // CONFIG_ENABLE_AV1_WIENER
+  sgrproj_filter_stripe_highbd,
+  pc_wiener_stripe_highbd,
+  wiener_nsfilter_stripe_highbd
 };
 
 // Filter one restoration unit

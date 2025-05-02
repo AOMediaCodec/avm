@@ -90,11 +90,13 @@ static const sse_part_extractor_type sse_part_extractors[NUM_EXTRACTORS] = {
   aom_highbd_get_u_sse_part,
   aom_highbd_get_v_sse_part,
 };
+#if CONFIG_ENABLE_AV1_WIENER
 static const var_part_extractor_type var_part_extractors[NUM_EXTRACTORS] = {
   aom_highbd_get_y_var,
   aom_highbd_get_u_var,
   aom_highbd_get_v_var,
 };
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static int64_t sse_restoration_unit(const RestorationTileLimits *limits,
                                     const YV12_BUFFER_CONFIG *src,
@@ -104,12 +106,14 @@ static int64_t sse_restoration_unit(const RestorationTileLimits *limits,
       limits->v_start, limits->v_end - limits->v_start);
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 static uint64_t var_restoration_unit(const RestorationTileLimits *limits,
                                      const YV12_BUFFER_CONFIG *src, int plane) {
   return var_part_extractors[plane](
       src, limits->h_start, limits->h_end - limits->h_start, limits->v_start,
       limits->v_end - limits->v_start);
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 typedef struct {
   // The best coefficients for Wiener or Sgrproj restoration
@@ -1488,6 +1492,7 @@ void av1_compute_stats_highbd_c(int wiener_win, const uint16_t *dgd,
   }
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 static INLINE int wrap_index(int i, int wiener_win) {
   const int wiener_halfwin1 = (wiener_win >> 1) + 1;
   return (i >= wiener_halfwin1 ? wiener_win - 1 - i : i);
@@ -1838,6 +1843,7 @@ static int64_t count_wiener_bits_set(int wiener_win,
   info->bank_ref = AOMMAX(0, best_ref);
   return best_bits;
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 // If limits != NULL, calculates error for current restoration unit.
 // Otherwise, calculates error for all units in the stack using stored limits.
@@ -1958,6 +1964,7 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
   return err;
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 #define USE_WIENER_REFINEMENT_SEARCH 1
 #define RD_WIENER_REFINEMENT_SEARCH 0
 static int64_t finer_tile_search_wiener(RestSearchCtxt *rsc,
@@ -2574,6 +2581,7 @@ static AOM_INLINE void search_wiener_visitor(
      rsc->wiener_bank.bank_size);
      */
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static AOM_INLINE void search_norestore_visitor(
     const RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
@@ -3356,7 +3364,7 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
       get_wienerns_parameters(base_qindex, is_uv);
   WienerNonsepInfoBank tmp_bank;
   av1_reset_wienerns_bank(&tmp_bank, base_qindex, filter->num_classes, 0);
-  BestMatchResults best_match_results[WIENERNS_MAX_CLASSES];
+  BestMatchResults best_match_results[WIENERNS_MAX_CLASSES] = { 0 };
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
     best_match_results[c_id] =
         find_best_match_for_class(rsc, filter, c_id, frame_filter_dictionary,
@@ -3573,7 +3581,7 @@ static int compute_wienerns_filter_select(
     ip++;
   }
   // Solve problem
-  int32_t sel_x[WIENERNS_TAPS_MAX];
+  int32_t sel_x[WIENERNS_TAPS_MAX] = { 0 };
   int ret = linsolve_spd_quantize(np, sel_A, R, stridep, sel_b, tmp, sel_x,
                                   prec, min, max, scale);
   if (!ret) return ret;
@@ -4911,8 +4919,10 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
 #else
   const WienerNonsepInfoBank *bank_to_use = &rsc->wienerns_bank;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_ENABLE_AV1_WIENER
   const int wiener_win =
       (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   if (rest_type > RESTORE_NONE) {
     if (rusi->best_rtype[rest_type - 1] == RESTORE_NONE)
       rest_type = RESTORE_NONE;
@@ -4920,10 +4930,12 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   int64_t coeff_bits = 0;
   switch (rest_type) {
     case RESTORE_NONE: coeff_bits = 0; break;
+#if CONFIG_ENABLE_AV1_WIENER
     case RESTORE_WIENER:
       coeff_bits = count_wiener_bits_set(wiener_win, &x->mode_costs,
                                          &rusi->wiener_info, &rsc->wiener_bank);
       break;
+#endif  // CONFIG_ENABLE_AV1_WIENER
     case RESTORE_SGRPROJ:
       coeff_bits = count_sgrproj_bits_set(&x->mode_costs, &rusi->sgrproj_info,
                                           &rsc->sgrproj_bank);
@@ -5032,33 +5044,36 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   rsc->sse += rusi->sse[best_rtype];
   rsc->bits += best_bits;
 
+#if CONFIG_ENABLE_AV1_WIENER
   if (best_rtype == RESTORE_WIENER) {
     const int equal_ref =
         check_wiener_bank_eq(&rsc->wiener_bank, &rusi->wiener_info);
     if (equal_ref == -1 || rsc->wiener_bank.bank_size == 0)
       av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener_info);
-  } else if (best_rtype == RESTORE_SGRPROJ) {
-    const int equal_ref =
-        check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-    if (equal_ref == -1 || rsc->sgrproj_bank.bank_size == 0)
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-  } else if (best_rtype == RESTORE_PC_WIENER) {
-    // No side-information for now.
-  } else if (best_rtype == RESTORE_WIENER_NONSEP) {
-    rsc->num_wiener_nonsep++;
-    const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
-        rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
-    int equal_ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
-    for (int c_id = 0; c_id < rusi->wienerns_info.num_classes; ++c_id) {
-      const int is_equal = check_wienerns_bank_eq(
-          &rsc->wienerns_bank, &rusi->wienerns_info, nsfilter_params->ncoeffs,
-          c_id, equal_ref_for_class);
-      if (is_equal == -1) {
-        av1_add_to_wienerns_bank(&rsc->wienerns_bank, &rusi->wienerns_info,
-                                 c_id);
+  } else
+#endif  // CONFIG_ENABLE_AV1_WIENER
+    if (best_rtype == RESTORE_SGRPROJ) {
+      const int equal_ref =
+          check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rusi->sgrproj_info);
+      if (equal_ref == -1 || rsc->sgrproj_bank.bank_size == 0)
+        av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
+    } else if (best_rtype == RESTORE_PC_WIENER) {
+      // No side-information for now.
+    } else if (best_rtype == RESTORE_WIENER_NONSEP) {
+      rsc->num_wiener_nonsep++;
+      const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
+          rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
+      int equal_ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
+      for (int c_id = 0; c_id < rusi->wienerns_info.num_classes; ++c_id) {
+        const int is_equal = check_wienerns_bank_eq(
+            &rsc->wienerns_bank, &rusi->wienerns_info, nsfilter_params->ncoeffs,
+            c_id, equal_ref_for_class);
+        if (is_equal == -1) {
+          av1_add_to_wienerns_bank(&rsc->wienerns_bank, &rusi->wienerns_info,
+                                   c_id);
+        }
       }
     }
-  }
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (rsc->frame_filters_on) {
     for (int c_id = 0; c_id < rsc->num_filter_classes; ++c_id)
@@ -5118,6 +5133,7 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
     return;
   }
 #endif  // CONFIG_BRU
+#if CONFIG_ENABLE_AV1_WIENER
   if (rui->restoration_type == RESTORE_WIENER) {
     rui->wiener_info = rusi->wiener_info;
     const int wiener_win =
@@ -5133,39 +5149,41 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
                             &rsc->wiener_bank);
       av1_add_to_wiener_bank(&rsc->wiener_bank, &rui->wiener_info);
     }
-  } else if (rui->restoration_type == RESTORE_SGRPROJ) {
-    rui->sgrproj_info = rusi->sgrproj_info;
-    const int equal_ref =
-        check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    if (equal_ref >= 0) {
-      rui->sgrproj_info.bank_ref = equal_ref;
-      if (rsc->sgrproj_bank.bank_size == 0)
+  } else
+#endif  // CONFIG_ENABLE_AV1_WIENER
+    if (rui->restoration_type == RESTORE_SGRPROJ) {
+      rui->sgrproj_info = rusi->sgrproj_info;
+      const int equal_ref =
+          check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rui->sgrproj_info);
+      if (equal_ref >= 0) {
+        rui->sgrproj_info.bank_ref = equal_ref;
+        if (rsc->sgrproj_bank.bank_size == 0)
+          av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rui->sgrproj_info);
+      } else {
+        count_sgrproj_bits_set(mode_costs, &rui->sgrproj_info,
+                               &rsc->sgrproj_bank);
         av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    } else {
-      count_sgrproj_bits_set(mode_costs, &rui->sgrproj_info,
-                             &rsc->sgrproj_bank);
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    }
-  } else if (rui->restoration_type == RESTORE_PC_WIENER) {
-    // No side-information for now.
-  } else if (rui->restoration_type == RESTORE_WIENER_NONSEP) {
-    rui->wienerns_info = rusi->wienerns_info;
-    const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
-        rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
-    int equal_ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
-    count_wienerns_bits_set(rsc->plane, mode_costs, &rui->wienerns_info,
-                            &rsc->wienerns_bank, nsfilter_params,
-                            ALL_WIENERNS_CLASSES);
-    for (int c_id = 0; c_id < rui->wienerns_info.num_classes; ++c_id) {
-      const int is_equal = check_wienerns_bank_eq(
-          &rsc->wienerns_bank, &rui->wienerns_info, nsfilter_params->ncoeffs,
-          c_id, equal_ref_for_class);
-      if (is_equal == -1) {
-        av1_add_to_wienerns_bank(&rsc->wienerns_bank, &rui->wienerns_info,
-                                 c_id);
+      }
+    } else if (rui->restoration_type == RESTORE_PC_WIENER) {
+      // No side-information for now.
+    } else if (rui->restoration_type == RESTORE_WIENER_NONSEP) {
+      rui->wienerns_info = rusi->wienerns_info;
+      const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
+          rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
+      int equal_ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
+      count_wienerns_bits_set(rsc->plane, mode_costs, &rui->wienerns_info,
+                              &rsc->wienerns_bank, nsfilter_params,
+                              ALL_WIENERNS_CLASSES);
+      for (int c_id = 0; c_id < rui->wienerns_info.num_classes; ++c_id) {
+        const int is_equal = check_wienerns_bank_eq(
+            &rsc->wienerns_bank, &rui->wienerns_info, nsfilter_params->ncoeffs,
+            c_id, equal_ref_for_class);
+        if (is_equal == -1) {
+          av1_add_to_wienerns_bank(&rsc->wienerns_bank, &rui->wienerns_info,
+                                   c_id);
+        }
       }
     }
-  }
 }
 
 #if CONFIG_BRU
@@ -5281,7 +5299,14 @@ static double process_rd_by_rutile(RestSearchCtxt *rsc,
 
 static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   static const rest_unit_visitor_t funs[RESTORE_TYPES] = {
-    NULL, NULL, NULL, NULL, gather_stats_wienerns, NULL
+    NULL,
+#if CONFIG_ENABLE_AV1_WIENER
+    NULL,
+#endif  // CONFIG_ENABLE_AV1_WIENER
+    NULL,
+    NULL,
+    gather_stats_wienerns,
+    NULL
   };
   if (rtype == RESTORE_WIENER_NONSEP) aom_vector_clear(rsc->wienerns_stats);
 
@@ -5290,8 +5315,14 @@ static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 
 static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   static const rest_unit_visitor_t funs[RESTORE_TYPES] = {
-    search_norestore_visitor, search_wiener_visitor,   search_sgrproj_visitor,
-    search_pc_wiener_visitor, search_wienerns_visitor, search_switchable_visitor
+    search_norestore_visitor,
+#if CONFIG_ENABLE_AV1_WIENER
+    search_wiener_visitor,
+#endif  // CONFIG_ENABLE_AV1_WIENER
+    search_sgrproj_visitor,
+    search_pc_wiener_visitor,
+    search_wienerns_visitor,
+    search_switchable_visitor
   };
 
   if (funs[rtype])

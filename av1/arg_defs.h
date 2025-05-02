@@ -140,7 +140,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
   arg_def_t enable_restoration;
+#if CONFIG_ENABLE_AV1_WIENER
   arg_def_t enable_wiener;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   arg_def_t enable_sgrproj;
   arg_def_t enable_pc_wiener;
   arg_def_t enable_wiener_nonsep;

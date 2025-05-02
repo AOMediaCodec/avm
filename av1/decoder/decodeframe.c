@@ -3165,6 +3165,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_ENABLE_AV1_WIENER
 static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfo *wiener_info,
                                           WienerInfoBank *bank,
@@ -3246,6 +3247,7 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
             wiener_info->hfilter[2]);
   av1_add_to_wiener_bank(bank, wiener_info);
 }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfo *sgrproj_info,
@@ -3604,7 +3606,9 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
 
   assert(!cm->features.all_lossless);
 
+#if CONFIG_ENABLE_AV1_WIENER
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+#endif  // CONFIG_ENABLE_AV1_WIENER
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -3620,10 +3624,12 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
       }
     }
     switch (rui->restoration_type) {
+#if CONFIG_ENABLE_AV1_WIENER
       case RESTORE_WIENER:
         read_wiener_filter(xd, wiener_win, &rui->wiener_info,
                            &xd->wiener_info[plane], r);
         break;
+#endif  // CONFIG_ENABLE_AV1_WIENER
       case RESTORE_SGRPROJ:
         read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                             r);
@@ -3637,6 +3643,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
         break;
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
+#if CONFIG_ENABLE_AV1_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
     if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2,
                         ACCT_INFO("wiener_restore_cdf"))) {
@@ -3646,6 +3653,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
+#endif  // CONFIG_ENABLE_AV1_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
     if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2,
                         ACCT_INFO("sgrproj_restore_cdf"))) {

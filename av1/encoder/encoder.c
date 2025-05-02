@@ -791,10 +791,12 @@ static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
     seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_SGRPROJ);
     seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_SGRPROJ);
   }
+#if CONFIG_ENABLE_AV1_WIENER
   if (!tool_cfg->enable_wiener) {
     seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER);
     seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER);
   }
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
   if (!tool_cfg->enable_pc_wiener) {
     seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);

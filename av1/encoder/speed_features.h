@@ -977,6 +977,7 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // Disable loop restoration for Chroma plane
   int disable_loop_restoration_chroma;
 
+#if CONFIG_ENABLE_AV1_WIENER
   // Prune RESTORE_WIENER evaluation based on source variance
   // 0 : no pruning
   // 1 : conservative pruning
@@ -992,6 +993,7 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // Reduce the wiener filter win size for luma
   int reduce_wiener_window_size;
+#endif  // CONFIG_ENABLE_AV1_WIENER
 
   // Disable loop restoration filter
   int disable_lr_filter;
