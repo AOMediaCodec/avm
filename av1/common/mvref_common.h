@@ -768,8 +768,7 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
   const int sb_size = 1 << sb_size_log2;
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
 #if CONFIG_ENABLE_IBC_NAT && (CONFIG_IBC_SR_EXT == 2)
-  int valid_size_log2 = sb_size_log2 > 6 ? 6 : sb_size_log2;
-  if (sb_size_log2 == 8) valid_size_log2 = 7;
+  int valid_size_log2 = sb_size_log2 > 7 ? 7 : sb_size_log2;
 #else
   int valid_size_log2 = sb_size_log2 > 6 ? 6 : sb_size_log2;
 #endif  // CONFIG_ENABLE_IBC_NAT && (CONFIG_IBC_SR_EXT == 2)
@@ -808,19 +807,7 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
 #if CONFIG_IBC_SR_EXT == 2
 static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
                                            int mi_row, int mi_col, int bh,
-                                           int bw, int mib_size_log2
-#if CONFIG_INTRABC_RNG_BUGFIX
-                                           ,
-                                           uint8_t allow_left_128
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
-) {
-#if CONFIG_INTRABC_RNG_BUGFIX
-  const int mib_ref_region_size_log2 = 7 - MI_SIZE_LOG2;
-  // only support sb_size = 64/128/256
-  const int ref_size_log2 = (mib_size_log2 + MI_SIZE_LOG2 > 7)
-                                ? mib_ref_region_size_log2 + MI_SIZE_LOG2
-                                : mib_size_log2 + MI_SIZE_LOG2;
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
+                                           int bw, int mib_size_log2) {
 #if CONFIG_IBC_SUBPEL_PRECISION
   int has_col_offset = dv.col & 7;  // sub-pel col
   int has_row_offset = dv.row & 7;  // sub-pel col
@@ -860,15 +847,9 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
   const int active_top_y = mi_row * MI_SIZE;
 
   const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
-#if CONFIG_INTRABC_RNG_BUGFIX
-  if ((src_top_y >> ref_size_log2) < (active_top_y >> ref_size_log2)) return 0;
-  if ((src_bottom_y >> ref_size_log2) > (active_top_y >> ref_size_log2))
-    return 0;
-#else
   if ((src_top_y >> sb_size_log2) < (active_top_y >> sb_size_log2)) return 0;
 
   if ((src_bottom_y >> sb_size_log2) > (active_top_y >> sb_size_log2)) return 0;
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
   if (((dv.col >> 3) + bw
 #if CONFIG_IBC_SUBPEL_PRECISION
        + right_interp_border
@@ -882,24 +863,13 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
     return 0;
 
   if (src_top_y < 0 || src_left_x < 0) return 0;
-#if CONFIG_INTRABC_RNG_BUGFIX
-  const int numLeftSB =
-      (allow_left_128 == 0)
-          ? 0
-          : (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
 
-  const int valid_SB =
-      ((src_right_x >> ref_size_log2) <= (active_left_x >> ref_size_log2)) &&
-      ((src_left_x >> ref_size_log2) >=
-       ((active_left_x >> ref_size_log2) - numLeftSB));
-#else
   const int numLeftSB =
       (1 << ((7 - sb_size_log2) << 1)) - ((sb_size_log2 < 7) ? 1 : 0);
   const int valid_SB =
       ((src_right_x >> sb_size_log2) <= (active_left_x >> sb_size_log2)) &&
       ((src_left_x >> sb_size_log2) >=
        ((active_left_x >> sb_size_log2) - numLeftSB));
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
   if (!valid_SB) return 0;
 
   int TL_same_sb = 0;
@@ -908,16 +878,9 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
   const int is_chroma_tree = xd->tree_type == CHROMA_PART;
   const unsigned char *is_mi_coded_map = xd->is_mi_coded[is_chroma_tree];
-#if CONFIG_INTRABC_RNG_BUGFIX
-  if (sb_size_log2 == 7 || sb_size_log2 == 8) {
-    if ((src_left_x >> ref_size_log2) ==
-        ((active_left_x >> ref_size_log2) - 1)) {
-      const int src_colo_left_x = src_left_x + (1 << ref_size_log2);
-#else
   if ((sb_size_log2 == 7)) {
     if ((src_left_x >> sb_size_log2) == ((active_left_x >> sb_size_log2) - 1)) {
       const int src_colo_left_x = src_left_x + sb_size;
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
       const int src_colo_top_y = src_top_y;
       const int offset64x = (src_colo_left_x >> 6) << 6;
       const int offset64y = (src_colo_top_y >> 6) << 6;
@@ -947,12 +910,7 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
     if (is_mi_coded_map[LT_pos] == 0) return 0;
   }
 
-#if CONFIG_INTRABC_RNG_BUGFIX
-  BR_same_sb =
-      (src_right_x >> ref_size_log2) == (active_left_x >> ref_size_log2);
-#else
   BR_same_sb = (src_right_x >> sb_size_log2) == (active_left_x >> sb_size_log2);
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
   if (BR_same_sb) {
     const int BR_mi_col_offset =
         (src_right_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
@@ -1112,12 +1070,6 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                              tmp_bw, mib_size_log2);
 #endif  // CONFIG_IBC_SR_EXT == 1
 #if CONFIG_IBC_SR_EXT == 2
-#if CONFIG_INTRABC_RNG_BUGFIX
-      uint8_t allow_left_128_blk = 1;
-      if (!frame_is_intra_only(cm)) allow_left_128_blk = 0;
-      valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
-                                       mib_size_log2, allow_left_128_blk);
-#else
 #if CONFIG_ENABLE_IBC_NAT
       if (!frame_is_intra_only(
               cm))  // Inter frame: Using 128x128 but the modificantion made in
@@ -1128,7 +1080,6 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 #endif  // CONFIG_ENABLE_IBC_NAT
         valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh,
                                          tmp_bw, mib_size_log2);
-#endif  // CONFIG_INTRABC_RNG_BUGFIX
 #endif  // CONFIG_IBC_SR_EXT == 2
       if (valid) return 1;
     }
