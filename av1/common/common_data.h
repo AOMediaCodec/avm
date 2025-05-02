@@ -902,9 +902,15 @@ static const int av1_md_class[INTRA_MODES] = {
 };
 
 // Mapping between mode dependent TX size groups based on allowed TX sizes.
-static const int av1_size_class[TX_SIZES_ALL] = { 0, 1, 2, 3, 3, 0, 0, 1, 1,
-                                                  3, 3, 3, 3, 0, 0, 3, 3, 3,
-                                                  3, 3, 3, 3, 3, 3, 3 };
+static const int av1_size_class[TX_SIZES_ALL] = {
+  0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3,
+#if CONFIG_COEFF_PARSING
+  1, 1,
+#else
+  0, 0,
+#endif  // CONFIG_COEFF_PARSING
+  3, 3, 3, 3, 3, 3, 3, 3, 3, 3
+};
 
 static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
   if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
@@ -960,7 +966,7 @@ static const int inv_tx_shift[TX_SIZES_ALL][2] = {
   { 7, 10 },  // TX_8X4,    // 8x4 transform
   { 7, 11 },  // TX_8X16,   // 8x16 transform
   { 7, 11 },  // TX_16X8,   // 16x8 transform
-  { 6, 12 },  // TX_16X32,  // 16x32 transform√ü
+  { 6, 12 },  // TX_16X32,  // 16x32 transformﬂ
   { 6, 12 },  // TX_32X16,  // 32x16 transform
   { 6, 12 },  // TX_32X64,  // 32x64 transform
   { 6, 12 },  // TX_64X32,  // 64x32 transform

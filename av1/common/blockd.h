@@ -2546,13 +2546,26 @@ static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   },  // size_class: 0
   {
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_COEFF_PARSING
+      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#else
       { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
       { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
+#endif  // CONFIG_COEFF_PARSING
       { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_COEFF_PARSING
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#else
       { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0 },
+#endif  // CONFIG_COEFF_PARSING
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_COEFF_PARSING
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#else
       { 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0 },
+#endif  // CONFIG_COEFF_PARSING
       { 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
@@ -2561,8 +2574,13 @@ static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   },  // size_class: 1
   {
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_COEFF_PARSING
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+#else
       { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0 },
+#endif  // CONFIG_COEFF_PARSING
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
@@ -2640,13 +2658,26 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
   },  // size_class: 0
   {
       0x019F,
+#if CONFIG_COEFF_PARSING
+      0x01CF,
+      0x019F,
+#else
       0x148F,
       0x290F,
+#endif  // CONFIG_COEFF_PARSING
       0x01CF,
       0x01AF,
+#if CONFIG_COEFF_PARSING
+      0x01AF,
+#else
       0x10AF,
+#endif  // CONFIG_COEFF_PARSING
       0x019F,
+#if CONFIG_COEFF_PARSING
+      0x019F,
+#else
       0x211F,
+#endif  // CONFIG_COEFF_PARSING
       0x00EF,
       0x01CF,
       0x019F,
@@ -2655,8 +2686,13 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
   },  // size_class: 1
   {
       0x019F,
+#if CONFIG_COEFF_PARSING
+      0x01AF,
+      0x019F,
+#else
       0x04AF,
       0x091F,
+#endif  // CONFIG_COEFF_PARSING
       0x019F,
       0x019F,
       0x01AF,

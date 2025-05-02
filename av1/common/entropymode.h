@@ -579,13 +579,26 @@ static const int av1_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   },                                                       // size_class: 0
   {
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 0
+#if CONFIG_COEFF_PARSING
+      { 0, 2, 3, 1, 0, 0, 5, 4, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 1
+      { 0, 2, 3, 1, 5, 0, 0, 6, 4, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 2
+#else
       { 0, 2, 3, 1, 0, 0, 0, 4, 0, 0, 5, 0, 6, 0, 0, 0 },  // mode_class: 1
       { 0, 2, 3, 1, 0, 0, 0, 0, 4, 0, 0, 5, 0, 6, 0, 0 },  // mode_class: 2
+#endif  // CONFIG_COEFF_PARSING
       { 0, 2, 3, 1, 0, 0, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 3
       { 0, 2, 3, 1, 0, 4, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 4
+#if CONFIG_COEFF_PARSING
+      { 0, 2, 3, 1, 0, 4, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 5
+#else
       { 0, 2, 3, 1, 0, 4, 0, 5, 0, 0, 0, 0, 6, 0, 0, 0 },  // mode_class: 5
+#endif  // CONFIG_COEFF_PARSING
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 6
+#if CONFIG_COEFF_PARSING
+      { 0, 2, 3, 1, 4, 0, 0, 6, 5, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 7
+#else
       { 0, 2, 3, 1, 4, 0, 0, 0, 5, 0, 0, 0, 0, 6, 0, 0 },  // mode_class: 7
+#endif  // CONFIG_COEFF_PARSING
       { 0, 2, 3, 1, 0, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 8
       { 0, 2, 3, 1, 0, 0, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 9
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 10
@@ -594,8 +607,13 @@ static const int av1_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   },                                                       // size_class: 1
   {
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 0
+#if CONFIG_COEFF_PARSING
+      { 0, 2, 3, 1, 0, 4, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 1
+      { 0, 2, 3, 1, 4, 0, 0, 6, 5, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 2
+#else
       { 0, 2, 3, 1, 0, 4, 0, 5, 0, 0, 6, 0, 0, 0, 0, 0 },  // mode_class: 1
       { 0, 2, 3, 1, 4, 0, 0, 0, 5, 0, 0, 6, 0, 0, 0, 0 },  // mode_class: 2
+#endif  // CONFIG_COEFF_PARSING
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 3
       { 0, 2, 3, 1, 4, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 4
       { 0, 2, 3, 1, 0, 4, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0 },  // mode_class: 5
@@ -641,14 +659,27 @@ static const int av1_md_idx2type[EXT_TX_SIZES][INTRA_MODES][INTRA_TX_SET1] = {
       { 0, 3, 2, 10, 11, 12, 13 },  // mode_class: 12
   },                                // size_class: 0
   {
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 0
-      { 0, 3, 1, 2, 7, 10, 12 },   // mode_class: 1
-      { 0, 3, 1, 2, 8, 11, 13 },   // mode_class: 2
-      { 0, 3, 1, 2, 6, 7, 8 },     // mode_class: 3
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 4
-      { 0, 3, 1, 2, 5, 7, 12 },    // mode_class: 5
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 6
-      { 0, 3, 1, 2, 4, 8, 13 },    // mode_class: 7
+      { 0, 3, 1, 2, 4, 7, 8 },  // mode_class: 0
+#if CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 7, 6, 8 },  // mode_class: 1
+      { 0, 3, 1, 2, 8, 4, 7 },  // mode_class: 2
+#else
+      { 0, 3, 1, 2, 7, 10, 12 },  // mode_class: 1
+      { 0, 3, 1, 2, 8, 11, 13 },  // mode_class: 2
+#endif                          // CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 6, 7, 8 },  // mode_class: 3
+      { 0, 3, 1, 2, 5, 7, 8 },  // mode_class: 4
+#if CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 5, 7, 8 },  // mode_class: 5
+#else
+      { 0, 3, 1, 2, 5, 7, 12 },  // mode_class: 5
+#endif                          // CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 4, 7, 8 },  // mode_class: 6
+#if CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 4, 8, 7 },  // mode_class: 7
+#else
+      { 0, 3, 1, 2, 4, 8, 13 },  // mode_class: 7
+#endif                             // CONFIG_COEFF_PARSING
       { 0, 3, 1, 2, 5, 6, 7 },     // mode_class: 8
       { 0, 3, 1, 2, 6, 7, 8 },     // mode_class: 9
       { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 10
@@ -656,9 +687,14 @@ static const int av1_md_idx2type[EXT_TX_SIZES][INTRA_MODES][INTRA_TX_SET1] = {
       { 0, 3, 1, 2, 10, 11, 13 },  // mode_class: 12
   },                               // size_class: 1
   {
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 0
-      { 0, 3, 1, 2, 5, 7, 10 },    // mode_class: 1
-      { 0, 3, 1, 2, 4, 8, 11 },    // mode_class: 2
+      { 0, 3, 1, 2, 4, 7, 8 },  // mode_class: 0
+#if CONFIG_COEFF_PARSING
+      { 0, 3, 1, 2, 5, 7, 8 },  // mode_class: 1
+      { 0, 3, 1, 2, 4, 8, 7 },  // mode_class: 2
+#else
+      { 0, 3, 1, 2, 5, 7, 10 },  // mode_class: 1
+      { 0, 3, 1, 2, 4, 8, 11 },  // mode_class: 2
+#endif                             // CONFIG_COEFF_PARSING
       { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 3
       { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 4
       { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 5
@@ -686,7 +722,6 @@ static const int av1_md_idx2type[EXT_TX_SIZES][INTRA_MODES][INTRA_TX_SET1] = {
       { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 12
   },                            // size_class: 3
 };
-
 static INLINE int av1_tx_type_to_idx(int tx_type, int tx_set_type,
                                      int intra_mode, int size_idx) {
   return tx_set_type == EXT_NEW_TX_SET

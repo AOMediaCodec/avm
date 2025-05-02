@@ -473,6 +473,8 @@ set_aom_config_var(CONFIG_CCSO_CLEANUP 1
 
 set_aom_config_var(CONFIG_DRL_SIZE_LIMIT 1 "F206 limit drl size to six.")
 set_aom_config_var(CONFIG_DRL_PR_LIM 1 "Limit the number of DRL pruning.")
+set_aom_config_var(CONFIG_COEFF_PARSING 1
+                   "Parsing dependency removal for coefficient related syntax.")
 #
 # Variables in this section control optional features of the build system.
 #
