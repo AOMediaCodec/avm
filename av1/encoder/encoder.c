@@ -5515,6 +5515,21 @@ void enc_bru_swap_stage(AV1_COMP *cpi) {
     if (bru_swap_common(cm) == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                          "Encoder BRU swap stage error");
+    } else {
+      // add additional assignment for the encoder to avoid issues
+      for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
+        if (cm->bru.frame_inactive_flag) {
+          cm->ccso_info.reuse_ccso[plane] = 0;
+          cm->ccso_info.sb_reuse_ccso[plane] = 0;
+          cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
+          cm->ccso_info.ccso_enable[plane] = 0;
+          cm->cur_frame->ccso_info.reuse_ccso[plane] = 0;
+          cm->cur_frame->ccso_info.sb_reuse_ccso[plane] = 0;
+          cm->cur_frame->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
+          cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+          continue;
+        }
+      }
     }
   }
 }
