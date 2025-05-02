@@ -1029,6 +1029,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           frame_decoding_finished = 1;
           const int num_tiles = cm->tiles.cols * cm->tiles.rows;
           const int end_tile = num_tiles - 1;
+          // skip parsing and go directly to decode
           av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, 0,
                                          end_tile, 0);
           break;

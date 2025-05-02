@@ -4036,10 +4036,10 @@ static AOM_INLINE void write_partition(
 #endif
 #if CONFIG_NEW_PART_CTX
       const int ctx =
-        partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
       aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
 #else
-      aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
+    aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
 #endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_BRU
     }

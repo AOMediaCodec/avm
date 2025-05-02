@@ -1124,6 +1124,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
+  // imply explicit_ref_frame_map = 1 when bru is on
   cfg->enable_bru = extra_cfg->enable_bru;
   if (cfg->enable_bru)
     cfg->explicit_ref_frame_map = 1;
@@ -1279,6 +1280,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
+  // imply explicit_ref_frame_map = 1 when bru is on
   extra_cfg->enable_bru = cfg->enable_bru;
   if (extra_cfg->enable_bru)
     extra_cfg->explicit_ref_frame_map = 1;
@@ -1541,6 +1543,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
 #if CONFIG_BRU
+  // Turn off BRU if LA, AI or resize mode
   tool_cfg->enable_bru = extra_cfg->enable_bru;
   if (tool_cfg->enable_bru) {
     if (cfg->g_lag_in_frames != 0) {

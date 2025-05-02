@@ -712,6 +712,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       tx_size = (bsize > BLOCK_4X4) ? tx_size : TX_4X4;
     }
 #if CONFIG_BRU
+    // todo (BRU): this might be removed now
     if (is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row,
                                                     bsize)) {
       tx_size = TX_64X64;

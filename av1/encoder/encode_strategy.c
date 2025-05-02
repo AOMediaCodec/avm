@@ -68,6 +68,8 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
 
 #if CONFIG_BRU
+  // if BRU ref frame is not in the top n_refs list, swap bru ref to the last of
+  // top_n
   enc_bru_swap_ref(cm);
 #endif  // CONFIG_BRU
 }
@@ -1106,7 +1108,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.show_frame = 1;
   } else {
     source = choose_frame_source(cpi, &flush, &last_source,
-#if CONFIG_BRU
+#if CONFIG_BRU  // use -2 distance frame as BRU ref frame
                                  -2, &bru_ref_source,
 #endif  // CONFIG_BRU
                                  &frame_params);
@@ -1299,29 +1301,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->bru.enabled = 0;
       cm->bru.update_ref_idx = -1;
     }
-#if CONFIG_BRU && CONFIG_BRU_DIST
-    if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
-      for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
-        if (abs(cm->ref_frames_info.ref_frame_distance[i]) >
-            MAX_FRAME_DISTANCE) {
-          cm->bru.enabled = 0;
-          cm->bru.update_ref_idx = -1;
-          // int ref_order = get_ref_frame_buf(cm, i)->order_hint;
-          break;
-        }
-      }
-    }
-    if (cm->bru.enabled) {
-      // display active map
-      printf("Display active map: \n");
-      for (unsigned int y = 0; y < cm->bru.unit_rows; y++) {
-        for (unsigned int x = 0; x < cm->bru.unit_cols; x++) {
-          printf("%d, ", cm->bru.active_mode_map[x + y * cm->bru.unit_cols]);
-        }
-        printf("\n");
-      }
-    }
-#endif
     // clean up active sb queue if any left over
     // it may happen if encoder decide not using BRU for lots of active sbs
     // exists

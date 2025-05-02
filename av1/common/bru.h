@@ -21,10 +21,6 @@
 #define MAX_ACTIVE_REGION 8
 #endif
 
-#ifndef CONFIG_BRU_DIST
-#define CONFIG_BRU_DIST 0
-#endif
-
 static INLINE void realloc_bru_info(AV1_COMMON *cm) {
   BruInfo *bru_info = &cm->bru;
   uint32_t unit_rows =

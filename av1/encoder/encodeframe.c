@@ -1101,7 +1101,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_BRU
     BruActiveMode cur_sb_active_mode =
         enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
-    // EXT SB let it go to RD but restrict
+    // support SB let it go to RD but restrict
     assert(xd->sbi->sb_active_mode == cur_sb_active_mode);
     // use for lpf only, use causal restriction only
     if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {

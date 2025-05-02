@@ -1929,6 +1929,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_BRU
+  // skip all the parsing and do recon directly if not active
   if (!bru_is_sb_active(&pbi->common, mi_col, mi_row)) {
     goto direct_recon;
   }
@@ -2021,6 +2022,8 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART])
     av1_reset_entropy_context(xd, bsize, num_planes);
 #if CONFIG_BRU
+  // For regular decoder, always do recon
+  // For optimized decoder, only do reocn when support SB
 direct_recon:
   if (!pbi->bru_opt_mode ||
       (pbi->bru_opt_mode && bru_is_sb_active(cm, mi_col, mi_row)))
@@ -2259,14 +2262,14 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
     if (!bru_is_sb_active(cm, mi_col, mi_row)) {
       do_split = false;
     } else {
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
 #if CONFIG_NEW_PART_CTX
       const int ctx =
-        partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
       do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
-                               ACCT_INFO("do_split"));
+                                 ACCT_INFO("do_split"));
 #else
-      do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+    do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
                                ACCT_INFO("do_split"));
 #endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_BRU

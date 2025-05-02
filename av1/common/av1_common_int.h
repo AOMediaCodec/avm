@@ -1588,7 +1588,7 @@ typedef struct TIP_Buffer {
 #if CONFIG_BRU
 typedef struct BRU_Info {
   /*!
-   * Flag to indicate if a SB is marked as active.
+   * Flag to store BRU active mode.
    */
   uint8_t *active_mode_map;
   /*!
@@ -1643,9 +1643,6 @@ typedef struct BRU_Info {
    *  order_hint of bru ref idx
    */
   int ref_order;  // ref idx order hint
-  /*!
-   * Store frame buffer of cur_frame
-   */
   /*!
    * Store frame context of bru ref_frame
    */

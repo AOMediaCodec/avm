@@ -47,7 +47,8 @@ struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, unsigned int depth, const int border_in_pixels,
     int byte_alignment, int num_lap_buffers,
-#if CONFIG_BRU
+#if CONFIG_BRU  // BRU need extra look ahead buffer to store the src of
+                // reference frame (org pixels)
     int num_extra_buffers,
 #endif  // CONFIG_BRU
     bool alloc_pyramid) {
