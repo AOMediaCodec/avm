@@ -1271,6 +1271,81 @@ static AOM_INLINE int bru_is_valid_mv(AV1_COMMON *const cm,
   return 1;
 }
 
+void dec_bru_swap_stage(AV1_COMMON *cm, MACROBLOCKD *const xd) {
+  if (cm->bru.enabled) {
+    RefCntBuffer *tmp_buf = cm->cur_frame;
+    if (bru_swap_common(cm)) {
+      BufferPool *pool = cm->buffer_pool;
+      lock_buffer_pool(pool);
+      if (tmp_buf != NULL) {
+        assert(tmp_buf->ref_count == 0);
+        if (tmp_buf->ref_count == 0 && tmp_buf->raw_frame_buffer.data) {
+          pool->release_fb_cb(pool->cb_priv, &tmp_buf->raw_frame_buffer);
+          tmp_buf->raw_frame_buffer.data = NULL;
+          tmp_buf->raw_frame_buffer.size = 0;
+          tmp_buf->raw_frame_buffer.priv = NULL;
+        }
+      }
+      unlock_buffer_pool(pool);
+      xd->cur_buf = &cm->cur_frame->buf;
+    } else {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "Decoder BRU swap stage error");
+    }
+    // correctly extend borders after swap
+    // todo: this can be simplified by only extend support SB border
+    // aom_extend_frame_borders(&cm->cur_frame->buf, num_planes);
+    // Note, do not touch any recon region except the border
+    // first col of sb
+    const int sb_cols =
+        (cm->mi_params.mi_cols + cm->mib_size - 1) / cm->mib_size;
+    const int sb_rows =
+        (cm->mi_params.mi_rows + cm->mib_size - 1) / cm->mib_size;
+    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
+      const int sb_mi_row = sb_row << cm->mib_size_log2;
+      const int sb_mi_col = 0;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // first row of sb
+    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
+      const int sb_mi_row = 0;
+      const int sb_mi_col = sb_col << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // last col of sb
+    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
+      const int sb_mi_row = sb_row << cm->mib_size_log2;
+      const int sb_mi_col = (sb_cols - 1) << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+    // last row of sb
+    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
+      const int sb_mi_row = (sb_rows - 1) << cm->mib_size_log2;
+      const int sb_mi_col = sb_col << cm->mib_size_log2;
+      BruActiveMode active_mode =
+          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
+      if (active_mode == BRU_SUPPORT_SB) {
+        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
+                             &cm->cur_frame->buf);
+      }
+    }
+  }
+}
 #endif
 
 static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
@@ -3156,20 +3231,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   }
   segfeatures_copy(&cm->cur_frame->seg, seg);
 }
-#if CONFIG_BRU
-static INLINE void release_ref_buffer(RefCntBuffer *const buf,
-                                      BufferPool *const pool) {
-  if (buf != NULL) {
-    assert(buf->ref_count == 0);
-    if (buf->ref_count == 0 && buf->raw_frame_buffer.data) {
-      pool->release_fb_cb(pool->cb_priv, &buf->raw_frame_buffer);
-      buf->raw_frame_buffer.data = NULL;
-      buf->raw_frame_buffer.size = 0;
-      buf->raw_frame_buffer.priv = NULL;
-    }
-  }
-}
-#endif  // CONFIG_BRU
+
 // Same function as av1_read_uniform but reading from uncompressed header rb
 static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
   const int l = get_unsigned_bits(n);
@@ -9694,148 +9756,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   // if enabled flag signaled == 1, do swap
   if (cm->bru.enabled && pbi->bru_opt_mode &&
       cm->current_frame.frame_type != KEY_FRAME) {
-    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
-    cm->bru.update_ref_fc = ref_buf->frame_context;  // pass all the values
-    assert(ref_buf != NULL);
-    MV_REFERENCE_FRAME ref_frame;
-    for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
-      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-      if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs) {
-        ref_buf->ref_order_hints[ref_frame] = buf->order_hint;
-        ref_buf->ref_display_order_hint[ref_frame] = buf->display_order_hint;
-      } else {
-        ref_buf->ref_order_hints[ref_frame] = -1;
-        ref_buf->ref_display_order_hint[ref_frame] = -1;
-      }
-    }
-    RefCntBuffer *tmp_buf = cm->cur_frame;
-    BufferPool *pool = cm->buffer_pool;
-    ref_buf->order_hint = cm->cur_frame->order_hint;
-    ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
-    ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
-    ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
-    ref_buf->base_qindex = cm->cur_frame->base_qindex;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    // this need to be reconsider
-    ref_buf->frame_output_done = 0;
-#endif
-#if CONFIG_TEMP_LR
-    // the predicted rst_info should be set back to cur_frame before filtering
-    // todo: check if '=' is not necessary
-    ref_buf->rst_info[0] = tmp_buf->rst_info[0];
-    ref_buf->rst_info[1] = tmp_buf->rst_info[1];
-    ref_buf->rst_info[2] = tmp_buf->rst_info[2];
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[0], &tmp_buf->rst_info[0]);
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[1], &tmp_buf->rst_info[1]);
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
-#endif
-#if CONFIG_CCSO_IMPROVE
-    if (cm->bru.frame_inactive_flag) {
-      ref_buf->ccso_info.ccso_frame_flag = 0;
-    } else {
-      ref_buf->ccso_info.ccso_frame_flag = tmp_buf->ccso_info.ccso_frame_flag;
-    }
-    for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
-      if (cm->bru.frame_inactive_flag) {
-        // only need to copy to bru ref since already set in the uncompressed
-        // header
-        av1_copy_ccso_filters(&ref_buf->ccso_info, &cm->ccso_info, plane, 1, 0,
-                              0);
-        continue;
-      }
-      // copy from current to bru ref
-      ref_buf->ccso_info.reuse_ccso[plane] =
-          tmp_buf->ccso_info.reuse_ccso[plane];
-      ref_buf->ccso_info.sb_reuse_ccso[plane] =
-          tmp_buf->ccso_info.sb_reuse_ccso[plane];
-      ref_buf->ccso_info.ccso_enable[plane] =
-          tmp_buf->ccso_info.ccso_enable[plane];
-      ref_buf->ccso_info.ccso_ref_idx[plane] =
-          tmp_buf->ccso_info.ccso_ref_idx[plane];
-      ref_buf->ccso_info.subsampling_x[plane] =
-          plane > 0 ? cm->seq_params.subsampling_x : 0;
-      ref_buf->ccso_info.subsampling_y[plane] =
-          plane > 0 ? cm->seq_params.subsampling_y : 0;
-      ref_buf->ccso_info.reuse_root_ref[plane] =
-          tmp_buf->ccso_info.reuse_root_ref[plane];
-      const int log2_filter_unit_size_y =
-          plane > 0 ? CCSO_BLK_SIZE
-                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;
-      const int log2_filter_unit_size_x =
-          plane > 0 ? CCSO_BLK_SIZE
-                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_x;
-
-      const int ccso_nvfb = ((cm->mi_params.mi_rows >>
-                              (plane ? cm->seq_params.subsampling_y : 0)) +
-                             (1 << log2_filter_unit_size_y >> 2) - 1) /
-                            (1 << log2_filter_unit_size_y >> 2);
-      const int ccso_nhfb = ((cm->mi_params.mi_cols >>
-                              (plane ? cm->seq_params.subsampling_x : 0)) +
-                             (1 << log2_filter_unit_size_x >> 2) - 1) /
-                            (1 << log2_filter_unit_size_x >> 2);
-      const int sb_count = ccso_nvfb * ccso_nhfb;
-      av1_copy_ccso_filters(&ref_buf->ccso_info, &tmp_buf->ccso_info, plane, 1,
-                            1, sb_count);
-    }
-    //}
-#endif
-    lock_buffer_pool(pool);
-    assign_frame_buffer_p(&cm->cur_frame, ref_buf);
-    release_ref_buffer(tmp_buf, pool);
-    unlock_buffer_pool(pool);
-    xd->cur_buf = &cm->cur_frame->buf;
-    // correctly extend borders after swap
-    // todo: this can be simplified by only extend support SB border
-    // aom_extend_frame_borders(&cm->cur_frame->buf, num_planes);
-    // Note, do not touch any recon region except the border
-    // first col of sb
-    const int sb_cols =
-        (cm->mi_params.mi_cols + cm->mib_size - 1) / cm->mib_size;
-    const int sb_rows =
-        (cm->mi_params.mi_rows + cm->mib_size - 1) / cm->mib_size;
-    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
-      const int sb_mi_row = sb_row << cm->mib_size_log2;
-      const int sb_mi_col = 0;
-      BruActiveMode active_mode =
-          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
-      if (active_mode == BRU_SUPPORT_SB) {
-        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
-                             &cm->cur_frame->buf);
-      }
-    }
-    // first row of sb
-    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
-      const int sb_mi_row = 0;
-      const int sb_mi_col = sb_col << cm->mib_size_log2;
-      BruActiveMode active_mode =
-          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
-      if (active_mode == BRU_SUPPORT_SB) {
-        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
-                             &cm->cur_frame->buf);
-      }
-    }
-    // last col of sb
-    for (int sb_row = 0; sb_row < sb_rows; sb_row++) {
-      const int sb_mi_row = sb_row << cm->mib_size_log2;
-      const int sb_mi_col = (sb_cols - 1) << cm->mib_size_log2;
-      BruActiveMode active_mode =
-          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
-      if (active_mode == BRU_SUPPORT_SB) {
-        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
-                             &cm->cur_frame->buf);
-      }
-    }
-    // last row of sb
-    for (int sb_col = 0; sb_col < sb_cols; sb_col++) {
-      const int sb_mi_row = (sb_rows - 1) << cm->mib_size_log2;
-      const int sb_mi_col = sb_col << cm->mib_size_log2;
-      BruActiveMode active_mode =
-          av1_get_sb_info(cm, sb_mi_row, sb_mi_col)->sb_active_mode;
-      if (active_mode == BRU_SUPPORT_SB) {
-        bru_extend_mc_border(cm, sb_mi_row, sb_mi_col, cm->sb_size,
-                             &cm->cur_frame->buf);
-      }
-    }
+    dec_bru_swap_stage(cm, xd);
   }
 #endif  // CONFIG_BRU
 

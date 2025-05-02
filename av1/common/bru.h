@@ -244,4 +244,5 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                                         MACROBLOCKD *const xd,
                                         MB_MODE_INFO *const mbmi,
                                         BLOCK_SIZE bsize);
+RefCntBuffer *bru_swap_common(AV1_COMMON *cm);
 #endif  // AOM_AV1_COMMON_ARD_H_

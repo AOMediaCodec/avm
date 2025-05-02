@@ -4061,7 +4061,7 @@ static INLINE char const *get_frame_type_enum(int type) {
 }
 #endif
 #if CONFIG_BRU
-int enc_bru_swap_stage(AV1_COMP *cpi);
+void enc_bru_swap_stage(AV1_COMP *cpi);
 void enc_bru_swap_ref(AV1_COMMON *const cm);
 #endif
 

@@ -5497,7 +5497,8 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
     }
   }
 }
-int enc_bru_swap_stage(AV1_COMP *cpi) {
+
+void enc_bru_swap_stage(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   if (cm->bru.enabled) {
     // dump active sb queue
@@ -5511,96 +5512,10 @@ int enc_bru_swap_stage(AV1_COMP *cpi) {
       free(q);
       cpi->enc_act_sb_queue[r] = NULL;
     }
-    assert(cm->bru.update_ref_idx >= 0);
-#if CONFIG_TEMP_LR
-    RefCntBuffer *tmp_buf = cm->cur_frame;
-#endif
-    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
-    assert(ref_buf != NULL);
-    cm->bru.update_ref_fc = ref_buf->frame_context;  // pass all the values
-    MV_REFERENCE_FRAME ref_frame;
-    for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
-      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-      if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs) {
-        ref_buf->ref_order_hints[ref_frame] = buf->order_hint;
-        ref_buf->ref_display_order_hint[ref_frame] = buf->display_order_hint;
-      } else {
-        ref_buf->ref_order_hints[ref_frame] = -1;
-        ref_buf->ref_display_order_hint[ref_frame] = -1;
-      }
+    if (bru_swap_common(cm) == NULL) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "Encoder BRU swap stage error");
     }
-    ref_buf->order_hint = cm->cur_frame->order_hint;
-    ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
-    ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
-    ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
-    ref_buf->base_qindex = cm->cur_frame->base_qindex;
-    ref_buf->num_ref_frames = cm->cur_frame->num_ref_frames;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    ref_buf->frame_output_done = 0;
-#endif
-#if CONFIG_TEMP_LR
-    ref_buf->rst_info[0] = tmp_buf->rst_info[0];
-    ref_buf->rst_info[1] = tmp_buf->rst_info[1];
-    ref_buf->rst_info[2] = tmp_buf->rst_info[2];
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[0], &tmp_buf->rst_info[0]);
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[1], &tmp_buf->rst_info[1]);
-    av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
-#endif
-#if CONFIG_CCSO_IMPROVE
-    if (cm->bru.frame_inactive_flag) {
-      ref_buf->ccso_info.ccso_frame_flag = 0;
-    } else {
-      ref_buf->ccso_info.ccso_frame_flag = tmp_buf->ccso_info.ccso_frame_flag;
-    }
-    for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
-      if (cm->bru.frame_inactive_flag) {
-        cm->ccso_info.reuse_ccso[plane] = 0;
-        cm->ccso_info.sb_reuse_ccso[plane] = 0;
-        cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
-        cm->ccso_info.ccso_enable[plane] = 0;
-        ref_buf->ccso_info.reuse_ccso[plane] = 0;
-        ref_buf->ccso_info.sb_reuse_ccso[plane] = 0;
-        ref_buf->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
-        ref_buf->ccso_info.ccso_enable[plane] = 0;
-        continue;
-      }
-      // copy from current to bru ref
-      ref_buf->ccso_info.reuse_ccso[plane] =
-          tmp_buf->ccso_info.reuse_ccso[plane];
-      ref_buf->ccso_info.sb_reuse_ccso[plane] =
-          tmp_buf->ccso_info.sb_reuse_ccso[plane];
-      ref_buf->ccso_info.ccso_enable[plane] =
-          tmp_buf->ccso_info.ccso_enable[plane];
-      ref_buf->ccso_info.ccso_ref_idx[plane] =
-          tmp_buf->ccso_info.ccso_ref_idx[plane];
-      ref_buf->ccso_info.subsampling_x[plane] =
-          plane > 0 ? cm->seq_params.subsampling_x : 0;
-      ref_buf->ccso_info.subsampling_y[plane] =
-          plane > 0 ? cm->seq_params.subsampling_y : 0;
-      ref_buf->ccso_info.reuse_root_ref[plane] =
-          tmp_buf->ccso_info.reuse_root_ref[plane];
-      const int log2_filter_unit_size_y =
-          plane > 0 ? CCSO_BLK_SIZE
-                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;
-      const int log2_filter_unit_size_x =
-          plane > 0 ? CCSO_BLK_SIZE
-                    : CCSO_BLK_SIZE + cm->seq_params.subsampling_x;
-      const int ccso_nvfb = ((cm->mi_params.mi_rows >>
-                              (plane ? cm->seq_params.subsampling_y : 0)) +
-                             (1 << log2_filter_unit_size_y >> 2) - 1) /
-                            (1 << log2_filter_unit_size_y >> 2);
-      const int ccso_nhfb = ((cm->mi_params.mi_cols >>
-                              (plane ? cm->seq_params.subsampling_x : 0)) +
-                             (1 << log2_filter_unit_size_x >> 2) - 1) /
-                            (1 << log2_filter_unit_size_x >> 2);
-      const int sb_count = ccso_nvfb * ccso_nhfb;
-      av1_copy_ccso_filters(&ref_buf->ccso_info, &tmp_buf->ccso_info, plane, 1,
-                            1, sb_count);
-    }
-#endif
-    // replace cur by bru_ref
-    assign_frame_buffer_p(&cm->cur_frame, ref_buf);
   }
-  return 0;
 }
 #endif
