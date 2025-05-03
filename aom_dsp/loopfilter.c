@@ -26,13 +26,9 @@
 #define DF_SHORT_DEC 1
 #if CONFIG_ASYM_DF
 #define EDGE_DECISION 1
-#define JOINT_DECISION 1
-#define TC_METHOD_1 1
-#define ONLY_8 1
-#define ALL_SHIFTED 0
 #else
 #define EDGE_DECISION 0
-#endif
+#endif  // CONFIG_ASYM_DF
 
 #define MAX_DBL_FLT_LEN 12
 
@@ -41,29 +37,7 @@ static const int w_mult[MAX_DBL_FLT_LEN] = { 85, 51, 37, 28, 23, 20,
                                              17, 15, 13, 12, 11, 10 };
 static const int q_thresh_mults[MAX_DBL_FLT_LEN] = { 32, 25, 19, 19, 18, 18,
                                                      17, 17, 17, 16, 16, 16 };
-#if !CONFIG_ASYM_DF
-static INLINE void filt_generic_highbd(int q_threshold, int width, uint16_t *s,
-                                       const int pitch, int bd) {
-  if (width < 1) return;
-
-  int delta_m2 = (3 * (s[0] - s[-1 * pitch]) - (s[pitch] - s[-2 * pitch])) * 4;
-
-  int q_thresh_clamp = q_threshold * q_thresh_mults[width - 1];
-  delta_m2 = clamp(delta_m2, -q_thresh_clamp, q_thresh_clamp);
-
-  delta_m2 *= w_mult[width - 1];
-
-  for (int i = 0; i < width; i++) {
-    s[(-i - 1) * pitch] = clip_pixel_highbd(
-        s[(-i - 1) * pitch] +
-            ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
-        bd);
-    s[i * pitch] = clip_pixel_highbd(
-        s[i * pitch] - ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
-        bd);
-  }
-}
-#else
+#if CONFIG_ASYM_DF
 static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
                                             int width_pos, uint16_t *s,
                                             const int pitch, int bd) {
@@ -92,7 +66,29 @@ static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
         bd);
   }
 }
-#endif
+#else
+static INLINE void filt_generic_highbd(int q_threshold, int width, uint16_t *s,
+                                       const int pitch, int bd) {
+  if (width < 1) return;
+
+  int delta_m2 = (3 * (s[0] - s[-1 * pitch]) - (s[pitch] - s[-2 * pitch])) * 4;
+
+  int q_thresh_clamp = q_threshold * q_thresh_mults[width - 1];
+  delta_m2 = clamp(delta_m2, -q_thresh_clamp, q_thresh_clamp);
+
+  delta_m2 *= w_mult[width - 1];
+
+  for (int i = 0; i < width; i++) {
+    s[(-i - 1) * pitch] = clip_pixel_highbd(
+        s[(-i - 1) * pitch] +
+            ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
+        bd);
+    s[i * pitch] = clip_pixel_highbd(
+        s[i * pitch] - ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
+        bd);
+  }
+}
+#endif  // CONFIG_ASYM_DF
 
 #define DBL_CUSTOM_DECIS 3
 #define DBL_REG_DECIS_LEN MAX_DBL_FLT_LEN - DBL_CUSTOM_DECIS
@@ -118,12 +114,12 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
                                      int max_filt_neg, int max_filt_pos,
 #else
                                      int max_filt,
-#endif
+#endif  // CONFIG_ASYM_DF
                                      uint16_t q_thresh, uint16_t side_thresh
-#if JOINT_DECISION
+#if CONFIG_ASYM_DF
                                      ,
                                      uint16_t *t
-#endif
+#endif  // CONFIG_ASYM_DF
 ) {
   if (!q_thresh || !side_thresh) return 0;
 
@@ -135,7 +131,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 #else
   int max_samples = max_filt / 2 - 1;
   if (max_samples < 1) return 0;
-#endif
+#endif  // CONFIG_ASYM_DF
 
   int16_t second_derivs_buf[SEC_DERIV_ARRAY_LEN];
   int16_t *second_deriv = &second_derivs_buf[(SEC_DERIV_ARRAY_LEN >> 1)];
@@ -146,13 +142,13 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   //-----------------------------------------------
   second_deriv[-2] = abs(s[-3 * pitch] - (s[-2 * pitch] << 1) + s[-pitch]);
   second_deriv[1] = abs(s[0] - (s[pitch] << 1) + s[2 * pitch]);
-#if JOINT_DECISION
+#if CONFIG_ASYM_DF
   second_deriv[-2] += abs(t[-3 * pitch] - (t[-2 * pitch] << 1) + t[-pitch]);
   second_deriv[-2] = (second_deriv[-2] + 1) >> 1;
 
   second_deriv[1] += abs(t[0] - (t[pitch] << 1) + t[2 * pitch]);
   second_deriv[1] = (second_deriv[1] + 1) >> 1;
-#endif  // JOINT_DECISION
+#endif  // CONFIG_ASYM_DF
 
   mask |= (second_deriv[-2] > side_thresh) * -1;
   mask |= (second_deriv[1] > side_thresh) * -1;
@@ -163,7 +159,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   if (max_samples_pos == 1) return 1;
 #else
   if (max_samples == 1) return 1;
-#endif
+#endif  // CONFIG_ASYM_DF
   // Testing for 2 sample modification
   //-----------------------------------------------
   const int side_thresh2 = side_thresh >> 2;
@@ -172,15 +168,15 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   mask |= (second_deriv[1] > side_thresh2) * -1;
 
   second_deriv[-1] = abs(s[-2 * pitch] - (s[-pitch] << 1) + s[0]);
-#if JOINT_DECISION
+#if CONFIG_ASYM_DF
   second_deriv[-1] += abs(t[-2 * pitch] - (t[-pitch] << 1) + t[0]);
   second_deriv[-1] = (second_deriv[-1] + 1) >> 1;
-#endif  // JOINT_DECISION
+#endif  // CONFIG_ASYM_DF
   second_deriv[0] = abs(s[-1 * pitch] - (s[0] << 1) + s[pitch]);
-#if JOINT_DECISION
+#if CONFIG_ASYM_DF
   second_deriv[0] += abs(t[-1 * pitch] - (t[0] << 1) + t[pitch]);
   second_deriv[0] = (second_deriv[0] + 1) >> 1;
-#endif  // JOINT_DECISION
+#endif  // CONFIG_ASYM_DF
 
   mask |= ((second_deriv[-1] + second_deriv[0]) > q_thresh * DF_6_THRESH) * -1;
 
@@ -190,7 +186,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   if (max_samples_pos == 2) return 2;
 #else
   if (max_samples == 2) return 2;
-#endif
+#endif  // CONFIG_ASYM_DF
 
   // Testing 3 sample modification
   //-----------------------------------------------
@@ -211,14 +207,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 
   int end_dir_thresh = (side_thresh * 3) >> 4;
 
-#if !JOINT_DECISION
-  mask |= (abs((s[-1 * pitch] - s[(-3 - 1) * pitch]) -
-               3 * (s[-1 * pitch] - s[-2 * pitch])) > end_dir_thresh) *
-          -1;
-  mask |= (abs((s[0] - s[3 * pitch]) - 3 * (s[0] - s[1 * pitch])) >
-           end_dir_thresh) *
-          -1;
-#else
+#if CONFIG_ASYM_DF
   if (max_samples_neg > 2)
     mask |= (((abs((s[-1 * pitch] - s[(-3 - 1) * pitch]) -
                    3 * (s[-1 * pitch] - s[-2 * pitch])) +
@@ -231,7 +220,14 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
              abs((t[0] - t[3 * pitch]) - 3 * (t[0] - t[1 * pitch])) + 1) >>
             1) > end_dir_thresh) *
           -1;
-#endif  // JOINT_DECISION
+#else
+  mask |= (abs((s[-1 * pitch] - s[(-3 - 1) * pitch]) -
+               3 * (s[-1 * pitch] - s[-2 * pitch])) > end_dir_thresh) *
+          -1;
+  mask |= (abs((s[0] - s[3 * pitch]) - 3 * (s[0] - s[1 * pitch])) >
+           end_dir_thresh) *
+          -1;
+#endif  // CONFIG_ASYM_DF
 
   if (mask) return 2;
 
@@ -239,7 +235,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   if (max_samples_pos == 3) return 3;
 #else
   if (max_samples == 3) return 3;
-#endif
+#endif  // CONFIG_ASYM_DF
 
     // Testing  4 sample modification and above
     //-----------------------------------------------
@@ -256,7 +252,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 #if !CONFIG_ASYM_DF
   int p_first_deriv_scaled = second_deriv[-2] << DF_SIDE_FIRST_SHIFT;
   int q_first_deriv_scaled = second_deriv[1] << DF_SIDE_FIRST_SHIFT;
-#endif
+#endif  // !CONFIG_ASYM_DF
 
   int transition = (second_deriv[-1] + second_deriv[0]) << DF_Q_THRESH_SHIFT;
 
@@ -279,21 +275,9 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 #if !CONFIG_ASYM_DF
     second_deriv[-dist] = abs(s[(-dist - 1) * pitch] - (s[-dist * pitch] << 1) +
                               s[(-dist + 1) * pitch]);
-#if JOINT_DECISION
-    second_deriv[-dist] +=
-        abs(t[(-dist - 1) * pitch] - (t[-dist * pitch] << 1) +
-            t[(-dist + 1) * pitch]);
-    second_deriv[-dist] = (second_deriv[-dist] + 1) >> 1;
-#endif  // JOINT_DECISION
 
     second_deriv[dist - 1] = abs(
         s[(dist - 2) * pitch] - (s[(dist - 1) * pitch] << 1) + s[dist * pitch]);
-
-#if JOINT_DECISION
-    second_deriv[dist - 1] += abs(
-        t[(dist - 2) * pitch] - (t[(dist - 1) * pitch] << 1) + t[dist * pitch]);
-    second_deriv[dist - 1] = (second_deriv[dist - 1] + 1) >> 1;
-#endif  // JOINT_DECISION
 
 #if !DF_SHORT_DEC
     p_deriv_sum += (second_deriv[-dist] << DF_SIDE_SUM_SHIFT);
@@ -301,11 +285,9 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 
     const int sum_side_thresh4 = side_thresh * side_sum[dist - 4];
 #endif
-#endif  //! CONFIG_ASYM_DF
 
-#if !CONFIG_ASYM_DF
     int side_thresh4 = side_thresh * side_first[dist - 4];
-#endif
+#endif  // !CONFIG_ASYM_DF
 
     const int q_thresh4 = q_thresh * q_first[dist - 4];
 #if !DF_SHORT_DEC
@@ -313,34 +295,20 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
     mask |= (q_deriv_sum > sum_side_thresh4) * -1;
 #endif
 
-#if !TC_METHOD_1
+#if !CONFIG_ASYM_DF
     mask |= (p_first_deriv_scaled > side_thresh4) * -1;
     mask |= (q_first_deriv_scaled > side_thresh4) * -1;
-#endif
+#endif  // CONFIG_ASYM_DF
 
     mask |= (transition > q_thresh4) * -1;
 
     end_dir_thresh = (side_thresh * dist) >> 4;
 
-#if !JOINT_DECISION
-    mask |= (abs((s[-1 * pitch] - s[(-dist - 1) * pitch]) -
-                 dist * (s[-1 * pitch] - s[-2 * pitch])) > end_dir_thresh) *
-            -1;
-    mask |= (abs((s[0] - s[dist * pitch]) - dist * (s[0] - s[1 * pitch])) >
-             end_dir_thresh) *
-            -1;
-#else
-
-#if ONLY_8
-    if (dist == 8) dist = 7;
-#endif
-#if ALL_SHIFTED
-    --dist;
-#endif
-
 #if CONFIG_ASYM_DF
+    if (dist == 8) dist = 7;
+
     if (max_samples_neg >= dist)
-#endif
+
       mask |= (((abs((s[-1 * pitch] - s[(-dist - 1) * pitch]) -
                      dist * (s[-1 * pitch] - s[-2 * pitch])) +
                  abs((t[-1 * pitch] - t[(-dist - 1) * pitch]) -
@@ -354,13 +322,15 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
           1) > end_dir_thresh) *
         -1;
 
-#if ONLY_8
     if (dist == 7) dist = 8;
-#endif
-#if ALL_SHIFTED
-    ++dist;
-#endif
-#endif  // !JOINT_DECISION
+#else
+    mask |= (abs((s[-1 * pitch] - s[(-dist - 1) * pitch]) -
+                 dist * (s[-1 * pitch] - s[-2 * pitch])) > end_dir_thresh) *
+            -1;
+    mask |= (abs((s[0] - s[dist * pitch]) - dist * (s[0] - s[1 * pitch])) >
+             end_dir_thresh) *
+            -1;
+#endif  // CONFIG_ASYM_DF
 
 #if DF_SPARSE
 #if CONFIG_ASYM_DF
@@ -369,7 +339,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 #else
     if (mask) return dist - 2;
     if (max_samples <= dist) return ((dist >> 1) << 1);
-#endif
+#endif  // CONFIG_ASYM_DF
 #else
     if (mask) return dist - 1;
     if (max_samples == dist) return dist;
@@ -383,7 +353,7 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
                                          int filt_width_neg, int filt_width_pos,
 #else
                                          int filt_width,
-#endif
+#endif  // CONFIG_ASYM_DF
                                          const uint16_t *q_thresh,
                                          const uint16_t *side_thresh, int bd
 #if CONFIG_LF_SUB_PU
@@ -398,7 +368,11 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 #endif  // !CONFIG_LF_SUB_PU
 
 #if EDGE_DECISION
-#if !JOINT_DECISION
+#if CONFIG_ASYM_DF
+  int filt_neg = (filt_width_neg >> 1) - 1;
+  int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
+                                  *q_thresh, *side_thresh, s + count - 1);
+#else
   const int filter0 =
       filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
   s += count - 1;
@@ -407,27 +381,9 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
   s -= count - 1;
 
   int filter = AOMMIN(filter0, filter3);
-#else
-#if !CONFIG_ASYM_DF
-  int common_length = 0;
-#endif
-  //    int filter0, filter1, filter2, filter3;
-  int filt_neg = (filt_width_neg >> 1) - 1;
-#if !CONFIG_ASYM_DF
-  int filt_pos = (filt_width_pos >> 1) - 1;
-#endif
-#if CONFIG_ASYM_DF
-  int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
-                                  *q_thresh, *side_thresh, s + count - 1);
-#else
-  int filter =
-      filt_choice_highbd(s, pitch, AOMMAX(filt_width_neg, filt_width_pos),
-                         *q_thresh, *side_thresh, s + count - 1);
-#endif
-#endif  // JOINT_DECISION
+#endif  // CONFIG_ASYM_DF
 #endif  // EDGE_DECISION
-  // loop filter designed to work using chars so that we can make maximum use
-  // of 8 bit simd instructions.
+
   for (i = 0; i < count; ++i) {
 #if !EDGE_DECISION
     int filter =
@@ -438,7 +394,7 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
                              pitch, bd);
 #else
     filt_generic_highbd(*q_thresh, filter, s, pitch, bd);
-#endif
+#endif  // CONFIG_ASYM_DF
 
     ++s;
   }
@@ -449,7 +405,7 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
                                        int filt_width_neg, int filt_width_pos,
 #else
                                        int filt_width,
-#endif
+#endif  // CONFIG_ASYM_DF
                                        const uint16_t *q_thresh,
                                        const uint16_t *side_thresh, int bd
 #if CONFIG_LF_SUB_PU
@@ -463,7 +419,13 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
 #endif  // CONFIG_LF_SUB_PU
 
 #if EDGE_DECISION
-#if !JOINT_DECISION
+#if CONFIG_ASYM_DF
+  int filt_neg = (filt_width_neg >> 1) - 1;
+
+  int filter =
+      filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
+                         *side_thresh, s + (count - 1) * pitch);
+#else
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filt_pos = (filt_width_pos >> 1) - 1;
   const int filter0 = filt_choice_highbd(
@@ -471,20 +433,7 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
   const int filter3 = filt_choice_highbd(s + (count - 1) * pitch, 1, filt_width,
                                          *q_thresh, *side_thresh);
   int filter = AOMMIN(filter0, filter3);
-#else
-  int filt_neg = (filt_width_neg >> 1) - 1;
-#if !CONFIG_ASYM_DF
-  int filt_pos = (filt_width_pos >> 1) - 1;
-#endif
-#if CONFIG_ASYM_DF
-  int filter =
-      filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
-                         *side_thresh, s + (count - 1) * pitch);
-#else
-  int filter = filt_choice_highbd(s, 1, filt_width, *q_thresh, *side_thresh,
-                                  s + (count - 1) * pitch);
-#endif
-#endif  // JOINT_DECISION
+#endif  // CONFIG_ASYM_DF
 #endif  // EDGE_DECISION
 
   // loop filter designed to work using chars so that we can make maximum use
