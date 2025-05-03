@@ -2402,6 +2402,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_SKIP_TXFM_OPT
   if (av1_allow_intrabc(cm, xd

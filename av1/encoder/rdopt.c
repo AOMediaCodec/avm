@@ -8132,6 +8132,9 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   ctx->rd_stats.skip_txfm = 0;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mv[0].as_int = 0;
