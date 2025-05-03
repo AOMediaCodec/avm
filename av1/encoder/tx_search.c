@@ -3961,7 +3961,7 @@ static void select_tx_partition_type(
         continue;
       }
     }
-
+#if CONFIG_4WAY_5WAY_TX_PARTITION
     if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition == TX_PARTITION_VERT) ||
         (type == TX_PARTITION_VERT4 &&
@@ -3992,7 +3992,7 @@ static void select_tx_partition_type(
         continue;
       }
     }
-
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
     RD_STATS partition_rd_stats;
     av1_init_rd_stats(&partition_rd_stats);
     int64_t tmp_rd = 0;
@@ -4383,6 +4383,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
       continue;
     }
 
+#if CONFIG_4WAY_5WAY_TX_PARTITION
     if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition_type == TX_PARTITION_VERT) ||
         (type == TX_PARTITION_VERT4 &&
@@ -4411,7 +4412,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
         continue;
       }
     }
-
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
     RD_STATS this_rd_stats;
     cur_rd = av1_uniform_txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs,
                                   cur_tx_size, FTXS_NONE, 0);

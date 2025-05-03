@@ -90,6 +90,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   *px_top_right = px_tr_common;
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_4WAY_5WAY_TX_PARTITION
   if (plane == AOM_PLANE_Y) {
     int txb_idx = xd->mi[0]->txb_idx;
     TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
@@ -97,6 +98,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       if (txb_idx >= 1) return 0;
     }
   }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 #endif  // CONFIG_NEW_TX_PARTITION
 
   if (row_off > 0) {  // Just need to check if enough pixels on the right.
@@ -380,6 +382,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (px_bl_common <= 0) return 0;
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_4WAY_5WAY_TX_PARTITION
   if (plane == AOM_PLANE_Y) {
     int txb_idx = xd->mi[0]->txb_idx;
     TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
@@ -387,6 +390,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       if (txb_idx >= 1) return 0;
     }
   }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 #endif  // CONFIG_NEW_TX_PARTITION
   *px_bottom_left = px_bl_common;
 

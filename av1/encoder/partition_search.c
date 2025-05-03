@@ -136,7 +136,9 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
                                         [split4_partition - 1];
 #endif  // CONFIG_IMPROVEIDTX
 #endif  // CONFIG_ENTROPY_STATS
-    } else if (allow_horz || allow_vert) {
+    }
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    else if (allow_horz || allow_vert) {
       int has_first_split = 0;
       if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
@@ -190,8 +192,8 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
       }
 #endif  // CONFIG_ENTROPY_STATS
     }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
   }
-
 #else
   if (allow_horz && allow_vert) {
     const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);

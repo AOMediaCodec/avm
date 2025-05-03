@@ -443,7 +443,9 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
 #endif  // CONFIG_IMPROVEIDTX
         aom_write_symbol(w, partition - 1, partition_type_cdf,
                          TX_PARTITION_TYPE_NUM);
-      } else if (allow_horz || allow_vert) {
+      }
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+      else if (allow_horz || allow_vert) {
         int has_first_split = 0;
         if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
           has_first_split = 1;
@@ -472,8 +474,8 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
         }
       }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
     }
-
 #else
     if (allow_horz && allow_vert) {
       const int split4_ctx =

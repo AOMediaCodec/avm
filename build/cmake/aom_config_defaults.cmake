@@ -183,7 +183,8 @@ set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
                    "AV2 relax affine constraints")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
                    "AV2 new transform partitions experiment flag.")
-
+set_aom_config_var(CONFIG_4WAY_5WAY_TX_PARTITION 1
+                   "AV2 4way+5way txfm partitions experiment flag.")
 set_aom_config_var(CONFIG_INTER_COMPOUND_BY_JOINT 1
                    "AV2 inter compound mode by joint.")
 set_aom_config_var(CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX 1

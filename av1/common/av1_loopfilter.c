@@ -387,7 +387,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txp_index];
 
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
-
+#if CONFIG_4WAY_5WAY_TX_PARTITION
     if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
 #if CONFIG_LF_SUB_PU
       if (is_tx_m_partition != NULL) {
@@ -436,7 +436,9 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 
       assert(tmp_tx_size < TX_SIZES_ALL);
       tx_size = tmp_tx_size;
-    } else {
+    } else
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
+    {
       tx_size = get_tx_partition_one_size(partition, max_tx_size);
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       *tu_edge = is_tu_edge_helper(tx_size, edge_dir, blk_row, blk_col);
