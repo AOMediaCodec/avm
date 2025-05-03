@@ -1180,10 +1180,17 @@ void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
+#if CONFIG_F054_PIC_BOUNDARY
+    av1_highbd_resize_plane(src->buffers[i], src->heights[is_uv],
+                            src->widths[is_uv], src->strides[is_uv],
+                            dst->buffers[i], dst->heights[is_uv],
+                            dst->widths[is_uv], dst->strides[is_uv], bd);
+#else
     av1_highbd_resize_plane(src->buffers[i], src->crop_heights[is_uv],
                             src->crop_widths[is_uv], src->strides[is_uv],
                             dst->buffers[i], dst->crop_heights[is_uv],
                             dst->crop_widths[is_uv], dst->strides[is_uv], bd);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   }
   aom_extend_frame_borders(dst, num_planes);
 }

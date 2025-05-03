@@ -9028,31 +9028,49 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
          cm->ccso_info.ccso_enable[2]);
     uint16_t *ext_rec_y = NULL;
     if (use_ccso) {
-      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
-                           NULL);
-      const int ccso_stride_ext =
-          xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-      ext_rec_y =
-          aom_malloc(sizeof(*ext_rec_y) *
-                     (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
-                     (xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1)));
-      for (int pli = 0; pli < 1; pli++) {
-        int pic_height = xd->plane[pli].dst.height;
-        int pic_width = xd->plane[pli].dst.width;
-        const int dst_stride = xd->plane[pli].dst.stride;
-        ext_rec_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-        for (int r = 0; r < pic_height; ++r) {
-          for (int c = 0; c < pic_width; ++c) {
-            ext_rec_y[c] = xd->plane[pli].dst.buf[c];
-          }
-          ext_rec_y += ccso_stride_ext;
-          xd->plane[0].dst.buf += dst_stride;
+#if CONFIG_F054_PIC_BOUNDARY
+      const int pic_height = cm->cur_frame->buf.y_height;
+      const int pic_width = cm->cur_frame->buf.y_width;
+      const int dst_stride = cm->cur_frame->buf.y_stride;
+      const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+      const int ccso_stride_ext = pic_width + (CCSO_PADDING_SIZE << 1);
+      ext_rec_y = aom_malloc(sizeof(*ext_rec_y) *
+                             (pic_height + (CCSO_PADDING_SIZE << 1)) *
+                             (pic_width + (CCSO_PADDING_SIZE << 1)));
+      for (int r = 0; r < pic_height; ++r) {
+        for (int c = 0; c < pic_width; ++c) {
+          ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
+                    CCSO_PADDING_SIZE] = rec_y[r * dst_stride + c];
         }
-        ext_rec_y -= CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-        ext_rec_y -= pic_height * ccso_stride_ext;
-        xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
       }
-      extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
+      extend_ccso_border(&cm->cur_frame->buf, ext_rec_y, CCSO_PADDING_SIZE);
+#else
+        av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0,
+                             num_planes, NULL);
+        const int ccso_stride_ext =
+            xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+        ext_rec_y =
+            aom_malloc(sizeof(*ext_rec_y) *
+                       (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
+                       (xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1)));
+        for (int pli = 0; pli < 1; pli++) {
+          int pic_height = xd->plane[pli].dst.height;
+          int pic_width = xd->plane[pli].dst.width;
+          const int dst_stride = xd->plane[pli].dst.stride;
+          ext_rec_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+          for (int r = 0; r < pic_height; ++r) {
+            for (int c = 0; c < pic_width; ++c) {
+              ext_rec_y[c] = xd->plane[pli].dst.buf[c];
+            }
+            ext_rec_y += ccso_stride_ext;
+            xd->plane[0].dst.buf += dst_stride;
+          }
+          ext_rec_y -= CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+          ext_rec_y -= pic_height * ccso_stride_ext;
+          xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
+        }
+        extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
+#endif  // CONFIG_F054_PIC_BOUNDARY
     }
 
     const int do_loop_restoration =

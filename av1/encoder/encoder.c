@@ -2365,7 +2365,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
   const int ccso_stride = xd->plane[0].dst.width;
+#if !CONFIG_F054_PIC_BOUNDARY
   const int ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+#endif  // !CONFIG_F054_PIC_BOUNDARY
   for (int pli = 0; pli < num_planes; pli++) {
     rec_uv[pli] = aom_malloc(sizeof(*rec_uv[pli]) * xd->plane[0].dst.height *
                              ccso_stride);
@@ -2373,6 +2375,23 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                              ccso_stride);
   }
   if (use_ccso) {
+#if CONFIG_F054_PIC_BOUNDARY
+    const int pic_height = cm->cur_frame->buf.y_height;
+    const int pic_width = cm->cur_frame->buf.y_width;
+    const int dst_stride = cm->cur_frame->buf.y_stride;
+    const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+    const int ccso_stride_ext = pic_width + (CCSO_PADDING_SIZE << 1);
+    ext_rec_y = aom_malloc(sizeof(*ext_rec_y) *
+                           (pic_height + (CCSO_PADDING_SIZE << 1)) *
+                           (pic_width + (CCSO_PADDING_SIZE << 1)));
+    for (int r = 0; r < pic_height; ++r) {
+      for (int c = 0; c < pic_width; ++c) {
+        ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
+                  CCSO_PADDING_SIZE] = rec_y[r * dst_stride + c];
+      }
+    }
+    extend_ccso_border(&cm->cur_frame->buf, ext_rec_y, CCSO_PADDING_SIZE);
+#else
     ext_rec_y =
         aom_malloc(sizeof(*ext_rec_y) *
                    (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
@@ -2391,6 +2410,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       }
     }
     extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   }
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;

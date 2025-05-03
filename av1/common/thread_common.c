@@ -721,14 +721,26 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+#if CONFIG_F054_PIC_BOUNDARY
+  int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
+#else
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 #if ISSUE_253
   luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
+#else
+#if CONFIG_F054_PIC_BOUNDARY
+  int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->heights[AOM_PLANE_Y],
+      dgd->widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD, luma_stride,
 #else
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+#endif  // CONFIG_F054_PIC_BOUNDARY
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,

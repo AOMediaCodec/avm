@@ -348,15 +348,25 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
 
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   const int is_uv = plane != AOM_PLANE_Y;
+#if CONFIG_F054_PIC_BOUNDARY
+  rsc->plane_width = src->widths[is_uv];
+  rsc->plane_height = src->heights[is_uv];
+#else
   rsc->plane_width = src->crop_widths[is_uv];
   rsc->plane_height = src->crop_heights[is_uv];
+#endif  // CONFIG_F054_PIC_BOUNDARY
   rsc->src_buffer = src->buffers[plane];
   rsc->src_stride = src->strides[is_uv];
   rsc->dgd_buffer = dgd->buffers[plane];
   rsc->dgd_stride = dgd->strides[is_uv];
   rsc->tile_rect = av1_whole_frame_rect(cm, is_uv);
+#if CONFIG_F054_PIC_BOUNDARY
+  assert(src->widths[is_uv] == dgd->widths[is_uv]);
+  assert(src->heights[is_uv] == dgd->heights[is_uv]);
+#else
   assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
   assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   rsc->unit_stack = unit_stack;
   rsc->unit_indices = unit_indices;
   rsc->num_stats_classes = default_num_classes(plane);
@@ -5930,11 +5940,19 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
+#if CONFIG_F054_PIC_BOUNDARY
+  rsc.luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->heights[AOM_PLANE_Y],
+      dgd->widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD,
+#else
   rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+#endif  // CONFIG_F054_PIC_BOUNDARY
       rsc.luma_stride, cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,

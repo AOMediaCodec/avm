@@ -4113,6 +4113,15 @@ static void build_inter_predictors_sub8x8(
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, this_mbmi->ref_frame[ref]);
       const struct scale_factors *const sf = ref_scale_factors;
+#if CONFIG_F054_PIC_BOUNDARY
+      const struct buf_2d pre_buf = {
+        NULL,
+        (plane == 1) ? ref_buf->buf.u_buffer : ref_buf->buf.v_buffer,
+        ref_buf->buf.uv_width,
+        ref_buf->buf.uv_height,
+        ref_buf->buf.uv_stride,
+      };
+#else
       const struct buf_2d pre_buf = {
         NULL,
         (plane == 1) ? ref_buf->buf.u_buffer : ref_buf->buf.v_buffer,
@@ -4120,6 +4129,7 @@ static void build_inter_predictors_sub8x8(
         ref_buf->buf.uv_crop_height,
         ref_buf->buf.uv_stride,
       };
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
       const MV mv = this_mbmi->mv[ref].as_mv;
       InterPredParams inter_pred_params;
@@ -6427,10 +6437,17 @@ void av1_setup_dst_planes(struct macroblockd_plane *planes,
   for (int i = plane_start; i < AOMMIN(plane_end, MAX_MB_PLANE); ++i) {
     struct macroblockd_plane *const pd = &planes[i];
     const int is_uv = i > 0;
+#if CONFIG_F054_PIC_BOUNDARY
+    setup_pred_plane(&pd->dst, src->buffers[i], src->widths[is_uv],
+                     src->heights[is_uv], src->strides[is_uv], mi_row, mi_col,
+                     NULL, pd->subsampling_x, pd->subsampling_y,
+                     chroma_ref_info);
+#else
     setup_pred_plane(&pd->dst, src->buffers[i], src->crop_widths[is_uv],
                      src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                      mi_col, NULL, pd->subsampling_x, pd->subsampling_y,
                      chroma_ref_info);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   }
 }
 
@@ -6444,10 +6461,17 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
     for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
       struct macroblockd_plane *const pd = &xd->plane[i];
       const int is_uv = i > 0;
+#if CONFIG_F054_PIC_BOUNDARY
+      setup_pred_plane(&pd->pre[idx], src->buffers[i], src->widths[is_uv],
+                       src->heights[is_uv], src->strides[is_uv], mi_row, mi_col,
+                       sf, pd->subsampling_x, pd->subsampling_y,
+                       chroma_ref_info);
+#else
       setup_pred_plane(&pd->pre[idx], src->buffers[i], src->crop_widths[is_uv],
                        src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                        mi_col, sf, pd->subsampling_x, pd->subsampling_y,
                        chroma_ref_info);
+#endif  // CONFIG_F054_PIC_BOUNDARY
     }
   }
 }
