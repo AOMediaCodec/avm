@@ -19,6 +19,20 @@
 #include "av1/common/scan.h"
 #include "av1/common/secondary_tx.h"
 
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+void av1_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
+                             int diff_stride, TxfmParam *txfm_param) {
+  const int txw = tx_size_wide[txfm_param->tx_size];
+  const int txh = tx_size_high[txfm_param->tx_size];
+  int scale_bits = 3 - av1_get_tx_scale(txfm_param->tx_size);
+  for (int i = 0; i < txh; i++) {
+    for (int j = 0; j < txw; j++) {
+      coeff[i * txw + j] = src_diff[i * diff_stride + j] << scale_bits;
+    }
+  }
+}
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
 #if CONFIG_CORE_TX
 #include "av1/common/txb_common.h"
 #endif  // CONFIG_CORE_TX
@@ -851,7 +865,7 @@ static void highbd_fwd_txfm_4x4(const int16_t *src_diff, tran_low_t *coeff,
   const TX_TYPE tx_type = txfm_param->tx_type;
   const int bd = txfm_param->bd;
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM
+#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT || tx_type == IDTX);
     if (tx_type == IDTX) {
       av1_fwd_txfm2d_4x4(src_diff, dst_coeff, diff_stride, tx_type,
@@ -862,10 +876,10 @@ static void highbd_fwd_txfm_4x4(const int16_t *src_diff, tran_low_t *coeff,
     } else {
       av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
     }
-#else   // CONFIG_LOSSLESS_DPCM
+#else
     assert(tx_type == DCT_DCT);
     av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
-#endif  // CONFIG_LOSSLESS_DPCM
+#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
   av1_fwd_txfm2d_4x4(src_diff, dst_coeff, diff_stride, tx_type,
@@ -1141,6 +1155,34 @@ static void highbd_fwd_txfm_64x4(const int16_t *src_diff, tran_low_t *coeff,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+static void av1_lowbd_fwd_txfm_master(const int16_t *src_diff,
+                                      tran_low_t *coeff, int diff_stride,
+                                      TxfmParam *txfm_param) {
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (txfm_param->lossless) {
+    if (txfm_param->tx_type == IDTX) {
+      av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
+      return;
+    }
+  }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+  av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+}
+
+static void av1_highbd_fwd_txfm_master(const int16_t *src_diff,
+                                       tran_low_t *coeff, int diff_stride,
+                                       TxfmParam *txfm_param) {
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (txfm_param->lossless) {
+    if (txfm_param->tx_type == IDTX) {
+      av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
+      return;
+    }
+  }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+  av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+}
+
 #if CONFIG_CORE_TX
 void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
                         int skip_line, int zero_line, const int tx_type_index,
@@ -1257,7 +1299,7 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   TX_TYPE tx_type = txfm_param->tx_type;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM
+#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     assert(width == 4 && height == 4);
     assert(tx_type == DCT_DCT || tx_type == IDTX);
     if (tx_type == IDTX) {
@@ -1269,10 +1311,10 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     } else {
       av1_highbd_fwht4x4(resi, coeff, diff_stride);
     }
-#else   // CONFIG_LOSSLESS_DPCM
+#else
     assert(tx_type == DCT_DCT);
-    av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
-#endif  // CONFIG_LOSSLESS_DPCM
+    av1_highbd_fwht4x4(resi, coeff, diff_stride);
+#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 
@@ -1330,12 +1372,20 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
 #if CONFIG_CORE_TX
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (txfm_param->lossless) {
+    if (txfm_param->tx_type == IDTX) {
+      av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
+      return;
+    }
+  }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 #else
   if (txfm_param->bd == 8) {
-    av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+    av1_lowbd_fwd_txfm_master(src_diff, coeff, diff_stride, txfm_param);
   } else {
-    av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+    av1_highbd_fwd_txfm_master(src_diff, coeff, diff_stride, txfm_param);
   }
 #endif  // CONFIG_CORE_TX
 }

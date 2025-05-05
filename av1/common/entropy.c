@@ -364,6 +364,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #else   // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  RESET_CDF_COUNTER(fc->lossless_tx_size_cdf, 2);
+  RESET_CDF_COUNTER(fc->lossless_inter_tx_type_cdf, 2);
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT

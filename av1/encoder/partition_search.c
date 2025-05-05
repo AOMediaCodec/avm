@@ -675,6 +675,17 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if !WARP_CU_BANK
     if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
 #endif  // !WARP_CU_BANK
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+    if (xd->lossless[mbmi->segment_id]) {
+      if (block_size_wide[bsize] >= 8 && block_size_high[bsize] >= 8) {
+        const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
+        const int bsize_group = size_group_lookup[bsize];
+        if (is_inter || (!is_inter && is_fsc))
+          update_cdf(xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter],
+                     mbmi->tx_size, 2);
+      }
+    }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   }
 #if !CONFIG_NEW_TX_PARTITION
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&

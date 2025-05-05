@@ -1717,8 +1717,23 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
     return;
 
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd->lossless[mbmi->segment_id]) {
+    if (is_inter_block(mbmi, xd->tree_type)) {
+      int lossless_inter_tx_type = 0;
+      if (tx_size == TX_4X4) {
+        lossless_inter_tx_type =
+            aom_read_symbol(r, xd->tile_ctx->lossless_inter_tx_type_cdf, 2,
+                            ACCT_INFO("lossless_inter_tx_type"));
+      }
+      if (lossless_inter_tx_type || tx_size == TX_8X8) *tx_type = IDTX;
+    }
+    return;
+  }
+#else
   // No need to read transform type for lossless mode
   if (xd->lossless[mbmi->segment_id]) return;
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >

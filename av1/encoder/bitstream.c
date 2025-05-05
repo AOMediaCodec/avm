@@ -1705,6 +1705,15 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd->lossless[mbmi->segment_id]) {
+    if (is_inter && tx_size == TX_4X4) {
+      int lossless_inter_tx_type = get_primary_tx_type(tx_type) == IDTX;
+      aom_write_symbol(w, lossless_inter_tx_type,
+                       xd->tile_ctx->lossless_inter_tx_type_cdf, 2);
+    }
+  }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
       ((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
        (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
@@ -3833,6 +3842,19 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 #endif  // !CONFIG_TX_PARTITION_CTX
       }
     }
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+    if (xd->lossless[segment_id]) {
+      const int is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
+      if (block_size_high[bsize] >= 8 && block_size_wide[bsize] >= 8 &&
+          (is_inter_tx || (!is_inter_tx && is_fsc))) {
+        const int bsize_group = size_group_lookup[bsize];
+        assert(mbmi->tx_size == TX_4X4 || mbmi->tx_size == TX_8X8);
+        aom_write_symbol(
+            w, mbmi->tx_size,
+            xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter_tx], 2);
+      }
+    }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 #if !CONFIG_TX_PARTITION_CTX
     else {
       set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height,
@@ -5039,7 +5061,7 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
         nsfilter_params, c_id, xd, wb);
   }
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
@@ -5146,7 +5168,7 @@ static AOM_INLINE void write_wienerns_filter(
   }
   const int num_classes = wienerns_info->num_classes;
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) {

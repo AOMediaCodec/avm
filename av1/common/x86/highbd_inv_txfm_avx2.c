@@ -9475,7 +9475,7 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM
+#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT || tx_type == IDTX);
     if (tx_type == IDTX) {
       av1_inv_txfm2d_add_4x4_c(input, dest, stride, tx_type,
@@ -9487,10 +9487,11 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
       av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
                              txfm_param->bd);
     }
-#else   // CONFIG_LOSSLESS_DPCM
+#else
     assert(tx_type == DCT_DCT);
-    av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
-#endif  // CONFIG_LOSSLESS_DPCM
+    av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
+                           txfm_param->bd);
+#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 
@@ -9655,3 +9656,137 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   }
 }
 #endif  // CONFIG_CORE_TX
+
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+void process_inv_idtx_add_4x4_avx2(const tran_low_t *input, int in_stride,
+                                   uint16_t *dst, int out_stride,
+                                   int scale_bits, int bd) {
+  const int32_t max_val = (255 << (bd - 8));
+  const int in_stride_bytes = in_stride * 4;
+  const int out_stride_bytes = out_stride * 2;
+
+  // === Part 1: Load and Process Source (int32_t) ===
+  // (Identical to previous versions: load, round, shift)
+  const uint8_t *src_bytes = (const uint8_t *)input;
+  __m128i s_r0 =
+      _mm_loadu_si128((const __m128i *)(src_bytes + 0 * in_stride_bytes));
+  __m128i s_r1 =
+      _mm_loadu_si128((const __m128i *)(src_bytes + 1 * in_stride_bytes));
+  __m128i s_r2 =
+      _mm_loadu_si128((const __m128i *)(src_bytes + 2 * in_stride_bytes));
+  __m128i s_r3 =
+      _mm_loadu_si128((const __m128i *)(src_bytes + 3 * in_stride_bytes));
+  __m256i src_data_01 = _mm256_set_m128i(s_r1, s_r0);  // els 0..7
+  __m256i src_data_23 = _mm256_set_m128i(s_r3, s_r2);  // els 8..15
+  const int32_t rounding_offset = (1 << (scale_bits - 1));
+  const __m256i v_round_offset = _mm256_set1_epi32(rounding_offset);
+  __m256i rounded_01 = _mm256_add_epi32(src_data_01, v_round_offset);
+  __m256i rounded_23 = _mm256_add_epi32(src_data_23, v_round_offset);
+  __m256i shifted_01 = _mm256_srai_epi32(rounded_01, scale_bits);
+  __m256i shifted_23 = _mm256_srai_epi32(rounded_23, scale_bits);
+
+  // === Part 2: Load and Widen Destination (uint16_t -> int32_t) === *MODIFIED*
+
+  // --- 2a. Load dst (4x4 uint16) ---
+  const uint8_t *dst_read_bytes =
+      (const uint8_t *)dst;  // Use const for reading phase
+  __m128i d_r0 = _mm_loadl_epi64(
+      (const __m128i *)(dst_read_bytes +
+                        0 * out_stride_bytes));  // Load Row 0 (8 bytes)
+  __m128i d_r1 = _mm_loadl_epi64(
+      (const __m128i *)(dst_read_bytes + 1 * out_stride_bytes));  // Load Row 1
+  __m128i d_r2 = _mm_loadl_epi64(
+      (const __m128i *)(dst_read_bytes + 2 * out_stride_bytes));  // Load Row 2
+  __m128i d_r3 = _mm_loadl_epi64(
+      (const __m128i *)(dst_read_bytes + 3 * out_stride_bytes));  // Load Row 3
+  // Combine pairs into 128-bit lanes (maintains row order within lanes)
+  __m128i d_lane01 =
+      _mm_unpacklo_epi64(d_r0, d_r1);  // [Row1 | Row0] (16-bit elements)
+  __m128i d_lane23 =
+      _mm_unpacklo_epi64(d_r2, d_r3);  // [Row3 | Row2] (16-bit elements)
+
+  // --- 2b. Widen dst uint16 -> int32 (ZERO-extend) --- *MODIFIED*
+  // Use _mm256_cvtepu16_epi32 for zero extension
+  __m256i dst_data_01_s32 =
+      _mm256_cvtepu16_epi32(d_lane01);  // Zero-extends elements 0..7
+  __m256i dst_data_23_s32 =
+      _mm256_cvtepu16_epi32(d_lane23);  // Zero-extends elements 8..15
+
+  // === Part 3: Add, Clamp [0, max_val], Pack/Saturate (to uint16_t) ===
+
+  // --- 3a. Add ---
+  // Addition is still performed using 32-bit signed arithmetic
+  __m256i sum_01 = _mm256_add_epi32(shifted_01, dst_data_01_s32);
+  __m256i sum_23 = _mm256_add_epi32(shifted_23, dst_data_23_s32);
+
+  // --- 3b. Clamp [0, max_val] ---
+  // (Clamping logic remains the same on the int32 sum)
+  const __m256i v_zero = _mm256_setzero_si256();
+  const __m256i v_max_val = _mm256_set1_epi32(max_val);
+  __m256i clamped_01_tmp = _mm256_max_epi32(sum_01, v_zero);
+  __m256i clamped_23_tmp = _mm256_max_epi32(sum_23, v_zero);
+  __m256i clamped_01 =
+      _mm256_min_epi32(clamped_01_tmp, v_max_val);  // els 0..7 clamped
+  __m256i clamped_23 =
+      _mm256_min_epi32(clamped_23_tmp, v_max_val);  // els 8..15 clamped
+  // clamped_01, clamped_23 contain int32 values guaranteed >= 0
+
+  // --- 3c. Pack clamped int32 -> uint16 with UNSIGNED Saturation ---
+  // *MODIFIED* Use _mm_packus_epi32 which saturates int32 to [0, 65535]
+  // (uint16_t range)
+  __m128i packed_clamped_r0r1 =
+      _mm_packus_epi32(  // <-- pack*us* for unsigned saturation
+          _mm256_castsi256_si128(
+              clamped_01),  // Low lane of clamped_01 (els 0..3)
+          _mm256_extracti128_si256(clamped_01,
+                                   1)  // High lane of clamped_01 (els 4..7)
+      );  // Result: [el7..el4 | el3..el0] (saturated uint16_t)
+
+  __m128i packed_clamped_r2r3 = _mm_packus_epi32(  // <-- pack*us*
+      _mm256_castsi256_si128(clamped_23),  // Low lane of clamped_23 (els 8..11)
+      _mm256_extracti128_si256(clamped_23,
+                               1)  // High lane of clamped_23 (els 12..15)
+  );  // Result: [el15..el12 | el11..el8] (saturated uint16_t)
+
+  // Combine into final 256-bit register holding uint16_t results
+  // Layout: [Row3 | Row2 | Row1 | Row0] (16-bit elements)
+  __m256i final_result_u16 =
+      _mm256_set_m128i(packed_clamped_r2r3, packed_clamped_r0r1);
+
+  // === Part 4: Store Result back to dst (uint16_t) ===
+  // (Store mechanism identical, pointer type `uint16_t*` is correct)
+  uint8_t *dst_write_bytes = (uint8_t *)dst;  // Cast for byte arithmetic
+  __m128i res_lane01 = _mm256_castsi256_si128(final_result_u16);
+  __m128i res_lane23 = _mm256_extracti128_si256(final_result_u16, 1);
+  // Store Row 0 (8 bytes)
+  _mm_storel_epi64((__m128i *)(dst_write_bytes + 0 * out_stride_bytes),
+                   res_lane01);
+  // Extract and Store Row 1 (8 bytes)
+  __m128i res_row1 = _mm_bsrli_si128(res_lane01, 8);
+  _mm_storel_epi64((__m128i *)(dst_write_bytes + 1 * out_stride_bytes),
+                   res_row1);
+  // Store Row 2 (8 bytes)
+  _mm_storel_epi64((__m128i *)(dst_write_bytes + 2 * out_stride_bytes),
+                   res_lane23);
+  // Extract and Store Row 3 (8 bytes)
+  __m128i res_row3 = _mm_bsrli_si128(res_lane23, 8);
+  _mm_storel_epi64((__m128i *)(dst_write_bytes + 3 * out_stride_bytes),
+                   res_row3);
+}
+
+void av1_lossless_inv_idtx_add_avx2(const tran_low_t *input, uint16_t *dest,
+                                    int stride, const TxfmParam *txfm_param) {
+  const int txw = tx_size_wide[txfm_param->tx_size];
+  const int txh = tx_size_high[txfm_param->tx_size];
+  int scale_bits = 3 - av1_get_tx_scale(txfm_param->tx_size);
+  const int bd = txfm_param->bd;
+
+  for (int i = 0; i < txh; i += MI_SIZE) {
+    for (int j = 0; j < txw; j += MI_SIZE) {
+      process_inv_idtx_add_4x4_avx2(input + i * txw + j, txw,
+                                    dest + i * stride + j, stride, scale_bits,
+                                    bd);
+    }
+  }
+}
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM

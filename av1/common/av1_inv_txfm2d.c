@@ -664,7 +664,7 @@ static INLINE void inv_idfm2d_add_vert_c(const int32_t *input, uint16_t *output,
     buf_ptr += txfm_size_col;
   }
 
-  DECLARE_ALIGNED(32, int, dpcm_buf[4]);
+  DECLARE_ALIGNED(32, int, dpcm_buf[8]);
 
   // Columns
   for (c = 0; c < txfm_size_col; ++c) {
@@ -674,7 +674,7 @@ static INLINE void inv_idfm2d_add_vert_c(const int32_t *input, uint16_t *output,
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
     dpcm_buf[0] = temp_out[0];
     // cumulate the vertical dpcm
-    for (int tmp_c = 1; tmp_c < 4; ++tmp_c) {
+    for (int tmp_c = 1; tmp_c < txfm_size_row; ++tmp_c) {
       dpcm_buf[tmp_c] = dpcm_buf[tmp_c - 1] + temp_out[tmp_c];
     }
 
@@ -727,7 +727,7 @@ static INLINE void inv_idfm2d_add_horz_c(const int32_t *input, uint16_t *output,
   int32_t *buf_ptr = buf;
   int c, r;
 
-  DECLARE_ALIGNED(32, int, dpcm_buf[4 * 4]);
+  DECLARE_ALIGNED(32, int, dpcm_buf[8 * 8]);
 
   // Rows
   for (r = 0; r < txfm_size_row; ++r) {
@@ -751,18 +751,18 @@ static INLINE void inv_idfm2d_add_horz_c(const int32_t *input, uint16_t *output,
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
     // store the inv_tm_output
-    for (int tmp_i = 0; tmp_i < 4; ++tmp_i) {
+    for (int tmp_i = 0; tmp_i < txfm_size_row; ++tmp_i) {
       if (c == 0) {
-        dpcm_buf[c + tmp_i * 4] = temp_out[tmp_i];
+        dpcm_buf[c + tmp_i * 8] = temp_out[tmp_i];
       } else {
-        dpcm_buf[c + tmp_i * 4] =
-            temp_out[tmp_i] + dpcm_buf[(c - 1) + tmp_i * 4];
+        dpcm_buf[c + tmp_i * 8] =
+            temp_out[tmp_i] + dpcm_buf[(c - 1) + tmp_i * 8];
       }
     }
 
     for (r = 0; r < txfm_size_row; ++r) {
       output[r * stride + c] = highbd_clip_pixel_add(output[r * stride + c],
-                                                     dpcm_buf[r * 4 + c], bd);
+                                                     dpcm_buf[r * 8 + c], bd);
     }
   }
 }

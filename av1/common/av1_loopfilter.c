@@ -332,17 +332,34 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 #endif  // CONFIG_LF_SUB_PU
 ) {
   assert(mbmi != NULL);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base =
+      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd && xd->lossless[mbmi->segment_id]) {
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+    *tu_edge = true;
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+    const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                        get_plane_type(plane) == PLANE_TYPE_Y;
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    if (block_size_wide[bsize_base] < 8 || block_size_high[bsize_base] < 8 ||
+        plane || (!is_inter && !is_fsc))
+      return TX_4X4;
+    else
+      return mbmi->tx_size;
+  }
+#else
   if (xd && xd->lossless[mbmi->segment_id]) {
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     *tu_edge = true;
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     return TX_4X4;
   }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   const int plane_type = av1_get_sdp_idx(tree_type);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const BLOCK_SIZE bsize_base =
-      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   TX_SIZE tx_size = TX_INVALID;
   if (plane != AOM_PLANE_Y) {

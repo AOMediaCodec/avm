@@ -9264,7 +9264,7 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   TX_TYPE tx_type = txfm_param->tx_type;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM
+#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     assert(width == 4 && height == 4);
     assert(tx_type == DCT_DCT || tx_type == IDTX);
     if (tx_type == IDTX) {
@@ -9278,8 +9278,8 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
 #else   // CONFIG_LOSSLESS_DPCM
     assert(tx_type == DCT_DCT);
-    av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
-#endif  // CONFIG_LOSSLESS_DPCM
+    av1_highbd_fwht4x4(resi, coeff, diff_stride);
+#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 

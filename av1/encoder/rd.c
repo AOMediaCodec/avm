@@ -416,6 +416,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 #endif  // CONFIG_NEW_TX_PARTITION
 
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    for (j = 0; j < 2; ++j) {
+      av1_cost_tokens_from_cdf(mode_costs->lossless_tx_size_cost[i][j],
+                               fc->lossless_tx_size_cdf[i][j], NULL);
+    }
+  }
+  av1_cost_tokens_from_cdf(mode_costs->lossless_inter_tx_type_cost,
+                           fc->lossless_inter_tx_type_cdf, NULL);
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
   for (i = 0; i < 2; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->tx_ext_32_costs[i],
@@ -1997,40 +2008,13 @@ static double interp_bicubic(const double *p, int p_stride, double x,
 */
 
 static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0,
-  0,
-  0,
-  1,
-  1,
-  1,
-  2,
-  2,
-  2,
-  3,
-  3,
-  3,
-  3,
-  3,
-  3,
-  3,
+  0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
 #if CONFIG_EXT_RECUR_PARTITIONS
-  3,
-  3,
-  3,
+  3, 3, 3,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  1,
-  1,
-  2,
-  2,
-  3,
-  3,
+  1, 1, 2, 2, 3, 3,
 #if CONFIG_EXT_RECUR_PARTITIONS
-  1,
-  1,
-  2,
-  2,
-  2,
-  2,
+  1, 1, 2, 2, 2, 2,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
@@ -2056,40 +2040,13 @@ static double get_rate_clamplinear(double l, double a, double b) {
 }
 
 static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0,
-  0,
-  0,
-  0,
-  1,
-  1,
-  2,
-  3,
-  3,
-  4,
-  5,
-  5,
-  6,
-  7,
-  7,
-  8,
+  0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8,
 #if CONFIG_EXT_RECUR_PARTITIONS
-  8,
-  8,
-  8,
+  8, 8, 8,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  0,
-  0,
-  2,
-  2,
-  4,
-  4,
+  0, 0, 2, 2, 4, 4,
 #if CONFIG_EXT_RECUR_PARTITIONS
-  1,
-  1,
-  3,
-  3,
-  2,
-  2,
+  1, 1, 3, 3, 2, 2,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 

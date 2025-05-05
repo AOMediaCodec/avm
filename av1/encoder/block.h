@@ -1400,6 +1400,10 @@ typedef struct {
   //! txfm_partition_cost
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  int lossless_tx_size_cost[BLOCK_SIZE_GROUPS][2][2];
+  int lossless_inter_tx_type_cost[2];
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];

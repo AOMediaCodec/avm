@@ -260,6 +260,11 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
 set_aom_config_var(
+  CONFIG_IMPROVE_LOSSLESS_TXM
+  1
+  "AV2 enable 4x4 IDTX for inter blocks and 8x8 IDTX for all blocks in lossless mode (luma only)"
+)
+set_aom_config_var(
   CONFIG_ACROSS_SCALE_TPL_MVS 0 NUMBER
   "AV2 experiment flag to enable across scale temporal mv projection")
 
