@@ -5224,7 +5224,7 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int target_ref_hint = buf->ref_display_order_hint[i];
 #else
-      const int target_ref_hint = bug->ref_order_hints[i];
+      const int target_ref_hint = buf->ref_order_hints[i];
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       if (target_ref_hint < 0) continue;
       int found_rf = -1;
@@ -5265,7 +5265,7 @@ static int has_future_ref(const AV1_COMMON *cm, int rf) {
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_hint = buf->ref_display_order_hint[i];
 #else
-    const int ref_hint = bug->ref_order_hints[i];
+    const int ref_hint = buf->ref_order_hints[i];
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) > 0) {
@@ -5288,7 +5288,7 @@ static int has_past_ref(const AV1_COMMON *cm, int rf) {
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_hint = buf->ref_display_order_hint[i];
 #else
-    const int ref_hint = bug->ref_order_hints[i];
+    const int ref_hint = buf->ref_order_hints[i];
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) < 0) {
