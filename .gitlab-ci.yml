@@ -939,7 +939,7 @@ Static Analyzer:
     - |
       scan_build cmake -B aom_build -GNinja -DCMAKE_BUILD_TYPE=Debug
       exit_code=0
-      scan_build --status-bugs cmake --build aom_build || exit_code=$?
+      scan_build --status-bugs cmake --build aom_build -j 2 || exit_code=$?
       if [ ${exit_code} -ne 0 ]; then
         echo -e "\e[31mstatic analyzer HTML warning report can be browsed by following this wiki page:\e[0m"
         echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#viewing-static-analysis-report-from-gitlab-ci\e[0m"
