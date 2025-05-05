@@ -7264,10 +7264,18 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   //     order_hint = display_order_hint % display_order_hint_factor
   // Here, the actual display_order_hint is recovered.
   int cur_disp_order_hint = current_frame->order_hint;
-  while (abs(max_disp_order_hint - cur_disp_order_hint) > 35) {
+  int display_order_hint_factor =
+      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+#if CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
+  // The value of display_order_hint_factor is determined by
+  // order_hint_bits_minus_1. To support larger GOPs, the value of
+  // order_hint_bits_minus_1 needs to be increased.
+  while (abs(max_disp_order_hint - cur_disp_order_hint) >=
+         (display_order_hint_factor >> 1)) {
+#else   // CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
+    while (abs(max_disp_order_hint - cur_disp_order_hint) > 35) {
+#endif  // CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
     if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
-    int display_order_hint_factor =
-        1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
     cur_disp_order_hint += display_order_hint_factor;
   }
   return cur_disp_order_hint;
@@ -7291,7 +7299,15 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   const int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
   int disp_order_hint = buf->order_hint;
+#if CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
+  // The value of display_order_hint_factor is determined by
+  // order_hint_bits_minus_1. To support larger GOPs, the value of
+  // order_hint_bits_minus_1 needs to be increased.
+  while (abs(max_disp_order_hint - disp_order_hint) >=
+         (display_order_hint_factor >> 1)) {
+#else   // CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
   while (abs(max_disp_order_hint - disp_order_hint) > 35) {
+#endif  // CONFIG_DISP_ORDER_HINT_DERIVATION_FIX
     if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
 
     disp_order_hint += display_order_hint_factor;
