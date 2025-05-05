@@ -1969,6 +1969,15 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     }
     *sms_data = best_data;
   }
+#if CONFIG_ML_PART_SPLIT
+  // If the above code didn't actually execute the residual stats computation
+  // but all of the downstream code assumes the residual stats have been
+  // computed.
+  if (need_residual_stats && !sms_data->residual_stats_valid) {
+    sms_data->residual_stats_valid = true;
+    memset(&sms_data->residual_stats, 0, sizeof(sms_data->residual_stats));
+  }
+#endif  // CONFIG_ML_PART_SPLIT
   sms_data->valid = 1;
   sms_data->bsize = bsize;
   sms_data->mi_row = mi_row;
