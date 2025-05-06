@@ -492,7 +492,7 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
                                 const MACROBLOCKD *xd, int16_t mode_context) {
 #if CONFIG_INTER_MODE_CONSOLIDATION
   int amvd_index = amvd_mode_to_index(mbmi->mode);
-  int amvd_ctx = av1_amvd_context(xd);
+  int amvd_ctx = get_amvd_context(xd);
   int amvd_mode_cost =
       allow_amvd_mode(mbmi->mode)
           ? mode_costs->amvd_mode_cost[amvd_index][amvd_ctx][mbmi->use_amvd]

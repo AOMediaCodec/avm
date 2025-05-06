@@ -2352,7 +2352,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     if (allow_amvd_mode(mbmi->mode)) {
       int amvd_index = amvd_mode_to_index(mbmi->mode);
       assert(amvd_index >= 0);
-      int amvd_ctx = av1_amvd_context(xd);
+      int amvd_ctx = get_amvd_context(xd);
       update_cdf(fc->amvd_mode_cdf[amvd_index][amvd_ctx], mbmi->use_amvd, 2);
 #if CONFIG_ENTROPY_STATS
       ++counts->amvd_mode[amvd_index][amvd_ctx][mbmi->use_amvd];

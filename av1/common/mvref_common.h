@@ -788,7 +788,7 @@ static INLINE int amvd_mode_to_index(PREDICTION_MODE mode) {
   }
 }
 
-static INLINE int av1_amvd_context(const MACROBLOCKD *const xd) {
+static INLINE int get_amvd_context(const MACROBLOCKD *const xd) {
   int ctx = 0;
 
   const MB_MODE_INFO *const mbmi = xd->mi[0];

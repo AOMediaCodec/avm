@@ -2843,7 +2843,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       if (allow_amvd_mode(mode)) {
         int amvd_index = amvd_mode_to_index(mbmi->mode);
         assert(amvd_index >= 0);
-        int amvd_ctx = av1_amvd_context(xd);
+        int amvd_ctx = get_amvd_context(xd);
         aom_write_symbol(w, mbmi->use_amvd,
                          ec_ctx->amvd_mode_cdf[amvd_index][amvd_ctx], 2);
       }

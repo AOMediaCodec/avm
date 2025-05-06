@@ -4276,7 +4276,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (allow_amvd_mode(mbmi->mode)) {
         int amvd_index = amvd_mode_to_index(mbmi->mode);
         assert(amvd_index >= 0);
-        int amvd_ctx = av1_amvd_context(xd);
+        int amvd_ctx = get_amvd_context(xd);
         mbmi->use_amvd =
             aom_read_symbol(r, ec_ctx->amvd_mode_cdf[amvd_index][amvd_ctx], 2,
                             ACCT_INFO("use_amvd"));
