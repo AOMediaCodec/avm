@@ -28,6 +28,28 @@ static const int32_t kPrevId[TCQ_MAX_STATES / 4][8] = {
   { 0, 4 << 24, 0, 5 << 24, 0, 6 << 24, 0, 7 << 24 },
 };
 
+#if CONFIG_COEFF_HR_ADAPTIVE
+// clang-format off
+static const uint8_t kGolombExp0Bits[256] = {
+  0,  0,  0,  0,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,
+  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,
+  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  8,  8,  8,  8,
+  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8, 10, 10, 10, 10,
+  10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+  10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+};
+// clang-format on
+#else
 static const uint8_t kGolombExp0Bits[256] = {
   0,  0,  0,  0,  1,  1,  1,  1,  3,  3,  3,  3,  3,  3,  3,  3,  5,  5,  5,
   5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  7,  7,  7,  7,  7,  7,
@@ -44,6 +66,7 @@ static const uint8_t kGolombExp0Bits[256] = {
   11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
   11, 11, 11, 11, 11, 11, 11, 11, 11,
 };
+#endif
 
 #define Z -1
 static const int8_t kGolombShuf[4][16] = {
@@ -821,10 +844,10 @@ void av1_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
           _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
         }
       } else {  // qIdx - 9 > 248
-        int mid_cost0 = get_golomb_cost_tcq(absLevel[0], 0);
-        int mid_cost1 = get_golomb_cost_tcq(absLevel[1], 0);
-        int mid_cost2 = get_golomb_cost_tcq(absLevel[2], 0);
-        int mid_cost3 = get_golomb_cost_tcq(absLevel[3], 0);
+        int mid_cost0 = get_golomb_cost_tcq(absLevel[0], 1);
+        int mid_cost1 = get_golomb_cost_tcq(absLevel[1], 1);
+        int mid_cost2 = get_golomb_cost_tcq(absLevel[2], 1);
+        int mid_cost3 = get_golomb_cost_tcq(absLevel[3], 1);
         for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
           rd->rate[8 * i] += mid_cost0;
           rd->rate[8 * i + 1] += mid_cost2;
