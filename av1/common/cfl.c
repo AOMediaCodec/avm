@@ -989,6 +989,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 #endif  // CONFIG_MHCCP_SB_BOUNDARY
 #if MHCCP_3_PARAMETERS
         // 3-tap cross
+        assert(dir >= 0 && dir <= 2);
         if (dir == 0) {
           A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
           A[1][count] = NON_LINEAR(
