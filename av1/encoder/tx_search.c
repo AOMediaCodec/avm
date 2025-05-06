@@ -2665,7 +2665,8 @@ static INLINE void predict_dc_only_block(
         RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
 
     x->plane[plane].txb_entropy_ctx[block] = 0;
-  } else if (block_var < var_threshold) {
+  } else if (block_var < var_threshold &&
+             (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
     // Predict DC only blocks based on residual variance.
     // For chroma plane, this early prediction is disabled for intra blocks.
     if ((plane == 0) || (plane > 0 && is_inter_block(mbmi, xd->tree_type)))
@@ -3534,7 +3535,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
           plane, is_inter, eobs_ptr_c1[block], cctx_type);
       if (skip_cctx_eval) break;
 
-      // Calculate rate cost of quantized coefficients.
+        // Calculate rate cost of quantized coefficients.
 #if CONFIG_IMPROVEIDTX
       uint8_t fsc_mode = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                           plane == PLANE_TYPE_Y) ||

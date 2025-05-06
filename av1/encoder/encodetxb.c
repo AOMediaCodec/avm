@@ -2203,9 +2203,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
   av1_get_nz_map_contexts_skip_c(levels, scan, bob, eob, tx_size,
                                  coeff_contexts);
-  const int (*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int(*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost_skip;
-  const int (*base_cost)[8] = coeff_costs->idtx_base_cost;
+  const int(*base_cost)[8] = coeff_costs->idtx_base_cost;
 
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
@@ -2319,14 +2319,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts,
                           plane);
 
-  const int (*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int(*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost;
-  const int (*lps_lf_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int(*lps_lf_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_lf_cost;
 #if CONFIG_CHROMA_CODING
-  const int (*lps_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int(*lps_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost_uv;
-  const int (*lps_lf_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int(*lps_lf_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_lf_cost_uv;
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_COEFF_HR_ADAPTIVE
@@ -2501,18 +2501,18 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     }
   }
 #if CONFIG_TCQ && CONFIG_CHROMA_CODING
-  const int (*base_lf_cost)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost;
-  const int (*base_cost)[TCQ_CTXS][8] = coeff_costs->base_cost;
-  const int (*base_lf_cost_uv)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_cost)[TCQ_CTXS][8] = coeff_costs->base_cost;
+  const int(*base_lf_cost_uv)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
-  const int (*base_cost_uv)[TCQ_CTXS][8] = coeff_costs->base_cost_uv;
+  const int(*base_cost_uv)[TCQ_CTXS][8] = coeff_costs->base_cost_uv;
 #else
-  const int (*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
-  const int (*base_cost)[8] = coeff_costs->base_cost;
-  const int (*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
+  const int(*base_cost)[8] = coeff_costs->base_cost;
+  const int(*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
-  const int (*base_cost_uv)[8] = coeff_costs->base_cost_uv;
+  const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
 #endif  // CONFIG_TCQ
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = hr_level >> 1;
@@ -3141,18 +3141,18 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
   int cost = 0;
 
 #if CONFIG_CHROMA_CODING && CONFIG_TCQ
-  const int (*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int (*base_cost_ptr)[TCQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   cost +=
       limits
           ? base_lf_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
           : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
 #elif CONFIG_CHROMA_CODING
-  const int (*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int (*base_cost_ptr)[8] =
+  const int(*base_cost_ptr)[8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 
   cost += limits
@@ -3410,9 +3410,9 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
 #if CONFIG_CHROMA_CODING
-  const int (*base_lf_eob_cost_ptr)[LF_BASE_SYMBOLS - 1] =
+  const int(*base_lf_eob_cost_ptr)[LF_BASE_SYMBOLS - 1] =
       plane > 0 ? txb_costs->base_lf_eob_cost_uv : txb_costs->base_lf_eob_cost;
-  const int (*base_eob_cost_ptr)[3] =
+  const int(*base_eob_cost_ptr)[3] =
       plane > 0 ? txb_costs->base_eob_cost_uv : txb_costs->base_eob_cost;
 
   cost += limits ? base_lf_eob_cost_ptr[coeff_ctx]
@@ -3571,10 +3571,10 @@ static INLINE int get_coeff_cost_general(
   int cost = 0;
   if (is_last) {
 #if CONFIG_CHROMA_CODING
-    const int (*base_lf_eob_cost_ptr)[LF_BASE_SYMBOLS - 1] =
+    const int(*base_lf_eob_cost_ptr)[LF_BASE_SYMBOLS - 1] =
         plane > 0 ? txb_costs->base_lf_eob_cost_uv
                   : txb_costs->base_lf_eob_cost;
-    const int (*base_eob_cost_ptr)[3] =
+    const int(*base_eob_cost_ptr)[3] =
         plane > 0 ? txb_costs->base_eob_cost_uv : txb_costs->base_eob_cost;
 
     cost += limits
@@ -3593,17 +3593,17 @@ static INLINE int get_coeff_cost_general(
 #endif  // CONFIG_CHROMA_CODING
   } else {
 #if CONFIG_CHROMA_CODING && CONFIG_TCQ
-    const int (*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+    const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-    const int (*base_cost_ptr)[TCQ_CTXS][8] =
+    const int(*base_cost_ptr)[TCQ_CTXS][8] =
         plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
     cost += limits ? base_lf_cost_ptr[coeff_ctx][0]
                                      [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
                    : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
 #elif CONFIG_CHROMA_CODING
-    const int (*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
+    const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-    const int (*base_cost_ptr)[8] =
+    const int(*base_cost_ptr)[8] =
         plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
     cost +=
         limits
@@ -3900,14 +3900,14 @@ static INLINE void update_coeff_general(
   int hr_level_low = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
 #if CONFIG_CHROMA_CODING && CONFIG_TCQ
-  const int (*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int (*base_cost_ptr)[TCQ_CTXS][8] =
+  const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 #elif CONFIG_CHROMA_CODING
-  const int (*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
+  const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int (*base_cost_ptr)[8] =
+  const int(*base_cost_ptr)[8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 #endif  // CONFIG_CHROMA_CODING && CONFIG_TCQ
   const int row = ci >> bwl;
@@ -5277,7 +5277,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   if (eob > 1) av1_txb_init_levels(qcoeff, width, height, levels);
 
-  // TODO(angirbird): check iqmatrix
+    // TODO(angirbird): check iqmatrix
 
 #if CONFIG_CONTEXT_DERIVATION
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
