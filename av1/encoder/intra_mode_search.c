@@ -1093,6 +1093,10 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
         if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
+#if CONFIG_ENABLE_MHCCP
+        if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && !intra_mode_cfg->enable_mhccp)
+          continue;
+#endif  // CONFIG_ENABLE_MHCCP
         const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
         if (mbmi->cfl_idx == 0)
           cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);

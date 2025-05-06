@@ -464,6 +464,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
+#if CONFIG_ENABLE_MHCCP
+  &g_av1_codec_arg_defs.enable_mhccp,
+#endif  // CONFIG_ENABLE_MHCCP
   &g_av1_codec_arg_defs.enable_cwp,
 #if CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_imp_msk_bld,
@@ -755,6 +758,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_intrabc_ext = 1;
 #endif  // CONFIG_IBC_SR_EXT
   config->enable_cfl_intra = 1;
+#if CONFIG_ENABLE_MHCCP
+  config->enable_mhccp = 1;
+#endif  // CONFIG_ENABLE_MHCCP
   config->enable_smooth_intra = 1;
   config->enable_filter_intra = 0;
 #if CONFIG_DIP
@@ -1619,6 +1625,10 @@ static void show_stream_config(struct stream_state *stream,
           "FilterIntra (%d)\n",
           encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra,
           encoder_cfg->enable_filter_intra);
+#if CONFIG_ENABLE_MHCCP
+  fprintf(stdout, "                               : MHCCP: (%d)\n",
+          encoder_cfg->enable_mhccp);
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_DIP
   fprintf(stdout, "                               : IntraDIP (%d)\n",
           encoder_cfg->enable_intra_dip);

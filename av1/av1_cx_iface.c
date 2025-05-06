@@ -203,6 +203,9 @@ struct av1_extracfg {
   int enable_smooth_intra;  // enable smooth intra modes for sequence
   int enable_paeth_intra;   // enable Paeth intra mode for sequence
   int enable_cfl_intra;     // enable CFL uv intra mode for sequence
+#if CONFIG_ENABLE_MHCCP
+  int enable_mhccp;  // enable multi-hypothesis cross-component prediction
+#endif               // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_SR
   int enable_superres;
 #endif                 // CONFIG_ENABLE_SR
@@ -568,6 +571,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable smooth intra modes usage for sequence
   1,    // enable Paeth intra mode usage for sequence
   1,    // enable CFL uv intra mode usage for sequence
+#if CONFIG_ENABLE_MHCCP
+  1,    // enable mhccp
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_SR
   1,    // superres
 #endif  // CONFIG_ENABLE_SR
@@ -1113,6 +1119,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+#if CONFIG_ENABLE_MHCCP
+  cfg->enable_mhccp = extra_cfg->enable_mhccp;
+#endif  // CONFIG_ENABLE_MHCCP
   cfg->enable_palette = extra_cfg->enable_palette;
   cfg->enable_intrabc = extra_cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1270,6 +1279,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
   extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
+#if CONFIG_ENABLE_MHCCP
+  extra_cfg->enable_mhccp = cfg->enable_mhccp;
+#endif  // CONFIG_ENABLE_MHCCP
   extra_cfg->enable_palette = cfg->enable_palette;
   extra_cfg->enable_intrabc = cfg->enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -1928,6 +1940,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+#if CONFIG_ENABLE_MHCCP
+  intra_mode_cfg->enable_mhccp = extra_cfg->enable_mhccp;
+#endif
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
@@ -4374,6 +4389,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cfl_intra,
                               argv, err_string)) {
     extra_cfg.enable_cfl_intra = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_ENABLE_MHCCP
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mhccp, argv,
+                              err_string)) {
+    extra_cfg.enable_mhccp = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_ENABLE_MHCCP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_overlay, argv,
                               err_string)) {
     extra_cfg.enable_overlay = arg_parse_int_helper(&arg, err_string);
@@ -4839,7 +4859,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT
-        1, 1,   1,
+        1,
+#if CONFIG_ENABLE_MHCCP
+        1,
+#endif  // CONFIG_ENABLE_MHCCP
+        1, 1,
 #if CONFIG_DIP
         1,
 #endif  // CONFIG_DIP

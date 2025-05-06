@@ -302,6 +302,12 @@ typedef struct {
    * Flag to indicate if CFL uv intra mode should be enabled.
    */
   bool enable_cfl_intra;
+#if CONFIG_ENABLE_MHCCP
+  /*!
+   * Flag to indicate if MHCCP intra mode should be enabled.
+   */
+  bool enable_mhccp;
+#endif  // CONFIG_ENABLE_MHCCP
   /*!
    * Flag to indicate if delta angles for directional intra prediction should be
    * enabled.
