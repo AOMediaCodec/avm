@@ -1155,34 +1155,6 @@ static void highbd_fwd_txfm_64x4(const int16_t *src_diff, tran_low_t *coeff,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-static void av1_lowbd_fwd_txfm_master(const int16_t *src_diff,
-                                      tran_low_t *coeff, int diff_stride,
-                                      TxfmParam *txfm_param) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
-  if (txfm_param->lossless) {
-    if (txfm_param->tx_type == IDTX) {
-      av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
-      return;
-    }
-  }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
-  av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-}
-
-static void av1_highbd_fwd_txfm_master(const int16_t *src_diff,
-                                       tran_low_t *coeff, int diff_stride,
-                                       TxfmParam *txfm_param) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
-  if (txfm_param->lossless) {
-    if (txfm_param->tx_type == IDTX) {
-      av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
-      return;
-    }
-  }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
-  av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-}
-
 #if CONFIG_CORE_TX
 void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
                         int skip_line, int zero_line, const int tx_type_index,
@@ -1371,7 +1343,6 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 
 void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
-#if CONFIG_CORE_TX
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (txfm_param->lossless) {
     if (txfm_param->tx_type == IDTX) {
@@ -1380,12 +1351,13 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
     }
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+#if CONFIG_CORE_TX
   fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 #else
   if (txfm_param->bd == 8) {
-    av1_lowbd_fwd_txfm_master(src_diff, coeff, diff_stride, txfm_param);
+    av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
   } else {
-    av1_highbd_fwd_txfm_master(src_diff, coeff, diff_stride, txfm_param);
+    av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
   }
 #endif  // CONFIG_CORE_TX
 }
