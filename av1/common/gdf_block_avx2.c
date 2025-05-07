@@ -330,18 +330,36 @@ void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
   horz_reg = _mm256_castps_si256(_mm256_blendv_ps(                             \
       m256_horz_tmp_reg, m256_vert_tmp_reg, _mm256_castsi256_ps(cls_is_odd)));
 
+static inline __m256i gdf_intra_get_idx(__m256i* out_reg0, __m256i* out_reg1, __m256i* out_reg2) {
+ return
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 8),
+                                        _mm256_slli_epi32(*out_reg1, 4)),
+                       *out_reg2);
+}
+
+static inline __m256i gdf_inter_get_idx(__m256i* out_reg0, __m256i* out_reg1, __m256i* out_reg2) {
+  return _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(
+                  _mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 6),
+                                   _mm256_slli_epi32(*out_reg0, 5)),
+                  _mm256_slli_epi32(*out_reg0, 2)),
+              _mm256_add_epi32(_mm256_slli_epi32(*out_reg1, 3),
+                               _mm256_slli_epi32(*out_reg1, 1))),
+          *out_reg2);
+}
+
 /*!\brief Function to generate vertical/horizontal/mixed features
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
- *        This function is for Intra frame
  */
-void gdf_intra_inference_block_avx2(
+void gdf_inference_block_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
     const int stripe_size, const int qp_idx, const uint16_t *rec_pnt,
     const int rec_stride, const int bit_depth, int16_t *err_pnt,
     const int err_stride, const int pxl_shift, const int ref_dst_idx) {
 #if GDF_C_CODE_ONLY
-  gdf_intra_inference_block_c(i_min, i_max, j_min, j_max, stripe_size, qp_idx,
+  gdf_inference_block_c(i_min, i_max, j_min, j_max, stripe_size, qp_idx,
                               rec_pnt, rec_width, rec_stride, err_pnt,
                               err_stride, pxl_shift, ref_dst_idx);
 #else  //
@@ -352,19 +370,30 @@ void gdf_intra_inference_block_avx2(
   const int cls_stride = GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN;
   const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN;
 
-  const int lut_frm_max = GDF_NET_LUT_IDX_INTRA_MAX;
+  const int is_intra = ref_dst_idx == 0 ? 1 : 0;
+  const int lut_frm_max = is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
   const int lut_idx_min = -(lut_frm_max >> 1);
   const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
-  const int lut_idx_scale = max(-lut_idx_min, lut_idx_max);
+  const int lut_idx_scale = AOMMAX(-lut_idx_min, lut_idx_max);
   int32_t lut_shift =
       GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_NET_PAR_SCALE_LOG2;
   int32_t lut_shitf_half = 1 << (lut_shift - 1);
-
-  const int16_t *alpha = gdf_intra_alpha_table[qp_idx];
-  const int16_t *weight = gdf_intra_weight_table[qp_idx];
-  const int32_t *bias = gdf_intra_bias_table[qp_idx];
-  const int8_t *gdf_table = (gdf_intra_error_table + ref_dst_idx)[qp_idx];
-
+  const int16_t *alpha, *weight;
+  const int32_t *bias;
+  const int8_t *gdf_table;
+  if (is_intra) {
+    alpha = gdf_intra_alpha_table[qp_idx];
+    weight = gdf_intra_weight_table[qp_idx];
+    bias = gdf_intra_bias_table[qp_idx];
+    gdf_table = gdf_intra_error_table[qp_idx];
+  }
+  else {
+    alpha = gdf_inter_alpha_table[ref_dst_idx - 1][qp_idx];
+    weight = gdf_inter_weight_table[ref_dst_idx - 1][qp_idx];
+    bias = gdf_inter_bias_table[ref_dst_idx - 1][qp_idx];
+    gdf_table = gdf_inter_error_table[ref_dst_idx - 1][qp_idx];
+  }
+  __m256i (*gdf_get_idx_func)(__m256i*, __m256i*, __m256i*) = is_intra ? gdf_intra_get_idx : gdf_inter_get_idx;
   DECLARE_ALIGNED(
       32, uint32_t,
       aligned_cls[GDF_TEST_BLK_SIZE]
@@ -547,14 +576,11 @@ void gdf_intra_inference_block_avx2(
       gdf_quant_feature_reg(out_reg21, neg_mask, zero_reg, scale_value,
                             half_value, lut_shift, idx_min_reg, idx_max_reg);
 
-      __m256i lut_idx_odd =
+      __m256i lut_idx_odd = gdf_get_idx_func(&out_reg00, &out_reg10, &out_reg20);
           _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg00, 8),
                                             _mm256_slli_epi32(out_reg10, 4)),
                            out_reg20);
-      __m256i lut_idx_even =
-          _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg01, 8),
-                                            _mm256_slli_epi32(out_reg11, 4)),
-                           out_reg21);
+      __m256i lut_idx_even = gdf_get_idx_func(&out_reg01, &out_reg11, &out_reg21);
 
       __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
       __m256i v_odd = _mm256_i32gather_epi32(
@@ -588,282 +614,7 @@ void gdf_intra_inference_block_avx2(
       lap_lines[kk] += (i & 1) ? lap_stride : 0;
     }
   }
-#endif  //
-}
-
-/*!\brief Function to generate vertical/horizontal/mixed features
- *        and then lookup for expected coding error with the
- *        corresponding quantized features
- *        This function is for Inter frame
- */
-void gdf_inter_inference_block_avx2(
-    const int i_min, const int i_max, const int j_min, const int j_max,
-    const int stripe_size, const int qp_idx, const uint16_t *rec_pnt,
-    const int rec_stride, const int bit_depth, int16_t *err_pnt,
-    const int err_stride, const int pxl_shift, const int ref_dst_idx) {
-#if GDF_C_CODE_ONLY
-  gdf_inter_inference_block_c(i_min, i_max, j_min, j_max, stripe_size, qp_idx,
-                              rec_pnt, rec_width, rec_stride, err_pnt,
-                              err_stride, pxl_shift, ref_dst_idx);
-#else  //
-  assert(((i_max - i_min) & 1) == 0);
-  assert(((j_max - j_min) & 1) == 0);
-  assert((i_min & 1) == 0);
-  assert((j_min & 1) == 0);
-  const int cls_stride = GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN;
-  const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN;
-
-  const int lut_frm_max = GDF_NET_LUT_IDX_INTER_MAX;
-  const int lut_idx_min = -(lut_frm_max >> 1);
-  const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
-  const int lut_idx_scale = max(-lut_idx_min, lut_idx_max);
-  int32_t lut_shift =
-      GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_NET_PAR_SCALE_LOG2;
-  int32_t lut_shitf_half = 1 << (lut_shift - 1);
-
-  const int16_t *alpha = gdf_inter_alpha_table[ref_dst_idx][qp_idx];
-  const int16_t *weight = gdf_inter_weight_table[ref_dst_idx][qp_idx];
-  const int32_t *bias = gdf_inter_bias_table[ref_dst_idx][qp_idx];
-  const int *gdf_table = (int *)gdf_inter_error_table[ref_dst_idx][qp_idx];
-
-  DECLARE_ALIGNED(
-      32, uint32_t,
-      aligned_cls[GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]) = { 0 };
-  DECLARE_ALIGNED(
-      32, uint16_t,
-      aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN]) = { 0 };
-  gdf_set_lap_and_cls_avx2(i_min, i_max, j_min, j_max, stripe_size,
-                           rec_pnt + rec_stride * i_min + j_min, rec_stride,
-                           bit_depth, aligned_lap, aligned_cls);
-
-  gdf_load_bias_reg(bias_reg0, bias);
-  gdf_load_bias_reg(bias_reg1, bias + GDF_NET_INP_GRD_NUM);
-  gdf_load_bias_reg(bias_reg2,
-                    bias + GDF_NET_INP_GRD_NUM + GDF_NET_INP_GRD_NUM);
-
-  uint32_t *cls_line = aligned_cls[0];
-  int16_t *tgt_line = err_pnt;
-  const uint16_t *rec_ptr = rec_pnt + rec_stride * i_min + j_min;
-
-  __m256i m256i_tmp_reg_01, m256i_tmp_reg_02;
-  __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
-  const __m256i min_val = _mm256_set1_epi16(-2048);  // -2^11
-  const __m256i max_val = _mm256_set1_epi16(2047);   // 2^11 - 1
-  __m256 m256_tmp_reg, m256_tmp_reg_02;
-
-  uint16_t *lap_lines[GDF_NET_INP_GRD_NUM] = {
-    aligned_lap[0][0], aligned_lap[1][0], aligned_lap[2][0], aligned_lap[3][0]
-  };
-  for (int i = 0; i < (i_max - i_min); i++) {
-    int vertical_spatial_support_min =
-        -GDF_TEST_LINE_BUFFER -
-        ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
-    int vertical_spatial_support_max =
-        (stripe_size - 1 + GDF_TEST_LINE_BUFFER) -
-        ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
-    for (int j = 0; j < (j_max - j_min); j += 16) {
-      __m256i cls_idx =
-          _mm256_load_si256((const __m256i *)(cls_line + (j >> 1)));
-      __m256i cls_is_odd = _mm256_slli_epi32(cls_idx, 31);
-      gdf_assign_bias_to_output_reg(out_reg00, out_reg01, bias_reg0, cls_idx)
-          gdf_assign_bias_to_output_reg(out_reg10, out_reg11, bias_reg1,
-                                        cls_idx)
-              gdf_assign_bias_to_output_reg(out_reg20, out_reg21, bias_reg2,
-                                            cls_idx)
-                  gdf_swap_value32bit_by_mask32bit(out_reg00, out_reg10,
-                                                   m256_tmp_reg,
-                                                   m256_tmp_reg_02, cls_is_odd);
-      gdf_swap_value32bit_by_mask32bit(out_reg01, out_reg11, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-
-      for (int k = 0; k < GDF_NET_INP_REC_NUM; k++) {
-        __m256i input_reg1 = _mm256_loadu_si256((const __m256i *)(rec_ptr + j));
-
-#if GDF_TEST_VIRTUAL_BOUNDARY
-        int gdf_rec_coordinates_fwd =
-            (gdf_guided_sample_coordinates_fwd[k][0] <
-             vertical_spatial_support_min)
-                ? -gdf_guided_sample_coordinates_fwd[k][0]
-                : gdf_guided_sample_coordinates_fwd[k][0];
-        const uint16_t *s_pos_fwd = rec_ptr + j +
-                                    (gdf_rec_coordinates_fwd * rec_stride) +
-                                    gdf_guided_sample_coordinates_fwd[k][1];
-#else   //
-        const uint16_t *s_pos_fwd =
-            rec_ptr + j +
-            (gdf_guided_sample_coordinates_fwd[k][0] * rec_stride) +
-            gdf_guided_sample_coordinates_fwd[k][1];
-#endif  //
-        m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_fwd));
-        m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
-        __m256i sample_reg0 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
-
-#if GDF_TEST_VIRTUAL_BOUNDARY
-        int gdf_rec_coordinates_bwd =
-            (gdf_guided_sample_coordinates_bwd[k][0] >
-             vertical_spatial_support_max)
-                ? -gdf_guided_sample_coordinates_bwd[k][0]
-                : gdf_guided_sample_coordinates_bwd[k][0];
-        const uint16_t *s_pos_bwd = rec_ptr + j +
-                                    (gdf_rec_coordinates_bwd * rec_stride) +
-                                    gdf_guided_sample_coordinates_bwd[k][1];
-#else   //
-        const uint16_t *s_pos_bwd =
-            rec_ptr + j +
-            (gdf_guided_sample_coordinates_bwd[k][0] * rec_stride) +
-            gdf_guided_sample_coordinates_bwd[k][1];
-#endif  //
-        m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_bwd));
-        m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
-        __m256i sample_reg1 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
-
-        gdf_load_alpha_reg(clip_max_reg, clip_min_reg,
-                           alpha + k * GDF_TRAIN_CLS_NUM, m256i_tmp_reg_01,
-                           m256_tmp_reg, cls_idx);
-        gdf_clip_input_reg(odd_clip0, even_clip0, sample_reg0, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask);
-        gdf_clip_input_reg(odd_clip1, even_clip1, sample_reg1, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask);
-        __m256i odd_clip = _mm256_min_epi16(
-            _mm256_max_epi16(_mm256_add_epi16(odd_clip0, odd_clip1), min_val),
-            max_val);
-        __m256i even_clip = _mm256_min_epi16(
-            _mm256_max_epi16(_mm256_add_epi16(even_clip0, even_clip1), min_val),
-            max_val);
-
-        gdf_load_weight_reg(weight_reg0, weight + k * GDF_TRAIN_CLS_NUM,
-                            m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_load_weight_reg(weight_reg1,
-                            weight + k * GDF_TRAIN_CLS_NUM +
-                                GDF_OPTS_INP_TOT * GDF_TRAIN_CLS_NUM,
-                            m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_swap_value32bit_by_mask32bit(weight_reg0, weight_reg1, m256_tmp_reg,
-                                         m256_tmp_reg_02, cls_is_odd);
-        if (gdf_guided_sample_vertical_masks[k]) {
-          gdf_mult_weight_to_input_reg(out_reg00, out_reg01, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg0);
-        }
-        if (gdf_guided_sample_horizontal_masks[k]) {
-          gdf_mult_weight_to_input_reg(out_reg10, out_reg11, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg1);
-        }
-        if (gdf_guided_sample_mixed_masks[k]) {
-          gdf_load_weight_reg(weight_reg2,
-                              weight + k * GDF_TRAIN_CLS_NUM +
-                                  GDF_OPTS_INP_TOT * 2 * GDF_TRAIN_CLS_NUM,
-                              m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-          gdf_mult_weight_to_input_reg(out_reg20, out_reg21, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg2)
-        }
-      }
-      gdf_swap_value32bit_by_mask32bit(out_reg00, out_reg10, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-      gdf_swap_value32bit_by_mask32bit(out_reg01, out_reg11, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-
-      for (int k = GDF_NET_INP_REC_NUM;
-           k < (GDF_NET_INP_GRD_NUM + GDF_NET_INP_REC_NUM); k++) {
-        m256i_tmp_reg_01 = _mm256_load_si256(
-            (const __m256i *)(lap_lines[k - GDF_NET_INP_REC_NUM] + j));
-        m256i_tmp_reg_02 = _mm256_slli_epi16(m256i_tmp_reg_01, pxl_shift);
-        __m256i sample_reg =
-            _mm256_srli_epi16(m256i_tmp_reg_02, GDF_TRAIN_GRD_SHIFT);
-
-        gdf_load_alpha_reg(clip_max_reg, clip_min_reg,
-                           alpha + k * GDF_TRAIN_CLS_NUM, m256i_tmp_reg_01,
-                           m256_tmp_reg, cls_idx);
-        gdf_clip_input_reg(odd_clip, even_clip, sample_reg, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask)
-
-            gdf_load_weight_reg(weight_reg2,
-                                weight + k * GDF_TRAIN_CLS_NUM +
-                                    GDF_OPTS_INP_TOT * 2 * GDF_TRAIN_CLS_NUM,
-                                m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_mult_weight_to_input_reg(out_reg20, out_reg21, m256i_tmp_reg_01,
-                                     m256i_tmp_reg_02, odd_clip, even_clip,
-                                     weight_reg2)
-      }
-
-      __m256i scale_value = _mm256_set1_epi32(lut_idx_scale);
-      __m256i half_value = _mm256_set1_epi32(lut_shitf_half);
-      __m256i idx_min_reg = _mm256_set1_epi32(lut_idx_min);
-      __m256i idx_max_reg = _mm256_set1_epi32(lut_frm_max - 1);
-      __m256i zero_reg = _mm256_setzero_si256();
-      __m256i neg_mask;
-
-      gdf_quant_feature_reg(out_reg00, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg01, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg10, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg11, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg20, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg21, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-
-      __m256i lut_idx_odd = _mm256_add_epi32(
-          _mm256_add_epi32(
-              _mm256_add_epi32(
-                  _mm256_add_epi32(_mm256_slli_epi32(out_reg00, 6),
-                                   _mm256_slli_epi32(out_reg00, 5)),
-                  _mm256_slli_epi32(out_reg00, 2)),
-              _mm256_add_epi32(_mm256_slli_epi32(out_reg10, 3),
-                               _mm256_slli_epi32(out_reg10, 1))),
-          out_reg20);
-      __m256i lut_idx_even = _mm256_add_epi32(
-          _mm256_add_epi32(
-              _mm256_add_epi32(
-                  _mm256_add_epi32(_mm256_slli_epi32(out_reg01, 6),
-                                   _mm256_slli_epi32(out_reg01, 5)),
-                  _mm256_slli_epi32(out_reg01, 2)),
-              _mm256_add_epi32(_mm256_slli_epi32(out_reg11, 3),
-                               _mm256_slli_epi32(out_reg11, 1))),
-          out_reg21);
-
-      __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
-      __m256i v_odd = _mm256_i32gather_epi32(
-          (int *)gdf_table, _mm256_andnot_si256(sub_idx_mask, lut_idx_odd), 1);
-      __m256i v_even = _mm256_i32gather_epi32(
-          (int *)gdf_table, _mm256_andnot_si256(sub_idx_mask, lut_idx_even), 1);
-
-      __m256i tv_odd = _mm256_srai_epi32(
-          _mm256_slli_epi32(
-              _mm256_srlv_epi32(
-                  v_odd, _mm256_slli_epi32(
-                             _mm256_and_si256(sub_idx_mask, lut_idx_odd), 3)),
-              24),
-          24);
-      __m256i tv_even = _mm256_srai_epi32(
-          _mm256_slli_epi32(
-              _mm256_srlv_epi32(
-                  v_even, _mm256_slli_epi32(
-                              _mm256_and_si256(sub_idx_mask, lut_idx_even), 3)),
-              24),
-          8);
-
-      __m256i out_reg = _mm256_blend_epi16(tv_odd, tv_even, 0xAA);
-
-      _mm256_storeu_si256((__m256i *)(tgt_line + j), out_reg);
-    }
-    cls_line += (i & 1) ? cls_stride : 0;
-    rec_ptr += rec_stride;
-    tgt_line += err_stride;
-    for (int kk = 0; kk < GDF_NET_INP_GRD_NUM; kk++) {
-      lap_lines[kk] += (i & 1) ? lap_stride : 0;
-    }
-  }
-#endif  //
+#endif
 }
 
 #endif  // CONFIG_GDF

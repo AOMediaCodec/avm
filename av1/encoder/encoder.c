@@ -2315,19 +2315,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int pxl_shift = GDF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
   const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
   const int err_shift_half_pow2 = 1 << (err_shift - 1);
-  const int is_intra = frame_is_intra_only(cm);
 
-  int ref_dst_idx;
-  void (*blk_process_fn)(const int, const int, const int, const int, const int,
-                         const int, const uint16_t *, const int, const int,
-                         int16_t *, const int, const int, const int);
-  if (!is_intra) {
-    blk_process_fn = gdf_inter_inference_block;
-    ref_dst_idx = gdf_get_ref_dst_idx(cm);
-  } else {
-    blk_process_fn = gdf_intra_inference_block;
-    ref_dst_idx = 0;
-  }
+  int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   int qp_idx_base = gdf_get_qp_idx_base(cm);
 
   int64_t *rec_pic_error;
@@ -2360,7 +2349,7 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                           rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
 
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            blk_process_fn(i_min, i_max, j_min, j_max,
+            gdf_inference_block(i_min, i_max, j_min, j_max,
                            cm->gdf_info.gdf_stripe_size, qp_idx + qp_idx_base,
                            cm->gdf_info.inp_ptr, rec_stride, bit_depth,
                            cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
