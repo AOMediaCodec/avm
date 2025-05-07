@@ -304,10 +304,10 @@ if (aom_config("CONFIG_INTER_DDT") eq "yes") {
 if (aom_config("CONFIG_IMPROVE_LOSSLESS_TXM") eq "yes") {
   if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_lossless_fwd_idtx/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-    specialize qw/av1_lossless_fwd_idtx avx2/;
+    # specialize qw/av1_lossless_fwd_idtx avx2/;
   }
   add_proto qw/void av1_lossless_inv_idtx_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
-  specialize qw/av1_lossless_inv_idtx_add avx2/;
+  # specialize qw/av1_lossless_inv_idtx_add avx2/;
   if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes") {
     add_proto qw/void av1_lossless_inv_idtx_add_vert/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
     add_proto qw/void av1_lossless_inv_idtx_add_horz/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
