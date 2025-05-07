@@ -445,21 +445,22 @@ typedef struct BufferPool {
 
 #if CONFIG_GDF
 typedef struct {
-  int gdf_mode; /*!< GDF frmae flag (0 : disable, 1 : all frame, 2: block level on/off */
-  int gdf_pic_qc_idx;
-  int gdf_pic_scale_idx;
-  int gdf_block_size;
-  int gdf_block_num;
-  int gdf_stripe_size;
-  int gdf_unit_size;
+  int gdf_mode;                             /*!< GDF frame flag (0 : disable, 
+                                                                 1 : enable all block, 
+                                                                 2 : enable with block level on/off */
+  int gdf_pic_qc_idx;                       /*!< GDF frame parameter indicates quality (QP) bucket */
+  int gdf_pic_scale_idx;                    /*!< GDF frame parameter indicates scale factor */
+  int gdf_block_size;                       /*!< GDF parameter indicates block size for on/off */
+  int gdf_block_num;                        /*!< GDF parameter indicates number of blocks */
+  int gdf_stripe_size;                      /*!< GDF parameter indicates stripe size */
+  int gdf_unit_size;                        /*!< GDF parameter indicates feature extract/error lookup size */
+    
+  int gdf_block_flags[2400];                /*! GDF array store block on/off flags, active if gdf_mode == 2 */
 
-  /*! if gdf_mode == 2, set block level flag for GDF. */
-  int gdf_block_flags[2400];
-
-  int err_height;
-  int err_stride;
-  int16_t *err_ptr;
-  uint16_t *inp_ptr;
+  int err_height;                           /*! Height of GDF memory storing look-uped expected coding error */
+  int err_stride;                           /*! Stride of GDF memory storing look-uped expected coding error */
+  int16_t *err_ptr;                         /*! GDF poiter to memory storing look-uped expected coding error */
+  uint16_t *inp_ptr;                        /*! GDF poiter to memory storing guided frame for GDF, i.e., before LF frame */
   uint16_t *inp_pad_ptr;
 } GdfInfo;
 #endif  // CONFIG_GDF

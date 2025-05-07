@@ -3,6 +3,7 @@
 
 #if CONFIG_GDF
 
+
 void init_gdf(AV1_COMMON *cm) {
   const int rec_height = cm->cur_frame->buf.y_height;
   const int rec_width = cm->cur_frame->buf.y_width;

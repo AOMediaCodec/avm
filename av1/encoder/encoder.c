@@ -2299,6 +2299,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 }
 
 #if CONFIG_GDF
+/*!\brief Function to perform rate-distortion optimization for GDF
+ */
 void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   uint16_t *org_pnt = cpi->source->y_buffer;
   const int org_stride = cpi->source->y_stride;
@@ -2479,6 +2481,9 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   aom_free(block_flags);
 }
 
+/*!\brief Function to perform rate-distortion optimization for GDF
+ *        and then apply the selected GDF parameteres to filter the current frame
+ */
 void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   init_gdf(cm);
   alloc_gdf_buffers(cm);

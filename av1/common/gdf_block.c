@@ -288,6 +288,9 @@ void gdf_set_lap_and_cls_c(
   }
 }
 
+/*!\brief Function to apply scaling factor to expected coding error
+ *        and then generate the final filtered block
+ */
 void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
                               int16_t *errPnt, const int err_stride,
                               const int errShift, const int scale,
@@ -316,6 +319,11 @@ void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
              (gdf_shift)))) -                                           \
    (gdf_idx_min))
 
+/*!\brief Function to generate vertical/horizontal/mixed features 
+ *        and then lookup for expected coding error with the 
+ *        corresponding quantized features
+ *        This function is for Intra frame
+ */
 void gdf_intra_inference_block_c(const int i_min, const int i_max,
                                  const int j_min, const int j_max,
                                  const int sb_size, const int qp_idx,
@@ -458,6 +466,11 @@ void gdf_intra_inference_block_c(const int i_min, const int i_max,
   }
 }
 
+/*!\brief Function to generate vertical/horizontal/mixed features
+ *        and then lookup for expected coding error with the
+ *        corresponding quantized features
+ *        This function is for Inter frame
+ */
 void gdf_inter_inference_block_c(const int iMin, const int iMax,
                                  const int j_min, const int j_max,
                                  const int sb_size, const int qp_idx,

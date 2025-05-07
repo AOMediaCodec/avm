@@ -20,6 +20,10 @@
       lap4x4, _mm256_permutevar8x32_epi32(lap4x4, shuffle_mask2));         \
   lap4x4 = _mm256_and_si256(lap4x4, clip_mask);
 
+/*!\brief Function to calculate gradients and classes for 2x2 pixels used in GDF
+ *        of a block boxed by location of [i_min, j_min] to [i_max, j_max]
+ *        gradients and classes are stored in aligned_lap and aligned_cls, respectively
+ */
 static void gdf_set_lap_and_cls_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
     const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
@@ -187,6 +191,9 @@ static void gdf_set_lap_and_cls_avx2(
 #endif  //
 }
 
+/*!\brief Function to apply expected coding error and controling parameter (i.e., scaling)
+ *        to generate the final filtered block
+ */
 void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
                                  int16_t *err_pnt, const int err_stride,
                                  const int err_shift, const int scale,
@@ -323,6 +330,11 @@ void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
   horz_reg = _mm256_castps_si256(_mm256_blendv_ps(                             \
       m256_horz_tmp_reg, m256_vert_tmp_reg, _mm256_castsi256_ps(cls_is_odd)));
 
+/*!\brief Function to generate vertical/horizontal/mixed features
+ *        and then lookup for expected coding error with the
+ *        corresponding quantized features
+ *        This function is for Intra frame
+ */
 void gdf_intra_inference_block_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
     const int stripe_size, const int qp_idx, const uint16_t *rec_pnt,
@@ -579,6 +591,11 @@ void gdf_intra_inference_block_avx2(
 #endif  //
 }
 
+/*!\brief Function to generate vertical/horizontal/mixed features
+ *        and then lookup for expected coding error with the
+ *        corresponding quantized features
+ *        This function is for Inter frame
+ */
 void gdf_inter_inference_block_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
     const int stripe_size, const int qp_idx, const uint16_t *rec_pnt,
