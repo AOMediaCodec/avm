@@ -3322,37 +3322,6 @@ static INLINE __m256i load_4x4_s16_avx2(const int16_t *src, int stride) {
   return block256;
 }
 
-static INLINE void store_4x4_s16_s16_avx2(__m256i data_s16, int16_t *dst,
-                                          int dst_stride) {
-  // Cast dst pointer for byte-level stride arithmetic
-  uint8_t *dst_bytes = (uint8_t *)dst;
-  ptrdiff_t dst_stride_bytes = dst_stride * 2;
-
-  // Extract the 128-bit lanes from the 256-bit register
-  __m128i low128 = _mm256_castsi256_si128(data_s16);  // Contains [Row1 | Row0]
-  __m128i high128 =
-      _mm256_extracti128_si256(data_s16, 1);  // Contains [Row3 | Row2]
-
-  // Store the 64-bit (8-byte) rows individually
-  // _mm_storel_epi64 handles potential unaligned access.
-
-  // Store Row 0 (Lower 64 bits of low128)
-  _mm_storel_epi64((__m128i *)(dst_bytes + 0 * dst_stride_bytes), low128);
-
-  // Store Row 1 (Upper 64 bits of low128)
-  // Extract upper 64 bits by shifting the 128-bit lane right by 8 bytes (64
-  // bits)
-  __m128i row1 = _mm_bsrli_si128(low128, 8);
-  _mm_storel_epi64((__m128i *)(dst_bytes + 1 * dst_stride_bytes), row1);
-
-  // Store Row 2 (Lower 64 bits of high128)
-  _mm_storel_epi64((__m128i *)(dst_bytes + 2 * dst_stride_bytes), high128);
-
-  // Store Row 3 (Upper 64 bits of high128)
-  __m128i row3 = _mm_bsrli_si128(high128, 8);
-  _mm_storel_epi64((__m128i *)(dst_bytes + 3 * dst_stride_bytes), row3);
-}
-
 static INLINE void store_4x4_s16_s32_avx2(__m256i data_s16, int32_t *dst,
                                           int stride) {
   const ptrdiff_t stride_bytes = stride * 4;
