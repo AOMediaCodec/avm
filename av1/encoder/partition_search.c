@@ -4360,14 +4360,6 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                 NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                 NULL);
-#if CONFIG_TIP_LD
-      const int mi_width = mi_size_wide[bsize];
-      const int mi_height = mi_size_high[bsize];
-      const int cur_order_hint = cm->current_frame.display_order_hint;
-      if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
-        cpi->tip_mode_count[cur_order_hint] = mi_height * mi_width;
-      }
-#endif  // CONFIG_TIP_LD
     } else {
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
                 pc_tree, NULL,
@@ -9786,16 +9778,6 @@ BEGIN_PARTITION_SEARCH:
                 xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                 NULL);
-#if CONFIG_TIP_LD
-      if (run_type == OUTPUT_ENABLED) {
-        const int mi_width = mi_size_wide[bsize];
-        const int mi_height = mi_size_high[bsize];
-        const int cur_order_hint = cm->current_frame.display_order_hint;
-        if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
-          cpi->tip_mode_count[cur_order_hint] = mi_height * mi_width;
-        }
-      }
-#endif  // CONFIG_TIP_LD
       // Dealloc the whole PC_TREE after a superblock is done.
       av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0);
       pc_tree_dealloc = 1;
