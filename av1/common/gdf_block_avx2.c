@@ -29,9 +29,9 @@ static void gdf_set_lap_and_cls_avx2(
     const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
     const int bit_depth,
     uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN],
+                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]) {
+                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) {
 #if GDF_C_CODE_ONLY
   gdf_set_lap_and_cls_c(i_min, i_max, j_min, j_max, stripe_size, rec_pnt,
                         rec_stride, bit_depth, aligned_lap, aligned_cls);
@@ -367,8 +367,8 @@ void gdf_inference_block_avx2(
   assert(((j_max - j_min) & 1) == 0);
   assert((i_min & 1) == 0);
   assert((j_min & 1) == 0);
-  const int cls_stride = GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN;
-  const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN;
+  const int cls_stride = GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN;
+  const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN;
 
   const int is_intra = ref_dst_idx == 0 ? 1 : 0;
   const int lut_frm_max = is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
@@ -376,7 +376,7 @@ void gdf_inference_block_avx2(
   const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
   const int lut_idx_scale = AOMMAX(-lut_idx_min, lut_idx_max);
   int32_t lut_shift =
-      GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_NET_PAR_SCALE_LOG2;
+      GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_TRAIN_PAR_SCALE_LOG2;
   int32_t lut_shitf_half = 1 << (lut_shift - 1);
   const int16_t *alpha, *weight;
   const int32_t *bias;
@@ -397,11 +397,11 @@ void gdf_inference_block_avx2(
   DECLARE_ALIGNED(
       32, uint32_t,
       aligned_cls[GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]) = { 0 };
+                 [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) = { 0 };
   DECLARE_ALIGNED(
       32, uint16_t,
       aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN]) = { 0 };
+                 [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN]) = { 0 };
   gdf_set_lap_and_cls_avx2(i_min, i_max, j_min, j_max, stripe_size,
                            rec_pnt + rec_stride * i_min + j_min, rec_stride,
                            bit_depth, aligned_lap, aligned_cls);

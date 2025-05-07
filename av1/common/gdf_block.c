@@ -270,9 +270,9 @@ void gdf_set_lap_and_cls_c(
     const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
     const int bit_depth,
     uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN],
+                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]) {
+                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) {
   const int blk_height = i_max - i_min;
   const int blk_width = j_max - j_min;
   const uint16_t *rec_y = rec_pnt;
@@ -282,9 +282,9 @@ void gdf_set_lap_and_cls_c(
   for (int grd_idx = 0; grd_idx < GDF_NET_INP_GRD_NUM; grd_idx++) {
     gdf_lap_y[grd_idx] = aligned_lap[grd_idx][0];
   }
-  const int gdf_lap_y_stride = GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN;
+  const int gdf_lap_y_stride = GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN;
   uint32_t *gdf_cls_y = aligned_cls[0];
-  const int gdf_cls_y_stride = GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN;
+  const int gdf_cls_y_stride = GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN;
 
   const int offset_ver = rec_y_stride, offset_dia0 = rec_y_stride + 1,
             offset_dia1 = rec_y_stride - 1;
@@ -619,7 +619,7 @@ void gdf_inference_block_c(const int i_min, const int i_max,
   const int gdf_idx_max = gdf_frm_max - 1 + gdf_idx_min;
   const int gdf_idx_scale = AOMMAX(-gdf_idx_min, gdf_idx_max);
   int32_t gdf_shift =
-      GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_NET_PAR_SCALE_LOG2;
+      GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_TRAIN_PAR_SCALE_LOG2;
   int32_t gdf_shift_half = 1 << (gdf_shift - 1);
 
   const int16_t *alpha, *weight;
@@ -660,7 +660,7 @@ void gdf_inference_block_c(const int i_min, const int i_max,
         (sb_size - 1 + GDF_TEST_LINE_BUFFER) -
         ((i + i_min + GDF_TEST_STRIPE_OFF) % sb_size);
 
-    int32_t gdf_idx[GDF_BLOCK_PADDED_INTER][GDF_NET_LUT_IDX_NUM] = { 0 };
+    int32_t gdf_idx[GDF_BLOCK_PADDED][GDF_NET_LUT_IDX_NUM] = { 0 };
     for (int k = 0; k < GDF_OPTS_INP_TOT; k++) {
       if (k < GDF_NET_INP_REC_NUM) {
 #if GDF_TEST_VIRTUAL_BOUNDARY

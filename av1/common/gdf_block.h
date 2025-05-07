@@ -1,17 +1,37 @@
 
-#ifndef GDF_BLOCK_H
-#define GDF_BLOCK_H
+#ifndef AOM_AV1_COMMON_GDF_BLOCK_H
+#define AOM_AV1_COMMON_GDF_BLOCK_H
 #include "av1/common/odintrin.h"
 #include "av1/common/gdf.h"
 
 #if CONFIG_GDF
 #define GDF_OPTS_INP_TOT (GDF_NET_INP_REC_NUM + GDF_NET_INP_GRD_NUM)
 
-#define GDF_BLOCK_PADDED ((GDF_OPTS_INP_TOT + 2) * 4 + GDF_TEST_BLK_SIZE)
-#define GDF_BLOCK_PADDED_INTER \
+
+#define GDF_BLOCK_PADDED \
   ((GDF_OPTS_INP_TOT + 2) * 4 + GDF_TEST_BLK_SIZE * 2)
 
 #define GDF_TRAIN_GRD_SHIFT 4
+
+
+#define GDF_TRAIN_INP_PREC 0
+#define GDF_TRAIN_REFDST_NUM 5
+#define GDF_TRAIN_QP_NUM 6
+#define GDF_TRAIN_CLS_NUM 4
+
+#define GDF_TRAIN_PAR_SCALE_LOG2 6
+#define GDF_NET_INP_REC_NUM 18
+#define GDF_NET_INP_GRD_NUM 4
+#define GDF_NET_LUT_IDX_NUM 3
+#define GDF_NET_LUT_IDX_INTRA_MAX 16
+#define GDF_NET_LUT_IDX_INTER_MAX 10
+
+
+
+#define GDF_TEST_VIRTUAL_BOUNDARY 1
+#if GDF_TEST_VIRTUAL_BOUNDARY
+#define GDF_TEST_LINE_BUFFER 0
+#endif
 
 /*!\brief Function to apply scaling factor to expected coding error
  *        and then generate the final filtered block
@@ -21,9 +41,9 @@ void gdf_set_lap_and_cls_c(
     const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
     const int bit_depth,
     uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_TGT_STRIDE_MARGIN],
+                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_TGT_STRIDE_MARGIN]);
+                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]);
 
 extern const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2];
 extern const int gdf_guided_sample_coordinates_bwd[GDF_NET_INP_REC_NUM][2];
@@ -40,4 +60,4 @@ extern const int8_t gdf_intra_error_table[GDF_TRAIN_QP_NUM][GDF_NET_LUT_IDX_INTR
 extern const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM][GDF_NET_LUT_IDX_INTER_MAX * GDF_NET_LUT_IDX_INTER_MAX * GDF_NET_LUT_IDX_INTER_MAX * GDF_TRAIN_CLS_NUM];
 
 #endif  // CONFIG_GDF
-#endif  // GDF_BLOCK_H
+#endif  // AOM_AV1_COMMON_GDF_BLOCK_H

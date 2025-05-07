@@ -3,6 +3,9 @@
 
 #if CONFIG_GDF
 
+#define GDF_TEST_STRIPE_SIZE \
+64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
+
 
 void init_gdf(AV1_COMMON *cm) {
   const int rec_height = cm->cur_frame->buf.y_height;
@@ -22,7 +25,7 @@ void init_gdf(AV1_COMMON *cm) {
   cm->gdf_info.gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.gdf_unit_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
-  cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_TGT_STRIDE_MARGIN;
+  cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
 
   for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
     cm->gdf_info.gdf_block_flags[blk_idx] = 1;
