@@ -628,7 +628,7 @@ static int read_warp_delta_param(const MACROBLOCKD *xd, int index, aom_reader *r
 #if CONFIG_WARP_PRECISION
   if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
       coded_value >= (WARP_DELTA_NUMSYMBOLS_LOW - 1)) {
-#if BYPASS_WARP_PARAM_HIGH
+#if CONFIG_BYPASS_WARP_PARAM_HIGH
     coded_value =
         7 + aom_read_literal(r, WARP_DELTA_NUMSYMBOLS_HIGH, ACCT_INFO());
 #else
@@ -700,7 +700,7 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       decoded_delta_param[index] = coded_value;
       // decode sign
       if (coded_value) {
-#if BYPASS_WARP_PARAM_SIGN
+#if CONFIG_BYPASS_WARP_PARAM_SIGN
         int sign = aom_read_bit(r, ACCT_INFO());
 #else
 

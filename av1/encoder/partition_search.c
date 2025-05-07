@@ -1232,6 +1232,10 @@ static void update_warp_delta_param_stats(int index, int coded_value,
 #endif  // CONFIG_WARP_PRECISION
 
 ) {
+#if CONFIG_BYPASS_WARP_PARAM_HIGH
+  (void)max_coded_index;
+#endif
+
   assert(2 <= index && index <= 5);
   int index_type = (index == 2 || index == 5) ? 0 : 1;
   int coded_value_low_max = (WARP_DELTA_NUMSYMBOLS_LOW - 1);
@@ -1244,7 +1248,7 @@ static void update_warp_delta_param_stats(int index, int coded_value,
              WARP_DELTA_NUMSYMBOLS_LOW);
 
 #if CONFIG_WARP_PRECISION
-#if !BYPASS_WARP_PARAM_HIGH
+#if !CONFIG_BYPASS_WARP_PARAM_HIGH
   if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
       coded_value >= coded_value_low_max) {
     update_cdf(fc->warp_delta_param_high_cdf[index_type], coded_value - 7,
@@ -1314,7 +1318,7 @@ static void update_warp_delta_stats(const AV1_COMMON *cm,
                                     counts,
 #endif  // CONFIG_ENTROPY_STATS
                                     fc, max_coded_index);
-#if !BYPASS_WARP_PARAM_SIGN
+#if !CONFIG_BYPASS_WARP_PARAM_SIGN
       // update sign context
       if (coded_value) {
         update_cdf(fc->warp_param_sign_cdf, coded_value < 0, 2);

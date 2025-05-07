@@ -688,7 +688,7 @@ static void write_warp_delta_param(const MACROBLOCKD *xd, int index,
 #if CONFIG_WARP_PRECISION
   if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
       coded_value >= coded_value_low_max) {
-#if BYPASS_WARP_PARAM_HIGH
+#if CONFIG_BYPASS_WARP_PARAM_HIGH
     aom_write_literal(w, coded_value - 7, WARP_DELTA_NUMSYMBOLS_HIGH);
 
 #else
@@ -749,7 +749,7 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            max_coded_index);
     // Code sign
     if (coded_delta_param[index]) {
-#if BYPASS_WARP_PARAM_SIGN
+#if CONFIG_BYPASS_WARP_PARAM_SIGN
       aom_write_bit(w, coded_delta_param[index] < 0);
 #else
       aom_write_symbol(w, coded_delta_param[index] < 0,
