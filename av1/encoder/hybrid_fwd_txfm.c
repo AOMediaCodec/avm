@@ -27,17 +27,7 @@ void av1_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
   int scale_bits = 3 - av1_get_tx_scale(txfm_param->tx_size);
   for (int i = 0; i < txh; i++) {
     for (int j = 0; j < txw; j++) {
-      int16_t resi_sample = src_diff[i * diff_stride + j];
-      if (resi_sample >= 0)
-        coeff[i * txw + j] = resi_sample << scale_bits;
-      else {
-        int quant_scale = 8;
-        if (scale_bits == 2)
-          quant_scale = 4;
-        else if (scale_bits == 1)
-          quant_scale = 2;
-        coeff[i * txw + j] = resi_sample * quant_scale;
-      }
+      coeff[i * txw + j] = src_diff[i * diff_stride + j] * (1 << scale_bits);
     }
   }
 }
