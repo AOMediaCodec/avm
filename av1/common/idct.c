@@ -747,7 +747,7 @@ void inv_txfm_fddt_size16_c(const int *src, int *dst, int shift, int line,
     }
   }
 }
-#endif
+#endif  // CONFIG_INTER_DDT
 
 void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
                         int skip_line, int zero_line, const int coef_min,
@@ -772,6 +772,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fdst_size4_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           inv_txfm_ddtx_size4_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
@@ -780,6 +781,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fddt_size4_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -801,6 +803,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fdst_size8_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           inv_txfm_ddtx_size8_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
@@ -809,6 +812,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fddt_size8_c(src, dst, shift, line, skip_line, zero_line,
                                 coef_min, coef_max);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -830,6 +834,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fdst_size16_c(src, dst, shift, line, skip_line, zero_line,
                                  coef_min, coef_max);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           inv_txfm_ddtx_size16_c(src, dst, shift, line, skip_line, zero_line,
                                  coef_min, coef_max);
@@ -838,6 +843,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
           inv_txfm_fddt_size16_c(src, dst, shift, line, skip_line, zero_line,
                                  coef_min, coef_max);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -914,7 +920,7 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
       tx_type_col = (tx_type_col == DST7) ? DDTX : FDDT;
     }
   }
-#endif
+#endif  // CONFIG_INTER_DDT
 
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;

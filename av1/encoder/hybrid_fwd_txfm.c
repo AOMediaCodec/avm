@@ -1160,12 +1160,14 @@ void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
         case 3:
           fwd_txfm_fdst_size4_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size4_c(src, dst, shift, line, skip_line, zero_line);
           break;
         case 5:
           fwd_txfm_fddt_size4_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -1183,12 +1185,14 @@ void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
         case 3:
           fwd_txfm_fdst_size8_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size8_c(src, dst, shift, line, skip_line, zero_line);
           break;
         case 5:
           fwd_txfm_fddt_size8_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -1206,12 +1210,14 @@ void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
         case 3:
           fwd_txfm_fdst_size16_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size16_c(src, dst, shift, line, skip_line, zero_line);
           break;
         case 5:
           fwd_txfm_fddt_size16_c(src, dst, shift, line, skip_line, zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;

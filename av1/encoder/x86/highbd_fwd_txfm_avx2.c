@@ -9138,7 +9138,7 @@ void fwd_txfm_fddt_size16_avx2(const int *src, int *dst, int shift, int line,
     }
   }
 }
-#endif
+#endif  // CONFIG_INTER_DDT
 
 void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
                            int skip_line, int zero_line,
@@ -9158,12 +9158,14 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
         case 3:
           fwd_txfm_fdst_size4_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size4_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
         case 5:
           fwd_txfm_fddt_size4_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -9181,12 +9183,14 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
         case 3:
           fwd_txfm_fdst_size8_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size8_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
         case 5:
           fwd_txfm_fddt_size8_avx2(src, dst, shift, line, skip_line, zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -9208,6 +9212,7 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
           fwd_txfm_fdst_size16_avx2(src, dst, shift, line, skip_line,
                                     zero_line);
           break;
+#if CONFIG_INTER_DDT
         case 4:
           fwd_txfm_ddtx_size16_avx2(src, dst, shift, line, skip_line,
                                     zero_line);
@@ -9216,6 +9221,7 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
           fwd_txfm_fddt_size16_avx2(src, dst, shift, line, skip_line,
                                     zero_line);
           break;
+#endif  // CONFIG_INTER_DDT
         default: assert(0); break;
       }
       break;
@@ -9289,7 +9295,7 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
       tx_type_col = (tx_type_col == DST7) ? DDTX : FDDT;
     }
   }
-#endif
+#endif  // CONFIG_INTER_DDT
 
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;
