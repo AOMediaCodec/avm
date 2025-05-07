@@ -2328,13 +2328,13 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
   int qp_idx_base = gdf_get_qp_idx_base(cm);
 
-  int64_t *rec_slice_errors;
-  int64_t *flt_slice_errors[GDF_RDO_SCALE_NUM][GDF_RDO_QP_NUM];
-  rec_slice_errors =
+  int64_t *rec_pic_error;
+  int64_t *flg_pic_error[GDF_RDO_SCALE_NUM][GDF_RDO_QP_NUM];
+  rec_pic_error =
       (int64_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t));
   for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
     for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-      flt_slice_errors[scale_idx][qp_idx] =
+      flg_pic_error[scale_idx][qp_idx] =
           (int64_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t));
     }
   }
@@ -2350,11 +2350,11 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
            v_pos += cm->gdf_info.gdf_unit_size) {
         for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
              u_pos += cm->gdf_info.gdf_unit_size) {
-          int i_min = max(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int i_max = min(v_pos + cm->gdf_info.gdf_unit_size,
+          int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                           rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int j_min = max(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int j_max = min(u_pos + cm->gdf_info.gdf_unit_size,
+          int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                           rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
 
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
@@ -2373,7 +2373,7 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
                 if (qp_idx == 0) {
                   int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
-                  rec_slice_errors[blk_idx] += tmp_err * tmp_err;
+                  rec_pic_error[blk_idx] += tmp_err * tmp_err;
                 }
 
                 for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
@@ -2388,7 +2388,7 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                   }
                   tmp_val = CLIP(tmp_val + rec_pnt[rec_loc], 0, pxl_max) -
                             org_pnt[org_loc];
-                  flt_slice_errors[scale_idx][qp_idx][blk_idx] +=
+                  flg_pic_error[scale_idx][qp_idx][blk_idx] +=
                       (int64_t)tmp_val * tmp_val;
                 }
               }
@@ -2403,7 +2403,7 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   int slice_rate = 1 << AV1_PROB_COST_SHIFT;
   int64_t slice_error = 0;
   for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
-    slice_error += rec_slice_errors[blk_idx];
+    slice_error += rec_pic_error[blk_idx];
   }
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rdmult, (double)slice_rate / 16, slice_error, bit_depth);
@@ -2426,7 +2426,7 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
         for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
           if (gdf_mode == 1) {
-            slice_error += flt_slice_errors[scale_idx][qp_idx][blk_idx];
+            slice_error += flg_pic_error[scale_idx][qp_idx][blk_idx];
           } else {
             double best_block_cost = DBL_MAX;
             int best_block_rate = 0;
@@ -2437,8 +2437,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
               int block_rate = cost_from_cdf[block_flag];
               int64_t block_error = 0;
               block_error += (block_flag == 0)
-                                 ? rec_slice_errors[blk_idx]
-                                 : flt_slice_errors[scale_idx][qp_idx][blk_idx];
+                                 ? rec_pic_error[blk_idx]
+                                 : flg_pic_error[scale_idx][qp_idx][blk_idx];
               double block_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
                   rdmult, (double)block_rate / 16, block_error, bit_depth);
               if (block_cost < best_block_cost) {
@@ -2458,8 +2458,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
         if (slice_cost < best_cost) {
           cm->gdf_info.gdf_mode = gdf_mode;
-          cm->gdf_info.gdf_slice_qp_idx = qp_idx;
-          cm->gdf_info.gdf_slice_scale_idx = scale_idx;
+          cm->gdf_info.gdf_pic_qc_idx = qp_idx;
+          cm->gdf_info.gdf_pic_scale_idx = scale_idx;
           if (gdf_mode == 2) {
             for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
               cm->gdf_info.gdf_block_flags[blk_idx] = block_flags[blk_idx];
@@ -2470,10 +2470,10 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
       }
     }
   }
-  aom_free(rec_slice_errors);
+  aom_free(rec_pic_error);
   for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
     for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-      aom_free(flt_slice_errors[scale_idx][qp_idx]);
+      aom_free(flg_pic_error[scale_idx][qp_idx]);
     }
   }
   aom_free(block_flags);

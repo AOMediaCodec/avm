@@ -8,16 +8,16 @@ void init_gdf(AV1_COMMON *cm) {
   const int rec_width = cm->cur_frame->buf.y_width;
 
   cm->gdf_info.gdf_mode = -1;
-  cm->gdf_info.gdf_slice_qp_idx = -1;
-  cm->gdf_info.gdf_slice_scale_idx = -1;
+  cm->gdf_info.gdf_pic_qc_idx = -1;
+  cm->gdf_info.gdf_pic_scale_idx = -1;
   cm->gdf_info.gdf_block_size =
-      max(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
-  cm->gdf_info.gdf_block_num_h = 1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) /
+      AOMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
+  const int gdf_block_num_h = 1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) /
                                       cm->gdf_info.gdf_block_size);
-  cm->gdf_info.gdf_block_num_w =
+  const int gdf_block_num_w =
       1 + ((rec_width - 1) / cm->gdf_info.gdf_block_size);
   cm->gdf_info.gdf_block_num =
-      cm->gdf_info.gdf_block_num_h * cm->gdf_info.gdf_block_num_w;
+      gdf_block_num_h * gdf_block_num_w;
   cm->gdf_info.gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.gdf_unit_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
@@ -38,13 +38,13 @@ void free_gdf_buffers(AV1_COMMON *cm) { aom_free(cm->gdf_info.err_ptr); }
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   printf("%s[%3d]: gdf_info = [ flag = %d ", info, poc, cm->gdf_info.gdf_mode);
   if (cm->gdf_info.gdf_mode) {
-    printf("=> (qp_idx, scale_idx) = (%3d %3d) ", cm->gdf_info.gdf_slice_qp_idx,
-           cm->gdf_info.gdf_slice_scale_idx);
+    printf("=> (qp_idx, scale_idx) = (%3d %3d) ", cm->gdf_info.gdf_pic_qc_idx,
+           cm->gdf_info.gdf_pic_scale_idx);
   }
   if (cm->gdf_info.gdf_mode > 1) {
     printf("(");
-    for (int blkIdx = 0; blkIdx < cm->gdf_info.gdf_block_num; blkIdx++) {
-      printf(" %d", cm->gdf_info.gdf_block_flags[blkIdx]);
+    for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+      printf(" %d", cm->gdf_info.gdf_block_flags[blk_idx]);
     }
     printf(")");
   }
@@ -74,7 +74,7 @@ void gdf_free_guided_frame(AV1_COMMON *cm) {
 
 int gdf_get_ref_dst_idx(AV1_COMMON *cm) {
   int ref_dst_idx;
-  int ref_dst_max = max(abs(cm->ref_frames_info.ref_frame_distance[0]),
+  int ref_dst_max = AOMMAX(abs(cm->ref_frames_info.ref_frame_distance[0]),
                         abs(cm->ref_frames_info.ref_frame_distance[1]));
   if (ref_dst_max < 2)
     ref_dst_idx = 0;
@@ -136,9 +136,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
     blk_process_fn = gdf_intra_inference_block;
     ref_dst_idx = 0;
   }
-  int qp_idx_min = gdf_get_qp_idx_base(cm) + cm->gdf_info.gdf_slice_qp_idx;
+  int qp_idx_min = gdf_get_qp_idx_base(cm) + cm->gdf_info.gdf_pic_qc_idx;
   int qp_idx_max_plus_1 = qp_idx_min + 1;
-  int scale_val = cm->gdf_info.gdf_slice_scale_idx + 1;
+  int scale_val = cm->gdf_info.gdf_pic_scale_idx + 1;
 
   int blk_idx = 0;
   for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < rec_height;
@@ -149,11 +149,11 @@ void gdf_filter_frame(AV1_COMMON *cm) {
            v_pos += cm->gdf_info.gdf_unit_size) {
         for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
              u_pos += cm->gdf_info.gdf_unit_size) {
-          int i_min = max(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int i_max = min(v_pos + cm->gdf_info.gdf_unit_size,
+          int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                           rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int j_min = max(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int j_max = min(u_pos + cm->gdf_info.gdf_unit_size,
+          int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                           rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
           if (cm->gdf_info.gdf_block_flags[blk_idx] && (i_max > i_min) &&
               (j_max > j_min)) {

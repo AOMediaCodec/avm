@@ -3737,9 +3737,9 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
     }
-    cm->gdf_info.gdf_slice_qp_idx =
+    cm->gdf_info.gdf_pic_qc_idx =
         aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2);
-    cm->gdf_info.gdf_slice_scale_idx =
+    cm->gdf_info.gdf_pic_scale_idx =
         aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
   }
 }

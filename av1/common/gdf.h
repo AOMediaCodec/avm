@@ -7,12 +7,7 @@
 
 #if CONFIG_GDF
 
-#ifndef max
-#define max(a, b) ((a) < (b) ? (b) : (a))
-#endif
-#ifndef min
-#define min(a, b) ((a) > (b) ? (b) : (a))
-#endif
+
 enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 
 #define GDF_VERBOSE 0
