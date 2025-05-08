@@ -2301,7 +2301,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 #if CONFIG_GDF
 /*!\brief Function to perform rate-distortion optimization for GDF
  */
-void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
+void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   uint16_t *org_pnt = cpi->source->y_buffer;
   const int org_stride = cpi->source->y_stride;
 
@@ -2474,10 +2474,10 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
  *        and then apply the selected GDF parameteres to filter the current
  * frame
  */
-void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
+void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   init_gdf(cm);
   alloc_gdf_buffers(cm);
-  av1_gdf_optimizer(cpi, cm);
+  gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
 #endif  //
@@ -2661,7 +2661,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
 #if CONFIG_GDF
   if (use_gdf) {
-    av1_gdf_optimize_frame(cpi, cm);
+    gdf_optimize_frame(cpi, cm);
     gdf_free_guided_frame(cm);
   }
 #endif  // CONFIG_GDF
