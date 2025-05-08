@@ -39,6 +39,7 @@
 #define GDF_TEST_LINE_BUFFER 0
 #endif
 
+#if GDF_C_CODE_ONLY
 /*!\brief Function to apply scaling factor to expected coding error
  *        and then generate the final filtered block
  */
@@ -50,6 +51,7 @@ void gdf_set_lap_and_cls_c(
                         [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
     uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
                         [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]);
+#endif  // GDF_C_CODE_ONLY
 
 extern const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2];
 extern const int gdf_guided_sample_coordinates_bwd[GDF_NET_INP_REC_NUM][2];
