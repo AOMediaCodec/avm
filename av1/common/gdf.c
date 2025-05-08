@@ -56,7 +56,7 @@ void free_gdf_buffers(AV1_COMMON *cm) {
 
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   printf("%s[%3d]: gdf_info = [ flag = %d ", info, poc, cm->gdf_info.gdf_mode);
-  if (cm->gdf_info.gdf_mode) {
+  if (cm->gdf_info.gdf_mode > 0) {
     printf("=> (qp_idx, scale_idx) = (%3d %3d) ", cm->gdf_info.gdf_pic_qc_idx,
            cm->gdf_info.gdf_pic_scale_idx);
   }
@@ -163,9 +163,10 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                           rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
-                          rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
-          if (cm->gdf_info.gdf_block_flags[blk_idx] && (i_max > i_min) &&
-              (j_max > j_min)) {
+                             rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+          if ((cm->gdf_info.gdf_mode == 1 ||
+               cm->gdf_info.gdf_block_flags[blk_idx]) &&
+              (i_max > i_min) && (j_max > j_min)) {
             for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                  qp_idx++) {
               gdf_inference_block(i_min, i_max, j_min, j_max,

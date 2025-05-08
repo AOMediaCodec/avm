@@ -3726,13 +3726,10 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   cm->gdf_info.gdf_mode = 0;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (av1_superres_scaled(cm)) return;
+  if (!is_allow_gdf(cm)) return;
   init_gdf(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
-  if (cm->gdf_info.gdf_mode) {
+  if (cm->gdf_info.gdf_mode > 0) {
     alloc_gdf_buffers(cm);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
@@ -8846,9 +8843,7 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
 
 #if CONFIG_GDF
 void av1_gdf_frame_dec(AV1_COMMON *cm) {
-  if (cm->gdf_info.gdf_mode) {
-    gdf_filter_frame(cm);
-  }
+  gdf_filter_frame(cm);
   free_gdf_buffers(cm);
 }
 #endif  // CONFIG_GDF
@@ -8973,7 +8968,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     const int do_superres = av1_superres_scaled(cm);
 #if CONFIG_GDF
-    const int do_gdf = is_allow_gdf(cm) && cm->gdf_info.gdf_mode;
+    const int do_gdf = is_gdf_enabled(cm);
 #endif  // CONFIG_GDF
     const int optimized_loop_restoration =
 #if CONFIG_GDF

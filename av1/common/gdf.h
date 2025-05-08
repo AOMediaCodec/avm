@@ -84,6 +84,9 @@ static inline int is_allow_gdf(const AV1_COMMON *cm) {
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       ;
 }
+static inline int is_gdf_enabled(const AV1_COMMON *cm) {
+  return is_allow_gdf(cm) && cm->gdf_info.gdf_mode > 0;
+}
 
 #endif  // CONFIG_GDF
 

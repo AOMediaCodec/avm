@@ -2480,7 +2480,7 @@ void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
 #endif  //
-  if (cm->gdf_info.gdf_mode) {
+  if (is_gdf_enabled(cm)) {
     gdf_filter_frame(cm);
   }
   free_gdf_buffers(cm);
