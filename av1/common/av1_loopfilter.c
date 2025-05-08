@@ -1387,7 +1387,12 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 // Apply loop filtering on TIP plane
 AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                                       uint16_t *dst, const int dst_stride,
-                                      const int bw, const int bh) {
+#if CONFIG_IMPROVE_TIP_LF
+                                      const int plane_w, const int plane_h
+#else
+                                      const int bw, const int bh
+#endif  // CONFIG_IMPROVE_TIP_LF
+) {
   // retrieve filter parameters
   loop_filter_info_n *const lfi = &cm->lf_info;
   const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
@@ -1407,35 +1412,68 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   int filter_length_vert = sub_bw;
   int filter_length_horz = sub_bh;
 
-  // start filtering
+// start filtering
+#if CONFIG_IMPROVE_TIP_LF
+  const int h = plane_h - sub_bh;
+  const int w = plane_w - sub_bw;
+#else
   const int h = bh - sub_bh;
   const int w = bw - sub_bw;
   const int rw = bw - (bw % sub_bw);
+#endif  // CONFIG_IMPROVE_TIP_LF
   for (int j = 0; j <= h; j += sub_bh) {
+#if CONFIG_IMPROVE_TIP_LF
+    uint16_t *p = dst + j * dst_stride;
+#endif  // CONFIG_IMPROVE_TIP_LF
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
+        aom_highbd_lpf_vertical_generic_c(
+#if CONFIG_IMPROVE_TIP_LF
+            p
+#else
+            dst
+#endif  // CONFIG_IMPROVE_TIP_LF
+            ,
+            dst_stride, filter_length_vert,
 #if CONFIG_ASYM_DF
-                                          filter_length_vert,
+            filter_length_vert,
 #endif
-                                          &q_vert, &side_vert, bit_depth,
-                                          sub_bh);
+            &q_vert, &side_vert, bit_depth, sub_bh);
       }
-      // filter horizontal boundary
+#if CONFIG_IMPROVE_TIP_LF
+      p += sub_bw;
+    }
+  }
 
+  for (int i = 0; i <= w; i += sub_bw) {
+    uint16_t *p = dst + i;
+    for (int j = 0; j <= h; j += sub_bh) {
+#endif  // CONFIG_IMPROVE_TIP_LF
+      // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
+        aom_highbd_lpf_horizontal_generic_c(
+#if CONFIG_IMPROVE_TIP_LF
+            p
+#else
+            dst
+#endif  // CONFIG_IMPROVE_TIP_LF
+            ,
+            dst_stride, filter_length_horz,
 #if CONFIG_ASYM_DF
-                                            filter_length_horz,
+            filter_length_horz,
 #endif
-                                            &q_horz, &side_horz, bit_depth,
-                                            sub_bw);
+            &q_horz, &side_horz, bit_depth, sub_bw);
       }
+#if CONFIG_IMPROVE_TIP_LF
+      p += sub_bh * dst_stride;
+    }
+#else
       dst += sub_bw;
     }
     dst -= rw;
     dst += sub_bh * dst_stride;
+#endif  // CONFIG_IMPROVE_TIP_LF
   }
 }
 
