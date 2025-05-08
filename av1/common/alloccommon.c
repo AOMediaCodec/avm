@@ -309,7 +309,12 @@ static int alloc_mi(CommonModeInfoParams *mi_params, AV1_COMMON *cm
   } else {
     // Set only the strides corresponding to the current frame dims
     av1_set_txk_skip_array_stride(mi_params, cm);
-    av1_set_class_id_array_stride(mi_params, cm);
+    av1_set_class_id_array_stride(mi_params, cm
+#if !CONFIG_ENABLE_SR
+                                  ,
+                                  height
+#endif  // !CONFIG_ENABLE_SR
+    );
   }
 
   return 0;

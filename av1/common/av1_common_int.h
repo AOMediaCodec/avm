@@ -2107,7 +2107,12 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
 #endif  // !CONFIG_ENABLE_SR
 );
 void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
-                                   AV1_COMMON *cm);
+                                   AV1_COMMON *cm
+#if !CONFIG_ENABLE_SR
+                                   ,
+                                   int height
+#endif  // !CONFIG_ENABLE_SR
+);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
