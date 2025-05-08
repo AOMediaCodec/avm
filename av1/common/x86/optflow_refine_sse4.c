@@ -375,10 +375,9 @@ static AOM_FORCE_INLINE void down_sample(
 }
 #endif  // OPFL_DOWNSAMP_QUINCUNX
 
-void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
-                     int64_t svw, const int d0, const int d1, const int bits,
-                     const int rls_alpha, int *vx0, int *vy0, int *vx1,
-                     int *vy1) {
+void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
+                     const int d1, const int bits, const int rls_alpha,
+                     int *vx0, int *vy0, int *vx1, int *vy1) {
 #if OPFL_REGULARIZED_LS
   su2 += rls_alpha;
   sv2 += rls_alpha;
@@ -389,11 +388,11 @@ void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
   int shifts[2] = { bits, bits };
-  int msb_su2 = 1 + get_msb_signed_64(su2);
-  int msb_sv2 = 1 + get_msb_signed_64(sv2);
-  int msb_suv = 1 + get_msb_signed_64(suv);
-  int msb_suw = 1 + get_msb_signed_64(suw);
-  int msb_svw = 1 + get_msb_signed_64(svw);
+  int msb_su2 = 1 + get_msb_signed(su2);
+  int msb_sv2 = 1 + get_msb_signed(sv2);
+  int msb_suv = 1 + get_msb_signed(suv);
+  int msb_suw = 1 + get_msb_signed(suw);
+  int msb_svw = 1 + get_msb_signed(svw);
   // Make sure the max bit depth of det, sol[0], and sol[1] are within
   // MAX_LS_BITS
   int max_mult_msb = AOMMAX(
@@ -401,12 +400,12 @@ void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
                                 AOMMAX(msb_su2 + msb_svw, msb_suv + msb_suw)));
   int redbit = AOMMAX(0, max_mult_msb - MAX_LS_BITS + 3) >> 1;
 
-  su2 = ROUND_POWER_OF_TWO_SIGNED_64(su2, redbit);
-  sv2 = ROUND_POWER_OF_TWO_SIGNED_64(sv2, redbit);
-  suv = ROUND_POWER_OF_TWO_SIGNED_64(suv, redbit);
-  suw = ROUND_POWER_OF_TWO_SIGNED_64(suw, redbit);
-  svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, redbit);
-  const int64_t det = su2 * sv2 - suv * suv;
+  su2 = ROUND_POWER_OF_TWO_SIGNED(su2, redbit);
+  sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, redbit);
+  suv = ROUND_POWER_OF_TWO_SIGNED(suv, redbit);
+  suw = ROUND_POWER_OF_TWO_SIGNED(suw, redbit);
+  svw = ROUND_POWER_OF_TWO_SIGNED(svw, redbit);
+  const int64_t det = (int64_t)su2 * sv2 - suv * suv;
   if (det <= 0) {
     *vx0 = 0;
     *vy0 = 0;
@@ -415,7 +414,8 @@ void calc_mv_process(int64_t su2, int64_t sv2, int64_t suv, int64_t suw,
     return;
   }
 
-  int64_t sol[2] = { sv2 * suw - suv * svw, su2 * svw - suv * suw };
+  int64_t sol[2] = { (int64_t)sv2 * suw - suv * svw,
+                     (int64_t)su2 * svw - suv * suw };
 
   divide_and_round_array(sol, det, 2, shifts);
   *vx0 = (int)-sol[0];
@@ -453,16 +453,16 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   const int rls_alpha = OPFL_RLS_PARAM;
   __m128i u2_lo, v2_lo, uv_lo, uw_lo, vw_lo;
   __m128i u2_hi, v2_hi, uv_hi, uw_hi, vw_hi;
-  int64_t su2_hi = 0;
-  int64_t sv2_hi = 0;
-  int64_t suv_hi = 0;
-  int64_t suw_hi = 0;
-  int64_t svw_hi = 0;
-  int64_t su2_lo = 0;
-  int64_t sv2_lo = 0;
-  int64_t suv_lo = 0;
-  int64_t suw_lo = 0;
-  int64_t svw_lo = 0;
+  int su2_hi = 0;
+  int sv2_hi = 0;
+  int suv_hi = 0;
+  int suw_hi = 0;
+  int svw_hi = 0;
+  int su2_lo = 0;
+  int sv2_lo = 0;
+  int suv_lo = 0;
+  int suw_lo = 0;
+  int svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
@@ -538,46 +538,46 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
 #endif
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_lo, _mm_srli_si128(u2_lo, 8)));
-    su2_lo += temp;
+    su2_lo += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2_lo, _mm_srli_si128(v2_lo, 8)));
-    sv2_lo += temp;
+    sv2_lo += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv_lo, _mm_srli_si128(uv_lo, 8)));
-    suv_lo += temp;
+    suv_lo += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw_lo, _mm_srli_si128(uw_lo, 8)));
-    suw_lo += temp;
+    suw_lo += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_lo, _mm_srli_si128(vw_lo, 8)));
-    svw_lo += temp;
+    svw_lo += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_hi, _mm_srli_si128(u2_hi, 8)));
-    su2_hi += temp;
+    su2_hi += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2_hi, _mm_srli_si128(v2_hi, 8)));
-    sv2_hi += temp;
+    sv2_hi += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv_hi, _mm_srli_si128(uv_hi, 8)));
-    suv_hi += temp;
+    suv_hi += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw_hi, _mm_srli_si128(uw_hi, 8)));
-    suw_hi += temp;
+    suw_hi += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8)));
-    svw_hi += temp;
+    svw_hi += (int)temp;
     // Do a range check and add a downshift if range is getting close to the bit
     // depth cap.
     if (bHeight % 2 == 0) {
-      if (get_msb_signed_64(AOMMAX(AOMMAX(su2_lo, sv2_lo),
-                                   AOMMAX(llabs(suw_lo), llabs(svw_lo)))) >=
+      if (get_msb_signed(AOMMAX(AOMMAX(su2_lo, sv2_lo),
+                                AOMMAX(abs(suw_lo), abs(svw_lo)))) >=
           MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2_lo = ROUND_POWER_OF_TWO_SIGNED_64(su2_lo, 1);
-        sv2_lo = ROUND_POWER_OF_TWO_SIGNED_64(sv2_lo, 1);
-        suv_lo = ROUND_POWER_OF_TWO_SIGNED_64(suv_lo, 1);
-        suw_lo = ROUND_POWER_OF_TWO_SIGNED_64(suw_lo, 1);
-        svw_lo = ROUND_POWER_OF_TWO_SIGNED_64(svw_lo, 1);
+        su2_lo = ROUND_POWER_OF_TWO_SIGNED(su2_lo, 1);
+        sv2_lo = ROUND_POWER_OF_TWO_SIGNED(sv2_lo, 1);
+        suv_lo = ROUND_POWER_OF_TWO_SIGNED(suv_lo, 1);
+        suw_lo = ROUND_POWER_OF_TWO_SIGNED(suw_lo, 1);
+        svw_lo = ROUND_POWER_OF_TWO_SIGNED(svw_lo, 1);
         grad_bits_lo++;
       }
-      if (get_msb_signed_64(AOMMAX(AOMMAX(su2_hi, sv2_hi),
-                                   AOMMAX(llabs(suw_hi), llabs(svw_hi)))) >=
+      if (get_msb_signed(AOMMAX(AOMMAX(su2_hi, sv2_hi),
+                                AOMMAX(abs(suw_hi), abs(svw_hi)))) >=
           MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2_hi = ROUND_POWER_OF_TWO_SIGNED_64(su2_hi, 1);
-        sv2_hi = ROUND_POWER_OF_TWO_SIGNED_64(sv2_hi, 1);
-        suv_hi = ROUND_POWER_OF_TWO_SIGNED_64(suv_hi, 1);
-        suw_hi = ROUND_POWER_OF_TWO_SIGNED_64(suw_hi, 1);
-        svw_hi = ROUND_POWER_OF_TWO_SIGNED_64(svw_hi, 1);
+        su2_hi = ROUND_POWER_OF_TWO_SIGNED(su2_hi, 1);
+        sv2_hi = ROUND_POWER_OF_TWO_SIGNED(sv2_hi, 1);
+        suv_hi = ROUND_POWER_OF_TWO_SIGNED(suv_hi, 1);
+        suw_hi = ROUND_POWER_OF_TWO_SIGNED(suw_hi, 1);
+        svw_hi = ROUND_POWER_OF_TWO_SIGNED(svw_hi, 1);
         grad_bits_hi++;
       }
     }
@@ -599,11 +599,11 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   const int rls_alpha = 4 * OPFL_RLS_PARAM;
   const int bits = mv_prec_bits + grad_prec_bits;
   __m128i u2, v2, uv, uw, vw;
-  int64_t su2 = 0;
-  int64_t sv2 = 0;
-  int64_t suv = 0;
-  int64_t suw = 0;
-  int64_t svw = 0;
+  int su2 = 0;
+  int sv2 = 0;
+  int suv = 0;
+  int suw = 0;
+  int svw = 0;
   int grad_bits = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
@@ -687,25 +687,24 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
 #endif
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2, _mm_srli_si128(u2, 8)));
-    su2 += temp;
+    su2 += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2, _mm_srli_si128(v2, 8)));
-    sv2 += temp;
+    sv2 += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv, _mm_srli_si128(uv, 8)));
-    suv += temp;
+    suv += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw, _mm_srli_si128(uw, 8)));
-    suw += temp;
+    suw += (int)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw, _mm_srli_si128(vw, 8)));
-    svw += temp;
+    svw += (int)temp;
     // For every 8 pixels, do a range check and add a downshift if range is
     // getting close to the max allowed bit depth
-    if (get_msb_signed_64(
-            AOMMAX(AOMMAX(su2, sv2), AOMMAX(llabs(suw), llabs(svw)))) >=
+    if (get_msb_signed(AOMMAX(AOMMAX(su2, sv2), AOMMAX(abs(suw), abs(svw)))) >=
         MAX_OPFL_AUTOCORR_BITS - 2) {
-      su2 = ROUND_POWER_OF_TWO_SIGNED_64(su2, 1);
-      sv2 = ROUND_POWER_OF_TWO_SIGNED_64(sv2, 1);
-      suv = ROUND_POWER_OF_TWO_SIGNED_64(suv, 1);
-      suw = ROUND_POWER_OF_TWO_SIGNED_64(suw, 1);
-      svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, 1);
+      su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);
+      sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, 1);
+      suv = ROUND_POWER_OF_TWO_SIGNED(suv, 1);
+      suw = ROUND_POWER_OF_TWO_SIGNED(suw, 1);
+      svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);
       grad_bits++;
     }
   } while (bHeight != 0);

@@ -1505,9 +1505,8 @@ void get_vec_bit_ranges(const int64_t *vec, int *bits_max, const int dim) {
 
 #define MAX_LS_DIM 4
 // Swap two rows for Gaussian elimination routine
-void swap_rows(int64_t *mat, int64_t *sol, const int i, const int j,
-               const int dim) {
-  int64_t temp = sol[i];
+void swap_rows(int *mat, int *sol, const int i, const int j, const int dim) {
+  int temp = sol[i];
   sol[i] = sol[j];
   sol[j] = temp;
   for (int col = 0; col < dim; col++) {
@@ -1522,8 +1521,7 @@ void swap_rows(int64_t *mat, int64_t *sol, const int i, const int j,
 #define GE_MULT_PREC_BITS 12
 
 // Perform Gaussian elimination routine to solve a matrix inverse problem
-int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
-                         const int dim) {
+int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
   int shifts[MAX_LS_DIM] = { 0 };
   int16_t inv_pivot[MAX_LS_DIM] = { 0 };
   int16_t inv_pivot_shift[MAX_LS_DIM] = { 0 };
@@ -1552,9 +1550,9 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
   int mat_diag_bits[MAX_LS_DIM] = { 0 };
   int sol_bits[MAX_LS_DIM] = { 0 };
   for (int i = 0; i < dim; i++) {
-    mat_diag_bits[i] = 1 + get_msb_signed_64(mat[i * dim + i]);
+    mat_diag_bits[i] = 1 + get_msb_signed(mat[i * dim + i]);
     min_diag_msb = AOMMIN(min_diag_msb, mat_diag_bits[i]);
-    sol_bits[i] = 1 + get_msb_signed_64(sol[i]);
+    sol_bits[i] = 1 + get_msb_signed(sol[i]);
   }
   for (int i = 0; i < dim; i++) {
     shifts[i] =
@@ -1570,23 +1568,23 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
       assert(a_extra_shift < 64);
       mat[i * dim + j] =
           abits >= 0 ? (mat[i * dim + j] * (1 << abits))
-                     : ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], -abits);
+                     : ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], -abits);
     }
     int bbits = shifts[i] + a_extra_shift + b_extra_shift;
     sol[i] = bbits >= 0 ? (sol[i] * (1 << bbits))
-                        : ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -bbits);
+                        : ROUND_POWER_OF_TWO_SIGNED(sol[i], -bbits);
     precbits[i] = precbits[i] - b_extra_shift + shifts[i];
   }
 
   // Elimination for the i-th column
-  int64_t diff = 0;
+  int diff = 0;
   for (int i = 0; i < dim; i++) {
-    int64_t pivot = mat[i * dim + i];
+    int pivot = mat[i * dim + i];
     int idx_pivot = i;
 
     for (int j = i + 1; j < dim; j++) {
-      int64_t new_pivot = mat[j * dim + i];
-      if (llabs(new_pivot) > llabs(pivot)) {
+      int new_pivot = mat[j * dim + i];
+      if (abs(new_pivot) > abs(pivot)) {
         idx_pivot = j;
         pivot = new_pivot;
       }
@@ -1598,32 +1596,33 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
     // Put the row with the pivot first, and get inverse of the pivot
     if (i != idx_pivot) swap_rows(mat, sol, i, idx_pivot, dim);
     inv_pivot[i] = (pivot > 0 ? 1 : -1) *
-                   resolve_divisor_64(llabs(pivot), inv_pivot_shift + i);
+                   resolve_divisor_32(abs(pivot), inv_pivot_shift + i);
 
     for (int k = i + 1; k < dim; k++) {
       // Compute Akj = Akj - Aki * Aij / Aii, while keeping all intermediate
       // result within K bits
-      int msb_ki = get_msb_signed_64(mat[k * dim + i]);
+      int msb_ki = get_msb_signed(mat[k * dim + i]);
       int msb_invpiv = get_msb_signed(inv_pivot[i]);
       // Apply an upshift first if intermediate results will be close to zero.
       int inc_bits = AOMMAX(
           0, GE_MULT_PREC_BITS - msb_ki - msb_invpiv + inv_pivot_shift[i]);
       int fshift = inc_bits;
-      int64_t f = stable_mult_shift(mat[k * dim + i], (int64_t)inv_pivot[i],
-                                    inv_pivot_shift[i] - inc_bits, msb_ki,
-                                    msb_invpiv, MAX_LS_BITS, &fshift);
-      int msb_f = get_msb_signed_64(f);
+      int f = (int)stable_mult_shift((int64_t)mat[k * dim + i],
+                                     (int64_t)inv_pivot[i],
+                                     inv_pivot_shift[i] - inc_bits, msb_ki,
+                                     msb_invpiv, MAX_LS_BITS, &fshift);
+      int msb_f = get_msb_signed(f);
       mat[k * dim + i] = 0;
 
       for (int j = i + 1; j < dim; j++) {
-        int msb_ij = get_msb_signed_64(mat[i * dim + j]);
-        diff = stable_mult_shift(mat[i * dim + j], f, fshift, msb_ij, msb_f,
-                                 MAX_LS_BITS, NULL);
+        int msb_ij = get_msb_signed(mat[i * dim + j]);
+        diff = (int)stable_mult_shift((int64_t)mat[i * dim + j], (int64_t)f,
+                                      fshift, msb_ij, msb_f, MAX_LS_BITS, NULL);
         mat[k * dim + j] -= diff;
       }
-      int msb_sol = get_msb_signed_64(sol[i]);
-      diff = stable_mult_shift(sol[i], f, fshift, msb_sol, msb_f, MAX_LS_BITS,
-                               NULL);
+      int msb_sol = get_msb_signed(sol[i]);
+      diff = (int)stable_mult_shift((int64_t)sol[i], (int64_t)f, fshift,
+                                    msb_sol, msb_f, MAX_LS_BITS, NULL);
       sol[k] -= diff;
     }
   }
@@ -1635,32 +1634,33 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
     int max_mult_bits = 0;
     for (int j = i + 1; j < dim; j++)
       max_mult_bits =
-          AOMMAX(max_mult_bits, 2 + get_msb_signed_64(mat[i * dim + j]) +
-                                    get_msb_signed_64(sol[j]));
+          AOMMAX(max_mult_bits,
+                 2 + get_msb_signed(mat[i * dim + j]) + get_msb_signed(sol[j]));
     int redbit = AOMMAX(0, max_mult_bits - MAX_LS_BITS + 3);
-    sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], redbit);
+    sol[i] = ROUND_POWER_OF_TWO_SIGNED(sol[i], redbit);
     for (int j = i + 1; j < dim; j++) {
-      diff = ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], redbit) * sol[j];
+      diff = ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], redbit) * sol[j];
       sol[i] = sol[i] - diff;
     }
-    sol[i] = stable_mult_shift(sol[i], (int64_t)inv_pivot[i],
-                               inv_pivot_shift[i] - redbit,
-                               get_msb_signed_64(sol[i]),
-                               get_msb_signed(inv_pivot[i]), MAX_LS_BITS, NULL);
+    sol[i] = (int)stable_mult_shift(
+        (int64_t)sol[i], (int64_t)inv_pivot[i], inv_pivot_shift[i] - redbit,
+        get_msb_signed(sol[i]), get_msb_signed(inv_pivot[i]), MAX_LS_BITS,
+        NULL);
   }
 
   // Apply remaining downscaling
   for (int i = 0; i < dim; i++)
-    sol[i] = precbits[i] >= 0
-                 ? (sol[i] * (1 << precbits[i]))
-                 : ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -precbits[i]);
+    sol[i] = precbits[i] >= 0 ? (sol[i] * (1 << precbits[i]))
+                              : ROUND_POWER_OF_TWO_SIGNED(sol[i], -precbits[i]);
 
   return 1;
 }
 
 // Solve a 4-dimensional matrix inverse
-int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol) {
-  memcpy(sol, vec, 4 * sizeof(int64_t));
+int solver_4d(const int *mat_a, const int *vec_b, int *precbits, int *sol) {
+  int mat[16] = { 0 };
+  memcpy(mat, mat_a, 16 * sizeof(int));
+  memcpy(sol, vec_b, 4 * sizeof(int));
   int ret = gaussian_elimination(mat, sol, precbits, 4);
   return ret;
 }
@@ -2099,7 +2099,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #if CONFIG_AFFINE_REFINEMENT_SB
                                               int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                              int64_t *mat_a, int64_t *vec_b) {
+                                              int *mat_a, int *vec_b) {
   int x_range_log2 = get_msb(bw);
   int y_range_log2 = get_msb(bh);
   int step_h = AOMMAX(1, bh >> AFFINE_AVG_MAX_SIZE_LOG2);
@@ -2148,28 +2148,25 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
                           AFFINE_SAMP_CLAMP_VAL);
       for (int s = 0; s < 4; ++s) {
         for (int t = 0; t <= s; ++t) {
-          mat_a[s * 4 + t] += ROUND_POWER_OF_TWO_SIGNED_64(
-              (int64_t)a[s] * (int64_t)a[t], grad_bits);
+          mat_a[s * 4 + t] += ROUND_POWER_OF_TWO_SIGNED(a[s] * a[t], grad_bits);
         }
-        vec_b[s] +=
-            ROUND_POWER_OF_TWO_SIGNED_64((int64_t)a[s] * (int64_t)d, grad_bits);
+        vec_b[s] += ROUND_POWER_OF_TWO_SIGNED(a[s] * d, grad_bits);
       }
     }
     // Do a range check and add a downshift if range is getting close to the bit
     // depth cap. This check is done for every 16 pixels so it can be easily
     // replicated in the SIMD version.
     if (bw >= 16 || i % 2 == 1) {
-      int64_t max_autocorr =
+      int max_autocorr =
           AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
-      int64_t max_xcorr = AOMMAX(AOMMAX(llabs(vec_b[0]), llabs(vec_b[1])),
-                                 AOMMAX(llabs(vec_b[2]), llabs(vec_b[3])));
-      if (get_msb_signed_64(AOMMAX(max_autocorr, max_xcorr)) >=
+      int max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
+                             AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
+      if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_AFFINE_AUTOCORR_BITS - 2) {
         for (int s = 0; s < 4; ++s) {
           for (int t = 0; t <= s; ++t)
-            mat_a[s * 4 + t] =
-                ROUND_POWER_OF_TWO_SIGNED_64(mat_a[s * 4 + t], 1);
-          vec_b[s] = ROUND_POWER_OF_TWO_SIGNED_64(vec_b[s], 1);
+            mat_a[s * 4 + t] = ROUND_POWER_OF_TWO_SIGNED(mat_a[s * 4 + t], 1);
+          vec_b[s] = ROUND_POWER_OF_TWO_SIGNED(vec_b[s], 1);
         }
         grad_bits++;
       }
@@ -2195,10 +2192,9 @@ int av1_opfl_affine_refinement(const int16_t *pdiff, int pstride,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
                                int grad_prec_bits,
                                AffineModelParams *am_params) {
-
-  int64_t mat_a[16] = { 0 };
-  int64_t vec_b[4] = { 0 };
-  int64_t vec_x[4];
+  int mat_a[16] = { 0 };
+  int vec_b[4] = { 0 };
+  int vec_x[4];
 #if !OPFL_DOWNSAMP_QUINCUNX
   av1_calc_affine_autocorrelation_matrix(pdiff, pstride, gx, gy, gstride, bw,
                                          bh,
@@ -2250,12 +2246,11 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
                             int bw, int bh, int d0, int d1, int grad_prec_bits,
                             int mv_prec_bits, int *vx0, int *vy0, int *vx1,
                             int *vy1) {
-  assert(IMPLIES(OPFL_DIST_RATIO_THR == 1, d0 + d1 == 0));
-  int64_t su2 = 0;
-  int64_t suv = 0;
-  int64_t sv2 = 0;
-  int64_t suw = 0;
-  int64_t svw = 0;
+  int su2 = 0;
+  int suv = 0;
+  int sv2 = 0;
+  int suw = 0;
+  int svw = 0;
   int grad_bits = 0;
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
@@ -2268,26 +2263,26 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
           clamp(gy[i * gstride + j], -OPFL_SAMP_CLAMP_VAL, OPFL_SAMP_CLAMP_VAL);
       const int w = clamp(pdiff[i * pstride + j], -OPFL_SAMP_CLAMP_VAL,
                           OPFL_SAMP_CLAMP_VAL);
-      su2 += ROUND_POWER_OF_TWO_SIGNED_64(u * u, grad_bits);
-      suv += ROUND_POWER_OF_TWO_SIGNED_64(u * v, grad_bits);
-      sv2 += ROUND_POWER_OF_TWO_SIGNED_64(v * v, grad_bits);
-      suw += ROUND_POWER_OF_TWO_SIGNED_64(u * w, grad_bits);
-      svw += ROUND_POWER_OF_TWO_SIGNED_64(v * w, grad_bits);
+      su2 += ROUND_POWER_OF_TWO_SIGNED(u * u, grad_bits);
+      suv += ROUND_POWER_OF_TWO_SIGNED(u * v, grad_bits);
+      sv2 += ROUND_POWER_OF_TWO_SIGNED(v * v, grad_bits);
+      suw += ROUND_POWER_OF_TWO_SIGNED(u * w, grad_bits);
+      svw += ROUND_POWER_OF_TWO_SIGNED(v * w, grad_bits);
     }
     // For every 8 pixels, do a range check and add a downshift if range is
     // getting close to the max allowed bit depth
     if (bw >= 8 || i % 2 == 1) {
       // Do a range check and add a downshift if range is getting close to the
       // bit depth cap
-      int64_t max_autocorr = AOMMAX(su2, sv2);
-      int64_t max_xcorr = AOMMAX(llabs(suw), llabs(svw));
-      if (get_msb_signed_64(AOMMAX(max_autocorr, max_xcorr)) >=
+      int max_autocorr = AOMMAX(su2, sv2);
+      int max_xcorr = AOMMAX(abs(suw), abs(svw));
+      if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2 = ROUND_POWER_OF_TWO_SIGNED_64(su2, 1);
-        suv = ROUND_POWER_OF_TWO_SIGNED_64(suv, 1);
-        sv2 = ROUND_POWER_OF_TWO_SIGNED_64(sv2, 1);
-        suw = ROUND_POWER_OF_TWO_SIGNED_64(suw, 1);
-        svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, 1);
+        su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);
+        suv = ROUND_POWER_OF_TWO_SIGNED(suv, 1);
+        sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, 1);
+        suw = ROUND_POWER_OF_TWO_SIGNED(suw, 1);
+        svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);
         grad_bits++;
       }
     }
@@ -2302,11 +2297,11 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
   int shifts[2] = { bits, bits };
-  int msb_su2 = 1 + get_msb_signed_64(su2);
-  int msb_sv2 = 1 + get_msb_signed_64(sv2);
-  int msb_suv = 1 + get_msb_signed_64(suv);
-  int msb_suw = 1 + get_msb_signed_64(suw);
-  int msb_svw = 1 + get_msb_signed_64(svw);
+  int msb_su2 = 1 + get_msb_signed(su2);
+  int msb_sv2 = 1 + get_msb_signed(sv2);
+  int msb_suv = 1 + get_msb_signed(suv);
+  int msb_suw = 1 + get_msb_signed(suw);
+  int msb_svw = 1 + get_msb_signed(svw);
   // Make sure the max bit depth of det, sol[0], and sol[1] are within
   // MAX_LS_BITS
   int max_mult_msb = AOMMAX(
@@ -2314,12 +2309,12 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
                                 AOMMAX(msb_su2 + msb_svw, msb_suv + msb_suw)));
   int redbit = AOMMAX(0, max_mult_msb - MAX_LS_BITS + 3) >> 1;
 
-  su2 = ROUND_POWER_OF_TWO_SIGNED_64(su2, redbit);
-  sv2 = ROUND_POWER_OF_TWO_SIGNED_64(sv2, redbit);
-  suv = ROUND_POWER_OF_TWO_SIGNED_64(suv, redbit);
-  suw = ROUND_POWER_OF_TWO_SIGNED_64(suw, redbit);
-  svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, redbit);
-  const int64_t det = su2 * sv2 - suv * suv;
+  su2 = ROUND_POWER_OF_TWO_SIGNED(su2, redbit);
+  sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, redbit);
+  suv = ROUND_POWER_OF_TWO_SIGNED(suv, redbit);
+  suw = ROUND_POWER_OF_TWO_SIGNED(suw, redbit);
+  svw = ROUND_POWER_OF_TWO_SIGNED(svw, redbit);
+  const int64_t det = (int64_t)su2 * sv2 - suv * suv;
   if (det <= 0) {
     *vx0 = 0;
     *vy0 = 0;
@@ -2328,7 +2323,8 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
     return;
   }
 
-  int64_t sol[2] = { sv2 * suw - suv * svw, su2 * svw - suv * suw };
+  int64_t sol[2] = { (int64_t)sv2 * suw - suv * svw,
+                     (int64_t)su2 * svw - suv * suw };
 
   divide_and_round_array(sol, det, 2, shifts);
   *vx0 = (int)-sol[0];

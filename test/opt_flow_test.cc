@@ -863,13 +863,15 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
 #if CONFIG_AFFINE_REFINEMENT
-typedef void (*calc_affine_autocorrelation_matrix)(
-    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
-    int gstride, int bw, int bh,
+typedef void (*calc_affine_autocorrelation_matrix)(const int16_t *pdiff,
+                                                   int pstride,
+                                                   const int16_t *gx,
+                                                   const int16_t *gy,
+                                                   int gstride, int bw, int bh,
 #if CONFIG_AFFINE_REFINEMENT_SB
-    int x_offset, int y_offset,
+                                                   int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-    int64_t *mat_a, int64_t *vec_b);
+                                                   int *mat_a, int *vec_b);
 
 class AV1CalcAffineAutocorrelationMatrixTest
     : public AV1OptFlowTest<calc_affine_autocorrelation_matrix> {
@@ -942,10 +944,10 @@ class AV1CalcAffineAutocorrelationMatrixTest
                                    const int16_t *pdiff, int pstride,
                                    const int16_t *gx, const int16_t *gy,
                                    int gstride, int bw, int bh) {
-    DECLARE_ALIGNED(32, int64_t, mat_ref[16]);
-    DECLARE_ALIGNED(32, int64_t, mat_test[16]);
-    DECLARE_ALIGNED(32, int64_t, vec_ref[4]);
-    DECLARE_ALIGNED(32, int64_t, vec_test[4]);
+    DECLARE_ALIGNED(32, int, mat_ref[16]);
+    DECLARE_ALIGNED(32, int, mat_test[16]);
+    DECLARE_ALIGNED(32, int, vec_ref[4]);
+    DECLARE_ALIGNED(32, int, vec_test[4]);
     memset(mat_ref, 0, sizeof(mat_ref));
     memset(mat_test, 0, sizeof(mat_test));
     memset(vec_ref, 0, sizeof(vec_ref));
@@ -965,8 +967,7 @@ class AV1CalcAffineAutocorrelationMatrixTest
     for (int i = 0; i < 16; ++i) {
       if (mat_ref[i] != mat_test[i]) {
         failed = 1;
-        printf("Mat [%4d] ref %6" PRId64 " test %6" PRId64 " \n", i, mat_ref[i],
-               mat_test[i]);
+        printf("Mat [%4d] ref %d test %d \n", i, mat_ref[i], mat_test[i]);
         break;
       }
     }
@@ -974,8 +975,7 @@ class AV1CalcAffineAutocorrelationMatrixTest
     for (int i = 0; i < 4; ++i) {
       if (vec_ref[i] != vec_test[i]) {
         failed = 1;
-        printf("Vec [%4d] ref %6" PRId64 " test %6" PRId64 " \n", i, vec_ref[i],
-               vec_test[i]);
+        printf("Vec [%4d] ref %d test %d \n", i, vec_ref[i], vec_test[i]);
         break;
       }
     }
@@ -987,10 +987,10 @@ class AV1CalcAffineAutocorrelationMatrixTest
       calc_affine_autocorrelation_matrix test_func, const int16_t *pdiff,
       int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw,
       int bh) {
-    DECLARE_ALIGNED(32, int64_t, mat_ref[16]);
-    DECLARE_ALIGNED(32, int64_t, mat_test[16]);
-    DECLARE_ALIGNED(32, int64_t, vec_ref[4]);
-    DECLARE_ALIGNED(32, int64_t, vec_test[4]);
+    DECLARE_ALIGNED(32, int, mat_ref[16]);
+    DECLARE_ALIGNED(32, int, mat_test[16]);
+    DECLARE_ALIGNED(32, int, vec_ref[4]);
+    DECLARE_ALIGNED(32, int, vec_test[4]);
     memset(mat_ref, 0, sizeof(mat_ref));
     memset(mat_test, 0, sizeof(mat_test));
     memset(vec_ref, 0, sizeof(vec_ref));
