@@ -812,7 +812,7 @@ int av1_get_refresh_frame_flags(
     }
   } else {
     free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                           cpi->common.seq_params.ref_frames););
+                                           cpi->common.seq_params.ref_frames);
   }
 #else
   // Search for the open slot to store the current frame.

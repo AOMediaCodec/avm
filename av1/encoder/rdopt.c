@@ -11703,20 +11703,20 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                 ref_frames, &sf_args))
               continue;
 #if CONFIG_BRU
-          assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
-          // write this to a function
-          if (cm->bru.enabled) {
-            if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
-              if (ref_frame != INVALID_IDX &&
-                  cm->bru.update_ref_idx == ref_frame) {
-                continue;
-              }
-              if (comp_pred && second_ref_frame != INVALID_IDX &&
-                  cm->bru.update_ref_idx == second_ref_frame) {
-                continue;
+            assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
+            // write this to a function
+            if (cm->bru.enabled) {
+              if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
+                if (ref_frame != INVALID_IDX &&
+                    cm->bru.update_ref_idx == ref_frame) {
+                  continue;
+                }
+                if (comp_pred && second_ref_frame != INVALID_IDX &&
+                    cm->bru.update_ref_idx == second_ref_frame) {
+                  continue;
+                }
               }
             }
-          }
 #endif  // CONFIG_BRU
 #if CONFIG_INTER_MODE_CONSOLIDATION
             if (cm->seq_params.enable_adaptive_mvd == 0 && mbmi->use_amvd == 1)
