@@ -675,7 +675,16 @@ void search_tip_filter_level(AV1_COMP *cpi, struct AV1Common *cm) {
   double unfilter_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       cpi->td.mb.rdmult, 1, unfilter_sse, cm->seq_params.bit_depth);
 
-  // check filtered cost
+// check filtered cost
+#if CONFIG_IMPROVE_TIP_LF
+  cm->lf.tip_delta = 0;
+  double best_filter_cost = try_filter_tip_frame(cpi, cm->lf.tip_delta);
+  if (best_filter_cost < unfilter_cost) {
+    cm->lf.tip_filter_level = 1;
+  } else {
+    cm->lf.tip_filter_level = 0;
+  }
+#else
   int best_delta_idx = 0;
   double best_filter_cost = DBL_MAX;
   const int tip_delta_idx_to_delta[4] = { -10, 0, 6, 12 };
@@ -697,5 +706,6 @@ void search_tip_filter_level(AV1_COMP *cpi, struct AV1Common *cm) {
     cm->lf.tip_delta_idx = 0;
     cm->lf.tip_delta = 0;
   }
+#endif  // CONFIG_IMPROVE_TIP_LF
 }
 #endif  // CONFIG_LF_SUB_PU

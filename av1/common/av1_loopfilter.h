@@ -100,7 +100,9 @@ struct loopfilter {
 
 #if CONFIG_LF_SUB_PU
   int tip_filter_level;
+#if !CONFIG_IMPROVE_TIP_LF
   int tip_delta_idx;
+#endif  // !CONFIG_IMPROVE_TIP_LF
   int tip_delta;
 #endif  // CONFIG_LF_SUB_PU
 };

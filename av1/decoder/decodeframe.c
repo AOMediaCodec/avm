@@ -8670,9 +8670,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           cm->lf.tip_filter_level = aom_rb_read_bit(rb);
           if (cm->lf.tip_filter_level) {
+#if !CONFIG_IMPROVE_TIP_LF
             cm->lf.tip_delta_idx = aom_rb_read_literal(rb, 2);
             const int tip_delta_idx_to_delta[4] = { -10, 0, 6, 12 };
             cm->lf.tip_delta = tip_delta_idx_to_delta[cm->lf.tip_delta_idx];
+#else
+            cm->lf.tip_delta = 0;
+#endif  //! CONFIG_IMPROVE_TIP_LF
           }
         }
 #endif  // CONFIG_LF_SUB_PU

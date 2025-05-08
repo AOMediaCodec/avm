@@ -7055,8 +7055,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           aom_wb_write_bit(wb, cm->lf.tip_filter_level);
+#if !CONFIG_IMPROVE_TIP_LF
           if (cm->lf.tip_filter_level)
             aom_wb_write_literal(wb, cm->lf.tip_delta_idx, 2);
+#endif  //! CONFIG_IMPROVE_TIP_LF
         }
 #endif  // CONFIG_LF_SUB_PU
 
