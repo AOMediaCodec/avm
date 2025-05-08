@@ -1158,12 +1158,7 @@ static inline int floorLog2Uint64(uint64_t x) {
   return result;
 }
 
-void get_division_scale_shift(uint64_t denom, int *scale,
-#if CONFIG_MHCCP_GAUSSIAN
-                              int *round,
-#else
-                              uint64_t *round,
-#endif  // CONFIG_MHCCP_GAUSSIAN
+void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
                               int *shift) {
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
@@ -1181,11 +1176,7 @@ void get_division_scale_shift(uint64_t denom, int *scale,
   if (*shift == 0)
     *round = 0;
   else
-#if CONFIG_MHCCP_GAUSSIAN
-    *round = (int)((1ULL << (*shift)) >> 1);
-#else
-    *round = (uint64_t)(1ULL << (*shift) >> 1);
-#endif  // CONFIG_MHCCP_GAUSSIAN
+    *round = (int64_t)(1ULL << (*shift) >> 1);
 
   int normDiff = 0;
 #if CONFIG_MHCCP_GAUSSIAN
@@ -1262,11 +1253,7 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 #else
     uint64_t diag = src[i] < 1 ? 1 : src[i];
 #endif  // CONFIG_MHCCP_GAUSSIAN
-#if CONFIG_MHCCP_GAUSSIAN
-    int round;
-#else
-    uint64_t round;
-#endif  // CONFIG_MHCCP_GAUSSIAN
+    int64_t round;
     int scale, shift;
     get_division_scale_shift(diag, &scale, &round, &shift);
 

@@ -139,12 +139,7 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                              int64_t *y0, int64_t *x0, int numEq, int bd);
 // Get the number of shifted bits for denominator and the scaling factors
-void get_division_scale_shift(uint64_t denom, int *scale,
-#if CONFIG_MHCCP_GAUSSIAN
-                              int *round,
-#else
-                              uint64_t *round,
-#endif  // CONFIG_MHCCP_GAUSSIAN
+void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
                               int *shift);
 #endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
