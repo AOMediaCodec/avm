@@ -1204,10 +1204,10 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
             params.filter_length,
 #endif  // CONFIG_ASYM_DF
             &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU
+#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
             ,
             4
-#endif  // CONFIG_LF_SUB_PU
+#endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
         );
       }
 
@@ -1286,10 +1286,10 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
             params.filter_length,
 #endif  // CONFIG_ASYM_DF
             &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU
+#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
             ,
             4
-#endif  // CONFIG_LF_SUB_PU
+#endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
         );
       }
 
@@ -1421,9 +1421,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const int w = bw - sub_bw;
   const int rw = bw - (bw % sub_bw);
 #endif  // CONFIG_IMPROVE_TIP_LF
-  for (int j = 0; j <= h; j += sub_bh) {
+
 #if CONFIG_IMPROVE_TIP_LF
+  for (int j = 0; j <= h; j += 4) {
     uint16_t *p = dst + j * dst_stride;
+#else
+  for (int j = 0; j <= h; j += sub_bh) {
 #endif  // CONFIG_IMPROVE_TIP_LF
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
@@ -1439,14 +1442,19 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
 #if CONFIG_ASYM_DF
             filter_length_vert,
 #endif
-            &q_vert, &side_vert, bit_depth, sub_bh);
+            &q_vert, &side_vert, bit_depth
+#if !CONFIG_IMPROVE_TIP_LF
+            ,
+            sub_bh
+#endif  //! CONFIG_IMPROVE_TIP_LF
+        );
       }
 #if CONFIG_IMPROVE_TIP_LF
       p += sub_bw;
     }
   }
 
-  for (int i = 0; i <= w; i += sub_bw) {
+  for (int i = 0; i <= w; i += 4) {
     uint16_t *p = dst + i;
     for (int j = 0; j <= h; j += sub_bh) {
 #endif  // CONFIG_IMPROVE_TIP_LF
@@ -1463,7 +1471,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
 #if CONFIG_ASYM_DF
             filter_length_horz,
 #endif
-            &q_horz, &side_horz, bit_depth, sub_bw);
+            &q_horz, &side_horz, bit_depth
+#if !CONFIG_IMPROVE_TIP_LF
+            ,
+            sub_bw
+#endif  //! CONFIG_IMPROVE_TIP_LF
+        );
       }
 #if CONFIG_IMPROVE_TIP_LF
       p += sub_bh * dst_stride;
