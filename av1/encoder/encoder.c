@@ -1442,7 +1442,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     av2_part_split_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
 #if CONFIG_DIP_EXT_PRUNING
-    intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+    intra_dip_mode_prune_close(&(thread_data->td->dip_pruning_model));
 #endif  // CONFIG_DIP_EXT_PRUNING
     aom_free(thread_data->td);
   }
