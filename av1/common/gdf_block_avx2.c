@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -9,7 +9,6 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-
 
 #include "av1/common/gdf_block.h"
 #include <immintrin.h>
@@ -35,7 +34,8 @@
 
 /*!\brief Function to calculate gradients and classes for 2x2 pixels used in GDF
  *        of a block boxed by location of [i_min, j_min] to [i_max, j_max]
- *        gradients and classes are stored in aligned_lap and aligned_cls, respectively
+ *        gradients and classes are stored in aligned_lap and aligned_cls,
+ * respectively
  */
 static void gdf_set_lap_and_cls_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
@@ -204,8 +204,8 @@ static void gdf_set_lap_and_cls_avx2(
 #endif  //
 }
 
-/*!\brief Function to apply expected coding error and controling parameter (i.e., scaling)
- *        to generate the final filtered block
+/*!\brief Function to apply expected coding error and controling parameter
+ * (i.e., scaling) to generate the final filtered block
  */
 void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
                                  int16_t *err_pnt, const int err_stride,
@@ -343,38 +343,39 @@ void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
   horz_reg = _mm256_castps_si256(_mm256_blendv_ps(                             \
       m256_horz_tmp_reg, m256_vert_tmp_reg, _mm256_castsi256_ps(cls_is_odd)));
 
-static inline __m256i gdf_intra_get_idx(__m256i* out_reg0, __m256i* out_reg1, __m256i* out_reg2) {
- return
-      _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 8),
-                                        _mm256_slli_epi32(*out_reg1, 4)),
-                       *out_reg2);
+static inline __m256i gdf_intra_get_idx(__m256i *out_reg0, __m256i *out_reg1,
+                                        __m256i *out_reg2) {
+  return _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 8),
+                                           _mm256_slli_epi32(*out_reg1, 4)),
+                          *out_reg2);
 }
 
-static inline __m256i gdf_inter_get_idx(__m256i* out_reg0, __m256i* out_reg1, __m256i* out_reg2) {
+static inline __m256i gdf_inter_get_idx(__m256i *out_reg0, __m256i *out_reg1,
+                                        __m256i *out_reg2) {
   return _mm256_add_epi32(
-          _mm256_add_epi32(
-              _mm256_add_epi32(
-                  _mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 6),
-                                   _mm256_slli_epi32(*out_reg0, 5)),
-                  _mm256_slli_epi32(*out_reg0, 2)),
-              _mm256_add_epi32(_mm256_slli_epi32(*out_reg1, 3),
-                               _mm256_slli_epi32(*out_reg1, 1))),
-          *out_reg2);
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(*out_reg0, 6),
+                                            _mm256_slli_epi32(*out_reg0, 5)),
+                           _mm256_slli_epi32(*out_reg0, 2)),
+          _mm256_add_epi32(_mm256_slli_epi32(*out_reg1, 3),
+                           _mm256_slli_epi32(*out_reg1, 1))),
+      *out_reg2);
 }
 
 /*!\brief Function to generate vertical/horizontal/mixed features
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
  */
-void gdf_inference_block_avx2(
-    const int i_min, const int i_max, const int j_min, const int j_max,
-    const int stripe_size, const int qp_idx, const uint16_t *rec_pnt,
-    const int rec_stride, const int bit_depth, int16_t *err_pnt,
-    const int err_stride, const int pxl_shift, const int ref_dst_idx) {
+void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
+                              const int j_max, const int stripe_size,
+                              const int qp_idx, const uint16_t *rec_pnt,
+                              const int rec_stride, const int bit_depth,
+                              int16_t *err_pnt, const int err_stride,
+                              const int pxl_shift, const int ref_dst_idx) {
 #if GDF_C_CODE_ONLY
   gdf_inference_block_c(i_min, i_max, j_min, j_max, stripe_size, qp_idx,
-                              rec_pnt, rec_width, rec_stride, err_pnt,
-                              err_stride, pxl_shift, ref_dst_idx);
+                        rec_pnt, rec_width, rec_stride, err_pnt, err_stride,
+                        pxl_shift, ref_dst_idx);
 #else  //
   assert(((i_max - i_min) & 1) == 0);
   assert(((j_max - j_min) & 1) == 0);
@@ -384,7 +385,8 @@ void gdf_inference_block_avx2(
   const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN;
 
   const int is_intra = ref_dst_idx == 0 ? 1 : 0;
-  const int lut_frm_max = is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
+  const int lut_frm_max =
+      is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
   const int lut_idx_min = -(lut_frm_max >> 1);
   const int lut_idx_max = lut_frm_max - 1 + lut_idx_min;
   const int lut_idx_scale = AOMMAX(-lut_idx_min, lut_idx_max);
@@ -399,14 +401,14 @@ void gdf_inference_block_avx2(
     weight = gdf_intra_weight_table[qp_idx];
     bias = gdf_intra_bias_table[qp_idx];
     gdf_table = gdf_intra_error_table[qp_idx];
-  }
-  else {
+  } else {
     alpha = gdf_inter_alpha_table[ref_dst_idx - 1][qp_idx];
     weight = gdf_inter_weight_table[ref_dst_idx - 1][qp_idx];
     bias = gdf_inter_bias_table[ref_dst_idx - 1][qp_idx];
     gdf_table = gdf_inter_error_table[ref_dst_idx - 1][qp_idx];
   }
-  __m256i (*gdf_get_idx_func)(__m256i*, __m256i*, __m256i*) = is_intra ? gdf_intra_get_idx : gdf_inter_get_idx;
+  __m256i (*gdf_get_idx_func)(__m256i *, __m256i *, __m256i *) =
+      is_intra ? gdf_intra_get_idx : gdf_inter_get_idx;
   DECLARE_ALIGNED(
       32, uint32_t,
       aligned_cls[GDF_TEST_BLK_SIZE]
@@ -589,11 +591,13 @@ void gdf_inference_block_avx2(
       gdf_quant_feature_reg(out_reg21, neg_mask, zero_reg, scale_value,
                             half_value, lut_shift, idx_min_reg, idx_max_reg);
 
-      __m256i lut_idx_odd = gdf_get_idx_func(&out_reg00, &out_reg10, &out_reg20);
-          _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg00, 8),
-                                            _mm256_slli_epi32(out_reg10, 4)),
-                           out_reg20);
-      __m256i lut_idx_even = gdf_get_idx_func(&out_reg01, &out_reg11, &out_reg21);
+      __m256i lut_idx_odd =
+          gdf_get_idx_func(&out_reg00, &out_reg10, &out_reg20);
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg00, 8),
+                                        _mm256_slli_epi32(out_reg10, 4)),
+                       out_reg20);
+      __m256i lut_idx_even =
+          gdf_get_idx_func(&out_reg01, &out_reg11, &out_reg21);
 
       __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
       __m256i v_odd = _mm256_i32gather_epi32(

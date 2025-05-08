@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -10,15 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
-
 #include "av1/common/gdf.h"
 #include "av1/common/gdf_block.h"
 
 #if CONFIG_GDF
 
 #define GDF_TEST_STRIPE_SIZE \
-64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
-
+  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
 
 void init_gdf(AV1_COMMON *cm) {
   const int rec_height = cm->cur_frame->buf.y_height;
@@ -30,23 +28,21 @@ void init_gdf(AV1_COMMON *cm) {
   cm->gdf_info.gdf_block_size =
       AOMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
   const int gdf_block_num_h = 1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) /
-                                      cm->gdf_info.gdf_block_size);
+                                   cm->gdf_info.gdf_block_size);
   const int gdf_block_num_w =
       1 + ((rec_width - 1) / cm->gdf_info.gdf_block_size);
-  cm->gdf_info.gdf_block_num =
-      gdf_block_num_h * gdf_block_num_w;
+  cm->gdf_info.gdf_block_num = gdf_block_num_h * gdf_block_num_w;
   cm->gdf_info.gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.gdf_unit_size = GDF_TEST_STRIPE_SIZE;
   cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
   cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
-
-
 }
 
 void alloc_gdf_buffers(AV1_COMMON *cm) {
   cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
       32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
-  cm->gdf_info.gdf_block_flags = (int32_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
+  cm->gdf_info.gdf_block_flags =
+      (int32_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
 }
 
 void free_gdf_buffers(AV1_COMMON *cm) {
@@ -95,7 +91,7 @@ int gdf_get_ref_dst_idx(AV1_COMMON *cm) {
   int ref_dst_idx = 0;
   if (frame_is_intra_only(cm)) return ref_dst_idx;
   int ref_dst_max = AOMMAX(abs(cm->ref_frames_info.ref_frame_distance[0]),
-                        abs(cm->ref_frames_info.ref_frame_distance[1]));
+                           abs(cm->ref_frames_info.ref_frame_distance[1]));
   if (ref_dst_max < 2)
     ref_dst_idx = 1;
   else if (ref_dst_max < 3)
@@ -160,7 +156,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
              u_pos += cm->gdf_info.gdf_unit_size) {
           int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
-                          rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
+                             rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
@@ -170,10 +166,10 @@ void gdf_filter_frame(AV1_COMMON *cm) {
             for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                  qp_idx++) {
               gdf_inference_block(i_min, i_max, j_min, j_max,
-                             cm->gdf_info.gdf_stripe_size, qp_idx,
-                             cm->gdf_info.inp_ptr, rec_stride, bit_depth,
-                             cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
-                             pxl_shift, ref_dst_idx);
+                                  cm->gdf_info.gdf_stripe_size, qp_idx,
+                                  cm->gdf_info.inp_ptr, rec_stride, bit_depth,
+                                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
+                                  pxl_shift, ref_dst_idx);
               gdf_compensation_block(
                   rec_pnt + i_min * rec_stride + j_min, rec_stride,
                   cm->gdf_info.err_ptr, cm->gdf_info.err_stride, err_shift,

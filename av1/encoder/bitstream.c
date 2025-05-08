@@ -5347,8 +5347,7 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
     if (cm->gdf_info.gdf_block_num > 1) {
       aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 1 ? 0 : 1);
     }
-    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qc_idx,
-                         GDF_RDO_QP_NUM_LOG2);
+    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qc_idx, GDF_RDO_QP_NUM_LOG2);
     aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_scale_idx,
                          GDF_RDO_SCALE_NUM_LOG2);
   }

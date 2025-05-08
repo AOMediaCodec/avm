@@ -2343,17 +2343,17 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
              u_pos += cm->gdf_info.gdf_unit_size) {
           int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
-                          rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
+                             rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
-                          rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+                             rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
 
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            gdf_inference_block(i_min, i_max, j_min, j_max,
-                           cm->gdf_info.gdf_stripe_size, qp_idx + qp_idx_base,
-                           cm->gdf_info.inp_ptr, rec_stride, bit_depth,
-                           cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
-                           pxl_shift, ref_dst_idx);
+            gdf_inference_block(
+                i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                qp_idx + qp_idx_base, cm->gdf_info.inp_ptr, rec_stride,
+                bit_depth, cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
+                pxl_shift, ref_dst_idx);
 
             for (int i = i_min; i < i_max; i++) {
               for (int j = j_min; j < j_max; j++) {
@@ -2471,7 +2471,8 @@ void av1_gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 }
 
 /*!\brief Function to perform rate-distortion optimization for GDF
- *        and then apply the selected GDF parameteres to filter the current frame
+ *        and then apply the selected GDF parameteres to filter the current
+ * frame
  */
 void av1_gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   init_gdf(cm);
