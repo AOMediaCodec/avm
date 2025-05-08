@@ -8369,7 +8369,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       mi_step = above_block_width;
 
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (above_mbmi->skip_mode != 1)
+      if (above_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
@@ -8425,7 +8425,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (left_mbmi->skip_mode != 1)
+      if (left_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
         for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
           if (left_mbmi->ref_frame[ref] == ref_frame) {
@@ -8467,7 +8467,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-    if (top_left_mbmi->skip_mode != 1)
+    if (top_left_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
       for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
         if (top_left_mbmi->ref_frame[ref] == ref_frame) {
@@ -8513,7 +8513,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (top_right_mbmi->skip_mode != 1)
+      if (top_right_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
         for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
           if (top_right_mbmi->ref_frame[ref] == ref_frame) {
