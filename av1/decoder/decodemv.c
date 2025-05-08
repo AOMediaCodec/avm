@@ -53,8 +53,7 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
 
 #if CONFIG_GDF
 static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-  if (cm->features.coded_lossless ||
-      !(cm->width == cm->superres_upscaled_width))
+  if (!is_allow_gdf(cm))
     return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;

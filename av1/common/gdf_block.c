@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ *
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
+ */
+
 #include "av1/common/gdf_block.h"
 
 #if CONFIG_GDF
-// clang-format off
 
+// clang-format off
 const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2] = {
                                                                 {-6,  0},
                                                                 {-5,  0},
@@ -263,7 +275,6 @@ const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM][GDF_N
   },
 };
 // clang-format on
-
 
 void gdf_set_lap_and_cls_c(
     const int i_min, const int i_max, const int j_min, const int j_max,
@@ -585,13 +596,12 @@ void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
  */
-void gdf_inference_block_c(const int i_min, const int i_max,
-                                 const int j_min, const int j_max,
-                                 const int sb_size, const int qp_idx,
-                                 const uint16_t *rec_pnt, const int rec_stride,
-                                 const int bit_depth, int16_t *tgt_pnt,
-                                 const int err_stride, const int pxl_shift,
-                                 const int ref_dst_idx) {
+void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
+                           const int j_max, const int sb_size, const int qp_idx,
+                           const uint16_t *rec_pnt, const int rec_stride,
+                           const int bit_depth, int16_t *tgt_pnt,
+                           const int err_stride, const int pxl_shift,
+                           const int ref_dst_idx) {
   DECLARE_ALIGNED(
       32, uint32_t,
       aligned_cls[GDF_TEST_BLK_SIZE][GDF_TEST_BLK_SIZE + 16]) = { 0 };
@@ -614,7 +624,8 @@ void gdf_inference_block_c(const int i_min, const int i_max,
   int16_t *gdf_res_y = tgt_pnt;
   const int res_y_stride = err_stride;
   const int is_intra = ref_dst_idx == 0 ? 1 : 0;
-  const int gdf_frm_max = is_intra ? GDF_NET_LUT_IDX_INTRA_MAX  : GDF_NET_LUT_IDX_INTER_MAX;
+  const int gdf_frm_max =
+      is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
   const int gdf_idx_min = -(gdf_frm_max >> 1);
   const int gdf_idx_max = gdf_frm_max - 1 + gdf_idx_min;
   const int gdf_idx_scale = AOMMAX(-gdf_idx_min, gdf_idx_max);
@@ -630,8 +641,7 @@ void gdf_inference_block_c(const int i_min, const int i_max,
     weight = gdf_intra_weight_table[qp_idx];
     bias = gdf_intra_bias_table[qp_idx];
     gdftable = gdf_intra_error_table[qp_idx];
-  }
-  else {
+  } else {
     const int inter_ref_dst_idx = ref_dst_idx - 1;
     alpha = gdf_inter_alpha_table[inter_ref_dst_idx][qp_idx];
     weight = gdf_inter_weight_table[inter_ref_dst_idx][qp_idx];
@@ -648,7 +658,8 @@ void gdf_inference_block_c(const int i_min, const int i_max,
   for (int idx = 0; idx < GDF_NET_LUT_IDX_NUM; idx++) {
     gdf_idx_offset[idx] = 1;
     for (int r_idx = 0; r_idx < GDF_NET_LUT_IDX_NUM - 1 - idx; r_idx++) {
-      gdf_idx_offset[idx] *= is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
+      gdf_idx_offset[idx] *=
+          is_intra ? GDF_NET_LUT_IDX_INTRA_MAX : GDF_NET_LUT_IDX_INTER_MAX;
     }
   }
   const int16_t *rec_ptr = (const int16_t *)(rec_y);

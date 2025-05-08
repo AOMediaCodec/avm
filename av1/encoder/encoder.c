@@ -2540,8 +2540,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
 
 #if CONFIG_GDF
-  const int use_gdf = !cm->features.coded_lossless && !cm->tiles.large_scale &&
-                      !av1_superres_scaled(cm);
+  const int use_gdf = is_allow_gdf(cm);
   if (!use_gdf) {
     cm->gdf_info.gdf_mode = 0;
   }

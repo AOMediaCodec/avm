@@ -8973,7 +8973,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_FIX_CDEF_SYNTAX
     const int do_superres = av1_superres_scaled(cm);
 #if CONFIG_GDF
-    const int do_gdf = !av1_superres_scaled(cm) && cm->gdf_info.gdf_mode;
+    const int do_gdf = is_allow_gdf(cm) && cm->gdf_info.gdf_mode;
 #endif  // CONFIG_GDF
     const int optimized_loop_restoration =
 #if CONFIG_GDF

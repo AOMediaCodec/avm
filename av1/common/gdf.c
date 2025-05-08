@@ -1,3 +1,16 @@
+/*
+* Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ *
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
+ */
+
+
 #include "av1/common/gdf.h"
 #include "av1/common/gdf_block.h"
 
@@ -27,17 +40,19 @@ void init_gdf(AV1_COMMON *cm) {
   cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
   cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
 
-  for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
-    cm->gdf_info.gdf_block_flags[blk_idx] = 1;
-  }
+
 }
 
 void alloc_gdf_buffers(AV1_COMMON *cm) {
   cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
       32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
+  cm->gdf_info.gdf_block_flags = (int32_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
 }
 
-void free_gdf_buffers(AV1_COMMON *cm) { aom_free(cm->gdf_info.err_ptr); }
+void free_gdf_buffers(AV1_COMMON *cm) {
+  aom_free(cm->gdf_info.err_ptr);
+  aom_free(cm->gdf_info.gdf_block_flags);
+}
 
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   printf("%s[%3d]: gdf_info = [ flag = %d ", info, poc, cm->gdf_info.gdf_mode);
