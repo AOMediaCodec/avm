@@ -671,6 +671,13 @@ typedef struct cfg_options {
    */
   unsigned int enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+
+#if CONFIG_EXTRA_DPB
+  /*!\brief number of extra decoded picture buffers
+   *
+   */
+  int num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

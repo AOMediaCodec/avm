@@ -6132,7 +6132,7 @@ static AOM_INLINE void write_film_grain_params(
         break;
       }
     }
-    assert(ref_frame < REF_FRAMES);
+    assert(ref_frame < REGULAR_REF_FRAMES);
     assert(ref_idx != INVALID_IDX);
     aom_wb_write_literal(wb, ref_idx, 3);
     return;
@@ -6378,6 +6378,14 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->max_reference_frames < 7);
   if (seq_params->max_reference_frames < 7)
     aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
+#if CONFIG_EXTRA_DPB
+  if (seq_params->num_extra_dpb) {
+    aom_wb_write_literal(wb, 1, 1);
+    aom_wb_write_literal(wb, seq_params->num_extra_dpb - 1, 3);
+  } else {
+    aom_wb_write_literal(wb, 0, 1);
+  }
+#endif  // CONFIG_EXTRA_DPB
 #if CONFIG_SAME_REF_COMPOUND
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -6705,7 +6713,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!seq_params->reduced_still_picture_hdr) {
     if (encode_show_existing_frame(cm)) {
       aom_wb_write_bit(wb, 1);  // show_existing_frame
-      aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show, 3);
+      aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
+                           cm->seq_params.ref_frames_log2);
 
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0) {
@@ -6854,7 +6863,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           current_frame->refresh_frame_flags != 0;
       if (has_refresh_frame_flags) {
         int refresh_idx = 0;
-        for (int i = 0; i < REF_FRAMES; ++i) {
+        for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
           if ((current_frame->refresh_frame_flags >> i) & 1) {
             refresh_idx = i;
             break;
@@ -6869,10 +6878,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_literal(wb, 0, 1);
       }
     } else {
-      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                           cm->seq_params.ref_frames);
     }
 #else
-      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                           cm->seq_params.ref_frames);
+
 #endif  // CONFIG_REFRESH_FLAG
   }
 
@@ -6881,7 +6893,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
-      for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+      for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
             seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -6890,7 +6902,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
     // required by reference mapping.
     if (features->error_resilient_mode) {
-      for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+      for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->base_qindex,
                              cm->seq_params.bit_depth == AOM_BITS_8
                                  ? QINDEX_BITS_UNEXT
@@ -7014,7 +7026,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if (explicit_ref_frame_map)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
-                               REF_FRAMES_LOG2);
+                               cm->seq_params.ref_frames_log2);
         if (seq_params->frame_id_numbers_present_flag) {
           int i = get_ref_frame_map_idx(cm, ref_frame);
           int frame_id_len = seq_params->frame_id_length;

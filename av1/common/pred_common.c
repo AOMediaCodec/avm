@@ -133,7 +133,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     scores[i].score = INT_MAX;
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
@@ -141,14 +141,14 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
     max_disp = AOMMAX(max_disp, cur_ref.disp_order);
   }
 
   // Compute a score for each reference buffer
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
@@ -198,7 +198,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     // Instead of filling empty slots (remapped_ref_idx[i]) with zero,
     // the empty slots are filled with the first index (scores[0].index),

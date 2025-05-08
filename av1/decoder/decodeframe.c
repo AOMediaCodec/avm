@@ -6831,6 +6831,24 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   } else {
     seq_params->max_reference_frames = 7;
   }
+#if CONFIG_EXTRA_DPB
+  const bool use_extra_dpb = aom_rb_read_literal(rb, 1);
+
+  if (use_extra_dpb) {
+    seq_params->num_extra_dpb = 1 + aom_rb_read_literal(rb, 3);
+  }
+
+  seq_params->ref_frames = seq_params->num_extra_dpb
+                               ? REGULAR_REF_FRAMES + seq_params->num_extra_dpb
+                               : REGULAR_REF_FRAMES;
+
+  seq_params->ref_frames_log2 =
+      seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
+#else
+    seq_params->ref_frames = REF_FRAMES;
+    seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
+#endif  // CONFIG_EXTRA_DPB
+
 #if CONFIG_SAME_REF_COMPOUND
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -7163,8 +7181,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 // all elements of cm->ref_frame_map to NULL.
 static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
   BufferPool *const pool = cm->buffer_pool;
-
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     decrease_ref_count(cm->ref_frame_map[i], pool);
     cm->ref_frame_map[i] = NULL;
   }
@@ -7175,7 +7192,7 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
 static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
       cm->ref_frame_id[i] = cm->current_frame_id;
       pbi->valid_for_referencing[i] = 1;
@@ -7253,7 +7270,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
-  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+  for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL) continue;
@@ -7448,7 +7465,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             "New sequence header starts with a show_existing_frame.");
       }
       // Show an existing frame directly.
-      const int existing_frame_idx = aom_rb_read_literal(rb, 3);
+      const int existing_frame_idx =
+          aom_rb_read_literal(rb, seq_params->ref_frames_log2);
       RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
       if (frame_to_show == NULL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7611,7 +7629,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
     /* All frames need to be marked as not valid for referencing */
-    for (int i = 0; i < REF_FRAMES; i++) {
+    for (int i = 0; i < seq_params->ref_frames; i++) {
       pbi->valid_for_referencing[i] = 0;
     }
   }
@@ -7663,7 +7681,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
       /* Check if some frames need to be marked as not valid for referencing */
-      for (int i = 0; i < REF_FRAMES; i++) {
+      for (int i = 0; i < seq_params->ref_frames; i++) {
         if (cm->current_frame_id - (1 << diff_len) > 0) {
           if (cm->ref_frame_id[i] > cm->current_frame_id ||
               cm->ref_frame_id[i] < cm->current_frame_id - (1 << diff_len))
@@ -7725,7 +7743,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->seq_params.enable_short_refresh_frame_flags &&
       !cm->features.error_resilient_mode;
   const int refresh_frame_flags_bits =
-      short_refresh_frame_flags ? 3 : REF_FRAMES;
+      short_refresh_frame_flags ? 3 : seq_params->ref_frames;
+
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
@@ -7745,7 +7764,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #else
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, REF_FRAMES);
+            aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
       current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
@@ -7776,7 +7795,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #else
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, REF_FRAMES);
+            aom_rb_read_literal(rb, seq_params->ref_frames);
+
 #endif  // CONFIG_REFRESH_FLAG
       if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7808,8 +7828,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #else
         current_frame->refresh_frame_flags =
-            frame_is_sframe(cm) ? REFRESH_FRAME_ALL
-                                : aom_rb_read_literal(rb, REF_FRAMES);
+            frame_is_sframe(cm)
+                ? REFRESH_FRAME_ALL
+                : aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
@@ -7819,7 +7840,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
-      for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+      for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         // Read order hint from bit stream
         unsigned int order_hint = aom_rb_read_literal(
             rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -7882,7 +7903,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     if (features->error_resilient_mode) {
       // Read all ref frame base_qindex
-      for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+      for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
         buf->base_qindex = aom_rb_read_literal(
             rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
@@ -8047,7 +8068,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
         } else {
-          ref = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+          ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
 
           // Most of the time, streams start with a keyframe. In that case,
           // ref_frame_map will have been filled in at that point and will not
@@ -8084,7 +8105,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // overwritten. The reference lists also needs to be reset.
       if (explicit_ref_frame_map) {
         RefScoreData scores[REF_FRAMES];
-        for (int i = 0; i < REF_FRAMES; i++) scores[i].score = INT_MAX;
+        for (int i = 0; i < seq_params->ref_frames; i++)
+          scores[i].score = INT_MAX;
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];

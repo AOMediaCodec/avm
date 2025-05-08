@@ -1020,8 +1020,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   TplParams *const tpl_data = &cpi->tpl_data;
 
   int ref_picture_map[REF_FRAMES];
-
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  assert(cm->seq_params.ref_frames > 0);
+  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (frame_params.frame_type == KEY_FRAME || gop_eval
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
         || cm->ref_frame_map[i] == NULL
@@ -1113,8 +1113,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
-
-    if (refresh_frame_map_index < REF_FRAMES) {
+    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1213,7 +1212,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
-    if (refresh_frame_map_index < REF_FRAMES) {
+    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =

@@ -1385,7 +1385,18 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #define INTER_REFS_PER_FRAME 7
+
+#define REGULAR_REF_FRAMES \
+  (INTER_REFS_PER_FRAME +  \
+   1)  //  the original size of the decoded picture buffers
+#if CONFIG_EXTRA_DPB
+#define MAX_EXTRA_REF_FRAMES \
+  8  //  the maximum number of extra decoded picture buffers that can be added
+#define REF_FRAMES ((INTER_REFS_PER_FRAME + 1) + MAX_EXTRA_REF_FRAMES)
+#else
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
+#endif  // CONFIG_EXTRA_DPB
+
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
 //       possible to have a reference pair not listed for explicit signaling.
@@ -1432,7 +1443,11 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
 #define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
+#if CONFIG_EXTRA_DPB
+#define EXTREF_FRAMES (REGULAR_REF_FRAMES + 1)
+#else
 #define EXTREF_FRAMES (REF_FRAMES + 1)
+#endif  // CONFIG_EXTRA_DPB
 
 #define SINGLE_REF_FRAMES EXTREF_FRAMES
 

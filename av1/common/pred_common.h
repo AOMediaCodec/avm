@@ -41,7 +41,7 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     return;
   }
   memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
-  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+  for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
@@ -66,7 +66,7 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       // matching the current are considered "free" slots. This will find
       // the next occurance of the current pointer if ref_count indicates
       // there are multiple instances of it and mark it as free.
-      for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
+      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.ref_frames; ++idx2) {
         const RefCntBuffer *const buf2 = cm->ref_frame_map[idx2];
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].disp_order = -1;

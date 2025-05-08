@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
 #include "aom/aom_integer.h"
 
 /*!\brief The maximum number of work buffers used by libaom.
@@ -32,8 +33,11 @@ extern "C" {
 
 /*!\brief The maximum number of reference buffers that a AV1 encoder may use.
  */
+#if CONFIG_EXTRA_DPB
+#define AOM_MAXIMUM_REF_BUFFERS 16
+#else
 #define AOM_MAXIMUM_REF_BUFFERS 8
-
+#endif  // CONFIG_EXTRA_DPB
 /*!\brief External frame buffer
  *
  * This structure holds allocated frame buffers used by the decoder.

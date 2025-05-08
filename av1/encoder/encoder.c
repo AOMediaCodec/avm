@@ -562,6 +562,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_EXT_SEG
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  seq->num_extra_dpb = tool_cfg->num_extra_dpb;
+  seq->ref_frames = seq->num_extra_dpb ? REGULAR_REF_FRAMES + seq->num_extra_dpb
+                                       : REGULAR_REF_FRAMES;
+  seq->ref_frames_log2 =
+      seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
+#else
+  seq->ref_frames = REF_FRAMES;
+  seq->ref_frames_log2 = REF_FRAMES_LOG2;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -572,7 +582,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->input_cfg.init_framerate;
-
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
@@ -2130,7 +2139,7 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   int i;
   BufferPool *const pool = cm->buffer_pool;
   cm->cur_frame = NULL;
-  for (i = 0; i < REF_FRAMES; ++i) {
+  for (i = 0; i < cm->seq_params.ref_frames; ++i) {
     cm->ref_frame_map[i] = NULL;
   }
   for (i = 0; i < FRAME_BUFFERS; ++i) {
@@ -4167,7 +4176,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         current_frame->frame_type == KEY_FRAME) {
       // Displaying a forward key-frame, so reset the ref buffer IDs
       int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-      for (int i = 0; i < REF_FRAMES; i++)
+      for (int i = 0; i < seq_params->ref_frames; i++)
         cm->ref_frame_id[i] = display_frame_id;
     }
 
@@ -4354,7 +4363,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
-    for (int i = 0; i < REF_FRAMES; i++) {
+    for (int i = 0; i < seq_params->ref_frames; i++) {
       if ((current_frame->refresh_frame_flags >> i) & 1) {
         cm->ref_frame_id[i] = cm->current_frame_id;
       }

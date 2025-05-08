@@ -972,6 +972,9 @@ typedef struct {
 #if CONFIG_EXT_SEG
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;
 

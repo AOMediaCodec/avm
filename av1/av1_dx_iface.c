@@ -636,7 +636,8 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
   }
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames;
+       i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -735,7 +736,8 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   }
 
   data2->idx = -1;
-  for (int i = 0; i < REF_FRAMES; ++i)
+
+  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames; ++i)
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
   data2->show_existing = cm->show_existing_frame;
@@ -746,7 +748,8 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // This function writes (a proxy) show_existing_frame OBU header.
 static void av1_write_show_existing_frame_obu(uint8_t *const dst,
-                                              int existing_fb_idx_to_show) {
+                                              int existing_fb_idx_to_show,
+                                              int ref_frames_log2) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   int obu_type = OBU_FRAME_HEADER;
 
@@ -758,8 +761,8 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
   aom_wb_write_bit(&wb, 1);                // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
-                       3);            // signal frame to be output
-  aom_wb_write_literal(&wb, 0x8, 4);  // trailing bits
+                       ref_frames_log2);  // signal frame to be output
+  aom_wb_write_literal(&wb, 0x8, 7 - ref_frames_log2);  // trailing bits
 }
 
 // This function outputs all frames from the frame buffers that are showable but
@@ -772,7 +775,8 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   struct AV1Decoder *pbi = frame_worker_data->pbi;
   int display_order = -1;
   int target_idx = -1;
-  for (int idx = 0; idx < REF_FRAMES; idx++) {
+  for (int idx = 0; idx < frame_worker_data->pbi->common.seq_params.ref_frames;
+       idx++) {
     if (is_frame_eligible_for_output(pbi->common.ref_frame_map[idx]) &&
         ((int)pbi->common.ref_frame_map[idx]->display_order_hint >
          display_order)) {
@@ -790,7 +794,10 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   if (target_idx >= 0) {
     uint8_t generated_data[3];
     const uint8_t *data_start = (const uint8_t *)generated_data;
-    av1_write_show_existing_frame_obu((uint8_t *const)data_start, target_idx);
+    av1_write_show_existing_frame_obu(
+        (uint8_t *const)data_start, target_idx,
+        frame_worker_data->pbi->common.seq_params.ref_frames_log2);
+
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
     ctx->is_annexb = 0;
@@ -1507,8 +1514,9 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
     step_data->qindex = subgop_stats->qindex[step_idx];
     step_data->refresh_frame_flags =
         subgop_stats->refresh_frame_flags[step_idx];
-
-    for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+    for (MV_REFERENCE_FRAME ref_frame = 0;
+         ref_frame < frame_worker_data->pbi->common.seq_params.ref_frames;
+         ++ref_frame)
       step_data->ref_frame_map[ref_frame] =
           subgop_stats->ref_frame_map[step_idx][ref_frame];
     subgop_data->step_idx_dec++;

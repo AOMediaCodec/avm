@@ -566,6 +566,12 @@ typedef struct SequenceHeader {
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #endif                        // CONFIG_SAME_REF_COMPOUND
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;    // number of extra decoded picture buffers
+#endif                  // CONFIG_EXTRA_DPB
+  int ref_frames;       // number of all decoded picture buffers
+  int ref_frames_log2;  // the log value of the number of all decoded picture
+                        // buffers
 
   OrderHintInfo order_hint_info;
 
@@ -2124,7 +2130,7 @@ static void unlock_buffer_pool(BufferPool *const pool) {
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame(AV1_COMMON *cm, int index) {
   if (is_tip_ref_frame(index)) return &cm->tip_ref.tip_frame->buf;
-  if (index < 0 || index >= REF_FRAMES) return NULL;
+  if (index < 0 || index >= cm->seq_params.ref_frames) return NULL;
   if (cm->ref_frame_map[index] == NULL) return NULL;
   return &cm->ref_frame_map[index]->buf;
 }
@@ -2221,7 +2227,7 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame) {
-  return (ref_frame >= 0 && ref_frame < REF_FRAMES)
+  return (ref_frame >= 0 && ref_frame < cm->seq_params.ref_frames)
              ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }

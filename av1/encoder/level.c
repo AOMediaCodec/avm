@@ -305,11 +305,12 @@ static void release_buffer(DECODER_MODEL *const decoder_model, int idx) {
   this_buffer->presentation_time = INVALID_TIME;
 }
 
-static void initialize_buffer_pool(DECODER_MODEL *const decoder_model) {
+static void initialize_buffer_pool(DECODER_MODEL *const decoder_model,
+                                   const int ref_frames) {
   for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     release_buffer(decoder_model, i);
   }
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  for (int i = 0; i < ref_frames; ++i) {
     decoder_model->vbi[i] = -1;
   }
 }
@@ -328,9 +329,8 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 static void update_ref_buffers(const AV1_COMMON *const cm,
                                DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
-  (void)cm;
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
@@ -506,7 +506,7 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
 
-  initialize_buffer_pool(decoder_model);
+  initialize_buffer_pool(decoder_model, cm->seq_params.ref_frames);
 
   DFG_INTERVAL_QUEUE *const dfg_interval_queue =
       &decoder_model->dfg_interval_queue;

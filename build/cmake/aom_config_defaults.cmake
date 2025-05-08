@@ -351,6 +351,9 @@ set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
+# CWG-F082: Extended DPB mode for AV2 in RTC
+set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
+
 # CWG-E230: On core transform for AV2
 set_aom_config_var(CONFIG_CORE_TX 1 "AV2 core transform")
 

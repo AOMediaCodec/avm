@@ -199,6 +199,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_EXT_SEG
     GET_PARAMS(enable_ext_seg);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+    GET_PARAMS(num_extra_dpb);
+#endif  // CONFIG_EXTRA_DPB
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

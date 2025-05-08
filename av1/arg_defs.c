@@ -894,6 +894,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                             "Enable extended # of segments "
                             "(0: false (default), 1: true)"),
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
+                           "extra dpb number (0..8), default is 0"),
+#endif  // CONFIG_EXTRA_DPB
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

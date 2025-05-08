@@ -532,6 +532,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_EXT_SEG
   &g_av1_codec_arg_defs.enable_ext_seg,
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  &g_av1_codec_arg_defs.num_extra_dpb,
+#endif  // CONFIG_EXTRA_DPB
   NULL,
 };
 
@@ -789,6 +792,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_SEG
   config->enable_ext_seg = 0;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  config->num_extra_dpb = 0;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that

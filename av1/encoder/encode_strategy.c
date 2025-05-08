@@ -368,7 +368,7 @@ static void update_fb_of_context_type(
   const int altref_frame = get_furthest_future_ref_index(cm);
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
       cpi->ext_flags.use_primary_ref_none) {
-    for (int i = 0; i < REF_FRAMES; i++) {
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       fb_of_context_type[i] = -1;
     }
     fb_of_context_type[current_frame_ref_type] =
@@ -384,8 +384,7 @@ static void update_fb_of_context_type(
     } else {
       // If more than one frame is refreshed, it doesn't matter which one we
       // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
-
-      for (int i = 0; i < REF_FRAMES; i++) {
+      for (int i = 0; i < cm->seq_params.ref_frames; i++) {
         if (cm->current_frame.refresh_frame_flags & (1 << i)) {
           fb_of_context_type[current_frame_ref_type] = i;
           break;
@@ -621,10 +620,9 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 #endif  // DUMP_REF_FRAME_IMAGES == 1
 
 int av1_get_refresh_ref_frame_map(AV1_COMMON *cm, int refresh_frame_flags) {
-  (void)cm;
   int ref_map_index = INVALID_IDX;
-
-  for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index) {
+  for (ref_map_index = 0; ref_map_index < cm->seq_params.ref_frames;
+       ++ref_map_index) {
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
   }
 
@@ -637,16 +635,17 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   if (gf_index == 1) return !gf_group->has_overlay_for_key_frame;
   return 1;
 }
-
-static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES]) {
-  for (int idx = 0; idx < REF_FRAMES; ++idx)
+static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
+                                  const int ref_frames) {
+  for (int idx = 0; idx < ref_frames; ++idx)
     if (ref_map_pairs[idx].disp_order == -1) return idx;
   return INVALID_IDX;
 }
 
 static int get_refresh_idx(int update_arf, int refresh_level,
                            int cur_frame_disp,
-                           RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+                           RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+                           const int ref_frames) {
   int arf_count = 0;
   int oldest_arf_order = INT32_MAX;
   int oldest_arf_idx = -1;
@@ -656,8 +655,7 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 
   int oldest_ref_level_order = INT32_MAX;
   int oldest_ref_level_idx = -1;
-
-  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+  for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.disp_order == -1) continue;
     const int frame_order = ref_pair.disp_order;
@@ -723,8 +721,9 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx = get_refresh_idx(update_arf, refresh_level,
-                                          cur_disp_order, ref_frame_map_pairs);
+  const int refresh_idx =
+      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
+                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
 
@@ -757,7 +756,8 @@ int av1_get_refresh_frame_flags(
   }
 
   // Search for the open slot to store the current frame.
-  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
+  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
+                                             cpi->common.seq_params.ref_frames);
 
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
@@ -780,7 +780,8 @@ int av1_get_refresh_frame_flags(
 
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
+      get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs,
+                      cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
 
@@ -1248,7 +1249,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
-      for (int frame = 0; frame < REF_FRAMES; frame++) {
+      for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
         const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
         const int frame_order = (int)buf->display_order_hint;

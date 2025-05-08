@@ -269,6 +269,9 @@ struct av1_extracfg {
 #if CONFIG_EXT_SEG
   int enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 };
 
 // Example subgop configs. Currently not used by default.
@@ -634,6 +637,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_EXT_SEG
   0,    // enable_ext_seg
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  0,    // num_extra_dpb
+#endif  // CONFIG_EXTRA_DPB
 };
 
 struct aom_codec_alg_priv {
@@ -836,6 +842,10 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   RANGE_CHECK_HI(cfg, frame_hash_metadata, 3);
   RANGE_CHECK_HI(cfg, frame_hash_per_plane, 1);
+
+#if CONFIG_EXTRA_DPB
+  RANGE_CHECK(extra_cfg, num_extra_dpb, 0, 8);
+#endif  // CONFIG_EXTRA_DPB
 
   RANGE_CHECK(extra_cfg, color_primaries, AOM_CICP_CP_BT_709,
               AOM_CICP_CP_EBU_3213);  // Need to check range more precisely to
@@ -1135,6 +1145,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_EXT_SEG
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1280,6 +1293,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_EXT_SEG
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1625,6 +1641,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_EXT_SEG
   tool_cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  tool_cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
@@ -4403,6 +4422,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_ext_seg = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.num_extra_dpb, argv,
+                              err_string)) {
+    extra_cfg.num_extra_dpb = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_EXTRA_DPB
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4740,6 +4764,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_EXT_SEG
         0,  // enable_ext_seg
 #endif      // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+        0,  // num_extra_dpb
+#endif      // CONFIG_EXTRA_DPB
     },      // cfg
 } };
 
