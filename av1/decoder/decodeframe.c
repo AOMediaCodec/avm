@@ -8843,7 +8843,6 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
 #if CONFIG_GDF
 void av1_gdf_frame_dec(AV1_COMMON *cm) {
   gdf_filter_frame(cm);
-  free_gdf_buffers(cm);
 }
 #endif  // CONFIG_GDF
 

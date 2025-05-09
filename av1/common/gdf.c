@@ -22,9 +22,9 @@ void init_gdf(AV1_COMMON *cm) {
   const int rec_height = cm->cur_frame->buf.y_height;
   const int rec_width = cm->cur_frame->buf.y_width;
 
-  cm->gdf_info.gdf_mode = -1;
-  cm->gdf_info.gdf_pic_qc_idx = -1;
-  cm->gdf_info.gdf_pic_scale_idx = -1;
+  cm->gdf_info.gdf_mode = 0;
+  cm->gdf_info.gdf_pic_qc_idx = 0;
+  cm->gdf_info.gdf_pic_scale_idx = 0;
   cm->gdf_info.gdf_block_size =
       AOMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
   const int gdf_block_num_h = 1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) /
@@ -39,15 +39,23 @@ void init_gdf(AV1_COMMON *cm) {
 }
 
 void alloc_gdf_buffers(AV1_COMMON *cm) {
-  cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
-      32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
-  cm->gdf_info.gdf_block_flags =
-      (int32_t *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
+  if (cm->gdf_info.err_ptr == NULL || cm->gdf_info.gdf_block_flags == NULL) {
+    cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
+        32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
+    cm->gdf_info.gdf_block_flags =
+        (int32_t *)aom_malloc(cm->gdf_info.gdf_block_num * sizeof(int));
+  }
+  memset(cm->gdf_info.err_ptr, 0, cm->gdf_info.err_height * sizeof(int16_t));
+  memset(cm->gdf_info.gdf_block_flags, 0, cm->gdf_info.gdf_block_num * sizeof(int));
 }
 
 void free_gdf_buffers(AV1_COMMON *cm) {
-  aom_free(cm->gdf_info.err_ptr);
-  aom_free(cm->gdf_info.gdf_block_flags);
+  if (cm->gdf_info.err_ptr == NULL || cm->gdf_info.gdf_block_flags == NULL) {
+    aom_free(cm->gdf_info.err_ptr);
+    cm->gdf_info.err_ptr = NULL;
+    aom_free(cm->gdf_info.gdf_block_flags);
+    cm->gdf_info.gdf_block_flags = NULL;
+  }
 }
 
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {

@@ -85,9 +85,6 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
 
-#if CONFIG_GDF
-#include "av1/common/gdf.h"
-#endif  // CONFIG_GDF
 
 #if CONFIG_ML_PART_SPLIT
 #include "av1/encoder/part_split_prune_tflite.h"
@@ -2484,7 +2481,6 @@ void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   if (is_gdf_enabled(cm)) {
     gdf_filter_frame(cm);
   }
-  free_gdf_buffers(cm);
 }
 #endif  // CONFIG_GDF
 

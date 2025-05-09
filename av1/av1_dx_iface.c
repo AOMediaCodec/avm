@@ -29,6 +29,7 @@
 #include "av1/common/frame_buffers.h"
 #include "av1/common/enums.h"
 #include "av1/common/obu_util.h"
+#include "av1/common/gdf.h"
 
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
@@ -155,6 +156,9 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
 #endif  // CONFIG_MV_TRAJECTORY
     av1_remove_common(&frame_worker_data->pbi->common);
     av1_free_restoration_buffers(&frame_worker_data->pbi->common);
+#if CONFIG_GDF
+    free_gdf_buffers(&frame_worker_data->pbi->common);
+#endif  // CONFIG_GDF
     av1_decoder_remove(frame_worker_data->pbi);
     aom_free(frame_worker_data);
 #if CONFIG_MULTITHREAD

@@ -35,6 +35,8 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 
 #define GDF_ERR_STRIDE_MARGIN 16
 
+/*!\brief Function to initialize information of GDF
+ */
 void init_gdf(AV1_COMMON *cm);
 
 /*!\brief Function to allocate memory storing block's expected coding error of
