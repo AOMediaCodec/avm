@@ -188,7 +188,7 @@ static inline int compute_mapping_val(int16_t range_interval_start_abs,
 // Compress the TMVP MV to 8bits (1bit for sign, 7bits for magnitude)
 static inline int compression_mv(int16_t val) {
   const int abs_val = abs(val);
-  int compressed_val = 0;
+  int compressed_val = val;
   if (abs_val < 32) {
     // Lossless coding
     compressed_val = val;
@@ -231,7 +231,7 @@ static inline int compute_inverse_mapping_val(int16_t domain_interval_start_abs,
 // Decompress the TMVP MV from 8bits to 12bits
 static inline int uncompression_mv(int16_t val) {
   const int abs_val = abs(val);
-  int uncompressed_val = 0;
+  int uncompressed_val = val;
 
   if (abs_val < 32) {
     // Lossless coding

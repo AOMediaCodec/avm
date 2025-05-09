@@ -883,17 +883,13 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
             ref_frame;
 #endif  // CONFIG_IMPROVE_REFINED_MV
         mv->mv[idx].as_int = refined_mv.as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+        process_mv_for_tmvp(&mv->mv[idx].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
       }
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
-#if CONFIG_TMVP_MV_COMPRESSION
-      for (int idx = 0; idx < 2; ++idx) {
-        if (is_inter_ref_frame(mv->ref_frame[idx])) {
-          process_mv_for_tmvp(&mv->mv[idx].as_mv);
-        }
-      }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -996,6 +992,9 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #else
           mv->mv[idx].as_int = mi->mv[idx].as_int;
 #endif  // CONFIG_IMPROVE_TMVP_LIST
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         } else if (is_tip_ref_frame(ref_frame)) {
           int_mv this_mv[2] = { { 0 } };
           const MV *blk_mv = &mi->mv[idx].as_mv;
@@ -1010,12 +1009,18 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
               (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
             mv->ref_frame[0] = tip_ref->ref_frame[0];
             mv->mv[0].as_int = this_mv[0].as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+            process_mv_for_tmvp(&mv->mv[0].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           }
 
           if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
               (abs(this_mv[1].as_mv.col) <= REFMVS_LIMIT)) {
             mv->ref_frame[1] = tip_ref->ref_frame[1];
             mv->mv[1].as_int = this_mv[1].as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+            process_mv_for_tmvp(&mv->mv[1].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
           }
           break;
         }
@@ -1023,13 +1028,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
-#if CONFIG_TMVP_MV_COMPRESSION
-      for (int idx = 0; idx < 2; ++idx) {
-        if (is_inter_ref_frame(mv->ref_frame[idx])) {
-          process_mv_for_tmvp(&mv->mv[idx].as_mv);
-        }
-      }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -1207,18 +1205,14 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #endif
           mv->ref_frame[idx] = ref_frame;
           mv->mv[idx].as_int = refined_mv.as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
       }
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
-#if CONFIG_TMVP_MV_COMPRESSION
-      for (int idx = 0; idx < 2; ++idx) {
-        if (is_inter_ref_frame(mv->ref_frame[idx])) {
-          process_mv_for_tmvp(&mv->mv[idx].as_mv);
-        }
-      }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -1291,12 +1285,18 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
             (abs(sub_block_mv.as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[0] = mi->ref_frame[0];
           mv->mv[0].as_mv = sub_block_mv.as_mv;
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[0].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
 #else
         if ((abs(mi->mv[0].as_mv.row) <= REFMVS_LIMIT) &&
             (abs(mi->mv[0].as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[0] = mi->ref_frame[0];
           mv->mv[0].as_int = mi->mv[0].as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[0].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
 #endif  // CONFIG_IMPROVE_TMVP_LIST
       } else {
@@ -1330,6 +1330,9 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 
             mv->ref_frame[idx] = ref_frame;
             mv->mv[idx].as_int = sub_block_mv.as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+            process_mv_for_tmvp(&mv->mv[idx].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
 #else
           int8_t ref_idx = cm->ref_frame_side[ref_frame];
           if (ref_idx) continue;
@@ -1347,6 +1350,9 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 #endif  // CONFIG_WEDGE_TMVP
           mv->ref_frame[0] = ref_frame;
           mv->mv[0].as_int = mi->mv[idx].as_int;
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[0].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
 #endif  // CONFIG_IMPROVE_TMVP_LIST
           }
         }
@@ -1356,13 +1362,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 #if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
 #endif  // CONFIG_TMVP_MEM_OPT
-#if CONFIG_TMVP_MV_COMPRESSION
-      for (int idx = 0; idx < 2; ++idx) {
-        if (is_inter_ref_frame(mv->ref_frame[idx])) {
-          process_mv_for_tmvp(&mv->mv[idx].as_mv);
-        }
-      }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
     }
     frame_mvs += frame_mvs_stride;

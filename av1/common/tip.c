@@ -1732,6 +1732,9 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
 #else
           mv->mv[0].as_int = this_mv[0].as_int;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
+#if CONFIG_TMVP_MV_COMPRESSION
+          process_mv_for_tmvp(&mv->mv[0].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
 
         if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
@@ -1743,15 +1746,11 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
 #else
           mv->mv[1].as_int = this_mv[1].as_int;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
-        }
-      }
 #if CONFIG_TMVP_MV_COMPRESSION
-      for (int idx = 0; idx < 2; ++idx) {
-        if (is_inter_ref_frame(mv->ref_frame[idx])) {
-          process_mv_for_tmvp(&mv->mv[idx].as_mv);
+          process_mv_for_tmvp(&mv->mv[1].as_mv);
+#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
       }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
       mv++;
       tpl_mv++;
     }
