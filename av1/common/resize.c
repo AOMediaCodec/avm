@@ -1201,13 +1201,12 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
   const int is_uv = (plane > 0);
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int downscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-  const int upscaled_plane_width = ROUND_POWER_OF_TWO(
+  const int upscaled_plane_width =
 #if CONFIG_ENABLE_SR
-      cm->superres_upscaled_width,
+      ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
 #else
-      cm->width,
+      ROUND_POWER_OF_TWO(cm->width, ss_x);
 #endif  // CONFIG_ENABLE_SR
-      ss_x);
 #if CONFIG_ENABLE_SR
   const int superres_denom = cm->superres_scale_denominator;
 #endif  // CONFIG_ENABLE_SR

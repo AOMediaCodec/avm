@@ -6982,10 +6982,11 @@ static const aom_cdf_prob default_tip_cdf[3][CDF_SIZE(2)] = {
 };
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
-static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
 #if CONFIG_INTER_MODE_CONSOLIDATION
+static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
     TIP_PRED_MODES)] = { AOM_CDF2(29069), 0 };
 #else
+static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
     TIP_PRED_MODES)] = { AOM_CDF3(10923, 21845), 0 };
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
