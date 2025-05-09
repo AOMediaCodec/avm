@@ -375,57 +375,6 @@ static AOM_FORCE_INLINE void down_sample(
 }
 #endif  // OPFL_DOWNSAMP_QUINCUNX
 
-void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
-                     const int d1, const int bits, const int rls_alpha,
-                     int *vx0, int *vy0, int *vx1, int *vy1) {
-#if OPFL_REGULARIZED_LS
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#else
-  (void)rls_alpha;
-#endif
-
-  // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
-  //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
-  int shifts[2] = { bits, bits };
-  int msb_su2 = 1 + get_msb_signed(su2);
-  int msb_sv2 = 1 + get_msb_signed(sv2);
-  int msb_suv = 1 + get_msb_signed(suv);
-  int msb_suw = 1 + get_msb_signed(suw);
-  int msb_svw = 1 + get_msb_signed(svw);
-  // Make sure the max bit depth of det, sol[0], and sol[1] are within
-  // MAX_LS_BITS
-  int max_mult_msb = AOMMAX(
-      msb_su2 + msb_sv2, AOMMAX(AOMMAX(msb_sv2 + msb_suw, msb_suv + msb_svw),
-                                AOMMAX(msb_su2 + msb_svw, msb_suv + msb_suw)));
-  int redbit = AOMMAX(0, max_mult_msb - MAX_LS_BITS + 3) >> 1;
-
-  su2 = ROUND_POWER_OF_TWO_SIGNED(su2, redbit);
-  sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, redbit);
-  suv = ROUND_POWER_OF_TWO_SIGNED(suv, redbit);
-  suw = ROUND_POWER_OF_TWO_SIGNED(suw, redbit);
-  svw = ROUND_POWER_OF_TWO_SIGNED(svw, redbit);
-  const int64_t det = (int64_t)su2 * sv2 - suv * suv;
-  if (det <= 0) {
-    *vx0 = 0;
-    *vy0 = 0;
-    *vx1 = 0;
-    *vy1 = 0;
-    return;
-  }
-
-  int64_t sol[2] = { (int64_t)sv2 * suw - suv * svw,
-                     (int64_t)su2 * svw - suv * suw };
-
-  divide_and_round_array(sol, det, 2, shifts);
-  *vx0 = (int)-sol[0];
-  *vy0 = (int)-sol[1];
-  *vx1 = (*vx0) * d1;
-  *vy1 = (*vy0) * d1;
-  *vx0 = (*vx0) * d0;
-  *vy0 = (*vy0) * d0;
-}
-
 static AOM_FORCE_INLINE void multiply_and_accum(
     __m128i a_lo_0, __m128i b_lo_0, __m128i a_hi_0, __m128i b_hi_0,
     __m128i a_lo1, __m128i b_lo1, __m128i a_hi1, __m128i b_hi1,
