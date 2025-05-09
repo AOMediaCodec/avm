@@ -351,7 +351,9 @@ int get_opfl_mv_iterations(const struct AV1_COMP *cpi,
                            const MB_MODE_INFO *mbmi);
 #endif  // CONFIG_OPFL_MV_SEARCH
 
+#if !CONFIG_TIP_MV_SIMPLIFICATION
 void av1_set_tip_mv_search_range(FullMvLimits *mv_limits);
+#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
 
 int av1_init_search_range(int size);
 
@@ -427,6 +429,9 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   MvSubpelPrecision mv_precision;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } NEW_NEWMV_STATS;
 
@@ -434,21 +439,55 @@ typedef struct {
   int8_t ref_frame_type;
   int_mv start_mv;
   int_mv ref_mv;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  MvSubpelPrecision mv_precision;
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } NEAR_NEWMV_STATS;
 
 typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  MvSubpelPrecision mv_precision;
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv;
 } NEW_NEARMV_STATS;
 
+#if CONFIG_INTER_MODE_CONSOLIDATION
+typedef struct {
+  int8_t ref_frame_type;
+  int_mv start_mv;
+  int_mv ref_mv;
+  int use_amvd;
+  int_mv mv[2];
+} NEAR_NEWMV_AMVD_STATS;
+
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int_mv ref_mv[2];
+  int use_amvd;
+  int_mv mv[2];
+} NEW_NEWMV_AMVD_STATS;
+typedef struct {
+  int8_t ref_frame_type;
+  int ref_mv_idx_type;
+  int use_amvd;
+  int_mv mv;
+} NEW_NEARMV_AMVD_STATS;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   MvSubpelPrecision mv_precision;
   int joint_newmv_scale_idx;
   int8_t cwp_idx;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } JOINT_NEWMV_STATS;
 
@@ -457,6 +496,9 @@ typedef struct {
   int ref_mv_idx_type;
   int joint_amvd_scale_idx;
   int8_t cwp_idx;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   int_mv mv[2];
 } JOINT_AMVDNEWMV_STATS;
 #endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
@@ -491,7 +533,12 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1);
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+void av1_amvd_joint_motion_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, int_mv *cur_mv,
+                                  const uint8_t *mask, int mask_stride,
+                                  int *rate_mv);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const MV *start_mv, MV *bestmv,
@@ -684,6 +731,7 @@ static INLINE void av1_set_subpel_mv_search_range(
   subpel_limits->row_max = AOMMIN(MV_UPP - (1 << sub_pel_prec_shift), maxr);
 }
 
+#if !CONFIG_TIP_MV_SIMPLIFICATION
 static INLINE void av1_set_tip_subpel_mv_search_range(
     SubpelMvLimits *subpel_limits, const FullMvLimits *mv_limits) {
   const int tmvp_mv = GET_MV_SUBPEL(TIP_MV_SEARCH_RANGE << TMVP_MI_SZ_LOG2);
@@ -693,6 +741,7 @@ static INLINE void av1_set_tip_subpel_mv_search_range(
   subpel_limits->row_min = AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), -tmvp_mv);
   subpel_limits->row_max = AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), tmvp_mv);
 }
+#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
 
 static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
                                            MV mv) {

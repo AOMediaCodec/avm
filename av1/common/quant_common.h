@@ -97,7 +97,8 @@ int tcq_next_state(const int curState, const int absLevel);
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
-int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
+int32_t av1_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
+                         aom_bit_depth_t bit_depth);
 
 #if CONFIG_TCQ
 // Adjust qindex for better RDO when tcq is on
@@ -126,12 +127,13 @@ static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
 
 // Calculate Qstep from Qindex for AC when tcq is on
 static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
+                                           int base_ac_delta_q,
                                            aom_bit_depth_t bit_depth,
                                            int use_tcq_offset) {
   if (use_tcq_offset && qindex != 0) {
     qindex = get_new_qindex(qindex, bit_depth);
   }
-  return av1_ac_quant_QTX(qindex, delta, bit_depth);
+  return av1_ac_quant_QTX(qindex, delta, base_ac_delta_q, bit_depth);
 }
 #endif  // CONFIG_TCQ
 

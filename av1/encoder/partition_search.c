@@ -136,9 +136,11 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
                                         [split4_partition - 1];
 #endif  // CONFIG_IMPROVEIDTX
 #endif  // CONFIG_ENTROPY_STATS
-    } else if (allow_horz || allow_vert) {
+    }
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    else if (allow_horz || allow_vert) {
       int has_first_split = 0;
-      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+      if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
 
       if (allow_update_cdf &&
@@ -190,8 +192,8 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
       }
 #endif  // CONFIG_ENTROPY_STATS
     }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
   }
-
 #else
   if (allow_horz && allow_vert) {
     const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
@@ -673,6 +675,17 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if !WARP_CU_BANK
     if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
 #endif  // !WARP_CU_BANK
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+    if (xd->lossless[mbmi->segment_id]) {
+      if (block_size_wide[bsize] >= 8 && block_size_high[bsize] >= 8) {
+        const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
+        const int bsize_group = size_group_lookup[bsize];
+        if (is_inter || (!is_inter && is_fsc))
+          update_cdf(xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter],
+                     mbmi->tx_size, 2);
+      }
+    }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   }
 #if !CONFIG_NEW_TX_PARTITION
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
@@ -869,6 +882,7 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  * implemented for inter/intra + rd/non-rd + non-skip segment/skip segment.
  *
  * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    td             Pointer to thread data
  * \param[in]    tile_data      Pointer to struct holding adaptive
  *                              data/contexts/models for the tile during
  *                              encoding
@@ -892,9 +906,10 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  * rd_cost. If no valid mode leading to rd_cost <= best_rd, the status will be
  * signalled by an INT64_MAX rd_cost->rdcost.
  */
-static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
-                          MACROBLOCK *const x, int mi_row, int mi_col,
-                          RD_STATS *rd_cost, PARTITION_TYPE partition,
+static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
+                          TileDataEnc *tile_data, MACROBLOCK *const x,
+                          int mi_row, int mi_col, RD_STATS *rd_cost,
+                          PARTITION_TYPE partition,
 #if CONFIG_EXTENDED_SDP
                           REGION_TYPE cur_region_type,
 #endif  // CONFIG_EXTENDED_SDP
@@ -1026,7 +1041,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
-    av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, best_rd.rdcost);
+    av1_rd_pick_intra_mode_sb(cpi, td, x, rd_cost, bsize, ctx, best_rd.rdcost);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
@@ -1123,6 +1138,38 @@ static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
 #endif  // CONFIG_SEP_COMP_DRL
   }
 }
+#if CONFIG_INTER_MODE_CONSOLIDATION
+static void update_tip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
+                                       FRAME_COUNTS *counts,
+                                       const MB_MODE_INFO *mbmi) {
+#if !CONFIG_ENTROPY_STATS
+  (void)counts;
+#endif  // !CONFIG_ENTROPY_STATS
+  assert(have_drl_index(mbmi->mode));
+#if CONFIG_SEP_COMP_DRL
+  assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
+  assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
+#else
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
+#endif  // CONFIG_SEP_COMP_DRL
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
+    aom_cdf_prob *drl_cdf = fc->tip_drl_cdf[AOMMIN(idx, 2)];
+#if CONFIG_SEP_COMP_DRL
+    update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
+#if CONFIG_ENTROPY_STATS
+    counts->tip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
+#endif  // CONFIG_ENTROPY_STATS
+    if (mbmi->ref_mv_idx[0] == idx) break;
+#else
+    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
+#if CONFIG_ENTROPY_STATS
+    counts->tip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
+#endif  // CONFIG_ENTROPY_STATS
+    if (mbmi->ref_mv_idx == idx) break;
+#endif  // CONFIG_SEP_COMP_DRL
+  }
+}
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
@@ -1130,7 +1177,11 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    const MB_MODE_INFO *mbmi) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    update_tip_drl_index_stats(max_drl_bits, fc, counts, mbmi);
+#else
     update_skip_drl_index_stats(max_drl_bits, fc, counts, mbmi);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
     return;
   }
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
@@ -1139,7 +1190,10 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
   assert(IMPLIES(mbmi->mode == WARPMV, 0));
+
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_SEP_COMP_DRL
   assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
   assert(mbmi->ref_mv_idx[1] < max_drl_bits + 1);
@@ -1529,12 +1583,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_VQ_MVD_CODING
       av1_update_mv_stats(&fc->ndvc, mv_diff, mbmi->pb_mv_precision, 0);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
       if (mv_diff.row) {
         update_cdf(fc->ndvc.comps[0].sign_cdf, mv_diff.row < 0, 2);
       }
       if (mv_diff.col) {
         update_cdf(fc->ndvc.comps[1].sign_cdf, mv_diff.col < 0, 2);
       }
+#endif  //! CONFIG_MVD_CDF_REDUCTION
+
 #endif
 
 #else
@@ -1736,12 +1793,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
         if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
           const int ctx_index =
-              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+              (mbmi->mode == NEARMV)
+                  ? 0
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
+#else
+                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
           update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag[0] > 1,
                      2);
           if (mbmi->bawp_flag[0] > 1) {
@@ -1762,12 +1825,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 #else
       if (cm->features.enable_bawp &&
-          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
         update_cdf(fc->bawp_cdf, mbmi->bawp_flag > 0, 2);
         if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi)) {
           const int ctx_index =
-              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+              (mbmi->mode == NEARMV)
+                  ? 0
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
+#else
+                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
           update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag > 1, 2);
           if (mbmi->bawp_flag > 1) {
             update_cdf(fc->explicit_bawp_scale_cdf, mbmi->bawp_flag - 2,
@@ -2002,6 +2071,52 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         // continue_motion_mode_signaling = false;
       }
 
+#if CONFIG_WARP_INTER_INTRA
+      if (allow_warp_inter_intra(cm, mbmi, motion_mode)) {
+        const int bsize_group = size_group_lookup[bsize];
+        update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
+                   2);
+
+        if (mbmi->warp_inter_intra) {
+#if CONFIG_ENTROPY_STATS
+          counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
+#endif
+          update_cdf(fc->interintra_mode_cdf[bsize_group],
+                     mbmi->interintra_mode, INTERINTRA_MODES);
+          if (av1_is_wedge_used(bsize)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+#else
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf[bsize],
+                       mbmi->use_wedge_interintra, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+            if (mbmi->use_wedge_interintra) {
+#if CONFIG_WEDGE_MOD_EXT
+              update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
+#if CONFIG_ENTROPY_STATS
+                                    ,
+                                    counts
+#endif  // CONFIG_ENTROPY_STATS
+              );
+#else
+#if CONFIG_ENTROPY_STATS
+              counts->wedge_idx[bsize][mbmi->interintra_wedge_index]++;
+#endif
+              update_cdf(fc->wedge_idx_cdf[bsize], mbmi->interintra_wedge_index,
+                         16);
+#endif  // CONFIG_WEDGE_MOD_EXT
+            }
+          }
+        }
+      }
+#endif  // CONFIG_WARP_INTER_INTRA
+
       if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS
@@ -2034,7 +2149,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_REFINEMV
           && (!mbmi->refinemv_flag || !is_refinemv_signaled)
 #endif  // CONFIG_REFINEMV
-          && !is_joint_amvd_coding_mode(mbmi->mode)) {
+          && !is_joint_amvd_coding_mode(mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                                        ,
+                                        mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+                                        )) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_COMPOUND_4XN
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
@@ -2150,7 +2270,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
           ++counts->use_optflow[mode_ctx][use_optical_flow];
 #endif
-          update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
+#if CONFIG_OPFL_CTX_OPT
+          const int opfl_ctx = get_optflow_context(opfl_get_comp_idx(mode));
+          update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
+#else
+        update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
+#endif  // CONFIG_OPFL_CTX_OPT
 #if CONFIG_AFFINE_REFINEMENT
         }
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -2170,17 +2295,24 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
         const bool is_joint =
+#if CONFIG_INTER_MODE_CONSOLIDATION
+            (comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV));
+#else
             ((comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV)) ||
              (comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV)));
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
         update_cdf(fc->inter_compound_mode_is_joint_cdf
                        [get_inter_compound_mode_is_joint_context(cm, mbmi)],
                    is_joint, NUM_OPTIONS_IS_JOINT);
-
+#if !CONFIG_INTER_MODE_CONSOLIDATION
         if (is_joint) {
           update_cdf(fc->inter_compound_mode_joint_type_cdf[0],
                      comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV),
                      NUM_OPTIONS_JOINT_TYPE);
         } else {
+#else
+        if (!is_joint) {
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
           update_cdf(fc->inter_compound_mode_non_joint_type_cdf[mode_ctx],
                      comp_mode_idx, NUM_OPTIONS_NON_JOINT_TYPE);
         }
@@ -2211,7 +2343,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
-        const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
+        const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                                                                 ,
+                                                                 mbmi->use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+        );
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode
                                                 ? fc->jmvd_amvd_scale_mode_cdf
                                                 : fc->jmvd_scale_mode_cdf;
@@ -2220,13 +2357,24 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                        : JOINT_NEWMV_SCALE_FACTOR_CNT;
         update_cdf(jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode, jmvd_scale_cnt);
       }
-
     } else {
       av1_update_inter_mode_stats(
           fc, counts, mode, mode_ctx, cm, xd, mbmi, bsize
 
       );
     }
+
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    if (allow_amvd_mode(mbmi->mode)) {
+      int amvd_index = amvd_mode_to_index(mbmi->mode);
+      assert(amvd_index >= 0);
+      int amvd_ctx = get_amvd_context(xd);
+      update_cdf(fc->amvd_mode_cdf[amvd_index][amvd_ctx], mbmi->use_amvd, 2);
+#if CONFIG_ENTROPY_STATS
+      ++counts->amvd_mode[amvd_index][amvd_ctx][mbmi->use_amvd];
+#endif
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
     const int new_mv = have_newmv_in_each_reference(mbmi->mode);
     const int jmvd_base_ref_list = is_joint_mvd_coding_mode(mbmi->mode)
@@ -2243,8 +2391,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff[2] = { kZeroMv, kZeroMv };
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
     int num_signaled_mvd = 0;
     int start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
@@ -2260,8 +2410,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                             xd->mi_col, xd->mi_row);
         assert(is_adaptive_mvd == 0);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
         num_signaled_mvd = 1;
         start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
         get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
@@ -2314,8 +2466,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
         if (new_mv) {
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
           num_signaled_mvd = 1 + has_second_ref(mbmi);
           start_signaled_mvd_idx = 0;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
@@ -2344,8 +2498,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                           jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_DERIVED_MVD_SIGN
+#if !CONFIG_MVD_CDF_REDUCTION
           num_signaled_mvd = 1;
           start_signaled_mvd_idx = ref;
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #endif
 #if CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
           get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
@@ -2368,6 +2524,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
     }
 #if CONFIG_DERIVED_MVD_SIGN
+
+#if !CONFIG_MVD_CDF_REDUCTION
     // Update stats of the sign in the second pass
     if (num_signaled_mvd > 0) {
       int last_ref = -1;
@@ -2408,6 +2566,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
     }
+#endif  // !CONFIG_MVD_CDF_REDUCTION
 #endif  // CONFIG_DERIVED_MVD_SIGN
   }
 }
@@ -2643,7 +2802,7 @@ static void update_partition_stats(
     PARTITION_TREE const *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     PARTITION_TYPE partition, const int mi_row, const int mi_col,
-    BLOCK_SIZE bsize, const int ctx) {
+    BLOCK_SIZE bsize, int ctx) {
   const TREE_TYPE tree_type = xd->tree_type;
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -2677,6 +2836,10 @@ static void update_partition_stats(
     assert(do_split == implied_do_split);
   } else {
     if (allow_update_cdf) {
+#if CONFIG_NEW_PART_CTX
+      ctx =
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
       counts->do_split[plane_index][ctx][do_split]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2707,8 +2870,13 @@ static void update_partition_stats(
   }
   if (rect_type == RECT_INVALID) {
     rect_type = get_rect_part_type(partition);
+#if CONFIG_NEW_PART_CTX
+    const int rect_type_ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                                      0, RECT_TYPE_CTX_MODE);
+#else
     const int rect_type_ctx =
         partition_plane_context(xd, mi_row, mi_col, bsize, 0);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
     counts->rect_type[plane_index][rect_type_ctx][rect_type]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2717,16 +2885,26 @@ static void update_partition_stats(
     assert(rect_type == get_rect_part_type(partition));
   }
 
+#if CONFIG_NEW_PART_CTX
+  const int rect_type_context = 0;
+#else
+  const int rect_type_context = rect_type;
+#endif  // CONFIG_NEW_PART_CTX
   bool do_ext_partition = (partition >= PARTITION_HORZ_3);
   bool implied_do_ext;
   if (is_do_ext_partition_implied(partition_allowed, rect_type,
                                   &implied_do_ext)) {
     assert(do_ext_partition == implied_do_ext);
   } else {
+#if CONFIG_NEW_PART_CTX
+    ctx = partition_plane_context(xd, mi_row, mi_col, bsize, rect_type,
+                                  EXT_PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
-    counts->do_ext_partition[plane_index][rect_type][ctx][do_ext_partition]++;
+    counts->do_ext_partition[plane_index][rect_type_context][ctx]
+                            [do_ext_partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(fc->do_ext_partition_cdf[plane_index][rect_type][ctx],
+    update_cdf(fc->do_ext_partition_cdf[plane_index][rect_type_context][ctx],
                do_ext_partition, 2);
   }
   if (do_ext_partition) {
@@ -2736,26 +2914,33 @@ static void update_partition_stats(
                                             &implied_do_uneven_4way)) {
       assert(do_uneven_4way_partition == implied_do_uneven_4way);
     } else {
+#if CONFIG_NEW_PART_CTX
+      ctx = partition_plane_context(xd, mi_row, mi_col, bsize, rect_type,
+                                    FOUR_WAY_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_ENTROPY_STATS
-      counts->do_uneven_4way_partition[plane_index][rect_type][ctx]
+      counts->do_uneven_4way_partition[plane_index][rect_type_context][ctx]
                                       [do_uneven_4way_partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->do_uneven_4way_partition_cdf[plane_index][rect_type][ctx],
-                 do_uneven_4way_partition, 2);
+      update_cdf(
+          fc->do_uneven_4way_partition_cdf[plane_index][rect_type_context][ctx],
+          do_uneven_4way_partition, 2);
     }
+#if !CONFIG_NEW_PART_CTX
     if (do_uneven_4way_partition) {
       const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
           (partition == PARTITION_HORZ_4A || partition == PARTITION_VERT_4A)
               ? UNEVEN_4A
               : UNEVEN_4B;
 #if CONFIG_ENTROPY_STATS
-      counts->uneven_4way_partition_type[plane_index][rect_type][ctx]
+      counts->uneven_4way_partition_type[plane_index][rect_type_context][ctx]
                                         [uneven_4way_type]++;
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(
-          fc->uneven_4way_partition_type_cdf[plane_index][rect_type][ctx],
-          uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
+      update_cdf(fc->uneven_4way_partition_type_cdf[plane_index]
+                                                   [rect_type_context][ctx],
+                 uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
     }
+#endif  // !CONFIG_NEW_PART_CTX
   }
 #else  // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2877,6 +3062,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const int qbs_h = mi_size_high[bsize] / 4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int is_partition_root = is_partition_point(bsize);
+#if CONFIG_NEW_PART_CTX
+  const int ctx = 0;
+#else
   const int ctx = is_partition_root
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                       ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
@@ -2884,6 +3072,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                       ? partition_plane_context(xd, mi_row, mi_col, bsize)
 #endif
                       : -1;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -2892,7 +3081,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 
   if (subsize == BLOCK_INVALID) return;
 
-  if (!dry_run && ctx >= 0)
+  if (!dry_run && is_partition_root)
     update_partition_stats(cm, xd,
 #if CONFIG_ENTROPY_STATS
                            td->counts,
@@ -3645,13 +3834,14 @@ static void init_partition_costs(const AV1_COMMON *const cm,
   const ModeCosts *const mode_costs = &x->mode_costs;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int plane_index = (tree_type == CHROMA_PART);
-
+#if !CONFIG_NEW_PART_CTX
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                                           ,
                                           1
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
   );
+#endif  // !CONFIG_NEW_PART_CTX
 
   for (PARTITION_TYPE part = 0; part < ALL_PARTITION_TYPES; part++) {
     if (!partition_allowed[part]) {
@@ -3662,6 +3852,10 @@ static void init_partition_costs(const AV1_COMMON *const cm,
     if (is_do_split_implied(partition_allowed, &implied_do_split)) {
       assert(do_split == implied_do_split);
     } else {
+#if CONFIG_NEW_PART_CTX
+      const int ctx =
+          partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
           mode_costs->do_split_cost[plane_index][ctx][do_split];
     }
@@ -3685,6 +3879,10 @@ static void init_partition_costs(const AV1_COMMON *const cm,
     }
     if (rect_type == RECT_INVALID) {
       rect_type = get_rect_part_type(part);
+#if CONFIG_NEW_PART_CTX
+      const int rect_type_ctx = partition_plane_context(
+          xd, mi_row, mi_col, bsize, 0, RECT_TYPE_CTX_MODE);
+#else
       const int rect_type_ctx =
           partition_plane_context(xd, mi_row, mi_col, bsize
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -3692,12 +3890,18 @@ static void init_partition_costs(const AV1_COMMON *const cm,
                                   0
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
           );
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
           mode_costs->rect_type_cost[plane_index][rect_type_ctx][rect_type];
     } else if (rect_type != get_rect_part_type(part)) {
       partition_cost[part] = 0;  // unused
       continue;
     }
+#if CONFIG_NEW_PART_CTX
+    const int rect_type_context = 0;
+#else
+    const int rect_type_context = rect_type;
+#endif  // CONFIG_NEW_PART_CTX
     bool do_ext_partition = (part >= PARTITION_HORZ_3);
     bool implied_do_ext;
     if (is_do_ext_partition_implied(partition_allowed, rect_type,
@@ -3707,8 +3911,12 @@ static void init_partition_costs(const AV1_COMMON *const cm,
         continue;
       }
     } else {
+#if CONFIG_NEW_PART_CTX
+      const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                              rect_type, EXT_PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
       partition_cost[part] +=
-          mode_costs->do_ext_partition_cost[plane_index][rect_type][ctx]
+          mode_costs->do_ext_partition_cost[plane_index][rect_type_context][ctx]
                                            [do_ext_partition];
     }
     if (do_ext_partition) {
@@ -3721,19 +3929,28 @@ static void init_partition_costs(const AV1_COMMON *const cm,
           continue;
         }
       } else {
+#if CONFIG_NEW_PART_CTX
+        const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize,
+                                                rect_type, FOUR_WAY_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
         partition_cost[part] +=
             mode_costs
-                ->do_uneven_4way_partition_cost[plane_index][rect_type][ctx]
-                                               [do_uneven_4way_partition];
+                ->do_uneven_4way_partition_cost[plane_index][rect_type_context]
+                                               [ctx][do_uneven_4way_partition];
       }
       if (do_uneven_4way_partition) {
+#if CONFIG_NEW_PART_CTX
+        partition_cost[part] += av1_cost_literal(1);
+#else
         const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
             (part == PARTITION_HORZ_4A || part == PARTITION_VERT_4A)
                 ? UNEVEN_4A
                 : UNEVEN_4B;
         partition_cost[part] +=
-            mode_costs->uneven_4way_partition_type_cost[plane_index][rect_type]
-                                                       [ctx][uneven_4way_type];
+            mode_costs->uneven_4way_partition_type_cost[plane_index]
+                                                       [rect_type_context][ctx]
+                                                       [uneven_4way_type];
+#endif  // CONFIG_NEW_PART_CTX
       }
     }
   }
@@ -3889,7 +4106,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
   switch (partition) {
     case PARTITION_NONE:
-      pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+      pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_NONE,
 #if CONFIG_EXTENDED_SDP
                     pc_tree->region_type,
@@ -3928,7 +4145,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
               PARTITION_HORZ, i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
-      pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+      pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_HORZ, subsize, pc_tree->horizontal[0],
                     invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3951,7 +4168,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         av1_update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
+        pick_sb_modes(cpi, td, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
                       PARTITION_HORZ, subsize, pc_tree->horizontal[1],
                       invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3996,7 +4213,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
               PARTITION_VERT, i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
-      pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+      pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
@@ -4017,7 +4234,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         av1_update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
+        pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
                       PARTITION_VERT, subsize,
                       pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -4228,7 +4445,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
   RD_STATS rdcost_remaining;
   av1_rd_stats_subtraction(x->rdmult, &best_rdcost, sum_rdc, &rdcost_remaining);
   RD_STATS this_rdc;
-  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, partition,
+  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &this_rdc, partition,
 #if CONFIG_EXTENDED_SDP
                 pc_tree->region_type,
 #endif  // CONFIG_EXTENDED_SDP
@@ -4693,8 +4910,8 @@ static void rd_pick_rect_partition(AV1_COMP *const cpi, TileDataEnc *tile_data,
                            &best_remain_rdcost);
 
   // Obtain the best mode for the partition sub-block.
-  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &part_search_state->this_rdc,
-                partition_type,
+  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col,
+                &part_search_state->this_rdc, partition_type,
 #if CONFIG_EXTENDED_SDP
                 pc_tree->region_type,
 #endif  // CONFIG_EXTENDED_SDP
@@ -5943,7 +6160,7 @@ static void none_partition_search(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // PARTITION_NONE evaluation and cost update.
-  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
+  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
 #if CONFIG_EXTENDED_SDP
                 pc_tree->region_type,
 #endif  // CONFIG_EXTENDED_SDP

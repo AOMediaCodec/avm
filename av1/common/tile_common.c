@@ -171,6 +171,7 @@ AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info, const AV1_COMMON *cm,
   r.top = tile_info->mi_row_start * MI_SIZE;
   r.bottom = tile_info->mi_row_end * MI_SIZE;
 
+#if CONFIG_ENABLE_SR
   // If upscaling is enabled, the tile limits need scaling to match the
   // upscaled frame where the restoration units live. To do this, scale up the
   // top-left and bottom-right of the tile.
@@ -183,7 +184,10 @@ AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info, const AV1_COMMON *cm,
 
   const int frame_w = cm->superres_upscaled_width;
   const int frame_h = cm->superres_upscaled_height;
-
+#else
+  const int frame_w = cm->width;
+  const int frame_h = cm->height;
+#endif  // CONFIG_ENABLE_SR
   // Make sure we don't fall off the bottom-right of the frame.
   r.right = AOMMIN(r.right, frame_w);
   r.bottom = AOMMIN(r.bottom, frame_h);
@@ -228,6 +232,10 @@ int av1_is_min_tile_width_satisfied(const AV1_COMMON *cm) {
   // Disable check if there is a single tile col in the frame
   if (cm->tiles.cols == 1) return 1;
 
+#if CONFIG_ENABLE_SR
   return ((cm->tiles.min_inner_width << MI_SIZE_LOG2) >=
           (64 << av1_superres_scaled(cm)));
+#else
+  return (cm->tiles.min_inner_width << MI_SIZE_LOG2) >= 64;
+#endif  // CONFIG_ENABLE_SR
 }

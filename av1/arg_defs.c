@@ -246,6 +246,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "resize-denominator", 1, "Frame resize denominator"),
   .resize_kf_denominator = ARG_DEF(NULL, "resize-kf-denominator", 1,
                                    "Frame resize keyframe denominator"),
+#if CONFIG_ENABLE_SR
   .superres_mode =
       ARG_DEF(NULL, "superres-mode", 1, "Frame super-resolution mode"),
   .superres_denominator = ARG_DEF(NULL, "superres-denominator", 1,
@@ -258,6 +259,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .superres_kf_qthresh =
       ARG_DEF(NULL, "superres-kf-qthresh", 1,
               "Frame super-resolution keyframe qindex threshold"),
+#endif  // CONFIG_ENABLE_SR
   .end_usage =
       ARG_DEF_ENUM(NULL, "end-usage", 1, "Rate control mode", end_usage_enum),
   .target_bitrate = ARG_DEF(NULL, "target-bitrate", 1, "Bitrate (kbps)"),
@@ -432,6 +434,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(0: disable TIP, "
               " 1: TIP frame is used as reference or direct output (default), "
               " 2: TIP frame is only used as reference)"),
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  .enable_mv_traj = ARG_DEF(NULL, "enable-mv-traj", 1,
+                            "Enable MV trajectory tracking"
+                            "(0: disable MV traj tracking, "
+                            " 1: enable MV traj tracking (default))"),
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   .enable_bawp = ARG_DEF(NULL, "enable-bawp", 1,
                          "Enable block adaptive weighted prediction (BAWP)"
@@ -451,11 +459,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
                          "Enable Offset Based refinement of intra prediction"
                          "(0: false, 1: true (default))"),
-#if CONFIG_IDIF
-  .enable_idif = ARG_DEF(NULL, "enable-idif", 1,
-                         "Enable Intra Directional Interpolation Filter"
-                         "(0: false, 1: true (default))"),
-#endif  // CONFIG_IDIF
   .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
                         "Enable intra secondary transform"
                         "(0: false, 1: true (default))"),
@@ -891,6 +894,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                             "Enable extended # of segments "
                             "(0: false (default), 1: true)"),
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
+                           "extra dpb number (0..8), default is 0"),
+#endif  // CONFIG_EXTRA_DPB
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

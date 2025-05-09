@@ -295,6 +295,7 @@ else()
   add_compiler_flag_if_supported("-Wextra")
   add_compiler_flag_if_supported("-Wfloat-conversion")
   add_compiler_flag_if_supported("-Wlogical-op")
+  add_compiler_flag_if_supported("-Wno-comment")
   add_compiler_flag_if_supported("-Wpointer-arith")
   add_compiler_flag_if_supported("-Wshorten-64-to-32")
   add_compiler_flag_if_supported("-Wsign-compare")
@@ -340,6 +341,10 @@ else()
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77728
   if("${AOM_TARGET_CPU}" MATCHES "arm")
     add_cxx_flag_if_supported("-Wno-psabi")
+  endif()
+
+  if(ENABLE_WERROR)
+    add_compiler_flag_if_supported("-Werror")
   endif()
 
   if(ENABLE_ASSERTS)

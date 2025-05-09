@@ -74,18 +74,32 @@ static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
   const int row_offset = fullmv.row + (blk_row << MI_SIZE_LOG2);
   if (row_offset >= y_height) {
     fullmv.row = y_height - (blk_row << MI_SIZE_LOG2) - 1;
+#if CONFIG_IMPROVE_TIP_SMVP
+    mv->row = (int16_t)GET_MV_SUBPEL(fullmv.row);
+#endif  // CONFIG_IMPROVE_TIP_SMVP
   } else if (row_offset < 0) {
     fullmv.row = -(blk_row << MI_SIZE_LOG2);
+#if CONFIG_IMPROVE_TIP_SMVP
+    mv->row = (int16_t)GET_MV_SUBPEL(fullmv.row);
+#endif  // CONFIG_IMPROVE_TIP_SMVP
   }
 
   const int col_offset = fullmv.col + (blk_col << MI_SIZE_LOG2);
   if (col_offset >= y_width) {
     fullmv.col = y_width - (blk_col << MI_SIZE_LOG2) - 1;
+#if CONFIG_IMPROVE_TIP_SMVP
+    mv->col = (int16_t)GET_MV_SUBPEL(fullmv.col);
+#endif  // CONFIG_IMPROVE_TIP_SMVP
   } else if (col_offset < 0) {
     fullmv.col = -(blk_col << MI_SIZE_LOG2);
+#if CONFIG_IMPROVE_TIP_SMVP
+    mv->col = (int16_t)GET_MV_SUBPEL(fullmv.col);
+#endif  // CONFIG_IMPROVE_TIP_SMVP
   }
 
+#if !CONFIG_IMPROVE_TIP_SMVP
   *mv = get_mv_from_fullmv(&fullmv);
+#endif  // CONFIG_IMPROVE_TIP_SMVP
 }
 #ifdef __cplusplus
 }  // extern "C"

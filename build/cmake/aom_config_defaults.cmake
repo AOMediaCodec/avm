@@ -155,6 +155,7 @@ set_aom_config_var(
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
 set_aom_config_var(CONFIG_IMPROVEIDTX 1
                    "AV2 enable improved identity transform coding.")
+set_aom_config_var(CONFIG_EXT_QUANT_UPD 1 "AV2 updated ext-quant.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
                    "AV2 enable coding 1 LR in coefficient coding.")
 set_aom_config_var(CONFIG_CHROMA_CODING 1
@@ -174,15 +175,19 @@ set_aom_config_var(CONFIG_CB1TO4_SPLIT 1 NUMBER
 set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
                    "AV2 intra SDP latency issue addressing flag")
 set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
+set_aom_config_var(CONFIG_DIP_EXT 1 "AV2 DIP Improvements.")
+set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")
+set_aom_config_var(CONFIG_TCQ_IMP 1 "AV2 TCQ improvement")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
                    "AV2 relax affine constraints")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
                    "AV2 new transform partitions experiment flag.")
-
+set_aom_config_var(CONFIG_4WAY_5WAY_TX_PARTITION 1
+                   "AV2 4way+5way txfm partitions experiment flag.")
 set_aom_config_var(CONFIG_INTER_COMPOUND_BY_JOINT 1
                    "AV2 inter compound mode by joint.")
 set_aom_config_var(CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX 1
@@ -239,12 +244,27 @@ set_aom_config_var(
   "Frame-level, nonsep Wiener filter for chroma experiment flag")
 
 set_aom_config_var(
+  CONFIG_RETRAIN_PC_WIENER 1 NUMBER
+  "Precision Adjustment and Retraining for RESTORE_PC_WIENER flag")
+
+set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
-  "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
+  "AV2 improved luma downsampling for cross-plane non-sep wiener filter")
+
+set_aom_config_var(
+  CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+  1
+  "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
+)
 
 # CWG-D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")
+set_aom_config_var(
+  CONFIG_IMPROVE_LOSSLESS_TXM
+  1
+  "AV2 enable 4x4 IDTX for inter blocks and 8x8 IDTX for all blocks in lossless mode (luma only)"
+)
 set_aom_config_var(
   CONFIG_ACROSS_SCALE_TPL_MVS 0 NUMBER
   "AV2 experiment flag to enable across scale temporal mv projection")
@@ -281,8 +301,13 @@ set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
                    "AV2 experiment flag to enable skip mode enhancement.")
+set_aom_config_var(
+  CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL 1
+  "AV2 experiment flag to remove parsing dependency of skip mode.")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
+set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
+                   "Enable temporal scalability")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")
 set_aom_config_var(CONFIG_TIP_DIRECT_FRAME_MV 1
@@ -303,8 +328,8 @@ set_aom_config_var(
   "Fix BAWP from CWG-E245, only use up to 16 samples from left and above and remove division using 8, 16 , or 32 samples"
 )
 
-set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES_FIX 0 NUMBER
-                   "Fix on BAWP across scales prediction")
+set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
+                   "Enable BAWP across scales prediction")
 set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")
 set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
                    "Enable single reference mode for frame boundary")
@@ -335,6 +360,12 @@ set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
+# CWG-F082: Extended DPB mode for AV2 in RTC
+set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
+
+# CWG-E230: On core transform for AV2
+set_aom_config_var(CONFIG_CORE_TX 1 "AV2 core transform")
+
 set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
                    "Enable to optimize txfm partition context")
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
@@ -347,7 +378,7 @@ set_aom_config_var(CONFIG_REFRESH_FLAG 0
 set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
                    "Enable to optimize block size dependent context modeling")
 set_aom_config_var(
-  CONFIG_COMPOUND_WARP_CAUSAL 1
+  CONFIG_COMPOUND_WARP_CAUSAL 0
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
 set_aom_config_var(CONFIG_DSMVP_REFBANK_MV_SWAP 1
                    "Swap ref bank mv and derived smvp in DRL generation")
@@ -375,6 +406,7 @@ set_aom_config_var(CONFIG_BANK_IMPROVE 1
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
 set_aom_config_var(CONFIG_CCSO_IMPROVE 1 "Enable CCSO improvements")
+set_aom_config_var(CONFIG_CCSO_FU_BUGFIX 1 "Bugfix to CCSO FU size")
 
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
                    "Improvement of all inter mode related contexts")
@@ -387,9 +419,20 @@ set_aom_config_var(CONFIG_KEY_OVERLAY 1
 
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
+set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
+                   "Enable optimization of the CDFs for use optflow flag")
 
 set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
                    "Enable the optimization of CDEF strengths")
+set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
+                   "Enable reduction of the CDFs for MVD related sybmols")
+
+set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
+                   "Improvements to TMVP & MV trajectory")
+
+set_aom_config_var(CONFIG_TMVP_SIMPLIFICATION 1
+                   "Enable to reduce the number of TMVP candidates")
+set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1 "Improve SMVP with TIP (F043)")
 
 set_aom_config_var(
   CONFIG_MRLS_IMPROVE 1
@@ -401,6 +444,10 @@ set_aom_config_var(
   1
   "Reduce the line buffer size for DRL and WRL. The access unit is changed from 4x4 to 8x8"
 )
+set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
+
+set_aom_config_var(CONFIG_TIP_MV_SIMPLIFICATION 1
+                   "Enable to address the motion field range issue in TIP")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
@@ -435,6 +482,11 @@ set_aom_config_var(
 
 set_aom_config_var(MHCCP_BUFFER_4LINES 1
                    "Using 2 lines for the chroma reference region in MHCCP")
+
+set_aom_config_var(CONFIG_MHCCP_GAUSSIAN 1
+                   "Fix gaussian elimination precision for MHCCP")
+
+set_aom_config_var(MHCCP_3_PARAMETERS 1 "Using 3 parameters in MHCCP")
 
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
@@ -479,6 +531,8 @@ set_aom_config_var(
   "Enable the signaling optimization for certain frame header syntax elements")
 
 set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
+set_aom_config_var(CONFIG_TIP_ENHANCEMENT 1
+                   "Enable different weighted prediction for TIP")
 
 set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
                    "Enable the redesign of warp modes signaling flow")
@@ -518,11 +572,13 @@ set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
 set_aom_config_var(CONFIG_IMPROVE_REFINED_MV 1
                    "Keep refined MVs in TMVP list for TIP modes.")
+set_aom_config_var(CONFIG_IMPROVE_TMVP_LIST 1 "Improve TMVP list population.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
                    "Subblock based affine refinement")
 set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
+set_aom_config_var(CONFIG_ASYM_DF 1 "Enable asymmetric DF")
 set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
 set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
 set_aom_config_var(CONFIG_QM_SIMPLIFY 1
@@ -588,6 +644,12 @@ set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")
 set_aom_config_var(CONFIG_SIX_PARAM_WARP_DELTA 1
                    "Enable six parameter warp models.")
+set_aom_config_var(
+  CONFIG_REORDER_SIX_PARAM_DELTA 1
+  "Enable to six parameter warp models signal when warp_ref_idx is 1.")
+
+set_aom_config_var(CONFIG_WARP_INTER_INTRA 1
+                   "Enable inter-intra mode for warp block.")
 
 set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
@@ -598,6 +660,8 @@ set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
 set_aom_config_var(CONFIG_DF_PAR_BITS 1
                    "Flexible control of deblocking parameter bits.")
 
+set_aom_config_var(CONFIG_NEW_PART_CTX 1 "New partition context models")
+
 set_aom_config_var(CONFIG_EXT_SEG 1
                    "Extend the maximum number of segments to 16, CWG-F069.")
 
@@ -605,8 +669,22 @@ set_aom_config_var(CONFIG_DELTAQ_OPT 1
                    "Enable delta-q entropy coding optimization.")
 set_aom_config_var(CONFIG_TX_PARTITION_RESTRICT 1
                    "Disallow transform partition for large coding blocks.")
+set_aom_config_var(CONFIG_INTER_MODE_CONSOLIDATION 1
+                   "Inter modes redesign and consolidation.")
+set_aom_config_var(
+  CONFIG_F054_PIC_BOUNDARY
+  1
+  "Alignment of ref picture to be integer multiples of 8 for loop filter and inter prediction"
+)
 set_aom_config_var(CONFIG_GDF 1 "Enable guided detail filter.")
 
+set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
+                   "Symbol size reduction from 16 to 8.")
+
+set_aom_config_var(CONFIG_DAMR_CLEAN_UP 1
+                   "Clean up DAMR memory bandwith issue.")
+set_aom_config_var(CONFIG_ADJ_Q_OFFSET 1
+                   "Encoder-only config to adjust qp offsets.")
 #
 # Variables in this section control optional features of the build system.
 #

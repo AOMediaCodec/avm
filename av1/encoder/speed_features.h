@@ -256,11 +256,13 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
+#if CONFIG_ENABLE_SR
 enum {
   SUPERRES_AUTO_ALL,   // Tries all possible superres ratios
   SUPERRES_AUTO_DUAL,  // Tries no superres and q-based superres ratios
   SUPERRES_AUTO_SOLO,  // Only apply the q-based superres ratio
 } UENUM1BYTE(SUPERRES_AUTO_SEARCH_TYPE);
+#endif  // CONFIG_ENABLE_SR
 
 /*!\endcond */
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -316,10 +318,12 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // adds overhead.
   int static_segmentation;
 
+#if CONFIG_ENABLE_SR
   /*!
    * Superres-auto mode search type:
    */
   SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
+#endif  // CONFIG_ENABLE_SR
 
   /*!
    * disallow references at different scale
@@ -925,7 +929,7 @@ typedef struct TX_SPEED_FEATURES {
 
 #if CONFIG_NEW_TX_PARTITION
   // tx_type search pruning at low qp and resolution >= 1080p
-  bool restrict_tx_partition_type_search;
+  int restrict_tx_partition_type_search;
 
   // Prune RD evaluation of transform block using RD Cost of NONE transform
   // partition of inter modes that are evaluated so far

@@ -25,6 +25,9 @@ extern "C" {
 #if !CONFIG_PRIMARY_REF_FRAME_OPT
 typedef struct {
   int pyr_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  int temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
@@ -38,14 +41,24 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     return;
   }
   memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
-  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+  for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
-    if (buf == NULL) {
+    if (buf == NULL
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+        // If the temporal_layer_id of the reference frame is greater than
+        // the temporal_layer_id of the current frame, the reference frame
+        // is not included into the list of ref_frame_map_pairs[].
+        || buf->temporal_layer_id > cm->current_frame.temporal_layer_id
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    ) {
       ref_frame_map_pairs[map_idx].disp_order = -1;
       ref_frame_map_pairs[map_idx].pyr_level = -1;
       ref_frame_map_pairs[map_idx].base_qindex = -1;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+      ref_frame_map_pairs[map_idx].temporal_layer_id = -1;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
       continue;
     } else if (buf->ref_count > 1) {
       // Once the keyframe is coded, the slots in ref_frame_map will all
@@ -53,17 +66,23 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       // matching the current are considered "free" slots. This will find
       // the next occurance of the current pointer if ref_count indicates
       // there are multiple instances of it and mark it as free.
-      for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
+      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.ref_frames; ++idx2) {
         const RefCntBuffer *const buf2 = cm->ref_frame_map[idx2];
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].disp_order = -1;
           ref_frame_map_pairs[idx2].pyr_level = -1;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+          ref_frame_map_pairs[idx2].temporal_layer_id = -1;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
           ref_frame_map_pairs[idx2].base_qindex = -1;
         }
       }
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
 #if CONFIG_PRIMARY_REF_FRAME_OPT
     ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
@@ -196,7 +215,11 @@ static INLINE int get_tip_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    if (neighbor != NULL && neighbor->skip_mode == 0) {
+#else
     if (neighbor != NULL) {
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
       ctx += is_tip_ref_frame(neighbor->ref_frame[0]);
     }
   }
@@ -324,7 +347,11 @@ static INLINE int derive_comp_one_ref_context(const AV1_COMMON *cm,
   MV_REFERENCE_FRAME furthest_future_ref = get_furthest_future_ref_index(cm);
   int ctx = 0;
   if (mi) {
-    if (has_second_ref(mi))
+    if (has_second_ref(mi)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        || mi->skip_mode == 1
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       ctx = mi->comp_group_idx;
     else if (mi->ref_frame[0] == furthest_future_ref)
       ctx = 2;

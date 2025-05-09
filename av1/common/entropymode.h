@@ -167,6 +167,17 @@ extern "C" {
 
 struct AV1Common;
 
+#define PARTITION_STRUCTURE_NUM 2
+
+#if CONFIG_NEW_PART_CTX
+#define PARTITION_BLOCK_GROUPS 16
+#define PARTITION_CONTEXTS (PARTITION_BLOCK_GROUPS * PARTITION_PLOFFSET)
+#define NUM_RECT_CONTEXTS 1
+#else
+#define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)
+#define NUM_RECT_CONTEXTS 2
+#endif  // CONFIG_NEW_PART_CTX
+
 typedef struct {
   const int16_t *scan;
   const int16_t *iscan;
@@ -295,6 +306,9 @@ typedef struct frame_contexts {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  aom_cdf_prob tip_drl_cdf[3][CDF_SIZE(2)];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
 #if CONFIG_REFINEMV
   aom_cdf_prob refinemv_flag_cdf[NUM_REFINEMV_CTX]
@@ -302,7 +316,11 @@ typedef struct frame_contexts {
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPT_INTER_MODE_CTX
+#if CONFIG_OPFL_CTX_OPT
+  aom_cdf_prob use_optflow_cdf[OPFL_MODE_CONTEXTS][CDF_SIZE(2)];
+#else
   aom_cdf_prob use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_OPFL_CTX_OPT
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   // The inter_compound_mode_is_joint_cdf is for coding whether the mode is
@@ -314,10 +332,12 @@ typedef struct frame_contexts {
   aom_cdf_prob
       inter_compound_mode_non_joint_type_cdf[NUM_CTX_NON_JOINT_TYPE][CDF_SIZE(
           NUM_OPTIONS_NON_JOINT_TYPE)];
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   // The inter_compound_mode_joint_type_cdf is for coding modes JOINT_NEWMV,
   // JOINT_AMVDNEWMV.
   aom_cdf_prob inter_compound_mode_joint_type_cdf[NUM_CTX_JOINT_TYPE][CDF_SIZE(
       NUM_OPTIONS_JOINT_TYPE)];
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
   aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
@@ -330,7 +350,9 @@ typedef struct frame_contexts {
   aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  aom_cdf_prob amvd_mode_cdf[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   aom_cdf_prob cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)];
   aom_cdf_prob jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)];
   aom_cdf_prob jmvd_amvd_scale_mode_cdf[CDF_SIZE(JOINT_AMVD_SCALE_FACTOR_CNT)];
@@ -342,9 +364,17 @@ typedef struct frame_contexts {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  /*The wedge_quad is first decoded. Depending on the wedge quadrant, the
+   * wedge_angle is decoded. Depending on the wedge_angle, the wedge_dist is
+   * decoded.*/
+  aom_cdf_prob wedge_quad_cdf[CDF_SIZE(WEDGE_QUADS)];
+  aom_cdf_prob wedge_angle_cdf[WEDGE_QUADS][CDF_SIZE(QUAD_WEDGE_ANGLES)];
+#else
   aom_cdf_prob wedge_angle_dir_cdf[CDF_SIZE(2)];
   aom_cdf_prob wedge_angle_0_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
   aom_cdf_prob wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   aom_cdf_prob wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)];
   aom_cdf_prob wedge_dist_cdf2[CDF_SIZE(NUM_WEDGE_DIST - 1)];
 #else
@@ -357,6 +387,10 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)];
 #endif  // CONFIG_WEDGE_MOD_EXT
+
+#if CONFIG_WARP_INTER_INTRA
+  aom_cdf_prob warp_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
+#endif  // CONFIG_WARP_INTER_INTRA
   aom_cdf_prob interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
 #if CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob wedge_interintra_cdf[CDF_SIZE(2)];
@@ -491,6 +525,10 @@ typedef struct frame_contexts {
 #else   // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  aom_cdf_prob lossless_tx_size_cdf[BLOCK_SIZE_GROUPS][2][CDF_SIZE(2)];
+  aom_cdf_prob lossless_inter_tx_type_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
@@ -588,8 +626,13 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)];
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_MHCCP
+#if MHCCP_3_PARAMETERS
+  aom_cdf_prob filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
+                             [CDF_SIZE(MHCCP_MODE_NUM)];
+#else
   aom_cdf_prob filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                              [CDF_SIZE(CFL_MULTI_PARAM_V)];
+#endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
   // y mode cdf
@@ -610,15 +653,17 @@ typedef struct frame_contexts {
   aom_cdf_prob region_type_cdf[INTER_SDP_BSIZE_GROUP][CDF_SIZE(REGION_TYPES)];
 #endif  // CONFIG_EXTENDED_SDP
 
-  aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+  aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS]
                                    [PARTITION_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob do_uneven_4way_partition_cdf[PARTITION_STRUCTURE_NUM]
-                                           [NUM_RECT_PARTS][PARTITION_CONTEXTS]
-                                           [CDF_SIZE(2)];
+                                           [NUM_RECT_CONTEXTS]
+                                           [PARTITION_CONTEXTS][CDF_SIZE(2)];
+#if !CONFIG_NEW_PART_CTX
   aom_cdf_prob uneven_4way_partition_type_cdf[PARTITION_STRUCTURE_NUM]
-                                             [NUM_RECT_PARTS]
+                                             [NUM_RECT_CONTEXTS]
                                              [PARTITION_CONTEXTS]
                                              [CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)];
+#endif  // !CONFIG_NEW_PART_CTX
 #else
   // Partition type for a square block, without limitations.
   aom_cdf_prob partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
@@ -957,8 +1002,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
-  NEAR_NEARMV_OPTFLOW, NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW,      -1,
-  NEW_NEWMV_OPTFLOW,   JOINT_NEWMV_OPTFLOW, JOINT_AMVDNEWMV_OPTFLOW,
+  NEAR_NEARMV_OPTFLOW,     NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW, -1,
+  NEW_NEWMV_OPTFLOW,       JOINT_NEWMV_OPTFLOW,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  JOINT_AMVDNEWMV_OPTFLOW,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 
 static INLINE int opfl_get_comp_idx(int mode) {
@@ -974,8 +1022,10 @@ static INLINE int opfl_get_comp_idx(int mode) {
     case GLOBAL_GLOBALMV: return INTER_COMPOUND_OFFSET(GLOBAL_GLOBALMV);
     case JOINT_NEWMV:
     case JOINT_NEWMV_OPTFLOW: return INTER_COMPOUND_OFFSET(JOINT_NEWMV);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
     case JOINT_AMVDNEWMV:
     case JOINT_AMVDNEWMV_OPTFLOW: return INTER_COMPOUND_OFFSET(JOINT_AMVDNEWMV);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
     default: assert(0); return 0;
   }
 }

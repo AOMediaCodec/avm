@@ -572,8 +572,11 @@ void av1_simple_motion_search_prune_rect(
   // Determine if we should prune rectangular partitions.
   if (cpi->sf.part_sf.simple_motion_search_prune_rect &&
       !frame_is_intra_only(cm) &&
-      (partition_horz_allowed || partition_vert_allowed) &&
-      bsize >= BLOCK_8X8 && !av1_superres_scaled(cm)) {
+      (partition_horz_allowed || partition_vert_allowed) && bsize >= BLOCK_8X8
+#if CONFIG_ENABLE_SR
+      && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+  ) {
     *prune_horz = probs[PARTITION_HORZ] <= prune_thresh;
     *prune_vert = probs[PARTITION_VERT] <= prune_thresh;
   }
@@ -1358,7 +1361,10 @@ void av1_prune_partitions_before_search(
       bsize < BLOCK_256X256 &&
 #endif
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
-      !frame_is_intra_only(cm) && !av1_superres_scaled(cm) &&
+      !frame_is_intra_only(cm) &&
+#if CONFIG_ENABLE_SR
+      !av1_superres_scaled(cm) &&
+#endif  // CONFIG_ENABLE_SR
       is_square_block(bsize) && sms_tree && *partition_none_allowed;
 
   if (try_split_only) {
@@ -1924,6 +1930,9 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   mbmi->chroma_ref_info.bsize_base = bsize;
   mbmi->chroma_ref_info.is_chroma_ref = 1;
 
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  mbmi->use_amvd = 0;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
@@ -1963,6 +1972,15 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     }
     *sms_data = best_data;
   }
+#if CONFIG_ML_PART_SPLIT
+  // If the above code didn't actually execute the residual stats computation
+  // but all of the downstream code assumes the residual stats have been
+  // computed.
+  if (need_residual_stats && !sms_data->residual_stats_valid) {
+    sms_data->residual_stats_valid = true;
+    memset(&sms_data->residual_stats, 0, sizeof(sms_data->residual_stats));
+  }
+#endif  // CONFIG_ML_PART_SPLIT
   sms_data->valid = 1;
   sms_data->bsize = bsize;
   sms_data->mi_row = mi_row;

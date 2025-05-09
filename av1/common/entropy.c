@@ -131,10 +131,21 @@ static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
 
 static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  RESET_CDF_COUNTER(nmv->joint_shell_set_cdf, 2);
+  for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    const int num_mv_class = get_default_num_shell_class(prec);
+    int num_mv_class_0, num_mv_class_1;
+    split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+    RESET_CDF_COUNTER(nmv->joint_shell_class_cdf_0[prec], num_mv_class_0);
+    RESET_CDF_COUNTER(nmv->joint_shell_class_cdf_1[prec], num_mv_class_1);
+  }
+#else
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
     int num_mv_class = get_default_num_shell_class(prec);
     RESET_CDF_COUNTER(nmv->joint_shell_class_cdf[prec], num_mv_class);
   }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   RESET_CDF_COUNTER(nmv->shell_offset_low_class_cdf, 2);
   RESET_CDF_COUNTER(nmv->shell_offset_class2_cdf, 2);
 #if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
@@ -168,7 +179,9 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
 #else
     RESET_CDF_COUNTER(nmv->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
 #endif  // !CONFIG_VQ_MVD_CODING
+#if !CONFIG_MVD_CDF_REDUCTION
     RESET_CDF_COUNTER(nmv->comps[i].sign_cdf, 2);
+#endif  //! CONFIG_MVD_CDF_REDUCTION
   }
 }
 
@@ -221,14 +234,19 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  RESET_CDF_COUNTER(fc->tip_drl_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   RESET_CDF_COUNTER(fc->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);
   RESET_CDF_COUNTER(fc->inter_compound_mode_non_joint_type_cdf,
                     NUM_OPTIONS_NON_JOINT_TYPE);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->inter_compound_mode_joint_type_cdf,
                     NUM_OPTIONS_JOINT_TYPE);
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else   // CONFIG_INTER_COMPOUND_BY_JOINT
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
 #endif  // CONFIG_INTER_COMPOUND_BY_JOINT
@@ -237,15 +255,22 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->inter_compound_mode_same_refs_cdf,
                     INTER_COMPOUND_SAME_REFS_TYPES);
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  RESET_CDF_COUNTER(fc->amvd_mode_cdf, 2);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->compound_type_cdf, MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  RESET_CDF_COUNTER(fc->wedge_quad_cdf, WEDGE_QUADS);
+  RESET_CDF_COUNTER(fc->wedge_angle_cdf, QUAD_WEDGE_ANGLES);
+#else
   RESET_CDF_COUNTER(fc->wedge_angle_dir_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_angle_0_cdf, H_WEDGE_ANGLES);
   RESET_CDF_COUNTER(fc->wedge_angle_1_cdf, H_WEDGE_ANGLES);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   RESET_CDF_COUNTER(fc->wedge_dist_cdf, NUM_WEDGE_DIST);
   RESET_CDF_COUNTER(fc->wedge_dist_cdf2, NUM_WEDGE_DIST - 1);
 #else
@@ -255,6 +280,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->wedge_interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
 
+#if CONFIG_WARP_INTER_INTRA
+  RESET_CDF_COUNTER(fc->warp_interintra_cdf, 2);
+#endif  // CONFIG_WARP_INTER_INTRA
 #if CONFIG_REFINEMV
   RESET_CDF_COUNTER(fc->refinemv_flag_cdf, REFINEMV_NUM_MODES);
 #endif  // CONFIG_REFINEMV
@@ -336,6 +364,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #else   // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  RESET_CDF_COUNTER(fc->lossless_tx_size_cdf, 2);
+  RESET_CDF_COUNTER(fc->lossless_inter_tx_type_cdf, 2);
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
@@ -462,14 +494,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
-    for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
+    for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_CONTEXTS; rect++) {
       for (int i = 0; i < PARTITION_CONTEXTS; i++) {
         RESET_CDF_COUNTER(fc->do_ext_partition_cdf[plane_index][rect][i], 2);
         RESET_CDF_COUNTER(
             fc->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+#if !CONFIG_NEW_PART_CTX
         RESET_CDF_COUNTER(
             fc->uneven_4way_partition_type_cdf[plane_index][rect][i],
             NUM_UNEVEN_4WAY_PARTS);
+#endif  // !CONFIG_NEW_PART_CTX
       }
     }
   }

@@ -118,7 +118,12 @@ typedef void (*highbd_warp_plane_bilinear_func)(
     WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height,
     int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
     int p_stride, int subsampling_x, int subsampling_y,
-    ConvolveParams *conv_params);
+    ConvolveParams *conv_params
+#if CONFIG_DAMR_CLEAN_UP
+    ,
+    ReferenceArea *ref_area
+#endif  // CONFIG_DAMR_CLEAN_UP
+);
 
 typedef std::tuple<int, int, int, int, highbd_warp_plane_bilinear_func>
     HighbdWarpBilinearTestParam;

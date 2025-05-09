@@ -35,7 +35,12 @@ void av1_copy_ccso_filters(CcsoInfo *to, CcsoInfo *from, int plane,
                            bool frame_level, bool block_level, int sb_count);
 #endif  // CONFIG_CCSO_IMPROVE
 
+#if CONFIG_F054_PIC_BOUNDARY
+void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
+                        const int d);
+#else
 void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd);
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
 #if CONFIG_CCSO_IMPROVE

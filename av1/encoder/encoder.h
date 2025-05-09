@@ -311,12 +311,6 @@ typedef struct {
    * Flag to indicate if ORIP should be enabled
    */
   bool enable_orip;
-#if CONFIG_IDIF
-  /*!
-   * Flag to indicate if IDIF should be enabled
-   */
-  bool enable_idif;
-#endif
   /*!
    * Flag to indicate if IBP should be enabled
    */
@@ -412,6 +406,7 @@ typedef struct {
   bool enable_interintra_wedge;
 } CompoundTypeCfg;
 
+#if CONFIG_ENABLE_SR
 /*!
  * \brief Encoder config related to frame super-resolution.
  */
@@ -447,6 +442,7 @@ typedef struct {
    */
   bool enable_superres;
 } SuperResCfg;
+#endif  // CONFIG_ENABLE_SR
 
 /*!
  * \brief Encoder config related to the coding of key frames.
@@ -899,6 +895,10 @@ typedef struct {
 #endif  // CONFIG_DERIVED_MVD_SIGN
   // enable temporal interpolated prediction
   int enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  // enable MV trajectory tracking
+  int enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   // enable block adaptive weighted prediction
   int enable_bawp;
@@ -975,6 +975,9 @@ typedef struct {
 #if CONFIG_EXT_SEG
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;
 
@@ -1140,8 +1143,10 @@ typedef struct AV1EncoderConfig {
   // Internal frame size scaling.
   ResizeCfg resize_cfg;
 
+#if CONFIG_ENABLE_SR
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
+#endif  // CONFIG_ENABLE_SR
 
   // SubGOP config.
   const char *subgop_config_str;
@@ -1289,8 +1294,16 @@ typedef struct {
 
 typedef struct {
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  unsigned int joint_shell_set_cnts[CDF_SIZE(2)];
+  unsigned int joint_shell_class_0_cnts[NUM_MV_PRECISIONS]
+                                       [CDF_SIZE(FIRST_SHELL_CLASS)];
+  unsigned int joint_shell_class_1_cnts[NUM_MV_PRECISIONS]
+                                       [CDF_SIZE(SECOND_SHELL_CLASS)];
+#else
   unsigned int joint_shell_class_cnts[NUM_MV_PRECISIONS][CDF_SIZE(
-      MAX_NUM_SHELL_CLASS)];                                 // placeholder
+      MAX_NUM_SHELL_CLASS)];  // placeholder
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   unsigned int shell_offset_low_class_cnts[2][CDF_SIZE(2)];  // placeholder
   unsigned int shell_offset_class2_cnts[3][CDF_SIZE(2)];     // // placeholder
   unsigned int shell_offset_other_class_cnts[NUM_CTX_CLASS_OFFSETS]
@@ -1571,6 +1584,9 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int skip_drl_mode[3][2];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  unsigned int tip_drl_mode[3][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
   unsigned int
       jmvd_scale_mode_cnts[JOINT_NEWMV_SCALE_FACTOR_CNT];  // placeholder
@@ -1602,12 +1618,19 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
                                   [INTER_COMPOUND_REF_TYPES];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  unsigned int amvd_mode[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  unsigned int wedge_quad_cnt[WEDGE_QUADS];
+  unsigned int wedge_angle_cnt[WEDGE_QUADS][QUAD_WEDGE_ANGLES];
+#else
   unsigned int wedge_angle_dir_cnt[2];
   unsigned int wedge_angle_0_cnt[H_WEDGE_ANGLES];
   unsigned int wedge_angle_1_cnt[H_WEDGE_ANGLES];
+#endif
   unsigned int wedge_dist_cnt[NUM_WEDGE_DIST];
   unsigned int wedge_dist2_cnt[NUM_WEDGE_DIST - 1];
 #else
@@ -2035,6 +2058,9 @@ typedef struct ThreadData {
 #if CONFIG_ML_PART_SPLIT
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
+  void *dip_pruning_model;
+#endif  // CONFIG_DIP_EXT_PRUNING
 } ThreadData;
 
 struct EncWorkerData;
@@ -3223,12 +3249,14 @@ typedef struct AV1_COMP {
    */
   int num_tg;
 
+#if CONFIG_ENABLE_SR
   /*!
    * Super-resolution mode currently being used by the encoder.
    * This may / may not be same as user-supplied mode in oxcf->superres_mode
    * (when we are recoding to try multiple options for example).
    */
   aom_superres_mode superres_mode;
+#endif  // CONFIG_ENABLE_SR
 
   /*!
    * First pass related data.
@@ -3678,12 +3706,20 @@ void av1_setup_frame_size(AV1_COMP *cpi);
 
 // Returns 1 if a frame is scaled and 0 otherwise.
 static INLINE int av1_resize_scaled(const AV1_COMMON *cm) {
+#if CONFIG_ENABLE_SR
   return !(cm->superres_upscaled_width == cm->render_width &&
            cm->superres_upscaled_height == cm->render_height);
+#else
+  return !(cm->width == cm->render_width && cm->height == cm->render_height);
+#endif  // CONFIG_ENABLE_SR
 }
 
 static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
+#if CONFIG_ENABLE_SR
   return !av1_superres_scaled(cm) && av1_resize_scaled(cm);
+#else
+  return av1_resize_scaled(cm);
+#endif  // CONFIG_ENABLE_SR
 }
 
 // Don't allow a show_existing_frame to coincide with an error resilient

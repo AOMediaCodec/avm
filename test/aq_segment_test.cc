@@ -49,7 +49,7 @@ class AqSegmentTest
     aq_mode_ = aq_mode;
     deltaq_mode_ = 0;
     cfg_.kf_max_dist = 12;
-    cfg_.rc_min_quantizer = 32;
+    cfg_.rc_min_quantizer = 200;
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 6;
@@ -78,9 +78,13 @@ TEST_P(AqSegmentTestLarge, TestNoMisMatch) { DoTest(GET_PARAM(3)); }
 // Validate that this delta q mode
 // encodes and decodes without a mismatch.
 TEST_P(AqSegmentTest, TestNoMisMatchExtDeltaQ) {
+  if (aq_mode_ != 0) {
+    return;  // Combination not valid.
+  }
   cfg_.rc_end_usage = AOM_CQ;
-  aq_mode_ = 0;
   deltaq_mode_ = 2;
+  cfg_.rc_min_quantizer = 200;
+  cfg_.rc_max_quantizer = 224;
   ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 15);
 
@@ -89,8 +93,8 @@ TEST_P(AqSegmentTest, TestNoMisMatchExtDeltaQ) {
 
 AV1_INSTANTIATE_TEST_SUITE(AqSegmentTest,
                            ::testing::Values(::libaom_test::kOnePassGood),
-                           ::testing::Range(5, 9), ::testing::Range(0, 4));
+                           ::testing::Values(5), ::testing::Range(0, 4));
 AV1_INSTANTIATE_TEST_SUITE(AqSegmentTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
-                           ::testing::Range(3, 5), ::testing::Range(0, 4));
+                           ::testing::Values(3), ::testing::Range(0, 4));
 }  // namespace

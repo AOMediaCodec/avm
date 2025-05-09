@@ -305,11 +305,12 @@ static void release_buffer(DECODER_MODEL *const decoder_model, int idx) {
   this_buffer->presentation_time = INVALID_TIME;
 }
 
-static void initialize_buffer_pool(DECODER_MODEL *const decoder_model) {
+static void initialize_buffer_pool(DECODER_MODEL *const decoder_model,
+                                   const int ref_frames) {
   for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     release_buffer(decoder_model, i);
   }
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  for (int i = 0; i < ref_frames; ++i) {
     decoder_model->vbi[i] = -1;
   }
 }
@@ -328,9 +329,8 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 static void update_ref_buffers(const AV1_COMMON *const cm,
                                DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
-  (void)cm;
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
@@ -350,7 +350,11 @@ static double time_to_decode_frame(const AV1_COMMON *const cm,
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   int luma_samples = 0;
   if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
+#if CONFIG_ENABLE_SR
     luma_samples = cm->superres_upscaled_width * cm->height;
+#else
+    luma_samples = cm->width * cm->height;
+#endif  // CONFIG_ENABLE_SR
   } else {
     const int spatial_layer_dimensions_present_flag = 0;
     if (spatial_layer_dimensions_present_flag) {
@@ -502,7 +506,7 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
 
-  initialize_buffer_pool(decoder_model);
+  initialize_buffer_pool(decoder_model, cm->seq_params.ref_frames);
 
   DFG_INTERVAL_QUEUE *const dfg_interval_queue =
       &decoder_model->dfg_interval_queue;
@@ -535,7 +539,11 @@ void av1_decoder_model_process_frame(const AV1_COMP *const cpi,
   aom_clear_system_state();
 
   const AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_ENABLE_SR
   const int luma_pic_size = cm->superres_upscaled_width * cm->height;
+#else
+  const int luma_pic_size = cm->width * cm->height;
+#endif  // CONFIG_ENABLE_SR
   const int show_existing_frame = cm->show_existing_frame;
   const int show_frame = cm->show_frame || show_existing_frame;
   ++decoder_model->num_frame;
@@ -713,7 +721,11 @@ void av1_init_level_info(AV1_COMP *cpi) {
     frame_window_buffer->start = 0;
 
     const AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_ENABLE_SR
     const int upscaled_width = cm->superres_upscaled_width;
+#else
+    const int upscaled_width = cm->width;
+#endif  // CONFIG_ENABLE_SR
     const int height = cm->height;
     const int pic_size = upscaled_width * height;
     for (AV1_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
@@ -917,8 +929,9 @@ static void get_tile_stats(const AV1_COMMON *const cm,
                            int *tile_width_valid) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
+#if CONFIG_ENABLE_SR
   const int superres_scale_denominator = cm->superres_scale_denominator;
-
+#endif  // CONFIG_ENABLE_SR
   *max_tile_size = 0;
   *max_superres_tile_width = 0;
   *min_cropped_tile_width = INT_MAX;
@@ -936,10 +949,14 @@ static void get_tile_stats(const AV1_COMMON *const cm,
       const int tile_size = tile_width * tile_height;
       *max_tile_size = AOMMAX(*max_tile_size, tile_size);
 
+#if CONFIG_ENABLE_SR
       const int supperres_tile_width =
           tile_width * superres_scale_denominator / SCALE_NUMERATOR;
       *max_superres_tile_width =
           AOMMAX(*max_superres_tile_width, supperres_tile_width);
+#else
+      *max_superres_tile_width = AOMMAX(*max_superres_tile_width, tile_width);
+#endif  // CONFIG_ENABLE_SR
 
       const int cropped_tile_width =
           cm->width - tile_info->mi_col_start * MI_SIZE;
@@ -953,9 +970,11 @@ static void get_tile_stats(const AV1_COMMON *const cm,
       const int is_right_most_tile =
           tile_info->mi_col_end == cm->mi_params.mi_cols;
       if (!is_right_most_tile) {
+#if CONFIG_ENABLE_SR
         if (av1_superres_scaled(cm))
           *tile_width_valid &= tile_width >= 128;
         else
+#endif  // CONFIG_ENABLE_SR
           *tile_width_valid &= tile_width >= 64;
       }
     }
@@ -1054,7 +1073,11 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   AV1_COMMON *const cm = &cpi->common;
   const AV1LevelParams *const level_params = &cpi->level_params;
 
+#if CONFIG_ENABLE_SR
   const int upscaled_width = cm->superres_upscaled_width;
+#else
+  const int upscaled_width = cm->width;
+#endif  // CONFIG_ENABLE_SR
   const int width = cm->width;
   const int height = cm->height;
   const int tile_cols = cm->tiles.cols;
@@ -1116,7 +1139,11 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
     level_spec->max_picture_size =
         AOMMAX(level_spec->max_picture_size, luma_pic_size);
     level_spec->max_h_size =
+#if CONFIG_ENABLE_SR
         AOMMAX(level_spec->max_h_size, cm->superres_upscaled_width);
+#else
+        AOMMAX(level_spec->max_h_size, cm->width);
+#endif  // CONFIG_ENABLE_SR
     level_spec->max_v_size = AOMMAX(level_spec->max_v_size, height);
     level_spec->max_tile_cols = AOMMAX(level_spec->max_tile_cols, tile_cols);
     level_spec->max_tiles = AOMMAX(level_spec->max_tiles, tiles);

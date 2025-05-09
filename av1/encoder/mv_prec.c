@@ -429,14 +429,29 @@ static AOM_INLINE int get_truncated_unary_rate(nmv_context *mvctx,
                                                int coded_value, int num_of_ctx,
                                                int low_shell_class) {
   (void)low_shell_class;
+#if CONFIG_MVD_CDF_REDUCTION
+  (void)num_of_ctx;
+#endif  // CONFIG_MVD_CDF_REDUCTION
   int total_rate = 0;
   int max_idx_bits = max_coded_value;
   for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+
+#if CONFIG_MVD_CDF_REDUCTION
+    if (bit_idx) {
+      total_rate += av1_cost_literal(1);
+    } else {
+      aom_cdf_prob *cdf = mvctx->shell_offset_class2_cdf;
+#else
     int context_index = bit_idx < num_of_ctx ? bit_idx : num_of_ctx - 1;
     assert(context_index < num_of_ctx);
     aom_cdf_prob *cdf = mvctx->shell_offset_class2_cdf[context_index];
-    total_rate += get_symbol_cost(cdf, coded_value != bit_idx);
-    update_cdf(cdf, coded_value != bit_idx, 2);
+#endif  // CONFIG_MVD_CDF_REDUCTION
+
+      total_rate += get_symbol_cost(cdf, coded_value != bit_idx);
+      update_cdf(cdf, coded_value != bit_idx, 2);
+#if CONFIG_MVD_CDF_REDUCTION
+    }
+#endif  // CONFIG_MVD_CDF_REDUCTION
     if (coded_value == bit_idx) break;
   }
   return total_rate;
@@ -455,10 +470,31 @@ static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
   const int shell_class =
       get_shell_class_with_precision(shell_index, &shell_cls_offset);
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int num_mv_class_0, num_mv_class_1;
+  split_num_shell_class(num_mv_class, &num_mv_class_0, &num_mv_class_1);
+  if (shell_class < num_mv_class_0) {
+    total_rate += get_symbol_cost(mvctx->joint_shell_set_cdf, 0);
+    total_rate += get_symbol_cost(
+        mvctx->joint_shell_class_cdf_0[pb_mv_precision], shell_class);
+    update_cdf(mvctx->joint_shell_set_cdf, 0, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_0[pb_mv_precision], shell_class,
+               num_mv_class_0);
+  } else {
+    total_rate += get_symbol_cost(mvctx->joint_shell_set_cdf, 1);
+    total_rate +=
+        get_symbol_cost(mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+                        shell_class - num_mv_class_0);
+    update_cdf(mvctx->joint_shell_set_cdf, 1, 2);
+    update_cdf(mvctx->joint_shell_class_cdf_1[pb_mv_precision],
+               shell_class - num_mv_class_0, num_mv_class_1);
+  }
+#else
   total_rate += get_symbol_cost(mvctx->joint_shell_class_cdf[pb_mv_precision],
                                 shell_class);
   update_cdf(mvctx->joint_shell_class_cdf[pb_mv_precision], shell_class,
              num_mv_class);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   assert(shell_class >= 0 && shell_class < num_mv_class);
 
@@ -524,9 +560,13 @@ static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
   for (int component = 0; component < 2; component++) {
     int value = component == 0 ? mv_diff.row : mv_diff.col;
     if (value) {
+#if CONFIG_MVD_CDF_REDUCTION
+      total_rate += av1_cost_literal(1);
+#else
       int sign = value < 0;
       total_rate += get_symbol_cost(mvctx->comps[component].sign_cdf, sign);
       update_cdf(mvctx->comps[component].sign_cdf, sign, 2);
+#endif  // CONFIG_MVD_CDF_REDUCTION
     }
   }
   return total_rate;
@@ -641,7 +681,10 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 
-  if (mode == NEWMV || mode == AMVDNEWMV ||
+  if (mode == NEWMV ||
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+      mode == AMVDNEWMV ||
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       mode == WARP_NEWMV ||
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW

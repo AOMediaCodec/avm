@@ -104,9 +104,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #endif  // CONFIG_D071_IMP_MSK_BLD
     GET_PARAMS(enable_fsc);
     GET_PARAMS(enable_orip);
-#if CONFIG_IDIF
-    GET_PARAMS(enable_idif);
-#endif  // CONFIG_IDIF
     GET_PARAMS(enable_ist);
     GET_PARAMS(enable_inter_ist);
 #if CONFIG_CHROMA_TX
@@ -202,6 +199,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_EXT_SEG
     GET_PARAMS(enable_ext_seg);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+    GET_PARAMS(num_extra_dpb);
+#endif  // CONFIG_EXTRA_DPB
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

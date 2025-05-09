@@ -210,7 +210,12 @@ static INLINE int av1_intra_dip_allowed_bsize(const AV1_COMMON *const cm,
   int width = block_size_wide[bs];
   int height = block_size_high[bs];
   int equal_or_greater_rect_16x8 = width * height >= (8 * 16);
+#if CONFIG_DIP_EXT
+  int width_and_height_greater_than_4 = width > 4 && height > 4;
+  int allow = equal_or_greater_rect_16x8 && width_and_height_greater_than_4;
+#else
   int allow = equal_or_greater_rect_16x8;
+#endif  // CONFIG_DIP_EXT
   return allow;
 }
 

@@ -1471,7 +1471,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
         cpi->oxcf.frm_dim_cfg.height, group_idx, &bottom_index, &top_index);
 
     const int ac_q = ROUND_POWER_OF_TWO(
-        av1_ac_quant_QTX(q, 0, cpi->common.seq_params.bit_depth),
+        av1_ac_quant_QTX(q, 0, 0, cpi->common.seq_params.bit_depth),
         QUANT_TABLE_BITS);
 
     const float threshold = 0.7f * ac_q * ac_q;

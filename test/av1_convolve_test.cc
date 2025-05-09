@@ -962,7 +962,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Compound convolve-2d functions (high bit-depth)
 //////////////////////////////////////////////////
 
-class AV1Convolve2DHighbdCompoundTest
+class AV1Convolve2DHighbdCompoundTestLarge
     : public AV1ConvolveTest<highbd_convolve_2d_func> {
  public:
   void RunTest() {
@@ -1031,21 +1031,21 @@ class AV1Convolve2DHighbdCompoundTest
   }
 };
 
-TEST_P(AV1Convolve2DHighbdCompoundTest, RunTest) { RunTest(); }
+TEST_P(AV1Convolve2DHighbdCompoundTestLarge, RunTest) { RunTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1Convolve2DHighbdCompoundTest,
+    C, AV1Convolve2DHighbdCompoundTestLarge,
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1Convolve2DHighbdCompoundTest,
+    SSE4_1, AV1Convolve2DHighbdCompoundTestLarge,
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1Convolve2DHighbdCompoundTest,
+    AVX2, AV1Convolve2DHighbdCompoundTestLarge,
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_avx2));
 #endif
 

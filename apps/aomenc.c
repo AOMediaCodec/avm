@@ -293,11 +293,13 @@ const arg_def_t *rc_args[] = { &g_av1_codec_arg_defs.dropframe_thresh,
                                &g_av1_codec_arg_defs.resize_mode,
                                &g_av1_codec_arg_defs.resize_denominator,
                                &g_av1_codec_arg_defs.resize_kf_denominator,
+#if CONFIG_ENABLE_SR
                                &g_av1_codec_arg_defs.superres_mode,
                                &g_av1_codec_arg_defs.superres_denominator,
                                &g_av1_codec_arg_defs.superres_kf_denominator,
                                &g_av1_codec_arg_defs.superres_qthresh,
                                &g_av1_codec_arg_defs.superres_kf_qthresh,
+#endif  // CONFIG_ENABLE_SR
                                &g_av1_codec_arg_defs.end_usage,
                                &g_av1_codec_arg_defs.target_bitrate,
                                &g_av1_codec_arg_defs.min_q_level,
@@ -452,6 +454,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_pc_wiener,
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
   &g_av1_codec_arg_defs.enable_tip,
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  &g_av1_codec_arg_defs.enable_mv_traj,
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
@@ -461,9 +466,6 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_fsc,
   &g_av1_codec_arg_defs.enable_orip,
-#if CONFIG_IDIF
-  &g_av1_codec_arg_defs.enable_idif,
-#endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
   &g_av1_codec_arg_defs.enable_inter_ist,
 #if CONFIG_CHROMA_TX
@@ -530,6 +532,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_EXT_SEG
   &g_av1_codec_arg_defs.enable_ext_seg,
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  &g_av1_codec_arg_defs.num_extra_dpb,
+#endif  // CONFIG_EXTRA_DPB
   NULL,
 };
 
@@ -692,9 +697,6 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   config->enable_fsc = 1;
   config->enable_orip = 1;
-#if CONFIG_IDIF
-  config->enable_idif = 1;
-#endif  // CONFIG_IDIF
   config->enable_ist = 1;
   config->enable_inter_ist = 1;
 #if CONFIG_CHROMA_TX
@@ -790,6 +792,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_SEG
   config->enable_ext_seg = 0;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  config->num_extra_dpb = 0;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1266,6 +1271,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.resize_kf_denominator,
                          argi)) {
       config->cfg.rc_resize_kf_denominator = arg_parse_uint(&arg);
+#if CONFIG_ENABLE_SR
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_mode, argi)) {
       config->cfg.rc_superres_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_denominator,
@@ -1279,6 +1285,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.superres_kf_qthresh,
                          argi)) {
       config->cfg.rc_superres_kf_qthresh = arg_parse_uint(&arg);
+#endif  // CONFIG_ENABLE_SR
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.end_usage, argi)) {
       config->cfg.rc_end_usage = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.target_bitrate, argi)) {
@@ -1608,19 +1615,11 @@ static void show_stream_config(struct stream_state *stream,
           ", MRLS(%d)"
           ", FSC(%d)"
           ", ORIP(%d)"
-#if CONFIG_IDIF
-          ", IDIF(%d)"
-#endif  // CONFIG_IDIF
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
-          encoder_cfg->enable_fsc, encoder_cfg->enable_orip
-#if CONFIG_IDIF
-          ,
-          encoder_cfg->enable_idif
-#endif  //  CONFIG_IDIF
-          ,
+          encoder_cfg->enable_fsc, encoder_cfg->enable_orip,
           encoder_cfg->enable_ibp);
   fprintf(
       stdout,
@@ -1651,6 +1650,10 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout, "                               : TIP (%d)\n",
           encoder_cfg->enable_tip);
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  fprintf(stdout, "                               : MV traj (%d)\n",
+          encoder_cfg->enable_mv_traj);
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   fprintf(stdout, "                               : BAWP (%d)\n",
           encoder_cfg->enable_bawp);

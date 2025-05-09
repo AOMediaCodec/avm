@@ -87,8 +87,9 @@ typedef struct {
   aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][3][CDF_SIZE(2)];
   aom_cdf_prob fp_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_VQ_MVD_CODING
+#if !CONFIG_MVD_CDF_REDUCTION
   aom_cdf_prob sign_cdf[CDF_SIZE(2)];
-
+#endif  //! CONFIG_MVD_CDF_REDUCTION
 #if !CONFIG_VQ_MVD_CODING
   aom_cdf_prob class0_hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob hp_cdf[CDF_SIZE(2)];
@@ -101,12 +102,27 @@ typedef struct {
 #if !CONFIG_VQ_MVD_CODING
   aom_cdf_prob joints_cdf[CDF_SIZE(MV_JOINTS)];
 #else
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  /*The joint_shell_set is first decoded. Depending on the shell set index, the
+   * joint_shell_class is decoded.*/
+  aom_cdf_prob joint_shell_set_cdf[CDF_SIZE(2)];
+  aom_cdf_prob joint_shell_class_cdf_0[NUM_MV_PRECISIONS]
+                                      [CDF_SIZE(FIRST_SHELL_CLASS)];
+  aom_cdf_prob joint_shell_class_cdf_1[NUM_MV_PRECISIONS]
+                                      [CDF_SIZE(SECOND_SHELL_CLASS)];
+#else
   aom_cdf_prob joint_shell_class_cdf[NUM_MV_PRECISIONS]
                                     [CDF_SIZE(MAX_NUM_SHELL_CLASS)];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   aom_cdf_prob shell_offset_low_class_cdf[2][CDF_SIZE(2)];
 
+#if CONFIG_MVD_CDF_REDUCTION
+  aom_cdf_prob
+      shell_offset_class2_cdf[CDF_SIZE(2)];  // First bin  for truncated unary
+#else
   aom_cdf_prob
       shell_offset_class2_cdf[3][CDF_SIZE(2)];  // 3 bins for truncated unary
+#endif  // CONFIG_MVD_CDF_REDUCTION
 #if !CONFIG_CTX_MV_SHELL_OFFSET_OTHER
   aom_cdf_prob shell_offset_other_class_cdf[NUM_CTX_CLASS_OFFSETS]
                                            [SHELL_INT_OFFSET_BIT][CDF_SIZE(2)];

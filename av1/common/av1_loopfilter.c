@@ -66,18 +66,23 @@ static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 0, 1,                                // INTER_SINGLE_MODES (GLOBALMV == 0)
-  1,                                      // AMVDNEWMV
-  1,                                      // WARPMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  1,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+  1,    // WARPMV
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1,              // WARP_NEWMV
 #endif            // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
-  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+  1, 1,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 
 // Function obtains q_threshold from the quantization index.
 int df_quant_from_qindex(int q_index, int bit_depth) {
-  int qstep = ROUND_POWER_OF_TWO(av1_ac_quant_QTX(q_index, 0, bit_depth),
+  int qstep = ROUND_POWER_OF_TWO(av1_ac_quant_QTX(q_index, 0, 0, bit_depth),
                                  QUANT_TABLE_BITS);
 
   int q_threshold = qstep >> 6;
@@ -148,13 +153,25 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
   q_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+             cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
              cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                 cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+             cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
              cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                 cm->lf.delta_side_v * DF_DELTA_SCALE;
 #if DF_DUAL
   q_ind_r[0] =
@@ -168,13 +185,25 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
   q_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+               cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                  cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                   cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+               cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                  cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                   cm->lf.delta_side_v * DF_DELTA_SCALE;
 
   assert(plane_start >= AOM_PLANE_Y);
@@ -321,19 +350,40 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   ,
                                   bool *tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+#if CONFIG_LF_SUB_PU
+                                  ,
+                                  bool *is_tx_m_partition
+#endif  // CONFIG_LF_SUB_PU
 ) {
   assert(mbmi != NULL);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base =
+      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd && xd->lossless[mbmi->segment_id]) {
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+    *tu_edge = true;
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+    const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                        get_plane_type(plane) == PLANE_TYPE_Y;
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    if (block_size_wide[bsize_base] < 8 || block_size_high[bsize_base] < 8 ||
+        plane || (!is_inter && !is_fsc))
+      return TX_4X4;
+    else
+      return mbmi->tx_size;
+  }
+#else
   if (xd && xd->lossless[mbmi->segment_id]) {
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
     *tu_edge = true;
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     return TX_4X4;
   }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   const int plane_type = av1_get_sdp_idx(tree_type);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const BLOCK_SIZE bsize_base =
-      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   TX_SIZE tx_size = TX_INVALID;
   if (plane != AOM_PLANE_Y) {
@@ -383,8 +433,17 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txp_index];
 
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
-
-    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M) {
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
+#if CONFIG_LF_SUB_PU
+      if (is_tx_m_partition != NULL) {
+        *is_tx_m_partition =
+            (edge_dir == VERT_EDGE && mi_size_wide[mbmi->sb_type[0]] == 4 &&
+             partition == TX_PARTITION_VERT5) ||
+            (edge_dir == HORZ_EDGE && mi_size_high[mbmi->sb_type[0]] == 4 &&
+             partition == TX_PARTITION_HORZ5);
+      }
+#endif  // CONFIG_LF_SUB_PU
       TXB_POS_INFO txb_pos;
       TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
       get_tx_partition_sizes(partition, max_tx_size, &txb_pos, sub_txs);
@@ -410,6 +469,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
           *tu_edge = true;
         }
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+
         if (mi_blk_row >= txb_pos.row_offset[txb_idx] &&
             mi_blk_row < txb_pos.row_offset[txb_idx] + txh &&
             mi_blk_col >= txb_pos.col_offset[txb_idx] &&
@@ -422,7 +482,9 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 
       assert(tmp_tx_size < TX_SIZES_ALL);
       tx_size = tmp_tx_size;
-    } else {
+    } else
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
+    {
       tx_size = get_tx_partition_one_size(partition, max_tx_size);
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
       *tu_edge = is_tu_edge_helper(tx_size, edge_dir, blk_row, blk_col);
@@ -502,7 +564,12 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 typedef struct AV1_DEBLOCKING_PARAMETERS {
   // length of the filter applied to the outer edge
 
+#if CONFIG_ASYM_DF
+  uint32_t filter_length_neg;
+  uint32_t filter_length_pos;
+#else
   uint32_t filter_length;
+#endif  // CONFIG_ASYM_DF
   // deblocking limits
   const uint8_t *lim;
   const uint8_t *mblim;
@@ -614,7 +681,8 @@ static AOM_INLINE void check_sub_pu_edge(
     TREE_TYPE tree_type,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
     const int scale_horz, const int scale_vert, const EDGE_DIR edge_dir,
-    const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge) {
+    const uint32_t coord, TX_SIZE *ts, int32_t *sub_pu_edge,
+    bool *is_tx_m_partition) {
   if (!cm->features.allow_lf_sub_pu) return;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (!is_inter) return;
@@ -634,11 +702,11 @@ static AOM_INLINE void check_sub_pu_edge(
 #endif  // CONFIG_REFINEMV
 
   if (temp_edge) {
-    const int curr_tx =
+    const int sub_pu_size =
         edge_dir == VERT_EDGE ? tx_size_wide[temp_ts] : tx_size_high[temp_ts];
-    const int orig_tx =
+    const int tx_size =
         edge_dir == VERT_EDGE ? tx_size_wide[*ts] : tx_size_high[*ts];
-    if (curr_tx < orig_tx) {
+    if (sub_pu_size <= tx_size) {
       const uint32_t sub_pu_masks = edge_dir == VERT_EDGE
                                         ? tx_size_wide[temp_ts] - 1
                                         : tx_size_high[temp_ts] - 1;
@@ -651,7 +719,11 @@ static AOM_INLINE void check_sub_pu_edge(
 #else
       *sub_pu_edge = (coord & sub_pu_masks) ? (0) : (1);
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-      if (*sub_pu_edge) *ts = temp_ts;
+      if (*is_tx_m_partition) {
+        *ts = TX_4X4;
+      } else if (*sub_pu_edge) {
+        *ts = temp_ts;
+      }
     }
   }
 }
@@ -752,7 +824,12 @@ static TX_SIZE set_lpf_parameters(
     const int plane, const struct macroblockd_plane *const plane_ptr) {
   // reset to initial values
 
+#if CONFIG_ASYM_DF
+  params->filter_length_neg = 0;
+  params->filter_length_pos = 0;
+#else
   params->filter_length = 0;
+#endif  // CONFIG_ASYM_DF
 
   TREE_TYPE tree_type = SHARED_PART;
 
@@ -800,13 +877,15 @@ static TX_SIZE set_lpf_parameters(
   bool tu_edge;
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
 #if CONFIG_LF_SUB_PU
+  bool is_tx_m_partition = false;
   TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane,
                                   tree_type, plane_ptr
 #if CONFIG_ALIGN_DEBLOCK_ERP_SDP
                                   ,
                                   &tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-  );
+                                  ,
+                                  &is_tx_m_partition);
   const TX_SIZE ts_ori = ts;
 #else
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
@@ -832,7 +911,7 @@ static TX_SIZE set_lpf_parameters(
                       tree_type,
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
                       scale_horz, scale_vert, edge_dir, coord, &ts,
-                      &sub_pu_edge);
+                      &sub_pu_edge, &is_tx_m_partition);
     if (!tu_edge && !sub_pu_edge)
 #else
     if (!tu_edge)
@@ -889,6 +968,10 @@ static TX_SIZE set_lpf_parameters(
                                  ,
                                  &prev_tu_edge
 #endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
+#if CONFIG_LF_SUB_PU
+                                 ,
+                                 NULL
+#endif  // CONFIG_LF_SUB_PU
               );
 #else
 
@@ -935,7 +1018,14 @@ static TX_SIZE set_lpf_parameters(
 #if DF_REDUCED_SB_EDGE
           const BLOCK_SIZE superblock_size = get_plane_block_size(
               cm->sb_size, plane_ptr->subsampling_x, plane_ptr->subsampling_y);
+#if CONFIG_ASYM_DF
+          const BLOCK_SIZE block64_size = get_plane_block_size(
+              BLOCK_64X64, plane_ptr->subsampling_x, plane_ptr->subsampling_y);
+
+          const int vert_sb_mask = block_size_high[block64_size] - 1;
+#else
           const int vert_sb_mask = block_size_high[superblock_size] - 1;
+#endif  // CONFIG_ASYM_DF
           int horz_superblock_edge =
               (HORZ_EDGE == edge_dir) && !(coord & vert_sb_mask);
 
@@ -943,7 +1033,12 @@ static TX_SIZE set_lpf_parameters(
           int vert_tile_edge = 0;
 
           for (int i = 1; i < cm->tiles.cols; ++i) {
+#if CONFIG_ASYM_DF
+            if ((cm->tiles.col_start_sb[i] * hor_sb_size == coord) &&
+                (VERT_EDGE == edge_dir)) {
+#else
             if (cm->tiles.col_start_sb[i] * hor_sb_size == coord) {
+#endif  // CONFIG_ASYM_DF
               vert_tile_edge = 1;
             }
           }
@@ -1039,21 +1134,53 @@ static TX_SIZE set_lpf_parameters(
             }
             const TX_SIZE min_ts = AOMMIN(clipped_ts, pv_ts);
             if (TX_4X4 >= min_ts) {
+#if CONFIG_ASYM_DF
+              params->filter_length_neg = 4;
+              params->filter_length_pos = 4;
+#else
               params->filter_length = 4;
+#endif  // CONFIG_ASYM_DF
             } else if (TX_8X8 == min_ts) {
 #if !DF_CHROMA_WIDE
               if (plane != 0)
                 params->filter_length = 6;
               else
 #endif  // !DF_CHROMA_WIDE
-                params->filter_length = 8;
+#if CONFIG_ASYM_DF
+              {
+                params->filter_length_neg = 8;
+                params->filter_length_pos = 8;
+              }
+#else
+              params->filter_length = 8;
+#endif  // CONFIG_ASYM_DF
 #if DF_FILT26
             } else if (TX_16X16 == min_ts) {
+#if CONFIG_ASYM_DF
+              params->filter_length_neg = 14;
+              params->filter_length_pos = 14;
+#else
               params->filter_length = 14;
-              // No wide filtering for chroma plane
+#endif  // CONFIG_ASYM_DF
+        // No wide filtering for chroma plane
               if (plane != 0) {
 #if DF_CHROMA_WIDE
+#if CONFIG_ASYM_DF
+#if DF_REDUCED_SB_EDGE
+                if (horz_superblock_edge || vert_tile_edge) {
+                  params->filter_length_neg = 6;
+                  params->filter_length_pos = 10;
+                } else {
+                  params->filter_length_neg = 10;
+                  params->filter_length_pos = 10;
+                }
+#else
+                params->filter_length_neg = 10;
+                params->filter_length_pos = 10;
+#endif
+#else
                 params->filter_length = 10;
+#endif  // CONFIG_ASYM_DF
 #else
                 params->filter_length = 6;
 #endif  // DF_CHROMA_WIDE
@@ -1062,20 +1189,44 @@ static TX_SIZE set_lpf_parameters(
 #if DF_REDUCED_SB_EDGE
               if (horz_superblock_edge || vert_tile_edge) {
                 if (plane != 0) {
+#if CONFIG_ASYM_DF
+                  params->filter_length_neg = 6;
+                  params->filter_length_pos = 10;
+                } else {
+                  params->filter_length_neg = 14;
+                  params->filter_length_pos = 18;
+                }
+#else
                   params->filter_length = 6;
                 } else
                   params->filter_length = 14;
+#endif  // CONFIG_ASYM_DF
               } else
 #endif  // DF_REDUCED_SB_EDGE
               {
+#if CONFIG_ASYM_DF
+                params->filter_length_neg = 18;
+                params->filter_length_pos = 18;
+#else
                 params->filter_length = 22;
-                // No wide filtering for chroma plane
+#endif  // CONFIG_ASYM_DF
+        // No wide filtering for chroma plane
 
                 if (plane != 0) {
 #if DF_CHROMA_WIDE
+#if CONFIG_ASYM_DF
+                  params->filter_length_neg = 10;
+                  params->filter_length_pos = 10;
+#else
                   params->filter_length = 10;
+#endif  // CONFIG_ASYM_DF
+#else
+#if CONFIG_ASYM_DF
+                  params->filter_length_neg = 6;
+                  params->filter_length_pos = 6;
 #else
                   params->filter_length = 6;
+#endif  // CONFIG_ASYM_DF
 #endif  // DF_CHROMA_WIDE
                 }
               }
@@ -1147,18 +1298,32 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
                                    cm, xd, VERT_EDGE, curr_x, curr_y, plane,
                                    plane_ptr);
       if (tx_size == TX_INVALID) {
+#if CONFIG_ASYM_DF
+        params.filter_length_neg = 0;
+        params.filter_length_pos = 0;
+#else
         params.filter_length = 0;
+#endif  // CONFIG_ASYM_DF
         tx_size = TX_4X4;
       }
 
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+#if CONFIG_ASYM_DF
+      if (params.filter_length_neg || params.filter_length_pos) {
+#else
       if (params.filter_length) {
-        aom_highbd_lpf_vertical_generic_c(p, dst_stride, params.filter_length,
-                                          &params.q_threshold,
-                                          &params.side_threshold, bit_depth
+#endif  // CONFIG_ASYM_DF
+        aom_highbd_lpf_vertical_generic_c(
+            p, dst_stride,
+#if CONFIG_ASYM_DF
+            params.filter_length_neg, params.filter_length_pos,
+#else
+            params.filter_length,
+#endif  // CONFIG_ASYM_DF
+            &params.q_threshold, &params.side_threshold, bit_depth
 #if CONFIG_LF_SUB_PU
-                                          ,
-                                          4
+            ,
+            4
 #endif  // CONFIG_LF_SUB_PU
         );
       }
@@ -1214,18 +1379,32 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
                                    cm, xd, HORZ_EDGE, curr_x, curr_y, plane,
                                    plane_ptr);
       if (tx_size == TX_INVALID) {
+#if CONFIG_ASYM_DF
+        params.filter_length_neg = 0;
+        params.filter_length_pos = 0;
+#else
         params.filter_length = 0;
+#endif  // CONFIG_ASYM_DF
         tx_size = TX_4X4;
       }
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 
+#if CONFIG_ASYM_DF
+      if (params.filter_length_neg || params.filter_length_pos) {
+#else
       if (params.filter_length) {
-        aom_highbd_lpf_horizontal_generic_c(p, dst_stride, params.filter_length,
-                                            &params.q_threshold,
-                                            &params.side_threshold, bit_depth
+#endif  // CONFIG_ASYM_DF
+        aom_highbd_lpf_horizontal_generic_c(
+            p, dst_stride,
+#if CONFIG_ASYM_DF
+            params.filter_length_neg, params.filter_length_pos,
+#else
+            params.filter_length,
+#endif  // CONFIG_ASYM_DF
+            &params.q_threshold, &params.side_threshold, bit_depth
 #if CONFIG_LF_SUB_PU
-                                            ,
-                                            4
+            ,
+            4
 #endif  // CONFIG_LF_SUB_PU
         );
       }
@@ -1355,12 +1534,19 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
       // filter vertical boundary
       if (i > 0) {
         aom_highbd_lpf_vertical_generic_c(dst, dst_stride, filter_length_vert,
+#if CONFIG_ASYM_DF
+                                          filter_length_vert,
+#endif
                                           &q_vert, &side_vert, bit_depth,
                                           sub_bh);
       }
       // filter horizontal boundary
+
       if (j > 0) {
         aom_highbd_lpf_horizontal_generic_c(dst, dst_stride, filter_length_horz,
+#if CONFIG_ASYM_DF
+                                            filter_length_horz,
+#endif
                                             &q_horz, &side_horz, bit_depth,
                                             sub_bw);
       }
@@ -1400,9 +1586,15 @@ AOM_INLINE void setup_tip_dst_planes(AV1_COMMON *const cm, const int plane,
     subsampling_x = cm->seq_params.subsampling_x;
     subsampling_y = cm->seq_params.subsampling_y;
   }
+#if CONFIG_F054_PIC_BOUNDARY
+  setup_tip_dst_plane(&pd->dst, src->buffers[plane], src->widths[is_uv],
+                      src->heights[is_uv], src->strides[is_uv], tpl_row,
+                      tpl_col, NULL, subsampling_x, subsampling_y);
+#else
   setup_tip_dst_plane(&pd->dst, src->buffers[plane], src->crop_widths[is_uv],
                       src->crop_heights[is_uv], src->strides[is_uv], tpl_row,
                       tpl_col, NULL, subsampling_x, subsampling_y);
+#endif  // CONFIG_F054_PIC_BOUNDARY
 }
 
 // Initialize TIP lf parameters
@@ -1420,11 +1612,17 @@ void init_tip_lf_parameter(struct AV1Common *cm, int plane_start,
 
   q_ind[0] = side_ind[0] = base_qindex + tip_delta_luma * tip_delta_scale;
 
-  q_ind[1] = side_ind[1] =
-      base_qindex + u_ac_delta_q + tip_delta_chroma * tip_delta_scale;
+  q_ind[1] = side_ind[1] = base_qindex + u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                           cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
+                           tip_delta_chroma * tip_delta_scale;
 
-  q_ind[2] = side_ind[2] =
-      base_qindex + v_ac_delta_q + tip_delta_chroma * tip_delta_scale;
+  q_ind[2] = side_ind[2] = base_qindex + v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                           cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
+                           tip_delta_chroma * tip_delta_scale;
 
   assert(plane_start >= AOM_PLANE_Y);
   assert(plane_end <= MAX_MB_PLANE);

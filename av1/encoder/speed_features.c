@@ -388,8 +388,9 @@ static void set_good_speed_features_framesize_independent(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   sf->rd_sf.perform_coeff_opt = 1;
+#if CONFIG_ENABLE_SR
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
-
+#endif  // CONFIG_ENABLE_SR
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;
 
@@ -685,7 +686,9 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   // Recode loop tolerance %.
   hl_sf->recode_tolerance = 25;
   hl_sf->high_precision_mv_usage = CURRENT_Q;
+#if CONFIG_ENABLE_SR
   hl_sf->superres_auto_search_type = SUPERRES_AUTO_ALL;
+#endif  // CONFIG_ENABLE_SR
 }
 
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
@@ -906,7 +909,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->use_largest_tx_size_for_small_bsize = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_NEW_TX_PARTITION
-  tx_sf->restrict_tx_partition_type_search = false;
+  tx_sf->restrict_tx_partition_type_search = 0;
   tx_sf->prune_inter_tx_part_rd_eval = false;
 #endif  // CONFIG_NEW_TX_PARTITION
 }
@@ -1021,12 +1024,11 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
       if (is_2k_or_larger) {
         sf->part_sf.prune_split_ml_level = 3;
       } else if (is_1080p_or_larger) {
-        sf->part_sf.prune_split_ml_level = 2;
+        sf->part_sf.prune_split_ml_level = 3;
       } else if (is_720p_or_larger) {
-        sf->part_sf.prune_split_ml_level = 0;
+        sf->part_sf.prune_split_ml_level = 2;
       } else {
-        // No pruning for resolutions lower than 720p
-        sf->part_sf.prune_split_with_ml = 0;
+        sf->part_sf.prune_split_with_ml = 1;
       }
 #endif  // CONFIG_ML_PART_SPLIT
       AOM_FALLTHROUGH_INTENDED;
@@ -1415,15 +1417,26 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;
-#if CONFIG_NEW_TX_PARTITION
-        sf->tx_sf.restrict_tx_partition_type_search = true;
-#endif  // CONFIG_NEW_TX_PARTITION
       }
     }
   }
 
   if (cpi->oxcf.mode == GOOD && speed >= 0) {
     const int qindex_thresh = 135 + qindex_offset;
+#if CONFIG_NEW_TX_PARTITION
+    const int qindex_thresh2 = 113 + qindex_offset;
+    if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+      if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
+                                               ? qindex_thresh2
+                                               : qindex_thresh)) {
+        sf->tx_sf.restrict_tx_partition_type_search = 2;
+      }
+    } else {
+      if (cm->quant_params.base_qindex <= qindex_thresh2) {
+        sf->tx_sf.restrict_tx_partition_type_search = 1;
+      }
+    }
+#endif  // CONFIG_NEW_TX_PARTITION
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;

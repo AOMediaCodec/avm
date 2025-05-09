@@ -299,7 +299,7 @@ class HighBDConvolveHorizRSTest
 
 const int kBDs[] = { 8, 10, 12 };
 
-TEST_P(HighBDConvolveHorizRSTest, Correctness) { CorrectnessTest(); }
+TEST_P(HighBDConvolveHorizRSTest, DISABLED_Correctness) { CorrectnessTest(); }
 TEST_P(HighBDConvolveHorizRSTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(

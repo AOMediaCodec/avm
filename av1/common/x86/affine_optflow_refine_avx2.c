@@ -77,9 +77,32 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
                                   int stride, uint16_t *pred, int p_col,
                                   int p_row, int p_width, int p_height,
                                   int p_stride, int subsampling_x,
-                                  int subsampling_y,
-                                  ConvolveParams *conv_params) {
+                                  int subsampling_y, ConvolveParams *conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                                  ,
+                                  ReferenceArea *ref_area
+#endif  // CONFIG_DAMR_CLEAN_UP
+) {
   (void)conv_params;
+#if CONFIG_DAMR_CLEAN_UP
+  (void)width;
+  (void)height;
+  int left_limit;
+  int right_limit;
+  int top_limit;
+  int bottom_limit;
+  if (ref_area) {
+    left_limit = ref_area->pad_block.x0;
+    right_limit = ref_area->pad_block.x1 - 1;
+    top_limit = ref_area->pad_block.y0;
+    bottom_limit = ref_area->pad_block.y1 - 1;
+  } else {
+    left_limit = 0;
+    right_limit = width - 1;
+    top_limit = 0;
+    bottom_limit = height - 1;
+  }
+#endif  // CONFIG_DAMR_CLEAN_UP
 #if AFFINE_FAST_WARP_METHOD == 3
   assert(wm->wmtype <= AFFINE);
   assert(!is_uneven_wtd_comp_avg(conv_params));
@@ -91,8 +114,15 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
   __m256i zeros = _mm256_setzero_si256();
   __m256i ones = _mm256_set1_epi32(1);
   __m256i p_col_vec = _mm256_set1_epi32(p_col);
+#if CONFIG_DAMR_CLEAN_UP
+  __m256i left_lim_vec = _mm256_set1_epi32(left_limit);
+  __m256i top_lim_vec = _mm256_set1_epi32(top_limit);
+  __m256i right_lim_vec = _mm256_set1_epi32(right_limit);
+  __m256i bottom_lim_vec = _mm256_set1_epi32(bottom_limit);
+#else
   __m256i width_minus_1_vec = _mm256_set1_epi32(width - 1);
   __m256i height_minus_1_vec = _mm256_set1_epi32(height - 1);
+#endif  // CONFIG_DAMR_CLEAN_UP
   __m256i stride_vec = _mm256_set1_epi32(stride);
 
   __m256i warpmodel_prec_bits =
@@ -136,14 +166,24 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
       __m256i ix = pack_epi64_to_epi32(ix_lo, ix_hi);
       __m256i iy = pack_epi64_to_epi32(iy_lo, iy_hi);
 
+#if CONFIG_DAMR_CLEAN_UP
+      __m256i ix0 = clamp_vector_avx2(ix, right_lim_vec, left_lim_vec);
+      __m256i iy0 = clamp_vector_avx2(iy, bottom_lim_vec, top_lim_vec);
+#else
       __m256i ix0 = clamp_vector_avx2(ix, width_minus_1_vec, zeros);
       __m256i iy0 = clamp_vector_avx2(iy, height_minus_1_vec, zeros);
+#endif  // CONFIG_DAMR_CLEAN_UP
 
       __m256i ix1 = _mm256_add_epi32(ix, ones);
       __m256i iy1 = _mm256_add_epi32(iy, ones);
 
+#if CONFIG_DAMR_CLEAN_UP
+      ix1 = clamp_vector_avx2(ix1, right_lim_vec, left_lim_vec);
+      iy1 = clamp_vector_avx2(iy1, bottom_lim_vec, top_lim_vec);
+#else
       ix1 = clamp_vector_avx2(ix1, width_minus_1_vec, zeros);
       iy1 = clamp_vector_avx2(iy1, height_minus_1_vec, zeros);
+#endif  // CONFIG_DAMR_CLEAN_UP
 
       __m256i iy0_stride = _mm256_mullo_epi32(iy0, stride_vec);
       __m256i iy0_stride_ix0 = _mm256_add_epi32(iy0_stride, ix0);

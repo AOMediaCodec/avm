@@ -21,13 +21,13 @@
 
 namespace {
 
-class MonochromeTest
+class MonochromeTestLarge
     : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
       public ::libaom_test::EncoderTest {
  protected:
-  MonochromeTest() : EncoderTest(GET_PARAM(0)), frame0_psnr_y_(0.) {}
+  MonochromeTestLarge() : EncoderTest(GET_PARAM(0)), frame0_psnr_y_(0.) {}
 
-  virtual ~MonochromeTest() {}
+  virtual ~MonochromeTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -88,7 +88,7 @@ class MonochromeTest
   double frame0_psnr_y_;
 };
 
-TEST_P(MonochromeTest, TestMonochromeEncoding) {
+TEST_P(MonochromeTestLarge, TestMonochromeEncoding) {
   ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 5);
 
@@ -128,6 +128,6 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MonochromeTest, GOODQUALITY_TEST_MODES);
+AV1_INSTANTIATE_TEST_SUITE(MonochromeTestLarge, GOODQUALITY_TEST_MODES);
 
 }  // namespace

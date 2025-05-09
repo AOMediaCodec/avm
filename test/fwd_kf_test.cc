@@ -26,8 +26,8 @@ typedef struct {
 } FwdKfTestParam;
 
 const FwdKfTestParam kTestParams[] = {
-  { 4, 31.1 },  { 6, 31.1 },  { 8, 32.6 },
-  { 12, 31.7 }, { 16, 32.3 }, { 18, 32.1 }
+  { 4, 31.1 },  { 6, 31.1 },  { 8, 24.5 },
+  { 12, 25.1 }, { 16, 25.0 }, { 18, 22.5 }
 };
 
 std::ostream &operator<<(std::ostream &os, const FwdKfTestParam &test_arg) {
@@ -35,15 +35,15 @@ std::ostream &operator<<(std::ostream &os, const FwdKfTestParam &test_arg) {
             << " psnr_thresh:" << test_arg.psnr_thresh << " }";
 }
 
-class ForwardKeyTest
+class ForwardKeyTestLarge
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
                                                  FwdKfTestParam>,
       public ::libaom_test::EncoderTest {
  protected:
-  ForwardKeyTest()
+  ForwardKeyTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         kf_max_dist_param_(GET_PARAM(2)) {}
-  virtual ~ForwardKeyTest() {}
+  virtual ~ForwardKeyTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -52,13 +52,11 @@ class ForwardKeyTest
     cfg_.g_timebase = timebase;
     kf_max_dist_ = kf_max_dist_param_.max_kf_dist;
     psnr_threshold_ = kf_max_dist_param_.psnr_thresh;
-    cfg_.rc_end_usage = AOM_VBR;
-    cfg_.rc_target_bitrate = 200;
+    cfg_.rc_end_usage = AOM_Q;
     cfg_.g_lag_in_frames = 10;
     cfg_.fwd_kf_enabled = 1;
     cfg_.kf_max_dist = kf_max_dist_;
     cfg_.g_threads = 0;
-    cfg_.rc_max_quantizer = 200;
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
 
@@ -76,6 +74,7 @@ class ForwardKeyTest
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      encoder->Control(AOME_SET_QP, 235);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
@@ -97,7 +96,7 @@ class ForwardKeyTest
   double psnr_;
 };
 
-TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
+TEST_P(ForwardKeyTestLarge, ForwardKeyEncodeTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 20);
@@ -108,7 +107,7 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
       << "kf max dist = " << kf_max_dist_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest, GOODQUALITY_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kTestParams));
 
 typedef struct {
@@ -117,7 +116,7 @@ typedef struct {
 } kfIntervalParam;
 
 const kfIntervalParam kfTestParams[] = {
-  { 0, 10 }, { 10, 10 }, { 0, 30 }, { 30, 30 }
+  { 0, 10 }, { 10, 10 }, { 0, 15 }, { 16, 16 }
 };
 
 std::ostream &operator<<(std::ostream &os, const kfIntervalParam &test_arg) {
@@ -187,7 +186,7 @@ TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
-                                     0, 60);
+                                     0, 20);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }

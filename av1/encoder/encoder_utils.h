@@ -960,7 +960,7 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   }
 
   // All buffers are refreshed for shown keyframes and S-frames.
-  for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
+  for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames; ref_frame++) {
     if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
       assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
     }

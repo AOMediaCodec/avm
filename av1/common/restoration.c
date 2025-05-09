@@ -328,9 +328,17 @@ AV1PixelRect av1_whole_frame_rect(const AV1_COMMON *cm, int is_uv) {
   int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   rect.top = 0;
+#if CONFIG_ENABLE_SR
   rect.bottom = ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
+#else
+  rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
+#endif  // CONFIG_ENABLE_SR
   rect.left = 0;
+#if CONFIG_ENABLE_SR
   rect.right = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+#else
+  rect.right = ROUND_POWER_OF_TWO(cm->width, ss_x);
+#endif  // CONFIG_ENABLE_SR
   return rect;
 }
 
@@ -363,9 +371,14 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 
   int ss_x = plane && cm->seq_params.subsampling_x;
   int ss_y = plane && cm->seq_params.subsampling_y;
+#if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
   const int plane_width = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+#else
+  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+  const int plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
+#endif  // CONFIG_ENABLE_SR
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
   // Top limit is a multiple of RU height minus the offset, clamped to be
@@ -1276,18 +1289,19 @@ void av1_apply_selfguided_restoration_c(const uint16_t *dat, int width,
 // This routine should remain in sync with av1_convert_qindex_to_q.
 // The actual qstep used to quantize coefficients should be:
 //  get_qstep() / (1 << shift)
-static int get_qstep(int ac_qindex, int bit_depth, int *shift) {
-  int ac_shift = QUANT_TABLE_BITS;
+static int get_qstep(int base_qindex, int qindex_offset, int bit_depth,
+                     int *shift) {
+  int base_shift = QUANT_TABLE_BITS;
   switch (bit_depth) {
     case AOM_BITS_8:
-      *shift = 2 + ac_shift;
-      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
+      *shift = 2 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, qindex_offset, 0, bit_depth);
     case AOM_BITS_10:
-      *shift = 4 + ac_shift;
-      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
+      *shift = 4 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, qindex_offset, 0, bit_depth);
     case AOM_BITS_12:
-      *shift = 6 + ac_shift;
-      return av1_ac_quant_QTX(ac_qindex, 0, bit_depth);
+      *shift = 6 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, qindex_offset, 0, bit_depth);
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
@@ -1431,10 +1445,10 @@ static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
 // the thresholds can be precomputed rather than performing an online
 // calculation over each classified block. See CWG-C016 contribution for
 // details.
-static void fill_qval_given_tskip_lut(int ac_qindex, int bit_depth,
-                                      PcwienerBuffers *buffers) {
+static void fill_qval_given_tskip_lut(int ac_qindex, int ac_qindex_offset,
+                                      int bit_depth, PcwienerBuffers *buffers) {
   int qstep_shift = 0;
-  int qstep = get_qstep(ac_qindex, bit_depth, &qstep_shift);
+  int qstep = get_qstep(ac_qindex, ac_qindex_offset, bit_depth, &qstep_shift);
   qstep_shift += 8;  // normalization in tf
   const int bit_depth_shift = bit_depth - 8;
   if (bit_depth_shift) {
@@ -1699,13 +1713,14 @@ void apply_pc_wiener_highbd(
   }
 }
 
-static void setup_qval_tskip_lut(int qindex, int bit_depth,
+static void setup_qval_tskip_lut(int qindex, int qindex_offset, int bit_depth,
                                  PcwienerBuffers *buffers) {
-  if (qindex == buffers->prev_qindex && bit_depth == buffers->prev_bit_depth) {
+  if (qindex + qindex_offset == buffers->prev_qindex &&
+      bit_depth == buffers->prev_bit_depth) {
     return;
   }
-  fill_qval_given_tskip_lut(qindex, bit_depth, buffers);
-  buffers->prev_qindex = qindex;
+  fill_qval_given_tskip_lut(qindex, qindex_offset, bit_depth, buffers);
+  buffers->prev_qindex = qindex + qindex_offset;
   buffers->prev_bit_depth = bit_depth;
 }
 
@@ -1727,7 +1742,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   (void)tmpbuf;
   (void)bit_depth;
   const int set_index =
-      get_filter_set_index(rui->base_qindex + rui->qindex_offset);
+      get_filter_set_index(rui->base_qindex, rui->qindex_offset);
   const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
       get_filter_set(set_index);
   const uint8_t *filter_selector = get_filter_selector(set_index);
@@ -1737,7 +1752,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   classify_only = rui->skip_pcwiener_filtering ? true : false;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-  setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth,
+  setup_qval_tskip_lut(rui->base_qindex, rui->qindex_offset, bit_depth,
                        rui->pcwiener_buffers);
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
@@ -1944,12 +1959,12 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
   (void)bit_depth;
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int set_index =
-      get_filter_set_index(rui->base_qindex + rui->qindex_offset);
+      get_filter_set_index(rui->base_qindex, rui->qindex_offset);
   if (rui->compute_classification && rui->wienerns_info.num_classes > 1) {
     // Replicate pc_wiener_stripe but only perform classification, i.e., no
     // filtering. Only needed in the decoding loop. Encoder side will buffer the
     // class_id (follow rsc->classification_is_buffered.)
-    setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth,
+    setup_qval_tskip_lut(rui->base_qindex, rui->qindex_offset, bit_depth,
                          rui->pcwiener_buffers);
     for (int j = 0; j < stripe_width; j += procunit_width) {
       int w = AOMMIN(procunit_width, stripe_width - j);
@@ -2021,10 +2036,17 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
 
   uint16_t *dgd = frame_buf->buffers[AOM_PLANE_Y];
 
+#if CONFIG_F054_PIC_BOUNDARY
+  int width_y = frame_buf->widths[AOM_PLANE_Y];
+  int height_y = frame_buf->heights[AOM_PLANE_Y];
+  int width_uv = frame_buf->widths[1];
+  int height_uv = frame_buf->heights[1];
+#else
   int width_y = frame_buf->crop_widths[AOM_PLANE_Y];
   int height_y = frame_buf->crop_heights[AOM_PLANE_Y];
   int width_uv = frame_buf->crop_widths[1];
   int height_uv = frame_buf->crop_heights[1];
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   if (width_y > RESTORATION_LINEBUFFER_WIDTH)
     aom_internal_error(
@@ -2155,6 +2177,11 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
         for (int r = 0; r < h_uv; ++r) {
           for (int c = 0; c < width_uv; ++c) {
             curr_luma[r * out_stride + c] =
+#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+                (curr_dgd[2 * r * in_stride + 2 * c] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+                1;
+#else
                 (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
                  2 * curr_dgd[2 * r * in_stride + 2 * c] +
                  curr_dgd[2 * r * in_stride + 2 * c + 1] +
@@ -2163,6 +2190,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
                  2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
                  curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
                 3;
+#endif
           }
         }
       } else if (ds_type == 2) {
@@ -2335,6 +2363,12 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
       for (int r = 0; r < height_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
           (*luma)[r * out_stride + c] =
+#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+              (dgd[2 * r * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+              1;
+#else
+
               (dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
                2 * dgd[2 * r * in_stride + 2 * c] +
                dgd[2 * r * in_stride + 2 * c + 1] +
@@ -2342,6 +2376,7 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
                2 * dgd[(2 * r + 1) * in_stride + 2 * c] +
                dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
               3;
+#endif
         }
       }
     } else if (ds_type == 2) {
@@ -2624,8 +2659,13 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
   const int bit_depth = seq_params->bit_depth;
   lr_ctxt->dst = &cm->rst_frame;
 
+#if CONFIG_F054_PIC_BOUNDARY
+  const int frame_width = frame->widths[0];
+  const int frame_height = frame->heights[0];
+#else
   const int frame_width = frame->crop_widths[0];
   const int frame_height = frame->crop_heights[0];
+#endif  // CONFIG_F054_PIC_BOUNDARY
   if (aom_realloc_frame_buffer(
           lr_ctxt->dst, frame_width, frame_height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_RESTORATION_FRAME_BORDER,
@@ -2649,8 +2689,13 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     }
 
     const int is_uv = plane > 0;
+#if CONFIG_F054_PIC_BOUNDARY
+    const int plane_width = frame->widths[is_uv];
+    const int plane_height = frame->heights[is_uv];
+#else
     const int plane_width = frame->crop_widths[is_uv];
     const int plane_height = frame->crop_heights[is_uv];
+#endif  // CONFIG_F054_PIC_BOUNDARY
     FilterFrameCtxt *lr_plane_ctxt = &lr_ctxt->ctxt[plane];
 
     av1_extend_frame(frame->buffers[plane], plane_width, plane_height,
@@ -2667,7 +2712,11 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->dst_stride = lr_ctxt->dst->strides[is_uv];
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
+#if CONFIG_ENABLE_SR
     lr_plane_ctxt->tskip_zero_flag = av1_superres_scaled(cm);
+#else
+    lr_plane_ctxt->tskip_zero_flag = 0;
+#endif  // CONFIG_ENABLE_SR
   }
 }
 
@@ -2695,14 +2744,25 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+#if CONFIG_F054_PIC_BOUNDARY
+  int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
+#else
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 #if ISSUE_253
   luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
+#else
+#if CONFIG_F054_PIC_BOUNDARY
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->heights[AOM_PLANE_Y],
+      dgd->widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD, luma_stride,
 #else
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+#endif  // CONFIG_F054_PIC_BOUNDARY
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
@@ -2727,16 +2787,20 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
     ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
     if (plane != AOM_PLANE_Y)
-      ctxt[plane].qindex_offset = plane == AOM_PLANE_U
-                                      ? cm->quant_params.u_ac_delta_q
-                                      : cm->quant_params.v_ac_delta_q;
+      ctxt[plane].qindex_offset =
+          (plane == AOM_PLANE_U ? cm->quant_params.u_ac_delta_q
+                                : cm->quant_params.v_ac_delta_q) +
+          cm->seq_params.base_uv_ac_delta_q;
     else
       ctxt[plane].qindex_offset = 0;
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
+#if CONFIG_ENABLE_SR
     ctxt[plane].tskip_zero_flag = av1_superres_scaled(cm);
-
+#else
+    ctxt[plane].tskip_zero_flag = 0;
+#endif  // CONFIG_ENABLE_SR
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
                                    &ctxt[plane], &ctxt[plane].tile_rect,
                                    cm->rst_tmpbuf, cm->rlbs);
@@ -2979,11 +3043,19 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   //   MI_SIZE * m = N / D u
   //
   // from which we get u = D * MI_SIZE * m / N
+#if CONFIG_ENABLE_SR
   const int mi_to_num_x = av1_superres_scaled(cm)
                               ? mi_size_x * cm->superres_scale_denominator
                               : mi_size_x;
+#else
+  const int mi_to_num_x = mi_size_x;
+#endif  // CONFIG_ENABLE_SR
   const int mi_to_num_y = mi_size_y;
+#if CONFIG_ENABLE_SR
   const int denom_x = av1_superres_scaled(cm) ? size * SCALE_NUMERATOR : size;
+#else
+  const int denom_x = size;
+#endif  // CONFIG_ENABLE_SR
   const int denom_y = size;
 
   const int rnd_x = denom_x - 1;
@@ -3019,6 +3091,9 @@ static void extend_lines(uint16_t *buf, int width, int height, int stride,
 static void save_deblock_boundary_lines(
     const YV12_BUFFER_CONFIG *frame, const AV1_COMMON *cm, int plane, int row,
     int stripe, int is_above, RestorationStripeBoundaries *boundaries) {
+#if !CONFIG_ENABLE_SR
+  (void)cm;
+#endif  // !CONFIG_ENABLE_SR
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
@@ -3036,12 +3111,18 @@ static void save_deblock_boundary_lines(
   // the stripe (hence why we ended up in this function), but instead of
   // fetching 2 "below" rows we need to fetch one and duplicate it.
   // This is equivalent to clamping the sample locations against the crop border
+#if CONFIG_F054_PIC_BOUNDARY
+  const int lines_to_save =
+      AOMMIN(RESTORATION_CTX_VERT, frame->heights[is_uv] - row);
+#else
   const int lines_to_save =
       AOMMIN(RESTORATION_CTX_VERT, frame->crop_heights[is_uv] - row);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   assert(lines_to_save == 1 || lines_to_save == 2);
 
   int upscaled_width;
   int line_bytes;
+#if CONFIG_ENABLE_SR
   if (av1_superres_scaled(cm)) {
     const int ss_x = is_uv && cm->seq_params.subsampling_x;
     upscaled_width = (cm->superres_upscaled_width + ss_x) >> ss_x;
@@ -3050,13 +3131,20 @@ static void save_deblock_boundary_lines(
                                boundaries->stripe_boundary_stride, plane,
                                lines_to_save);
   } else {
-    upscaled_width = frame->crop_widths[is_uv];
+#endif  // CONFIG_ENABLE_SR
+#if CONFIG_F054_PIC_BOUNDARY
+    upscaled_width = frame->widths[is_uv];
+#else
+  upscaled_width = frame->crop_widths[is_uv];
+#endif  // CONFIG_F054_PIC_BOUNDARY
     line_bytes = upscaled_width << 1;
     for (int i = 0; i < lines_to_save; i++) {
       memcpy(bdry_rows + i * bdry_stride, src_rows + i * src_stride,
              line_bytes);
     }
+#if CONFIG_ENABLE_SR
   }
+#endif  // CONFIG_ENABLE_SR
   // If we only saved one line, then copy it into the second line buffer
   if (lines_to_save == 1)
     memcpy(bdry_rows + bdry_stride, bdry_rows, line_bytes);
@@ -3069,6 +3157,9 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                                      const AV1_COMMON *cm, int plane, int row,
                                      int stripe, int is_above,
                                      RestorationStripeBoundaries *boundaries) {
+#if !CONFIG_ENABLE_SR
+  (void)cm;
+#endif  // !CONFIG_ENABLE_SR
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
@@ -3080,15 +3171,23 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   const int bdry_stride = boundaries->stripe_boundary_stride;
   uint16_t *bdry_rows =
       bdry_start + RESTORATION_CTX_VERT * stripe * bdry_stride;
+#if CONFIG_F054_PIC_BOUNDARY
+  const int src_width = frame->widths[is_uv];
+#else
   const int src_width = frame->crop_widths[is_uv];
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   // At the point where this function is called, we've already applied
   // superres. So we don't need to extend the lines here, we can just
   // pull directly from the topmost row of the upscaled frame.
+#if CONFIG_ENABLE_SR
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int upscaled_width = av1_superres_scaled(cm)
                                  ? (cm->superres_upscaled_width + ss_x) >> ss_x
                                  : src_width;
+#else
+  const int upscaled_width = src_width;
+#endif  // CONFIG_ENABLE_SR
   const int line_bytes = upscaled_width << 1;
   for (int i = 0; i < RESTORATION_CTX_VERT; i++) {
     // Copy the line at 'row' into both context lines. This is because
@@ -3116,8 +3215,12 @@ static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
+#if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
+#else
+  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+#endif  // CONFIG_ENABLE_SR
 
   int tile_stripe;
   for (tile_stripe = 0;; ++tile_stripe) {

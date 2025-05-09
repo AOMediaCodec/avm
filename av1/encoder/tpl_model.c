@@ -229,6 +229,9 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[0].src.stride = stride;
   xd->plane[0].pre[0].buf = ref_frame_buf;
   xd->plane[0].pre[0].stride = stride_ref;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  xd->mi[0]->use_amvd = 0;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
   step_param = tpl_sf->reduce_first_step_size;
   step_param = AOMMIN(step_param, MAX_MVSEARCH_STEPS - 2);
@@ -1017,9 +1020,13 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   TplParams *const tpl_data = &cpi->tpl_data;
 
   int ref_picture_map[REF_FRAMES];
-
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    if (frame_params.frame_type == KEY_FRAME || gop_eval) {
+  assert(cm->seq_params.ref_frames > 0);
+  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+    if (frame_params.frame_type == KEY_FRAME || gop_eval
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+        || cm->ref_frame_map[i] == NULL
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    ) {
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
       tpl_data->tpl_frame[-1 - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
@@ -1106,8 +1113,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
-
-    if (refresh_frame_map_index < REF_FRAMES) {
+    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1206,7 +1212,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
-    if (refresh_frame_map_index < REF_FRAMES) {
+    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1268,10 +1274,12 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
 
+#if CONFIG_ENABLE_SR
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
     return;
   }
+#endif  // CONFIG_ENABLE_SR
 
   cm->current_frame.frame_type = frame_params->frame_type;
   for (int gf_index = gf_group->index; gf_index < (gf_group->size - 1);
@@ -1358,7 +1366,11 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
 
   const TplDepStats *const tpl_stats = tpl_frame->tpl_stats_ptr;
   const int tpl_stride = tpl_frame->stride;
+#if CONFIG_ENABLE_SR
   const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
+#else
+  const int mi_cols_sr = av1_pixels_to_mi(cm->width);
+#endif  // CONFIG_ENABLE_SR
 
   const int block_size = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[block_size];
@@ -1412,11 +1424,17 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
+#if CONFIG_ENABLE_SR
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
   const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
   const int sb_mi_width_sr = coded_to_superres_mi(
       mi_size_wide[sb_size], cm->superres_scale_denominator);
+#else
+  const int mi_col_sr = mi_col;
+  const int mi_cols_sr = av1_pixels_to_mi(cm->width);
+  const int sb_mi_width_sr = mi_size_wide[sb_size];
+#endif  // CONFIG_ENABLE_SR
 
   const int bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];

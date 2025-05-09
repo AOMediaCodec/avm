@@ -287,7 +287,7 @@ static int sb_all_skip(const CommonModeInfoParams *const mi_params, int mi_row,
 
 static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   const int bd = cm->seq_params.bit_depth;
-  const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, bd) >>
+  const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, 0, bd) >>
                 (bd - 8 + QUANT_TABLE_BITS);
   CdefInfo *const cdef_info = &cm->cdef_info;
 #if !CONFIG_CDEF_ENHANCEMENTS

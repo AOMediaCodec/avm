@@ -51,6 +51,7 @@ struct RD_STATS;
  * search with an evaluation for intrabc.
  *
  * \param[in]    cpi            Top-level encoder structure.
+ * \param[in]    td             Pointer to thread data
  * \param[in]    x              Pointer to structure holding all the data for
                                 the current macroblock.
  * \param[in]    rd_cost        Struct to keep track of the RD information.
@@ -64,9 +65,10 @@ struct RD_STATS;
  * in this function. The rd_cost struct is also updated with the RD stats
  * corresponding to the best mode found.
  */
-void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
-                               struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
-                               PICK_MODE_CONTEXT *ctx, int64_t best_rd);
+void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
+                               struct macroblock *x, struct RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
+                               int64_t best_rd);
 
 /*!\brief AV1 inter mode selection.
  *
@@ -157,9 +159,11 @@ sobel_xy av1_sobel(const uint16_t *input, int stride, int i, int j);
 void av1_inter_mode_data_init(struct TileDataEnc *tile_data);
 void av1_inter_mode_data_fit(TileDataEnc *tile_data, int rdmult);
 
+#if CONFIG_ENABLE_SR
 static INLINE int coded_to_superres_mi(int mi_col, int denom) {
   return (mi_col * denom + SCALE_NUMERATOR / 2) / SCALE_NUMERATOR;
 }
+#endif  // CONFIG_ENABLE_SR
 
 static INLINE int av1_encoder_get_relative_dist(int a, int b) {
   assert(a >= 0 && b >= 0);

@@ -44,19 +44,19 @@ std::ostream &operator<<(std::ostream &os, const SEFTestParam &p) {
 }
 
 // Params: encoding mode, rate control mode and SEFTestParam object.
-class SEFTest
+class SEFTestLarge
     : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
                                                  aom_rc_mode, SEFTestParam>,
       public ::libaom_test::EncoderTest {
  protected:
-  SEFTest()
+  SEFTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         rc_mode_(GET_PARAM(2)) {
     enable_frame_output_order_derivation_ =
         GET_PARAM(3).enable_frame_output_order_derivation;
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
-  virtual ~SEFTest() {}
+  virtual ~SEFTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -111,7 +111,7 @@ class SEFTest
   double psnr_;
 };
 
-TEST_P(SEFTest, TestShowExistingFrame) {
+TEST_P(SEFTestLarge, TestShowExistingFrame) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 32);
@@ -121,7 +121,7 @@ TEST_P(SEFTest, TestShowExistingFrame) {
       << enable_frame_output_order_derivation_ << ", ";
 }
 
-AV1_INSTANTIATE_TEST_SUITE(SEFTest, GOODQUALITY_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(SEFTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_Q),
                            ::testing::ValuesIn(sefTestParams));
 }  // namespace

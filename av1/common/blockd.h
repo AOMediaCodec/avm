@@ -113,8 +113,10 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEARMV,         // NEARMV
     GLOBALMV,       // GLOBALMV
     NEWMV,          // NEWMV
-    NEWMV,          // AMVDNEWMV
-    WARPMV,         // WARPMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+    NEWMV,   // AMVDNEWMV
+#endif       //! CONFIG_INTER_MODE_CONSOLIDATION
+    WARPMV,  // WARPMV
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     WARP_NEWMV,  // WARP_NEWMV
 #endif           // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -124,13 +126,17 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     GLOBALMV,    // GLOBAL_GLOBALMV
     NEWMV,       // NEW_NEWMV
     NEWMV,       // JOINT_NEWMV
-    NEWMV,       // JOINT_AMVDNEWMV
-    NEARMV,      // NEAR_NEARMV_OPTFLOW
-    NEARMV,      // NEAR_NEWMV_OPTFLOW
-    NEWMV,       // NEW_NEARMV_OPTFLOW
-    NEWMV,       // NEW_NEWMV_OPTFLOW
-    NEWMV,       // JOINT_NEWMV_OPTFLOW
-    NEWMV,       // JOINT_AMVDNEWMV_OPTFLOW
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+    NEWMV,   // JOINT_AMVDNEWMV
+#endif       //! CONFIG_INTER_MODE_CONSOLIDATION
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+    NEARMV,  // NEAR_NEWMV_OPTFLOW
+    NEWMV,   // NEW_NEARMV_OPTFLOW
+    NEWMV,   // NEW_NEWMV_OPTFLOW
+    NEWMV,   // JOINT_NEWMV_OPTFLOW
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+    NEWMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif      //! CONFIG_INTER_MODE_CONSOLIDATION
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -155,7 +161,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEARMV
     MB_MODE_COUNT,  // GLOBALMV
     MB_MODE_COUNT,  // NEWMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
     MB_MODE_COUNT,  // AMVDNEWMV
+#endif              //! CONFIG_INTER_MODE_CONSOLIDATION
     MB_MODE_COUNT,  // WARPMV
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     MB_MODE_COUNT,  // WARP_NEWMV
@@ -166,13 +174,17 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     GLOBALMV,       // GLOBAL_GLOBALMV
     NEWMV,          // NEW_NEWMV
     NEARMV,         // JOINT_NEWMV
-    NEARMV,         // JOINT_AMVDNEWMV
-    NEARMV,         // NEAR_NEARMV_OPTFLOW
-    NEWMV,          // NEAR_NEWMV_OPTFLOW
-    NEARMV,         // NEW_NEARMV_OPTFLOW
-    NEWMV,          // NEW_NEWMV_OPTFLOW
-    NEARMV,         // JOINT_NEWMV_OPTFLOW
-    NEARMV,         // JOINT_AMVDNEWMV_OPTFLOW
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+    NEARMV,  // JOINT_AMVDNEWMV
+#endif       //! CONFIG_INTER_MODE_CONSOLIDATION
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+    NEWMV,   // NEAR_NEWMV_OPTFLOW
+    NEARMV,  // NEW_NEARMV_OPTFLOW
+    NEWMV,   // NEW_NEWMV_OPTFLOW
+    NEARMV,  // JOINT_NEWMV_OPTFLOW
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+    NEARMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif       //! CONFIG_INTER_MODE_CONSOLIDATION
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -181,8 +193,11 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 
 // return whether current mode is joint MVD coding mode
 static INLINE int is_joint_mvd_coding_mode(PREDICTION_MODE mode) {
-  return mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV ||
-         mode == JOINT_NEWMV_OPTFLOW || mode == JOINT_AMVDNEWMV_OPTFLOW;
+  return mode == JOINT_NEWMV || mode == JOINT_NEWMV_OPTFLOW
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+         || mode == JOINT_AMVDNEWMV || mode == JOINT_AMVDNEWMV_OPTFLOW
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+      ;
 }
 
 static INLINE int have_nearmv_in_inter_mode(PREDICTION_MODE mode) {
@@ -198,7 +213,10 @@ static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
 }
 
 static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
-  return mode == NEWMV || mode == AMVDNEWMV ||
+  return mode == NEWMV ||
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+         mode == AMVDNEWMV ||
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
          mode == WARP_NEWMV ||
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -206,18 +224,37 @@ static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
 }
 
 // return whether current mode is joint AMVD coding mode
-static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode) {
+static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                                            ,
+                                            int use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+) {
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  return (mode == JOINT_NEWMV || mode == JOINT_NEWMV_OPTFLOW) && use_amvd;
+#else
   return mode == JOINT_AMVDNEWMV || mode == JOINT_AMVDNEWMV_OPTFLOW;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 }
 
 // Scale the MVD for joint MVD coding mode based on the jmvd_scale_mode.
 // The supported scale modes for JOINT_NEWMV mode is 0, 1, 2, 3, and 4.
 // The supported scale modes for JOINT_AMVDNEWMV mode is 0, 1, and 2.
 static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
-                                   PREDICTION_MODE mode) {
+                                   PREDICTION_MODE mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                                   ,
+                                   int use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+) {
   // This scaling factor is only applied to joint mvd coding mode
   if (!is_joint_mvd_coding_mode(mode)) return;
-  if (is_joint_amvd_coding_mode(mode)) {
+  if (is_joint_amvd_coding_mode(mode
+#if CONFIG_INTER_MODE_CONSOLIDATION
+                                ,
+                                use_amvd
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+                                )) {
     if (jmvd_scaled_mode == 1) {
       other_mvd->row = other_mvd->row * 2;
       other_mvd->col = other_mvd->col * 2;
@@ -247,9 +284,12 @@ static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mode == WARP_NEWMV ||
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mode == AMVDNEWMV || is_joint_mvd_coding_mode(mode) ||
-          mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
-          mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEARMV);
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+          mode == AMVDNEWMV ||
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+          is_joint_mvd_coding_mode(mode) || mode == NEAR_NEWMV_OPTFLOW ||
+          mode == NEW_NEARMV_OPTFLOW || mode == NEW_NEWMV_OPTFLOW ||
+          mode == NEW_NEARMV);
 }
 static INLINE int have_drl_index(PREDICTION_MODE mode) {
   return have_nearmv_in_inter_mode(mode) || have_newmv_in_inter_mode(mode);
@@ -413,7 +453,11 @@ typedef struct CHROMA_REF_INFO {
   BLOCK_SIZE bsize_base;
 } CHROMA_REF_INFO;
 
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+#define MAX_TX_PARTITIONS 5
+#else
 #define MAX_TX_PARTITIONS 4
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 
 #if CONFIG_NEW_TX_PARTITION
 // txfm block position information inside a coding block.
@@ -564,6 +608,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief intra_dip prediction mode (0=disable). */
   uint8_t use_intra_dip;
   uint8_t intra_dip_mode;
+#if CONFIG_DIP_EXT_PRUNING
+  /*! \brief DIP input features (downsampled edge pixels). */
+  // Top-left corner, 5 along top edge, 5 along bottom edge (11 total).
+  uint16_t intra_dip_features[11];
+#endif  // CONFIG_DIP_EXT_PRUNING
 #endif  // CONFIG_DIP
   /*! \brief Chroma from Luma: Joint sign of alpha Cb and alpha Cr */
   int8_t cfl_alpha_signs;
@@ -652,14 +701,18 @@ typedef struct MB_MODE_INFO {
   int8_t delta_lf_from_base;
   /*! \copydoc MACROBLOCKD::delta_lf */
   int8_t delta_lf[FRAME_LF_COUNT];
-  /**@}*/
+/**@}*/
 
-  /*****************************************************************************
-   * \name Bitfield for Memory Reduction
-   ****************************************************************************/
-  /**@{*/
-  /*! \brief The segment id */
+/*****************************************************************************
+ * \name Bitfield for Memory Reduction
+ ****************************************************************************/
+/**@{*/
+/*! \brief The segment id */
+#if CONFIG_EXT_SEG
+  uint8_t segment_id : 4;
+#else   // CONFIG_EXT_SEG
   uint8_t segment_id : 3;
+#endif  // CONFIG_EXT_SEG
   /*! \brief Only valid when temporal update if off. */
   uint8_t seg_id_predicted : 1;
   /*! \brief Which ref_mv to use */
@@ -674,6 +727,9 @@ typedef struct MB_MODE_INFO {
 #else
   uint8_t skip_mode : 1;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int use_amvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   /*! \brief Whether intrabc is used. */
   uint8_t use_intrabc[PARTITION_STRUCTURE_NUM];
 #if CONFIG_IBC_BV_IMPROVEMENT
@@ -706,6 +762,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief warp model type used for this mbmi. */
   uint8_t six_param_warp_model_flag;
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
+#if CONFIG_WARP_INTER_INTRA
+  /*! \brief warp inter intra enable or not. */
+  uint8_t warp_inter_intra;
+#endif  // CONFIG_WARP_INTER_INTRA
 
 #if CONFIG_WARP_PRECISION
   /*! \brief warp_precision_idx this mbmi. */
@@ -863,6 +924,9 @@ static INLINE int is_tip_ref_frame(MV_REFERENCE_FRAME ref_frame) {
 
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
   return is_intrabc_block(mbmi, tree_type) ||
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+         mbmi->skip_mode == 1 ||
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
@@ -4036,9 +4100,23 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   if (is_fsc) {
     return IDTX;
   }
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  if (xd->lossless[mbmi->segment_id]) {
+    if (is_inter && tx_size == TX_8X8) {
+      assert(plane_type == PLANE_TYPE_Y);
+      return IDTX;
+    } else if (is_inter && plane_type == PLANE_TYPE_Y) {
+      return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+    } else {
+      return DCT_DCT;
+    }
+  }
+#else
   if (xd->lossless[mbmi->segment_id]) {
     return DCT_DCT;
   }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 #else   // CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     return DCT_DCT;
@@ -4323,7 +4401,20 @@ static INLINE TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,
 
 static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd->lossless[mbmi->segment_id]) {
+    const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const BLOCK_SIZE bs = get_bsize_base(xd, mbmi, plane);
+    if (block_size_wide[bs] < 8 || block_size_high[bs] < 8 || plane ||
+        (!is_inter && !is_fsc))
+      return TX_4X4;
+    else
+      return mbmi->tx_size;
+  }
+#else
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   if (plane == 0) return mbmi->tx_size;
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -4409,7 +4500,12 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-  return mbmi->motion_mode == INTERINTRA;
+  return
+#if CONFIG_WARP_INTER_INTRA
+      (mbmi->motion_mode >= WARP_CAUSAL && mbmi->warp_inter_intra) ||
+#endif  // CONFIG_WARP_INTER_INTRA
+
+      (mbmi->motion_mode == INTERINTRA);
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -4486,7 +4582,20 @@ static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
 
 static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                        int plane) {
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd->lossless[xd->mi[0]->segment_id]) {
+    const bool is_fsc =
+        xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
+    const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+    if (block_size_wide[bsize] < 8 || block_size_high[bsize] < 8 || plane ||
+        (!is_inter && !is_fsc))
+      return TX_4X4;
+    else
+      return xd->mi[0]->tx_size;
+  }
+#else
   if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   const TX_SIZE max_txsize = max_txsize_rect_lookup[bsize];
   if (plane == 0) return max_txsize;            // luma
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
@@ -4512,29 +4621,6 @@ static INLINE int is_motion_variation_allowed_compound(
     const MB_MODE_INFO *mbmi) {
   return !has_second_ref(mbmi);
 }
-
-#if CONFIG_BAWP
-static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
-                                 int mi_col) {
-  if (mbmi->mode == WARPMV) return 0;
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == WARP_NEWMV) return 0;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
-                                        mi_col) &&
-      is_inter_singleref_mode(mbmi->mode))
-    return 1;
-  else
-    return 0;
-}
-#endif  // CONFIG_BAWP
-
-#if CONFIG_EXPLICIT_BAWP
-static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
-  return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
-}
-#endif  // CONFIG_EXPLICIT_BAWP
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {

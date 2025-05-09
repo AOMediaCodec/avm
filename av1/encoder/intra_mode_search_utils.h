@@ -396,6 +396,15 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   mbmi->tx_size = tx_size;
 
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  if (xd->lossless[mbmi->segment_id]) {
+    if (block_size_wide[bsize] >= 8 && block_size_high[bsize] >= 8 &&
+        mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+      mbmi->tx_size = TX_8X8;
+    }
+  }
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
 #if CONFIG_NEW_TX_PARTITION
   mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
   get_tx_partition_sizes(mbmi->tx_partition_type[0], tx_size, &mbmi->txb_pos,

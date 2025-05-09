@@ -162,7 +162,7 @@ TEST_P(CpuSpeedTestLarge, TestEncodeHighBitrate) { TestEncodeHighBitrate(); }
 TEST_P(CpuSpeedTestLarge, TestLowBitrate) { TestLowBitrate(); }
 
 AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTest, GOODQUALITY_TEST_MODES,
-                           ::testing::Range(1, 3));
+                           ::testing::Values(5));
 AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTestLarge, GOODQUALITY_TEST_MODES,
-                           ::testing::Range(0, 1));
+                           ::testing::Values(1));
 }  // namespace

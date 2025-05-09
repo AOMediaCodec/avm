@@ -672,7 +672,7 @@ int main(int argc, const char **argv) {
       "Partitions");  // minus unused context entries
 
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
   int do_ext_partition_reduce = 264;
@@ -682,12 +682,12 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.do_ext_partition[0][0][0][0], probsfile, 4,
                      cts_each_dim,
                      "static aom_cdf_prob default_do_ext_partition_cdf"
-                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, do_ext_partition_reduce, mem_wanted,
                      "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = 2;
   int do_uneven_4way_partition_reduce = 320;
@@ -697,12 +697,13 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.do_uneven_4way_partition[0][0][0][0], probsfile, 4, cts_each_dim,
       "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
-      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-      "CONTEXTS][CDF_SIZE(2)]",
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_CONTEXTS][CDF_"
+      "SIZE(2)]",
       0, &total_count, do_uneven_4way_partition_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
+#if !CONFIG_NEW_PART_CTX
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
-  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[1] = NUM_RECT_CONTEXTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = NUM_UNEVEN_4WAY_PARTS;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -713,10 +714,11 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(
       &fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
       "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
-      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-      "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS][PARTITION_CONTEXTS][CDF_"
+      "SIZE(NUM_UNEVEN_4WAY_PARTS)]",
       0, &total_count, do_uneven_4way_partition_type_reduce, mem_wanted,
       "Partitions");  // minus unused context entries
+#endif
 #else
   /* block partition */
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
@@ -799,6 +801,28 @@ int main(int argc, const char **argv) {
     nmv_context_count *nmvc_cnts = (ibc == 0) ? &fc.nmvc_cnts : &fc.ndvc_cnts;
 
 #if CONFIG_VQ_MVD_CODING
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    cts_each_dim[0] = 2;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_set_cnts[0], probsfile, 1,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_set_cdf_placeholder"
+                       "[CDF_SIZE(2)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+    cts_each_dim[0] = NUM_MV_PRECISIONS;
+    cts_each_dim[1] = FIRST_SHELL_CLASS;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_class_0_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_class_0_cdf_placeholder"
+                       "[NUM_MV_PRECISIONS][CDF_SIZE(FIRST_SHELL_CLASS)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+    cts_each_dim[0] = NUM_MV_PRECISIONS;
+    cts_each_dim[1] = SECOND_SHELL_CLASS;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_class_1_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_class_1_cdf_placeholder"
+                       "[NUM_MV_PRECISIONS][CDF_SIZE(SECOND_SHELL_CLASS)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+#else
     cts_each_dim[0] = ibc == 0 ? NUM_MV_PRECISIONS : 1;
     cts_each_dim[1] = MAX_NUM_SHELL_CLASS;
     optimize_cdf_table(&nmvc_cnts->joint_shell_class_cnts[0][0], probsfile, 2,
@@ -806,6 +830,7 @@ int main(int argc, const char **argv) {
                        "static aom_cdf_prob joint_shell_class_cdf_placeholder"
                        "[NUM_MV_PRECISIONS][CDF_SIZE(MAX_NUM_SHELL_CLASS)]",
                        0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
     cts_each_dim[0] = 2;
     cts_each_dim[1] = 2;
@@ -1181,14 +1206,22 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Inter");
 
 #if CONFIG_OPT_INTER_MODE_CTX
-  /* Optical flow MV refinement */
+/* Optical flow MV refinement */
+#if CONFIG_OPFL_CTX_OPT
+  cts_each_dim[0] = OPFL_MODE_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.use_optflow[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\ndefault_use_optflow_cdf"
+                     "[OPFL_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = INTER_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.use_optflow[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob\ndefault_use_optflow_cdf"
                      "[INTER_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-
+#endif  // CONFIG_OPFL_CTX_OPT
   /* ext_inter experiment */
   /* New compound mode */
 
@@ -1262,7 +1295,16 @@ int main(int argc, const char **argv) {
                      "INTER_COMPOUND_REF_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  cts_each_dim[0] = NUM_AMVD_MODES;
+  cts_each_dim[1] = AMVD_MODE_CONTEXTS;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.amvd_mode[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_amvd_mode_cdf"
+                     "[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;
   cts_each_dim[1] = 2;
@@ -1313,6 +1355,21 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  cts_each_dim[0] = WEDGE_QUADS;
+  optimize_cdf_table(&fc.wedge_quad_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_quad_cdf[CDF_SIZE(WEDGE_QUADS)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+
+  cts_each_dim[0] = WEDGE_QUADS;
+  cts_each_dim[1] = QUAD_WEDGE_ANGLES;
+  optimize_cdf_table(&fc.wedge_angle_cnt[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_angle_cdf[CDF_SIZE(WEDGE_QUADS)][CDF_SIZE("
+                     "QUAD_WEDGE_ANGLES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.wedge_angle_dir_cnt[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
@@ -1330,7 +1387,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-
+#endif
   cts_each_dim[0] = NUM_WEDGE_DIST;
   optimize_cdf_table(&fc.wedge_dist_cnt[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
@@ -1405,10 +1462,18 @@ int main(int argc, const char **argv) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.skip_drl_cnts[0][0], probsfile, 2, cts_each_dim,
+  optimize_cdf_table(&fc.skip_drl_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_skip_drl_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  cts_each_dim[0] = 3;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.tip_drl_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_tip_drl_cdf[3][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   cts_each_dim[0] = WARPMV_MODE_CONTEXT;

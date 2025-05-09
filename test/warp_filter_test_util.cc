@@ -482,9 +482,19 @@ void AV1HighbdWarpBilinearFilterTest::RunCheckOutput(
 
         av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, 32, 32,
                                   out_w, out_h, out_w, sub_x, sub_y,
-                                  &conv_params);
+                                  &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                                  ,
+                                  NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+        );
         test_impl(&wms, bd, input, w, h, stride, output2, 32, 32, out_w, out_h,
-                  out_w, sub_x, sub_y, &conv_params);
+                  out_w, sub_x, sub_y, &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                  ,
+                  NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+        );
 
         for (int k = 0; k < out_h; ++k) {
           for (j = 0; j < out_w; ++j) {
@@ -548,9 +558,19 @@ void AV1HighbdWarpBilinearFilterTest::RunTest_ExtremeValues(
 
         av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, max_w,
                                   max_h, out_w, out_h, out_w, sub_x, sub_y,
-                                  &conv_params);
+                                  &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                                  ,
+                                  NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+        );
         test_impl(&wms, bd, input, w, h, stride, output2, max_w, max_h, out_w,
-                  out_h, out_w, sub_x, sub_y, &conv_params);
+                  out_h, out_w, sub_x, sub_y, &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                  ,
+                  NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+        );
 
         for (int k = 0; k < out_h; ++k) {
           for (j = 0; j < out_w; ++j) {
@@ -616,7 +636,12 @@ void AV1HighbdWarpBilinearFilterTest::RunSpeedTest(
   aom_usec_timer_start(&timer_ref);
   for (int i = 0; i < num_loops; ++i)
     av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, 32, 32,
-                              out_w, out_h, out_w, sub_x, sub_y, &conv_params);
+                              out_w, out_h, out_w, sub_x, sub_y, &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+                              ,
+                              NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+    );
   aom_usec_timer_mark(&timer_ref);
   const int elapsed_time_ref =
       static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
@@ -624,7 +649,12 @@ void AV1HighbdWarpBilinearFilterTest::RunSpeedTest(
   aom_usec_timer_start(&timer_mod);
   for (int i = 0; i < num_loops; ++i)
     test_impl(&wms, bd, input, w, h, stride, output, 32, 32, out_w, out_h,
-              out_w, sub_x, sub_y, &conv_params);
+              out_w, sub_x, sub_y, &conv_params
+#if CONFIG_DAMR_CLEAN_UP
+              ,
+              NULL
+#endif  // CONFIG_DAMR_CLEAN_UP
+    );
 
   aom_usec_timer_mark(&timer_mod);
   const int elapsed_time_mod =

@@ -99,9 +99,11 @@ static AOM_INLINE int inter_tx_partition_cost(
       cost += x->mode_costs.txfm_4way_partition_type_cost[1][txsize_group - 1]
                                                          [split4_partition - 1];
 #endif  // CONFIG_IMPROVEIDTX
-    } else if (allow_horz || allow_vert) {
+    }
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    else if (allow_horz || allow_vert) {
       int has_first_split = 0;
-      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+      if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       if (txsize_group_h_or_v) {
@@ -123,8 +125,8 @@ static AOM_INLINE int inter_tx_partition_cost(
 #endif  // CONFIG_IMPROVEIDTX
       }
     }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
   }
-
 #else
   if (allow_horz && allow_vert) {
     const int split4_ctx_0 = txfm_partition_split4_inter_context(
@@ -203,9 +205,11 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
       cost += x->mode_costs.txfm_4way_partition_type_cost[0][txsize_group - 1]
                                                          [split4_partition - 1];
 #endif  // CONFIG_IMPROVEIDTX
-    } else if (allow_horz || allow_vert) {
+    }
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    else if (allow_horz || allow_vert) {
       int has_first_split = 0;
-      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+      if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
         has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       if (txsize_group_h_or_v) {
@@ -227,8 +231,8 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
 #endif  // CONFIG_IMPROVEIDTX
       }
     }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
   }
-
 #else
   if (allow_horz && allow_vert) {
     const int split4_ctx_0 = get_tx_size_context(xd);

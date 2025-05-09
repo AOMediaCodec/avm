@@ -938,10 +938,12 @@ typedef struct {
   /*! Cost for sending do_uneven_4way_partition token. */
   int do_uneven_4way_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                                    [PARTITION_CONTEXTS][2];
+#if !CONFIG_NEW_PART_CTX
   /*! Cost for sending uneven_4way_partition_type token. */
   int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                                      [PARTITION_CONTEXTS]
                                      [NUM_UNEVEN_4WAY_PARTS];
+#endif  // !CONFIG_NEW_PART_CTX
 #else
   //! Cost for coding the partition.
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
@@ -1101,7 +1103,9 @@ typedef struct {
 #else
   int inter_single_mode_cost[INTER_SINGLE_MODE_CONTEXTS][INTER_SINGLE_MODES];
 #endif  // CONFIG_OPT_INTER_MODE_CTX
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int amvd_mode_cost[NUM_AMVD_MODES][AMVD_MODE_CONTEXTS][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
   //! inter warpmv mode cost
   int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -1120,6 +1124,9 @@ typedef struct {
 #if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  int tip_drl_mode_cost[3][2];
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   /**@}*/
 
@@ -1164,14 +1171,20 @@ typedef struct {
 
 #if CONFIG_OPT_INTER_MODE_CTX
   /*! use_optflow_cost */
+#if CONFIG_OPFL_CTX_OPT
+  int use_optflow_cost[OPFL_MODE_CONTEXTS][2];
+#else
   int use_optflow_cost[INTER_MODE_CONTEXTS][2];
+#endif  // CONFIG_OPFL_CTX_OPT
   /*! inter_compound_mode_cost */
 #if CONFIG_INTER_COMPOUND_BY_JOINT
   int inter_compound_mode_is_joint_cost[NUM_CTX_IS_JOINT][NUM_OPTIONS_IS_JOINT];
   int inter_compound_mode_non_joint_type_cost[NUM_CTX_NON_JOINT_TYPE]
                                              [NUM_OPTIONS_NON_JOINT_TYPE];
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   int inter_compound_mode_joint_type_cost[NUM_CTX_JOINT_TYPE]
                                          [NUM_OPTIONS_JOINT_TYPE];
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
   int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_REF_TYPES];
 #endif  // CONFIG_INTER_COMPOUND_BY_JOINT
@@ -1201,12 +1214,17 @@ typedef struct {
   //! wedge_idx_cost
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int wedge_quad_cost[WEDGE_QUADS];
+  int wedge_angle_cost[WEDGE_QUADS][QUAD_WEDGE_ANGLES];
+#else
   //! wedge_angle_dir_cost
   int wedge_angle_dir_cost[2];
   //! wedge_angle_0_cost
   int wedge_angle_0_cost[H_WEDGE_ANGLES];
   //! wedge_angle_1_cost
   int wedge_angle_1_cost[H_WEDGE_ANGLES];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   //! wedge_dist_cost
   int wedge_dist_cost[NUM_WEDGE_DIST];
   //! wedge_dist_cost2
@@ -1228,6 +1246,11 @@ typedef struct {
 #endif  // CONFIG_WEDGE_MOD_EXT
   //! interintra_cost
   int interintra_cost[BLOCK_SIZE_GROUPS][2];
+#if CONFIG_WARP_INTER_INTRA
+  //! warp_interintra_cost
+  int warp_interintra_cost[BLOCK_SIZE_GROUPS][2];
+#endif  // CONFIG_WARP_INTER_INTRA
+
   //! wedge_interintra_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int wedge_interintra_cost[2];
@@ -1377,6 +1400,10 @@ typedef struct {
   //! txfm_partition_cost
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  int lossless_tx_size_cost[BLOCK_SIZE_GROUPS][2][2];
+  int lossless_inter_tx_type_cost[2];
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];

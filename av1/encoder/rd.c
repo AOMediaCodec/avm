@@ -52,7 +52,11 @@
 #define RD_THRESH_POW 1.25
 
 #define RD_THRESH_MUL 4.40
+#if CONFIG_ADJ_Q_OFFSET
+#define RDMULT_FROM_Q2_NUM 80
+#else
 #define RDMULT_FROM_Q2_NUM 96
+#endif  // CONFIG_ADJ_Q_OFFSET
 #define RDMULT_FROM_Q2_DEN 32
 
 // The baseline rd thresholds for breaking out of the rd loop for
@@ -133,7 +137,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
-    for (RECT_PART_TYPE rect_type = 0; rect_type < NUM_RECT_PARTS;
+    for (RECT_PART_TYPE rect_type = 0; rect_type < NUM_RECT_CONTEXTS;
          rect_type++) {
       for (i = 0; i < PARTITION_CONTEXTS; ++i) {
         av1_cost_tokens_from_cdf(
@@ -143,11 +147,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
             mode_costs
                 ->do_uneven_4way_partition_cost[plane_index][rect_type][i],
             fc->do_uneven_4way_partition_cdf[plane_index][rect_type][i], NULL);
+#if !CONFIG_NEW_PART_CTX
         av1_cost_tokens_from_cdf(
             mode_costs
                 ->uneven_4way_partition_type_cost[plane_index][rect_type][i],
             fc->uneven_4way_partition_type_cdf[plane_index][rect_type][i],
             NULL);
+#endif  // !CONFIG_NEW_PART_CTX
       }
     }
   }
@@ -414,6 +420,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 #endif  // CONFIG_NEW_TX_PARTITION
 
+#if CONFIG_IMPROVE_LOSSLESS_TXM
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    for (j = 0; j < 2; ++j) {
+      av1_cost_tokens_from_cdf(mode_costs->lossless_tx_size_cost[i][j],
+                               fc->lossless_tx_size_cdf[i][j], NULL);
+    }
+  }
+  av1_cost_tokens_from_cdf(mode_costs->lossless_inter_tx_type_cost,
+                           fc->lossless_inter_tx_type_cdf, NULL);
+#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
   for (i = 0; i < 2; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->tx_ext_32_costs[i],
@@ -608,7 +625,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->inter_single_mode_cost[i],
                                fc->inter_single_mode_cdf[i], NULL);
     }
-
+#if CONFIG_INTER_MODE_CONSOLIDATION
+    for (j = 0; j < NUM_AMVD_MODES; ++j) {
+      for (i = 0; i < AMVD_MODE_CONTEXTS; ++i) {
+        av1_cost_tokens_from_cdf(mode_costs->amvd_mode_cost[j][i],
+                                 fc->amvd_mode_cdf[j][i], NULL);
+      }
+    }
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
     for (i = 0; i < WARPMV_MODE_CONTEXT; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_warp_mode_cost[i],
                                fc->inter_warp_mode_cdf[i], NULL);
@@ -632,9 +656,19 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
+#if CONFIG_INTER_MODE_CONSOLIDATION
+      av1_cost_tokens_from_cdf(mode_costs->tip_drl_mode_cost[i],
+                               fc->tip_drl_cdf[i], NULL);
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
     }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
+#if CONFIG_OPFL_CTX_OPT
+    for (i = 0; i < OPFL_MODE_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
+                               fc->use_optflow_cdf[i], NULL);
+    }
+#else
 #if CONFIG_OPT_INTER_MODE_CTX
     for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
 #else
@@ -643,6 +677,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
                                fc->use_optflow_cdf[i], NULL);
     }
+#endif  // CONFIG_OPFL_CTX_OPT
 
     for (j = 0; j < NUM_MV_PREC_MPP_CONTEXT; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->pb_block_mv_mpp_flag_costs[j],
@@ -671,11 +706,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
           mode_costs->inter_compound_mode_non_joint_type_cost[i],
           fc->inter_compound_mode_non_joint_type_cdf[i], NULL);
     }
+#if !CONFIG_INTER_MODE_CONSOLIDATION
     for (i = 0; i < NUM_CTX_JOINT_TYPE; ++i) {
       av1_cost_tokens_from_cdf(
           mode_costs->inter_compound_mode_joint_type_cost[i],
           fc->inter_compound_mode_joint_type_cdf[i], NULL);
     }
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
     for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
@@ -710,12 +747,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_D149_CTX_MODELING_OPT && CONFIG_WEDGE_MOD_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    av1_cost_tokens_from_cdf(mode_costs->wedge_quad_cost, fc->wedge_quad_cdf,
+                             NULL);
+    for (i = 0; i < WEDGE_QUADS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->wedge_angle_cost[i],
+                               fc->wedge_angle_cdf[i], NULL);
+    }
+#else
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_dir_cost,
                              fc->wedge_angle_dir_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_0_cost,
                              fc->wedge_angle_0_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_angle_1_cost,
                              fc->wedge_angle_1_cdf, NULL);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost, fc->wedge_dist_cdf,
                              NULL);
     av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost2, fc->wedge_dist_cdf2,
@@ -747,6 +793,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->interintra_cdf[i], NULL);
       av1_cost_tokens_from_cdf(mode_costs->interintra_mode_cost[i],
                                fc->interintra_mode_cdf[i], NULL);
+#if CONFIG_WARP_INTER_INTRA
+      av1_cost_tokens_from_cdf(mode_costs->warp_interintra_cost[i],
+                               fc->warp_interintra_cdf[i], NULL);
+#endif  // CONFIG_WARP_INTER_INTRA
     }
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost,

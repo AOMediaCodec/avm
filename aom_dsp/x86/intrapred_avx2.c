@@ -2955,7 +2955,6 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
 }
 
 #if CONFIG_IDIF
-
 static INLINE __m256i highbd_clamp_epi16_avx2(__m256i u, int bd) {
   const __m256i zero = _mm256_setzero_si256();
   const int max_i = ((1 << bd) - 1) << POWER_DR_INTERP_FILTER;

@@ -71,11 +71,17 @@ void aom_yv12_extend_frame_borders_c(YV12_BUFFER_CONFIG *ybf,
   for (int plane = 0; plane < num_planes; ++plane) {
     const int is_uv = plane > 0;
     const int plane_border = ybf->border >> is_uv;
+#if CONFIG_F054_PIC_BOUNDARY
+    extend_plane_high(ybf->buffers[plane], ybf->strides[is_uv],
+                      ybf->widths[is_uv], ybf->heights[is_uv], plane_border,
+                      plane_border, plane_border, plane_border);
+#else
     extend_plane_high(
         ybf->buffers[plane], ybf->strides[is_uv], ybf->crop_widths[is_uv],
         ybf->crop_heights[is_uv], plane_border, plane_border,
         plane_border + ybf->heights[is_uv] - ybf->crop_heights[is_uv],
         plane_border + ybf->widths[is_uv] - ybf->crop_widths[is_uv]);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   }
 }
 
@@ -93,11 +99,19 @@ static void extend_frame(YV12_BUFFER_CONFIG *const ybf, int ext_size,
     const int is_uv = plane > 0;
     const int top = ext_size >> (is_uv ? ss_y : 0);
     const int left = ext_size >> (is_uv ? ss_x : 0);
+#if CONFIG_F054_PIC_BOUNDARY
+    const int bottom = top;
+    const int right = left;
+    extend_plane_high(ybf->buffers[plane], ybf->strides[is_uv],
+                      ybf->widths[is_uv], ybf->heights[is_uv], top, left,
+                      bottom, right);
+#else
     const int bottom = top + ybf->heights[is_uv] - ybf->crop_heights[is_uv];
     const int right = left + ybf->widths[is_uv] - ybf->crop_widths[is_uv];
     extend_plane_high(ybf->buffers[plane], ybf->strides[is_uv],
                       ybf->crop_widths[is_uv], ybf->crop_heights[is_uv], top,
                       left, bottom, right);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   }
 }
 
@@ -120,10 +134,15 @@ void aom_extend_frame_borders_y_c(YV12_BUFFER_CONFIG *ybf) {
   assert(ybf->y_height - ybf->y_crop_height >= 0);
   assert(ybf->y_width - ybf->y_crop_width >= 0);
 
+#if CONFIG_F054_PIC_BOUNDARY
+  extend_plane_high(ybf->y_buffer, ybf->y_stride, ybf->y_width, ybf->y_height,
+                    ext_size, ext_size, ext_size, ext_size);
+#else
   extend_plane_high(ybf->y_buffer, ybf->y_stride, ybf->y_crop_width,
                     ybf->y_crop_height, ext_size, ext_size,
                     ext_size + ybf->y_height - ybf->y_crop_height,
                     ext_size + ybf->y_width - ybf->y_crop_width);
+#endif  // CONFIG_F054_PIC_BOUNDARY
 }
 
 // Copies the source image into the destination image and updates the
@@ -264,7 +283,11 @@ int aom_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
     YV12_BUFFER_CONFIG new_buf;
     memset(&new_buf, 0, sizeof(new_buf));
     const int error = aom_alloc_frame_buffer(
+#if CONFIG_F054_PIC_BOUNDARY
+        &new_buf, ybf->y_width, ybf->y_height, ybf->subsampling_x,
+#else
         &new_buf, ybf->y_crop_width, ybf->y_crop_height, ybf->subsampling_x,
+#endif  // CONFIG_F054_PIC_BOUNDARY
         ybf->subsampling_y, new_border, byte_alignment, alloc_pyramid);
     if (error) return error;
     // Copy image buffer

@@ -133,7 +133,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     scores[i].score = INT_MAX;
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
@@ -141,14 +141,14 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
     max_disp = AOMMAX(max_disp, cur_ref.disp_order);
   }
 
   // Compute a score for each reference buffer
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
@@ -198,8 +198,17 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    // Instead of filling empty slots (remapped_ref_idx[i]) with zero,
+    // the empty slots are filled with the first index (scores[0].index),
+    // because the zero index may indicate an invalid slot,
+    // when some frame OBUs are dropped for scalability operations.
+    if (cm->remapped_ref_idx[i] == INVALID_IDX)
+      cm->remapped_ref_idx[i] = scores[0].index;
+#else   // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   }
   return n_ranked;
 }
@@ -465,8 +474,14 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         MV_REFERENCE_FRAME ref_frame) {
   (void)xd;
 
-  if (ref_mbmi->ref_frame[0] != ref_frame &&
+  if (
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+      ref_mbmi->skip_mode == 1 || (ref_mbmi->ref_frame[0] != ref_frame &&
+                                   ref_mbmi->ref_frame[1] != ref_frame)) {
+#else
+      ref_mbmi->ref_frame[0] != ref_frame &&
       ref_mbmi->ref_frame[1] != ref_frame) {
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
     return SWITCHABLE_FILTERS;
   }
   (void)dir;
@@ -475,6 +490,7 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->skip_mode == 0);
   const int ctx_offset =
       is_inter_ref_frame(mbmi->ref_frame[1]) * INTER_FILTER_COMP_OFFSET;
   assert(dir == 0 || dir == 1);
@@ -604,10 +620,15 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
 bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *const mbmi) {
   const TileInfo *const tile = &xd->tile;
+#if CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+#else
   const int blk_size_y =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
   return (((mbmi->mi_row_start & ~blk_size_y) >= tile->mi_row_start) &&
           ((mbmi->mi_col_start & ~blk_size_x) >= tile->mi_col_start) &&
@@ -639,10 +660,15 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
     neighbor1_ccso_available = av1_check_ccso_mbmi_inside_tile(xd, neighbor1);
   }
 
+#if CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+#else
   const int blk_size_y =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
   if (neighbor0_ccso_available && neighbor1_ccso_available) {
     int is_neighbor0_ccso = 0;
@@ -781,15 +807,27 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   // left of the entries corresponding to real macroblocks.
   // The prediction flags in these dummy entries are initialized to 0.
   if (neighbor0 && neighbor1) {  // both neighbors available
-    if (!has_second_ref(neighbor0) && !has_second_ref(neighbor1))
+    if (!has_second_ref(neighbor0) && !has_second_ref(neighbor1)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        && neighbor0->skip_mode == 0 && neighbor1->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // neither neighbor uses comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(neighbor0->ref_frame[0]) ^
             IS_BACKWARD_REF_FRAME(neighbor1->ref_frame[0]);
-    else if (!has_second_ref(neighbor0))
+    else if (!has_second_ref(neighbor0)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+             && neighbor0->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // one of two neighbors uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(neighbor0->ref_frame[0]) ||
                  !is_inter_block(neighbor0, xd->tree_type));
-    else if (!has_second_ref(neighbor1))
+    else if (!has_second_ref(neighbor1)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+             && neighbor1->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // one of two neighbors uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(neighbor1->ref_frame[0]) ||
                  !is_inter_block(neighbor1, xd->tree_type));
@@ -798,7 +836,11 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   } else if (neighbor0 || neighbor1) {  // one neighbor available
     const MB_MODE_INFO *neighbor = neighbor0 ? neighbor0 : neighbor1;
 
-    if (!has_second_ref(neighbor))
+    if (!has_second_ref(neighbor)
+#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+        && neighbor->skip_mode == 0
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+    )
       // neighbor does not use comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(neighbor->ref_frame[0]);
     else

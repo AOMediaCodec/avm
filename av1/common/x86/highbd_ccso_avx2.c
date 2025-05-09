@@ -51,8 +51,14 @@ void ccso_filter_block_hbd_wo_buf_avx2(
     const int y_uv_vscale,
     // const int pad_stride, no pad size anymore
     const int quant_step_size, const int inv_quant_step, const int *rec_idx,
-    const int max_val, const int blk_size, const bool isSingleBand,
-    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only) {
+    const int max_val,
+#if CONFIG_CCSO_FU_BUGFIX
+    const int blk_size_x, const int blk_size_y,
+#else
+    const int blk_size,
+#endif  // CONFIG_CCSO_FU_BUGFIX
+    const bool isSingleBand, const uint8_t shift_bits, const int edge_clf,
+    const uint8_t ccso_bo_only) {
   assert(ccso_bo_only == 0);
   (void)ccso_bo_only;
   __m256i cmp_thr1 = _mm256_set1_epi16(quant_step_size);
@@ -82,16 +88,22 @@ void ccso_filter_block_hbd_wo_buf_avx2(
 
   int y_offset;
   int x_offset, x_remainder;
-  if (y + blk_size >= pic_height)
+
+#if !CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_x = blk_size;
+  const int blk_size_y = blk_size;
+#endif  // !CONFIG_CCSO_FU_BUGFIX
+
+  if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
   else
-    y_offset = blk_size;
+    y_offset = blk_size_y;
 
-  if (x + blk_size >= pic_width) {
+  if (x + blk_size_x >= pic_width) {
     x_offset = ((pic_width - x) >> 4) << 4;
     x_remainder = pic_width - x - x_offset;
   } else {
-    x_offset = blk_size;
+    x_offset = blk_size_x;
     x_remainder = 0;
   }
   for (int yOff = 0; yOff < y_offset; yOff++) {
@@ -245,7 +257,12 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int pic_width, const int pic_height,
                                 const int y_uv_hscale, const int y_uv_vscale,
                                 const int qstep, const int neg_qstep,
-                                const int *src_loc, const int blk_size,
+                                const int *src_loc,
+#if CONFIG_CCSO_FU_BUGFIX
+                                const int blk_size_x, const int blk_size_y,
+#else
+                                const int blk_size,
+#endif  // CONFIG_CCSO_FU_BUGFIX
                                 const int edge_clf) {
   const int quant_step_size = qstep;
   const int inv_quant_step = neg_qstep;
@@ -275,16 +292,22 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
 
   int y_offset;
   int x_offset, x_remainder;
-  if (y + blk_size >= pic_height)
+
+#if !CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_x = blk_size;
+  const int blk_size_y = blk_size;
+#endif  // !CONFIG_CCSO_FU_BUGFIX
+
+  if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
   else
-    y_offset = blk_size;
+    y_offset = blk_size_y;
 
-  if (x + blk_size >= pic_width) {
+  if (x + blk_size_x >= pic_width) {
     x_offset = ((pic_width - x) >> 4) << 4;
     x_remainder = pic_width - x - x_offset;
   } else {
-    x_offset = blk_size;
+    x_offset = blk_size_x;
     x_remainder = 0;
   }
   for (int yOff = 0; yOff < y_offset; yOff++) {
@@ -421,7 +444,12 @@ void ccso_filter_block_hbd_with_buf_bo_only_avx2(
     const uint16_t *src_y, uint16_t *dts_yuv, const uint8_t *src_cls0,
     const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,
     const int ccso_stride, const int x, const int y, const int pic_width,
-    const int pic_height, const int8_t *filter_offset, const int blk_size,
+    const int pic_height, const int8_t *filter_offset,
+#if CONFIG_CCSO_FU_BUGFIX
+    const int blk_size_x, const int blk_size_y,
+#else
+    const int blk_size,
+#endif  // CONFIG_CCSO_FU_BUGFIX
     const int y_uv_hscale, const int y_uv_vscale, const int max_val,
     const uint8_t shift_bits, const uint8_t ccso_bo_only) {
   (void)ccso_bo_only;
@@ -440,16 +468,22 @@ void ccso_filter_block_hbd_with_buf_bo_only_avx2(
 
   int y_offset;
   int x_offset, x_remainder;
-  if (y + blk_size >= pic_height)
+
+#if !CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_x = blk_size;
+  const int blk_size_y = blk_size;
+#endif  // !CONFIG_CCSO_FU_BUGFIX
+
+  if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
   else
-    y_offset = blk_size;
+    y_offset = blk_size_y;
 
-  if (x + blk_size >= pic_width) {
+  if (x + blk_size_x >= pic_width) {
     x_offset = ((pic_width - x) >> 4) << 4;
     x_remainder = pic_width - x - x_offset;
   } else {
-    x_offset = blk_size;
+    x_offset = blk_size_x;
     x_remainder = 0;
   }
   for (int yOff = 0; yOff < y_offset; yOff++) {
@@ -528,7 +562,12 @@ void ccso_filter_block_hbd_with_buf_avx2(
     const uint16_t *src_y, uint16_t *dts_yuv, const uint8_t *src_cls0,
     const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,
     const int ccso_stride, const int x, const int y, const int pic_width,
-    const int pic_height, const int8_t *filter_offset, const int blk_size,
+    const int pic_height, const int8_t *filter_offset,
+#if CONFIG_CCSO_FU_BUGFIX
+    const int blk_size_x, const int blk_size_y,
+#else
+    const int blk_size,
+#endif  // CONFIG_CCSO_FU_BUGFIX
     const int y_uv_hscale, const int y_uv_vscale, const int max_val,
     const uint8_t shift_bits, const uint8_t ccso_bo_only) {
   (void)ccso_bo_only;
@@ -547,16 +586,22 @@ void ccso_filter_block_hbd_with_buf_avx2(
 
   int y_offset;
   int x_offset, x_remainder;
-  if (y + blk_size >= pic_height)
+
+#if !CONFIG_CCSO_FU_BUGFIX
+  const int blk_size_x = blk_size;
+  const int blk_size_y = blk_size;
+#endif  // !CONFIG_CCSO_FU_BUGFIX
+
+  if (y + blk_size_y >= pic_height)
     y_offset = pic_height - y;
   else
-    y_offset = blk_size;
+    y_offset = blk_size_y;
 
-  if (x + blk_size >= pic_width) {
+  if (x + blk_size_x >= pic_width) {
     x_offset = ((pic_width - x) >> 4) << 4;
     x_remainder = pic_width - x - x_offset;
   } else {
-    x_offset = blk_size;
+    x_offset = blk_size_x;
     x_remainder = 0;
   }
   for (int yOff = 0; yOff < y_offset; yOff++) {

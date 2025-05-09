@@ -69,7 +69,6 @@ list(
   "${AOM_ROOT}/test/encode_test_driver.h"
   "${AOM_ROOT}/test/end_to_end_test.cc"
   "${AOM_ROOT}/test/gf_pyr_height_test.cc"
-  "${AOM_ROOT}/test/horz_superres_test.cc"
   "${AOM_ROOT}/test/i420_video_source.h"
   "${AOM_ROOT}/test/level_test.cc"
   "${AOM_ROOT}/test/monochrome_test.cc"
@@ -78,6 +77,11 @@ list(
   "${AOM_ROOT}/test/y4m_video_source.h"
   "${AOM_ROOT}/test/yuv_video_source.h"
   "${AOM_ROOT}/test/time_stamp_test.cc")
+
+if(CONFIG_ENABLE_SR)
+  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+       "${AOM_ROOT}/test/horz_superres_test.cc")
+endif()
 
 list(APPEND AOM_DECODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/decode_perf_test.cc")
 list(APPEND AOM_UNIT_TEST_WEBM_SOURCES "${AOM_ROOT}/test/webm_video_source.h")
@@ -247,13 +251,14 @@ if(NOT BUILD_SHARED_LIBS)
   endif()
 
   if(HAVE_SSE4_1)
-    list(
-      APPEND
-      AOM_UNIT_TEST_ENCODER_SOURCES
-      "${AOM_ROOT}/test/av1_convolve_scale_test.cc"
-      "${AOM_ROOT}/test/av1_horz_only_frame_superres_test.cc"
-      "${AOM_ROOT}/test/intra_edge_test.cc")
+    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+         "${AOM_ROOT}/test/av1_convolve_scale_test.cc"
+         "${AOM_ROOT}/test/intra_edge_test.cc")
 
+    if(CONFIG_ENABLE_SR)
+      list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+           "${AOM_ROOT}/test/av1_horz_only_frame_superres_test.cc")
+    endif()
   endif()
 
   if(HAVE_SSE4_2)

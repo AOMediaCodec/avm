@@ -128,8 +128,18 @@ typedef struct {
 
   JOINT_AMVDNEWMV_STATS joint_amvdnewmv_stats[MAX_COMP_MV_STATS];
   int joint_amvdnewmv_stats_idx;
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  NEW_NEWMV_AMVD_STATS new_newmv_amvd_stats[MAX_COMP_MV_STATS];
+  int new_newmv_amvd_stats_idx;
+
+  NEW_NEARMV_AMVD_STATS new_nearmv_amvd_stats[MAX_COMP_MV_STATS];
+  int new_nearmv_amvd_stats_idx;
+
+  NEAR_NEWMV_AMVD_STATS near_newmv_amvd_stats[MAX_COMP_MV_STATS];
+  int near_newmv_amvd_stats_idx;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 } HandleInterModeArgs;
 
 /*!\cond */

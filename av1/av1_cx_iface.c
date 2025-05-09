@@ -131,6 +131,9 @@ struct av1_extracfg {
   int enable_sdp;   // enable semi-decoupled partitioning
   int enable_mrls;  // enable multiple reference line selection
   int enable_tip;   // enable temporal interpolated prediction
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  int enable_mv_traj;  // enable MV trajectory tracking
+#endif                 // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
@@ -139,11 +142,8 @@ struct av1_extracfg {
   int enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-  int enable_fsc;   // enable forward skip coding
-  int enable_orip;  // enable ORIP
-#if CONFIG_IDIF
-  int enable_idif;       // enable IDIF
-#endif                   // CONFIG_IDIF
+  int enable_fsc;        // enable forward skip coding
+  int enable_orip;       // enable ORIP
   int enable_ist;        // enable intra secondary transform
   int enable_inter_ist;  // enable inter secondary transform
 #if CONFIG_CHROMA_TX
@@ -202,7 +202,9 @@ struct av1_extracfg {
   int enable_smooth_intra;  // enable smooth intra modes for sequence
   int enable_paeth_intra;   // enable Paeth intra mode for sequence
   int enable_cfl_intra;     // enable CFL uv intra mode for sequence
+#if CONFIG_ENABLE_SR
   int enable_superres;
+#endif                 // CONFIG_ENABLE_SR
   int enable_overlay;  // enable overlay for filtered arf frames
   int enable_palette;
   int enable_intrabc;
@@ -267,6 +269,9 @@ struct av1_extracfg {
 #if CONFIG_EXT_SEG
   int enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 };
 
 // Example subgop configs. Currently not used by default.
@@ -487,6 +492,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable semi-decoupled partitioning
   1,  // enable multiple reference line selection
   1,  // enable temporal interpolated prediction (TIP)
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  1,    // enable mv trajectory tracking
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   1,    // enable block adaptive weighted prediction (BAWP)
 #endif  // CONFIG_BAWP
@@ -496,9 +504,6 @@ static struct av1_extracfg default_extra_cfg = {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   1,    // enable forward skip coding
   1,    // enable ORIP
-#if CONFIG_IDIF
-  1,    // enable IDIF
-#endif  // CONFIG_IDIF
   1,    // enable intra secondary transform
   1,    // enable inter secondary transform
 #if CONFIG_CHROMA_TX
@@ -558,7 +563,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable smooth intra modes usage for sequence
   1,    // enable Paeth intra mode usage for sequence
   1,    // enable CFL uv intra mode usage for sequence
+#if CONFIG_ENABLE_SR
   1,    // superres
+#endif  // CONFIG_ENABLE_SR
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -630,6 +637,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_EXT_SEG
   0,    // enable_ext_seg
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  0,    // num_extra_dpb
+#endif  // CONFIG_EXTRA_DPB
 };
 
 struct aom_codec_alg_priv {
@@ -765,6 +775,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK(cfg, rc_resize_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
+#if CONFIG_ENABLE_SR
   RANGE_CHECK_HI(cfg, rc_superres_mode, AOM_SUPERRES_AUTO);
   RANGE_CHECK(cfg, rc_superres_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
@@ -772,6 +783,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK(cfg, rc_superres_qthresh, 1, 255);
   RANGE_CHECK(cfg, rc_superres_kf_qthresh, 1, 255);
+#endif  // CONFIG_ENABLE_SR
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
@@ -830,6 +842,10 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   RANGE_CHECK_HI(cfg, frame_hash_metadata, 3);
   RANGE_CHECK_HI(cfg, frame_hash_per_plane, 1);
+
+#if CONFIG_EXTRA_DPB
+  RANGE_CHECK(extra_cfg, num_extra_dpb, 0, 8);
+#endif  // CONFIG_EXTRA_DPB
 
   RANGE_CHECK(extra_cfg, color_primaries, AOM_CICP_CP_BT_709,
               AOM_CICP_CP_EBU_3213);  // Need to check range more precisely to
@@ -975,6 +991,7 @@ static int get_image_bps(const aom_image_t *img) {
   return 0;
 }
 
+#if CONFIG_ENABLE_SR
 // Set appropriate options to disable frame super-resolution.
 static void disable_superres(SuperResCfg *const superres_cfg) {
   superres_cfg->superres_mode = AOM_SUPERRES_NONE;
@@ -983,6 +1000,7 @@ static void disable_superres(SuperResCfg *const superres_cfg) {
   superres_cfg->superres_qthresh = 255;
   superres_cfg->superres_kf_qthresh = 255;
 }
+#endif  // CONFIG_ENABLE_SR
 
 static void update_encoder_config(cfg_options_t *cfg,
                                   struct av1_extracfg *extra_cfg) {
@@ -1028,6 +1046,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_sdp = extra_cfg->enable_sdp;
   cfg->enable_mrls = extra_cfg->enable_mrls;
   cfg->enable_tip = extra_cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -1037,9 +1058,6 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_D071_IMP_MSK_BLD
   cfg->enable_fsc = extra_cfg->enable_fsc;
   cfg->enable_orip = extra_cfg->enable_orip;
-#if CONFIG_IDIF
-  cfg->enable_idif = extra_cfg->enable_idif;
-#endif  // CONFIG_IDIF
   cfg->enable_ist = extra_cfg->enable_ist;
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
 #if CONFIG_CHROMA_TX
@@ -1127,6 +1145,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_EXT_SEG
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1173,6 +1194,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
   extra_cfg->enable_tip = cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  extra_cfg->enable_mv_traj = cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   extra_cfg->enable_bawp = cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -1182,9 +1206,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // CONFIG_D071_IMP_MSK_BLD
   extra_cfg->enable_fsc = cfg->enable_fsc;
   extra_cfg->enable_orip = cfg->enable_orip;
-#if CONFIG_IDIF
-  extra_cfg->enable_idif = cfg->enable_idif;
-#endif  // CONFIG_IDIF
   extra_cfg->enable_ist = cfg->enable_ist;
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
 #if CONFIG_CHROMA_TX
@@ -1272,6 +1293,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_EXT_SEG
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1345,7 +1369,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
 
+#if CONFIG_ENABLE_SR
   SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
+#endif  // CONFIG_ENABLE_SR
 
   KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
 
@@ -1559,6 +1585,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs) {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+    tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
     if (tool_cfg->enable_tip) {
 #if !CONFIG_TIP_LD
       if (cfg->g_lag_in_frames == 0) {
@@ -1572,6 +1601,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   } else {
     tool_cfg->enable_tip = 0;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+    tool_cfg->enable_mv_traj = 0;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -1609,6 +1641,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_EXT_SEG
   tool_cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  tool_cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
@@ -1854,9 +1889,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
-#if CONFIG_IDIF
-  intra_mode_cfg->enable_idif = extra_cfg->enable_idif;
-#endif  // CONFIG_IDIF
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
@@ -1893,6 +1925,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   comp_type_cfg->enable_interintra_wedge =
       extra_cfg->enable_interintra_comp & extra_cfg->enable_interintra_wedge;
 
+#if CONFIG_ENABLE_SR
   // Set Super-resolution mode configuration.
   if (extra_cfg->lossless || cfg->large_scale_tile) {
     disable_superres(superres_cfg);
@@ -1904,7 +1937,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
         (uint8_t)cfg->rc_superres_kf_denominator;
     superres_cfg->superres_qthresh = cfg->rc_superres_qthresh;
     superres_cfg->superres_kf_qthresh = cfg->rc_superres_kf_qthresh;
-
     int offset_superres_qthresh;
     int offset_superres_kf_qthresh;
     switch (cfg->g_bit_depth) {
@@ -1950,6 +1982,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (!superres_cfg->enable_superres) {
     disable_superres(superres_cfg);
   }
+#endif  // CONFIG_ENABLE_SR
 
   if (input_cfg->limit == 1) {
     // still picture mode, display model and timing is meaningless
@@ -1966,10 +1999,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->sb_multipass_unit_test;
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
 
-  oxcf->border_in_pixels =
-      (resize_cfg->resize_mode || superres_cfg->superres_mode)
-          ? AOM_BORDER_IN_PIXELS
-          : AOM_ENC_NO_SCALE_BORDER;
+  oxcf->border_in_pixels = (resize_cfg->resize_mode
+#if CONFIG_ENABLE_SR
+                            || superres_cfg->superres_mode
+#endif  // CONFIG_ENABLE_SR
+                            )
+                               ? AOM_BORDER_IN_PIXELS
+                               : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
@@ -2575,12 +2611,14 @@ static aom_codec_err_t ctrl_set_enable_cfl_intra(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if CONFIG_ENABLE_SR
 static aom_codec_err_t ctrl_set_enable_superres(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_superres = CAST(AV1E_SET_ENABLE_SUPERRES, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // CONFIG_ENABLE_SR
 
 static aom_codec_err_t ctrl_set_enable_overlay(aom_codec_alg_priv_t *ctx,
                                                va_list args) {
@@ -4067,6 +4105,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tip, argv,
                               err_string)) {
     extra_cfg.enable_tip = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mv_traj, argv,
+                              err_string)) {
+    extra_cfg.enable_mv_traj = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bawp, argv,
                               err_string)) {
@@ -4086,11 +4129,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
                               err_string)) {
     extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_IDIF
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idif, argv,
-                              err_string)) {
-    extra_cfg.enable_idif = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_IDIF
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
@@ -4384,6 +4422,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_ext_seg = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.num_extra_dpb, argv,
+                              err_string)) {
+    extra_cfg.num_extra_dpb = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_EXTRA_DPB
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4496,7 +4539,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
   { AV1E_SET_ENABLE_CFL_INTRA, ctrl_set_enable_cfl_intra },
+#if CONFIG_ENABLE_SR
   { AV1E_SET_ENABLE_SUPERRES, ctrl_set_enable_superres },
+#endif  // CONFIG_ENABLE_SR
   { AV1E_SET_ENABLE_OVERLAY, ctrl_set_enable_overlay },
   { AV1E_SET_ENABLE_PALETTE, ctrl_set_enable_palette },
   { AV1E_SET_ENABLE_INTRABC, ctrl_set_enable_intrabc },
@@ -4587,11 +4632,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     SCALE_NUMERATOR,  // rc_resize_denominator
     SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
+#if CONFIG_ENABLE_SR
     AOM_SUPERRES_NONE,  // rc_superres_mode
     SCALE_NUMERATOR,    // rc_superres_denominator
     SCALE_NUMERATOR,    // rc_superres_kf_denominator
     255,                // rc_superres_qthresh
     128,                // rc_superres_kf_qthresh
+#endif                  // CONFIG_ENABLE_SR
 
     AOM_VBR,      // rc_end_usage
     { NULL, 0 },  // rc_firstpass_mb_stats_in
@@ -4641,6 +4688,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,
 #endif      // CONFIG_EXT_RECUR_PARTITIONS
         0, 1,   1,   1,
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+        1,  // MV traj
+#endif      // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
         1,
 #endif  // CONFIG_BAWP
@@ -4649,9 +4699,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_D071_IMP_MSK_BLD
         1, 1,
-#if CONFIG_IDIF
-        1,
-#endif      // CONFIG_IDIF
         1,  // IST
         1,  // inter IST
 #if CONFIG_CHROMA_TX
@@ -4717,6 +4764,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_EXT_SEG
         0,  // enable_ext_seg
 #endif      // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+        0,  // num_extra_dpb
+#endif      // CONFIG_EXTRA_DPB
     },      // cfg
 } };
 

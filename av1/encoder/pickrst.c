@@ -348,15 +348,25 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
 
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   const int is_uv = plane != AOM_PLANE_Y;
+#if CONFIG_F054_PIC_BOUNDARY
+  rsc->plane_width = src->widths[is_uv];
+  rsc->plane_height = src->heights[is_uv];
+#else
   rsc->plane_width = src->crop_widths[is_uv];
   rsc->plane_height = src->crop_heights[is_uv];
+#endif  // CONFIG_F054_PIC_BOUNDARY
   rsc->src_buffer = src->buffers[plane];
   rsc->src_stride = src->strides[is_uv];
   rsc->dgd_buffer = dgd->buffers[plane];
   rsc->dgd_stride = dgd->strides[is_uv];
   rsc->tile_rect = av1_whole_frame_rect(cm, is_uv);
+#if CONFIG_F054_PIC_BOUNDARY
+  assert(src->widths[is_uv] == dgd->widths[is_uv]);
+  assert(src->heights[is_uv] == dgd->heights[is_uv]);
+#else
   assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
   assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
+#endif  // CONFIG_F054_PIC_BOUNDARY
   rsc->unit_stack = unit_stack;
   rsc->unit_indices = unit_indices;
   rsc->num_stats_classes = default_num_classes(plane);
@@ -364,7 +374,11 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
   rsc->best_num_filter_classes = rsc->num_filter_classes;
   rsc->frame_filters_on = 0;
   rsc->num_wiener_nonsep = 0;
+#if CONFIG_ENABLE_SR
   rsc->tskip_zero_flag = av1_superres_scaled(cm);
+#else
+  rsc->tskip_zero_flag = 0;
+#endif
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsc->classification_is_buffered = 0;
   rsc->adjust_switchable_for_frame_filters = 0;
@@ -3763,7 +3777,7 @@ static int64_t compute_stats_for_wienerns_filter(
   const int stride_b = WIENERNS_TAPS_MAX;
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int set_index =
-      get_filter_set_index(rui->base_qindex + rui->qindex_offset);
+      get_filter_set_index(rui->base_qindex, rui->qindex_offset);
   const uint8_t *pc_wiener_sub_classify =
       get_pc_wiener_sub_classifier(num_classes, set_index);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -5061,13 +5075,14 @@ const uint8_t *get_class_converter(const RestSearchCtxt *rsc,
                                    int num_target_classes) {
   int qindex_offset = 0;
   if (rsc->plane != AOM_PLANE_Y)
-    qindex_offset = rsc->plane == AOM_PLANE_U
-                        ? rsc->cm->quant_params.u_ac_delta_q
-                        : rsc->cm->quant_params.v_ac_delta_q;
+    qindex_offset =
+        (rsc->plane == AOM_PLANE_U ? rsc->cm->quant_params.u_ac_delta_q
+                                   : rsc->cm->quant_params.v_ac_delta_q) +
+        rsc->cm->seq_params.base_uv_ac_delta_q;
   else
     qindex_offset = 0;
   const int set_index =
-      get_filter_set_index(rsc->cm->quant_params.base_qindex + qindex_offset);
+      get_filter_set_index(rsc->cm->quant_params.base_qindex, qindex_offset);
   return get_converter(set_index, num_stats_classes, num_target_classes);
 }
 
@@ -5926,11 +5941,19 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
+#if CONFIG_F054_PIC_BOUNDARY
+  rsc.luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->heights[AOM_PLANE_Y],
+      dgd->widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD,
+#else
   rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
   luma_buf = wienerns_copy_luma_highbd(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+#endif  // CONFIG_F054_PIC_BOUNDARY
       rsc.luma_stride, cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,

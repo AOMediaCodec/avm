@@ -90,11 +90,13 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t resize_mode;
   arg_def_t resize_denominator;
   arg_def_t resize_kf_denominator;
+#if CONFIG_ENABLE_SR
   arg_def_t superres_mode;
   arg_def_t superres_denominator;
   arg_def_t superres_kf_denominator;
   arg_def_t superres_qthresh;
   arg_def_t superres_kf_qthresh;
+#endif  // CONFIG_ENABLE_SR
   arg_def_t end_usage;
   arg_def_t target_bitrate;
   arg_def_t min_q_level;
@@ -163,6 +165,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_sdp;
   arg_def_t enable_mrls;
   arg_def_t enable_tip;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  arg_def_t enable_mv_traj;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   arg_def_t enable_bawp;
 #endif  // CONFIG_BAWP
@@ -172,9 +177,6 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_fsc;
   arg_def_t enable_orip;
-#if CONFIG_IDIF
-  arg_def_t enable_idif;
-#endif  // CONFIG_IDIF
   arg_def_t enable_ist;
   arg_def_t enable_inter_ist;
 #if CONFIG_CHROMA_TX
@@ -318,6 +320,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_EXT_SEG
   arg_def_t enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_EXTRA_DPB
+  arg_def_t num_extra_dpb;
+#endif  // CONFIG_EXTRA_DPB
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;

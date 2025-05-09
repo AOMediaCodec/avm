@@ -26,6 +26,32 @@ extern const int16_t av1_eob_offset_bits[12];
 
 extern const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL];
 
+#if CONFIG_CORE_TX
+// DCT-II
+extern const int tx_kernel_dct2_size4[TXFM_DIRECTIONS][4][4];
+extern const int tx_kernel_dct2_size8[TXFM_DIRECTIONS][8][8];
+extern const int tx_kernel_dct2_size16[TXFM_DIRECTIONS][16][16];
+extern const int tx_kernel_dct2_size32[TXFM_DIRECTIONS][32][32];
+extern const int tx_kernel_dct2_size64[TXFM_DIRECTIONS][64][64];
+
+// ADST
+extern const int tx_kernel_adst_size4[TXFM_DIRECTIONS][4][4];
+extern const int tx_kernel_adst_size8[TXFM_DIRECTIONS][8][8];
+extern const int tx_kernel_adst_size16[TXFM_DIRECTIONS][16][16];
+
+// FADST
+extern const int tx_kernel_fdst_size4[TXFM_DIRECTIONS][4][4];
+extern const int tx_kernel_fdst_size8[TXFM_DIRECTIONS][8][8];
+extern const int tx_kernel_fdst_size16[TXFM_DIRECTIONS][16][16];
+
+#if CONFIG_INTER_DDT
+// DDTX
+extern const int tx_kernel_ddtx_size4[TXFM_DIRECTIONS][4][4];
+extern const int tx_kernel_ddtx_size8[TXFM_DIRECTIONS][8][8];
+extern const int tx_kernel_ddtx_size16[TXFM_DIRECTIONS][16][16];
+#endif
+#endif  // CONFIG_CORE_TX
+
 typedef struct txb_ctx {
   int txb_skip_ctx;
   int dc_sign_ctx;

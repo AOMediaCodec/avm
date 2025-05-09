@@ -357,11 +357,38 @@ static INLINE void get_warp_model_steps(const MB_MODE_INFO *mbmi,
 // Get the default value of the six_param_flag
 static INLINE int get_default_six_param_flag(const AV1_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi) {
-  return (cm->seq_params.enable_six_param_warp_delta && mbmi->warp_ref_idx == 0)
+  return (cm->seq_params.enable_six_param_warp_delta &&
+
+#if CONFIG_REORDER_SIX_PARAM_DELTA
+          mbmi->warp_ref_idx == 1)
+#else
+          mbmi->warp_ref_idx == 0)
+#endif  // CONFIG_REORDER_SIX_PARAM_DELTA
              ? 1
              : 0;
 }
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
+
+#if CONFIG_WARP_INTER_INTRA
+static INLINE int allow_warp_inter_intra(const AV1_COMMON *const cm,
+                                         const MB_MODE_INFO *mbmi,
+                                         const int motion_mode) {
+  (void)cm;
+  return mbmi->mode == WARPMV && motion_mode >= WARP_CAUSAL &&
+         is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+         is_interintra_allowed_mode(mbmi->mode) &&
+         is_interintra_allowed_ref(mbmi->ref_frame)
+#if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+         && mbmi->bawp_flag[0] == 0
+#else
+         && mbmi->bawp_flag == 0
+#endif  // CONFIG_BAWP_CHROMA
+#endif  // CONFIG_BAWP
+      ;
+}
+#endif  // CONFIG_WARP_INTER_INTRA
+
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
@@ -375,7 +402,11 @@ static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
 #if CONFIG_SIX_PARAM_WARP_DELTA
       get_default_six_param_flag(cm, mbmi) ||  // 6-parameter
 #endif                                         // CONFIG_SIX_PARAM_WARP_DELTA
-      (mbmi->warp_ref_idx == 1);               // 4-parameter
+#if CONFIG_REORDER_SIX_PARAM_DELTA
+      (mbmi->warp_ref_idx == 0);  // 4-parameter
+#else
+      (mbmi->warp_ref_idx == 1);  // 4-parameter
+#endif  // CONFIG_REORDER_SIX_PARAM_DELTA
 
   return (
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -415,12 +446,18 @@ static INLINE int get_cwp_coding_idx(int val, int encode,
 static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   const int mode = mbmi->mode;
+#if CONFIG_INTER_MODE_CONSOLIDATION
+  if (allow_amvd_mode(mode) == 0) return 0;
+  if (cm->seq_params.enable_adaptive_mvd == 0) return 0;
 
+  return mbmi->use_amvd;
+#else
   return (mode == NEAR_NEWMV || mode == NEW_NEARMV ||
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
           mode == JOINT_AMVDNEWMV_OPTFLOW || mode == AMVDNEWMV ||
           mode == JOINT_AMVDNEWMV) &&
          cm->seq_params.enable_adaptive_mvd;
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 }
 
 // get the base reference frame list for joint MVD coding, the MVD for base
@@ -630,7 +667,11 @@ void av1_opfl_build_inter_predictor(
 
 // Generate refined MVs using optflow refinement
 void av1_get_optflow_based_mv(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
+#if !CONFIG_DAMR_CLEAN_UP
+    const
+#endif  // !CONFIG_DAMR_CLEAN_UP
+    MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
@@ -1003,8 +1044,11 @@ static INLINE int is_refinemv_allowed_mode_precision(
 #endif  // CONFIG_AFFINE_REFINEMENT
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      (mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV || mode == NEAR_NEWMV ||
-       mode == NEW_NEARMV || mode == NEW_NEWMV))
+      (mode == JOINT_NEWMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+       || mode == JOINT_AMVDNEWMV
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+       || mode == NEAR_NEWMV || mode == NEW_NEARMV || mode == NEW_NEWMV))
     return 0;
 
 #if CONFIG_AFFINE_REFINEMENT
@@ -1014,7 +1058,11 @@ static INLINE int is_refinemv_allowed_mode_precision(
     return mode == NEAR_NEARMV;
   }
 #endif
-  return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
+  return (mode >= NEAR_NEARMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+          && mode <= JOINT_AMVDNEWMV_OPTFLOW
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+  );
 }
 
 // check if the prediction mode infered to refimemv to always 1.
@@ -1099,9 +1147,9 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
                                       const MB_MODE_INFO *mbmi,
                                       BLOCK_SIZE bsize) {
   if (!cm->seq_params.enable_refinemv
-#if !CONFIG_ACROSS_SCALE_REFINEMV
+#if !CONFIG_ACROSS_SCALE_REFINEMV && CONFIG_ENABLE_SR
       || cm->superres_scale_denominator != SCALE_NUMERATOR
-#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV && CONFIG_ENABLE_SR
   )
     return 0;
   int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
@@ -1115,14 +1163,57 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
+#if CONFIG_TIP_ENHANCEMENT
+// check if any mv refinement mode is allowed at frame level
+static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
+  if (!cm->has_both_sides_refs) return 0;
+
+  if (!cm->seq_params.enable_opfl_refine &&
+      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+    return 0;
+
+  const int tip_wtd_index = cm->tip_global_wtd_index;
+  const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+  if (tip_weight != TIP_EQUAL_WTD) return 0;
+
+  return 1;
+}
+
+// check if any mv refinement mode is allowed at frame level
+static INLINE int is_unequal_weighted_tip_allowed(const AV1_COMMON *const cm) {
+  if (!cm->has_both_sides_refs) return 1;
+
+  if (!cm->seq_params.enable_opfl_refine &&
+      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+    return 1;
+
+  return 0;
+}
+
+// set the weighting factor of TIP frame
+static INLINE void set_tip_interp_weight_factor(
+    const AV1_COMMON *const cm, const int ref_index,
+    InterPredParams *const inter_pred_params) {
+  if (ref_index == 1 && inter_pred_params->conv_params.do_average == 1 &&
+      !is_any_mv_refinement_allowed(cm)) {
+    const int tip_wtd_index = cm->tip_global_wtd_index;
+    const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+    assert(tip_wtd_index >= 0 && tip_wtd_index < MAX_TIP_WTD_NUM);
+    inter_pred_params->conv_params.fwd_offset = tip_weight;
+    inter_pred_params->conv_params.bck_offset =
+        (1 << DIST_PRECISION_BITS) - tip_weight;
+  }
+}
+#endif  // CONFIG_TIP_ENHANCEMENT
+
 // check if the refinemv mode is allowed for a given block for TIP mode
 static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
   return cm->seq_params.enable_refinemv &&
-#if !CONFIG_ACROSS_SCALE_REFINEMV
+#if !CONFIG_ACROSS_SCALE_REFINEMV && CONFIG_ENABLE_SR
          cm->superres_scale_denominator == SCALE_NUMERATOR &&
-#endif  //! ALLOW_REFINEMV_TIP_SUPERRES
+#endif  //! ALLOW_REFINEMV_TIP_SUPERRES && CONFIG_ENABLE_SR
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
@@ -1149,9 +1240,9 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
 static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {
   if (!cm->seq_params.enable_refinemv
-#if !CONFIG_ACROSS_SCALE_REFINEMV
+#if !CONFIG_ACROSS_SCALE_REFINEMV && CONFIG_ENABLE_SR
       || cm->superres_scale_denominator != SCALE_NUMERATOR
-#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
+#endif  //! CONFIG_ACROSS_SCALE_REFINEMV && CONFIG_ENABLE_SR
   )
     return 0;
   int is_refinemv =
@@ -1372,11 +1463,19 @@ static AOM_INLINE void setup_pred_planes_for_tip(const TIP *tip_ref,
 
     for (int ref = 0; ref < 2; ++ref) {
       const YV12_BUFFER_CONFIG *ref_buf = &tip_ref->ref_frame_buffer[ref]->buf;
+#if CONFIG_F054_PIC_BOUNDARY
+      setup_pred_plane(&pd->pre[ref], ref_buf->buffers[plane],
+                       ref_buf->widths[is_uv], ref_buf->heights[is_uv],
+                       ref_buf->strides[is_uv], mi_row, mi_col,
+                       tip_ref->ref_scale_factor[ref], pd->subsampling_x,
+                       pd->subsampling_y, NULL);
+#else
       setup_pred_plane(&pd->pre[ref], ref_buf->buffers[plane],
                        ref_buf->crop_widths[is_uv],
                        ref_buf->crop_heights[is_uv], ref_buf->strides[is_uv],
                        mi_row, mi_col, tip_ref->ref_scale_factor[ref],
                        pd->subsampling_x, pd->subsampling_y, NULL);
+#endif  // CONFIG_F054_PIC_BOUNDARY
     }
   }
 }
@@ -1488,6 +1587,48 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpedMotionParams *const gm_params, int ref,
                    const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
+
+#if CONFIG_BAWP
+static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
+                                 const MB_MODE_INFO *mbmi, int mi_row,
+                                 int mi_col) {
+  if (mbmi->mode == WARPMV) return 0;
+#if CONFIG_BAWP_ACROSS_SCALES
+  (void)cm;
+#else
+  // If one of the reference frame is different resolution than the current
+  // frame, bawp is disabled.
+  const struct scale_factors *const sf0 =
+      get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
+  const struct scale_factors *const sf1 =
+      get_ref_scale_factors_const(cm, mbmi->ref_frame[1]);
+  if ((sf0 != NULL && av1_is_scaled(sf0)) ||
+      (sf1 != NULL && av1_is_scaled(sf1))) {
+    return 0;
+  }
+#endif  // !CONFIG_BAWP_ACROSS_SCALES
+#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (mbmi->mode == WARP_NEWMV) return 0;
+#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
+                                        mi_col) &&
+      is_inter_singleref_mode(mbmi->mode))
+    return 1;
+  else
+    return 0;
+}
+#endif  // CONFIG_BAWP
+
+#if CONFIG_EXPLICIT_BAWP
+static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
+  return mbmi->mode == NEWMV || mbmi->mode == NEARMV
+#if !CONFIG_INTER_MODE_CONSOLIDATION
+         || mbmi->mode == AMVDNEWMV
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+      ;
+}
+#endif  // CONFIG_EXPLICIT_BAWP
 
 // derive the context of the mpp_flag
 int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);

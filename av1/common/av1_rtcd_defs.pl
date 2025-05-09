@@ -148,6 +148,11 @@ if (aom_config("CONFIG_ADST_TUNED") eq "yes"
     specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2 neon/;
 }
 
+if (aom_config("CONFIG_CORE_TX") eq "yes") {
+    add_proto qw/void inv_txfm/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+    specialize qw/inv_txfm avx2/;
+}
+
 if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
     add_proto qw/void av1_highbd_inv_txfm_add_vert/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
     add_proto qw/void av1_highbd_inv_txfm_add_horz/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
@@ -293,6 +298,19 @@ if (aom_config("CONFIG_INTER_DDT") eq "yes") {
     add_proto qw/void av1_inv_txfm2d_add_64x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
     add_proto qw/void av1_inv_txfm2d_add_4x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
     add_proto qw/void av1_inv_txfm2d_add_64x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  }
+}
+
+if (aom_config("CONFIG_IMPROVE_LOSSLESS_TXM") eq "yes") {
+  if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
+    add_proto qw/void av1_lossless_fwd_idtx/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
+    # specialize qw/av1_lossless_fwd_idtx avx2/;
+  }
+  add_proto qw/void av1_lossless_inv_idtx_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+  # specialize qw/av1_lossless_inv_idtx_add avx2/;
+  if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes") {
+    add_proto qw/void av1_lossless_inv_idtx_add_vert/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+    add_proto qw/void av1_lossless_inv_idtx_add_horz/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
   }
 }
 
@@ -452,6 +470,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void av1_fwd_txfm2d_16x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
     add_proto qw/void av1_fwd_txfm2d_32x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
   }
+
+  if (aom_config("CONFIG_CORE_TX") eq "yes") {
+    add_proto qw/void fwd_txfm/,  "const int16_t *resi, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
+    specialize qw/fwd_txfm avx2/;
+  }
+
   if (aom_config("CONFIG_ADST_TUNED") eq "yes"
 	  || aom_config("CONFIG_INTER_DDT") eq "yes") {
       specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2/;
@@ -631,31 +655,63 @@ add_proto qw/void gdf_compensation_block/, "uint16_t* rec_pnt, const int rec_str
 specialize qw/gdf_compensation_block avx2/;
 
 # Cross-component Sample Offset
-add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
+if (aom_config("CONFIG_CCSO_FU_BUGFIX") eq "yes") {
+  add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size_x, const int blk_size_y, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
+}
+else {
+  add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
+}
 specialize qw/ccso_filter_block_hbd_wo_buf avx2/;
 
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
-  add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
-  const int src_y_stride, const int dst_stride,
-  const int ccso_stride,
-  const int x, const int y,
-  const int pic_width, const int pic_height,
-  const int8_t *filter_offset, const int blk_size,
-  const int y_uv_hscale,  const int y_uv_vscale,
-  const int max_val, const uint8_t shift_bits,
-  const uint8_t ccso_bo_only";
-  specialize qw/ccso_filter_block_hbd_with_buf avx2/;
+  if (aom_config("CONFIG_CCSO_FU_BUGFIX") eq "yes") {
+    add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
+                      const int src_y_stride, const int dst_stride,
+                      const int ccso_stride,
+                      const int x, const int y,
+                      const int pic_width, const int pic_height,
+                      const int8_t *filter_offset, const int blk_size_x,
+                      const int blk_size_y,
+                      const int y_uv_hscale,  const int y_uv_vscale,
+                      const int max_val, const uint8_t shift_bits,
+                      const uint8_t ccso_bo_only";
+    specialize qw/ccso_filter_block_hbd_with_buf avx2/;
 
-  add_proto qw/void ccso_filter_block_hbd_with_buf_bo_only/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
-  const int src_y_stride, const int dst_stride,
-  const int ccso_stride,
-  const int x, const int y,
-  const int pic_width, const int pic_height,
-  const int8_t *filter_offset, const int blk_size,
-  const int y_uv_hscale,  const int y_uv_vscale,
-  const int max_val, const uint8_t shift_bits,
-  const uint8_t ccso_bo_only";
-  specialize qw/ccso_filter_block_hbd_with_buf_bo_only avx2/;
+    add_proto qw/void ccso_filter_block_hbd_with_buf_bo_only/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
+                      const int src_y_stride, const int dst_stride,
+                      const int ccso_stride,
+                      const int x, const int y,
+                      const int pic_width, const int pic_height,
+                      const int8_t *filter_offset, const int blk_size_x,
+                      const int blk_size_y,
+                      const int y_uv_hscale,  const int y_uv_vscale,
+                      const int max_val, const uint8_t shift_bits,
+                      const uint8_t ccso_bo_only";
+    specialize qw/ccso_filter_block_hbd_with_buf_bo_only avx2/;
+  }
+  else {
+    add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
+                      const int src_y_stride, const int dst_stride,
+                      const int ccso_stride,
+                      const int x, const int y,
+                      const int pic_width, const int pic_height,
+                      const int8_t *filter_offset, const int blk_size,
+                      const int y_uv_hscale,  const int y_uv_vscale,
+                      const int max_val, const uint8_t shift_bits,
+                      const uint8_t ccso_bo_only";
+    specialize qw/ccso_filter_block_hbd_with_buf avx2/;
+
+    add_proto qw/void ccso_filter_block_hbd_with_buf_bo_only/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
+                      const int src_y_stride, const int dst_stride,
+                      const int ccso_stride,
+                      const int x, const int y,
+                      const int pic_width, const int pic_height,
+                      const int8_t *filter_offset, const int blk_size,
+                      const int y_uv_hscale,  const int y_uv_vscale,
+                      const int max_val, const uint8_t shift_bits,
+                      const uint8_t ccso_bo_only";
+    specialize qw/ccso_filter_block_hbd_with_buf_bo_only avx2/;
+  }
 
   add_proto qw/uint64_t compute_distortion_block/, "const uint16_t *org, const int org_stride,
                       const uint16_t *rec16, const int rec_stride, const int x, const int y,
@@ -663,12 +719,23 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
                       const int width";
   specialize qw/compute_distortion_block avx2/;
 
-  add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
-                        uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
-                        const int x, const int y, const int pic_width, const int pic_height,
-                        const int y_uv_hscale, const int y_uv_vscale, const int qstep,
-                        const int neg_qstep, const int *src_loc, const int blk_size, const int edge_clf";
-  specialize qw/ccso_derive_src_block avx2/
+  if (aom_config("CONFIG_CCSO_FU_BUGFIX") eq "yes") {
+    add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
+                          uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
+                          const int x, const int y, const int pic_width, const int pic_height,
+                          const int y_uv_hscale, const int y_uv_vscale, const int qstep,
+                          const int neg_qstep, const int *src_loc, const int blk_size_x,
+                          const int blk_size_y, const int edge_clf";
+    specialize qw/ccso_derive_src_block avx2/
+  }
+  else {
+    add_proto qw/void ccso_derive_src_block/, "const uint16_t *src_y, uint8_t *const src_cls0,
+                          uint8_t *const src_cls1, const int src_y_stride, const int ccso_stride,
+                          const int x, const int y, const int pic_width, const int pic_height,
+                          const int y_uv_hscale, const int y_uv_vscale, const int qstep,
+                          const int neg_qstep, const int *src_loc, const int blk_size, const int edge_clf";
+    specialize qw/ccso_derive_src_block avx2/
+  }
 }
 
 # WARPED_MOTION / GLOBAL_MOTION functions
@@ -693,7 +760,7 @@ if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
 }
 
 if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
-    add_proto qw/void av1_warp_plane_bilinear/, "WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row,int p_width, int p_height, int p_stride,int subsampling_x, int subsampling_y, ConvolveParams *conv_params";
+    add_proto qw/void av1_warp_plane_bilinear/, "WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row,int p_width, int p_height, int p_stride,int subsampling_x, int subsampling_y, ConvolveParams *conv_params, ReferenceArea *ref_area";
     specialize qw/av1_warp_plane_bilinear avx2/;
 }
 

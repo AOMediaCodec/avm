@@ -209,11 +209,17 @@ enum {
 } UENUM1BYTE(TIP_FRAME_MODE);
 
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_INTER_MODE_CONSOLIDATION
+static const int tip_pred_mode_to_index[INTER_SINGLE_MODES] = { 0, -1, 1 };
+#else
 static const int tip_pred_mode_to_index[INTER_SINGLE_MODES] = { 0, -1, 1, 2 };
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
 static const int tip_pred_index_to_mode[TIP_PRED_MODES] = {
   NEARMV,
   NEWMV,
+#if !CONFIG_INTER_MODE_CONSOLIDATION
   AMVDNEWMV,
+#endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 };
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
@@ -347,6 +353,9 @@ typedef struct RefCntBuffer {
   unsigned int absolute_poc;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  unsigned int temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // How many ref frames did this frame use?
@@ -414,6 +423,9 @@ typedef struct RefCntBuffer {
 typedef struct {
   FRAME_TYPE frame_type;
   int pyr_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  int temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
@@ -582,6 +594,12 @@ typedef struct SequenceHeader {
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #endif                        // CONFIG_SAME_REF_COMPOUND
+#if CONFIG_EXTRA_DPB
+  int num_extra_dpb;    // number of extra decoded picture buffers
+#endif                  // CONFIG_EXTRA_DPB
+  int ref_frames;       // number of all decoded picture buffers
+  int ref_frames_log2;  // the log value of the number of all decoded picture
+                        // buffers
 
   OrderHintInfo order_hint_info;
 
@@ -603,6 +621,9 @@ typedef struct SequenceHeader {
 #if CONFIG_TIP_IMPLICIT_QUANT
   uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
 #endif                             // CONFIG_TIP_IMPLICIT_QUANT
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  uint8_t enable_mv_traj;  // enables/disables mv trajectory tracking
+#endif                     // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
@@ -618,10 +639,6 @@ typedef struct SequenceHeader {
 #endif                               // CONFIG_DIP
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
   uint8_t enable_orip;               // To turn on/off sub-block based ORIP
-#if CONFIG_IDIF
-  uint8_t
-      enable_idif;  // enables/disables Intra Directional Interpolation Filter
-#endif              // CONFIG_IDIF
   uint8_t enable_ist;        // enables/disables intra secondary transform
   uint8_t enable_inter_ist;  // enables/disables inter secondary transform
 #if CONFIG_CHROMA_TX
@@ -660,11 +677,13 @@ typedef struct SequenceHeader {
 #if CONFIG_AFFINE_REFINEMENT
   uint8_t enable_affine_refine;  // To turn on/off DAMR
 #endif                           // CONFIG_AFFINE_REFINEMENT
-  uint8_t enable_superres;       // 0 - Disable superres for the sequence
-                                 //     and no frame level superres flag
-                                 // 1 - Enable superres for the sequence
-                                 //     enable per-frame superres flag
-  uint8_t enable_cdef;           // To turn on/off CDEF
+#if CONFIG_ENABLE_SR
+  uint8_t enable_superres;  // 0 - Disable superres for the sequence
+                            //     and no frame level superres flag
+                            // 1 - Enable superres for the sequence
+                            //     enable per-frame superres flag
+#endif                      // CONFIG_ENABLE_SR
+  uint8_t enable_cdef;      // To turn on/off CDEF
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
@@ -727,9 +746,18 @@ typedef struct SequenceHeader {
   int subsampling_x;  // Chroma subsampling for x
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
+#if CONFIG_EXT_QUANT_UPD
+  uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
+#endif                    // CONFIG_EXT_QUANT_UPD
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;
   int8_t base_uv_dc_delta_q;
+#if CONFIG_EXT_QUANT_UPD
+  int8_t base_uv_ac_delta_q;
+  uint8_t y_dc_delta_q_enabled;
+  uint8_t uv_dc_delta_q_enabled;
+  uint8_t uv_ac_delta_q_enabled;
+#endif  // CONFIG_EXT_QUANT_UPD
   uint8_t film_grain_params_present;
 
   // Operating point info.
@@ -768,6 +796,9 @@ typedef struct {
   unsigned int display_order_hint;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+  unsigned int temporal_layer_id;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   unsigned int absolute_poc;
   unsigned int key_frame_number;
   unsigned int frame_number;
@@ -1603,6 +1634,7 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
+#if CONFIG_ENABLE_SR
   /**
    * \name Super-resolved frame dimensions.
    * Frame dimensions after applying super-resolution to the coded frame (if
@@ -1621,6 +1653,7 @@ typedef struct AV1Common {
    * Note: The numerator is fixed to be SCALE_NUMERATOR.
    */
   uint8_t superres_scale_denominator;
+#endif  // CONFIG_ENABLE_SR
 
   /*!
    * If true, buffer removal times are present.
@@ -1852,6 +1885,11 @@ typedef struct AV1Common {
   InterpFilter tip_interp_filter;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
+#if CONFIG_TIP_ENHANCEMENT
+  //! Index for TIP weighted prediction parameters.
+  int8_t tip_global_wtd_index;
+#endif  // CONFIG_TIP_ENHANCEMENT
+
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
@@ -1909,6 +1947,20 @@ typedef struct AV1Common {
    * Step size for tmvp sampling. Should be 1 (no sampling) or 2.
    */
   int tmvp_sample_step;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  /*!
+   * The processing unit size used
+   */
+  int tmvp_proc_size;
+  /*!
+   * Projection range extension in row
+   */
+  int tmvp_row_offset;
+  /*!
+   * Projection range extension in col
+   */
+  int tmvp_col_offset;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #endif  // CONFIG_TMVP_MEM_OPT
 
 #if CONFIG_MV_TRAJECTORY
@@ -1919,7 +1971,11 @@ typedef struct AV1Common {
   /*!
    * Mapping table from block location to trajectory id.
    */
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+  int *blk_id_map[3][INTER_REFS_PER_FRAME];
+#else
   int *blk_id_map[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #endif  // CONFIG_MV_TRAJECTORY
 
   /*!
@@ -2085,9 +2141,19 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                                TX_SIZE tx_size);
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          int plane, int blk_row, int blk_col);
-void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
+#if !CONFIG_ENABLE_SR
+                              ,
+                              int height
+#endif  // !CONFIG_ENABLE_SR
+);
 void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
-                                   AV1_COMMON *cm);
+                                   AV1_COMMON *cm
+#if !CONFIG_ENABLE_SR
+                                   ,
+                                   int height
+#endif  // !CONFIG_ENABLE_SR
+);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
@@ -2110,7 +2176,7 @@ static void unlock_buffer_pool(BufferPool *const pool) {
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame(AV1_COMMON *cm, int index) {
   if (is_tip_ref_frame(index)) return &cm->tip_ref.tip_frame->buf;
-  if (index < 0 || index >= REF_FRAMES) return NULL;
+  if (index < 0 || index >= cm->seq_params.ref_frames) return NULL;
   if (cm->ref_frame_map[index] == NULL) return NULL;
   return &cm->ref_frame_map[index]->buf;
 }
@@ -2207,7 +2273,7 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame) {
-  return (ref_frame >= 0 && ref_frame < REF_FRAMES)
+  return (ref_frame >= 0 && ref_frame < cm->seq_params.ref_frames)
              ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }
@@ -2343,12 +2409,21 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
       if (buf->ccso_info.sb_filter_control[pli]) {
         aom_free(buf->ccso_info.sb_filter_control[pli]);
       }
+#if CONFIG_CCSO_FU_BUGFIX
+      const int log2_filter_unit_size_y =
+          pli == 0 ? CCSO_BLK_SIZE
+                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+      const int log2_filter_unit_size_x =
+          pli == 0 ? CCSO_BLK_SIZE
+                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
+#else
       const int log2_filter_unit_size_y =
           pli > 0 ? CCSO_BLK_SIZE
                   : CCSO_BLK_SIZE + cm->seq_params.subsampling_y;
       const int log2_filter_unit_size_x =
           pli > 0 ? CCSO_BLK_SIZE
                   : CCSO_BLK_SIZE + cm->seq_params.subsampling_x;
+#endif  // CONFIG_CCSO_FU_BUGFIX
 
       const int ccso_nvfb =
           ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +
@@ -2379,11 +2454,21 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 #if CONFIG_MV_TRAJECTORY
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(cm->id_offset_map[rf]);
-      aom_free(cm->blk_id_map[rf]);
       cm->id_offset_map[rf] =
           (int_mv *)aom_malloc(mem_size * sizeof(*cm->id_offset_map[rf]));
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+      for (int k = 0; k < 3; k++) {
+        aom_free(cm->blk_id_map[k][rf]);
+      }
+      for (int k = 0; k < 3; k++) {
+        cm->blk_id_map[k][rf] =
+            (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[k][rf]));
+      }
+#else
+      aom_free(cm->blk_id_map[rf]);
       cm->blk_id_map[rf] =
           (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[rf]));
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
     }
 #endif  // CONFIG_MV_TRAJECTORY
   }
@@ -2724,13 +2809,17 @@ static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
                                               const BLOCK_SIZE bsize) {
   FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
   assert(bsize != BLOCK_INVALID);
-  const uint8_t fsc_size_group = fsc_bsize_groups[bsize];
-#if CONFIG_CFL_64x64
-  assert(fsc_size_group < MHCCP_CONTEXT_GROUP_SIZE);
+#if MHCCP_3_PARAMETERS
+  const uint8_t mhccp_size_group = size_group_lookup[bsize];
 #else
-  assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
+  const uint8_t mhccp_size_group = fsc_bsize_groups[bsize];
+#endif  // MHCCP_3_PARAMETERS
+#if CONFIG_CFL_64x64
+  assert(mhccp_size_group < MHCCP_CONTEXT_GROUP_SIZE);
+#else
+  assert(mhccp_size_group < FSC_BSIZE_CONTEXTS);
 #endif  // CONFIG_CFL_64x64
-  return tile_ctx->filter_dir_cdf[fsc_size_group];
+  return tile_ctx->filter_dir_cdf[mhccp_size_group];
 }
 #endif  // CONFIG_ENABLE_MHCCP
 
@@ -2784,6 +2873,17 @@ static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
   return ctx0 + ctx1;
 }
 #endif  // CONFIG_MRLS_IMPROVE
+
+#if CONFIG_NEW_PART_CTX
+enum {
+  SPLIT_CTX_MODE,
+  SQUARE_SPLIT_CTX_MODE,
+  RECT_TYPE_CTX_MODE,
+  EXT_PART_CTX_MODE,
+  FOUR_WAY_CTX_MODE,
+  FOUR_WAY_AB_CTX_MODE,
+} UENUM1BYTE(PART_CTX_MODE);
+#endif  // CONFIG_NEW_PART_CTX
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
@@ -2930,7 +3030,11 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
 /*!\brief Returns the context used by \ref PARTITION_SPLIT. */
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
+#if CONFIG_NEW_PART_CTX
+  const int plane = 0;
+#else
   const int plane = xd->tree_type == CHROMA_PART;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
@@ -2938,7 +3042,6 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
   assert(bsize < BLOCK_SIZES);
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
-
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
 
@@ -2957,6 +3060,66 @@ static INLINE int partition_plane_context_helper(int raw_context,
 ) {
   int ctx = raw_context + bsize * PARTITION_PLOFFSET;
 #if CONFIG_PARTITION_CONTEXT_REDUCE
+#if CONFIG_NEW_PART_CTX
+  const int bsize_rect_map[BLOCK_SIZES] = {
+    0,  // BLOCK_4X4,
+    0,  // BLOCK_4X8,
+    0,  // BLOCK_8X4,
+    0,  // BLOCK_8X8,
+    1,  // BLOCK_8X16,
+    2,  // BLOCK_16X8,
+    0,  // BLOCK_16X16,
+    1,  // BLOCK_16X32,
+    2,  // BLOCK_32X16,
+    3,  // BLOCK_32X32,
+    4,  // BLOCK_32X64,
+    5,  // BLOCK_64X32,
+    6,  // BLOCK_64X64,
+    7,  // BLOCK_64X128,
+    8,  // BLOCK_128X64,
+    9,  // BLOCK_128X128,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    10,  // BLOCK_128X256,
+    11,  // BLOCK_256X128,
+    12,  // BLOCK_256X256,
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
+    13,  // BLOCK_4X16,
+    14,  // BLOCK_16X4,
+    13,  // BLOCK_8X32,
+    14,  // BLOCK_32X8,
+    13,  // BLOCK_16X64,
+    14,  // BLOCK_64X16,
+  };
+  const int bsize_map[BLOCK_SIZES] = {
+    0,  // BLOCK_4X4,
+    0,  // BLOCK_4X8,
+    0,  // BLOCK_8X4,
+    0,  // BLOCK_8X8,
+    1,  // BLOCK_8X16,
+    1,  // BLOCK_16X8,
+    1,  // BLOCK_16X16,
+    2,  // BLOCK_16X32,
+    2,  // BLOCK_32X16,
+    2,  // BLOCK_32X32,
+    3,  // BLOCK_32X64,
+    3,  // BLOCK_64X32,
+    3,  // BLOCK_64X64,
+    4,  // BLOCK_64X128,
+    5,  // BLOCK_128X64,
+    6,  // BLOCK_128X128,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    7,   // BLOCK_128X256,
+    8,   // BLOCK_256X128,
+    9,   // BLOCK_256X256,
+#endif   // CONFIG_EXT_RECUR_PARTITIONS
+    10,  // BLOCK_4X16,
+    11,  // BLOCK_16X4,
+    12,  // BLOCK_8X32,
+    13,  // BLOCK_32X8,
+    14,  // BLOCK_16X64,
+    15,  // BLOCK_64X16,
+  };
+#else  // CONFIG_NEW_PART_CTX
 #if CONFIG_RECT_CTX
   const int bsize_rect_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
@@ -2979,7 +3142,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     12,  // BLOCK_128X256,
     13,  // BLOCK_256X128,
     14,  // BLOCK_256X256,
-#endif   // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     15,  // BLOCK_4X16,
     16,  // BLOCK_16X4,
     15,  // BLOCK_8X32,
@@ -3009,7 +3172,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     16,  // BLOCK_128X256,
     17,  // BLOCK_256X128,
     18,  // BLOCK_256X256,
-#endif   // CONFIG_EXT_RECUR_PARTITIONS
+#endif                // CONFIG_EXT_RECUR_PARTITIONS
     19,  // BLOCK_4X16,
     20,  // BLOCK_16X4,
     21,  // BLOCK_8X32,
@@ -3017,6 +3180,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
     23,  // BLOCK_16X64,
     24,  // BLOCK_64X16,
   };
+#endif                // CONFIG_NEW_PART_CTX
   if (ctx_mode == 1)  // all part ctx except rect mode
     ctx = raw_context + bsize_map[bsize] * PARTITION_PLOFFSET;
 #if CONFIG_RECT_CTX
@@ -3033,21 +3197,58 @@ static INLINE int partition_plane_context_helper(int raw_context,
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize
+#if CONFIG_NEW_PART_CTX
+                                          ,
+                                          RECT_PART_TYPE rect_type
+#endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                                           ,
                                           int ctx_mode
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
 ) {
+#if CONFIG_NEW_PART_CTX
+  const int plane = 0;
+#else
   const int plane = xd->tree_type == CHROMA_PART;
+#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
 #if CONFIG_EXT_RECUR_PARTITIONS
   assert(bsize < BLOCK_SIZES);
+#if CONFIG_NEW_PART_CTX
+  int ctx, ctx1, ctx2;
+  const int bw_mi = mi_size_wide[bsize];
+  const int bh_mi = mi_size_high[bsize];
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
-
+  if (ctx_mode == EXT_PART_CTX_MODE || ctx_mode == FOUR_WAY_CTX_MODE ||
+      ctx_mode == FOUR_WAY_AB_CTX_MODE) {
+    if (rect_type == HORZ) {
+      const PARTITION_CONTEXT *left_mid_ctx = left_ctx + bh_mi / 2;
+      ctx1 = (*left_ctx >> AOMMAX(bsl_h - 2, 0)) & 1;
+      ctx2 = (*left_mid_ctx >> AOMMAX(bsl_h - 2, 0)) & 1;
+    } else {
+      const PARTITION_CONTEXT *above_mid_ctx = above_ctx + bw_mi / 2;
+      ctx1 = (*above_ctx >> AOMMAX(bsl_w - 2, 0)) & 1;
+      ctx2 = (*above_mid_ctx >> AOMMAX(bsl_w - 2, 0)) & 1;
+    }
+    ctx = ctx1 * 2 + ctx2;
+  } else {
+    const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
+    const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+    ctx = left * 2 + above;
+  }
+  return partition_plane_context_helper(ctx, bsize
+#if CONFIG_PARTITION_CONTEXT_REDUCE
+                                        ,
+                                        ctx_mode != RECT_TYPE_CTX_MODE
+#endif  // CONFIG_PARTITION_CONTEXT_REDUCE
+  );
+#else  // CONFIG_NEW_PART_CTX
+  const int bsl_w = mi_size_wide_log2[bsize];
+  const int bsl_h = mi_size_high_log2[bsize];
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
   return partition_plane_context_helper(left * 2 + above, bsize
@@ -3056,7 +3257,8 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                         ctx_mode
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
   );
-#else
+#endif  // CONFIG_NEW_PART_CTX
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   // Minimum partition point is 8x8. Offset the bsl accordingly.
   const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
   int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
@@ -3957,7 +4159,8 @@ static INLINE TX_SIZE get_sqr_tx_size(int tx_dim) {
     case 32: return TX_32X32; break;
     case 16: return TX_16X16; break;
     case 8: return TX_8X8; break;
-    default: return TX_4X4;
+    case 4: return TX_4X4; break;
+    default: return TX_INVALID;
   }
 }
 
@@ -4039,16 +4242,28 @@ static const TX_PARTITION_BIT_SHIFT partition_shift_bits[TX_PARTITION_TYPES] = {
     4 },                                          // TX_PARTITION_SPLIT
   { { 1, 1 }, { 0, 0 }, { 0, 1 }, { 0, 0 }, 2 },  // TX_PARTITION_HORZ
   { { 0, 0 }, { 1, 1 }, { 0, 0 }, { 0, 1 }, 2 },  // TX_PARTITION_VERT
-  { { 2, 1, 2 },
-    { 0, 0, 0 },
-    { 0, 1, 3 },
-    { 0, 0, 0 },
-    3 },  // TX_PARTITION_HORZ_M
-  { { 0, 0, 0 },
-    { 2, 1, 2 },
-    { 0, 0, 0 },
-    { 0, 1, 3 },
-    3 },  // TX_PARTITION_VERT_M
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+  { { 2, 2, 2, 2 },
+    { 0, 0, 0, 0 },
+    { 0, 1, 2, 3 },
+    { 0, 0, 0, 0 },
+    4 },  // TX_PARTITION_HORZ4
+  { { 0, 0, 0, 0 },
+    { 2, 2, 2, 2 },
+    { 0, 0, 0, 0 },
+    { 0, 1, 2, 3 },
+    4 },  // // TX_PARTITION_VERT4
+  { { 2, 2, 1, 2, 2 },
+    { 1, 1, 0, 1, 1 },
+    { 0, 0, 1, 3, 3 },
+    { 0, 1, 0, 0, 1 },
+    5 },  // TX_PARTITION_HORZ5
+  { { 1, 1, 0, 1, 1 },
+    { 2, 2, 1, 2, 2 },
+    { 0, 1, 0, 0, 1 },
+    { 0, 0, 1, 3, 3 },
+    5 },  // TX_PARTITION_VERT5
+#endif    // CONFIG_4WAY_5WAY_TX_PARTITION
 };
 
 // Get txfm sub_txs information, # of txfm partitions with a given partition
@@ -4065,16 +4280,15 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
                            // step size in width in terms of blk_size.
   int txh_step = txh / 8;  // 8 is tx_size_high[BLOCK_4X4] * 2. txh_step is the
                            // step size in height in terms of blk_size.
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+  if (partition == TX_PARTITION_HORZ5) txh_step /= 2;
+  if (partition == TX_PARTITION_VERT5) txw_step /= 2;
 
-  int use_step4 = 0;
-
-  if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M)
-    use_step4 = 1;
-
-  if (use_step4) {
+  if (partition == TX_PARTITION_HORZ4 || partition == TX_PARTITION_VERT4) {
     txw_step /= 2;
     txh_step /= 2;
   }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 
   const TX_PARTITION_BIT_SHIFT subtx_shift = partition_shift_bits[partition];
   const int n_partitions = subtx_shift.n_partitions;
@@ -4117,8 +4331,13 @@ static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
     case TX_PARTITION_SPLIT:
     case TX_PARTITION_VERT:
     case TX_PARTITION_HORZ:
-    case TX_PARTITION_HORZ_M:
-    case TX_PARTITION_VERT_M: return partition;
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    case TX_PARTITION_VERT4:
+    case TX_PARTITION_HORZ4:
+    case TX_PARTITION_HORZ5:
+    case TX_PARTITION_VERT5:
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
+      return partition;
     default: assert(0);
   }
   assert(0);
@@ -4177,6 +4396,7 @@ static INLINE int allow_tx_vert_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
   return sub_tx_size != TX_INVALID;
 }
 
+#if CONFIG_4WAY_5WAY_TX_PARTITION
 static INLINE int allow_tx_horz4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
 #if CONFIG_TX_PARTITION_RESTRICT
   if (coding_block_disallows_tx_partitioning(bsize)) return false;
@@ -4201,20 +4421,63 @@ static INLINE int allow_tx_vert4_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
   return sub_tx_size != TX_INVALID;
 }
 
+static INLINE int allow_tx_horzM_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
+
+  const int sub_txw = tx_size_wide[max_tx_size] >> 1;
+  const int sub_txh = tx_size_high[max_tx_size] >> 2;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+
+  const int sub_txw_m = tx_size_wide[max_tx_size];
+  const int sub_txh_m = tx_size_high[max_tx_size] >> 1;
+  const TX_SIZE sub_tx_size_m = get_tx_size(sub_txw_m, sub_txh_m);
+
+  return sub_tx_size != TX_INVALID && sub_tx_size_m != TX_INVALID;
+}
+
+static INLINE int allow_tx_vertM_split(BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#if CONFIG_TX_PARTITION_RESTRICT
+  if (coding_block_disallows_tx_partitioning(bsize)) return false;
+#else
+  (void)bsize;
+#endif  // CONFIG_TX_PARTITION_RESTRICT
+  const int sub_txw = tx_size_wide[max_tx_size] >> 2;
+  const int sub_txh = tx_size_high[max_tx_size] >> 1;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+
+  const int sub_txw_m = tx_size_wide[max_tx_size] >> 1;
+  const int sub_txh_m = tx_size_high[max_tx_size];
+  const TX_SIZE sub_tx_size_m = get_tx_size(sub_txw_m, sub_txh_m);
+
+  return sub_tx_size != TX_INVALID && sub_tx_size_m != TX_INVALID;
+}
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
+
 static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
   const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
   const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
+#if CONFIG_4WAY_5WAY_TX_PARTITION
   const int allow_horz4 = allow_tx_horz4_split(bsize, max_tx_size);
   const int allow_vert4 = allow_tx_vert4_split(bsize, max_tx_size);
-
+  const int allow_horzM = allow_tx_horzM_split(bsize, max_tx_size);
+  const int allow_vertM = allow_tx_vertM_split(bsize, max_tx_size);
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
   switch (partition) {
     case TX_PARTITION_NONE: return 1;
     case TX_PARTITION_SPLIT: return (allow_horz && allow_vert);
     case TX_PARTITION_HORZ: return allow_horz;
     case TX_PARTITION_VERT: return allow_vert;
-    case TX_PARTITION_HORZ_M: return allow_horz4;
-    case TX_PARTITION_VERT_M: return allow_vert4;
+#if CONFIG_4WAY_5WAY_TX_PARTITION
+    case TX_PARTITION_HORZ4: return allow_horz4;
+    case TX_PARTITION_VERT4: return allow_vert4;
+    case TX_PARTITION_HORZ5: return allow_horzM;
+    case TX_PARTITION_VERT5: return allow_vertM;
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
     default: assert(0);
   }
   assert(0);
@@ -4457,7 +4720,13 @@ static INLINE int is_coded_lossless(const AV1_COMMON *cm,
                                     const MACROBLOCKD *xd) {
   int coded_lossless = 1;
   if (cm->seg.enabled) {
-    for (int i = 0; i < MAX_SEGMENTS; ++i) {
+#if CONFIG_EXT_SEG
+    const int max_seg_num =
+        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+#else   // CONFIG_EXT_SEG
+    const int max_seg_num = MAX_SEGMENTS;
+#endif  // CONFIG_EXT_SEG
+    for (int i = 0; i < max_seg_num; i++) {
       if (!xd->lossless[i]) {
         coded_lossless = 0;
         break;
@@ -4883,7 +5152,16 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int plane,
                                                     int tip_ref_frame) {
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
+      cm->features.opfl_refine_type == REFINE_NONE)
+    return 0;
+
   if (tip_ref_frame) {
+#if CONFIG_TIP_ENHANCEMENT
+    const int tip_wtd_index = cm->tip_global_wtd_index;
+    const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
+    if (tip_weight != TIP_EQUAL_WTD) return 0;
+#endif  // CONFIG_TIP_ENHANCEMENT
     return (opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
                                       xd,

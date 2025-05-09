@@ -16,6 +16,14 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 
+#if CONFIG_ML_PART_SPLIT
+#include "av1/encoder/part_split_prune_tflite.h"
+#endif  // CONFIG_ML_PART_SPLIT
+
+#if CONFIG_DIP_EXT_PRUNING
+#include "av1/encoder/intra_dip_mode_prune_tflite.h"
+#endif  // CONFIG_DIP_EXT_PRUNING
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -189,9 +197,16 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_MV_TRAJECTORY
   for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
     aom_free(cm->id_offset_map[rf]);
-    aom_free(cm->blk_id_map[rf]);
     cm->id_offset_map[rf] = NULL;
+#if CONFIG_TMVP_SIMPLIFICATIONS_F085
+    for (int k = 0; k < 3; k++) {
+      aom_free(cm->blk_id_map[k][rf]);
+      cm->blk_id_map[k][rf] = NULL;
+    }
+#else
+    aom_free(cm->blk_id_map[rf]);
     cm->blk_id_map[rf] = NULL;
+#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   }
 #endif  // CONFIG_MV_TRAJECTORY
 
@@ -231,7 +246,12 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
+#if CONFIG_ML_PART_SPLIT
+  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
+  intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
   aom_free(cpi->td.mb.palette_buffer);
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);
   aom_free(cpi->td.mb.tmp_conv_dst);
@@ -313,10 +333,15 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
                        "Failed to allocate last frame buffer");
 
   if (aom_realloc_frame_buffer(
-          &cpi->trial_frame_rst, cm->superres_upscaled_width,
-          cm->superres_upscaled_height, seq_params->subsampling_x,
-          seq_params->subsampling_y, AOM_RESTORATION_FRAME_BORDER,
-          byte_alignment, NULL, NULL, NULL, false))
+          &cpi->trial_frame_rst,
+#if CONFIG_ENABLE_SR
+          cm->superres_upscaled_width, cm->superres_upscaled_height,
+#else
+          cm->width, cm->height,
+#endif  // CONFIG_ENABLE_SR
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL,
+          false))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate trial restored frame buffer");
 

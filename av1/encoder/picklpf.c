@@ -536,10 +536,16 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
       } else {
         if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                       cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                                      cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                                       cm->lf.delta_q_u * DF_DELTA_SCALE,
                                   cm->seq_params.bit_depth) ||
             !df_side_from_qindex(cm->quant_params.base_qindex +
                                      cm->quant_params.u_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                                     cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                                      cm->lf.delta_side_u * DF_DELTA_SCALE,
                                  cm->seq_params.bit_depth)) {
           lf->filter_level_u = 0;
@@ -548,10 +554,16 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
         }
         if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                       cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                                      cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                                       cm->lf.delta_q_v * DF_DELTA_SCALE,
                                   cm->seq_params.bit_depth) ||
             !df_side_from_qindex(cm->quant_params.base_qindex +
                                      cm->quant_params.v_ac_delta_q +
+#if CONFIG_EXT_QUANT_UPD
+                                     cm->seq_params.base_uv_ac_delta_q +
+#endif  // CONFIG_EXT_QUANT_UPD
                                      cm->lf.delta_side_v * DF_DELTA_SCALE,
                                  cm->seq_params.bit_depth)) {
           lf->filter_level_v = 0;

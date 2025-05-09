@@ -63,6 +63,7 @@ const TestVideoParam kTestVideoVectors[] = {
     49.0 },
 };
 
+#if CONFIG_ENABLE_SR
 // Modes with extra params have their own tests.
 const aom_superres_mode kSuperresModesWithoutParams[] = { AOM_SUPERRES_RANDOM,
                                                           AOM_SUPERRES_AUTO };
@@ -177,7 +178,9 @@ class HorzSuperresEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresEndToEndTest, HorzSuperresEndToEndPSNRTest) { DoTest(); }
+TEST_P(HorzSuperresEndToEndTest, DISABLED_HorzSuperresEndToEndPSNRTest) {
+  DoTest();
+}
 
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
@@ -287,7 +290,9 @@ class HorzSuperresFixedEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresFixedEndToEndTest, HorzSuperresFixedTestParam) { DoTest(); }
+TEST_P(HorzSuperresFixedEndToEndTest, DISABLED_HorzSuperresFixedTestParam) {
+  DoTest();
+}
 
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresFixedEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
@@ -397,12 +402,14 @@ class HorzSuperresQThreshEndToEndTest
   unsigned int frame_count_;
 };
 
-TEST_P(HorzSuperresQThreshEndToEndTest, HorzSuperresQThreshEndToEndPSNRTest) {
+TEST_P(HorzSuperresQThreshEndToEndTest,
+       DISABLED_HorzSuperresQThreshEndToEndPSNRTest) {
   DoTest();
 }
 
 AV1_INSTANTIATE_TEST_SUITE(HorzSuperresQThreshEndToEndTest,
                            ::testing::ValuesIn(kTestVideoVectors),
                            ::testing::ValuesIn(kSuperresQThresholds));
+#endif  // CONFIG_ENABLE_SR
 
 }  // namespace

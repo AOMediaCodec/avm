@@ -69,8 +69,8 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
-
-  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
+       ++ref_frame)
     subgop_stats->ref_frame_map[subgop_stats->stat_count][ref_frame] =
         cm->ref_frame_map[ref_frame]->order_hint;
 
@@ -212,7 +212,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   aom_once(initialize_dec);
 
   // Initialize the references to not point to any frame buffers.
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     cm->ref_frame_map[i] = NULL;
   }
 
@@ -594,7 +594,7 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   // Add the previous frames into the output queue.
   do {
     output_candidate = trigger_frame;
-    for (int i = 0; i < REF_FRAMES; i++) {
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
           cm->ref_frame_map[i]->display_order_hint <
               output_candidate->display_order_hint) {
@@ -629,10 +629,11 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 
   // Add the next frames (showable_frame == 1) into the output queue.
   int successive_output = 1;
-  for (int k = 1; k <= REF_FRAMES && successive_output > 0; k++) {
+  for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
+       k++) {
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
     successive_output = 0;
-    for (int i = 0; i < REF_FRAMES; i++) {
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
           cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
         pbi->output_frames[pbi->num_output_frames++] = cm->ref_frame_map[i];

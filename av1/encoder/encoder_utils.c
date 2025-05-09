@@ -32,6 +32,10 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
+#if CONFIG_DIP_EXT_PRUNING
+#include "av1/encoder/intra_dip_mode_prune_tflite.h"
+#endif  // CONFIG_DIP_EXT_PRUNING
+
 #define MIN_BOOST_COMBINE_FACTOR 4.0
 #define MAX_BOOST_COMBINE_FACTOR 12.0
 // TODO(urvang): Augment array for FLEX_PARTITION: used in speed >= 3.
@@ -360,9 +364,14 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
     int64_t mc_dep_cost_base = 0;
     const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
     const int row_step = step;
+#if CONFIG_ENABLE_SR
     const int col_step_sr =
         coded_to_superres_mi(step, cm->superres_scale_denominator);
     const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
+#else
+    const int col_step_sr = step;
+    const int mi_cols_sr = av1_pixels_to_mi(cm->width);
+#endif  // CONFIG_ENABLE_SR
 
     for (int row = 0; row < cm->mi_params.mi_rows; row += row_step) {
       for (int col = 0; col < mi_cols_sr; col += col_step_sr) {
@@ -592,7 +601,10 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
   // Things break if superblock size changes between the first pass and second
   // pass encoding, which is why this heuristic is not configured as a
   // speed-feature.
-  if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
+  if (
+#if CONFIG_ENABLE_SR
+      oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
+#endif  // CONFIG_ENABLE_SR
       oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed > 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
@@ -618,6 +630,12 @@ void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+  av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
+  intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
   av1_free_pmc(cpi->td.firstpass_ctx, num_planes);
   cpi->td.firstpass_ctx = NULL;
   alloc_compressor_data(cpi);
@@ -630,8 +648,13 @@ void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
   const int old_restoration_unit_size = cm->rst_info[0].restoration_unit_size;
 
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_ENABLE_SR
   const int frame_width = cm->superres_upscaled_width;
   const int frame_height = cm->superres_upscaled_height;
+#else
+  const int frame_width = cm->width;
+  const int frame_height = cm->height;
+#endif  // CONFIG_ENABLE_SR
 
   set_restoration_unit_size(frame_width, frame_height,
                             seq_params->subsampling_x,
@@ -715,6 +738,12 @@ void av1_setup_frame(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     av1_free_sms_bufs(&cpi->td);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_ML_PART_SPLIT
+    av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
+#endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
+    intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
     av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
@@ -863,8 +892,15 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 #endif  // CONFIG_IBC_SR_EXT
 
   // Turn off the encoding trial for forward key frame and superres.
-  if (oxcf->kf_cfg.fwd_kf_enabled || cpi->superres_mode != AOM_SUPERRES_NONE ||
+  if (oxcf->kf_cfg.fwd_kf_enabled ||
+#if CONFIG_ENABLE_SR
+      cpi->superres_mode != AOM_SUPERRES_NONE ||
+#endif  // CONFIG_ENABLE_SR
       is_screen_content_type_orig_decision || !is_key_frame) {
+    return;
+  }
+  if (oxcf->kf_cfg.fwd_kf_enabled || is_screen_content_type_orig_decision ||
+      !is_key_frame) {
     return;
   }
 
@@ -887,11 +923,21 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
   cpi->source =
       av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                            cm->features.interp_filter, 0, false, false);
+                            cm->features.interp_filter, 0, false
+#if CONFIG_ENABLE_SR
+                            ,
+                            false
+#endif  // CONFIG_ENABLE_SR
+      );
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
-        cm->features.interp_filter, 0, false, false);
+        cm->features.interp_filter, 0, false
+#if CONFIG_ENABLE_SR
+        ,
+        false
+#endif  // CONFIG_ENABLE_SR
+    );
   }
 
   if (cm->seg.enabled) {
@@ -974,7 +1020,9 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Buffer does not contain a reconstructed frame");
     }
+#if !CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     assert(frame_to_show->ref_count > 0);
+#endif  // !CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
 

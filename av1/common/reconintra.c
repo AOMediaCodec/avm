@@ -90,12 +90,15 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   *px_top_right = px_tr_common;
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_4WAY_5WAY_TX_PARTITION
   if (plane == AOM_PLANE_Y) {
     int txb_idx = xd->mi[0]->txb_idx;
     TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
-    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M)
-      if (txb_idx == 1) return 0;
+    if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
+      if (txb_idx >= 1) return 0;
+    }
   }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 #endif  // CONFIG_NEW_TX_PARTITION
 
   if (row_off > 0) {  // Just need to check if enough pixels on the right.
@@ -379,12 +382,15 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (px_bl_common <= 0) return 0;
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_4WAY_5WAY_TX_PARTITION
   if (plane == AOM_PLANE_Y) {
     int txb_idx = xd->mi[0]->txb_idx;
     TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
-    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M)
-      if (txb_idx == 1) return 0;
+    if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
+      if (txb_idx >= 1) return 0;
+    }
   }
+#endif  // CONFIG_4WAY_5WAY_TX_PARTITION
 #endif  // CONFIG_NEW_TX_PARTITION
   *px_bottom_left = px_bl_common;
 
@@ -1543,10 +1549,6 @@ static void build_intra_predictors_high(
 #else
     uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
 #endif  // CONFIG_IBP_WEIGHT
-#if CONFIG_IDIF
-    ,
-    const int enable_idif
-#endif  // CONFIG_IDIF
 ) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
@@ -1898,7 +1900,12 @@ static void build_intra_predictors_high(
 #else
                                    above_row, left_col,
 #endif
-                                   tx_size, xd->bd);
+                                   tx_size, xd->bd
+#if CONFIG_DIP_EXT_PRUNING
+                                   ,
+                                   mbmi->intra_dip_features
+#endif  // CONFIG_DIP_EXT_PRUNING
+    );
     return;
   }
 #endif  // CONFIG_DIP
@@ -1956,38 +1963,34 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_MRLS_IMPROVE
         }
       }
-#if CONFIG_IDIF
-      if (!enable_idif) {
-#endif  // CONFIG_IDIF
-        upsample_above = av1_use_intra_edge_upsample(txwpx, txhpx, angle_above,
-                                                     filt_type_above);
-        if (need_above && upsample_above) {
-          const int n_px = txwpx + (need_right ? txhpx : 0);
+#if !CONFIG_IDIF
+      upsample_above = av1_use_intra_edge_upsample(txwpx, txhpx, angle_above,
+                                                   filt_type_above);
+      if (need_above && upsample_above) {
+        const int n_px = txwpx + (need_right ? txhpx : 0);
 #if CONFIG_MRLS_IMPROVE
-          av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
+        av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
 #else
         av1_upsample_intra_edge_high(above_row, n_px, xd->bd);
 #endif  // CONFIG_MRLS_IMPROVE
-        }
-        upsample_left = av1_use_intra_edge_upsample(txhpx, txwpx, angle_left,
-                                                    filt_type_left);
-        if (need_left && upsample_left) {
-          const int n_px = txhpx + (need_bottom ? txwpx : 0);
+      }
+      upsample_left =
+          av1_use_intra_edge_upsample(txhpx, txwpx, angle_left, filt_type_left);
+      if (need_left && upsample_left) {
+        const int n_px = txhpx + (need_bottom ? txwpx : 0);
 #if CONFIG_MRLS_IMPROVE
-          av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
+        av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
 #else
         av1_upsample_intra_edge_high(left_col, n_px, xd->bd);
 #endif  // CONFIG_MRLS_IMPROVE
-        }
-#if CONFIG_IDIF
       }
-#endif  // CONFIG_IDIF
+#endif  // !CONFIG_IDIF
     }
 #if CONFIG_MRLS_IMPROVE
     const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
 #endif
 #if CONFIG_IDIF
-    if (enable_idif) {
+    if (plane == AOM_PLANE_Y) {
 #if CONFIG_MRLS_IMPROVE
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
                                left_col_1st, p_angle, xd->bd, mrl_index);
@@ -2042,7 +2045,7 @@ static void build_intra_predictors_high(
     if (apply_ibp) {
       if (mrl_index == 0
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
-          && (angle_delta % 2 == 0)
+          && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
       ) {
         if (p_angle > 0 && p_angle < 90) {
@@ -2053,7 +2056,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[tx_size][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif) {
+            if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
@@ -2097,7 +2100,7 @@ static void build_intra_predictors_high(
           uint8_t *weights = ibp_weights[transpose_tsize][mode_index];
 #endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-            if (enable_idif) {
+            if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
 #if CONFIG_MRLS_IMPROVE
                                               above_row_1st, left_col_1st,
@@ -2300,9 +2303,6 @@ void av1_predict_intra_block(
       row_off, col_off, ss_x, ss_y, yd, &px_bottom_left, bsize != init_bsize);
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
-#if CONFIG_IDIF
-  const int enable_idif = cm->seq_params.enable_idif;
-#endif  // CONFIG_IDIF
 
   const int is_sb_boundary =
       (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
@@ -2319,12 +2319,7 @@ void av1_predict_intra_block(
       have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
       have_bottom_left ? px_bottom_left : 0, plane, is_sb_boundary,
       cm->seq_params.enable_orip, cm->seq_params.enable_ibp,
-      cm->ibp_directional_weights
-#if CONFIG_IDIF
-      ,
-      enable_idif
-#endif  // CONFIG_IDIF
-  );
+      cm->ibp_directional_weights);
   return;
 }
 #if CONFIG_ENABLE_MHCCP
@@ -2349,7 +2344,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   int height = tx_size_high[tx_size] << sub_y;
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
-  set_have_top_and_left(&have_top, &have_left, xd, row, col, 0);
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, 1);
 #else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
@@ -2382,30 +2377,37 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                 : 0;
   // Distance between the bottom edge of this prediction block to
   // the frame bottom edge
-  int hpx = block_size_high[bsize];
-  int txw = block_size_wide[bsize];
-
-  const int x = col << MI_SIZE_LOG2;
-  const int xr =
-      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_col_end - mi_col - mi_wide, 2 - sub_x) +
-      txw - x - width;
-  const int y = row << MI_SIZE_LOG2;
-  const int txh = tx_size_high_unit[tx_size];
-  const int yd =
-      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_row_end - mi_row - mi_high, 2 - sub_y) +
-      hpx - y - height;
-  const int right_available =
-      xd->mi_col + (col + (txw >> MI_SIZE_LOG2)) <
-      AOMMIN(xd->tile.mi_col_end, cm->width >> MI_SIZE_LOG2);
-  const int bottom_available =
-      (yd > 0) && (xd->mi_row + (row + (txh >> MI_SIZE_LOG2)) <
-                   AOMMIN(xd->tile.mi_row_end, cm->height >> MI_SIZE_LOG2));
+  // txw,txh width/height in samples of transform block
+  // wpx,hpx width/height in pixels of chroma block
+  // width,height width height in pixels of transform block
+  // wpx - x - width is pixels to right of transform block to edge of chroma
+  // block tx_mi_col/tx_mi_row is mi location of transform block
 
   const BLOCK_SIZE init_bsize = bsize;
   // force 4x4 chroma component block size.
   if (sub_x || sub_y) {
     bsize = mbmi->chroma_ref_info.bsize_base;
   }
+  const int hpx = block_size_high[bsize];
+  const int wpx = block_size_wide[bsize];
+  const int tx_mi_col = xd->mi[0]->chroma_ref_info.mi_col_chroma_base + col;
+  const int tx_mi_row = xd->mi[0]->chroma_ref_info.mi_row_chroma_base + row;
+
+  const int x = col << MI_SIZE_LOG2;
+  const int xr =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_col_end - mi_col - mi_wide, 2 - sub_x) +
+      ((wpx - x - width) >> sub_x);
+
+  const int y = row << MI_SIZE_LOG2;
+  const int yd =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_row_end - mi_row - mi_high, 2 - sub_y) +
+      ((hpx - y - height) >> sub_y);
+
+  const int right_available =
+      tx_mi_col + (width >> MI_SIZE_LOG2) < xd->tile.mi_col_end;
+  const int bottom_available =
+      (yd > 0) && (tx_mi_row + (height >> MI_SIZE_LOG2)) < xd->tile.mi_row_end;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   int px_top_right = 0;
   const int have_top_right = has_top_right(
@@ -2440,23 +2442,30 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                (have_top_right && width > 4
                                     ? AOMMIN((px_top_right << sub_x), width)
                                     : 0));
-  if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width +
-       (have_top_right ? AOMMIN((px_top_right << sub_x), width) : 0)) >
+
+  if ((((tx_mi_col) << MI_SIZE_LOG2) + width +
+       (have_top_right && width > 4 ? AOMMIN((px_top_right << sub_x), width)
+                                    : 0)) >=
       (int)(xd->tile.mi_col_end << MI_SIZE_LOG2)) {
     *ref_width = (xd->tile.mi_col_end << MI_SIZE_LOG2) -
-                 ((xd->mi_col + col) << MI_SIZE_LOG2) + *left_lines - 1;
+                 ((tx_mi_col) << MI_SIZE_LOG2) + *left_lines - 1;
   }
 
   *ref_height = AOMMIN(128, *above_lines + height +
                                 (have_bottom_left && height > 4
                                      ? AOMMIN((px_bottom_left << sub_y), height)
                                      : 0));
-  if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height +
-       (have_bottom_left ? AOMMIN((px_bottom_left << sub_y), height) : 0)) >
-      (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
+
+  if ((((tx_mi_row) << MI_SIZE_LOG2) + height +
+       (have_bottom_left && height > 4
+            ? AOMMIN((px_bottom_left << sub_y), height)
+            : 0)) >= (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
     *ref_height = *above_lines + (xd->tile.mi_row_end << MI_SIZE_LOG2) -
-                  ((xd->mi_row + row) << MI_SIZE_LOG2) - 1;
+                  ((tx_mi_row) << MI_SIZE_LOG2) - 1;
   }
+
+  *ref_width = AOMMIN(*ref_width, 128);
+  *ref_height = AOMMIN(*ref_height, 128);
 
   memset(cfl->mhccp_ref_buf_q3[0], 0, sizeof(cfl->mhccp_ref_buf_q3[0]));
 
@@ -2644,15 +2653,15 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 #if CONFIG_MHCCP_SB_BOUNDARY
           // For the top boundary of the superblock, we need to offset the
           // reference region
-          if (is_top_sb_boundary && (*above_lines == (LINE_NUM + 1))) {
-            if (h < *above_lines) {
+          if (*above_lines == (LINE_NUM + 1)) {
+            if (is_top_sb_boundary && (h < *above_lines)) {
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
-            }
-          } else {
-            if (h == 0) {
-              // For the 1 padding lines above, we need to offset the reference
-              // region
-              ref_h_c_off = 1;
+            } else {
+              if (h == 0) {
+                // For the 1 padding lines above, we need to offset the
+                // reference region
+                ref_h_c_off = 1;
+              }
             }
           }
           // For the 1 padding lines left, we need to offset the reference
@@ -2839,13 +2848,15 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                            tx_size);
         cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
                                            tx_size);
-      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
+      }
+#if MHCCP_3_PARAMETERS
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
 #if CONFIG_MHCCP_SB_BOUNDARY
             is_top_sb_boundary,
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
             &ref_width, &ref_height);
 
         above_lines >>= sub_y;
@@ -2856,14 +2867,42 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                              tx_size, above_lines, left_lines,
 #if CONFIG_MHCCP_SB_BOUNDARY
                                              is_top_sb_boundary,
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+                                             ref_width, ref_height);
+        mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
+                                    ref_width, ref_height, mbmi->mh_dir
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                    ,
+                                    is_top_sb_boundary
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+        );
+      }
+#else  // MHCCP_3_PARAMETERS
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
+        mhccp_implicit_fetch_neighbor_luma(
+            cm, xd, blk_row << cfl->subsampling_y,
+            blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
+#if CONFIG_MHCCP_SB_BOUNDARY
+            is_top_sb_boundary,
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
+            &ref_width, &ref_height);
+
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
+        mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
+                                             tx_size, above_lines, left_lines,
+#if CONFIG_MHCCP_SB_BOUNDARY
+                                             is_top_sb_boundary,
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
                                              ref_width, ref_height);
         mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
                                     ref_width, ref_height, 0
 #if CONFIG_MHCCP_SB_BOUNDARY
                                     ,
                                     is_top_sb_boundary
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
         );
       } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
         mhccp_implicit_fetch_neighbor_luma(
@@ -2871,7 +2910,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
 #if CONFIG_MHCCP_SB_BOUNDARY
             is_top_sb_boundary,
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
             &ref_width, &ref_height);
         above_lines >>= sub_y;
         left_lines >>= sub_x;
@@ -2881,16 +2920,17 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                              tx_size, above_lines, left_lines,
 #if CONFIG_MHCCP_SB_BOUNDARY
                                              is_top_sb_boundary,
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
                                              ref_width, ref_height);
         mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
                                     ref_width, ref_height, 1
 #if CONFIG_MHCCP_SB_BOUNDARY
                                     ,
                                     is_top_sb_boundary
-#endif
+#endif  // CONFIG_MHCCP_SB_BOUNDARY
         );
       }
+#endif  // MHCCP_3_PARAMETERS
 #else
       if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
         cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
