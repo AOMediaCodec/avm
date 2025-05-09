@@ -41,12 +41,14 @@ void init_gdf(AV1_COMMON *cm) {
 void alloc_gdf_buffers(AV1_COMMON *cm) {
   if (cm->gdf_info.err_ptr == NULL || cm->gdf_info.gdf_block_flags == NULL) {
     cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
-        32, cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
+        32,
+        cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
     cm->gdf_info.gdf_block_flags =
         (int32_t *)aom_malloc(cm->gdf_info.gdf_block_num * sizeof(int));
   }
   memset(cm->gdf_info.err_ptr, 0, cm->gdf_info.err_height * sizeof(int16_t));
-  memset(cm->gdf_info.gdf_block_flags, 0, cm->gdf_info.gdf_block_num * sizeof(int));
+  memset(cm->gdf_info.gdf_block_flags, 0,
+         cm->gdf_info.gdf_block_num * sizeof(int));
 }
 
 void free_gdf_buffers(AV1_COMMON *cm) {

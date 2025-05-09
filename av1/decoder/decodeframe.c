@@ -9124,9 +9124,7 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
 #if CONFIG_GDF
-void av1_gdf_frame_dec(AV1_COMMON *cm) {
-  gdf_filter_frame(cm);
-}
+void av1_gdf_frame_dec(AV1_COMMON *cm) { gdf_filter_frame(cm); }
 #endif  // CONFIG_GDF
 
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
@@ -9277,7 +9275,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_GDF
         !use_ccso && !do_cdef
 #if CONFIG_ENABLE_SR
-                                           && !do_superres
+        && !do_superres
 #endif  // CONFIG_ENABLE_SR
         ;
 
