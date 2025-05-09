@@ -40,8 +40,21 @@
 #endif
 
 #if GDF_C_CODE_ONLY
-/*!\brief Function to apply scaling factor to expected coding error
- *        and then generate the final filtered block
+/*!\brief Function to set block's laplacian and class buffer.
+ * \param[in]  i_min         The pos of the block's top boundary
+ * \param[in]  i_max         The pos of the block's bottom boundary
+ * \param[in]  j_min         The pos of the block's left boundary
+ * \param[in]  j_max         The pos of the block's right boundary
+ * \param[in]  stripe_size   The size of gdf unit stripe.
+ * \param[in]  rec_pnt       Frame reconstruction data (pointing at the
+ *                           top-leftcorner of the frame, not the gdf block)
+ * \param[in]  rec_stride    Stride of \c rec_pnt
+ * \param[in]  bit_depth     Bit-depth of the video
+ * \param[in]  aligned_lap   Array of the buffer where the results, laplacian
+ *                           data of the block, will be written.
+ *                           (array order : ver, hor, dia0 and dia1)
+ * \param[in]  aligned_cls   Buffer where the results, pixel class data of the
+ *                           block, will be written.
  */
 void gdf_set_lap_and_cls_c(
     const int i_min, const int i_max, const int j_min, const int j_max,
