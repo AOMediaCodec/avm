@@ -85,7 +85,6 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
 
-
 #if CONFIG_ML_PART_SPLIT
 #include "av1/encoder/part_split_prune_tflite.h"
 #endif  // CONFIG_ML_PART_SPLIT
