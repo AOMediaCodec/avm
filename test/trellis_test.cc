@@ -342,7 +342,7 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
 
 TEST_P(TcqRateLumaTest, RandomValues) {
   for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    int log_scale = 0;
+    int log_scale = 1;
     int shift = 16 - log_scale + QUANT_FP_BITS;
     const int32_t quant[2] = { 1 << shift, 1 << shift };
     int dqv = 1 << QUANT_TABLE_BITS;
@@ -389,7 +389,7 @@ TEST_P(TcqRateLumaTest, RandomValues) {
 
 TEST_P(TcqRateLfLumaTest, RandomValues) {
   for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    int log_scale = 0;
+    int log_scale = 1;
     int shift = 16 - log_scale + QUANT_FP_BITS;
     const int32_t quant[2] = { 1 << shift, 1 << shift };
     int dqv = 1 << QUANT_TABLE_BITS;
