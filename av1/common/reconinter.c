@@ -2985,7 +2985,7 @@ void make_inter_pred_of_nxn(
     SubpelParams *subpel_params
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
-    MB_MODE_INFO *mi, int pu_height
+    MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
     ,
@@ -3070,8 +3070,8 @@ void make_inter_pred_of_nxn(
       ReferenceArea ref_area_opfl;
       if (sub_bh >= 8 && sub_bw >= 8 && use_sub_pad) {
         av1_get_reference_area_with_padding_single(
-            cm, xd, plane, mi, mi->mv[ref].as_mv, sub_bw, sub_bh, mi_x + i,
-            mi_y + j, &ref_area_opfl, pu_width, pu_height, ref);
+            cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh, mi_x + i, mi_y + j,
+            &ref_area_opfl, pu_width, pu_height, ref);
         inter_pred_params->use_ref_padding = 1;
         inter_pred_params->use_damr_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
@@ -3175,9 +3175,8 @@ void make_inter_pred_of_nxn(
 #if CONFIG_WARP_BD_BOX
           WarpBoundaryBox warp_bd_box;
           if (sub_bh == 4 && sub_bw == 4 && use_sub_pad_warp) {
-            MV mv_org[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
             av1_get_reference_area_with_padding_single_warp(
-                cm, xd, plane, mi, mv_org[ref], sub_bw, sub_bh,
+                cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
                 mi_x + (i << inter_pred_params->subsampling_x),
                 mi_y + (j << inter_pred_params->subsampling_y), &warp_bd_box,
                 pu_width, pu_height, ref);
@@ -3367,7 +3366,7 @@ void av1_opfl_rebuild_inter_predictor(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
-    MB_MODE_INFO *mi, int pu_height
+    MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
     ,
@@ -3396,7 +3395,7 @@ void av1_opfl_rebuild_inter_predictor(
                          &subpel_params
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
                          ,
-                         mi, pu_height
+                         mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
                          ,
@@ -5535,7 +5534,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
-          mi, pu_height
+          mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #if CONFIG_OPFL_MEMBW_REDUCTION
           ,
@@ -6190,7 +6189,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
-          mi, pu_height
+          mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
           ,

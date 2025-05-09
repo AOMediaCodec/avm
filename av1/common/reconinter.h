@@ -711,7 +711,7 @@ void av1_opfl_rebuild_inter_predictor(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
-    MB_MODE_INFO *mi, int pu_height
+    MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
     ,

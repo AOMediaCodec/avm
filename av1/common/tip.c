@@ -1177,7 +1177,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           ref, mc_buf, calc_subpel_params_func, use_4x4
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
-          mbmi, bh
+          mbmi, bh, mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
           ,
