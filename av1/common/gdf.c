@@ -52,7 +52,7 @@ void alloc_gdf_buffers(AV1_COMMON *cm) {
 }
 
 void free_gdf_buffers(AV1_COMMON *cm) {
-  if (cm->gdf_info.err_ptr == NULL || cm->gdf_info.gdf_block_flags == NULL) {
+  if (cm->gdf_info.err_ptr != NULL || cm->gdf_info.gdf_block_flags != NULL) {
     aom_free(cm->gdf_info.err_ptr);
     cm->gdf_info.err_ptr = NULL;
     aom_free(cm->gdf_info.gdf_block_flags);
