@@ -9661,12 +9661,11 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
 void process_inv_idtx_add_4x4_avx2(const tran_low_t *input, int in_stride,
                                    uint16_t *dst, int out_stride,
                                    int scale_bits, int bd) {
-  const int32_t max_val = (255 << (bd - 8));
+  const int32_t max_val = (1 << bd) - 1;
   const int in_stride_bytes = in_stride * 4;
   const int out_stride_bytes = out_stride * 2;
 
   // === Part 1: Load and Process Source (int32_t) ===
-  // (Identical to previous versions: load, round, shift)
   const uint8_t *src_bytes = (const uint8_t *)input;
   __m128i s_r0 =
       _mm_loadu_si128((const __m128i *)(src_bytes + 0 * in_stride_bytes));
@@ -9678,15 +9677,17 @@ void process_inv_idtx_add_4x4_avx2(const tran_low_t *input, int in_stride,
       _mm_loadu_si128((const __m128i *)(src_bytes + 3 * in_stride_bytes));
   __m256i src_data_01 = _mm256_set_m128i(s_r1, s_r0);  // els 0..7
   __m256i src_data_23 = _mm256_set_m128i(s_r3, s_r2);  // els 8..15
-  const int32_t rounding_offset = (1 << (scale_bits - 1));
-  const __m256i v_round_offset = _mm256_set1_epi32(rounding_offset);
-  __m256i rounded_01 = _mm256_add_epi32(src_data_01, v_round_offset);
-  __m256i rounded_23 = _mm256_add_epi32(src_data_23, v_round_offset);
-  __m256i shifted_01 = _mm256_srai_epi32(rounded_01, scale_bits);
-  __m256i shifted_23 = _mm256_srai_epi32(rounded_23, scale_bits);
+  __m256i shifted_01;
+  __m256i shifted_23;
+  if (scale_bits == 0) {
+    shifted_01 = src_data_01;
+    shifted_23 = src_data_23;
+  } else {
+    shifted_01 = _mm256_srai_epi32(src_data_01, scale_bits);
+    shifted_23 = _mm256_srai_epi32(src_data_23, scale_bits);
+  }
 
-  // === Part 2: Load and Widen Destination (uint16_t -> int32_t) === *MODIFIED*
-
+  // === Part 2: Load and Widen Destination (uint16_t -> int32_t)
   // --- 2a. Load dst (4x4 uint16) ---
   const uint8_t *dst_read_bytes =
       (const uint8_t *)dst;  // Use const for reading phase

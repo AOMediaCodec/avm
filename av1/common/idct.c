@@ -996,8 +996,7 @@ void av1_lossless_inv_idtx_add_c(const tran_low_t *input, uint16_t *dest,
   for (int i = 0; i < txh; i++) {
     for (int j = 0; j < txw; j++) {
       dest[i * stride + j] = highbd_clip_pixel_add(
-          dest[i * stride + j],
-          ROUND_POWER_OF_TWO_SIGNED(input[i * txw + j], scale_bits),
+          dest[i * stride + j], (input[i * txw + j] >> scale_bits),
           txfm_param->bd);
     }
   }
@@ -1012,8 +1011,7 @@ void av1_lossless_inv_idtx_add_vert_c(const tran_low_t *input, uint16_t *dest,
   for (int j = 0; j < txw; j++) {
     int delay = 0;
     for (int i = 0; i < txh; i++) {
-      tran_low_t current_txcoeff =
-          ROUND_POWER_OF_TWO_SIGNED(input[i * txw + j], scale_bits);
+      tran_low_t current_txcoeff = (input[i * txw + j] >> scale_bits);
       dest[i * stride + j] = highbd_clip_pixel_add(
           dest[i * stride + j], current_txcoeff + delay, txfm_param->bd);
       delay += current_txcoeff;
@@ -1029,8 +1027,7 @@ void av1_lossless_inv_idtx_add_horz_c(const tran_low_t *input, uint16_t *dest,
   for (int i = 0; i < txh; i++) {
     int delay = 0;
     for (int j = 0; j < txw; j++) {
-      tran_low_t current_txcoeff =
-          ROUND_POWER_OF_TWO_SIGNED(input[i * txw + j], scale_bits);
+      tran_low_t current_txcoeff = (input[i * txw + j] >> scale_bits);
       dest[i * stride + j] = highbd_clip_pixel_add(
           dest[i * stride + j], current_txcoeff + delay, txfm_param->bd);
       delay += current_txcoeff;
