@@ -1687,7 +1687,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->warp_interintra_cdf, ctx_tr->warp_interintra_cdf, 2);
 #endif  // CONFIG_WARP_INTER_INTRA
   AVERAGE_CDF(ctx_left->interintra_cdf, ctx_tr->interintra_cdf, 2);
+#if CONFIG_WEDGE_INTERINTRA
   AVERAGE_CDF(ctx_left->wedge_interintra_cdf, ctx_tr->wedge_interintra_cdf, 2);
+#endif  // CONFIG_WEDGE_INTERINTRA
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,
               INTERINTRA_MODES);
   AVERAGE_CDF(ctx_left->warp_causal_cdf, ctx_tr->warp_causal_cdf, 2);

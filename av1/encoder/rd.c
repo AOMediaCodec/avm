@@ -798,6 +798,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->warp_interintra_cdf[i], NULL);
 #endif  // CONFIG_WARP_INTER_INTRA
     }
+#if CONFIG_WEDGE_INTERINTRA
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost,
                              fc->wedge_interintra_cdf, NULL);
@@ -807,6 +808,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->wedge_interintra_cdf[i], NULL);
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_WEDGE_INTERINTRA
 
 #if CONFIG_REFINEMV
     for (i = 0; i < NUM_REFINEMV_CTX; ++i) {

@@ -1251,12 +1251,14 @@ typedef struct {
   int warp_interintra_cost[BLOCK_SIZE_GROUPS][2];
 #endif  // CONFIG_WARP_INTER_INTRA
 
+#if CONFIG_WEDGE_INTERINTRA
   //! wedge_interintra_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int wedge_interintra_cost[2];
 #else
   int wedge_interintra_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_WEDGE_INTERINTRA
   //! interintra_mode_cost
   int interintra_mode_cost[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
   /**@}*/

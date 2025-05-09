@@ -1956,6 +1956,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
           update_cdf(fc->interintra_mode_cdf[bsize_group],
                      mbmi->interintra_mode, INTERINTRA_MODES);
+#if CONFIG_WEDGE_INTERINTRA
           if (av1_is_wedge_used(bsize)) {
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS
@@ -1986,6 +1987,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_WEDGE_MOD_EXT
             }
           }
+#endif  // CONFIG_WEDGE_INTERINTRA
           continue_motion_mode_signaling = false;
         }
       }
@@ -2083,6 +2085,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
           update_cdf(fc->interintra_mode_cdf[bsize_group],
                      mbmi->interintra_mode, INTERINTRA_MODES);
+#if CONFIG_WEDGE_INTERINTRA
           if (av1_is_wedge_used(bsize)) {
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS
@@ -2113,6 +2116,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_WEDGE_MOD_EXT
             }
           }
+#endif  // CONFIG_WEDGE_INTERINTRA
         }
       }
 #endif  // CONFIG_WARP_INTER_INTRA

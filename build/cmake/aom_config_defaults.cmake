@@ -677,6 +677,8 @@ set_aom_config_var(
   "Alignment of ref picture to be integer multiples of 8 for loop filter and inter prediction"
 )
 
+set_aom_config_var(CONFIG_WEDGE_INTERINTRA 1 "Enable wedge interintra mode.")
+
 set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
                    "Symbol size reduction from 16 to 8.")
 

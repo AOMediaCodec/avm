@@ -6477,13 +6477,18 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
 }
 
 static AOM_INLINE void combine_interintra_highbd(
-    INTERINTRA_MODE mode, int8_t use_wedge_interintra, int8_t wedge_index,
-    int8_t wedge_sign, BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
-    uint16_t *comppred8, int compstride, const uint16_t *interpred8,
-    int interstride, const uint16_t *intrapred8, int intrastride, int bd) {
+    INTERINTRA_MODE mode,
+#if CONFIG_WEDGE_INTERINTRA
+    int8_t use_wedge_interintra,
+#endif  // CONFIG_WEDGE_INTERINTRA
+    int8_t wedge_index, int8_t wedge_sign, BLOCK_SIZE bsize,
+    BLOCK_SIZE plane_bsize, uint16_t *comppred8, int compstride,
+    const uint16_t *interpred8, int interstride, const uint16_t *intrapred8,
+    int intrastride, int bd) {
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
+#if CONFIG_WEDGE_INTERINTRA
   if (use_wedge_interintra) {
     if (av1_is_wedge_used(bsize)) {
       const uint8_t *mask =
@@ -6496,6 +6501,7 @@ static AOM_INLINE void combine_interintra_highbd(
     }
     return;
   }
+#endif  // CONFIG_WEDGE_INTERINTRA
 
   uint8_t mask[MAX_SB_SQUARE];
   build_smooth_interintra_mask(mask, bw, plane_bsize, mode);
@@ -6551,7 +6557,10 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   combine_interintra_highbd(
-      xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,
+      xd->mi[0]->interintra_mode,
+#if CONFIG_WEDGE_INTERINTRA
+      xd->mi[0]->use_wedge_interintra,
+#endif  // CONFIG_WEDGE_INTERINTRA
       xd->mi[0]->interintra_wedge_index, INTERINTRA_WEDGE_SIGN, bsize,
       plane_bsize, xd->plane[plane].dst.buf, xd->plane[plane].dst.stride,
       inter_pred, inter_stride, intra_pred, intra_stride, xd->bd);

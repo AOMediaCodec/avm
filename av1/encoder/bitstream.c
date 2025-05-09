@@ -892,6 +892,7 @@ static AOM_INLINE void write_motion_mode(
       aom_write_symbol(w, mbmi->interintra_mode,
                        xd->tile_ctx->interintra_mode_cdf[bsize_group],
                        INTERINTRA_MODES);
+#if CONFIG_WEDGE_INTERINTRA
       if (av1_is_wedge_used(bsize)) {
         aom_write_symbol(w, mbmi->use_wedge_interintra,
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -910,6 +911,7 @@ static AOM_INLINE void write_motion_mode(
 #endif  // CONFIG_WEDGE_MOD_EXT
         }
       }
+#endif  // CONFIG_WEDGE_INTERINTRA
       return;
     }
   }
@@ -3151,6 +3153,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         aom_write_symbol(w, mbmi->interintra_mode,
                          xd->tile_ctx->interintra_mode_cdf[bsize_group],
                          INTERINTRA_MODES);
+#if CONFIG_WEDGE_INTERINTRA
         if (av1_is_wedge_used(bsize)) {
           aom_write_symbol(w, mbmi->use_wedge_interintra,
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -3170,7 +3173,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_WEDGE_MOD_EXT
           }
         }
-
+#endif   // CONFIG_WEDGE_INTERINTRA
       }  // if (mbmi->warp_inter_intra) {
     }
 #endif  // CONFIG_WARP_INTER_INTRA

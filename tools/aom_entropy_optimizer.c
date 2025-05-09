@@ -1321,6 +1321,7 @@ int main(int argc, const char **argv) {
                      "INTERINTRA_MODES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 
+#if CONFIG_WEDGE_INTERINTRA
 #if CONFIG_D149_CTX_MODELING_OPT
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.wedge_interintra[0], probsfile, 1, cts_each_dim,
@@ -1336,6 +1337,7 @@ int main(int argc, const char **argv) {
       "default_wedge_interintra_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]",
       0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif
 
   /* Compound type */
 #if CONFIG_D149_CTX_MODELING_OPT

@@ -954,7 +954,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
+#if CONFIG_WEDGE_INTERINTRA
   mbmi->use_wedge_interintra = 0;
+#endif  // CONFIG_WEDGE_INTERINTRA
   if (allowed_motion_modes & (1 << INTERINTRA)) {
     const int bsize_group = size_group_lookup[bsize];
     const int use_interintra =
@@ -982,6 +984,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DIP
       mbmi->use_intra_dip = 0;
 #endif  // CONFIG_DIP
+#if CONFIG_WEDGE_INTERINTRA
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -1003,6 +1006,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif
         }
       }
+#endif  // CONFIG_WEDGE_INTERINTRA
       return INTERINTRA;
     }
   }
@@ -4629,6 +4633,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_DIP
       mbmi->use_intra_dip = 0;
 #endif  // CONFIG_DIP
+#if CONFIG_WEDGE_INTERINTRA
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -4651,7 +4656,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif
         }
       }
-    }  // if (mbmi->warp_inter_intra)
+#endif  // CONFIG_WEDGE_INTERINTRA
+    }   // if (mbmi->warp_inter_intra)
   }
 #endif  // CONFIG_WARP_INTER_INTRA
 

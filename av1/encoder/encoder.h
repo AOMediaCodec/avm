@@ -1642,11 +1642,13 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_WEDGE_MOD_EXT
   unsigned int interintra[BLOCK_SIZE_GROUPS][2];
   unsigned int interintra_mode[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
+#if CONFIG_WEDGE_INTERINTRA
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int wedge_interintra[2];
 #else
   unsigned int wedge_interintra[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_WEDGE_INTERINTRA
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int compound_type[MASKED_COMPOUND_TYPES];
 #else
