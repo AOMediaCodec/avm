@@ -3668,7 +3668,7 @@ static AOM_INLINE void get_row_smvp_states(const AV1_COMMON *cm,
             { is_above_smvp_available(xd, mi_col, 0), -1,
               compute_aligned_offset(mi_col, 0) },
             { 0, -1, 0 },
-            { is_above_smvp_available(xd, mi_col, 2), -1,
+            { has_tr && is_above_smvp_available(xd, mi_col, 2), -1,
               compute_aligned_offset(mi_col, 2) },
             { is_above_smvp_available(xd, mi_col, -2), -1,
               compute_aligned_offset(mi_col, -2) },
@@ -3678,7 +3678,7 @@ static AOM_INLINE void get_row_smvp_states(const AV1_COMMON *cm,
             { is_above_smvp_available(xd, mi_col, 0), -1,
               compute_aligned_offset(mi_col, 0) },
             { 0, -1, 0 },
-            { is_above_smvp_available(xd, mi_col, 2), -1,
+            { has_tr && is_above_smvp_available(xd, mi_col, 2), -1,
               compute_aligned_offset(mi_col, 2) },
             { is_above_smvp_available(xd, mi_col, -2), -1,
               compute_aligned_offset(mi_col, -2) },
@@ -3689,7 +3689,7 @@ static AOM_INLINE void get_row_smvp_states(const AV1_COMMON *cm,
               compute_aligned_offset(mi_col, xd->width - 2) },
             { is_above_smvp_available(xd, mi_col, 0), -1,
               compute_aligned_offset(mi_col, 0) },
-            { is_above_smvp_available(xd, mi_col, xd->width), -1,
+            { has_tr && is_above_smvp_available(xd, mi_col, xd->width), -1,
               compute_aligned_offset(mi_col, xd->width) },
             { is_above_smvp_available(xd, mi_col, -2), -1,
               compute_aligned_offset(mi_col, -2) },
@@ -9087,18 +9087,27 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const TileInfo *const tile = &xd->tile;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, xd->width);
+#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_bl =
       has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, xd->height);
 #else
   const int bs = AOMMAX(xd->width, xd->height);
+#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
+#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   POSITION mi_pos;
 
   int allow_new_ext = 0;
   int allow_near_ext = 0;
+
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  MVP_UNIT_STATUS row_smvp_state[4] = { 0 };
+  get_row_smvp_states(cm, xd, row_smvp_state);
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 
   // counter to count number of warp neighbors
   int num_of_warp_neighbors = 0;
@@ -9122,9 +9131,16 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 
   // up
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.row = row_smvp_state[0].row_offset;
+  mi_pos.col = row_smvp_state[0].col_offset;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+      row_smvp_state[0].is_available) {
+#else
   mi_pos.row = -1;
   mi_pos.col = xd->width - 1;
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (
@@ -9158,9 +9174,16 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 
   // up
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.row = row_smvp_state[1].row_offset;
+  mi_pos.col = row_smvp_state[1].col_offset;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+      row_smvp_state[1].is_available) {
+#else
   mi_pos.row = -1;
   mi_pos.col = 0;
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (
@@ -9192,9 +9215,16 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.row = row_smvp_state[2].row_offset;
+  mi_pos.col = row_smvp_state[2].col_offset;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+      row_smvp_state[2].is_available) {
+#else
   mi_pos.row = -1;
   mi_pos.col = xd->width;
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_tr) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (
@@ -9209,10 +9239,17 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+  mi_pos.row = row_smvp_state[3].row_offset;
+  mi_pos.col = row_smvp_state[3].col_offset;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+      row_smvp_state[3].is_available) {
+#else
   mi_pos.row = -1;
   mi_pos.col = -1;
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available &&
       xd->left_available) {
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (
