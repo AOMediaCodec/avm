@@ -732,18 +732,17 @@ void av1_opfl_rebuild_inter_predictor(
 // sol: numerator (will be updated to the solution)
 // den: denominator
 // out: output result (sol / den)
-// TODO(kslu) reduce input bit depth to int32_t
-static INLINE void divide_and_round_array(int64_t *sol, int64_t den,
-                                          const int dim, int *shifts) {
+static INLINE void divide_and_round_array(int *sol, int den, const int dim,
+                                          int *shifts) {
   assert(den != 0);
   if (den < 0) {
     for (int i = 0; i < dim; i++) sol[i] = -sol[i];
     divide_and_round_array(sol, -den, dim, shifts);
     return;
   }
-  // TODO(kslu) use resolve_divisor_32
   int16_t den_shift = 0;
-  int16_t inv_den = (den == 1) ? 1 : resolve_divisor_64(den, &den_shift);
+  int16_t inv_den =
+      (den == 1) ? 1 : resolve_divisor_32((uint32_t)den, &den_shift);
   int inv_den_msb = get_msb_signed(inv_den);
 
   // Apply shifts to sol[i] and den to keep both bit depths within K.
@@ -752,15 +751,18 @@ static INLINE void divide_and_round_array(int64_t *sol, int64_t den,
     int sign = sol[i] > 0;
     sol[i] = sign ? sol[i] : -sol[i];
     int num_red_bits =
-        AOMMAX(0, get_msb_signed_64(sol[i]) + inv_den_msb + 1 - MAX_LS_BITS);
+        AOMMAX(0, get_msb_signed(sol[i]) + inv_den_msb + 4 - MAX_LS_BITS);
     if (num_red_bits > 0)
-      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], num_red_bits);
+      sol[i] = ROUND_POWER_OF_TWO(sol[i], num_red_bits);
 
     int inc_bits = shifts[i] + num_red_bits - den_shift;
     if (inc_bits >= 0)
       sol[i] = sol[i] * inv_den * (1 << inc_bits);
+    else if (-inc_bits >= 31)  // ROUND_POWER_OF_TWO can only handle n<30
+      sol[i] = ROUND_POWER_OF_TWO(
+          ROUND_POWER_OF_TWO(sol[i], -inc_bits - 30) * inv_den, 30);
     else
-      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i] * inv_den, -inc_bits);
+      sol[i] = ROUND_POWER_OF_TWO(sol[i] * inv_den, -inc_bits);
     sol[i] = sign ? sol[i] : -sol[i];
   }
 }

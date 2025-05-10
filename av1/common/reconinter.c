@@ -2269,7 +2269,7 @@ void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
   suv = ROUND_POWER_OF_TWO_SIGNED(suv, redbit);
   suw = ROUND_POWER_OF_TWO_SIGNED(suw, redbit);
   svw = ROUND_POWER_OF_TWO_SIGNED(svw, redbit);
-  const int64_t det = (int64_t)su2 * sv2 - suv * suv;
+  const int det = su2 * sv2 - suv * suv;
   if (det <= 0) {
     *vx0 = 0;
     *vy0 = 0;
@@ -2278,12 +2278,12 @@ void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
     return;
   }
 
-  int64_t sol[2] = { (int64_t)sv2 * suw - suv * svw,
-                     (int64_t)su2 * svw - suv * suw };
+  int sol[2] = { sv2 * suw - suv * svw, su2 * svw - suv * suw };
 
   divide_and_round_array(sol, det, 2, shifts);
-  *vx0 = (int)-sol[0];
-  *vy0 = (int)-sol[1];
+
+  *vx0 = -sol[0];
+  *vy0 = -sol[1];
   *vx1 = (*vx0) * d1;
   *vy1 = (*vy0) * d1;
   *vx0 = (*vx0) * d0;
