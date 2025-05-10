@@ -787,6 +787,10 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
       sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
+#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
+        mv->ref_frame[idx] = NONE_FRAME;
+        mv->mv[idx].as_int = 0;
+#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (!is_inter_ref_frame(ref_frame)
 #if CONFIG_IMPROVE_REFINED_MV
@@ -1115,6 +1119,10 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
       sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
+#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
+        mv->ref_frame[idx] = NONE_FRAME;
+        mv->mv[idx].as_int = 0;
+#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
 #if !CONFIG_IMPROVE_TMVP_LIST

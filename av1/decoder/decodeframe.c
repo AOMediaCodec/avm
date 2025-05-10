@@ -1204,14 +1204,39 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
 static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
                                                   DecoderCodingBlock *dcb,
                                                   BLOCK_SIZE bsize) {
-  MACROBLOCKD *const xd = &dcb->xd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  const int bw = mi_size_wide[bsize];
-  const int bh = mi_size_high[bsize];
-  const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - xd->mi_col);
-  const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - xd->mi_row);
-  av1_copy_frame_refined_mvs(cm, xd, mbmi, xd->mi_row, xd->mi_col,
-                             x_inside_boundary, y_inside_boundary);
+  if (!frame_is_intra_only(cm) &&
+      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+    MACROBLOCKD *const xd = &dcb->xd;
+    MB_MODE_INFO *const mi = xd->mi[0];
+    const int bw = mi_size_wide[bsize];
+    const int bh = mi_size_high[bsize];
+    const int x_inside_boundary =
+        AOMMIN(bw, cm->mi_params.mi_cols - xd->mi_col);
+    const int y_inside_boundary =
+        AOMMIN(bh, cm->mi_params.mi_rows - xd->mi_row);
+#if CONFIG_IMPROVE_REFINED_MV
+    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
+#else
+    if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                   xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                   mi)
+#if CONFIG_REFINEMV
+        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
+#endif  // CONFIG_REFINEMV
+    ) {
+#endif  // CONFIG_IMPROVE_REFINED_MV
+      av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
+                                 x_inside_boundary, y_inside_boundary);
+    }
+#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
+    else {
+      av1_copy_frame_mvs(cm, xd, mi, xd->mi_row, xd->mi_col, x_inside_boundary,
+                         y_inside_boundary);
+    }
+#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
+  }
 }
 #endif  // CONFIG_REFINED_MVS_IN_TMVP
 
@@ -1591,28 +1616,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     }
   }
 
-#if CONFIG_REFINED_MVS_IN_TMVP
-  // Fill refined MVs into the temporal MV prediction list
-  if (!frame_is_intra_only(cm) &&
-      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
-#if CONFIG_IMPROVE_REFINED_MV
-    if (enable_refined_mvs_in_tmvp(cm, xd, mbmi)) {
-#else
-    if (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                   xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                   mbmi)
-#if CONFIG_REFINEMV
-        ||
-        (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE)
-#endif  // CONFIG_REFINEMV
-    ) {
-#endif  // CONFIG_IMPROVE_REFINED_MV
-      td->copy_frame_mvs_block_visit(cm, dcb, bsize);
-    }
-  }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
+  td->copy_frame_mvs_block_visit(cm, dcb, bsize);
 
   av1_visit_palette(pbi, xd, r, set_color_index_map_offset);
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);
