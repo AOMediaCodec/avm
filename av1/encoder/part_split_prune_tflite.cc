@@ -34,7 +34,7 @@
 typedef std::unique_ptr<TfLiteDelegate, decltype(&TfLiteXNNPackDelegateDelete)>
     TfLiteDelegateType;
 
-struct Context {
+struct PartSplitContext {
   std::unique_ptr<tflite::Interpreter> model_128X128;
   std::unique_ptr<tflite::Interpreter> model_64X64;
   std::unique_ptr<tflite::Interpreter> model_32X32;
@@ -87,8 +87,8 @@ static std::unique_ptr<tflite::Interpreter> create_interpreter(
 static void ensure_tflite_init(void **context, MODEL_TYPE model_type) {
   assert(model_type != MODEL_OTHER);
 
-  if (*context == nullptr) *context = new Context();
-  Context *ctx = (Context *)*context;
+  if (*context == nullptr) *context = new PartSplitContext();
+  PartSplitContext *ctx = (PartSplitContext *)*context;
   switch (model_type) {
     case MODEL_128X128:
       if (!ctx->model_128X128) {
@@ -199,7 +199,7 @@ extern "C" int av2_part_split_prune_tflite_exec(void **context,
   assert(model_type != MODEL_OTHER);
 
   ensure_tflite_init(context, model_type);
-  Context *ctx = (Context *)*context;
+  PartSplitContext *ctx = (PartSplitContext *)*context;
   tflite::Interpreter *interpreter;
   switch (model_type) {
     case MODEL_128X128: interpreter = ctx->model_128X128.get(); break;
@@ -236,7 +236,7 @@ extern "C" int av2_part_split_prune_tflite_exec(void **context,
 }
 
 extern "C" void av2_part_split_prune_tflite_close(void **context) {
-  Context *ctx = (Context *)*context;
+  PartSplitContext *ctx = (PartSplitContext *)*context;
   if (ctx != nullptr) delete ctx;
   *context = nullptr;
 }

@@ -11,7 +11,14 @@
 
 #include "common/tf_lite_includes.h"
 
-struct Context {
+#if HAVE_FEXCEPT
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <fenv.h>
+#endif
+
+struct DipContext {
   std::unique_ptr<tflite::Interpreter> interpreter;
   std::unique_ptr<tflite::FlatBufferModel> model;
   dip_pruning_inputs dip_pruning_in;
@@ -20,8 +27,8 @@ struct Context {
 
 std::mutex dip_prune_mutex;
 
-static void create_interpreter(Context *context, const unsigned char *model_def,
-                               int model_len) {
+static void create_interpreter(DipContext *context,
+                               const unsigned char *model_def, int model_len) {
   std::lock_guard<std::mutex> lock(dip_prune_mutex);
   std::unique_ptr<tflite::FlatBufferModel> model =
       tflite::FlatBufferModel::BuildFromBuffer((const char *)model_def,
@@ -44,9 +51,9 @@ static void create_interpreter(Context *context, const unsigned char *model_def,
 
 static void ensure_tflite_init(void **context, int model_index) {
   if (*context == nullptr) {
-    *context = new Context();
+    *context = new DipContext();
   }
-  Context *ctx = (Context *)*context;
+  DipContext *ctx = (DipContext *)*context;
   if (!ctx->interpreter || model_index != ctx->model_index) {
     ctx->model_index = model_index;
     const uint8_t *model_bytes = NULL;
@@ -113,8 +120,17 @@ static void ensure_tflite_init(void **context, int model_index) {
   }
 }
 
+#if HAVE_FEXCEPT && CONFIG_DEBUG
+#define FLOATING_POINT_DISABLE_EXCEPTIONS \
+  const int float_excepts = fedisableexcept(FE_UNDERFLOW | FE_OVERFLOW);
+#define FLOATING_POINT_RESTORE_EXCEPTIONS feenableexcept(float_excepts);
+#else
+#define FLOATING_POINT_DISABLE_EXCEPTIONS
+#define FLOATING_POINT_RESTORE_EXCEPTIONS
+#endif  // HAVE_FEXCEPT && CONFIG_DEBUG
+
 static std::vector<float> run_inference(void **context) {
-  Context *ctx = (Context *)*context;
+  DipContext *ctx = (DipContext *)*context;
   tflite::Interpreter *interpreter = ctx->interpreter.get();
   for (int i = 0; i < DIP_PRUNING_NUM_INPUTS; i++) {
     int tflite_index = ctx->dip_pruning_in.inputs[i].tflite_index;
@@ -123,10 +139,12 @@ static std::vector<float> run_inference(void **context) {
            ctx->dip_pruning_in.inputs[i].size * sizeof(float));
   }
 
+  FLOATING_POINT_DISABLE_EXCEPTIONS
   if (interpreter->Invoke() != kTfLiteOk) {
     std::cerr << "Failed to run DIP pruning inference." << std::endl;
     exit(1);
   }
+  FLOATING_POINT_RESTORE_EXCEPTIONS
 
   float *output = interpreter->typed_output_tensor<float>(0);
   size_t output_size =
@@ -165,7 +183,7 @@ extern "C" int intra_dip_mode_prune_get_model_index(int qp) {
 extern "C" dip_pruning_inputs *intra_dip_mode_prune_get_inputs(void **context,
                                                                int qp) {
   ensure_tflite_init(context, intra_dip_mode_prune_get_model_index(qp));
-  Context *ctx = (Context *)*context;
+  DipContext *ctx = (DipContext *)*context;
   return &(ctx->dip_pruning_in);
 }
 
@@ -187,7 +205,7 @@ extern "C" void intra_dip_mode_prune_normalize_and_resize_8x8(
 }
 
 extern "C" void intra_dip_mode_prune_close(void **context) {
-  Context *ctx = (Context *)*context;
+  DipContext *ctx = (DipContext *)*context;
   if (ctx != nullptr) delete ctx;
   *context = nullptr;
 }
