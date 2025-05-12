@@ -172,20 +172,12 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
     for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
       txb_costs->base_cost_zero[q_i][ctx] = txb_costs->base_cost[ctx][q_i][0];
     }
-    for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-      txb_costs->base_cost_uv_zero[q_i][ctx] =
-          txb_costs->base_cost_uv[ctx][q_i][0];
-    }
   }
   // Rearrange costs into base_lf_cost_zero[] array for quicker access.
   for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
     for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
       txb_costs->base_lf_cost_zero[q_i][ctx] =
           txb_costs->base_lf_cost[ctx][q_i][0];
-    }
-    for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS_UV; ++ctx) {
-      txb_costs->base_lf_cost_uv_zero[q_i][ctx] =
-          txb_costs->base_lf_cost_uv[ctx][q_i][0];
     }
   }
   // Precompute some base_costs for trellis, interleaved for quick access.
@@ -231,27 +223,6 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
       txb_costs->base_eob_cost_tbl[idx][ctx][1] =
           txb_costs->base_eob_cost[ctx][a2 - 1] + av1_cost_literal(1);
     }
-#if 0
-    for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-      // Q0, uv, absLev 0 / 2
-      txb_costs->base_cost_uv_low_tbl[idx][ctx][0][0] =
-          txb_costs->base_cost_uv[ctx][0][a0] + av1_cost_literal(1);
-      txb_costs->base_cost_uv_low_tbl[idx][ctx][0][1] =
-          txb_costs->base_cost_uv[ctx][0][a2] + av1_cost_literal(1);
-      // Q1, uv,absLev 1 / 3
-      txb_costs->base_cost_uv_low_tbl[idx][ctx][1][0] =
-          txb_costs->base_cost_uv[ctx][1][a1] + av1_cost_literal(1);
-      txb_costs->base_cost_uv_low_tbl[idx][ctx][1][1] =
-          txb_costs->base_cost_uv[ctx][1][a3] + av1_cost_literal(1);
-    }
-    for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx) {
-      // UV EOB coeff, absLev 0 / 2
-      txb_costs->base_eob_cost_uv_tbl[idx][ctx][0] =
-          txb_costs->base_eob_cost_uv[ctx][a0 - 1] + av1_cost_literal(1);
-      txb_costs->base_eob_cost_uv_tbl[idx][ctx][1] =
-          txb_costs->base_eob_cost_uv[ctx][a2 - 1] + av1_cost_literal(1);
-    }
-#endif
   }
   for (int idx = 0; idx < 9; idx++) {
     int max = LF_BASE_SYMBOLS - 1;
@@ -278,27 +249,6 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
       txb_costs->base_lf_eob_cost_tbl[idx][ctx][1] =
           txb_costs->base_lf_eob_cost[ctx][a2 - 1] + av1_cost_literal(1);
     }
-#if 0
-    for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS_UV; ++ctx) {
-      // Q0, absLev 0 / 2
-      txb_costs->base_lf_cost_uv_low_tbl[idx][ctx][0][0] =
-          txb_costs->base_lf_cost_uv[ctx][0][a0] + av1_cost_literal(1);
-      txb_costs->base_lf_cost_uv_low_tbl[idx][ctx][0][1] =
-          txb_costs->base_lf_cost_uv[ctx][0][a2] + av1_cost_literal(1);
-      // Q1, absLev 1 / 3
-      txb_costs->base_lf_cost_uv_low_tbl[idx][ctx][1][0] =
-          txb_costs->base_lf_cost_uv[ctx][1][a1] + av1_cost_literal(1);
-      txb_costs->base_lf_cost_uv_low_tbl[idx][ctx][1][1] =
-          txb_costs->base_lf_cost_uv[ctx][1][a3] + av1_cost_literal(1);
-    }
-    for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx) {
-      // UV EOB coeff, absLev 0 / 2
-      txb_costs->base_lf_eob_cost_uv_tbl[idx][ctx][0] =
-          txb_costs->base_lf_eob_cost_uv[ctx][a0 - 1] + av1_cost_literal(1);
-      txb_costs->base_lf_eob_cost_uv_tbl[idx][ctx][1] =
-          txb_costs->base_lf_eob_cost_uv[ctx][a2 - 1] + av1_cost_literal(1);
-    }
-#endif
   }
   // Precalc mid costs for default region.
   for (int idx = 0; idx < 5 + 2 * COEFF_BASE_RANGE; idx++) {
