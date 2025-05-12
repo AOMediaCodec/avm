@@ -2084,11 +2084,11 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
 
 #if CONFIG_GDF
 #if CONFIG_BRU
-static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 #else
 static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
-#endif // CONFIG_BRU
-                                 aom_writer *w) {
+#endif  // CONFIG_BRU
+                                  aom_writer *w) {
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
 
@@ -3832,6 +3832,9 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       if (cm->seq_params.enable_ccso) {
         write_ccso(cm, xd, w);
       }
+#if CONFIG_GDF
+      write_gdf(cm, xd, w);
+#endif
     }
     return;
   } else
@@ -5685,6 +5688,11 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                                   struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
   if (!is_allow_gdf(cm)) return;
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) {
+    return;
+  }
+#endif
   aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 0 ? 0 : 1);
   if (cm->gdf_info.gdf_mode) {
     if (cm->gdf_info.gdf_block_num > 1) {

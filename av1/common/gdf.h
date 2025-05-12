@@ -13,6 +13,9 @@
 #ifndef AOM_AV1_COMMON_GDF_H
 #define AOM_AV1_COMMON_GDF_H
 #include "av1/common/av1_common_int.h"
+#if CONFIG_BRU
+#include "av1/common/bru.h"
+#endif  // CONFIG_BRU
 #if CONFIG_GDF
 
 enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };

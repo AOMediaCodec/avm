@@ -990,6 +990,9 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
       if (cm->seq_params.enable_ccso) {
         read_ccso(cm, r, xd);
       }
+#if CONFIG_GDF
+      read_gdf(cm, r, xd);
+#endif
     }
   } else
 #endif  // CONFIG_BRU
@@ -4130,6 +4133,11 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   cm->gdf_info.gdf_mode = 0;
   if (!is_allow_gdf(cm)) return;
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) {
+    return;
+  }
+#endif
   init_gdf(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode > 0) {
@@ -8981,6 +8989,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
+#if CONFIG_GDF
+    cm->gdf_info.gdf_mode = 0;
+#endif  // CONFIG_GDF
     // set cm->rst_info and copy it to cur_frame->rst_info
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->rst_info[plane].frame_restoration_type = RESTORE_NONE;

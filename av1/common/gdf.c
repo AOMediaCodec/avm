@@ -165,6 +165,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
   const int rec_width = cm->cur_frame->buf.y_width;
   const int rec_stride = cm->cur_frame->buf.y_stride;
 
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) return;
+#endif
   const unsigned int bit_depth = cm->cur_frame->buf.bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
   const int pxl_shift = GDF_TEST_INP_PREC - bit_depth;
@@ -180,6 +183,10 @@ void gdf_filter_frame(AV1_COMMON *cm) {
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
          x_pos += cm->gdf_info.gdf_block_size) {
+#if CONFIG_BRU
+      const int bru_blk_skip =
+          !bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2, y_pos >> MI_SIZE_LOG2);
+#endif
       for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
            v_pos += cm->gdf_info.gdf_unit_size) {
         for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
@@ -193,6 +200,12 @@ void gdf_filter_frame(AV1_COMMON *cm) {
           if ((cm->gdf_info.gdf_mode == 1 ||
                cm->gdf_info.gdf_block_flags[blk_idx]) &&
               (i_max > i_min) && (j_max > j_min)) {
+#if CONFIG_BRU
+            if (cm->bru.enabled && bru_blk_skip) {
+              aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                 "GDF on not active SB");
+            }
+#endif
             for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                  qp_idx++) {
               gdf_inference_block(i_min, i_max, j_min, j_max,

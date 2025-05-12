@@ -2440,6 +2440,13 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   int qp_idx_base = gdf_get_qp_idx_base(cm);
 
+#if CONFIG_BRU
+  // init to zero
+  int *bru_skip_blk;
+  if (cm->bru.enabled)
+    bru_skip_blk = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
+#endif
+
   int64_t *rec_pic_error;
   int64_t *flg_pic_error[GDF_RDO_SCALE_NUM][GDF_RDO_QP_NUM];
   rec_pic_error =
@@ -2468,7 +2475,15 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
-
+#if CONFIG_BRU
+          // mark skip flag for inactive FU
+          if (!bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2,
+                                y_pos >> MI_SIZE_LOG2)) {
+            bru_skip_blk[blk_idx] = 1;
+            blk_idx++;
+            continue;
+          }
+#endif
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
             gdf_inference_block(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
@@ -2527,7 +2542,13 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   int gdf_block_enable_bit = 1;
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
   static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
+#if CONFIG_BRU
+  // BRU frame does not allow mode 1
+  for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
+       gdf_mode++) {
+#else
   for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++) {
+#endif
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
       for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
         slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
@@ -2545,7 +2566,14 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             int64_t best_block_error = 0;
             int cost_from_cdf[2];
             av1_cost_tokens_from_cdf(cost_from_cdf, gdf_cdf, NULL);
+#if CONFIG_BRU
+            // if bru_skip_blk[blk_idx] is set to 1, no need to check filter on
+            // case.
+            for (int block_flag = 0; block_flag < 2 - bru_skip_blk[blk_idx];
+                 block_flag++) {
+#else
             for (int block_flag = 0; block_flag < 2; block_flag++) {
+#endif
               int block_rate = cost_from_cdf[block_flag];
               int64_t block_error = 0;
               block_error += (block_flag == 0)
@@ -2589,6 +2617,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
     }
   }
   aom_free(block_flags);
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    aom_free(bru_skip_blk);
+  }
+#endif
 }
 
 /*!\brief Function to perform rate-distortion optimization for GDF

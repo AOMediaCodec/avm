@@ -59,12 +59,20 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
 void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #else
 static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
   if (!is_allow_gdf(cm)) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
 #endif  //! CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
+
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) return;
+  if (cm->bru.enabled && cm->gdf_info.gdf_mode == 1) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "BRU frame cannnot use gdf_mode 1");
+  }
+#endif
 
   if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
     for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
