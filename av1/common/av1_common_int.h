@@ -317,8 +317,11 @@ typedef struct RefCntBuffer {
   int showable_frame;      // frame can be used as show existing frame in future
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
+#if !CONFIG_F153_FGM_OBU
   uint8_t film_grain_params_present;
+#endif  // !CONFIG_F153_FGM_OBU
   aom_film_grain_t film_grain_params;
+  // #endif
   aom_codec_frame_buffer_t raw_frame_buffer;
   YV12_BUFFER_CONFIG buf;
   FRAME_TYPE frame_type;
@@ -2116,6 +2119,172 @@ struct qm_obu {
 };
 #endif  // CONFIG_F255_QMOBU
 
+#if CONFIG_F153_FGM_OBU
+/*!
+ * \brief Structure used to convey film grain model.
+ */
+struct film_grain_model {
+  // 8 bit values
+#if CONFIG_CWG_F298_REC11
+  /*!
+   * fgm_scaling_points[c][i][0] the value increment for the i-th point of
+   the piecewise scaling function for the c-th component.
+   * scaling_points[c][i][1] the scaling (output) value for the i-th point of
+   the piecewise linear scaling function for  the c-th  component.
+   */
+  int fgm_scaling_points[3][14][2];
+  /*!
+   * the number of points for the piece-wise linear scaling function of the c-th
+component
+   */
+  int fgm_points[3];
+#else
+  /*!
+   * scaling_points_y[i][0] the x (luma value) coordinate for the i-th point of
+   the piecewise linear scaling function for luma component.
+   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
+   piecewise linear scaling function for luma component.
+   */
+  int scaling_points_y[14][2];
+  /*!
+   * the number of points for the piece-wise linear scaling function of the luma
+component
+   */
+  int num_y_points;  // value: 0..14
+  /*!
+   * scaling_points_y[i][0] the x coordinate for the i-th point of the
+   piece-wise linear scaling function for cb component.
+   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
+   piecewise linear scaling function for cb component.
+   */
+  int scaling_points_cb[10][2];
+  /*!
+   * the number of points for the piece-wise linear scaling function of the cb
+   component
+   */
+  int num_cb_points;  // value: 0..10
+  /*!
+   * scaling_points_y[i][0] the x coordinate for the i-th point of the
+   piece-wise linear scaling function for cr component.
+   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
+   piecewise linear scaling function for cr component.
+   */
+  int scaling_points_cr[10][2];
+  /*!
+   * the number of points for the piece-wise linear scaling function of the cr
+   component
+   */
+  int num_cr_points;  // value: 0..10
+#endif
+  /*!
+   * how much the Gaussian random numbers should be scaled down during the grain
+   * synthesisprocess.
+   */
+  int scaling_shift;  // values : 8..11
+  /*!
+   * the number of auto-regressive coeffi cients for luma and chroma
+   */
+  int ar_coeff_lag;  // values:  0..3
+
+  /*!
+   * auto-regressive coeffi cients used for the Y plane.
+   */
+  int ar_coeffs_y[24];
+  /*!
+   * auto-regressive coeffi cients used for the U plane.
+   */
+  int ar_coeffs_cb[25];
+  /*!
+   * auto-regressive coeffi cients used for the V plane.
+   */
+  int ar_coeffs_cr[25];
+  /*!
+   * the range of the auto-regressive coeffi cients
+   */
+  int ar_coeff_shift;  // values : 6..9
+  /*!
+   * a multiplier for the cb component used in derivation of the input index to
+   * the cb component scalingfunction
+   */
+  int cb_mult;  // 8 bits
+  /*!
+   * a multiplier for the average luma component used in derivation of the input
+   * index to the cb com‐ ponent scaling function.
+   */
+  int cb_luma_mult;  // 8 bits
+  /*!
+   * an offset used in derivation of the input index to the cb component scaling
+   * function
+   */
+  int cb_offset;  // 9 bits
+  /*!
+   * a multiplier for the cr component used in derivation of the input index to
+   * the cr component scalingfunction.
+   */
+  int cr_mult;  // 8 bits
+  /*!
+   * a multiplier for the average luma component used in derivation of the input
+   * index to the cr com‐ ponent scaling function
+   */
+  int cr_luma_mult;  // 8 bits
+  /*!
+   * an offset used in derivation of the input index to the cr component scaling
+   * function
+   */
+  int cr_offset;  // 9 bits
+  /*!
+   * indicates that the overlap between fi lm grain blocks shall be applied
+   */
+  int overlap_flag;
+  /*!
+   * indicates that clipping to the restricted (studio) range shall be applied
+   to the sample values after adding the fi lm grain
+   */
+  int clip_to_restricted_range;
+  /*!
+   * video bit depth
+   */
+  unsigned int bit_depth;
+  /*!
+   * the chroma scaling is inferred from the luma scaling
+   */
+#if CONFIG_CWG_F298_REC11
+  int fgm_scale_from_channel0_flag;
+#else
+  int chroma_scaling_from_luma;
+#endif
+
+  /*!
+   * block size for the film grain synthesis
+   */
+  int block_size;
+
+  /*!
+   * the shift – 8 applied to the values of the chroma component
+   */
+  int grain_scale_shift;
+  /*!
+   * id of the model
+   */
+  int fgm_id;
+  /*!
+   * tlayer id of the OBU that conveys this film grain model : initialized to
+   * be -1 to indicate the film grain model is not used or not set.
+   */
+  int fgm_tlayer_id;
+  /*!
+   * mlayer id of the OBU that conveys this film grain model  : initialized to
+   * be -1 to indicate the film grain model is not used or not set.
+   */
+  int fgm_mlayer_id;
+
+  /*!
+   * chrom foram idc for the model stats.
+   */
+  int fgm_chroma_idc;
+};
+#endif  // CONFIG_F153_FGM_OBU
+
 /*!
  * \brief Top level common structure used by both encoder and decoder.
  */
@@ -2747,7 +2916,6 @@ typedef struct AV1Common {
    */
   aom_metadata_pic_struct_t pic_struct_metadata_params;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-
 #if CONFIG_F024_KEYOBU
   /*!
    * Order hint of the last encountered OLK per layer
@@ -2767,6 +2935,18 @@ typedef struct AV1Common {
   int is_leading_picture;
 
 #endif
+#if CONFIG_F153_FGM_OBU
+  /*!
+   * film grain id
+   */
+
+  int fgm_id;
+  /*!
+   * film grain model for a frame
+   */
+
+  struct film_grain_model *fgm;
+#endif  // CONFIG_F153_FGM_OBU
 } AV1_COMMON;
 
 /*!\cond */

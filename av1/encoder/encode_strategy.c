@@ -1165,6 +1165,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if !CONFIG_F024_KEYOBU
   if (!frame_params.show_existing_frame) {
 #endif
+#if CONFIG_F153_FGM_OBU  // cpi->film_grain_table
+    if (cpi->film_grain_table) {
+      cm->seq_params.film_grain_params_present = aom_film_grain_table_lookup(
+          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
+          &cm->film_grain_params);
+    }
+#else
     if (cpi->film_grain_table) {
       cm->cur_frame->film_grain_params_present = aom_film_grain_table_lookup(
           cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
@@ -1173,6 +1180,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->film_grain_params_present =
           cm->seq_params.film_grain_params_present;
     }
+#endif  // CONFIG_F153_FGM_OBU
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
     if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;

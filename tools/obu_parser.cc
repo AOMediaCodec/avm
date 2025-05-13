@@ -115,6 +115,9 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_F255_QMOBU
     case OBU_QM:
 #endif
+#if CONFIG_F153_FGM_OBU
+    case OBU_FGM:
+#endif  // CONFIG_F153_FGM_OBU
     case OBU_PADDING: return true;
   }
   return false;

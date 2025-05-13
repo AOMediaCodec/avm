@@ -29,6 +29,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 int av1_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
 #endif  // CONFIG_F024_KEYOBU
 
+#if CONFIG_F153_FGM_OBU
+uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
+                      const int obu_mlayer_id, uint32_t *acc_fgcp_id_bitmap,
+                      struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_F153_FGM_OBU
+
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers);

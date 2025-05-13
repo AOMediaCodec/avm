@@ -240,6 +240,13 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->quant_params.qmatrix_allocated = false;
   cm->quant_params.qmatrix_initialized = false;
 #endif  // CONFIG_F255_QMOBU
+#if CONFIG_F153_FGM_OBU
+  for (int i = 0; i < MAX_FGM_NUM; ++i) {
+    pbi->fgm_list[i].fgm_id = -1;
+    pbi->fgm_list[i].fgm_tlayer_id = -1;
+    pbi->fgm_list[i].fgm_mlayer_id = -1;
+  }
+#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;

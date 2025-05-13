@@ -1021,8 +1021,9 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
 
 void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
+#if !CONFIG_F153_FGM_OBU
   CurrentFrame *const current_frame = &cm->current_frame;
-
+#endif // #if !CONFIG_F153_FGM_OBU
 #if CONFIG_F024_KEYOBU
   if (cm->show_existing_frame)
 #else
@@ -1055,11 +1056,11 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.
     cm->cur_frame->film_grain_params = cm->film_grain_params;
-
+#if !CONFIG_F153_FGM_OBU
     // We must update the parameters if this is not an INTER_FRAME
     if (current_frame->frame_type != INTER_FRAME)
       cm->cur_frame->film_grain_params.update_parameters = 1;
-
+#endif  // !CONFIG_F153_FGM_OBU
     // Iterate the random seed for the next frame.
     cm->film_grain_params.random_seed += 3381;
     if (cm->film_grain_params.random_seed == 0)

@@ -342,7 +342,7 @@ typedef struct AV1Decoder {
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;
-
+  
 #if CONFIG_F106_OBU_TILEGROUP
   uint32_t uncomp_hdr_size_in_bits;
 #else
@@ -470,6 +470,13 @@ typedef struct AV1Decoder {
    */
   uint64_t random_access_point_count;
 #endif
+#if CONFIG_F153_FGM_OBU
+  /*!
+   * list of film grain model
+   */
+
+  struct film_grain_model fgm_list[MAX_FGM_NUM];
+#endif  // CONFIG_F153_FGM_OBU
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

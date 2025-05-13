@@ -2954,6 +2954,23 @@ typedef struct AV1_COMP {
    */
   int new_qmobu_added;
 #endif
+#if CONFIG_F153_FGM_OBU
+  /*!
+   * list of film grain models
+   */
+
+  struct film_grain_model fgm_list[MAX_FGM_NUM];
+  /*!
+   * number of film grain models written
+   */
+
+  int written_fgm_num;
+
+  /*!
+   * film grain model counter
+   */
+  int increase_fgm_counter;
+#endif  // CONFIG_F153_FGM_OBU
 } AV1_COMP;
 
 /*!

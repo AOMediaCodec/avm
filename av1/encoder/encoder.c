@@ -747,6 +747,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_F153_FGM_OBU
+  cpi->written_fgm_num = 0;
+#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   seq_params->seq_header_id =
@@ -4388,6 +4391,23 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       int largest_tile_id = 0;  // Output from bitstream: unused here
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
         return AOM_CODEC_ERROR;
+#if CONFIG_F153_FGM_OBU  // encode_show_existing
+      if (cpi->increase_fgm_counter) {
+        assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
+               cm->fgm->fgm_chroma_idc >= 0 && cm->fgm->fgm_chroma_idc < 4);
+        int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
+        int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
+        for (int i = 0; i < valid_fgm_num; i++) {
+          if (cpi->fgm_list[i].fgm_id == cm->fgm_id) {
+            fgm_pos = i;
+            break;
+          }
+        }
+        memcpy(&cpi->fgm_list[fgm_pos], cm->fgm,
+               sizeof(struct film_grain_model));
+        cpi->written_fgm_num += 1;
+      }
+#endif  // CONFIG_F153_FGM_OBU
     }
 
     cpi->seq_params_locked = 1;
@@ -4539,6 +4559,22 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->seq_params_locked = 1;
+#if CONFIG_F153_FGM_OBU  // encode_with_recode_loop_and_filter
+  if (cpi->increase_fgm_counter) {
+    assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
+           cm->fgm->fgm_chroma_idc >= 0 && cm->fgm->fgm_chroma_idc < 4);
+    int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
+    int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
+    for (int i = 0; i < valid_fgm_num; i++) {
+      if (cpi->fgm_list[i].fgm_id == cm->fgm_id) {
+        fgm_pos = i;
+        break;
+      }
+    }
+    memcpy(&cpi->fgm_list[fgm_pos], cm->fgm, sizeof(struct film_grain_model));
+    cpi->written_fgm_num += 1;
+  }
+#endif  // CONFIG_F153_FGM_OBU
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {

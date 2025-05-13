@@ -2606,8 +2606,8 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
           for (int col = col128; col < AOMMIN(col128 + mu128_wide, num_4x4_w);
                col += mu_blocks_wide) {
 #else
-    for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
-      for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
+//    for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
+//      for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int plane_start = get_partition_plane_start(xd->tree_type);
             const int plane_end =
@@ -5074,8 +5074,28 @@ static AOM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
 }
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
 
-static AOM_INLINE void write_film_grain_params(
-    const AV1_COMP *const cpi, struct aom_write_bit_buffer *wb) {
+#if CONFIG_F153_FGM_OBU
+static AOM_INLINE void encode_film_grain(const AV1_COMP *const cpi,
+                                         struct aom_write_bit_buffer *wb) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const aom_film_grain_t *const pars = &cm->cur_frame->film_grain_params;
+#if CONFIG_CWG_F362
+  if (cm->seq_params.single_picture_header_flag) {
+    assert(pars->apply_grain);
+  } else {
+    aom_wb_write_bit(wb, pars->apply_grain);
+  }
+#else
+  aom_wb_write_bit(wb, pars->apply_grain);
+#endif  // CONFIG_CWG_F362
+  if (pars->apply_grain) {
+    aom_wb_write_literal(wb, cm->fgm_id, FGM_ID_BITS);
+    aom_wb_write_literal(wb, pars->random_seed, 16);
+  }
+}
+#else
+static void write_film_grain_params(const AV1_COMP *const cpi,
+                                    struct aom_write_bit_buffer *wb) {
   const AV1_COMMON *const cm = &cpi->common;
   const aom_film_grain_t *const pars = &cm->cur_frame->film_grain_params;
 
@@ -5249,6 +5269,7 @@ static AOM_INLINE void write_film_grain_params(
 
   aom_wb_write_bit(wb, pars->block_size);
 }
+#endif  // CONFIG_F153_FGM_OBU
 
 #if !CONFIG_F255_QMOBU
 static bool qm_matrices_are_equal(const qm_val_t *mat_a, const qm_val_t *mat_b,
@@ -7397,7 +7418,11 @@ static AOM_INLINE void write_uncompressed_header_obu
   {
     if (seq_params->film_grain_params_present &&
         (cm->show_frame || cm->showable_frame))
+#if CONFIG_F153_FGM_OBU
+      encode_film_grain(cpi, wb);
+#else
       write_film_grain_params(cpi, wb);
+#endif  // CONFIG_F153_FGM_OBU
 
     cm->cur_frame->frame_context = *cm->fc;
 
@@ -7428,7 +7453,12 @@ static AOM_INLINE void write_uncompressed_header_obu
       write_tile_info(cm, saved_wb, wb);
     }
 
-    if (seq_params->film_grain_params_present) write_film_grain_params(cpi, wb);
+    if (seq_params->film_grain_params_present)
+#if CONFIG_F153_FGM_OBU  // TIP
+      encode_film_grain(cpi, wb);
+#else
+      write_film_grain_params(cpi, wb);
+#endif  // CONFIG_F153_FGM_OBU
     return;
   }
 
@@ -7565,7 +7595,12 @@ static AOM_INLINE void write_uncompressed_header_obu
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
-  if (seq_params->film_grain_params_present) write_film_grain_params(cpi, wb);
+  if (seq_params->film_grain_params_present)
+#if CONFIG_F153_FGM_OBU
+    encode_film_grain(cpi, wb);
+#else
+    write_film_grain_params(cpi, wb);
+#endif  // CONFIG_F153_FGM_OBU
 }
 
 static int choose_size_bytes(uint32_t size, int spare_msbs) {
@@ -7754,7 +7789,6 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
   memmove(data + move_dst_offset, data + move_src_offset, move_size);
   return length_field_size;
 }
-
 void av1_add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
     aom_wb_write_literal(wb, 0x80, 8);
@@ -8408,7 +8442,32 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         is_last_tile_in_tg = 0;
       }
 
+#if 0  // ENABLE_TRACE_VERBOSE
+      uint8_t * temp = cm->fgm;
+      printf("Checking FGM : testA cm->fgm %d buf->data: %d dst:%d total_size:%d\n", cm->fgm, buf->data, dst, total_size);
+      printf("fgm_id : %d &fgm_id: %d scaling_points_y[0][0]: %d scaling_points_y[0][1]: %d\n",
+             cm->fgm->fgm_id, &cm->fgm->fgm_id, cm->fgm->scaling_points_y[0][0], cm->fgm->scaling_points_y[0][1]);
+      printf("fgm->a : %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\n",
+             cm->fgm->a0, cm->fgm->a1, cm->fgm->a2, cm->fgm->a3,
+             cm->fgm->a4, cm->fgm->a5, cm->fgm->a6, cm->fgm->a7,
+             cm->fgm->a8, cm->fgm->a9, cm->fgm->a10, cm->fgm->a11,
+             cm->fgm->a12, cm->fgm->a13, cm->fgm->a14, cm->fgm->a15);
+      printf("fgm->b : %d\n", cm->fgm->b0);
+      printf("temp %d: %d, %d, %d, %d, %d\n", temp, temp[0], temp[1], temp[2], temp[3], temp[4]);
+#endif
       buf->data = dst + total_size;
+#if 0  // ENABLE_TRACE_VERBOSE
+      printf("Checking FGM : testC cm->fgm %d buf->data: %d\n", cm->fgm, buf->data);
+      printf("fgm_id : %d &fgm_id: %d scaling_points_y[0][0]: %d scaling_points_y[0][1]: %d\n",
+             cm->fgm->fgm_id, &cm->fgm->fgm_id, cm->fgm->scaling_points_y[0][0], cm->fgm->scaling_points_y[0][1]);
+      printf("fgm->a : %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\n",
+             cm->fgm->a0, cm->fgm->a1, cm->fgm->a2, cm->fgm->a3,
+             cm->fgm->a4, cm->fgm->a5, cm->fgm->a6, cm->fgm->a7,
+             cm->fgm->a8, cm->fgm->a9, cm->fgm->a10, cm->fgm->a11,
+             cm->fgm->a12, cm->fgm->a13, cm->fgm->a14, cm->fgm->a15);
+      printf("fgm->b : %d\n", cm->fgm->b0);
+      printf("temp %d: %d, %d, %d, %d, %d\n", temp, temp[0], temp[1], temp[2], temp[3], temp[4]);
+#endif
 
       // The last tile of the tile group does not have a header.
       if (!is_last_tile_in_tg) total_size += 4;
@@ -9404,6 +9463,71 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     }  // need_new_qmobu
   }
 #endif  // CONFIG_F255_QMOBU
+
+  // Film Grain Model
+#if CONFIG_F153_FGM_OBU
+#if CONFIG_F153_FGM_OBU_1OBU
+  if (cm->current_frame.frame_type != KEY_FRAME &&
+      cm->film_grain_params.apply_grain) {
+    cm->fgm_id = 0;
+  } else if (cm->current_frame.frame_type == KEY_FRAME &&
+             cm->film_grain_params.apply_grain)
+#else
+  if ((cm->show_frame || cm->showable_frame) &&
+      cm->film_grain_params.apply_grain)
+#endif  // CONFIG_F153_FGM_OBU_1OBU
+  {
+    struct film_grain_model fgm_current;
+    set_film_grain_model(cpi, &fgm_current);
+    int use_existing_fgm = -1;
+    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+      cpi->written_fgm_num =
+          0;  // clear the list, it is increased before uncompressed_header()
+      fgm_current.fgm_id = 0;
+      cm->fgm_id = fgm_current.fgm_id;  // precaution
+      cpi->increase_fgm_counter = true;
+    } else {
+      int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
+      for (int i = 0; i < valid_fgm_num; i++) {
+        fgm_current.fgm_id =
+            cpi->fgm_list[i].fgm_id;  // temporary for the comparison
+        if (film_grain_model_decision(i, &cpi->fgm_list[i], &fgm_current) !=
+            -1) {
+          use_existing_fgm = i;
+          break;
+        }
+      }
+
+      if (use_existing_fgm != -1) {
+        fgm_current.fgm_id = cpi->fgm_list[use_existing_fgm].fgm_id;
+        cpi->increase_fgm_counter = false;
+        cm->fgm_id = use_existing_fgm;  // precaution
+      }  // use existing
+      else {
+        fgm_current.fgm_id = cpi->written_fgm_num % MAX_FGM_NUM;
+        cpi->increase_fgm_counter = true;
+        cm->fgm_id = fgm_current.fgm_id;
+      }
+    }  // not keyframe
+    if (use_existing_fgm == -1) {
+      // write the current obu off and restart a new one
+      obu_header_size = av1_write_obu_header(level_params, OBU_FGM, 0, 0, data);
+      obu_payload_size =
+          write_fgm_obu(cpi, &fgm_current, data + obu_header_size);
+      const size_t length_field_size =
+          obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      cpi->increase_fgm_counter = true;
+      data += obu_header_size + obu_payload_size + length_field_size;
+    }
+    cm->fgm = &fgm_current;
+
+  }  // if(fgm is applied)
+#endif  // CONFIG_F153_FGM_OBU
+
   // write metadata obus before the frame obu that has the show_frame flag set
   if (cm->show_frame)
 #if CONFIG_METADATA
@@ -9418,7 +9542,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_METADATA
 
   if (cpi->oxcf.tool_cfg.frame_hash_metadata) {
+#if CONFIG_F153_FGM_OBU
+    const aom_film_grain_t *grain_params = &cm->film_grain_params;
+#else
     const aom_film_grain_t *grain_params = &cm->cur_frame->film_grain_params;
+#endif  // CONFIG_F153_FGM_OBU
     const int apply_grain =
         cm->seq_params.film_grain_params_present && grain_params->apply_grain;
     // write frame hash metadata obu for raw frames before the frame obu that

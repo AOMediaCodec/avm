@@ -6320,7 +6320,47 @@ static AOM_INLINE void read_bitdepth(
                        "Unsupported profile/bit-depth combination");
   }
 }
+#if CONFIG_F153_FGM_OBU
+static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
+  if (seq_params->film_grain_params_present &&
+      (cm->show_frame || cm->showable_frame)) {
+    aom_film_grain_t *pars = &cm->film_grain_params;
+#if CONFIG_CWG_F362
+    if (cm->seq_params.single_picture_header_flag) {
+      pars->apply_grain = 1;
+    } else {
+      pars->apply_grain = aom_rb_read_bit(rb);
+    }
+#else
+    pars->apply_grain = aom_rb_read_bit(rb);
+#endif  // CONFIG_CWG_F362
+    if (pars->apply_grain) {
+      cm->fgm_id = aom_rb_read_literal(rb, FGM_ID_BITS);
+      pars->random_seed = aom_rb_read_literal(rb, 16);
+      pars->update_parameters = 1;
+      if (pbi->fgm_list[cm->fgm_id].fgm_id < 0) {
+        aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
+                           "fgm_list[%d] is unavailable", cm->fgm_id);
+      }
+      if (!seq_params->mlayer_dependency_map
+               [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
+          !seq_params->tlayer_dependency_map
+               [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
+        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "mlayer_id[%d] or tlayer_id[%d] of film grain model "
+                           "doesnot comply the layer dependency",
+                           pbi->fgm_list[cm->fgm_id].fgm_mlayer_id,
+                           pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
+      }
 
+      copy_fgm_from_list(cm, pars, &pbi->fgm_list[cm->fgm_id]);
+    }
+  }
+}
+#else
 void av1_read_film_grain_params(AV1_COMMON *cm,
                                 struct aom_read_bit_buffer *rb) {
   aom_film_grain_t *pars = &cm->film_grain_params;
@@ -6588,6 +6628,7 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
   memcpy(&cm->cur_frame->film_grain_params, &cm->film_grain_params,
          sizeof(aom_film_grain_t));
 }
+#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
@@ -8645,6 +8686,13 @@ static void activate_sequence_header(AV1Decoder *pbi,
     //    }
   }
 #endif  // CONFIG_F024_KEYOBU
+#if CONFIG_F153_FGM_OBU
+//  for (int i = 0; i < MAX_FGM_NUM; ++i) {
+//    pbi->fgm_list[i].fgm_id = -1;
+//    pbi->fgm_list[i].fgm_tlayer_id = -1;
+//    pbi->fgm_list[i].fgm_mlayer_id = -1;
+//  }
+#endif  // CONFIG_F153_FGM_OBU
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
@@ -8892,7 +8940,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
       if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 
+#if !CONFIG_F153_FGM_OBU
       cm->film_grain_params = frame_to_show->film_grain_params;
+#endif  // !CONFIG_F153_FGM_OBU
 
       if (pbi->reset_decoder_state) {
         show_existing_frame_reset(pbi, existing_frame_idx);
@@ -9527,8 +9577,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
+#if !CONFIG_F153_FGM_OBU
       cm->cur_frame->film_grain_params_present =
           seq_params->film_grain_params_present;
+#endif  // !CONFIG_F153_FGM_OBU
       setup_frame_size(cm, frame_size_override_flag, rb);
       read_screen_content_params(cm, rb);
       features->allow_intrabc = aom_rb_read_bit(rb);
@@ -10194,10 +10246,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 
+#if CONFIG_F153_FGM_OBU  // bru
+    setup_film_grain(pbi, rb);
+#else
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
-
+#endif  // CONFIG_F153_FGM_OBU
     return 0;
   }
 
@@ -10244,9 +10299,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       read_tile_info(pbi, rb);
     }
     features->disable_cdf_update = 1;
+
+#if CONFIG_F153_FGM_OBU  // tip
+    setup_film_grain(pbi, rb);
+#else
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
+#endif  // CONFIG_F153_FGM_OBU
     // TIP frame will be output for displaying
     // No futher processing needed
     return 0;
@@ -10471,11 +10531,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
-
+#if CONFIG_F153_FGM_OBU
+  setup_film_grain(pbi, rb);
+  cm->cur_frame->film_grain_params = cm->film_grain_params;
+#else
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;
   read_film_grain(cm, rb);
-
+#endif  // CONFIG_F153_FGM_OBU
   features->enable_ext_seg = seq_params->enable_ext_seg;
   return 0;
 }

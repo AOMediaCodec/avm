@@ -223,6 +223,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
 #if CONFIG_F255_QMOBU
     case OBU_QM: return "OBU_QM";
 #endif  // CONFIG_F255_QMOBU
+#if CONFIG_F153_FGM_OBU
+    case OBU_FGM: return "OBU_FGM";
+#endif  // CONFIG_F153_FGM_OBU
     default: break;
   }
   return "<Invalid OBU Type>";
