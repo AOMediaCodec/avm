@@ -18,6 +18,7 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/ccso.h"
 
+/* clean up tx_skip array for support and inactive SBs */
 void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                                TREE_TYPE tree_type,
                                const CHROMA_REF_INFO *chroma_ref_info,
@@ -55,6 +56,8 @@ void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
   }
 }
 
+/* Set correct mbmi address for inactive and support SB since there is no chance
+ * to set them in later stage  */
 BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,
                                    const int mi_col, const int mi_row,
                                    const BLOCK_SIZE bsize,
@@ -93,6 +96,8 @@ BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,
   return BRU_ACTIVE_SB;
 }
 
+/* Copy recon data from BRU ref to current frame buffer. This is only used for
+ * BRU_SUPPORT_SB of BRU optimized decoder/encoder */
 void bru_copy_sb(const struct AV1Common *cm, const int mi_col,
                  const int mi_row) {
   if (cm->bru.update_ref_idx < 0)
@@ -132,6 +137,8 @@ void bru_copy_sb(const struct AV1Common *cm, const int mi_col,
   return;
 }
 
+/* Update recon data from current frame buffer to BRU ref. This is only used for
+ * BRU_ACTIVE_SB of BRU optimized decoder/encoder */
 void bru_update_sb(const struct AV1Common *cm, const int mi_col,
                    const int mi_row) {
   if (cm->bru.update_ref_idx < 0)
@@ -175,6 +182,7 @@ void bru_update_sb(const struct AV1Common *cm, const int mi_col,
   }
 }
 
+/* Set default inter mode for Support and Inactive SBs */
 void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                                         MACROBLOCKD *const xd,
                                         MB_MODE_INFO *const mbmi,
@@ -277,6 +285,9 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                               MAX_MIB_SIZE);
   }
 }
+
+/* Core function of swap BRU reference frame and current frame for BRU optimized
+ * decoder/encoder*/
 RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
   // should not use this function at all in none bru frames
   if (cm->bru.enabled) {

@@ -4201,7 +4201,7 @@ AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
     if (y > 0 && y < h) ref_row += src_stride;
   } while (--b_h);
 }
-
+/* Extend MC border for support SB in BRU optimized decoder */
 void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
                           BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src) {
   const int org_bw = mi_size_wide[bsize];

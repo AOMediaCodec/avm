@@ -21,6 +21,7 @@
 #define MAX_ACTIVE_REGION 8
 #endif
 
+/* Dynamic allocate active map and active region structure */
 static INLINE void realloc_bru_info(AV1_COMMON *cm) {
   BruInfo *bru_info = &cm->bru;
   uint32_t unit_rows =
@@ -57,7 +58,7 @@ static INLINE void realloc_bru_info(AV1_COMMON *cm) {
   }
   return;
 }
-
+/* Free active map and active region structure */
 static INLINE void free_bru_info(AV1_COMMON const *cm) {
   aom_free(cm->bru.active_mode_map);
   aom_free(cm->bru.active_region);
@@ -65,7 +66,7 @@ static INLINE void free_bru_info(AV1_COMMON const *cm) {
   aom_free(cm->bru.ref_scores);
   return;
 }
-
+/* Check if current mi is the start mi of the super block*/
 static INLINE int is_sb_start_mi(const AV1_COMMON *cm, const int mi_col,
                                  const int mi_row) {
   const int sb_mask = (cm->seq_params.mib_size - 1);
@@ -74,7 +75,7 @@ static INLINE int is_sb_start_mi(const AV1_COMMON *cm, const int mi_col,
   return 0;
 }
 
-// determine region SB activity using mbmi, if any SB is ACTIVE, return false
+/* determine region SB activity using mbmi, if any SB is ACTIVE, return false */
 static INLINE int bru_is_fu_skipped_mbmi(const AV1_COMMON *cm, const int mi_col,
                                          const int mi_row, const int mi_width,
                                          const int mi_height) {
@@ -101,6 +102,7 @@ static INLINE int bru_is_fu_skipped_mbmi(const AV1_COMMON *cm, const int mi_col,
   return 1;
 }
 
+/* Return SB activity based on SB_INFO */
 static INLINE int bru_is_sb_active(const AV1_COMMON *cm, const int mi_col,
                                    const int mi_row) {
   if (!cm->bru.enabled) return 1;
@@ -110,6 +112,7 @@ static INLINE int bru_is_sb_active(const AV1_COMMON *cm, const int mi_col,
   return (sbi->sb_active_mode == BRU_ACTIVE_SB);
 }
 
+/* Check is SB pixels available. active and support SBs are available. */
 static INLINE int bru_is_sb_available(const AV1_COMMON *cm, const int mi_col,
                                       const int mi_row) {
   if (!cm->bru.enabled) return 1;
@@ -119,6 +122,7 @@ static INLINE int bru_is_sb_available(const AV1_COMMON *cm, const int mi_col,
   return (sbi->sb_active_mode != BRU_INACTIVE_SB);
 }
 
+/* Return SB activity based on active map */
 static INLINE BruActiveMode enc_get_cur_sb_active_mode(const AV1_COMMON *cm,
                                                        const int mi_col,
                                                        const int mi_row) {
@@ -130,7 +134,8 @@ static INLINE BruActiveMode enc_get_cur_sb_active_mode(const AV1_COMMON *cm,
       (mi_row >> mib_size_log2) * sb_stride + (mi_col >> mib_size_log2);
   return (BruActiveMode)active_mode_map[sb_idx];
 }
-// TODO: this may not be necessary
+
+/* Update active map given SB activity */
 static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
                                            const int mi_col, const int mi_row,
                                            int sb_active_mode) {
@@ -144,6 +149,8 @@ static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
   return (BruActiveMode)sb_active_mode;
 }
 
+/* Validate active map, for each active SB, it cannot has any inactive neighbor
+ */
 static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
   // this can only be called after all the SBs are decoded
   if (!cm->bru.enabled) return 1;
@@ -176,7 +183,7 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
   return 1;
 }
 
-// todo: find a better way to address this
+/* Check if this SB is not active and not on the partial border */
 static AOM_INLINE bool is_bru_not_active_and_not_on_partial_border(
     const AV1_COMMON *cm, int mi_col, int mi_row, BLOCK_SIZE bsize) {
   (void)bsize;
@@ -189,6 +196,7 @@ static AOM_INLINE bool is_bru_not_active_and_not_on_partial_border(
   return (mode != BRU_ACTIVE_SB) && (!on_partion_border);
 }
 
+/* Check if all the pixels in the Rect are available */
 static INLINE bool is_ru_bru_skip(const AV1_COMMON *cm, AV1PixelRect *ru_rect) {
   if (!cm->bru.enabled) return 0;
   // convert to mi unit
@@ -218,7 +226,7 @@ static INLINE bool is_ru_bru_skip(const AV1_COMMON *cm, AV1PixelRect *ru_rect) {
   }
   return bru_skip;
 }
-
+/* Return the number of active region */
 static AOM_INLINE int bru_get_num_of_active_region(const AV1_COMMON *const cm) {
   if (cm->bru.enabled) {
     return cm->bru.num_active_regions;

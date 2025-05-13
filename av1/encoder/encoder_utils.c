@@ -299,6 +299,7 @@ const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
                                          };
 
 #if CONFIG_BRU
+/* Convert cpi->active_map to BRU active map (SB-by-SB) */
 void set_ard_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
   const unsigned char *const active_map = cpi->active_map.map;
@@ -398,6 +399,8 @@ ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int x, int y,
   *count = active_count;
   return q_sd;
 }
+
+// Check if two rect region overlap
 static bool is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
   int left = AOMMAX(rect1->left, rect2->left);
   int right = AOMMIN(rect1->right, rect2->right);
@@ -408,6 +411,7 @@ static bool is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
   else
     return false;
 }
+
 // Function to find clusters and their bounding boxes
 AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
                                      uint32_t *act_sb_in_region,
@@ -1450,6 +1454,7 @@ void av1_save_all_coding_context(AV1_COMP *cpi) {
 }
 
 #if CONFIG_BRU
+/* Active region detection and clustering */
 void active_region_detection(AV1_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
                              const YV12_BUFFER_CONFIG *last_picture) {
