@@ -108,7 +108,7 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
   }
 #else
   filt_err = aom_get_sse_plane(sd, &cm->cur_frame->buf, plane);
-#endif
+#endif  // CONFIG_BRU
 
   // Re-instate the unfiltered frame
   yv12_copy_plane(&cpi->last_frame_uf, &cm->cur_frame->buf, plane);
@@ -361,7 +361,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
             : aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
 #else
         aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
-#endif
+#endif  // CONFIG_BRU
     no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         cpi->td.mb.rdmult * chroma_lambda_mult, 0, no_deblocking_sse,
         cm->seq_params.bit_depth);

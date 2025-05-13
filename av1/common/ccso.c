@@ -265,7 +265,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif
+#endif  // CONFIG_BRU
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -397,7 +397,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif
+#endif  // CONFIG_BRU
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -541,7 +541,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif
+#endif  // CONFIG_BRU
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
@@ -686,7 +686,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif
+#endif  // CONFIG_BRU
           if (cm->ccso_info.ccso_bo_only[plane]) {
             ccso_filter_block_hbd_wo_buf_c(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,

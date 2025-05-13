@@ -1030,7 +1030,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     // can be improved by check is_sb_root
     av1_set_sb_info(cm, xd, mb_row * mb_scale, mb_col * mb_scale,
                     BRU_ACTIVE_SB);
-#endif
+#endif  // CONFIG_BRU
     int this_intra_error = firstpass_intra_prediction(
         cpi, td, this_frame, tile, mb_row, mb_col, recon_yoffset,
         recon_uvoffset, fp_block_size, qindex, mb_stats);

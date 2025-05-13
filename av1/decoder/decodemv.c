@@ -79,7 +79,7 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #else
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
   assert(xd->tree_type != CHROMA_PART);
   const int skip_txfm = xd->mi[0]->skip_txfm[0];
   if (cm->features.coded_lossless) return;
@@ -202,7 +202,7 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
 void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #else
 static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif
+#endif  // CONFIG_BRU
   if (cm->features.coded_lossless) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;

@@ -826,7 +826,7 @@ static TX_SIZE set_lpf_parameters(
     AV1_COMMON *const cm,
 #else
     const AV1_COMMON *const cm,
-#endif
+#endif  // CONFIG_BRU
     const MACROBLOCKD *const xd, const EDGE_DIR edge_dir, const uint32_t x,
     const uint32_t y, const int plane,
     const struct macroblockd_plane *const plane_ptr) {
@@ -1280,7 +1280,7 @@ static TX_SIZE set_lpf_parameters(
 void av1_filter_block_plane_vert(AV1_COMMON *const cm,
 #else
 void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
-#endif
+#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
@@ -1372,7 +1372,7 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
 void av1_filter_block_plane_horz(AV1_COMMON *const cm,
 #else
 void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
-#endif
+#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {

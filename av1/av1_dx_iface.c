@@ -55,7 +55,7 @@ struct aom_codec_alg_priv {
   int skip_film_grain;
 #if CONFIG_BRU
   int bru_opt_mode;
-#endif
+#endif  // CONFIG_BRU
   int decode_tile_row;
   int decode_tile_col;
   unsigned int tile_mode;
@@ -540,7 +540,7 @@ static void init_buffer_callbacks(aom_codec_alg_priv_t *ctx) {
   pbi->skip_film_grain = ctx->skip_film_grain;
 #if CONFIG_BRU
   pbi->bru_opt_mode = ctx->bru_opt_mode;
-#endif
+#endif  // CONFIG_BRU
 
   if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
     pool->get_fb_cb = ctx->get_ext_fb_cb;
@@ -1821,7 +1821,7 @@ static aom_codec_err_t ctrl_set_bru_opt_mode(aom_codec_alg_priv_t *ctx,
 
   return AOM_CODEC_OK;
 }
-#endif
+#endif  // CONFIG_BRU
 
 static aom_codec_err_t ctrl_get_accounting(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
@@ -1926,7 +1926,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
 #if CONFIG_BRU
   { AV1D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
-#endif
+#endif  // CONFIG_BRU
   { AV1D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
   // Getters

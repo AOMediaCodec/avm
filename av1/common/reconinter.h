@@ -953,7 +953,7 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
 void highbd_build_mc_border(const uint16_t *src, int src_stride, uint16_t *dst,
                             int dst_stride, int x, int y, int b_w, int b_h,
                             int w, int h);
-#endif
+#endif  // CONFIG_BRU
 
 #if CONFIG_REFINEMV
 // Compute the SAD between the two predictors when refinemv is ON

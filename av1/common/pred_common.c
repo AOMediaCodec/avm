@@ -201,7 +201,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   cm->bru.ref_n_ranked = n_ranked;
   if (n_ranked > 0)
     memcpy(cm->bru.ref_scores, scores, REF_FRAMES * sizeof(*scores));
-#endif
+#endif  // CONFIG_BRU
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {

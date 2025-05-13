@@ -1016,7 +1016,7 @@ void av1_setup_frame(AV1_COMP *cpi);
 BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi);
 #if CONFIG_BRU
 void set_ard_active_map(AV1_COMP *cpi);
-#endif
+#endif  // CONFIG_BRU
 
 void av1_apply_active_map(AV1_COMP *cpi);
 

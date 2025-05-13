@@ -930,7 +930,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
       if ((map_idx != INVALID_IDX) &&
 #if CONFIG_BRU
           !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
           (ref_frame_used != cm->features.primary_ref_frame) &&
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
           !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&

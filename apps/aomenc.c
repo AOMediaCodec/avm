@@ -1936,7 +1936,7 @@ static void initialize_encoder(struct stream_state *stream,
                                       bru_opt_mode > 1);
         ctx_exit_on_error(&stream->decoder, "Failed to set bru opt_mode");
       }
-#endif
+#endif  // CONFIG_BRU
     }
   }
 #endif

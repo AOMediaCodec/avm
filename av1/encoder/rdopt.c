@@ -4420,7 +4420,7 @@ int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
 #else
 static INLINE int get_drl_cost(
     int max_drl_bits, const MB_MODE_INFO *mbmi,
-#endif
+#endif  // CONFIG_BRU
                  const MB_MODE_INFO_EXT *mbmi_ext, const MACROBLOCK *x) {
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
@@ -8523,7 +8523,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
-#endif
+#endif  // CONFIG_BRU
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mv[0].as_int = 0;
     mbmi->skip_mode = 0;
@@ -10283,7 +10283,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
-#endif
+#endif  // CONFIG_BRU
 
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);
@@ -11245,7 +11245,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
-#endif
+#endif  // CONFIG_BRU
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);
   INTERINTRA_MODE interintra_modes[REGULAR_REF_FRAMES] = {

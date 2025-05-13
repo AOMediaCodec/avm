@@ -48,7 +48,7 @@ int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
                                     const int active_map_stride,
                                     const int unit_cols, const int unit_rows,
                                     const int unit_w, const int unit_h);
-#endif
+#endif  // CONFIG_BRU
 uint64_t aom_highbd_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart,
                               int width, int vstart, int height);
 uint64_t aom_highbd_get_u_var(const YV12_BUFFER_CONFIG *a, int hstart,

@@ -167,7 +167,7 @@ void init_tip_lf_parameter(struct AV1Common *cm, int plane_start,
 void av1_filter_block_plane_vert(struct AV1Common *const cm,
 #else
 void av1_filter_block_plane_vert(const struct AV1Common *const cm,
-#endif
+#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);
@@ -176,7 +176,7 @@ void av1_filter_block_plane_vert(const struct AV1Common *const cm,
 void av1_filter_block_plane_horz(struct AV1Common *const cm,
 #else
 void av1_filter_block_plane_horz(const struct AV1Common *const cm,
-#endif
+#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);

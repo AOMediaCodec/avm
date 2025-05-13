@@ -124,7 +124,7 @@ static const arg_def_t skipfilmgrain =
 #if CONFIG_BRU
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
-#endif
+#endif  // CONFIG_BRU
 static const arg_def_t *all_args[] = { &help,
                                        &codecarg,
                                        &use_yv12,
@@ -156,7 +156,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &skipfilmgrain,
 #if CONFIG_BRU
                                        &bruoptmodearg,
-#endif
+#endif  // CONFIG_BRU
                                        NULL };
 
 #if CONFIG_LIBYUV
@@ -586,7 +586,7 @@ static int main_loop(int argc, const char **argv_) {
   int skip_film_grain = 0;
 #if CONFIG_BRU
   int bru_opt_mode = 0;
-#endif
+#endif  // CONFIG_BRU
   aom_image_t *scaled_img = NULL;
   aom_image_t *img_shifted = NULL;
   int frame_avail, got_data, flush_decoder = 0;
@@ -725,7 +725,7 @@ static int main_loop(int argc, const char **argv_) {
 #if CONFIG_BRU
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
-#endif
+#endif  // CONFIG_BRU
     } else {
       argj++;
     }
@@ -874,7 +874,7 @@ static int main_loop(int argc, const char **argv_) {
             aom_codec_error(&decoder));
     goto fail;
   }
-#endif
+#endif  // CONFIG_BRU
 
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
   while (arg_skip) {

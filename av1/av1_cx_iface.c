@@ -1129,7 +1129,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   if (cfg->enable_bru)
     cfg->explicit_ref_frame_map = 1;
   else
-#endif
+#endif  // CONFIG_BRU
     cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
@@ -1285,7 +1285,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   if (extra_cfg->enable_bru)
     extra_cfg->explicit_ref_frame_map = 1;
   else
-#endif
+#endif  // CONFIG_BRU
     extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
@@ -1557,7 +1557,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (cfg->rc_resize_mode != RESIZE_NONE) {
     tool_cfg->enable_bru = 0;
   }
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_BAWP
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
@@ -3237,7 +3237,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
               "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
 #else
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
-#endif
+#endif  // CONFIG_BRU
               " Bytes, "
               "%6.1fms",
               cm->cur_frame->absolute_poc,

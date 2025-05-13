@@ -76,7 +76,7 @@ struct lookahead_ctx *av1_lookahead_init(
     ctx->updated_idx = 0;
 #else
     ctx->read_ctxs[ENCODE_STAGE].pop_sz = ctx->max_sz - MAX_PRE_FRAMES;
-#endif
+#endif  // CONFIG_BRU
     ctx->read_ctxs[ENCODE_STAGE].valid = 1;
     if (num_lap_buffers) {
       ctx->read_ctxs[LAP_STAGE].pop_sz = lag_in_frames;

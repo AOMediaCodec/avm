@@ -351,7 +351,7 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
       if (mbmi[MI_SIZE_64X64 * c]->sb_active_mode != BRU_ACTIVE_SB) {
         mbmi[MI_SIZE_64X64 * c]->cdef_strength = -1;
       } else
-#endif
+#endif  // CONFIG_BRU
         mbmi[MI_SIZE_64X64 * c]->cdef_strength = 0;
     }
     mbmi += MI_SIZE_64X64 * mi_params->mi_stride;
@@ -526,7 +526,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       const MB_MODE_INFO *const mbmi =
           mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc];
-#endif
+#endif  // CONFIG_BRU
       BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
 #if CONFIG_EXT_RECUR_PARTITIONS
       if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {

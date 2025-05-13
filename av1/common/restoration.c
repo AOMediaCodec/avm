@@ -535,7 +535,7 @@ void av1_extend_frame(uint16_t *data, int width, int height, int stride,
 void copy_tile(int width, int height, const uint16_t *src,
 #else
 static void copy_tile(int width, int height, const uint16_t *src,
-#endif
+#endif  // CONFIG_BRU
                int src_stride, uint16_t *dst, int dst_stride) {
   copy_tile_highbd(width, height, src, src_stride, dst, dst_stride);
 }
@@ -1775,7 +1775,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
-#endif
+#endif  // CONFIG_BRU
     // The function update_accumulator() is used to compute the accumulated
     // result of tx_skip and feature direction filtering output at
     // PC_WIENER_BLOCk_SIZE samples. The SIMD for the same is implemented with
@@ -2047,7 +2047,7 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
-#endif
+#endif  // CONFIG_BRU
     apply_wienerns_class_id_highbd(
         src + j, w, stripe_height, src_stride, nsfilter_info, nsfilter_config,
         dst + j, dst_stride, rui->plane, rui->luma ? rui->luma + j : NULL,
@@ -2505,7 +2505,7 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
-#endif
+#endif  // CONFIG_BRU
     av1_highbd_wiener_convolve_add_src(src_p, src_stride, dst_p, dst_stride,
                                        rui->wiener_info.hfilter, 16,
                                        rui->wiener_info.vfilter, 16, w,
@@ -2533,7 +2533,7 @@ static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
-#endif
+#endif  // CONFIG_BRU
     av1_apply_selfguided_restoration(
         src + j, w, stripe_height, src_stride, rui->sgrproj_info.ep,
         rui->sgrproj_info.xqd, dst + j, dst_stride, tmpbuf, bit_depth);
@@ -2583,7 +2583,7 @@ void av1_loop_restoration_filter_unit(
   RestorationUnitInfo *tmp_rui = &rui_contents;
 #if CONFIG_BRU
   MB_MODE_INFO **const mbmi_base_ptr = rui->mbmi_ptr;
-#endif
+#endif  // CONFIG_BRU
   const uint16_t *luma_in_ru = NULL;
   const int enable_cross_buffers =
       unit_rtype == RESTORE_WIENER_NONSEP && rui->plane != AOM_PLANE_Y;

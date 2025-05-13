@@ -380,7 +380,7 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
   sb_enc->min_partition_size = AOMMIN(sb_enc->min_partition_size, cm->sb_size);
 #if CONFIG_BRU
   if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
-#endif
+#endif  // CONFIG_BRU
 
   if (use_auto_max_partition(cpi, sb_size, mi_row, mi_col)) {
     float features[FEATURE_SIZE_MAX_MIN_PART_PRED] = { 0.0f };

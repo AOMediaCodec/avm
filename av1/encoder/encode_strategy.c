@@ -27,7 +27,7 @@
 #include "av1/common/av1_common_int.h"
 #if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif
+#endif  // CONFIG_BRU
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
@@ -818,7 +818,7 @@ int av1_get_refresh_frame_flags(
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
                                              cpi->common.seq_params.ref_frames);
-#endif
+#endif // CONFIG_BRU
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
         cpi, gf_index, cur_disp_order, ref_frame_map_pairs, refresh_mask,
@@ -1348,7 +1348,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_SAME_REF_COMPOUND
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,

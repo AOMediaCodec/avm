@@ -823,7 +823,7 @@ void bru_copy_sb_mvs(const AV1_COMMON *const cm, int src_ref_idx,
                      int x_inside_boundary, int y_inside_boundary);
 void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
                      int mi_col, int x_inside_boundary, int y_inside_boundary);
-#endif
+#endif  // CONFIG_BRU
 void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
                         int x_inside_boundary, int y_inside_boundary);

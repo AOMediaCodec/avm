@@ -28,7 +28,7 @@
 #include "av1/common/blockd.h"
 #if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif
+#endif  // CONFIG_BRU
 #include "av1/common/entropymode.h"
 #include "av1/common/enums.h"
 #include "av1/common/pred_common.h"
@@ -2790,7 +2790,7 @@ static INLINE bool is_valid_ard_location(int x, int y, int width, int height) {
   return (x >= 0 && x < width && y >= 0 && y < height);
 }
 
-#endif
+#endif  // CONFIG_BRU
 
 /*!
  * \brief Top level encoder structure.
@@ -3024,7 +3024,7 @@ typedef struct AV1_COMP {
    * store queue memory allocated size
    */
   uint32_t enc_act_queue_size;
-#endif
+#endif  // CONFIG_BRU
 
   /*!
    * Parameters related to cyclic refresh aq-mode.
@@ -4063,7 +4063,7 @@ static INLINE char const *get_frame_type_enum(int type) {
 #if CONFIG_BRU
 void enc_bru_swap_stage(AV1_COMP *cpi);
 void enc_bru_swap_ref(AV1_COMMON *const cm);
-#endif
+#endif  // CONFIG_BRU
 
 /*!\endcond */
 

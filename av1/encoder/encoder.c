@@ -395,7 +395,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   if (seq->enable_bru)
     seq->explicit_ref_frame_map = 1;
   else
-#endif
+#endif  // CONFIG_BRU
     seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
@@ -2416,7 +2416,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, 0, 0);
 #if CONFIG_BRU
   realloc_bru_info(cm);
-#endif
+#endif  // CONFIG_BRU
 }
 
 #if CONFIG_GDF
@@ -2624,7 +2624,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   const int use_ccso = !cm->features.coded_lossless && !cm->tiles.large_scale &&
 #if CONFIG_BRU
                        !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
                        cm->seq_params.enable_ccso;
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -2731,7 +2731,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       cm->ccso_info.sb_reuse_ccso[plane] = false;
       cm->ccso_info.reuse_ccso[plane] = false;
     }
-#endif
+#endif  // CONFIG_BRU && CONFIG_CCSO_IMPROVE
   }
   if (use_ccso) {
     av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -2845,18 +2845,18 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_loopfilter = !cm->features.coded_lossless &&
 #if CONFIG_BRU
                              !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
                              !cm->tiles.large_scale &&
                              cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef = cm->seq_params.enable_cdef &&
 #if CONFIG_BRU
                        !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = cm->seq_params.enable_restoration &&
 #if CONFIG_BRU
                               !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
                               !cm->features.all_lossless &&
                               !cm->tiles.large_scale;
 
@@ -3436,7 +3436,7 @@ static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
       cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode
 #if CONFIG_BRU
       && !cm->bru.enabled
-#endif
+#endif // CONFIG_BRU
 #if CONFIG_ENABLE_SR
       && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
@@ -3938,7 +3938,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
     enc_bru_swap_stage(cpi);
   }
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_TEMP_LR
   const int num_planes = av1_num_planes(cm);
   for (int p = 0; p < num_planes; ++p) {
@@ -3979,13 +3979,13 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (!cm->bru.frame_inactive_flag)
-#endif
+#endif  // CONFIG_BRU
     loopfilter_frame(cpi, cm);
 #else
   if (!is_global_intrabc_allowed(cm)
 #if CONFIG_BRU
       && !cm->bru.frame_inactive_flag
-#endif
+#endif  // CONFIG_BRU
   ) {
     loopfilter_frame(cpi, cm);
   } else {
@@ -4055,7 +4055,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       if (temp_ref_buf->frame_type != INTER_FRAME) continue;
 #if CONFIG_BRU
       if (cm->bru.enabled && i == cm->bru.update_ref_idx) continue;
-#endif
+#endif  // CONFIG_BRU
 
       *cm->fc = temp_ref_buf->frame_context;
 
@@ -4101,7 +4101,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         cm->features.primary_ref_frame == cm->bru.update_ref_idx)
       *cm->fc = cm->bru.update_ref_fc;
     else
-#endif
+#endif  // CONFIG_BRU
       *cm->fc = ref_buf->frame_context;
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -4114,14 +4114,14 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
 #if CONFIG_BRU
     if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
-#endif
+#endif  // CONFIG_BRU
       avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
 #if CONFIG_BRU
     } else {
       av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
-#endif
+#endif  // CONFIG_BRU
 #else
     const int ref_frame_used = (cm->features.primary_ref_frame ==
                                 cm->features.derived_primary_ref_frame)
@@ -4135,7 +4135,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         (ref_frame_used != PRIMARY_REF_NONE)) {
 #if CONFIG_BRU
       if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
-#endif
+#endif  // CONFIG_BRU
         av1_avg_cdf_symbols(
             cm->fc, &cm->ref_frame_map[secondary_map_idx]->frame_context,
             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
@@ -4144,7 +4144,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
       }
-#endif
+#endif  // CONFIG_BRU
     }
 #endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
@@ -4776,7 +4776,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                               cm->current_frame.refresh_frame_flags,
                               cm->ref_frame_map, ENCODE_STAGE);
   }
-#endif
+#endif  // CONFIG_BRU
 
   refresh_reference_frames(cpi);
 
@@ -4802,7 +4802,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_BRU
     if (!cm->bru.frame_inactive_flag)
-#endif
+#endif  // CONFIG_BRU
       av1_reset_cdf_symbol_counters(cm->fc);
   }
   if (!cm->tiles.large_scale) {
@@ -5533,4 +5533,4 @@ void enc_bru_swap_stage(AV1_COMP *cpi) {
     }
   }
 }
-#endif
+#endif  // CONFIG_BRU

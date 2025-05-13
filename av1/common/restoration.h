@@ -874,7 +874,7 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 #if CONFIG_BRU
 void copy_tile(int width, int height, const uint16_t *src, int src_stride,
                uint16_t *dst, int dst_stride);
-#endif
+#endif  // CONFIG_BRU
 
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);

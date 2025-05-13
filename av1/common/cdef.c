@@ -249,7 +249,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
               "Invalid BRU activity in CDEF: only active SB can be filtered");
         }
       }
-#endif
+#endif  // CONFIG_BRU
       curr_row_cdef[fbc] = 1;
       for (int pli = 0; pli < num_planes; pli++) {
         int coffset;

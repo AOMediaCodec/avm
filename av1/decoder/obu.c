@@ -327,7 +327,7 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
     *end_tile = num_tiles - 1;
     return 0;
   }
-#endif
+#endif  // CONFIG_BRU
 
   if (!tiles->large_scale && num_tiles > 1) {
     tile_start_and_end_present_flag = aom_rb_read_bit(rb);
@@ -1034,7 +1034,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                          end_tile, 0);
           break;
         }
-#endif
+#endif  // CONFIG_BRU
         // In large scale tile coding, decode the common camera frame header
         // before any tile list OBU.
         if (!pbi->ext_tile_debug && pbi->camera_frame_header_ready) {

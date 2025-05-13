@@ -1315,7 +1315,7 @@ void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
     dst_frame_mvs += frame_mvs_stride;
   }
 }
-#endif
+#endif  // CONFIG_BRU
 
 // Copy the MVs into the TMVP list
 void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,

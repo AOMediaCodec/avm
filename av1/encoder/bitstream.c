@@ -2105,7 +2105,7 @@ static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
 static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 #else
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
                                   aom_writer *w, int skip) {
   if (cm->features.coded_lossless
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
@@ -2168,7 +2168,7 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 static AOM_INLINE void write_ccso(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 #else
 static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
-#endif
+#endif  // CONFIG_BRU
                                   aom_writer *w) {
   if (cm->features.coded_lossless) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
@@ -3952,7 +3952,7 @@ write_partition(const AV1_COMMON *const cm,
 #else
 static AOM_INLINE void write_partition(
     const AV1_COMMON *const cm,
-#endif
+#endif  // CONFIG_BRU
                 const MACROBLOCKD *const xd, int mi_row, int mi_col,
                 PARTITION_TYPE p, BLOCK_SIZE bsize,
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3980,14 +3980,11 @@ static AOM_INLINE void write_partition(
       partition_allowed[derived_partition]) {
 #if CONFIG_BRU
     assert(bru_is_sb_active(cm, mi_col, mi_row) ? p == derived_partition : 1);
-#else
-    assert(p == derived_partition);
-#endif
-#if CONFIG_BRU
     return derived_partition;
 #else
+    assert(p == derived_partition);
     return;
-#endif
+#endif  // CONFIG_BRU
   }
 
   derived_partition = only_allowed_partition(partition_allowed);
@@ -3997,7 +3994,7 @@ static AOM_INLINE void write_partition(
     return derived_partition;
 #else
     return;
-#endif
+#endif  // CONFIG_BRU
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if !CONFIG_NEW_PART_CTX
@@ -4017,7 +4014,7 @@ static AOM_INLINE void write_partition(
   bool do_split = p != PARTITION_NONE;
 #else
   const bool do_split = p != PARTITION_NONE;
-#endif
+#endif  // CONFIG_BRU
   bool implied_do_split;
   if (is_do_split_implied(partition_allowed, &implied_do_split)) {
 #if CONFIG_BRU
@@ -4025,7 +4022,7 @@ static AOM_INLINE void write_partition(
     if (!bru_is_sb_active(cm, mi_col, mi_row)) {
       do_split = false;
     } else
-#endif
+#endif  // CONFIG_BRU
       assert(do_split == implied_do_split);
   } else {
 #if CONFIG_BRU
@@ -4033,7 +4030,7 @@ static AOM_INLINE void write_partition(
     if (!bru_is_sb_active(cm, mi_col, mi_row)) {
       do_split = false;
     } else {
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_NEW_PART_CTX
       const int ctx =
           partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
@@ -4043,14 +4040,14 @@ static AOM_INLINE void write_partition(
 #endif  // CONFIG_NEW_PART_CTX
 #if CONFIG_BRU
     }
-#endif
+#endif  // CONFIG_BRU
   }
   if (!do_split) {
 #if CONFIG_BRU
     return PARTITION_NONE;
 #else
     return;
-#endif
+#endif  // CONFIG_BRU
   }
 
   const bool do_square_split = p == PARTITION_SPLIT;
@@ -4065,7 +4062,7 @@ static AOM_INLINE void write_partition(
     return PARTITION_SPLIT;
 #else
     return;
-#endif
+#endif  // CONFIG_BRU
   }
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
@@ -4137,7 +4134,7 @@ static AOM_INLINE void write_partition(
   }
 #if CONFIG_BRU
   return p;
-#endif
+#endif  // CONFIG_BRU
 #else   // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
@@ -4222,7 +4219,7 @@ static AOM_INLINE void write_modes_sb(
 #else
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
-#endif
+#endif  // CONFIG_BRU
   if (subsize == BLOCK_INVALID) return;
 
 #if CONFIG_BRU
@@ -4275,7 +4272,7 @@ static AOM_INLINE void write_modes_sb(
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
 #if CONFIG_BRU
         !cm->bru.frame_inactive_flag &&
-#endif
+#endif  // CONFIG_BRU
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
 #if CONFIG_COMBINE_PC_NS_WIENER
@@ -4304,7 +4301,7 @@ static AOM_INLINE void write_modes_sb(
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
                   w);
-#endif
+#endif  // CONFIG_BRU
 #if !CONFIG_INTRA_SDP_LATENCY_FIX
   const int track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
@@ -4384,7 +4381,7 @@ static AOM_INLINE void write_modes_sb(
       }
     }
   }
-#endif
+#endif  // CONFIG_BRU
   switch (partition) {
     case PARTITION_NONE:
       write_modes_b(
@@ -4759,7 +4756,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
     aom_write_bit(w, tile->tile_active_mode);
   }
-#endif
+#endif  // CONFIG_BRU
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
     const int sb_row_in_tile =
         (mi_row - tile->mi_row_start) >> cm->mib_size_log2;
@@ -4803,7 +4800,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
         xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->partition =
             PARTITION_NONE;
       }
-#endif
+#endif  // CONFIG_BRU
       write_modes_sb(cpi, tile, w, &tok, tok_end,
 #if CONFIG_INTRA_SDP_LATENCY_FIX
                      &tok_chroma, tok_end_chroma,
@@ -4872,7 +4869,7 @@ static AOM_INLINE void encode_restoration_mode(
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
-#endif
+#endif  // CONFIG_BRU
   const int num_planes = av1_num_planes(cm);
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
@@ -5564,7 +5561,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
-#endif
+#endif  // CONFIG_BRU
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
 
@@ -5710,7 +5707,7 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   const CdefInfo *const cdef_info = &cm->cdef_info;
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_FIX_CDEF_SYNTAX
   aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
   if (!cdef_info->cdef_frame_enable) return;
@@ -5769,7 +5766,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
-#endif
+#endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
 #if CONFIG_CCSO_IMPROVE
   const int ccso_scale[4] = { 1, 2, 3, 4 };
@@ -7163,8 +7160,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (cm->bru.frame_inactive_flag) {
       cm->features.disable_cdf_update = 1;
     }
-#endif
-#if CONFIG_BRU
     if (current_frame->frame_type == INTER_FRAME) {
       encode_bru_active_info(cpi, wb);
     }
@@ -7444,7 +7439,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if CONFIG_BRU
           && !cm->bru.frame_inactive_flag
-#endif
+#endif  // CONFIG_BRU
       ) {
 #if CONFIG_ENABLE_SR
         assert(IMPLIES(av1_superres_scaled(cm),
@@ -7500,7 +7495,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #else
         if (!cm->seq_params.enable_tip ||
             features->tip_frame_mode != TIP_FRAME_AS_OUTPUT
-#endif
+#endif  // CONFIG_BRU
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         write_screen_content_params(cm, wb);
@@ -7588,7 +7583,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
     return;
   }
-#endif
+#endif  // CONFIG_BRU
 
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
 #if CONFIG_TIP_IMPLICIT_QUANT
@@ -8279,7 +8274,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         }
 #if CONFIG_BRU
         if (!cm->bru.frame_inactive_flag)
-#endif
+#endif  // CONFIG_BRU
           curr_tg_data_size += write_tile_group_header(
               data + curr_tg_data_size, tile_idx,
               AOMMIN(tile_idx + tg_size - 1, tile_cols * tile_rows - 1),
@@ -8317,11 +8312,11 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
 #if CONFIG_BRU
       tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
-#endif
+#endif  // CONFIG_BRU
       aom_start_encode(&mode_bc, dst + total_size);
 #if CONFIG_BRU
       if (!cm->bru.frame_inactive_flag)
-#endif
+#endif  // CONFIG_BRU
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
       aom_stop_encode(&mode_bc);
       tile_size = mode_bc.pos;
@@ -8656,7 +8651,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
        cm->bru.frame_inactive_flag ||
-#endif
+#endif  // CONFIG_BRU
        (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
   struct aom_write_bit_buffer saved_wb = { NULL, 0 };
   size_t length_field = 0;
@@ -8690,7 +8685,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||
-#endif
+#endif  // CONFIG_BRU
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
     data_size = 0;
   } else {

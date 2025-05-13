@@ -4256,7 +4256,7 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
     }
   }
 }
-#endif
+#endif  // CONFIG_BRU
 
 #if CONFIG_REFINEMV
 static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,

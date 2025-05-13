@@ -949,7 +949,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     else if (!frame_is_intra_only(cm) &&
 #if CONFIG_BRU
              bru_is_sb_active(cm, mi_col, mi_row) &&
-#endif
+#endif  // CONFIG_BRU
              sf->part_sf.two_pass_partition_search) {
       perform_two_pass_partition_search(cpi, td, tile_data, tp,
 #if CONFIG_INTRA_SDP_LATENCY_FIX
@@ -1049,7 +1049,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     av1_set_sb_info(cm, xd, mi_row, mi_col, sb_active_mode);
 #else
     av1_set_sb_info(cm, xd, mi_row, mi_col);
-#endif
+#endif  // CONFIG_BRU
 
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
@@ -1245,7 +1245,7 @@ void av1_init_tile_data(AV1_COMP *cpi) {
           }
         }
       }
-#endif
+#endif  // CONFIG_BRU
     }
   }
 }
@@ -1598,7 +1598,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   if (cm->seq_params.enable_tip
 #if CONFIG_BRU
       && !cm->bru.enabled
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_TIP_LD
       && could_tip_mode_be_selected(cpi)
 #endif  // CONFIG_TIP_LD

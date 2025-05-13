@@ -2178,7 +2178,7 @@ typedef struct AV1Common {
    * Structure contain frame level BRU parameters
    */
   BruInfo bru;
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_INSPECTION
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
@@ -2722,7 +2722,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 #if CONFIG_BRU
   xd->tile.tile_active_mode = tile->tile_active_mode;
   xd->mi[0]->sb_active_mode = xd->sbi ? xd->sbi->sb_active_mode : BRU_ACTIVE_SB;
-#endif
+#endif  // CONFIG_BRU
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -4796,7 +4796,7 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
 #if CONFIG_BRU
                                    ,
                                    BruActiveMode sb_active_mode
-#endif
+#endif  // CONFIG_BRU
 ) {
   SB_INFO *sbi = xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
 
@@ -4805,7 +4805,7 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
 #if CONFIG_BRU
   sbi->sb_active_mode = sb_active_mode;
-#endif
+#endif  // CONFIG_BRU
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.

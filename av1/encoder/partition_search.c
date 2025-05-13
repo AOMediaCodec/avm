@@ -1819,7 +1819,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
 #if CONFIG_BRU
       }
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
@@ -2650,7 +2650,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;      // for SW it only matter 0 or 1
   mbmi->local_ccso_blk_flag = 1;  // for SW it only matter 0 or 1
-#endif
+#endif                            // CONFIG_BRU
   const int num_planes = av1_num_planes(cm);
   const int plane_start = (xd->tree_type == CHROMA_PART);
   const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
@@ -5110,7 +5110,7 @@ static void rd_pick_rect_partition(
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif
+#endif  // CONFIG_BRU
 }
 
 static AOM_INLINE bool is_part_pruned_by_forced_partition(
@@ -6076,7 +6076,7 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif
+#endif  // CONFIG_BRU
 }
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -6617,7 +6617,7 @@ static void split_partition_search(
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif
+#endif  // CONFIG_BRU
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -9111,7 +9111,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // the counterpart.
 #if CONFIG_BRU
   if (bru_is_sb_active(cm, mi_col, mi_row)) {
-#endif
+#endif  // CONFIG_BRU
     PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
     assert(pc_tree != NULL);
     if (counterpart_block
@@ -9145,7 +9145,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
     }
 #if CONFIG_BRU
   }
-#endif
+#endif  // CONFIG_BRU
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_BRU
@@ -9153,7 +9153,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
     x->must_find_valid_partition = 0;
 #else
   if (bsize == cm->sb_size) x->must_find_valid_partition = 0;
-#endif
+#endif  // CONFIG_BRU
 
   // Override skipping rectangular partition operations for edge blocks.
   if (none_rd) *none_rd = 0;
@@ -9212,7 +9212,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   if (part_search_state.forced_partition == PARTITION_INVALID
 #if CONFIG_BRU
       && bru_is_sb_active(cm, mi_col, mi_row)
-#endif
+#endif  // CONFIG_BRU
   ) {
     if (cpi->sf.part_sf.adaptive_partition_search_order) {
       search_none_after_rect =

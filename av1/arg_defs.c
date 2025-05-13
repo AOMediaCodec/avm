@@ -907,7 +907,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "Enable Backward Reference Update "
                         "(0: false (default), 1: true with regular decoder, 2: "
                         "true with optimized decoder)"),
-#endif
+#endif  // CONFIG_BRU
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

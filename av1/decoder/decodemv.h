@@ -44,5 +44,5 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #if CONFIG_BRU
 void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd);
 void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd);
-#endif
+#endif  // CONFIG_BRU
 #endif  // AOM_AV1_DECODER_DECODEMV_H_

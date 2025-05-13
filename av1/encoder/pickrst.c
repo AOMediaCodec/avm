@@ -996,7 +996,7 @@ static AOM_INLINE void search_sgrproj_visitor(
   RestorationUnitInfo rui;
 #if CONFIG_BRU
   memset(&rui, 0, sizeof(RestorationUnitInfo));
-#endif
+#endif  // CONFIG_BRU
   rui.restoration_type = RESTORE_SGRPROJ;
   rui.sgrproj_info = rusi->sgrproj_info;
 
@@ -1199,7 +1199,7 @@ static AOM_INLINE void search_sgrproj_visitor(
 #else
       old_unit->merge_sse_cand = try_restoration_unit(
           rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
-#endif
+#endif  // CONFIG_BRU
       // First unit in stack has larger unit_bits because the
       // merged coeffs are linked to it.
       if (old_unit->rest_unit_idx == begin_idx_cand) {
@@ -1399,7 +1399,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
   rui.ss_x = ss_x;
   rui.ss_y = ss_y;
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_COMBINE_PC_NS_WIENER
   // Only need the classification if running for frame filters.
   rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
@@ -1858,7 +1858,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     rui->ss_x = ss_x;
     rui->ss_y = ss_y;
     rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#endif
+#endif  // CONFIG_BRU
     err = try_restoration_unit(rsc, limits, tile, rui);
   } else {
     Vector *current_unit_stack = rsc->unit_stack;
@@ -1871,7 +1871,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
       if (old_unit->rest_unit_idx == idx && !rsc->rusi[idx].bru_unit_skipped) {
 #else
       if (old_unit->rest_unit_idx == idx) {
-#endif
+#endif  // CONFIG_BRU
 #if CONFIG_BRU
         const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
         const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
@@ -1885,7 +1885,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
         rui->ss_x = ss_x;
         rui->ss_y = ss_y;
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#endif
+#endif  // CONFIG_BRU
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -1939,7 +1939,7 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
         rui->ss_x = ss_x;
         rui->ss_y = ss_y;
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#endif
+#endif  // CONFIG_BRU
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -2466,7 +2466,7 @@ static AOM_INLINE void search_wiener_visitor(
 #else
       old_unit->merge_sse_cand = try_restoration_unit(
           rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
-#endif
+#endif  // CONFIG_BRU
 
       // First unit in stack has larger unit_bits because the
       // merged coeffs are linked to it.
@@ -4186,7 +4186,7 @@ double set_cand_merge_sse_and_bits(
 #else
     old_unit->merge_sse_cand =
         try_restoration_unit(rsc, &old_unit->limits, tile_rect, rui_merge_cand);
-#endif
+#endif  // CONFIG_BRU
     // First unit in stack has larger unit_bits because the
     // merged coeffs are linked to it.
     if (old_unit->rest_unit_idx == begin_idx_cand) {
@@ -4333,14 +4333,14 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   rui.ss_x = ss_x;
   rui.ss_y = ss_y;
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
-#endif
+#endif  // CONFIG_BRU
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
 #if CONFIG_BRU
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   unit_stats.real_sse = 0;
   if (!rusi->bru_unit_skipped) {
-#endif
+#endif  // CONFIG_BRU
     unit_stats.real_sse = compute_stats_for_wienerns_filter(
         rsc->dgd_buffer, rsc->src_buffer, limits, rsc->dgd_stride,
         rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
@@ -4348,7 +4348,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
         rsc->num_stats_classes);
 #if CONFIG_BRU
   }
-#endif
+#endif  // CONFIG_BRU
   unit_stats.ru_idx = rest_unit_idx;
   unit_stats.ru_idx_in_tile = rest_unit_idx_in_rutile - rsc->ru_idx_base;
   unit_stats.limits = *limits;
@@ -4510,7 +4510,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane)
 #if CONFIG_BRU
       && !rusi->bru_unit_skipped
-#endif
+#endif  // CONFIG_BRU
   ) {
     // Pick the best filter for this RU.
     rusi->sse[RESTORE_WIENER_NONSEP] = evaluate_frame_filter(rsc, limits, &rui);
@@ -4529,7 +4529,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       !compute_quantized_wienerns_filter(
 #else
   if (!compute_quantized_wienerns_filter(
-#endif
+#endif  // CONFIG_BRU
           rsc, limits, &rsc->tile_rect, &rui, unit_stats->A, unit_stats->b,
           unit_stats->real_sse, nsfilter_params)) {
     rsc->bits += bits_none;
@@ -5200,7 +5200,7 @@ static AOM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
     }
   }
 }
-#endif
+#endif  // CONFIG_BRU
 
 // Calls visitor function fun() for one specific RU in frame
 // Note that RU-tiles are different from coded tiles since the RU sizes can be
@@ -5697,7 +5697,7 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
     int64_t distortion = calc_finer_tile_search_error(
         rsc, &unit_stats_ptr->limits, &rsc->tile_rect, rui);
     const int64_t distortion_none = unit_stats_ptr->real_sse;
-#endif
+#endif  // CONFIG_BRU
 
     const double cost_wienerns = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rsc->x->rdmult, bits_wienerns >> 4, distortion,
@@ -6053,7 +6053,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     if (ref_idx == rsc->cm->bru.update_ref_idx) {
       continue;
     }
-#endif
+#endif  // CONFIG_BRU
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;
@@ -6362,7 +6362,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_WIENER_NONSEP &&
 #if CONFIG_BRU
               !cm->bru.enabled &&
-#endif
+#endif  // CONFIG_BRU
               is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
@@ -6399,7 +6399,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
 #if CONFIG_BRU
               !cm->bru.enabled &&
-#endif
+#endif  // CONFIG_BRU
               frame_filters_configured && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
 #if PRINT_LR_COSTS && !defined(NDEBUG)

@@ -899,7 +899,7 @@ typedef struct SB_INFO {
   int mi_col;
 #if CONFIG_BRU
   BruActiveMode sb_active_mode;
-#endif
+#endif  // CONFIG_BRU
   PARTITION_TREE *ptree_root[2];
   MvSubpelPrecision sb_mv_precision;
 } SB_INFO;
