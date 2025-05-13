@@ -744,13 +744,31 @@ bool av1_check_cdef_mbmi_inside_tile(const MACROBLOCKD *xd,
 // neighbor0_cdef_unit==neighbor1_cdef_unit 3 -
 // neighbor0_cdef_true/neighbor1_cdef_true &&
 // neighbor0_cdef_unit!=neighbor1_cdef_unit
-int av1_get_cdef_context(const MACROBLOCKD *xd) {
+int av1_get_cdef_context(const AV1_COMMON *const cm,
+                         const MACROBLOCKD *const xd) {
   // CDEF unit size is 64x64 irrespective of the superblock size.
   const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
   const int block_mask = ~(cdef_size - 1);
 
-  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
-  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
+  const int left_cdef_mi_col = mi_col - cdef_size;
+  MB_MODE_INFO *neighbor0 = NULL;
+  if (left_cdef_mi_col >= 0) {
+    const int left_grid_idx = get_mi_grid_idx(mi_params, mi_row & block_mask,
+                                              left_cdef_mi_col & block_mask);
+    neighbor0 = mi_params->mi_grid_base[left_grid_idx];
+  }
+
+  const int above_cdef_mi_row = mi_row - cdef_size;
+  MB_MODE_INFO *neighbor1 = NULL;
+  if (above_cdef_mi_row >= 0) {
+    const int above_grid_idx = get_mi_grid_idx(
+        mi_params, above_cdef_mi_row & block_mask, mi_col & block_mask);
+    neighbor1 = mi_params->mi_grid_base[above_grid_idx];
+  }
 
   bool neighbor0_cdef_available = 0;
   bool neighbor1_cdef_available = 0;

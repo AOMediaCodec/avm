@@ -102,9 +102,6 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
     av1_zero(xd->cdef_transmitted);
   }
 
-  // CDEF unit size is 64x64 irrespective of the superblock size.
-  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
-
   // Find index of this CDEF unit in this superblock.
   const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
 
@@ -118,17 +115,13 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
       !skip_txfm
 #endif  // CONFIG_CDEF_ENHANCEMENTS
   ) {
-    // CDEF strength for this CDEF unit needs to be read into the MB_MODE_INFO
-    // of the 1st block in this CDEF unit.
-    const int first_block_mask = ~(cdef_size - 1);
-    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
-                                         mi_col & first_block_mask);
+    const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
     MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
 #if CONFIG_CDEF_ENHANCEMENTS
     if (cm->cdef_info.nb_cdef_strengths == 1) {
       mbmi->cdef_strength = 0;
     } else {
-      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(cm, xd);
       const int is_strength_index0 = aom_read_symbol(
           r, xd->tile_ctx->cdef_strength_index0_cdf[cdef_strength_index0_ctx],
           2, ACCT_INFO("cdef_strength_index0_cdf"));
@@ -155,12 +148,12 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 #if CONFIG_CDEF_ENHANCEMENTS
   else {
-    mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
-        ->cdef_strength =
-        mi_params
-            ->mi_grid_base[(mi_row & ~(cdef_size - 1)) * mi_params->mi_stride +
-                           (mi_col & ~(cdef_size - 1))]
-            ->cdef_strength;
+    if (!xd->cdef_transmitted[index] &&
+        !cm->cdef_info.cdef_on_skip_txfm_frame_enable && skip_txfm) {
+      const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
+      MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+      mbmi->cdef_strength = -1;
+    }
   }
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 }

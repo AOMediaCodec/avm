@@ -2098,9 +2098,6 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
     av1_zero(xd->cdef_transmitted);
   }
 
-  // CDEF unit size is 64x64 irrespective of the superblock size.
-  const int cdef_size = 1 << (6 - MI_SIZE_LOG2);
-
   // Find index of this CDEF unit in this superblock.
   const int index = av1_get_cdef_transmitted_index(mi_row, mi_col);
 
@@ -2112,15 +2109,11 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
       !skip
 #endif  // CONFIG_CDEF_ENHANCEMENTS
   ) {
-    // CDEF strength for this CDEF unit needs to be stored in the MB_MODE_INFO
-    // of the 1st block in this CDEF unit.
-    const int first_block_mask = ~(cdef_size - 1);
-    const int grid_idx = get_mi_grid_idx(mi_params, mi_row & first_block_mask,
-                                         mi_col & first_block_mask);
+    const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
     const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
 #if CONFIG_CDEF_ENHANCEMENTS
     if (cm->cdef_info.nb_cdef_strengths > 1) {
-      const int cdef_strength_index0_ctx = av1_get_cdef_context(xd);
+      const int cdef_strength_index0_ctx = av1_get_cdef_context(cm, xd);
       const int is_strength_index0 = mbmi->cdef_strength == 0;
       aom_write_symbol(
           w, is_strength_index0,

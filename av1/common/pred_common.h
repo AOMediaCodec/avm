@@ -561,7 +561,8 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane);
 #endif  // CONFIG_CCSO_IMPROVE
 
 #if CONFIG_CDEF_ENHANCEMENTS
-int av1_get_cdef_context(const MACROBLOCKD *xd);
+int av1_get_cdef_context(const AV1_COMMON *const cm,
+                         const MACROBLOCKD *const xd);
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 
 int av1_get_reference_mode_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);

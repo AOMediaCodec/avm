@@ -3842,7 +3842,12 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
-  if (!cdef_info->cdef_frame_enable) return;
+  if (!cdef_info->cdef_frame_enable) {
+#if CONFIG_CDEF_ENHANCEMENTS
+    cdef_info->cdef_on_skip_txfm_frame_enable = 0;
+#endif  // CONFIG_CDEF_ENHANCEMENTS
+    return;
+  }
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
 #if CONFIG_CDEF_ENHANCEMENTS

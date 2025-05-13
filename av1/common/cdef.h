@@ -71,6 +71,22 @@ int av1_cdef_compute_sb_list(
     const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
     cdef_list *dlist, BLOCK_SIZE bsize);
 
+static INLINE int fetch_cdef_mi_grid_index(const AV1_COMMON *const cm,
+                                           const MACROBLOCKD *const xd) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  // CDEF unit size is 64x64 irrespective of the superblock size.
+  const int cdef_size = 1 << MI_IN_CDEF_LINEAR_LOG2;
+
+  // CDEF strength for this CDEF unit needs to be read into the MB_MODE_INFO
+  // of the 1st block in this CDEF unit.
+  const int block_mask = ~(cdef_size - 1);
+  const int grid_idx =
+      get_mi_grid_idx(mi_params, mi_row & block_mask, mi_col & block_mask);
+  return grid_idx;
+}
+
 /*!\brief Function for applying CDEF to a frame
  *
  * \ingroup in_loop_cdef

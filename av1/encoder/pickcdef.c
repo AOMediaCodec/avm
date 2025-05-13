@@ -395,6 +395,20 @@ static AOM_INLINE int get_cdef_context(const AV1_COMMON *const cm,
     return 0;
   }
 }
+
+static AOM_INLINE void reset_frame_mi_cdef_strength(AV1_COMMON *cm) {
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_rows = mi_params->mi_rows;
+  const int mi_cols = mi_params->mi_cols;
+  const int mi_stride = mi_params->mi_stride;
+  for (int mi_row = 0; mi_row < mi_rows; mi_row++) {
+    for (int mi_col = 0; mi_col < mi_cols; mi_col++) {
+      const int grid_idx = mi_row * mi_stride + mi_col;
+      MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+      mbmi->cdef_strength = -1;
+    }
+  }
+}
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 
 void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
@@ -410,7 +424,10 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   } else {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 1;
   }
+
+  reset_frame_mi_cdef_strength(cm);
 #endif  // CONFIG_CDEF_ENHANCEMENTS
+
   if (pick_method == CDEF_PICK_FROM_Q) {
     pick_cdef_from_qp(cm);
     return;
