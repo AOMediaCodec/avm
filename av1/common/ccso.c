@@ -195,7 +195,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                const int dst_stride,
 #if CCSO_REFACTORING
                                const int proc_unit_log2,
-#endif
+#endif  // CCSO_REFACTORING
 #if CONFIG_CCSO_IMPROVE
                                const uint16_t thr,
 #else
@@ -225,7 +225,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CCSO_REFACTORING
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
-#endif
+#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
 #if CONFIG_CCSO_FU_BUGFIX
@@ -326,7 +326,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                const int dst_stride,
 #if CCSO_REFACTORING
                                const int proc_unit_log2,
-#endif
+#endif  // CCSO_REFACTORING
 #if CONFIG_CCSO_IMPROVE
                                const uint16_t thr,
 #else
@@ -357,7 +357,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CCSO_REFACTORING
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
-#endif
+#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
 #if CONFIG_CCSO_FU_BUGFIX
@@ -458,7 +458,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  uint16_t *dst_yuv, const int dst_stride,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
-#endif
+#endif  // CCSO_REFACTORING
 #if CONFIG_CCSO_IMPROVE
                                  const uint16_t thr,
 #else
@@ -499,7 +499,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int unit_log2_y =
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
-#endif
+#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
 #if CONFIG_CCSO_FU_BUGFIX
@@ -602,7 +602,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  uint16_t *dst_yuv, const int dst_stride,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
-#endif
+#endif  // CCSO_REFACTORING
 #if CONFIG_CCSO_IMPROVE
                                  const uint16_t thr,
 #else
@@ -644,7 +644,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int unit_log2_y =
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
-#endif
+#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
 #if CONFIG_CCSO_FU_BUGFIX
@@ -778,7 +778,7 @@ void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
               AOMMAX(xd->plane[plane].subsampling_x,
                      xd->plane[plane].subsampling_y) +
               MI_SIZE_LOG2,
-#endif
+#endif  // CCSO_REFACTORING
           quant_step_size, cm->ccso_info.ext_filter_support[plane],
           cm->ccso_info.max_band_log2[plane], cm->ccso_info.edge_clf[plane]);
     }

@@ -66,7 +66,7 @@ typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  uint16_t *dst_yuv, const int dst_stride,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
-#endif
+#endif  // CCSO_REFACTORING
 #if CONFIG_CCSO_IMPROVE
                                  const uint16_t thr,
 #else
