@@ -19,6 +19,7 @@
 
 #include "av1/common/reconinter.h"
 
+#if CONFIG_ENABLE_MHCCP
 static __m128i read_int64(int64_t x) {
 #ifdef __x86_64__
   return _mm_cvtsi64_si128(x);
@@ -166,3 +167,4 @@ void mhccp_predict_hv_hbd_sse4_1(const uint16_t *input, uint16_t *dst,
     above_row += cfl_stride;
   }
 }
+#endif // CONFIG_ENABLE_MHCCP
