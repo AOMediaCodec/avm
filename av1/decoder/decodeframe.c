@@ -4651,6 +4651,9 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
     struct loopfilter *lf = &cm->lf;
     RestorationInfo *const rst_info = cm->rst_info;
     const CdefInfo *const cdef_info = &cm->cdef_info;
+#if CONFIG_GDF
+    const GdfInfo *const gdf_info = &cm->gdf_info;
+#endif
 
     // Figure out single_tile_decoding by loopfilter_level.
     const int no_loopfilter = !(lf->filter_level[0] || lf->filter_level[1]);
@@ -4666,9 +4669,19 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
         rst_info[2].frame_restoration_type == RESTORE_NONE;
+#if CONFIG_GDF
+    const int no_gdf = gdf_info->gdf_mode == 0;
+    assert(IMPLIES(cm->features.coded_lossless,
+                   no_loopfilter && no_cdef && no_gdf));
+#else
     assert(IMPLIES(cm->features.coded_lossless, no_loopfilter && no_cdef));
+#endif
     assert(IMPLIES(cm->features.all_lossless, no_restoration));
-    cm->tiles.single_tile_decoding = no_loopfilter && no_cdef && no_restoration;
+    cm->tiles.single_tile_decoding = no_loopfilter && no_cdef && no_restoration
+#if CONFIG_GDF
+                                     && no_gdf;
+#endif
+    ;
   }
 }
 
@@ -8778,9 +8791,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   setup_loopfilter(cm, rb);
 
 #if CONFIG_GDF
-  if (!features->coded_lossless) {
-    setup_gdf(cm, rb);
-  }
+  setup_gdf(cm, rb);
 #endif  // CONFIG_GDF
 
   if (!features->coded_lossless && seq_params->enable_cdef) {

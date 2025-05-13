@@ -13,9 +13,6 @@
 #ifndef AOM_AV1_COMMON_GDF_H
 #define AOM_AV1_COMMON_GDF_H
 #include "av1/common/av1_common_int.h"
-#include "aom_ports/mem.h"
-#include "aom_mem/aom_mem.h"
-#include "resize.h"
 #if CONFIG_GDF
 
 enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
@@ -64,13 +61,13 @@ void gdf_free_guided_frame(AV1_COMMON *cm);
  *        in which index is calculated based on distances to references frames
  *        and tables are weight, bias, clipping, and expected coding error
  */
-int gdf_get_ref_dst_idx(AV1_COMMON *cm);
+int gdf_get_ref_dst_idx(const AV1_COMMON *cm);
 
 /*!\brief Function to calculate indices for lookup weight+bias+clipping tables
  * of GDF in which index is calculated based on QP and tables are weight, bias,
  * clipping, and expected coding error
  */
-int gdf_get_qp_idx_base(AV1_COMMON *cm);
+int gdf_get_qp_idx_base(const AV1_COMMON *cm);
 
 /*!\brief Function to apply GDF to whole frame
  */

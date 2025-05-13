@@ -97,11 +97,31 @@ void gdf_free_guided_frame(AV1_COMMON *cm) {
   aom_free(cm->gdf_info.inp_pad_ptr);
 }
 
-int gdf_get_ref_dst_idx(AV1_COMMON *cm) {
+static INLINE int get_ref_dst_max(const AV1_COMMON *const cm) {
+  int ref_dst_max = 0;
+  for (int i = 0; i < cm->ref_frames_info.num_future_refs; i++) {
+    const int ref = cm->ref_frames_info.future_refs[i];
+    if ((ref == 0 || ref == 1) && get_ref_frame_buf(cm, ref) != NULL) {
+      ref_dst_max =
+          AOMMAX(ref_dst_max, abs(cm->ref_frames_info.ref_frame_distance[ref]));
+    }
+  }
+  for (int i = 0; i < cm->ref_frames_info.num_past_refs; i++) {
+    const int ref = cm->ref_frames_info.past_refs[i];
+    if ((ref == 0 || ref == 1) && get_ref_frame_buf(cm, ref) != NULL) {
+      ref_dst_max =
+          AOMMAX(ref_dst_max, abs(cm->ref_frames_info.ref_frame_distance[ref]));
+    }
+  }
+
+  return ref_dst_max > 0 ? ref_dst_max : INT_MAX;
+}
+
+int gdf_get_ref_dst_idx(const AV1_COMMON *cm) {
   int ref_dst_idx = 0;
   if (frame_is_intra_only(cm)) return ref_dst_idx;
-  int ref_dst_max = AOMMAX(abs(cm->ref_frames_info.ref_frame_distance[0]),
-                           abs(cm->ref_frames_info.ref_frame_distance[1]));
+
+  int ref_dst_max = get_ref_dst_max(cm);
   if (ref_dst_max < 2)
     ref_dst_idx = 1;
   else if (ref_dst_max < 3)
@@ -115,7 +135,7 @@ int gdf_get_ref_dst_idx(AV1_COMMON *cm) {
   return ref_dst_idx;
 }
 
-int gdf_get_qp_idx_base(AV1_COMMON *cm) {
+int gdf_get_qp_idx_base(const AV1_COMMON *cm) {
   const int is_intra = frame_is_intra_only(cm);
   const int bit_depth = cm->cur_frame->buf.bit_depth;
   int qp_base = is_intra ? 85 : 110;
