@@ -4216,8 +4216,13 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
     const int s_y = is_uv ? ss_y : 0;
     PadBlock block;
     PadBlock block_cur;
+#if CONFIG_F054_PIC_BOUNDARY
+    const int frame_H = src->heights[plane];
+    const int frame_W = src->widths[plane];
+#else
     const int frame_H = is_uv ? src->uv_crop_height : src->y_crop_height;
     const int frame_W = is_uv ? src->uv_crop_width : src->y_crop_width;
+#endif  // CONFIG_F054_PIC_BOUNDARY
     block.x0 = mi_col << (MI_SIZE_LOG2 - s_x);
     block.y0 = mi_row << (MI_SIZE_LOG2 - s_y);
     block.x1 = block.x0 + (org_bw << (MI_SIZE_LOG2 - s_x));

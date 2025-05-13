@@ -818,7 +818,7 @@ int av1_get_refresh_frame_flags(
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
                                              cpi->common.seq_params.ref_frames);
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
         cpi, gf_index, cur_disp_order, ref_frame_map_pairs, refresh_mask,

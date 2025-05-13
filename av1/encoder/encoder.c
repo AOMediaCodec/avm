@@ -3436,7 +3436,7 @@ static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
       cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode
 #if CONFIG_BRU
       && !cm->bru.enabled
-#endif // CONFIG_BRU
+#endif  // CONFIG_BRU
 #if CONFIG_ENABLE_SR
       && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
