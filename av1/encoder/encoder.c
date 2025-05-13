@@ -4093,6 +4093,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
     cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
                                     cm->features.primary_ref_frame;
+
     const int map_idx =
         get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
     const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
@@ -4152,6 +4153,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_finalize_encoded_frame(cpi);
+  // Build the bitstream
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_pack_bitstream_final_time);
 #endif
@@ -4743,8 +4745,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENABLE_SR
 
   cpi->seq_params_locked = 1;
-  // Update reference frame ids for reference frames this frame will overwrite
 
+  // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
     for (int i = 0; i < seq_params->ref_frames; i++) {
       if ((current_frame->refresh_frame_flags >> i) & 1) {

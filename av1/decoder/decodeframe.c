@@ -5733,6 +5733,7 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
 
   assert(tile_rows <= MAX_TILE_ROWS);
   assert(tile_cols <= MAX_TILE_COLS);
+
 #if EXT_TILE_DEBUG
   if (tiles->large_scale && !pbi->ext_tile_debug)
     raw_data_end = get_ls_single_tile_buffer(pbi, data, tile_buffers);
@@ -7910,6 +7911,7 @@ static void set_primary_ref_frame_and_ctx(AV1_COMMON *const cm) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                        "Invalid primary_ref_frame");
   }
+
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
     // use the default frame context values
     av1_setup_past_independence(cm);
@@ -7971,6 +7973,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             beginningFrameFlag[i][j][k][l][h] = 1;
   }
 #endif
+
   if (!pbi->sequence_header_ready) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
@@ -9439,6 +9442,7 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->cur_frame->frame_context = *cm->fc;
     }
   }
+
 #if CONFIG_TMVP_MEM_OPT
   if (cm->features.allow_ref_frame_mvs &&
       cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {

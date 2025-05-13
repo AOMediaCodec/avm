@@ -18,7 +18,7 @@
 
 #define CCSO_INPUT_INTERVAL 3
 
-#ifdef CONFIG_BRU
+#if CONFIG_BRU
 #define CCSO_REFACTORING 1
 #else
 #define CCSO_REFACTORING 0

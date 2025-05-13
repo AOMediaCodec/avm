@@ -589,7 +589,6 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
       assert(0);
       continue;
     }
-
     int planes_to_check[2] = { plane, -1 };
     int num_planes_to_check = 1;
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD

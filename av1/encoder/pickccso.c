@@ -2294,6 +2294,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
              ref_frame_ccso_info->sb_filter_control[plane],
              sizeof(*cm->cur_frame->ccso_info.sb_filter_control[plane]) *
                  sb_count);
+
       for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
         for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
 #if CONFIG_CCSO_FU_BUGFIX

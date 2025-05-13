@@ -352,6 +352,7 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
     if (cur_ref.frame_type != INTER_FRAME) continue;
 
     const int ref_base_qindex = cur_ref.base_qindex;
+
     if (ref_base_qindex > cm->quant_params.base_qindex) {
       if ((ref_base_qindex < cand_higher_qp.base_qindex) ||
           (ref_base_qindex == cand_higher_qp.base_qindex &&
@@ -441,6 +442,7 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
     if (cur_ref.frame_type != INTER_FRAME) continue;
 
     const int ref_base_qindex = cur_ref.base_qindex;
+
     if (ref_base_qindex > cm->quant_params.base_qindex) {
       if ((ref_base_qindex < cand_higher_qp.base_qindex) ||
           (ref_base_qindex == cand_higher_qp.base_qindex &&

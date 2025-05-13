@@ -928,8 +928,6 @@ static TX_SIZE set_lpf_parameters(
 #if CONFIG_BRU
     if (cm->bru.enabled) {
       if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
-        printf("lpf pli %d, mi %d, %d, dir %d, active mode %d failed\n", plane,
-               mi_col, mi_row, edge_dir, mbmi->sb_active_mode);
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                            "Invalid BRU activity in deblocking: only active SB "
                            "can be filtered");
