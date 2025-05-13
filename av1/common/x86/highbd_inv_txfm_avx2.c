@@ -9500,10 +9500,16 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
 
 #if CONFIG_INTER_DDT
   if (txfm_param->use_ddt) {
-    if (tx_type_row == DST7 || tx_type_row == DCT8) {
+    const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||
+                            (width == 8 && REPLACE_ADST8) ||
+                            (width == 16 && REPLACE_ADST16);
+    if (use_ddt_row && (tx_type_row == DST7 || tx_type_row == DCT8)) {
       tx_type_row = (tx_type_row == DST7) ? DDTX : FDDT;
     }
-    if (tx_type_col == DST7 || tx_type_col == DCT8) {
+    const int use_ddt_col = (height == 4 && REPLACE_ADST4) ||
+                            (height == 8 && REPLACE_ADST8) ||
+                            (height == 16 && REPLACE_ADST16);
+    if (use_ddt_col && (tx_type_col == DST7 || tx_type_col == DCT8)) {
       tx_type_col = (tx_type_col == DST7) ? DDTX : FDDT;
     }
   }
