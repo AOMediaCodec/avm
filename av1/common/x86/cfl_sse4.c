@@ -167,4 +167,4 @@ void mhccp_predict_hv_hbd_sse4_1(const uint16_t *input, uint16_t *dst,
     above_row += cfl_stride;
   }
 }
-#endif // CONFIG_ENABLE_MHCCP
+#endif  // CONFIG_ENABLE_MHCCP
