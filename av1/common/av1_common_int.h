@@ -2381,8 +2381,10 @@ static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
           ref_frame == cm->features.primary_ref_frame)
         continue;
       RefFrameMapPair cur_ref = cm->ref_frame_map_pairs[iter_map_idx];
-      if (cur_ref.disp_order == -1) continue;
-      if (cur_ref.frame_type != INTER_FRAME) continue;
+      if ((cur_ref.disp_order == -1) || (cur_ref.frame_type != INTER_FRAME)) {
+        iter_map_idx = INVALID_IDX;
+        continue;
+      }
       break;
     }
     *secondary_map_idx = iter_map_idx;
