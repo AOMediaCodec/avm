@@ -18,17 +18,17 @@
 
 #define CCSO_INPUT_INTERVAL 3
 
-#if CONFIG_BRU
-#define CCSO_REFACTORING 1
-#else
-#define CCSO_REFACTORING 0
-#endif
-
 #include <float.h>
 #include "config/aom_config.h"
 #include "aom/aom_integer.h"
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
+
+#if CONFIG_BRU
+#define CCSO_REFACTORING 1
+#else
+#define CCSO_REFACTORING 0
+#endif
 
 static const int edge_clf_to_edge_interval[2] = { 3, 2 };
 
