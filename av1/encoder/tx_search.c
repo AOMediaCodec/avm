@@ -2437,6 +2437,29 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
 
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
+#if CONFIG_LOSSLESS_CHROMA_IDTX
+    if (!is_inter && plane) {
+      if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+        txk_allowed = IDTX;
+        allowed_tx_mask = 1 << txk_allowed;
+      }
+    } else if (is_inter) {
+      if (tx_size == TX_8X8) {
+        assert(!plane);
+        txk_allowed = IDTX;
+        allowed_tx_mask = 1 << txk_allowed;
+      } else if (tx_size == TX_4X4 && !plane) {
+        txk_allowed = TX_TYPES;
+        allowed_tx_mask = (1 << DCT_DCT) | (1 << IDTX);
+      } else if (tx_size == TX_4X4 && plane) {
+        txk_allowed = av1_get_tx_type(
+            xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+            is_reduced_tx_set_used(cm, get_plane_type(plane)));
+        txk_allowed = get_primary_tx_type(txk_allowed);
+        allowed_tx_mask = 1 << txk_allowed;
+      }
+    }
+#else
     if (!plane && is_inter) {
       if (tx_size == TX_4X4) {
         txk_allowed = TX_TYPES;
@@ -2446,6 +2469,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         allowed_tx_mask = 1 << txk_allowed;
       }
     }
+#endif  // CONFIG_LOSSLESS_CHROMA_IDTX
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 

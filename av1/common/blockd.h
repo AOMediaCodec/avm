@@ -3674,6 +3674,45 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
+#if CONFIG_LOSSLESS_CHROMA_IDTX
+    const bool fsc_flag = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
+    if (!is_inter && plane_type == PLANE_TYPE_Y) {
+      return DCT_DCT;
+    } else if (!is_inter && plane_type == PLANE_TYPE_UV) {
+      if (fsc_flag)
+        return IDTX;
+      else
+        return DCT_DCT;
+    } else if (is_inter && plane_type == PLANE_TYPE_Y) {
+      if (tx_size == TX_8X8) {
+        assert(plane_type == PLANE_TYPE_Y);
+        return IDTX;
+      } else {
+        return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+      }
+    } else if (is_inter && plane_type == PLANE_TYPE_UV) {
+      if (mbmi->tx_size == TX_8X8) {
+        return IDTX;
+      } else {
+        const struct macroblockd_plane *const pd = &xd->plane[plane_type];
+        blk_row <<= pd->subsampling_y;
+        blk_col <<= pd->subsampling_x;
+        TX_TYPE tx_type =
+            xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+        const bool is_sdp_eligible = mbmi->region_type == INTRA_REGION;
+        if (is_sdp_eligible ||
+            (xd->is_chroma_ref &&
+             (xd->mi_row != mbmi->chroma_ref_info.mi_row_chroma_base ||
+              xd->mi_col != mbmi->chroma_ref_info.mi_col_chroma_base))) {
+          tx_type = xd->tx_type_map[0];
+        }
+        // Secondary transforms are disabled for chroma
+        tx_type &= 0x000F;
+        assert(tx_type == DCT_DCT || tx_type == IDTX);
+        return tx_type;
+      }
+    }
+#else
     if (is_inter && tx_size == TX_8X8) {
       assert(plane_type == PLANE_TYPE_Y);
       return IDTX;
@@ -3682,6 +3721,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     } else {
       return DCT_DCT;
     }
+#endif  // CONFIG_LOSSLESS_CHROMA_IDTX
   }
 #else
   if (xd->lossless[mbmi->segment_id]) {
