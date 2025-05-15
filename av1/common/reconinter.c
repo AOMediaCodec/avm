@@ -3858,12 +3858,12 @@ void av1_build_one_bawp_inter_predictor(
 #endif  // CONFIG_BAWP_ACROSS_SCALES
 #if CONFIG_BAWP_ACROSS_SCALES
   if ((mi_x_p + x_off_p - scaled_x_gen(BAWP_REF_LINES, sf)) < 0 ||
-      (mi_y_p + y_off_p - scaled_y_gen(BAWP_REF_LINES, sf)) < 0 || ref_w <= 0 ||
-      ref_h <= 0 ||
+      (mi_y_p + y_off_p - scaled_y_gen(BAWP_REF_LINES, sf)) < 0 ||
 #else   // CONFIG_BAWP_ACROSS_SCALES
   if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
       (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 ||
 #endif  // CONFIG_BAWP_ACROSS_SCALES
+      ref_w <= 0 || ref_h <= 0 ||
       (mi_x_p + ref_w + x_off_p) >= width_p ||
       (mi_y_p + ref_h + y_off_p) >= height_p) {
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
