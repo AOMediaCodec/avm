@@ -2464,7 +2464,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->skip_mode = 0;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_MORPH_PRED
-  mbmi->morph_pred = 0;
+  if (xd->tree_type != CHROMA_PART) mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
 #if CONFIG_OPTIMIZE_CTX_TIP_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -2484,9 +2484,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
-#if CONFIG_MORPH_PRED
-    mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
     const int intrabc_ctx = get_intrabc_ctx(xd);
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
         aom_read_symbol(r, ec_ctx->intrabc_cdf[intrabc_ctx], 2,
