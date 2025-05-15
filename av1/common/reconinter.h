@@ -757,7 +757,7 @@ static INLINE void divide_and_round_array(int *sol, int den, const int dim,
     int inc_bits = shifts[i] + num_red_bits - den_shift;
     if (inc_bits >= 0)
       sol[i] = sol[i] * inv_den * (1 << inc_bits);
-    else if (-inc_bits >= 31)  // ROUND_POWER_OF_TWO can only handle n<30
+    else if (-inc_bits >= 31)  // ROUND_POWER_OF_TWO can only handle n<=30
       sol[i] = ROUND_POWER_OF_TWO(
           ROUND_POWER_OF_TWO(sol[i], -inc_bits - 30) * inv_den, 30);
     else
