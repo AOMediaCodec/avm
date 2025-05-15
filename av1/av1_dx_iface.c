@@ -167,7 +167,7 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     av1_remove_common(&frame_worker_data->pbi->common);
     av1_free_restoration_buffers(&frame_worker_data->pbi->common);
 #if CONFIG_GDF
-    free_gdf_buffers(&frame_worker_data->pbi->common);
+    free_gdf_buffers(&frame_worker_data->pbi->common.gdf_info);
 #endif  // CONFIG_GDF
     av1_decoder_remove(frame_worker_data->pbi);
     aom_free(frame_worker_data);

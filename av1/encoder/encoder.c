@@ -2459,7 +2459,27 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int64_t rdmult =
       av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
 
+  int *block_ids;
+  block_ids = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
   int blk_idx = 0;
+  for (int y_pos = 0; y_pos < rec_height;
+       y_pos += cm->gdf_info.gdf_block_size) {
+    for (int x_pos = 0; x_pos < rec_width;
+         x_pos += cm->gdf_info.gdf_block_size) {
+      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
+           v_pos += 4) {
+        for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
+             u_pos += 4) {
+          int id = gdf_get_block_idx(cm, v_pos, u_pos);
+          if (id >= 0) {
+            block_ids[blk_idx++] = id;
+          }
+        }
+      }
+    }
+  }
+
+  blk_idx = 0;
   for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < rec_height;
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
@@ -2472,9 +2492,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
         continue;
       }
 #endif
-      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
+      for (int v_pos = y_pos;
+           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
            v_pos += cm->gdf_info.gdf_unit_size) {
-        for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
+        for (int u_pos = x_pos;
+             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
              u_pos += cm->gdf_info.gdf_unit_size) {
           int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
@@ -2482,12 +2504,20 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+          gdf_set_lap_and_cls_unit(
+              i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+              cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
+              bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+              cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            gdf_inference_block(
+            gdf_inference_unit(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                qp_idx + qp_idx_base, cm->gdf_info.inp_ptr, rec_stride,
-                bit_depth, cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
-                pxl_shift, ref_dst_idx);
+                qp_idx + qp_idx_base,
+                cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
+                cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
+                cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
+                ref_dst_idx);
 
             for (int i = i_min; i < i_max; i++) {
               for (int j = j_min; j < j_max; j++) {
@@ -2535,7 +2565,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   cm->gdf_info.gdf_mode = 0;
 
   int *block_flags;
-  block_flags = (int *)aom_malloc(cm->gdf_info.gdf_block_num * sizeof(int));
+  block_flags = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
   int gdf_enable_max_plus_1 = (cm->gdf_info.gdf_block_num <= 1) ? 2 : 3;
   int gdf_block_enable_bit = 1;
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
@@ -2555,7 +2585,8 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
         slice_error = 0;
         av1_copy(gdf_cdf, default_gdf_cdf);
 
-        for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
+        for (int id = 0; id < cm->gdf_info.gdf_block_num; id++) {
+          blk_idx = block_ids[id];
           if (gdf_mode == 1) {
             slice_error += flg_pic_error[scale_idx][qp_idx][blk_idx];
           } else {
@@ -2596,7 +2627,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
         if (slice_cost < best_cost) {
           cm->gdf_info.gdf_mode = gdf_mode;
-          cm->gdf_info.gdf_pic_qc_idx = qp_idx;
+          cm->gdf_info.gdf_pic_qp_idx = qp_idx;
           cm->gdf_info.gdf_pic_scale_idx = scale_idx;
           if (gdf_mode == 2) {
             for (blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
@@ -2618,6 +2649,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if CONFIG_BRU
   aom_free(bru_skip_blk);
 #endif
+  aom_free(block_ids);
 }
 
 /*!\brief Function to perform rate-distortion optimization for GDF
@@ -2625,8 +2657,9 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
  * frame
  */
 void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
-  init_gdf(cm);
-  alloc_gdf_buffers(cm);
+  init_gdf(&cm->gdf_info, cm->mib_size, cm->cur_frame->buf.y_height,
+           cm->cur_frame->buf.y_width);
+  alloc_gdf_buffers(&cm->gdf_info);
   gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);

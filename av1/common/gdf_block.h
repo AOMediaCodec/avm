@@ -39,33 +39,6 @@
 #define GDF_TEST_LINE_BUFFER 0
 #endif
 
-#if GDF_C_CODE_ONLY
-/*!\brief Function to set block's laplacian and class buffer.
- * \param[in]  i_min         The pos of the block's top boundary
- * \param[in]  i_max         The pos of the block's bottom boundary
- * \param[in]  j_min         The pos of the block's left boundary
- * \param[in]  j_max         The pos of the block's right boundary
- * \param[in]  stripe_size   The size of gdf unit stripe.
- * \param[in]  rec_pnt       Frame reconstruction data (pointing at the
- *                           top-leftcorner of the frame, not the gdf block)
- * \param[in]  rec_stride    Stride of \c rec_pnt
- * \param[in]  bit_depth     Bit-depth of the video
- * \param[in]  aligned_lap   Array of the buffer where the results, laplacian
- *                           data of the block, will be written.
- *                           (array order : ver, hor, dia0 and dia1)
- * \param[in]  aligned_cls   Buffer where the results, pixel class data of the
- *                           block, will be written.
- */
-void gdf_set_lap_and_cls_c(
-    const int i_min, const int i_max, const int j_min, const int j_max,
-    const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
-    const int bit_depth,
-    uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
-    uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]);
-#endif  // GDF_C_CODE_ONLY
-
 extern const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2];
 extern const int gdf_guided_sample_coordinates_bwd[GDF_NET_INP_REC_NUM][2];
 extern const int

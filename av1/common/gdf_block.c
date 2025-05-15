@@ -276,26 +276,36 @@ const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM][GDF_N
 };
 // clang-format on
 
-void gdf_set_lap_and_cls_c(
-    const int i_min, const int i_max, const int j_min, const int j_max,
-    const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
-    const int bit_depth,
-    uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
-    uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) {
+/*!\brief Function to set unit's laplacian and class buffer.
+ * \param[in]  i_min                The pos of the block's top boundary
+ * \param[in]  i_max                The pos of the block's bottom boundary
+ * \param[in]  j_min                The pos of the block's left boundary
+ * \param[in]  j_max                The pos of the block's right boundary
+ * \param[in]  stripe_size          The size of gdf unit stripe.
+ * \param[in]  rec_pnt              Frame reconstruction data (pointing at the
+ *                                  top-leftcorner of the unit)
+ * \param[in]  rec_stride           Stride of \c rec_pnt
+ * \param[in]  bit_depth            Bit-depth of the video
+ * \param[in]  gdf_lap_y,           Array of the buffer where the results,
+ *                                  laplacian data of the block, will be
+ *                                  written. (array order : ver, hor,
+ *                                  dia0 and dia1)
+ * \param[in]  gdf_lap_y_stride     Stride of \c gdf_lap_y
+ * \param[in]  gdf_cls_y            Buffer where the results, pixel class data
+ *                                  of the block, will be written.
+ * \param[in]  gdf_lap_y_stride     Stride of \c gdf_cls_y
+ */
+void gdf_set_lap_and_cls_unit_c(const int i_min, const int i_max,
+                                const int j_min, const int j_max,
+                                const int stripe_size, const uint16_t *rec_pnt,
+                                const int rec_stride, const int bit_depth,
+                                uint16_t *const *gdf_lap_y,
+                                const int gdf_lap_y_stride, uint32_t *gdf_cls_y,
+                                const int gdf_cls_y_stride) {
   const int blk_height = i_max - i_min;
   const int blk_width = j_max - j_min;
   const uint16_t *rec_y = rec_pnt;
   const int rec_y_stride = rec_stride;
-
-  uint16_t *gdf_lap_y[GDF_NET_INP_GRD_NUM];
-  for (int grd_idx = 0; grd_idx < GDF_NET_INP_GRD_NUM; grd_idx++) {
-    gdf_lap_y[grd_idx] = aligned_lap[grd_idx][0];
-  }
-  const int gdf_lap_y_stride = GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN;
-  uint32_t *gdf_cls_y = aligned_cls[0];
-  const int gdf_cls_y_stride = GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN;
 
   const int offset_ver = rec_y_stride, offset_dia0 = rec_y_stride + 1,
             offset_dia1 = rec_y_stride - 1;
@@ -429,6 +439,11 @@ void gdf_set_lap_and_cls_c(
     y_11 = std_pos - offset_dia1;
     y2_1 = std_pos + offset_ver + offset_dia1;
 #if !GDF_TEST_LINE_BUFFER
+    if ((i == 0) && ((i_min + GDF_TEST_STRIPE_OFF) % stripe_size == 0)) {
+      y_10 = y00;
+      y_11 = y01;
+      y_1_1 = y0_1;
+    }
     if ((i == (lap_cls_height - 1)) &&
         ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0)) {
       y20 = y00;
@@ -563,13 +578,13 @@ void gdf_set_lap_and_cls_c(
 }
 
 /*!\brief Function to apply scaling factor to expected coding error
- *        and then generate the final filtered block
+ *        and then generate the final filtered unit
  */
-void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
-                              int16_t *errPnt, const int err_stride,
-                              const int errShift, const int scale,
-                              const int pxlMax, const int blkHeight,
-                              const int blkWidth) {
+void gdf_compensation_unit_c(uint16_t *rec_pnt, const int rec_stride,
+                             int16_t *errPnt, const int err_stride,
+                             const int errShift, const int scale,
+                             const int pxlMax, const int blkHeight,
+                             const int blkWidth) {
   const int errShift_half = 1 << (errShift - 1);
   for (int i = 0; i < blkHeight; i++) {
     for (int j = 0; j < blkWidth; j++) {
@@ -592,36 +607,24 @@ void gdf_compensation_block_c(uint16_t *rec_pnt, const int rec_stride,
         : (-(((gdf_idx_scale) * (-(_va)) + (gdf_shift_half)) >>         \
              (gdf_shift)))) -                                           \
    (gdf_idx_min))
+
 /*!\brief Function to generate vertical/horizontal/mixed features
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
  */
-void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
-                           const int j_max, const int sb_size, const int qp_idx,
-                           const uint16_t *rec_pnt, const int rec_stride,
-                           const int bit_depth, int16_t *tgt_pnt,
-                           const int err_stride, const int pxl_shift,
-                           const int ref_dst_idx) {
-  DECLARE_ALIGNED(
-      32, uint32_t,
-      aligned_cls[GDF_TEST_BLK_SIZE][GDF_TEST_BLK_SIZE + 16]) = { 0 };
-  DECLARE_ALIGNED(32, uint16_t,
-                  aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                             [GDF_TEST_BLK_SIZE * 2 + 16]) = { 0 };
-  gdf_set_lap_and_cls_c(i_min, i_max, j_min, j_max, sb_size,
-                        rec_pnt + rec_stride * i_min + j_min, rec_stride,
-                        bit_depth, aligned_lap, aligned_cls);
-
+void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
+                          const int j_max, const int stripe_size,
+                          const int qp_idx, const uint16_t *rec_pnt,
+                          const int rec_stride, uint16_t *const *gdf_lap_pnt,
+                          const int gdf_lap_stride, const uint32_t *gdf_cls_pnt,
+                          const int gdf_cls_stride, int16_t *err_pnt,
+                          const int err_stride, const int pxl_shift,
+                          const int ref_dst_idx) {
   const int blk_height = i_max - i_min;
   const int blk_width = j_max - j_min;
   const int gdf_shift_value = pxl_shift;
-  const uint16_t *rec_y = rec_pnt + i_min * rec_stride + j_min;
+  const uint16_t *rec_y = rec_pnt;
   const int rec_y_stride = rec_stride;
-  const uint32_t *gdf_cls_y = aligned_cls[0];
-  const int cls_y_stride = GDF_TEST_BLK_SIZE + 16;
-  uint16_t *gdf_lap_y[GDF_NET_INP_GRD_NUM];
-  const int lap_y_stride = GDF_TEST_BLK_SIZE * 2 + 16;
-  int16_t *gdf_res_y = tgt_pnt;
   const int res_y_stride = err_stride;
   const int is_intra = ref_dst_idx == 0 ? 1 : 0;
   const int gdf_frm_max =
@@ -633,6 +636,9 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
       GDF_TEST_INP_PREC - GDF_TRAIN_INP_PREC + GDF_TRAIN_PAR_SCALE_LOG2;
   int32_t gdf_shift_half = 1 << (gdf_shift - 1);
 
+  const uint16_t *copied_lap_pnt[GDF_NET_INP_GRD_NUM];
+  memcpy(copied_lap_pnt, gdf_lap_pnt,
+         sizeof(const uint16_t *) * GDF_NET_INP_GRD_NUM);
   const int16_t *alpha, *weight;
   const int32_t *bias;
   const int8_t *gdftable;
@@ -648,12 +654,7 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
     bias = gdf_inter_bias_table[inter_ref_dst_idx][qp_idx];
     gdftable = gdf_inter_error_table[inter_ref_dst_idx][qp_idx];
   }
-  const uint32_t *cls_line = gdf_cls_y;
-  uint16_t *lap_ptr[GDF_NET_INP_GRD_NUM];
-  for (int grd_idx = 0; grd_idx < GDF_NET_INP_GRD_NUM; grd_idx++) {
-    gdf_lap_y[grd_idx] = aligned_lap[grd_idx][0];
-    lap_ptr[grd_idx] = gdf_lap_y[grd_idx];
-  }
+  const uint32_t *cls_line = gdf_cls_pnt;
   int gdf_idx_offset[GDF_NET_LUT_IDX_NUM];
   for (int idx = 0; idx < GDF_NET_LUT_IDX_NUM; idx++) {
     gdf_idx_offset[idx] = 1;
@@ -666,10 +667,11 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
   const int16_t *s_pos_fwd = 0, *s_pos_bwd = 0;
   for (int i = 0; i < blk_height; i++) {
     int vertical_spatial_support_min =
-        -GDF_TEST_LINE_BUFFER - ((i + i_min + GDF_TEST_STRIPE_OFF) % sb_size);
+        -GDF_TEST_LINE_BUFFER -
+        ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
     int vertical_spatial_support_max =
-        (sb_size - 1 + GDF_TEST_LINE_BUFFER) -
-        ((i + i_min + GDF_TEST_STRIPE_OFF) % sb_size);
+        (stripe_size - 1 + GDF_TEST_LINE_BUFFER) -
+        ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
 
     int32_t gdf_idx[GDF_BLOCK_PADDED][GDF_NET_LUT_IDX_NUM] = { 0 };
     for (int k = 0; k < GDF_OPTS_INP_TOT; k++) {
@@ -706,8 +708,9 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
         uint32_t cls_idx = cls_line[j >> 1];
         const int32_t inp_value =
             k < GDF_NET_INP_REC_NUM
-                ? (((s_pos_fwd[j] - rec_ptr[j]) << gdf_shift_value))
-                : (((lap_ptr[k - GDF_NET_INP_REC_NUM][j]) << gdf_shift_value) >>
+                ? (((s_pos_fwd[j] - rec_ptr[j]) * (1 << gdf_shift_value)))
+                : (((copied_lap_pnt[k - GDF_NET_INP_REC_NUM][j])
+                    << gdf_shift_value) >>
                    GDF_TRAIN_GRD_SHIFT);
         const int cls_offset = k * GDF_TRAIN_CLS_NUM + cls_idx;
 
@@ -715,8 +718,8 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
             CLIP(inp_value, -alpha[cls_offset], alpha[cls_offset]);
 
         if (k < GDF_NET_INP_REC_NUM) {
-          const int32_t inp_value2 = (s_pos_bwd[j] - rec_ptr[j])
-                                     << gdf_shift_value;
+          const int32_t inp_value2 =
+              (s_pos_bwd[j] - rec_ptr[j]) * (1 << gdf_shift_value);
           gdf_inp += CLIP(inp_value2, -alpha[cls_offset], alpha[cls_offset]);
         }
         gdf_inp = CLIP(gdf_inp, -2048, 2047);
@@ -735,18 +738,18 @@ void gdf_inference_block_c(const int i_min, const int i_max, const int j_min,
                 CLIP(tmp_gdf_idx, 0, gdf_frm_max - 1) * gdf_idx_offset[idx];
           }
 
-          gdf_res_y[j] = (int16_t)*tb_ptr;
+          err_pnt[j] = (int16_t)*tb_ptr;
         }
       }
     }
     if (i & 1) {
-      cls_line += cls_y_stride;
+      cls_line += gdf_cls_stride;
       for (int grd_idx = 0; grd_idx < GDF_NET_INP_GRD_NUM; grd_idx++) {
-        lap_ptr[grd_idx] += lap_y_stride;
+        copied_lap_pnt[grd_idx] += gdf_lap_stride;
       }
     }
     rec_ptr += rec_y_stride;
-    gdf_res_y += res_y_stride;
+    err_pnt += res_y_stride;
   }
 }
 

@@ -17,6 +17,9 @@
 #include "av1/common/bru.h"
 #endif  // CONFIG_BRU
 #if CONFIG_GDF
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 
@@ -35,18 +38,21 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 
 #define GDF_ERR_STRIDE_MARGIN 16
 
+#define GDF_TEST_STRIPE_SIZE \
+  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
+
 /*!\brief Function to initialize information of GDF
  */
-void init_gdf(AV1_COMMON *cm);
+void init_gdf(GdfInfo *gi, int mib_size, int rec_height, int rec_width);
 
 /*!\brief Function to allocate memory storing block's expected coding error of
  * GDF
  */
-void alloc_gdf_buffers(AV1_COMMON *cm);
+void alloc_gdf_buffers(GdfInfo *gi);
 
 /*!\brief Function to free memory storing block's expected coding error of GDF
  */
-void free_gdf_buffers(AV1_COMMON *cm);
+void free_gdf_buffers(GdfInfo *gi);
 
 /*!\brief Function to print paramters of GDF
  */
@@ -59,6 +65,10 @@ void gdf_copy_guided_frame(AV1_COMMON *cm);
 /*!\brief Function to free memory for guided frame of GDF
  */
 void gdf_free_guided_frame(AV1_COMMON *cm);
+
+/*!\brief Function to calculate block index in list of block on/off flags
+ */
+int gdf_get_block_idx(const AV1_COMMON *cm, int y_h, int y_w);
 
 /*!\brief Function to calculate indices for lookup tables of GDF
  *        in which index is calculated based on distances to references frames
@@ -94,6 +104,10 @@ static inline int is_allow_gdf(const AV1_COMMON *cm) {
 static inline int is_gdf_enabled(const AV1_COMMON *cm) {
   return is_allow_gdf(cm) && cm->gdf_info.gdf_mode > 0;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // CONFIG_GDF
 

@@ -4138,14 +4138,15 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
     return;
   }
 #endif
-  init_gdf(cm);
+  init_gdf(&cm->gdf_info, cm->mib_size, cm->cur_frame->buf.y_height,
+           cm->cur_frame->buf.y_width);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode > 0) {
-    alloc_gdf_buffers(cm);
+    alloc_gdf_buffers(&cm->gdf_info);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
     }
-    cm->gdf_info.gdf_pic_qc_idx = aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2);
+    cm->gdf_info.gdf_pic_qp_idx = aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2);
     cm->gdf_info.gdf_pic_scale_idx =
         aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
   }

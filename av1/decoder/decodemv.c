@@ -65,6 +65,8 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (is_global_intrabc_allowed(cm)) return;
 #endif  //! CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
+  if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
+    return;
 
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
@@ -74,10 +76,15 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 #endif
 
-  if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
-    for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
-      cm->gdf_info.gdf_block_flags[blk_idx] =
-          aom_read_symbol(r, xd->tile_ctx->gdf_cdf, 2, ACCT_INFO("gdf_onoff"));
+  for (int mi_row = xd->mi_row; mi_row < xd->mi_row + cm->mib_size; mi_row++) {
+    for (int mi_col = xd->mi_col; mi_col < xd->mi_col + cm->mib_size;
+         mi_col++) {
+      int blk_idx =
+          gdf_get_block_idx(cm, mi_row << MI_SIZE_LOG2, mi_col << MI_SIZE_LOG2);
+      if (blk_idx >= 0) {
+        cm->gdf_info.gdf_block_flags[blk_idx] = aom_read_symbol(
+            r, xd->tile_ctx->gdf_cdf, 2, ACCT_INFO("gdf_onoff"));
+      }
     }
   }
 }

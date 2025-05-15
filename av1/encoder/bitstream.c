@@ -2091,11 +2091,18 @@ static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                  aom_writer *w) {
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
+  if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
+    return;
 
-  if ((xd->mi_row == 0) && (xd->mi_col == 0)) {
-    for (int blk_idx = 0; blk_idx < cm->gdf_info.gdf_block_num; blk_idx++) {
-      aom_write_symbol(w, cm->gdf_info.gdf_block_flags[blk_idx],
-                       xd->tile_ctx->gdf_cdf, 2);
+  for (int mi_row = xd->mi_row; mi_row < xd->mi_row + cm->mib_size; mi_row++) {
+    for (int mi_col = xd->mi_col; mi_col < xd->mi_col + cm->mib_size;
+         mi_col++) {
+      int blk_idx =
+          gdf_get_block_idx(cm, mi_row << MI_SIZE_LOG2, mi_col << MI_SIZE_LOG2);
+      if (blk_idx >= 0) {
+        aom_write_symbol(w, cm->gdf_info.gdf_block_flags[blk_idx],
+                         xd->tile_ctx->gdf_cdf, 2);
+      }
     }
   }
 }
@@ -5698,7 +5705,7 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
     if (cm->gdf_info.gdf_block_num > 1) {
       aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 1 ? 0 : 1);
     }
-    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qc_idx, GDF_RDO_QP_NUM_LOG2);
+    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qp_idx, GDF_RDO_QP_NUM_LOG2);
     aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_scale_idx,
                          GDF_RDO_SCALE_NUM_LOG2);
   }

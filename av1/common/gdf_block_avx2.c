@@ -34,29 +34,22 @@
 
 /*!\brief Function to calculate gradients and classes for 2x2 pixels used in GDF
  *        of a block boxed by location of [i_min, j_min] to [i_max, j_max]
- *        gradients and classes are stored in aligned_lap and aligned_cls,
- * respectively
+ *        gradients and classes are stored in gdf_lap_y and gdf_cls_y,
+ *        respectively
  */
-static void gdf_set_lap_and_cls_avx2(
+void gdf_set_lap_and_cls_unit_avx2(
     const int i_min, const int i_max, const int j_min, const int j_max,
     const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
-    const int bit_depth,
-    uint16_t aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN],
-    uint32_t aligned_cls[GDF_TEST_BLK_SIZE]
-                        [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) {
-#if GDF_C_CODE_ONLY
-  gdf_set_lap_and_cls_c(i_min, i_max, j_min, j_max, stripe_size, rec_pnt,
-                        rec_stride, bit_depth, aligned_lap, aligned_cls);
-#else  //
+    const int bit_depth, uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride,
+    uint32_t *gdf_cls_y, const int gdf_cls_y_stride) {
   const int offset_ver = rec_stride, offset_dia0 = rec_stride + 1,
             offset_dia1 = rec_stride - 1;
   __m256i shuffle_mask =
       _mm256_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, 13,
                       12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2);
   __m256i shuffle_mask2 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
-  __m256i clip_mask =
-      _mm256_set1_epi16((1 << (16 - (GDF_TEST_INP_PREC - bit_depth))) - 1);
+  __m256i clip_mask = _mm256_set1_epi16(
+      (short)((1 << (16 - (GDF_TEST_INP_PREC - bit_depth))) - 1));
   for (int j = 0; j < (j_max - j_min); j += 14) {
     const uint16_t *std_pos = rec_pnt + (i_max - i_min) * rec_stride + j;
     const uint16_t *std_pos_1;
@@ -127,7 +120,12 @@ static void gdf_set_lap_and_cls_avx2(
       y00 = _mm256_loadu_si256((const __m256i *)(std_pos));
       y10 = _mm256_loadu_si256((const __m256i *)(std_pos + offset_ver));
 
-      y_10 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_ver));
+#if !GDF_TEST_LINE_BUFFER
+      if ((i == 0) && ((i_min + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
+        y_10 = y00;
+      else
+#endif
+        y_10 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_ver));
 #if !GDF_TEST_LINE_BUFFER
       if ((i == (i_max - i_min - 2)) &&
           ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
@@ -140,8 +138,9 @@ static void gdf_set_lap_and_cls_avx2(
                                       y10, y00, y20);
       gdf_calculate_laplacian_4x4_reg(out_ver_reg, prev_ver_reg, cur_ver_reg,
                                       shuffle_mask, shuffle_mask2, clip_mask);
-      _mm256_storeu_si256((__m256i *)(aligned_lap[GDF_VER][i >> 1] + j),
-                          out_ver_reg);
+      _mm256_storeu_si256(
+          (__m256i *)(gdf_lap_y[GDF_VER] + (i >> 1) * gdf_lap_y_stride + j),
+          out_ver_reg);
       prev_ver_reg = cur_ver_reg;
 
       y0_1 = _mm256_loadu_si256((const __m256i *)(std_pos - 1));
@@ -152,11 +151,17 @@ static void gdf_set_lap_and_cls_avx2(
                                       y10, y1_1, y11);
       gdf_calculate_laplacian_4x4_reg(out_hor_reg, prev_hor_reg, cur_hor_reg,
                                       shuffle_mask, shuffle_mask2, clip_mask);
-      _mm256_storeu_si256((__m256i *)(aligned_lap[GDF_HOR][i >> 1] + j),
-                          out_hor_reg);
+      _mm256_storeu_si256(
+          (__m256i *)(gdf_lap_y[GDF_HOR] + (i >> 1) * gdf_lap_y_stride + j),
+          out_hor_reg);
       prev_hor_reg = cur_hor_reg;
 
-      y_1_1 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia0));
+#if !GDF_TEST_LINE_BUFFER
+      if ((i == 0) && ((i_min + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
+        y_1_1 = y0_1;
+      else
+#endif
+        y_1_1 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia0));
 #if !GDF_TEST_LINE_BUFFER
       if ((i == (i_max - i_min - 2)) &&
           ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
@@ -169,11 +174,17 @@ static void gdf_set_lap_and_cls_avx2(
                                       y10, y0_1, y21);
       gdf_calculate_laplacian_4x4_reg(out_dia0_reg, prev_dia0_reg, cur_dia0_reg,
                                       shuffle_mask, shuffle_mask2, clip_mask);
-      _mm256_storeu_si256((__m256i *)(aligned_lap[GDF_DIAG0][i >> 1] + j),
-                          out_dia0_reg);
+      _mm256_storeu_si256(
+          (__m256i *)(gdf_lap_y[GDF_DIAG0] + (i >> 1) * gdf_lap_y_stride + j),
+          out_dia0_reg);
       prev_dia0_reg = cur_dia0_reg;
 
-      y_11 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia1));
+#if !GDF_TEST_LINE_BUFFER
+      if ((i == 0) && ((i_min + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
+        y_11 = y01;
+      else
+#endif
+        y_11 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia1));
 #if !GDF_TEST_LINE_BUFFER
       if ((i == (i_max - i_min - 2)) &&
           ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0))
@@ -186,36 +197,39 @@ static void gdf_set_lap_and_cls_avx2(
                                       y10, y01, y2_1);
       gdf_calculate_laplacian_4x4_reg(out_dia1_reg, prev_dia1_reg, cur_dia1_reg,
                                       shuffle_mask, shuffle_mask2, clip_mask);
-      _mm256_storeu_si256((__m256i *)(aligned_lap[GDF_DIAG1][i >> 1] + j),
-                          out_dia1_reg);
+      _mm256_storeu_si256(
+          (__m256i *)(gdf_lap_y[GDF_DIAG1] + (i >> 1) * gdf_lap_y_stride + j),
+          out_dia1_reg);
       prev_dia1_reg = cur_dia1_reg;
 
+      __m256i offset12 = _mm256_set1_epi16((int16_t)0x8000);
       __m256i cls_reg = _mm256_or_si256(
-          _mm256_add_epi16(_mm256_cmpgt_epi16(out_ver_reg, out_hor_reg),
-                           _mm256_set1_epi16(1)),
+          _mm256_add_epi16(
+              _mm256_cmpgt_epi16(_mm256_sub_epi16(out_ver_reg, offset12),
+                                 _mm256_sub_epi16(out_hor_reg, offset12)),
+              _mm256_set1_epi16(1)),
           _mm256_slli_epi16(
-              _mm256_add_epi16(_mm256_cmpgt_epi16(out_dia0_reg, out_dia1_reg),
-                               _mm256_set1_epi16(1)),
+              _mm256_add_epi16(
+                  _mm256_cmpgt_epi16(_mm256_sub_epi16(out_dia0_reg, offset12),
+                                     _mm256_sub_epi16(out_dia1_reg, offset12)),
+                  _mm256_set1_epi16(1)),
               1));
       cls_reg = _mm256_and_si256(cls_reg, _mm256_set1_epi32(3));
-      _mm256_storeu_si256((__m256i *)(aligned_cls[i >> 1] + (j >> 1)), cls_reg);
+      _mm256_storeu_si256(
+          (__m256i *)(gdf_cls_y + (i >> 1) * gdf_cls_y_stride + (j >> 1)),
+          cls_reg);
     }
   }
-#endif  //
 }
 
 /*!\brief Function to apply expected coding error and controling parameter
  * (i.e., scaling) to generate the final filtered block
  */
-void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
-                                 int16_t *err_pnt, const int err_stride,
-                                 const int err_shift, const int scale,
-                                 const int pxl_max, const int blk_height,
-                                 const int blk_width) {
-#if GDF_C_CODE_ONLY
-  gdf_compensation_block_c(rec_pnt, rec_stride, err_pnt, err_stride, err_shift,
-                           scale, pxl_max, blk_height, blk_width);
-#else   //
+void gdf_compensation_unit_avx2(uint16_t *rec_pnt, const int rec_stride,
+                                int16_t *err_pnt, const int err_stride,
+                                const int err_shift, const int scale,
+                                const int pxl_max, const int blk_height,
+                                const int blk_width) {
   const int errShift_half = 1 << (err_shift - 1);
   const int j_avx2 = ((blk_width) >> 4) << 4;
   __m256i scale_reg = _mm256_set1_epi16(scale);
@@ -253,7 +267,6 @@ void gdf_compensation_block_avx2(uint16_t *rec_pnt, const int rec_stride,
     rec_pnt += rec_stride;
     err_pnt += err_stride;
   }
-#endif  //
 }
 
 // Load weight register in the shape of [alpha[k]_sample[i],
@@ -366,23 +379,19 @@ static inline __m256i gdf_inter_get_idx(__m256i *out_reg0, __m256i *out_reg1,
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
  */
-void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
-                              const int j_max, const int stripe_size,
-                              const int qp_idx, const uint16_t *rec_pnt,
-                              const int rec_stride, const int bit_depth,
-                              int16_t *err_pnt, const int err_stride,
-                              const int pxl_shift, const int ref_dst_idx) {
-#if GDF_C_CODE_ONLY
-  gdf_inference_block_c(i_min, i_max, j_min, j_max, stripe_size, qp_idx,
-                        rec_pnt, rec_width, rec_stride, err_pnt, err_stride,
-                        pxl_shift, ref_dst_idx);
-#else  //
+void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
+                             const int j_max, const int stripe_size,
+                             const int qp_idx, const uint16_t *rec_pnt,
+                             const int rec_stride, uint16_t *const *gdf_lap_pnt,
+                             const int gdf_lap_stride,
+                             const uint32_t *gdf_cls_pnt,
+                             const int gdf_cls_stride, int16_t *err_pnt,
+                             const int err_stride, const int pxl_shift,
+                             const int ref_dst_idx) {
   assert(((i_max - i_min) & 1) == 0);
   assert(((j_max - j_min) & 1) == 0);
   assert((i_min & 1) == 0);
   assert((j_min & 1) == 0);
-  const int cls_stride = GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN;
-  const int lap_stride = GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN;
 
   const int is_intra = ref_dst_idx == 0 ? 1 : 0;
   const int lut_frm_max =
@@ -396,6 +405,9 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
   const int16_t *alpha, *weight;
   const int32_t *bias;
   const int8_t *gdf_table;
+  const uint16_t *copied_lap_pnt[GDF_NET_INP_GRD_NUM];
+  memcpy(copied_lap_pnt, gdf_lap_pnt,
+         sizeof(const uint16_t *) * GDF_NET_INP_GRD_NUM);
   if (is_intra) {
     alpha = gdf_intra_alpha_table[qp_idx];
     weight = gdf_intra_weight_table[qp_idx];
@@ -409,26 +421,14 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
   }
   __m256i (*gdf_get_idx_func)(__m256i *, __m256i *, __m256i *) =
       is_intra ? gdf_intra_get_idx : gdf_inter_get_idx;
-  DECLARE_ALIGNED(
-      32, uint32_t,
-      aligned_cls[GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE + GDF_ERR_STRIDE_MARGIN]) = { 0 };
-  DECLARE_ALIGNED(
-      32, uint16_t,
-      aligned_lap[GDF_NET_INP_GRD_NUM][GDF_TEST_BLK_SIZE]
-                 [GDF_TEST_BLK_SIZE * 2 + GDF_ERR_STRIDE_MARGIN]) = { 0 };
-  gdf_set_lap_and_cls_avx2(i_min, i_max, j_min, j_max, stripe_size,
-                           rec_pnt + rec_stride * i_min + j_min, rec_stride,
-                           bit_depth, aligned_lap, aligned_cls);
 
   gdf_load_bias_reg(bias_reg0, bias);
   gdf_load_bias_reg(bias_reg1, bias + GDF_NET_INP_GRD_NUM);
   gdf_load_bias_reg(bias_reg2,
                     bias + GDF_NET_INP_GRD_NUM + GDF_NET_INP_GRD_NUM);
 
-  uint32_t *cls_line = aligned_cls[0];
   int16_t *tgt_line = err_pnt;
-  const uint16_t *rec_ptr = rec_pnt + rec_stride * i_min + j_min;
+  const uint16_t *rec_ptr = rec_pnt;
 
   __m256i m256i_tmp_reg_01, m256i_tmp_reg_02;
   __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
@@ -436,9 +436,6 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
   const __m256i max_val = _mm256_set1_epi16(2047);   // 2^11 - 1
   __m256 m256_tmp_reg, m256_tmp_reg_02;
 
-  uint16_t *lap_lines[GDF_NET_INP_GRD_NUM] = {
-    aligned_lap[0][0], aligned_lap[1][0], aligned_lap[2][0], aligned_lap[3][0]
-  };
   for (int i = 0; i < (i_max - i_min); i++) {
     int vertical_spatial_support_min =
         -GDF_TEST_LINE_BUFFER -
@@ -448,7 +445,7 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
         ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
     for (int j = 0; j < (j_max - j_min); j += 16) {
       __m256i cls_idx =
-          _mm256_load_si256((const __m256i *)(cls_line + (j >> 1)));
+          _mm256_load_si256((const __m256i *)(gdf_cls_pnt + (j >> 1)));
       __m256i cls_is_odd = _mm256_slli_epi32(cls_idx, 31);
       gdf_assign_bias_to_output_reg(out_reg00, out_reg01, bias_reg0, cls_idx);
       gdf_assign_bias_to_output_reg(out_reg10, out_reg11, bias_reg1, cls_idx);
@@ -550,7 +547,7 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
       for (int k = GDF_NET_INP_REC_NUM;
            k < (GDF_NET_INP_GRD_NUM + GDF_NET_INP_REC_NUM); k++) {
         m256i_tmp_reg_01 = _mm256_load_si256(
-            (const __m256i *)(lap_lines[k - GDF_NET_INP_REC_NUM] + j));
+            (const __m256i *)(copied_lap_pnt[k - GDF_NET_INP_REC_NUM] + j));
         m256i_tmp_reg_02 = _mm256_slli_epi16(m256i_tmp_reg_01, pxl_shift);
         __m256i sample_reg =
             _mm256_srli_epi16(m256i_tmp_reg_02, GDF_TRAIN_GRD_SHIFT);
@@ -624,14 +621,13 @@ void gdf_inference_block_avx2(const int i_min, const int i_max, const int j_min,
 
       _mm256_storeu_si256((__m256i *)(tgt_line + j), out_reg);
     }
-    cls_line += (i & 1) ? cls_stride : 0;
+    gdf_cls_pnt += (i & 1) ? gdf_cls_stride : 0;
     rec_ptr += rec_stride;
     tgt_line += err_stride;
-    for (int kk = 0; kk < GDF_NET_INP_GRD_NUM; kk++) {
-      lap_lines[kk] += (i & 1) ? lap_stride : 0;
+    for (int grd_idx = 0; grd_idx < GDF_NET_INP_GRD_NUM; grd_idx++) {
+      copied_lap_pnt[grd_idx] += (i & 1) ? gdf_lap_stride : 0;
     }
   }
-#endif
 }
 
 #endif  // CONFIG_GDF

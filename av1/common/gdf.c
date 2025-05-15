@@ -11,59 +11,94 @@
  */
 
 #include "av1/common/gdf.h"
+
+#include "pred_common.h"
 #include "av1/common/gdf_block.h"
 
 #if CONFIG_GDF
 
-#define GDF_TEST_STRIPE_SIZE \
-  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
-
-void init_gdf(AV1_COMMON *cm) {
-  const int rec_height = cm->cur_frame->buf.y_height;
-  const int rec_width = cm->cur_frame->buf.y_width;
-
-  cm->gdf_info.gdf_mode = 0;
-  cm->gdf_info.gdf_pic_qc_idx = 0;
-  cm->gdf_info.gdf_pic_scale_idx = 0;
-  cm->gdf_info.gdf_block_size =
-      AOMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
-  const int gdf_block_num_h = 1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) /
-                                   cm->gdf_info.gdf_block_size);
-  const int gdf_block_num_w =
-      1 + ((rec_width - 1) / cm->gdf_info.gdf_block_size);
-  cm->gdf_info.gdf_block_num = gdf_block_num_h * gdf_block_num_w;
-  cm->gdf_info.gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
-  cm->gdf_info.gdf_unit_size = GDF_TEST_STRIPE_SIZE;
-  cm->gdf_info.err_height = cm->gdf_info.gdf_unit_size;
-  cm->gdf_info.err_stride = cm->gdf_info.gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
+void init_gdf(GdfInfo *gi, int mib_size, int rec_height, int rec_width) {
+  gi->gdf_mode = 0;
+  gi->gdf_pic_qp_idx = 0;
+  gi->gdf_pic_scale_idx = 0;
+  gi->gdf_block_size = AOMMAX(mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
+  gi->gdf_block_num_h =
+      1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) / gi->gdf_block_size);
+  gi->gdf_block_num_w = 1 + ((rec_width - 1) / gi->gdf_block_size);
+  gi->gdf_block_num = gi->gdf_block_num_h * gi->gdf_block_num_w;
+  gi->gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
+  gi->gdf_unit_size = GDF_TEST_STRIPE_SIZE;
+  gi->err_height = gi->gdf_unit_size;
+  gi->lap_stride = gi->gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
+  gi->cls_stride = (gi->gdf_unit_size >> 1) + GDF_ERR_STRIDE_MARGIN;
+  gi->err_stride = gi->gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
 }
 
-void alloc_gdf_buffers(AV1_COMMON *cm) {
-  if (cm->gdf_info.err_ptr == NULL || cm->gdf_info.gdf_block_flags == NULL) {
-    cm->gdf_info.err_ptr = (int16_t *)aom_memalign(
-        32,
-        cm->gdf_info.err_height * cm->gdf_info.err_stride * sizeof(int16_t));
-    cm->gdf_info.gdf_block_flags =
-        (int32_t *)aom_malloc(cm->gdf_info.gdf_block_num * sizeof(int));
+void alloc_gdf_buffers(GdfInfo *gi) {
+  free_gdf_buffers(gi);
+  gi->lap_ptr =
+      (uint16_t **)aom_malloc(GDF_NET_INP_GRD_NUM * sizeof(uint16_t *));
+  const int lap_buf_height = (gi->err_height >> 1) + 2;
+  const int cls_buf_height = (gi->err_height >> 1) + 2;
+  for (int i = 0; i < GDF_NET_INP_GRD_NUM; i++) {
+    gi->lap_ptr[i] = (uint16_t *)aom_memalign(
+        32, lap_buf_height * gi->lap_stride * sizeof(uint16_t));
+    memset(gi->lap_ptr[i], 0,
+           lap_buf_height * gi->lap_stride * sizeof(uint16_t));
   }
-  memset(cm->gdf_info.err_ptr, 0, cm->gdf_info.err_height * sizeof(int16_t));
-  memset(cm->gdf_info.gdf_block_flags, 0,
-         cm->gdf_info.gdf_block_num * sizeof(int));
+  gi->cls_ptr = (uint32_t *)aom_memalign(
+      32, cls_buf_height * gi->cls_stride * sizeof(uint32_t));
+  memset(gi->cls_ptr, 0, cls_buf_height * gi->cls_stride * sizeof(uint32_t));
+  gi->err_ptr = (int16_t *)aom_memalign(
+      32, gi->err_height * gi->err_stride * sizeof(int16_t));
+  memset(gi->err_ptr, 0, gi->err_height * gi->err_stride * sizeof(int16_t));
+  gi->gdf_block_flags = (int32_t *)aom_malloc(gi->gdf_block_num * sizeof(int));
+  memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
 }
 
-void free_gdf_buffers(AV1_COMMON *cm) {
-  if (cm->gdf_info.err_ptr != NULL || cm->gdf_info.gdf_block_flags != NULL) {
-    aom_free(cm->gdf_info.err_ptr);
-    cm->gdf_info.err_ptr = NULL;
-    aom_free(cm->gdf_info.gdf_block_flags);
-    cm->gdf_info.gdf_block_flags = NULL;
+void free_gdf_buffers(GdfInfo *gi) {
+  if (gi->lap_ptr != NULL) {
+    for (int i = 0; i < GDF_NET_INP_GRD_NUM; i++) {
+      aom_free(gi->lap_ptr[i]);
+      gi->lap_ptr[i] = NULL;
+    }
+    aom_free(gi->lap_ptr);
+    gi->lap_ptr = NULL;
+  }
+  if (gi->cls_ptr != NULL) {
+    aom_free(gi->cls_ptr);
+    gi->cls_ptr = NULL;
+  }
+  if (gi->err_ptr != NULL) {
+    aom_free(gi->err_ptr);
+    gi->err_ptr = NULL;
+  }
+  if (gi->gdf_block_flags != NULL) {
+    aom_free(gi->gdf_block_flags);
+    gi->gdf_block_flags = NULL;
   }
 }
+
+#define GDF_PRINT_INT(x) printf(#x " : %d\n", x)
 
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
+  printf("=================GDF %s info=================\n", info);
+
+  GDF_PRINT_INT(cm->cur_frame->buf.y_width);
+  GDF_PRINT_INT(cm->cur_frame->buf.y_height);
+  GDF_PRINT_INT(cm->cur_frame->buf.y_stride);
+  GDF_PRINT_INT(cm->cur_frame->buf.bit_depth);
+  GDF_PRINT_INT(cm->quant_params.base_qindex);
+  GDF_PRINT_INT(cm->ref_frames_info.ref_frame_distance[0]);
+  GDF_PRINT_INT(cm->ref_frames_info.ref_frame_distance[1]);
+  GDF_PRINT_INT(cm->current_frame.frame_type);
+  GDF_PRINT_INT(cm->tiles.height);
+  GDF_PRINT_INT(cm->tiles.width);
+  GDF_PRINT_INT(cm->mib_size);
+
   printf("%s[%3d]: gdf_info = [ flag = %d ", info, poc, cm->gdf_info.gdf_mode);
   if (cm->gdf_info.gdf_mode > 0) {
-    printf("=> (qp_idx, scale_idx) = (%3d %3d) ", cm->gdf_info.gdf_pic_qc_idx,
+    printf("=> (qp_idx, scale_idx) = (%3d %3d) ", cm->gdf_info.gdf_pic_qp_idx,
            cm->gdf_info.gdf_pic_scale_idx);
   }
   if (cm->gdf_info.gdf_mode > 1) {
@@ -75,6 +110,7 @@ void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   }
   printf(" ]\n");
 }
+#undef GDF_PRINT_INT
 
 void gdf_copy_guided_frame(AV1_COMMON *cm) {
   int top_buf = 3, bot_buf = 3;
@@ -95,6 +131,22 @@ void gdf_copy_guided_frame(AV1_COMMON *cm) {
 
 void gdf_free_guided_frame(AV1_COMMON *cm) {
   aom_free(cm->gdf_info.inp_pad_ptr);
+}
+
+int gdf_get_block_idx(const AV1_COMMON *cm, int y_h, int y_w) {
+  int blk_idx = -1;
+  if (((y_h == 0) ||
+       ((y_h + GDF_TEST_STRIPE_OFF) % cm->gdf_info.gdf_block_size == 0)) &&
+      ((y_w == 0) || (y_w % cm->gdf_info.gdf_block_size == 0))) {
+    int blk_idx_h =
+        (y_h == 0)
+            ? 0
+            : ((y_h + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_block_size);
+    int blk_idx_w = (y_w == 0) ? 0 : (y_w / cm->gdf_info.gdf_block_size);
+    blk_idx = blk_idx_h * cm->gdf_info.gdf_block_num_w + blk_idx_w;
+  }
+  blk_idx = blk_idx < cm->gdf_info.gdf_block_num ? blk_idx : -1;
+  return blk_idx;
 }
 
 static INLINE int get_ref_dst_max(const AV1_COMMON *const cm) {
@@ -168,13 +220,13 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif
-  const unsigned int bit_depth = cm->cur_frame->buf.bit_depth;
+  const int bit_depth = cm->cur_frame->buf.bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
   const int pxl_shift = GDF_TEST_INP_PREC - bit_depth;
   const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
 
   int ref_dst_idx = gdf_get_ref_dst_idx(cm);
-  int qp_idx_min = gdf_get_qp_idx_base(cm) + cm->gdf_info.gdf_pic_qc_idx;
+  int qp_idx_min = gdf_get_qp_idx_base(cm) + cm->gdf_info.gdf_pic_qp_idx;
   int qp_idx_max_plus_1 = qp_idx_min + 1;
   int scale_val = cm->gdf_info.gdf_pic_scale_idx + 1;
 
@@ -187,9 +239,11 @@ void gdf_filter_frame(AV1_COMMON *cm) {
       const int bru_blk_skip =
           !bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2, y_pos >> MI_SIZE_LOG2);
 #endif
-      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
+      for (int v_pos = y_pos;
+           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
            v_pos += cm->gdf_info.gdf_unit_size) {
-        for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
+        for (int u_pos = x_pos;
+             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
              u_pos += cm->gdf_info.gdf_unit_size) {
           int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
@@ -208,12 +262,19 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #endif
             for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                  qp_idx++) {
-              gdf_inference_block(i_min, i_max, j_min, j_max,
-                                  cm->gdf_info.gdf_stripe_size, qp_idx,
-                                  cm->gdf_info.inp_ptr, rec_stride, bit_depth,
-                                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride,
-                                  pxl_shift, ref_dst_idx);
-              gdf_compensation_block(
+              gdf_set_lap_and_cls_unit(
+                  i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                  cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
+                  bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                  cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
+              gdf_inference_unit(
+                  i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                  qp_idx, cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
+                  rec_stride, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                  cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
+                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
+                  ref_dst_idx);
+              gdf_compensation_unit(
                   rec_pnt + i_min * rec_stride + j_min, rec_stride,
                   cm->gdf_info.err_ptr, cm->gdf_info.err_stride, err_shift,
                   scale_val, pxl_max, i_max - i_min, j_max - j_min);

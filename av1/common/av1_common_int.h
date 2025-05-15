@@ -463,25 +463,33 @@ typedef struct {
   int gdf_mode;       /*!< GDF frame flag (0 : disable,
                                            1 : enable all block,
                                            2 : enable with block level on/off */
-  int gdf_pic_qc_idx; /*!< GDF frame parameter indicates quality (QP) bucket */
+  int gdf_pic_qp_idx; /*!< GDF frame parameter indicates quality (QP) bucket */
   int gdf_pic_scale_idx; /*!< GDF frame parameter indicates scale factor */
   int gdf_block_size;    /*!< GDF parameter indicates block size for on/off */
   int gdf_block_num;     /*!< GDF parameter indicates number of blocks */
-  int gdf_stripe_size;   /*!< GDF parameter indicates stripe size */
-  int gdf_unit_size; /*!< GDF parameter indicates feature extract/error lookup
-                        size */
+  int gdf_block_num_h; /*!< GDF parameter indicates number of blocks vertically
+                        */
+  int gdf_block_num_w; /*!< GDF parameter indicates number of blocks
+                          horizontally */
+  int gdf_stripe_size; /*!< GDF parameter indicates stripe size */
+  int gdf_unit_size;   /*!< GDF parameter indicates feature extract/error lookup
+                          size */
 
   int *gdf_block_flags; /*! GDF array store block on/off flags, active if
                            gdf_mode == 2 */
 
-  int err_height;    /*! Height of GDF memory storing look-uped expected coding
-                        error */
-  int err_stride;    /*! Stride of GDF memory storing look-uped expected coding
-                        error */
-  int16_t *err_ptr;  /*! GDF poiter to memory storing look-uped expected coding
-                        error */
-  uint16_t *inp_ptr; /*! GDF poiter to memory storing guided frame for GDF,
-                        i.e., before LF frame */
+  int err_height;     /*! Height of GDF memory storing look-uped expected coding
+                          error */
+  int err_stride;     /*! Stride of GDF memory storing look-uped expected coding
+                         error */
+  int lap_stride;     /*! Stride of GDF memory storing laplacian values */
+  int cls_stride;     /*! Stride of GDF memory storing class values */
+  uint16_t **lap_ptr; /*! GDF poiter to memory storing laplacian values */
+  uint32_t *cls_ptr;  /*! GDF poiter to memory storing class values */
+  int16_t *err_ptr;   /*! GDF poiter to memory storing look-uped expected coding
+                         error */
+  uint16_t *inp_ptr;  /*! GDF poiter to memory storing guided frame for GDF,
+                         i.e., before LF frame */
   uint16_t *inp_pad_ptr;
 } GdfInfo;
 #endif  // CONFIG_GDF

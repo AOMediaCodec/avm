@@ -108,6 +108,10 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/simd_cmp_impl.h"
     "${AOM_ROOT}/test/simd_impl.h")
 
+  if(CONFIG_GDF)
+    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES "${AOM_ROOT}/test/gdf_test.cc")
+  endif()
+
   if(CONFIG_DIP)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
          "${AOM_ROOT}/test/intra_matrix_test.cc")
