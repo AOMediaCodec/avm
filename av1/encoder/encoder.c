@@ -4746,6 +4746,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
 #if CONFIG_TCQ
   if (cm->features.coded_lossless) {
+    // Disable TCQ for lossless since TCQ may not be reversible
     features->tcq_mode = 0;
   } else {
     if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
