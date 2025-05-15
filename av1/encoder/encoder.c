@@ -2442,9 +2442,8 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
 #if CONFIG_BRU
   // init to zero
-  int *bru_skip_blk;
-  if (cm->bru.enabled)
-    bru_skip_blk = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
+  int *bru_skip_blk =
+      (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
 #endif
 
   int64_t *rec_pic_error;
@@ -2465,6 +2464,14 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
          x_pos += cm->gdf_info.gdf_block_size) {
+#if CONFIG_BRU
+      // mark skip flag for inactive FU
+      if (!bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2, y_pos >> MI_SIZE_LOG2)) {
+        bru_skip_blk[blk_idx] = 1;
+        blk_idx++;
+        continue;
+      }
+#endif
       for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
            v_pos += cm->gdf_info.gdf_unit_size) {
         for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
@@ -2475,15 +2482,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
-#if CONFIG_BRU
-          // mark skip flag for inactive FU
-          if (!bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2,
-                                y_pos >> MI_SIZE_LOG2)) {
-            bru_skip_blk[blk_idx] = 1;
-            blk_idx++;
-            continue;
-          }
-#endif
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
             gdf_inference_block(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
@@ -2618,9 +2616,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
   aom_free(block_flags);
 #if CONFIG_BRU
-  if (cm->bru.enabled) {
-    aom_free(bru_skip_blk);
-  }
+  aom_free(bru_skip_blk);
 #endif
 }
 

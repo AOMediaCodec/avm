@@ -2088,7 +2088,7 @@ static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 #else
 static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_BRU
-                                  aom_writer *w) {
+                                 aom_writer *w) {
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
 
