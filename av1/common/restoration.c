@@ -331,13 +331,17 @@ AV1PixelRect av1_whole_frame_rect(const AV1_COMMON *cm, int is_uv) {
   int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   rect.top = 0;
-#if CONFIG_ENABLE_SR
+#if CONFIG_F054_PIC_BOUNDARY
+  rect.bottom = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
+#elif CONFIG_ENABLE_SR
   rect.bottom = ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
 #else
   rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
 #endif  // CONFIG_ENABLE_SR
   rect.left = 0;
-#if CONFIG_ENABLE_SR
+#if CONFIG_F054_PIC_BOUNDARY
+  rect.right = cm->mi_params.mi_cols * MI_SIZE >> ss_x;
+#elif CONFIG_ENABLE_SR
   rect.right = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
 #else
   rect.right = ROUND_POWER_OF_TWO(cm->width, ss_x);
