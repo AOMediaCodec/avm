@@ -5937,7 +5937,6 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_IMPROVE_REFINED_MV
   ) {
     use_affine_opfl = xd->use_affine_opfl;
-    memcpy(mv_refined, xd->mv_refined, 2 * N_OF_OFFSETS * sizeof(*mv_refined));
     memcpy(wms, xd->wm_params_sb, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
   }
 #endif
@@ -6039,8 +6038,6 @@ static void build_inter_predictors_8x8_and_bigger(
       );
 #if CONFIG_AFFINE_REFINEMENT
       xd->use_affine_opfl = use_affine_opfl;
-      memcpy(xd->mv_refined, mv_refined,
-             2 * N_OF_OFFSETS * sizeof(*mv_refined));
 #endif
 #if CONFIG_AFFINE_REFINEMENT_SB
       memcpy(xd->wm_params_sb, wms, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
