@@ -752,8 +752,7 @@ static INLINE void divide_and_round_array(int *sol, int den, const int dim,
     sol[i] = sign ? sol[i] : -sol[i];
     int num_red_bits =
         AOMMAX(0, get_msb_signed(sol[i]) + inv_den_msb + 4 - MAX_LS_BITS);
-    if (num_red_bits > 0)
-      sol[i] = ROUND_POWER_OF_TWO(sol[i], num_red_bits);
+    if (num_red_bits > 0) sol[i] = ROUND_POWER_OF_TWO(sol[i], num_red_bits);
 
     int inc_bits = shifts[i] + num_red_bits - den_shift;
     if (inc_bits >= 0)
