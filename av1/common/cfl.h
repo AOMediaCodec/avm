@@ -206,6 +206,9 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              uint16_t *output_q3, int width,
                                              int height, int filter_type);
 
+void cfl_luma_subsampling_444_hbd_c(const uint16_t *input, int input_stride,
+                                    uint16_t *output_q3, int width, int height);
+
 // Get neighbor luma reconstruction pixels
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
