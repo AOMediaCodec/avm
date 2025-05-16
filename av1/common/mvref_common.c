@@ -1608,7 +1608,7 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
   if (mbmi->skip_mode) return;
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
   if (candidate->skip_mode) return;
-#endif //CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
+#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
   if (rf[1] == NONE_FRAME) {
     // single reference frame
     for (int ref = 0; ref < 2; ++ref) {
@@ -9598,7 +9598,7 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
         && neighbor_mi->skip_mode == 0
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        ) {
+    ) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mbmi->mode == WARP_NEWMV ||
