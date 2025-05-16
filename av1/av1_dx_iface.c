@@ -772,7 +772,8 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_bit(&wb, 1);                // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
                        ref_frames_log2);  // signal frame to be output
-  aom_wb_write_literal(&wb, 0x8, 7 - ref_frames_log2);  // trailing bits
+  aom_wb_write_bit(&wb, 1);               // trailing one
+  aom_wb_write_literal(&wb, 0, 6 - ref_frames_log2);  // trailing zeros
 }
 
 // This function outputs all frames from the frame buffers that are showable but

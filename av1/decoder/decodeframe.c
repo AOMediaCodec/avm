@@ -6879,7 +6879,8 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   if (!pars->update_parameters) {
     // inherit parameters from a previous reference frame
-    int film_grain_params_ref_idx = aom_rb_read_literal(rb, 3);
+    int film_grain_params_ref_idx =
+        aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
     // Section 6.8.20: It is a requirement of bitstream conformance that
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
@@ -7370,6 +7371,8 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 
   if (use_extra_dpb) {
     seq_params->num_extra_dpb = 1 + aom_rb_read_literal(rb, 3);
+  } else {
+    seq_params->num_extra_dpb = 0;
   }
 
   seq_params->ref_frames = seq_params->num_extra_dpb

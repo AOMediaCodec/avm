@@ -6463,7 +6463,7 @@ static AOM_INLINE void write_film_grain_params(
     }
     assert(ref_frame < REGULAR_REF_FRAMES);
     assert(ref_idx != INVALID_IDX);
-    aom_wb_write_literal(wb, ref_idx, 3);
+    aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
     return;
   }
 
