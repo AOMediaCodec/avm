@@ -3403,13 +3403,11 @@ static int64_t motion_mode_rd(
                     ms_params.mv_cost_params.is_adaptive_mvd);
 
                 tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
-                assert(
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                    mbmi->mode == WARP_NEWMV
+                assert(mbmi->mode == WARP_NEWMV || mbmi->warpmv_with_mvd_flag);
 #else
-                mbmi->mode == NEWMV
+            assert(mbmi->mode == NEWMV || mbmi->warpmv_with_mvd_flag);
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                    || mbmi->warpmv_with_mvd_flag);
                 assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
               }
 #if CONFIG_C071_SUBBLK_WARPMV
