@@ -157,8 +157,18 @@ static INLINE int read_high_range(MACROBLOCKD *xd, aom_reader *r, int tcq_mode,
                                   ,
                                   int *hr_avg
 #endif
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+                                  ,
+                                  int plane
+#endif
 ) {
+#if CONFIG_COEFF_BR_LF_UV_BYPASS // code_hr_t
+  int max_br = lf ? (plane == 0 ? LF_MAX_BASE_BR_RANGE // 8
+                                : LF_NUM_BASE_LEVELS + 1)
+                  : MAX_BASE_BR_RANGE;
+#else
   int max_br = lf ? LF_MAX_BASE_BR_RANGE : MAX_BASE_BR_RANGE;
+#endif
   int use_tcq_hr = tcq_mode && (level >= max_br - 1);
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = *hr_avg;
@@ -210,7 +220,10 @@ static INLINE void read_coeffs_reverse_2d(
     int plane, base_cdf_arr base_cdf, br_cdf_arr br_cdf
 #if CONFIG_CHROMA_CODING
     ,
-    base_lf_cdf_arr base_lf_uv_cdf, br_cdf_arr br_lf_uv_cdf,
+    base_lf_cdf_arr base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+    br_cdf_arr br_lf_uv_cdf,
+#endif
     base_cdf_arr base_uv_cdf, br_cdf_arr br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
@@ -240,11 +253,13 @@ static INLINE void read_coeffs_reverse_2d(
         level += aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
 #endif  // CONFIG_TCQ
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_2d_chroma(levels, pos, bwl);
           aom_cdf_prob *cdf = br_lf_uv_cdf[br_ctx];
           level += read_low_range(r, cdf);
         }
+#endif
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_2d_chroma(levels, pos, bwl, plane);
@@ -355,7 +370,10 @@ static INLINE void read_coeffs_reverse(
     br_cdf_arr br_lf_cdf, int plane, base_cdf_arr base_cdf, br_cdf_arr br_cdf
 #if CONFIG_CHROMA_CODING
     ,
-    base_lf_cdf_arr base_lf_uv_cdf, br_cdf_arr br_lf_uv_cdf,
+    base_lf_cdf_arr base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+    br_cdf_arr br_lf_uv_cdf,
+#endif
     base_cdf_arr base_uv_cdf, br_cdf_arr br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
@@ -386,11 +404,13 @@ static INLINE void read_coeffs_reverse(
         level += aom_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
                                  ACCT_INFO("level", "base_lf_uv_cdf"));
 #endif  // CONFIG_TCQ
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
           aom_cdf_prob *cdf = br_lf_uv_cdf[br_ctx];
           level += read_low_range(r, cdf);
         }
+#endif
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_chroma(levels, pos, bwl, tx_class, plane);
@@ -924,6 +944,10 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
                               ,
                               &hr_level_avg
 #endif
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+                              ,
+                              plane
+#endif
       );
 #endif
       if (c == 0) dc_val = sign ? -level : level;
@@ -959,18 +983,24 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
 static INLINE tran_low_t read_coeff_hidden(aom_reader *r, TX_CLASS tx_class,
                                            const int16_t *scan, int bwl,
                                            uint8_t *levels, int parity,
-                                           base_ph_cdf_arr base_cdf_ph,
-                                           br_cdf_arr br_cdf_ph) {
+                                           base_ph_cdf_arr base_cdf_ph
+#if !CONFIG_COEFF_BR_PH_BYPASS
+                                           ,
+                                           br_cdf_arr br_cdf_ph
+#endif
+                                           ) {
   int q_index;
   const int pos = scan[0];
   int ctx_idx = get_base_ctx_ph(levels, pos, bwl, tx_class);
   q_index = aom_read_symbol(r, base_cdf_ph[ctx_idx], 4, ACCT_INFO("q_index"));
 
+#if !CONFIG_COEFF_BR_PH_BYPASS
   if (q_index > NUM_BASE_LEVELS) {
     ctx_idx = get_par_br_ctx(levels, pos, bwl, tx_class);
     aom_cdf_prob *cdf_br = br_cdf_ph[ctx_idx];
     q_index += read_low_range(r, cdf_br);
   }
+#endif
   assert(q_index <= MAX_BASE_BR_RANGE);
   uint8_t level = (q_index << 1) + parity;
   levels[get_padded_idx(pos, bwl)] = level;
@@ -1017,9 +1047,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
   uint16_t *const eob = &(eob_data->eob);
   uint16_t *const max_scan_line = &(eob_data->max_scan_line);
-#if CONFIG_TCQ
-  int tcq_mode = cm->features.tcq_mode;
-#endif  // CONFIG_TCQ
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fDecCoeffLog,
@@ -1060,7 +1087,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif
 
 #if CONFIG_TCQ
-  int state = tcq_init_state(cm->features.tcq_mode, plane, tx_class);
+  int tcq_mode = tcq_enable(cm->features.tcq_mode, plane, tx_class);
+  int state = tcq_init_state(tcq_mode);
 #endif  // CONFIG_TCQ
 
   {
@@ -1082,12 +1110,13 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
             aom_read_symbol(r, cdf, LF_BASE_SYMBOLS - 1,
                             ACCT_INFO("level", "coeff_base_lf_eob_uv_cdf")) +
             1;
-
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
         if (level > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_lf_eob_chroma(pos, tx_class);
           cdf = ec_ctx->coeff_br_lf_uv_cdf[br_ctx];
           level += read_low_range(r, cdf);
         }
+#endif
       } else {
         aom_cdf_prob *cdf = ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx];
         level += aom_read_symbol(r, cdf, 3,
@@ -1173,7 +1202,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf[txs_ctx];
     br_cdf_arr br_cdf = ec_ctx->coeff_br_cdf;
     base_lf_cdf_arr base_lf_uv_cdf = ec_ctx->coeff_base_lf_uv_cdf;
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
     br_cdf_arr br_lf_uv_cdf = ec_ctx->coeff_br_lf_uv_cdf;
+#endif
     base_cdf_arr base_uv_cdf = ec_ctx->coeff_base_uv_cdf;
     br_cdf_arr br_uv_cdf = ec_ctx->coeff_br_uv_cdf;
 #else
@@ -1189,7 +1220,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                              br_lf_cdf, plane, base_cdf, br_cdf
 #if CONFIG_CHROMA_CODING
                              ,
-                             base_lf_uv_cdf, br_lf_uv_cdf, base_uv_cdf,
+                             base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+                             br_lf_uv_cdf,
+#endif
+                             base_uv_cdf,
                              br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
@@ -1211,13 +1246,22 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       }
       if (is_hidden) {
         read_coeff_hidden(r, tx_class, scan, bwl, levels, (sum_abs1 & 1),
-                          ec_ctx->coeff_base_ph_cdf, ec_ctx->coeff_br_ph_cdf);
+                          ec_ctx->coeff_base_ph_cdf
+#if !CONFIG_COEFF_BR_PH_BYPASS
+                          ,
+                          ec_ctx->coeff_br_ph_cdf
+#endif
+                          );
       } else {
         read_coeffs_reverse(r, tx_class, 0, 0, scan, bwl, levels, base_lf_cdf,
                             br_lf_cdf, plane, base_cdf, br_cdf
 #if CONFIG_CHROMA_CODING
                             ,
-                            base_lf_uv_cdf, br_lf_uv_cdf, base_uv_cdf, br_uv_cdf
+                            base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+                             br_lf_uv_cdf,
+#endif
+                            base_uv_cdf, br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
                             ,
@@ -1230,7 +1274,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                           base_lf_cdf, br_lf_cdf, plane, base_cdf, br_cdf
 #if CONFIG_CHROMA_CODING
                           ,
-                          base_lf_uv_cdf, br_lf_uv_cdf, base_uv_cdf, br_uv_cdf
+                          base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+                          br_lf_uv_cdf,
+#endif
+                          base_uv_cdf, br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
                           ,
@@ -1251,13 +1299,22 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       }
       if (is_hidden) {
         read_coeff_hidden(r, tx_class, scan, bwl, levels, (sum_abs1 & 1),
-                          ec_ctx->coeff_base_ph_cdf, ec_ctx->coeff_br_ph_cdf);
+                          ec_ctx->coeff_base_ph_cdf
+#if !CONFIG_COEFF_BR_PH_BYPASS
+                          ,
+                          ec_ctx->coeff_br_ph_cdf
+#endif
+                          );
       } else {
         read_coeffs_reverse(r, tx_class, 0, 0, scan, bwl, levels, base_lf_cdf,
                             br_lf_cdf, plane, base_cdf, br_cdf
 #if CONFIG_CHROMA_CODING
                             ,
-                            base_lf_uv_cdf, br_lf_uv_cdf, base_uv_cdf, br_uv_cdf
+                            base_lf_uv_cdf,
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
+                           br_lf_uv_cdf,
+#endif
+                            base_uv_cdf, br_uv_cdf
 #endif  // CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
                             ,
@@ -1349,6 +1406,13 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       }
 
       if (is_hidden && c == 0) {
+#if CONFIG_COEFF_BR_PH_BYPASS
+        if (level >= ((NUM_BASE_LEVELS + 1) << 1)) {
+          int hr_level = (read_adaptive_hr(xd, r, hr_level_avg >> 1) << 1);
+          level += hr_level;
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+        }
+#else
         if (level >= (MAX_BASE_BR_RANGE << 1)) {
 #if CONFIG_COEFF_HR_ADAPTIVE
           int hr_level = (read_adaptive_hr(xd, r, hr_level_avg >> 1) << 1);
@@ -1358,6 +1422,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
           level += (read_exp_golomb(xd, r, 0) << 1);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
+#endif
       } else {
 #if !CONFIG_IMPROVEIDTX
         const int row = pos >> bwl;
@@ -1392,6 +1457,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                 ,
                                 &hr_level_avg
 #endif
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+                                ,
+                                plane
+#endif
         );
 #endif
       }
@@ -1402,8 +1471,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       level &= 0xfffff;
       cul_level += level;
 #if CONFIG_TCQ
-      if (!xd->lossless[mbmi->segment_id] &&
-          tcq_enable(tcq_mode, plane, tx_class)) {
+      if (!xd->lossless[mbmi->segment_id] && tcq_mode) {
         tcoeffs[pos] = sign ? -level : level;
       } else {
         tran_low_t dq_coeff;
@@ -1444,9 +1512,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 #if CONFIG_TCQ
-  if (!xd->lossless[mbmi->segment_id] &&
-      tcq_enable(tcq_mode, plane, tx_class)) {
-    state = tcq_init_state(tcq_mode, plane, tx_class);
+  if (!xd->lossless[mbmi->segment_id] && tcq_mode) {
+    state = tcq_init_state(tcq_mode);
     for (int c = *eob - 1; c >= 0; --c) {
       const int pos = scan[c];
       int Qx = tcq_quant(state);

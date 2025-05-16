@@ -93,14 +93,8 @@ int tcq_parity(int absLevel) {
   return par;
 }
 
-int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class) {
+int tcq_init_state(int tcq_mode) {
   int state = tcq_mode << 8;
-  if (TCQ_DIS_CHR && plane != 0) {
-    state = 0;
-  }
-  if (TCQ_DIS_1D && tx_class != TX_CLASS_2D) {
-    state = 0;
-  }
   return state;
 }
 

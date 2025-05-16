@@ -222,6 +222,14 @@ set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
 
+set_aom_config_var(
+  CONFIG_COEFF_BR_LF_UV_BYPASS 1
+  "AV2 experiment flag to bypass UV LF syntax.")
+
+set_aom_config_var(
+  CONFIG_COEFF_BR_PH_BYPASS 1
+  "AV2 experiment flag to bypass BR PH syntax")
+  
 set_aom_config_var(CONFIG_EXTENDED_SDP 1
                    "Enable SDP for intra blocks in inter frame")
 set_aom_config_var(
