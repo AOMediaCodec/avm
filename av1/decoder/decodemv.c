@@ -1914,16 +1914,27 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void read_intrabc_drl_idx(int max_ref_bv_cnt, FRAME_CONTEXT *ec_ctx,
+static void read_intrabc_drl_idx(int max_ref_bv_cnt,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                 FRAME_CONTEXT *ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                  MB_MODE_INFO *mbmi, aom_reader *r) {
   mbmi->intrabc_drl_idx = 0;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_cnt - 1; ++idx) {
+#if CONFIG_BYPASS_INTRABC_DRL_IDX
+    const int intrabc_drl_idx = aom_read_bit(r, ACCT_INFO());
+#else
     const int intrabc_drl_idx = aom_read_symbol(
         r, ec_ctx->intrabc_drl_idx_cdf[bit_cnt], 2, ACCT_INFO());
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
     mbmi->intrabc_drl_idx = idx + intrabc_drl_idx;
     if (!intrabc_drl_idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
   assert(mbmi->intrabc_drl_idx < max_ref_bv_cnt);
 }
@@ -2016,7 +2027,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->intrabc_mode =
         aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 2, ACCT_INFO());
 #if CONFIG_IBC_MAX_DRL
-    read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1, ec_ctx, mbmi, r);
+    read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                         ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+                         mbmi, r);
 #else
     read_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, r);
 #endif  // CONFIG_IBC_MAX_DRL

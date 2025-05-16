@@ -3009,7 +3009,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
+static void write_intrabc_drl_idx(int max_ref_bv_num,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                  FRAME_CONTEXT *ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                   const MB_MODE_INFO *mbmi,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                                   aom_writer *w) {
@@ -3021,13 +3024,21 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
 #endif
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   (void)mbmi_ext_frame;
-
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
+#if CONFIG_BYPASS_INTRABC_DRL_IDX
+    aom_write_bit(w, mbmi->intrabc_drl_idx != idx);
+#else
     aom_write_symbol(w, mbmi->intrabc_drl_idx != idx,
                      ec_ctx->intrabc_drl_idx_cdf[bit_cnt], 2);
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+
     if (mbmi->intrabc_drl_idx == idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
 }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -3080,7 +3091,10 @@ static AOM_INLINE void write_intrabc_info(
 #else
         MAX_REF_BV_STACK_SIZE,
 #endif  // CONFIG_IBC_MAX_DRL
-        ec_ctx, mbmi, mbmi_ext_frame, w);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+        ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+        mbmi, mbmi_ext_frame, w);
 
 #if CONFIG_IBC_SUBPEL_PRECISION
     if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
