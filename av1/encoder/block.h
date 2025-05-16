@@ -193,8 +193,10 @@ typedef struct LV_MAP_COEFF_COST {
 #endif  // CONFIG_TCQ
                      [LF_BASE_SYMBOLS * 2];
   //! Cost for encoding an increment to the low-frequency chroma coefficient
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   int lps_lf_cost_uv[LF_LEVEL_CONTEXTS_UV]
                     [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif
   /*! \brief Cost for encoding the base_eob of a chroma level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
@@ -231,8 +233,10 @@ typedef struct LV_MAP_COEFF_COST {
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
   //! Cost for encoding an increment to the parity-hidden coefficient
+#if !CONFIG_COEFF_BR_PH_BYPASS
   int lps_ph_cost[COEFF_BR_PH_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif
   /*! \brief Cost for encoding the base_eob of a level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.

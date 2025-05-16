@@ -8825,8 +8825,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
                          ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf,
                          ctx_tr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif
 #endif  // CONFIG_CHROMA_CODING
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_warp_mode_cdf,
@@ -9221,7 +9223,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf,
                          4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif
   CUMULATIVE_AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf,
                          CCTX_TYPES);
 }
@@ -9329,7 +9333,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->coeff_base_eob_uv_cdf, 3);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   SHIFT_CDF(ctx_ptr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif
 #endif  // CONFIG_CHROMA_CODING
 
   SHIFT_CDF(ctx_ptr->inter_warp_mode_cdf, 2);
@@ -9609,7 +9615,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   }
 
   SHIFT_CDF(ctx_ptr->coeff_base_ph_cdf, 4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   SHIFT_CDF(ctx_ptr->coeff_br_ph_cdf, 4);
+#endif
   SHIFT_CDF(ctx_ptr->cctx_type_cdf, CCTX_TYPES);
 }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
@@ -9757,8 +9765,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               LF_BASE_SYMBOLS);
   AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
               ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf, ctx_tr->coeff_br_lf_uv_cdf,
               BR_CDF_SIZE);
+#endif
 #endif  // CONFIG_CHROMA_CODING
 
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
@@ -10090,7 +10100,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
 
   AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf, 4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif
   AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
 }
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT

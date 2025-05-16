@@ -240,7 +240,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_TCQ
                                 [CDF_SIZE(4)];
   aom_cdf_prob coeff_base_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB][CDF_SIZE(3)];
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   aom_cdf_prob coeff_br_lf_uv_cdf[LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
+#endif
   aom_cdf_prob coeff_br_uv_cdf[LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
 #else
   aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]
@@ -270,8 +272,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_IMPROVEIDTX
   aom_cdf_prob coeff_base_ph_cdf[COEFF_BASE_PH_CONTEXTS]
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
+#if !CONFIG_COEFF_BR_PH_BYPASS
   aom_cdf_prob coeff_br_ph_cdf[COEFF_BR_PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-
+#endif
 #if CONFIG_OPT_INTER_MODE_CTX
   aom_cdf_prob inter_single_mode_cdf[INTER_MODE_CONTEXTS]
                                     [CDF_SIZE(INTER_SINGLE_MODES)];

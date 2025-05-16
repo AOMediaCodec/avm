@@ -18928,7 +18928,7 @@ static const aom_cdf_prob
                                         { AOM_CDF4(7108, 15722, 21972), 90 },
                                     },
                                   };
-
+#if !CONFIG_COEFF_BR_PH_BYPASS
 static const aom_cdf_prob
     av1_default_coeff_br_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BR_PH_CONTEXTS]
                                 [CDF_SIZE(BR_CDF_SIZE)] = {
@@ -18969,6 +18969,7 @@ static const aom_cdf_prob
                                       { AOM_CDF4(6535, 12315, 17263), 101 },
                                   },
                                 };
+#endif
 #else
 static const aom_cdf_prob
     av1_default_coeff_base_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
@@ -18994,7 +18995,7 @@ static const aom_cdf_prob
                                       { AOM_CDF4(11324, 22960, 28501) },
                                       { AOM_CDF4(7895, 17320, 23747) } }
                                   };
-
+#if !CONFIG_COEFF_BR_PH_BYPASS
 static const aom_cdf_prob
     av1_default_coeff_br_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BR_PH_CONTEXTS]
                                 [CDF_SIZE(BR_CDF_SIZE)] = {
@@ -19027,6 +19028,7 @@ static const aom_cdf_prob
                                     { AOM_CDF4(11557, 20493, 26021) },
                                     { AOM_CDF4(8902, 15844, 21619) } },
                                 };
+#endif
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_DIP

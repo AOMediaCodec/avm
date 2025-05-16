@@ -1430,12 +1430,15 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_CHROMA_CODING
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
       for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS_UV; ++ctx) {
         int br_lf_cctx_rate[BR_CDF_SIZE];
         int prev_cost_lf_cctx = 0;
         int i, j;
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS // cost
         av1_cost_tokens_from_cdf(br_lf_cctx_rate, fc->coeff_br_lf_uv_cdf[ctx],
                                  NULL);
+#endif
         for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
           for (j = 0; j < BR_CDF_SIZE - 1; j++) {
             pcost->lps_lf_cost_uv[ctx][i + j] =
@@ -1453,6 +1456,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->lps_lf_cost_uv[ctx][i] - pcost->lps_lf_cost_uv[ctx][i - 1];
         }
       }
+#endif
 
       for (int ctx = 0; ctx < LEVEL_CONTEXTS_UV; ++ctx) {
         int br_rate_cctx[BR_CDF_SIZE];
@@ -1647,6 +1651,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                              fc->coeff_base_ph_cdf[ctx], NULL);
   }
 
+#if !CONFIG_COEFF_BR_PH_BYPASS // cost
   for (int ctx = 0; ctx < COEFF_BR_PH_CONTEXTS; ++ctx) {
     int br_ph_rate[BR_CDF_SIZE];
     int prev_cost = 0;
@@ -1668,6 +1673,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
           pcost->lps_ph_cost[ctx][i] - pcost->lps_ph_cost[ctx][i - 1];
     }
   }
+#endif
 }
 
 #if CONFIG_IBC_SUBPEL_PRECISION
