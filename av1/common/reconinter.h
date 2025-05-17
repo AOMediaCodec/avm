@@ -732,8 +732,8 @@ void av1_opfl_rebuild_inter_predictor(
 // sol: numerator (will be updated to the solution)
 // den: denominator
 // out: output result (sol / den)
-static INLINE void divide_and_round_array(int *sol, int den, const int dim,
-                                          int *shifts) {
+static INLINE void divide_and_round_array(int32_t *sol, int32_t den,
+                                          const int dim, int *shifts) {
   assert(den != 0);
   if (den < 0) {
     for (int i = 0; i < dim; i++) sol[i] = -sol[i];
@@ -776,7 +776,7 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_E125_MHCCP_SIMPLIFY
 
 #if CONFIG_AFFINE_REFINEMENT
-int solver_4d(const int *mat, const int *vec, int *precbits, int *sol);
+int solver_4d(const int32_t *mat, const int32_t *vec, int *precbits, int *sol);
 void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
                                        int16_t *gx, int16_t *gy,
                                        const int gstride, const int bw,
@@ -788,7 +788,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #if CONFIG_AFFINE_REFINEMENT_SB
                                               int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                              int *mat_a, int *vec_b);
+                                              int32_t *mat_a, int32_t *vec_b);
 
 #define AFFINE_OPFL_BASED_ON_SAD 1
 #define AFFINE_FAST_ENC_SEARCH 1
@@ -1343,9 +1343,10 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
                                int bw, int bh);
 #endif  // CONFIG_SUBBLK_REF_DS
 
-void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
-                     const int d1, const int bits, const int rls_alpha,
-                     int *vx0, int *vy0, int *vx1, int *vy1);
+void calc_mv_process(int32_t su2, int32_t sv2, int32_t suv, int32_t suw,
+                     int32_t svw, const int d0, const int d1, const int bits,
+                     const int rls_alpha, int *vx0, int *vy0, int *vx1,
+                     int *vy1);
 void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride0,
                             const int16_t *gx, const int16_t *gy, int gstride,
                             int bw, int bh, int d0, int d1, int grad_prec_bits,

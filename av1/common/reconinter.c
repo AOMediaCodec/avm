@@ -1505,8 +1505,9 @@ void get_vec_bit_ranges(const int64_t *vec, int *bits_max, const int dim) {
 
 #define MAX_LS_DIM 4
 // Swap two rows for Gaussian elimination routine
-void swap_rows(int *mat, int *sol, const int i, const int j, const int dim) {
-  int temp = sol[i];
+void swap_rows(int32_t *mat, int32_t *sol, const int i, const int j,
+               const int dim) {
+  int32_t temp = sol[i];
   sol[i] = sol[j];
   sol[j] = temp;
   for (int col = 0; col < dim; col++) {
@@ -1521,7 +1522,8 @@ void swap_rows(int *mat, int *sol, const int i, const int j, const int dim) {
 #define GE_MULT_PREC_BITS 12
 
 // Perform Gaussian elimination routine to solve a matrix inverse problem
-int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
+int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
+                         const int dim) {
   int shifts[MAX_LS_DIM] = { 0 };
   int16_t inv_pivot[MAX_LS_DIM] = { 0 };
   int16_t inv_pivot_shift[MAX_LS_DIM] = { 0 };
@@ -1577,13 +1579,13 @@ int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
   }
 
   // Elimination for the i-th column
-  int diff = 0;
+  int32_t diff = 0;
   for (int i = 0; i < dim; i++) {
-    int pivot = mat[i * dim + i];
+    int32_t pivot = mat[i * dim + i];
     int idx_pivot = i;
 
     for (int j = i + 1; j < dim; j++) {
-      int new_pivot = mat[j * dim + i];
+      int32_t new_pivot = mat[j * dim + i];
       if (abs(new_pivot) > abs(pivot)) {
         idx_pivot = j;
         pivot = new_pivot;
@@ -1607,22 +1609,23 @@ int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
       int inc_bits = AOMMAX(
           0, GE_MULT_PREC_BITS - msb_ki - msb_invpiv + inv_pivot_shift[i]);
       int fshift = inc_bits;
-      int f = (int)stable_mult_shift((int64_t)mat[k * dim + i],
-                                     (int64_t)inv_pivot[i],
-                                     inv_pivot_shift[i] - inc_bits, msb_ki,
-                                     msb_invpiv, MAX_LS_BITS, &fshift);
+      int32_t f = (int32_t)stable_mult_shift(
+          (int64_t)mat[k * dim + i], (int64_t)inv_pivot[i],
+          inv_pivot_shift[i] - inc_bits, msb_ki, msb_invpiv, MAX_LS_BITS,
+          &fshift);
       int msb_f = get_msb_signed(f);
       mat[k * dim + i] = 0;
 
       for (int j = i + 1; j < dim; j++) {
         int msb_ij = get_msb_signed(mat[i * dim + j]);
-        diff = (int)stable_mult_shift((int64_t)mat[i * dim + j], (int64_t)f,
-                                      fshift, msb_ij, msb_f, MAX_LS_BITS, NULL);
+        diff = (int32_t)stable_mult_shift((int64_t)mat[i * dim + j], (int64_t)f,
+                                          fshift, msb_ij, msb_f, MAX_LS_BITS,
+                                          NULL);
         mat[k * dim + j] -= diff;
       }
       int msb_sol = get_msb_signed(sol[i]);
-      diff = (int)stable_mult_shift((int64_t)sol[i], (int64_t)f, fshift,
-                                    msb_sol, msb_f, MAX_LS_BITS, NULL);
+      diff = (int32_t)stable_mult_shift((int64_t)sol[i], (int64_t)f, fshift,
+                                        msb_sol, msb_f, MAX_LS_BITS, NULL);
       sol[k] -= diff;
     }
   }
@@ -1642,7 +1645,7 @@ int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
       diff = ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], redbit) * sol[j];
       sol[i] = sol[i] - diff;
     }
-    sol[i] = (int)stable_mult_shift(
+    sol[i] = (int32_t)stable_mult_shift(
         (int64_t)sol[i], (int64_t)inv_pivot[i], inv_pivot_shift[i] - redbit,
         get_msb_signed(sol[i]), get_msb_signed(inv_pivot[i]), MAX_LS_BITS,
         NULL);
@@ -1657,10 +1660,11 @@ int gaussian_elimination(int *mat, int *sol, int *precbits, const int dim) {
 }
 
 // Solve a 4-dimensional matrix inverse
-int solver_4d(const int *mat_a, const int *vec_b, int *precbits, int *sol) {
-  int mat[16] = { 0 };
-  memcpy(mat, mat_a, 16 * sizeof(int));
-  memcpy(sol, vec_b, 4 * sizeof(int));
+int solver_4d(const int32_t *mat_a, const int32_t *vec_b, int *precbits,
+              int *sol) {
+  int32_t mat[16] = { 0 };
+  memcpy(mat, mat_a, 16 * sizeof(int32_t));
+  memcpy(sol, vec_b, 4 * sizeof(int32_t));
   int ret = gaussian_elimination(mat, sol, precbits, 4);
   return ret;
 }
@@ -2071,9 +2075,9 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
 }
 
 // Find the maximum element of pdiff/gx/gy in absolute value
-int find_max_matrix_element(const int16_t *pdiff, int pstride,
-                            const int16_t *gx, const int16_t *gy, int gstride,
-                            int bw, int bh) {
+int32_t find_max_matrix_element(const int16_t *pdiff, int pstride,
+                                const int16_t *gx, const int16_t *gy,
+                                int gstride, int bw, int bh) {
   // TODO(kslu) do it in a better way to remove repeated computations, or
   // handle this in gradient computation
   int max_el = 0;
@@ -2099,7 +2103,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #if CONFIG_AFFINE_REFINEMENT_SB
                                               int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                              int *mat_a, int *vec_b) {
+                                              int32_t *mat_a, int32_t *vec_b) {
   int x_range_log2 = get_msb(bw);
   int y_range_log2 = get_msb(bh);
   int step_h = AOMMAX(1, bh >> AFFINE_AVG_MAX_SIZE_LOG2);
@@ -2112,7 +2116,8 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
   // Check range of gradient and prediction differences. If maximum absolute
   // value is very large, matrix A is likely to be clamped. To improve
   // stability, we adaptively reduce the dynamic range here
-  int max_el = find_max_matrix_element(pdiff, pstride, gx, gy, gstride, bw, bh);
+  int32_t max_el =
+      find_max_matrix_element(pdiff, pstride, gx, gy, gstride, bw, bh);
   int max_el_msb = max_el > 0 ? get_msb(max_el) : 0;
   int grad_bits =
       AOMMAX(0, max_el_msb * 2 + npel_log2 +
@@ -2157,10 +2162,10 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
     // depth cap. This check is done for every 16 pixels so it can be easily
     // replicated in the SIMD version.
     if (bw >= 16 || i % 2 == 1) {
-      int max_autocorr =
+      int32_t max_autocorr =
           AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
-      int max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
-                             AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
+      int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
+                                 AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
       if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_AFFINE_AUTOCORR_BITS - 2) {
         for (int s = 0; s < 4; ++s) {
@@ -2192,9 +2197,9 @@ int av1_opfl_affine_refinement(const int16_t *pdiff, int pstride,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
                                int grad_prec_bits,
                                AffineModelParams *am_params) {
-  int mat_a[16] = { 0 };
-  int vec_b[4] = { 0 };
-  int vec_x[4];
+  int32_t mat_a[16] = { 0 };
+  int32_t vec_b[4] = { 0 };
+  int32_t vec_x[4];
 #if !OPFL_DOWNSAMP_QUINCUNX
   av1_calc_affine_autocorrelation_matrix(pdiff, pstride, gx, gy, gstride, bw,
                                          bh,
@@ -2239,9 +2244,10 @@ int av1_opfl_affine_refinement(const int16_t *pdiff, int pstride,
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
 
-void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
-                     const int d1, const int bits, const int rls_alpha,
-                     int *vx0, int *vy0, int *vx1, int *vy1) {
+void calc_mv_process(int32_t su2, int32_t sv2, int32_t suv, int32_t suw,
+                     int32_t svw, const int d0, const int d1, const int bits,
+                     const int rls_alpha, int *vx0, int *vy0, int *vx1,
+                     int *vy1) {
 #if OPFL_REGULARIZED_LS
   su2 += rls_alpha;
   sv2 += rls_alpha;
@@ -2269,7 +2275,7 @@ void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
   suv = ROUND_POWER_OF_TWO_SIGNED(suv, redbit);
   suw = ROUND_POWER_OF_TWO_SIGNED(suw, redbit);
   svw = ROUND_POWER_OF_TWO_SIGNED(svw, redbit);
-  const int det = su2 * sv2 - suv * suv;
+  const int32_t det = su2 * sv2 - suv * suv;
   if (det <= 0) {
     *vx0 = 0;
     *vy0 = 0;
@@ -2278,7 +2284,7 @@ void calc_mv_process(int su2, int sv2, int suv, int suw, int svw, const int d0,
     return;
   }
 
-  int sol[2] = { sv2 * suw - suv * svw, su2 * svw - suv * suw };
+  int32_t sol[2] = { sv2 * suw - suv * svw, su2 * svw - suv * suw };
 
   divide_and_round_array(sol, det, 2, shifts);
 
@@ -2297,11 +2303,11 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
                             int bw, int bh, int d0, int d1, int grad_prec_bits,
                             int mv_prec_bits, int *vx0, int *vy0, int *vx1,
                             int *vy1) {
-  int su2 = 0;
-  int suv = 0;
-  int sv2 = 0;
-  int suw = 0;
-  int svw = 0;
+  int32_t su2 = 0;
+  int32_t suv = 0;
+  int32_t sv2 = 0;
+  int32_t suw = 0;
+  int32_t svw = 0;
   int grad_bits = 0;
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
@@ -2325,8 +2331,8 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
     if (bw >= 8 || i % 2 == 1) {
       // Do a range check and add a downshift if range is getting close to the
       // bit depth cap
-      int max_autocorr = AOMMAX(su2, sv2);
-      int max_xcorr = AOMMAX(abs(suw), abs(svw));
+      int32_t max_autocorr = AOMMAX(su2, sv2);
+      int32_t max_xcorr = AOMMAX(abs(suw), abs(svw));
       if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_OPFL_AUTOCORR_BITS - 2) {
         su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);

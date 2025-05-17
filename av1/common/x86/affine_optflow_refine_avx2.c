@@ -353,10 +353,9 @@ static INLINE void calc_max_vector(__m256i *gx_vec, __m256i *gy_vec,
   *max_vec = _mm256_max_epu16(*max_vec, max_abs_vec);
 }
 
-static INLINE int find_max_matrix_element_avx2(const int16_t *pdiff,
-                                               int pstride, const int16_t *gx,
-                                               const int16_t *gy, int gstride,
-                                               int bw, int bh) {
+static INLINE int32_t find_max_matrix_element_avx2(
+    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
+    int gstride, int bw, int bh) {
   __m256i max_vec = _mm256_setzero_si256();
   const int height_loop = AOMMIN(bh, AFFINE_AVG_MAX_SIZE);
   if (bw == 8) {
@@ -399,7 +398,7 @@ static INLINE int find_max_matrix_element_avx2(const int16_t *pdiff,
   max1 = _mm_max_epu16(max1, _mm_srli_si128(max1, 2));
 
   // Extract the maximum value
-  uint16_t max_el = (uint16_t)_mm_extract_epi16(max1, 0);
+  int32_t max_el = (int32_t)_mm_extract_epi16(max1, 0);
   return max_el;
 }
 
@@ -561,8 +560,8 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
                                         int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
                                         const int coords_bits,
-                                        const int grad_bits0, int *mat_a,
-                                        int *vec_b) {
+                                        const int grad_bits0, int32_t *mat_a,
+                                        int32_t *vec_b) {
   int16_t step_h = AOMMAX(1, bh >> AFFINE_AVG_MAX_SIZE_LOG2);
   int16_t step_w = AOMMAX(1, bw >> AFFINE_AVG_MAX_SIZE_LOG2);
 
@@ -622,10 +621,10 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
         for (int t = s; t < 4; t++)
           mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
       for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
-      int max_autocorr =
+      int32_t max_autocorr =
           AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
-      int max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
-                             AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
+      int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
+                                 AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
       if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_AFFINE_AUTOCORR_BITS - 2) {
         for (int s = 0; s < 4; s++) {
@@ -659,10 +658,10 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
         for (int t = s; t < 4; t++)
           mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
       for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
-      int max_autocorr =
+      int32_t max_autocorr =
           AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
-      int max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
-                             AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
+      int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
+                                 AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
       if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_AFFINE_AUTOCORR_BITS - 2) {
         for (int s = 0; s < 4; s++) {
@@ -692,12 +691,13 @@ void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
 #if CONFIG_AFFINE_REFINEMENT_SB
                                                  int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                                 int *mat_a, int *vec_b) {
+                                                 int32_t *mat_a,
+                                                 int32_t *vec_b) {
   int x_range_log2 = get_msb(bw);
   int y_range_log2 = get_msb(bh);
   int npel_log2 = AOMMIN(AFFINE_AVG_MAX_SIZE_LOG2, x_range_log2) +
                   AOMMIN(AFFINE_AVG_MAX_SIZE_LOG2, y_range_log2);
-  int max_el =
+  int32_t max_el =
       find_max_matrix_element_avx2(pdiff, pstride, gx, gy, gstride, bw, bh);
 
   int max_el_msb = max_el > 0 ? get_msb((int)max_el) : 0;
@@ -2494,16 +2494,16 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
   const int bits = mv_prec_bits + grad_prec_bits;
   __m256i u2_0, v2_0, uv_0, uw_0, vw_0;
   __m256i u2_1, v2_1, uv_1, uw_1, vw_1;
-  int su2_hi = 0;
-  int sv2_hi = 0;
-  int suv_hi = 0;
-  int suw_hi = 0;
-  int svw_hi = 0;
-  int su2_lo = 0;
-  int sv2_lo = 0;
-  int suv_lo = 0;
-  int suw_lo = 0;
-  int svw_lo = 0;
+  int32_t su2_hi = 0;
+  int32_t sv2_hi = 0;
+  int32_t suv_hi = 0;
+  int32_t suw_hi = 0;
+  int32_t svw_hi = 0;
+  int32_t su2_lo = 0;
+  int32_t sv2_lo = 0;
+  int32_t suv_lo = 0;
+  int32_t suw_lo = 0;
+  int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
   const __m256i opfl_samp_min = _mm256_set1_epi16(-OPFL_SAMP_CLAMP_VAL);

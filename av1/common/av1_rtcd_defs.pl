@@ -359,9 +359,9 @@ specialize qw/av1_build_compound_diffwtd_mask_d16 sse4_1 avx2 neon/;
 
 if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
   if (aom_config("CONFIG_AFFINE_REFINEMENT_SB") eq "yes") {
-    add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int x_offset, int y_offset, int *mat_a, int *vec_b";
+    add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int x_offset, int y_offset, int32_t *mat_a, int32_t *vec_b";
   } else {
-    add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int *mat_a, int *vec_b";
+    add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int32_t *mat_a, int32_t *vec_b";
   }
   specialize qw/av1_calc_affine_autocorrelation_matrix avx2/;
 }

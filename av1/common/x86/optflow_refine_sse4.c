@@ -402,16 +402,16 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   const int rls_alpha = OPFL_RLS_PARAM;
   __m128i u2_lo, v2_lo, uv_lo, uw_lo, vw_lo;
   __m128i u2_hi, v2_hi, uv_hi, uw_hi, vw_hi;
-  int su2_hi = 0;
-  int sv2_hi = 0;
-  int suv_hi = 0;
-  int suw_hi = 0;
-  int svw_hi = 0;
-  int su2_lo = 0;
-  int sv2_lo = 0;
-  int suv_lo = 0;
-  int suw_lo = 0;
-  int svw_lo = 0;
+  int32_t su2_hi = 0;
+  int32_t sv2_hi = 0;
+  int32_t suv_hi = 0;
+  int32_t suw_hi = 0;
+  int32_t svw_hi = 0;
+  int32_t su2_lo = 0;
+  int32_t sv2_lo = 0;
+  int32_t suv_lo = 0;
+  int32_t suw_lo = 0;
+  int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
@@ -487,25 +487,25 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
 #endif
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_lo, _mm_srli_si128(u2_lo, 8)));
-    su2_lo += (int)temp;
+    su2_lo += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2_lo, _mm_srli_si128(v2_lo, 8)));
-    sv2_lo += (int)temp;
+    sv2_lo += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv_lo, _mm_srli_si128(uv_lo, 8)));
-    suv_lo += (int)temp;
+    suv_lo += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw_lo, _mm_srli_si128(uw_lo, 8)));
-    suw_lo += (int)temp;
+    suw_lo += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_lo, _mm_srli_si128(vw_lo, 8)));
-    svw_lo += (int)temp;
+    svw_lo += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_hi, _mm_srli_si128(u2_hi, 8)));
-    su2_hi += (int)temp;
+    su2_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2_hi, _mm_srli_si128(v2_hi, 8)));
-    sv2_hi += (int)temp;
+    sv2_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv_hi, _mm_srli_si128(uv_hi, 8)));
-    suv_hi += (int)temp;
+    suv_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw_hi, _mm_srli_si128(uw_hi, 8)));
-    suw_hi += (int)temp;
+    suw_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8)));
-    svw_hi += (int)temp;
+    svw_hi += (int32_t)temp;
     // Do a range check and add a downshift if range is getting close to the bit
     // depth cap.
     if (bHeight % 2 == 0) {
@@ -548,11 +548,11 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   const int rls_alpha = 4 * OPFL_RLS_PARAM;
   const int bits = mv_prec_bits + grad_prec_bits;
   __m128i u2, v2, uv, uw, vw;
-  int su2 = 0;
-  int sv2 = 0;
-  int suv = 0;
-  int suw = 0;
-  int svw = 0;
+  int32_t su2 = 0;
+  int32_t sv2 = 0;
+  int32_t suv = 0;
+  int32_t suw = 0;
+  int32_t svw = 0;
   int grad_bits = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
@@ -636,15 +636,15 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
 #endif
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2, _mm_srli_si128(u2, 8)));
-    su2 += (int)temp;
+    su2 += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(v2, _mm_srli_si128(v2, 8)));
-    sv2 += (int)temp;
+    sv2 += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uv, _mm_srli_si128(uv, 8)));
-    suv += (int)temp;
+    suv += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(uw, _mm_srli_si128(uw, 8)));
-    suw += (int)temp;
+    suw += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw, _mm_srli_si128(vw, 8)));
-    svw += (int)temp;
+    svw += (int32_t)temp;
     // For every 8 pixels, do a range check and add a downshift if range is
     // getting close to the max allowed bit depth
     if (get_msb_signed(AOMMAX(AOMMAX(su2, sv2), AOMMAX(abs(suw), abs(svw)))) >=
