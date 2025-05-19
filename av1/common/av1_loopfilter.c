@@ -464,20 +464,20 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
         int txh = tx_size_high_unit[sub_tx];
         int txw = tx_size_wide_unit[sub_tx];
 
-#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
-        if ((edge_dir == VERT_EDGE &&
-             mi_blk_col == txb_pos.col_offset[txb_idx]) ||
-            (edge_dir == HORZ_EDGE &&
-             mi_blk_row == txb_pos.row_offset[txb_idx])) {
-          *tu_edge = true;
-        }
-#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
-
         if (mi_blk_row >= txb_pos.row_offset[txb_idx] &&
             mi_blk_row < txb_pos.row_offset[txb_idx] + txh &&
             mi_blk_col >= txb_pos.col_offset[txb_idx] &&
-            mi_blk_col < txb_pos.col_offset[txb_idx] + txw)
+            mi_blk_col < txb_pos.col_offset[txb_idx] + txw) {
+#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
+          if ((edge_dir == VERT_EDGE &&
+               mi_blk_col == txb_pos.col_offset[txb_idx]) ||
+              (edge_dir == HORZ_EDGE &&
+               mi_blk_row == txb_pos.row_offset[txb_idx])) {
+            *tu_edge = true;
+          }
+#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           break;
+        }
       }
       assert(txb_pos.n_partitions > 1);
       assert(txb_idx < txb_pos.n_partitions);
