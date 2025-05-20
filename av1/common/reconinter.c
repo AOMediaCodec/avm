@@ -6236,36 +6236,37 @@ static void build_inter_predictors_8x8_and_bigger(
       inter_pred_params.interp_filter_params[1] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
-      av1_opfl_rebuild_inter_predictor(
-          dst, dst_stride, plane, mv_refined,
+      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
 #if CONFIG_IMPROVE_REFINED_MV
-          opfl_vxy_bufs,
+                                       opfl_vxy_bufs,
 #else
-          xd->opfl_vxy_bufs,
+                                       xd->opfl_vxy_bufs,
 #endif  // CONFIG_IMPROVE_REFINED_MV
-          N_OF_OFFSETS, &inter_pred_params, xd, mi_x, mi_y,
+                                       N_OF_OFFSETS, &inter_pred_params, xd,
+                                       mi_x, mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-          build_for_decode,
+                                       build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
-          cm, bw, mi->comp_refine_type, wms, &mi->mv[ref], use_affine_opfl,
+                                       cm, pu_width, mi->comp_refine_type, wms,
+                                       &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-          ref, mc_buf, calc_subpel_params_func
+                                       ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
-          ,
-          use_4x4
+                                       ,
+                                       use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
-          ,
-          mi, pu_height, mi_mv
+                                       ,
+                                       mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
-          ,
-          1
+                                       ,
+                                       1
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #if CONFIG_WARP_BD_BOX
-          ,
-          *ext_warp_used
+                                       ,
+                                       *ext_warp_used
 #endif  // CONFIG_WARP_BD_BOX
       );
       continue;
