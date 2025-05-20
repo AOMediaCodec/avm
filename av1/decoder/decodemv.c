@@ -4155,8 +4155,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
+#if CONFIG_EXTENDED_SDP
+  mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
+#else
   mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
+#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_NEW_CONTEXT_MODELING
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
@@ -5039,13 +5043,19 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 
-  mbmi->segment_id = read_inter_segment_id(cm, xd, 1, r);
+#if CONFIG_EXTENDED_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif  // CONFIG_EXTENDED_SDP
+    mbmi->segment_id = read_inter_segment_id(cm, xd, 1, r);
 
   mbmi->skip_mode = read_skip_mode(cm, xd, r);
 
+#if CONFIG_EXTENDED_SDP
+  mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
+#else
   mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-
+#endif  // CONFIG_EXTENDED_SDP
   mbmi->cwp_idx = CWP_EQUAL;
 
   mbmi->warp_ref_idx = 0;
@@ -5129,8 +5139,11 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
 #endif  // CONFIG_WARP_INTER_INTRA
-
+#if CONFIG_EXTENDED_SDP
+  if (!cm->seg.segid_preskip && xd->tree_type != CHROMA_PART)
+#else
   if (!cm->seg.segid_preskip)
+#endif  // CONFIG_EXTENDED_SDP
     mbmi->segment_id = read_inter_segment_id(cm, xd, 0, r);
 
 #if CONFIG_GDF
