@@ -1839,6 +1839,20 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #endif  // CONFIG_ENABLE_SR
       ;
 
+#if CONFIG_TCQ
+  if (features->coded_lossless) {
+    // Disable TCQ for lossless since TCQ may not be reversible
+    features->tcq_mode = 0;
+  } else {
+    if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
+      features->tcq_mode =
+          frame_is_intra_only(cm) || cm->current_frame.pyramid_level <= 1;
+    } else {
+      features->tcq_mode = cm->seq_params.enable_tcq;
+    }
+  }
+#endif  // CONFIG_TCQ
+
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
   if (cpi->oxcf.q_cfg.aq_mode != CYCLIC_REFRESH_AQ) {
