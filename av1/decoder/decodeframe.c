@@ -9166,16 +9166,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Minimum tile width requirement not satisfied");
   }
 
-#if CONFIG_TCQ
-  // Decode frame-level TCQ flag, if applicable.
-  int enable_tcq = seq_params->enable_tcq;
-  if (enable_tcq >= TCQ_8ST_FR) {
-    features->tcq_mode = aom_rb_read_bit(rb);
-  } else {
-    features->tcq_mode = seq_params->enable_tcq;
-  }
-#endif  // CONFIG_TCQ
-
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, rb);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
@@ -9248,14 +9238,28 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
       ;
-  // TCQ is disabled in lossless coding mode
-  if (features->coded_lossless) features->tcq_mode = 0;
-
   setup_segmentation_dequant(cm, xd);
+
   if (features->coded_lossless) {
+#if CONFIG_TCQ
+    // TCQ is disabled in lossless coding mode
+    features->tcq_mode = 0;
+#endif  // CONFIG_TCQ
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;
   }
+#if CONFIG_TCQ
+  else {
+    // Decode frame-level TCQ flag, if applicable.
+    int enable_tcq = seq_params->enable_tcq;
+    if (enable_tcq >= TCQ_8ST_FR) {
+      features->tcq_mode = aom_rb_read_bit(rb);
+    } else {
+      features->tcq_mode = seq_params->enable_tcq;
+    }
+  }
+#endif  // CONFIG_TCQ
+
   if (features->coded_lossless || !seq_params->enable_cdef) {
 #if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;

@@ -7660,16 +7660,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   write_tile_info(cm, saved_wb, wb);
 
-#if CONFIG_TCQ
-  // Encode adaptive frame-level TCQ flag, if applicable.
-  // Basic frame-level strategy: enable for keyframes only.
-  // This can be extended in other ways (e.g., include alt-ref).
-  int enable_tcq = seq_params->enable_tcq;
-  if (enable_tcq >= TCQ_8ST_FR) {
-    aom_wb_write_bit(wb, features->tcq_mode != 0);
-  }
-#endif  // CONFIG_TCQ
-
   encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
   encode_segmentation(cm, xd, wb);
 
@@ -7693,6 +7683,18 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
   }
+
+#if CONFIG_TCQ
+  if (!features->coded_lossless) {
+    // Encode adaptive frame-level TCQ flag, if applicable.
+    // Basic frame-level strategy: enable for keyframes only.
+    // This can be extended in other ways (e.g., include alt-ref).
+    int enable_tcq = seq_params->enable_tcq;
+    if (enable_tcq >= TCQ_8ST_FR) {
+      aom_wb_write_bit(wb, features->tcq_mode != 0);
+    }
+  }
+#endif  // CONFIG_TCQ
 
   if (features->all_lossless) {
 #if CONFIG_ENABLE_SR
