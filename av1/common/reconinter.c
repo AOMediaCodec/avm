@@ -1433,52 +1433,6 @@ void av1_warp_plane_bilinear_c(WarpedMotionParams *wm, int bd,
 #endif  // AFFINE_FAST_WARP_METHOD == 3
 }
 
-// Obtain the bit depth ranges for each row and column of a square matrix
-void get_mat4d_shifts(const int64_t *mat, int *shifts, const int max_mat_bits) {
-  int bits[16] = { 0 };
-  for (int i = 0; i < 4; i++) {
-    for (int j = i; j < 4; j++)
-      bits[i * 4 + j] = 1 + get_msb_signed_64(mat[i * 4 + j]);
-    shifts[i] = -AOMMAX(0, (bits[i * 4 + i] - max_mat_bits + 1) >> 1);
-  }
-  for (int i = 0; i < 4; i++) {
-    for (int j = i; j < 4; j++) {
-      if (bits[i * 4 + j] + shifts[i] + shifts[j] > max_mat_bits)
-        shifts[shifts[i] < shifts[j] ? j : i]--;
-    }
-  }
-
-  // Get stats of bits after shifts
-  int bits_sum[4] = { 0 };
-  int bits_max[4] = { 0 };
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      int bits_ij =
-          (j >= i ? bits[i * 4 + j] : bits[j * 4 + i]) + shifts[i] + shifts[j];
-      bits_sum[i] += bits_ij;
-      bits_max[i] = AOMMAX(bits_max[i], bits_ij);
-    }
-  }
-
-  // For the i-th row/col, if bit depth does not exceeds the threshold,
-  // compute the gap of bit depth to that of the largest diagonal element,
-  // and apply an upshift based on this gap.
-  int max_sum = AOMMAX(AOMMAX(bits_sum[0], bits_sum[1]),
-                       AOMMAX(bits_sum[2], bits_sum[3]));
-  for (int i = 0; i < 4; i++)
-    shifts[i] +=
-        AOMMIN((max_mat_bits - bits_max[i]) >> 1, (max_sum - bits_sum[i]) >> 2);
-}
-
-// Obtain the bit depth range of a vector
-void get_vec_bit_ranges(const int64_t *vec, int *bits_max, const int dim) {
-  int bits = 0;
-  for (int i = 0; i < dim; i++) {
-    bits = 1 + get_msb_signed_64(vec[i]);
-    *bits_max = AOMMAX(*bits_max, bits);
-  }
-}
-
 #define MAX_LS_DIM 4
 // Swap two rows for Gaussian elimination routine
 void swap_rows(int32_t *mat, int32_t *sol, const int i, const int j,
