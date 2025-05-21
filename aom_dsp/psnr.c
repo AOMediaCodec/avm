@@ -252,7 +252,8 @@ int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
 #endif  // CONFIG_BRU
 void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
                           const YV12_BUFFER_CONFIG *b, PSNR_STATS *psnr,
-                          uint32_t bit_depth, uint32_t in_bit_depth) {
+                          uint32_t bit_depth, uint32_t in_bit_depth,
+                          bool lossless) {
   assert(a->y_crop_width == b->y_crop_width);
   assert(a->y_crop_height == b->y_crop_height);
   assert(a->uv_crop_width == b->uv_crop_width);
@@ -293,6 +294,13 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
     total_samples += samples;
   }
 
+  if (in_bit_depth >= bit_depth) {
+    if (lossless && total_sse) {
+      fprintf(stderr, "Non-zero SSE observed in lossless frame!\n");
+      assert(0);
+    }
+  }
+
   psnr->sse[0] = total_sse;
   psnr->samples[0] = total_samples;
   psnr->psnr[0] =
@@ -319,6 +327,11 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
       psnr->psnr_hbd[1 + i] = aom_sse_to_psnr(samples, peak, (double)sse);
       total_sse += sse;
       total_samples += samples;
+    }
+
+    if (lossless && total_sse) {
+      fprintf(stderr, "Non-zero SSE observed in lossless frame!\n");
+      assert(0);
     }
 
     psnr->sse_hbd[0] = total_sse;

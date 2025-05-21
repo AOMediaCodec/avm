@@ -1721,7 +1721,8 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
-                       bit_depth, in_bit_depth);
+                       bit_depth, in_bit_depth,
+                       is_lossless_requested(&cpi->oxcf.rc_cfg));
 
   for (i = 0; i < 4; ++i) {
     pkt.data.psnr.samples[i] = psnr.samples[i];

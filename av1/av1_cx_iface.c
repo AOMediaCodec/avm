@@ -3181,10 +3181,11 @@ static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
   aom_calc_highbd_psnr(source, &cpi->common.cur_frame->buf, psnr, bit_depth,
-                       in_bit_depth);
+                       in_bit_depth, is_lossless_requested(&cpi->oxcf.rc_cfg));
 #else
   aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
-                       psnr, bit_depth, in_bit_depth);
+                       psnr, bit_depth, in_bit_depth,
+                       is_lossless_requested(&cpi->oxcf.rc_cfg));
 #endif  // CONFIG_FIX_RESIZE_PSNR
 }
 
