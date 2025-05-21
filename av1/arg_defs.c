@@ -345,11 +345,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_1to4_partitions = ARG_DEF(NULL, "enable-1to4-partitions", 1,
                                     "Enable 1:4 and 4:1 partitions "
                                     "(0: false, 1: true (default))"),
-#if CONFIG_SDP
-  .enable_sdp = ARG_DEF(NULL, "enable-sdp", 1,
+
+  .enable_sdp = ARG_DEF(NULL, "enable-sdp", 0,
                         "Enable semi decoupled partitioning for key frame"
                         "(0: false, 1: true (default))"),
-#endif
+
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "

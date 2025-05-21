@@ -431,9 +431,7 @@ const arg_def_t *av1_ctrl_args[] = {
 };
 
 const arg_def_t *av1_key_val_args[] = {
-#if CONFIG_SDP
   &g_av1_codec_arg_defs.enable_sdp,
-#endif
   &g_av1_codec_arg_defs.enable_intrabc_ext,
   NULL,
 };
