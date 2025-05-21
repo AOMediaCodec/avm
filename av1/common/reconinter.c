@@ -1485,7 +1485,7 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
   // Bit range adjustment: add shifts such that the bit depths of shifted mat
   // and sol elements are capped by K-dim+1. This is because each element of
   // mat and sol during forward elimination is updated at most dim-1 times.
-  // Each update is a subtraction that can increase the bit depth by 1 at the
+  // Each update is a subtraction that can increase the bit depth by 1 in the
   // extreme case.
   // Goal: shift Aij by si+sj+e bits, and shift bi by si+e+f bits. These shifts
   // will satisfy
@@ -1500,20 +1500,20 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
   //     f=max_i(precbits[i]+si)
   //     e=min(K-dim+1-MSB(bi)-si) - max(precbits[i]+si)
   int bd_cap = MAX_LS_BITS - dim;
-  int a_extra_shift = 64;
-  int b_extra_shift = -64;
   int min_diag_msb = 64;
+  int max_diag_msb = 0;
   int mat_diag_bits[MAX_LS_DIM] = { 0 };
   int sol_bits[MAX_LS_DIM] = { 0 };
   for (int i = 0; i < dim; i++) {
     mat_diag_bits[i] = 1 + get_msb_signed(mat[i * dim + i]);
     min_diag_msb = AOMMIN(min_diag_msb, mat_diag_bits[i]);
+    max_diag_msb = AOMMAX(max_diag_msb, mat_diag_bits[i]);
     sol_bits[i] = 1 + get_msb_signed(sol[i]);
   }
+  int a_extra_shift = bd_cap - max_diag_msb - 1;
+  int b_extra_shift = -64;
   for (int i = 0; i < dim; i++) {
-    shifts[i] =
-        -(AOMMAX(mat_diag_bits[i] - bd_cap, mat_diag_bits[i] - min_diag_msb) >>
-          1);
+    shifts[i] = -((mat_diag_bits[i] - AOMMIN(bd_cap, min_diag_msb)) >> 1);
     a_extra_shift = AOMMIN(a_extra_shift, bd_cap - sol_bits[i] - shifts[i]);
     b_extra_shift = AOMMAX(b_extra_shift, precbits[i] + shifts[i]);
   }
@@ -1522,11 +1522,13 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
     for (int j = 0; j < dim; j++) {
       int abits = a_extra_shift + shifts[i] + shifts[j];
       assert(a_extra_shift < 64);
+      assert(mat_diag_bits[i] + abits <= bd_cap);
       mat[i * dim + j] =
           abits >= 0 ? (mat[i * dim + j] * (1 << abits))
                      : ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], -abits);
     }
     int bbits = shifts[i] + a_extra_shift + b_extra_shift;
+    assert(sol_bits[i] + bbits <= bd_cap);
     sol[i] = bbits >= 0 ? (sol[i] * (1 << bbits))
                         : ROUND_POWER_OF_TWO_SIGNED(sol[i], -bbits);
     precbits[i] = precbits[i] - b_extra_shift + shifts[i];
