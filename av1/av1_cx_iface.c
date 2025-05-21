@@ -3377,11 +3377,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.enable_1to4_partitions,
                               argv, err_string)) {
     extra_cfg.enable_1to4_partitions = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_SDP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_sdp, argv,
                               err_string)) {
     extra_cfg.enable_sdp = arg_parse_int_helper(&arg, err_string);
-#endif
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
