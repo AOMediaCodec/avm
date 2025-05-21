@@ -109,9 +109,7 @@ struct av1_extracfg {
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
   int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions for sequence
-#if CONFIG_SDP
   int enable_sdp;                // enable semi-decoupled partitioning
-#endif                           // CONFIG_SDP
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -3377,9 +3375,17 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.enable_1to4_partitions,
                               argv, err_string)) {
     extra_cfg.enable_1to4_partitions = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_SDP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_sdp, argv,
                               err_string)) {
     extra_cfg.enable_sdp = arg_parse_int_helper(&arg, err_string);
+#else
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_sdp, argv,
+                              err_string)) {
+      const int enable_sdp = arg_parse_int_helper(&arg, err_string);
+      (void)enable_sdp;
+#endif
+    
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
