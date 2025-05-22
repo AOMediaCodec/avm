@@ -348,7 +348,8 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   for (int r = 0; r < nvfb; ++r) {
     for (int c = 0; c < nhfb; ++c) {
 #if CONFIG_BRU
-      if (cm->bru.enabled && mbmi[MI_SIZE_64X64 * c]->sb_active_mode != BRU_ACTIVE_SB) {
+      if (cm->bru.enabled &&
+          mbmi[MI_SIZE_64X64 * c]->sb_active_mode != BRU_ACTIVE_SB) {
         mbmi[MI_SIZE_64X64 * c]->cdef_strength = -1;
       } else
 #endif  // CONFIG_BRU

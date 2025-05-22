@@ -270,8 +270,9 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
           if (!use_ccso_local) {
             continue;
           }
-          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
-              BRU_ACTIVE_SB) {
+          if (cm->bru.enabled &&
+              mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                  BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
@@ -402,8 +403,9 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
           if (!use_ccso_local) {
             continue;
           }
-          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
-              BRU_ACTIVE_SB) {
+          if (cm->bru.enabled &&
+              mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                  BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
@@ -546,8 +548,9 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
           if (!use_ccso_local) {
             continue;
           }
-          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
-              BRU_ACTIVE_SB) {
+          if (cm->bru.enabled &&
+              mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                  BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
@@ -691,8 +694,9 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
           if (!use_ccso_local) {
             continue;
           }
-          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
-              BRU_ACTIVE_SB) {
+          if (cm->bru.enabled &&
+              mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                  BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");

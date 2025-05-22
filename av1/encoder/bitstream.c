@@ -1521,22 +1521,23 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   if (!av1_is_interp_needed(cm, xd)) {
 #if CONFIG_DEBUG
     // Sharp filter is always used whenever optical flow refinement is applied.
-    int mb_interp_filter = (opfl_allowed_for_cur_block(cm,
+    int mb_interp_filter =
+        (opfl_allowed_for_cur_block(cm,
 
 #if CONFIG_COMPOUND_4XN
-                                                       xd,
+                                    xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                                       mbmi)
+                                    mbmi)
 
 #if CONFIG_REFINEMV
-                            || mbmi->refinemv_flag
+         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
 #if CONFIG_BRU
-                            || (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
+         || (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
 #endif  // CONFIG_BRU
-                            || is_tip_ref_frame(mbmi->ref_frame[0]))
-                               ? MULTITAP_SHARP
-                               : cm->features.interp_filter;
+         || is_tip_ref_frame(mbmi->ref_frame[0]))
+            ? MULTITAP_SHARP
+            : cm->features.interp_filter;
     assert(mbmi->interp_fltr == av1_unswitchable_filter(mb_interp_filter));
     (void)mb_interp_filter;
 #endif  // CONFIG_DEBUG
