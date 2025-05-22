@@ -49,6 +49,12 @@ static INLINE int64_t scaled_warp_y(int64_t val,
   const int64_t tval = (int64_t)val * sf->y_scale_fp;
   return (int64_t)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
 }
+// Note: Expect val to be in q16 precision
+static INLINE int64_t un_scaled_warp(int64_t val,
+                                     const struct scale_factors *sf) {
+  (void)sf;
+  return val;
+}
 #endif  // CONFIG_ACROSS_SCALE_WARP
 
 // Note: Expect val to be in q4 precision
@@ -127,6 +133,10 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
   } else {
     sf->scale_value_x = unscaled_value;
     sf->scale_value_y = unscaled_value;
+#if CONFIG_ACROSS_SCALE_WARP
+    sf->scale_value_warp_x = un_scaled_warp;
+    sf->scale_value_warp_y = un_scaled_warp;
+#endif  // CONFIG_ACROSS_SCALE_WARP
 #if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
     sf->scale_value_x_gen = unscaled_value_gen;
     sf->scale_value_y_gen = unscaled_value_gen;

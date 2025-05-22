@@ -4250,13 +4250,25 @@ static void build_inter_predictors_8x8_and_bigger(
 
     av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
 #if CONFIG_EXT_WARP_FILTER
+#if CONFIG_ACROSS_SCALE_WARP
+    assert(IMPLIES(inter_pred_params.mode == WARP_PRED &&
+                       av1_is_scaled(inter_pred_params.scale_factors),
+                   !inter_pred_params.warp_params.use_affine_filter));
+#endif  // CONFIG_ACROSS_SCALE_WARP
 #if CONFIG_IMPROVE_EXT_WARP
     if (inter_pred_params.mode == WARP_PRED &&
         (!inter_pred_params.warp_params.use_affine_filter ||
+#if CONFIG_ACROSS_SCALE_WARP
+         av1_is_scaled(inter_pred_params.scale_factors) ||
+#endif  // CONFIG_ACROSS_SCALE_WARP
          (comp_bw < 8 || comp_bh < 8))) {
 #else
     if (inter_pred_params.mode == WARP_PRED &&
-        !inter_pred_params.warp_params.use_affine_filter) {
+        (
+#if CONFIG_ACROSS_SCALE_WARP
+            av1_is_scaled(inter_pred_params.scale_factors) ||
+#endif  // CONFIG_ACROSS_SCALE_WARP
+            !inter_pred_params.warp_params.use_affine_filter)) {
 #endif  // CONFIG_IMPROVE_EXT_WARP
       *ext_warp_used = true;
 #if CONFIG_WARP_BD_BOX
@@ -4301,10 +4313,6 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_WARP_BD_BOX
     }
 
-#if CONFIG_ACROSS_SCALE_WARP
-    assert(IMPLIES(av1_is_scaled(sf),
-                   mi->comp_refine_type < COMP_AFFINE_REFINE_START));
-#endif  // CONFIG_ACROSS_SCALE_WARP
 #endif  // CONFIG_EXT_WARP_FILTER
 
     if (is_compound) {

@@ -4881,6 +4881,10 @@ static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
                                         const MACROBLOCKD *xd,
                                         const MB_MODE_INFO *mbmi,
                                         const BLOCK_SIZE bsize) {
+#if CONFIG_ACROSS_SCALE_WARP
+  (void)cm;
+#endif  // CONFIG_ACROSS_SCALE_WARP
+
   const int allow_warped_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       is_motion_variation_allowed_compound(mbmi) &&

@@ -3780,7 +3780,6 @@ static int motion_field_projection_start_target(
             scaled_blk_col =
                 (scaled_blk_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
 
-            assert(blk_row == scaled_blk_row);  // only 1D super-res is allowed
             ref_mv.row =
                 ref_mv.row == 0 ? 0 : sf->scale_value_y_gen(ref_mv.row, sf);
             ref_mv.col =
@@ -4025,7 +4024,6 @@ static int motion_field_projection_side(AV1_COMMON *cm,
           scaled_blk_col =
               (scaled_blk_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
 
-          assert(blk_row == scaled_blk_row);  // only 1D super-res is allowed
           ref_mv.row =
               ref_mv.row == 0 ? 0 : sf->scale_value_y_gen(ref_mv.row, sf);
           ref_mv.col =

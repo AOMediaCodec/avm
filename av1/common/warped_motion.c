@@ -638,7 +638,7 @@ int av1_get_shear_params(WarpedMotionParams *wm
   wm->use_affine_filter =
 #if CONFIG_ACROSS_SCALE_WARP
       is_scaled
-          ? 1
+          ? 0
           :
 #endif  // CONFIG_ACROSS_SCALE_WARP
           is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
@@ -1179,6 +1179,7 @@ void av1_ext_highbd_warp_affine_scaled_c(
   int bottom_limit = height - 1;
   int warp_bd_box_mem_stride = MAX_WARP_BD_SIZE;
   int box_idx, x_loc, y_loc;
+  assert(use_warp_bd_box);
 #endif  // CONFIG_WARP_BD_BOX
 
   for (int i = p_row; i < p_row + p_height; i += 4) {
@@ -1213,11 +1214,11 @@ void av1_ext_highbd_warp_affine_scaled_c(
       const int64_t y4_org =
           (dst_y >> subsampling_y) - 2 * (1 << WARPEDMODEL_PREC_BITS);
 
-      const int64_t x4 = sf->scale_value_warp_x(x4_org, sf);
-      const int64_t y4 = sf->scale_value_warp_y(y4_org, sf);
+      const int64_t x4 =
+          sf->scale_value_warp_x(x4_org, sf);  // 16 bit sub-pel precision
+      const int64_t y4 =
+          sf->scale_value_warp_y(y4_org, sf);  // 16 bit sub-pel precision
 
-      // No vertical scaling is supported in current super-res mode
-      assert(y4_org == y4);
       const int32_t x_step_qn = sf->x_step_q4
                                 << (WARPEDMODEL_PREC_BITS - SCALE_SUBPEL_BITS);
       const int32_t y_step_qn = sf->y_step_q4
@@ -1362,6 +1363,7 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   assert(IMPLIES(!is_scaled,
                  wm->use_affine_filter ==
                      is_affine_shear_allowed(alpha, beta, gamma, delta)));
+  assert(IMPLIES(is_scaled, !wm->use_affine_filter));
 #else
   assert(wm->use_affine_filter ==
          is_affine_shear_allowed(alpha, beta, gamma, delta));

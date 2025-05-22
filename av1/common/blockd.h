@@ -312,15 +312,29 @@ typedef struct {
 
 #if CONFIG_REFINEMV
 #if CONFIG_ACROSS_SCALE_REFINEMV
-// Currently we supports upto 2x super-res in horizontal direction only
+// Currently we support upto 2x resolution change in both direction
 #if CONFIG_SUBBLK_REF_EXT
-#define REF_BUFFER_WIDTH                                      \
-  (2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) + \
-   (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_WIDTH                                                    \
+  (2 *                                                                      \
+   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)))
 #else
-#define REF_BUFFER_WIDTH \
-  (2 * REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_WIDTH                                    \
+  (2 * (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + \
+        AOM_INTERP_EXTEND + 2 * DMVR_SEARCH_EXT_LINES))
 #endif
+
+#if CONFIG_SUBBLK_REF_EXT
+#define REF_BUFFER_HEIGHT                                                    \
+  (2 *                                                                       \
+   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
+    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)))
+#else
+#define REF_BUFFER_HEIGHT                                    \
+  (2 * (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + \
+        AOM_INTERP_EXTEND + 2 * DMVR_SEARCH_EXT_LINES))
+#endif  // CONFIG_SUBBLK_REF_EXT
+
 #else
 #if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_WIDTH                                                   \
@@ -331,7 +345,7 @@ typedef struct {
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * DMVR_SEARCH_EXT_LINES)
 #endif
-#endif  // CONFIG_ACROSS_SCALE_REFINEMV
+
 #if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_HEIGHT                                                   \
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
@@ -341,6 +355,9 @@ typedef struct {
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * DMVR_SEARCH_EXT_LINES)
 #endif  // CONFIG_SUBBLK_REF_EXT
+
+#endif  // CONFIG_ACROSS_SCALE_REFINEMV
+
 typedef struct PadBlock {
   int x0;
   int x1;
