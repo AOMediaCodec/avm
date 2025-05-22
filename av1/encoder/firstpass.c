@@ -1025,12 +1025,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     if (mb_col_in_tile == 0) {
       last_mv = *first_top_mv;
     }
-#if CONFIG_BRU
-    const int mb_scale = mi_size_wide[fp_block_size];
-    // can be improved by check is_sb_root
-    av1_set_sb_info(cm, xd, mb_row * mb_scale, mb_col * mb_scale,
-                    BRU_ACTIVE_SB);
-#endif  // CONFIG_BRU
     int this_intra_error = firstpass_intra_prediction(
         cpi, td, this_frame, tile, mb_row, mb_col, recon_yoffset,
         recon_uvoffset, fp_block_size, qindex, mb_stats);
