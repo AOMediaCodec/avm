@@ -12,7 +12,7 @@ if [ ! -d venv ]; then
     # install required packages
     python3 -m pip install --require-hashes -r requirements.txt
     # install package locally
-    python3 -m pip install --no-deps -e .
+    python3 -m pip install --no-deps --no-index --no-build-isolation -e .
 else
     echo "venv exists: activating"
     source venv/bin/activate
