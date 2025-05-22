@@ -3073,7 +3073,9 @@ void make_inter_pred_of_nxn(
           // av1_make_inter_predictor()
 #if CONFIG_WARP_BD_BOX
           WarpBoundaryBox warp_bd_box;
-          if (sub_bh == 4 && sub_bw == 4 && use_sub_pad_warp) {
+          if (use_sub_pad_warp &&
+              ((sub_bh == 4 && sub_bw == 4) ||
+               (is_subsampling_422 && sub_bh == 8 && sub_bw == 4))) {
             av1_get_reference_area_with_padding_single_warp(
                 cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
                 mi_x + (i << inter_pred_params->subsampling_x),
