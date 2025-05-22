@@ -246,10 +246,6 @@ static INLINE int is_skip_mode_allowed(const AV1_COMMON *const cm,
   MB_MODE_INFO *const mi = xd->mi[0];
   if (!cm->current_frame.skip_mode_info.skip_mode_flag) return 0;
 
-#if CONFIG_EXTENDED_SDP
-  if (mi->region_type == INTRA_REGION) return 0;
-#endif  // CONFIG_EXTENDED_SDP
-
   if (segfeature_active(&cm->seg, mi->segment_id, SEG_LVL_SKIP)) {
     return 0;
   }

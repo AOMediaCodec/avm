@@ -658,9 +658,6 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
     return;
   }
 #endif
-#if CONFIG_EXTENDED_SDP
-  if (xd->mi[0]->region_type == INTRA_REGION) return;
-#endif  // CONFIG_EXTENDED_SDP
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(is_inter);
     return;
@@ -2796,18 +2793,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   write_inter_segment_id(cpi, w, seg, segp, skip, 0);
 
 #if CONFIG_GDF
-#if CONFIG_EXTENDED_SDP
-  if (xd->tree_type != CHROMA_PART)
-#endif  // CONFIG_EXTENDED_SDP
-    write_gdf(cm, xd, w);
+  write_gdf(cm, xd, w);
 #endif  // CONFIG_GDF
-#if CONFIG_EXTENDED_SDP
-  if (xd->tree_type != CHROMA_PART)
-#endif  // CONFIG_EXTENDED_SDP
-    write_cdef(cm, xd, w, skip);
 
-  if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
-    write_ccso(cm, xd, w);
+  write_cdef(cm, xd, w, skip);
+
+  if (cm->seq_params.enable_ccso) write_ccso(cm, xd, w);
 
   write_delta_q_params(cpi, skip, w);
 
@@ -3656,7 +3647,11 @@ static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   MB_MODE_INFO *m = xd->mi[0];
 
-  if (frame_is_intra_only(cm)) {
+  if (frame_is_intra_only(cm)
+#if CONFIG_EXTENDED_SDP
+      || m->region_type == INTRA_REGION
+#endif  // CONFIG_EXTENDED_SDP
+  ) {
     write_mb_modes_kf(cpi, xd, cpi->td.mb.mbmi_ext_frame, w);
   } else {
     // has_subpel_mv_component needs the ref frame buffers set up to look
