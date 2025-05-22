@@ -68,10 +68,8 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
       orig_pos_y += src_mv->row * (1 << (1 - ssy));
       orig_pos_x += src_mv->col * (1 << (1 - ssx));
     }
-    int pos_y =
-        sf->scale_value_y ? sf->scale_value_y(orig_pos_y, sf) : orig_pos_y;
-    int pos_x =
-        sf->scale_value_x ? sf->scale_value_x(orig_pos_x, sf) : orig_pos_x;
+    int pos_y = sf->scale_value_y(orig_pos_y, sf);
+    int pos_x = sf->scale_value_y(orig_pos_x, sf);
     pos_x += SCALE_EXTRA_OFF;
     pos_y += SCALE_EXTRA_OFF;
 
