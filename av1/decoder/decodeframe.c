@@ -2552,21 +2552,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                                      decode_block,
                                                      parse_decode_block };
   const int is_sb_root = bsize == cm->sb_size;
-#if CONFIG_BRU
-  if (is_sb_root && cm->bru.enabled) {
-    const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
-    const int mi_alloc_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
-    cm->mi_params.mi_grid_base[mi_grid_idx] =
-        &cm->mi_params.mi_alloc[mi_alloc_idx];
-    // 'xd->mi' should point to an offset in 'mi_grid_base';
-    xd->mi = cm->mi_params.mi_grid_base + mi_grid_idx;
-    xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
-    xd->mi_row = mi_row;
-    xd->mi_col = mi_col;
-    xd->sbi->sb_active_mode = read_bru_mode(cm, xd, reader);
-    set_active_map(cm, mi_col, mi_row, xd->sbi->sb_active_mode);
-  }
-#endif  // CONFIG_BRU
 #if CONFIG_EXTENDED_SDP
   if (is_sb_root) {
     if (!frame_is_intra_only(cm)) {
@@ -2581,6 +2566,22 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 
   if (parse_decode_flag & 1) {
     if (is_sb_root) {
+#if CONFIG_BRU
+      if (cm->bru.enabled) {
+        const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
+        const int mi_alloc_idx =
+            get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
+        cm->mi_params.mi_grid_base[mi_grid_idx] =
+            &cm->mi_params.mi_alloc[mi_alloc_idx];
+        // 'xd->mi' should point to an offset in 'mi_grid_base';
+        xd->mi = cm->mi_params.mi_grid_base + mi_grid_idx;
+        xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+        xd->mi_row = mi_row;
+        xd->mi_col = mi_col;
+        xd->sbi->sb_active_mode = read_bru_mode(cm, xd, reader);
+        set_active_map(cm, mi_col, mi_row, xd->sbi->sb_active_mode);
+      }
+#endif  // CONFIG_BRU
       set_sb_mv_precision(sbi, pbi);
     }
     const int plane_start = get_partition_plane_start(xd->tree_type);
