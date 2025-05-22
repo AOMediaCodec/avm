@@ -11701,9 +11701,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                 ref_frames, &sf_args))
               continue;
 #if CONFIG_BRU
-            assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
             // write this to a function
             if (cm->bru.enabled) {
+              assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
               if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
                 if (ref_frame != INVALID_IDX &&
                     cm->bru.update_ref_idx == ref_frame) {

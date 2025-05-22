@@ -1532,7 +1532,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
                             || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
 #if CONFIG_BRU
-                            || (xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
+                            || (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
 #endif  // CONFIG_BRU
                             || is_tip_ref_frame(mbmi->ref_frame[0]))
                                ? MULTITAP_SHARP

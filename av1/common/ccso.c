@@ -270,7 +270,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
           if (!use_ccso_local) {
             continue;
           }
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
               BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
@@ -402,7 +402,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
           if (!use_ccso_local) {
             continue;
           }
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
               BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
@@ -546,7 +546,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
           if (!use_ccso_local) {
             continue;
           }
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
               BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
@@ -691,7 +691,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
           if (!use_ccso_local) {
             continue;
           }
-          if (mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+          if (cm->bru.enabled && mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
               BRU_ACTIVE_SB) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_ERROR,
