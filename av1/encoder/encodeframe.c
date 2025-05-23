@@ -546,7 +546,7 @@ typedef struct SbMultiPassParams {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } SbMultiPassParams;
 
-/*!\brief Call \ref av1_rd_pick_partition.
+/*!\brief Perform one pass of partition search.
  *
  * \ingroup partition_search
  * This is a helper function used to handle some SDP related logics.
@@ -638,7 +638,7 @@ static AOM_INLINE void perform_one_partition_pass(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-/*!\brief Call \ref av1_rd_pick_partition twice.
+/*!\brief Perform partition search twice (for unit testing only).
  *
  * \ingroup partition_search
  * This function is mostly used to unit tests to make sure that
@@ -734,11 +734,10 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
 /*!\brief Performs partition search in two passes.
  *
  * \ingroup partition_search
- * In the first pass, this function calls \ref av1_rd_pick_partition with the
- * minimum bsize set to BLOCK_16X16. In the second pass, this function calls
- * \ref av1_rd_pick_partition with the same partition tree from the first pass,
- * but \ref av1_rd_pick_partition is allowed to search recursively starting from
- * BLOCK_32X32.
+ * In the first pass, partition search is performed with the
+ * minimum bsize set to BLOCK_16X16. In the second pass, partition search is
+ * performed with the same partition tree from the first pass, but partition
+ * search is allowed to search recursively starting from BLOCK_32X32.
  */
 static AOM_INLINE void perform_two_pass_partition_search(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
