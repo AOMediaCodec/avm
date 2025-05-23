@@ -1032,10 +1032,13 @@ typedef struct {
   //! Cost of signaling secondary transform index
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];
 #if CONFIG_IST_SET_FLAG
-  //! Cost of signaling secondary transform set index
+  //! Cost of signaling secondary transform set index for DCT_DCT primary
+  //! transform type
 #if CONFIG_INTRA_TX_IST_PARSE
   int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
 #if CONFIG_F105_IST_MEM_REDUCE
+  /*! Cost of signaling secondary transform set index for ADST_ADST primary
+   * transform type */
   int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCE_SET_SIZE_ADST_ADST];
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
@@ -1417,7 +1420,10 @@ typedef struct {
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
 #if CONFIG_IMPROVE_LOSSLESS_TXM
+  /*! Cost of signaling lossless transform size (4x4 or 8x8) */
   int lossless_tx_size_cost[BLOCK_SIZE_GROUPS][2][2];
+  /*! Cost of signaling lossless transform type for inter blocks (WHT or IDTX)
+   */
   int lossless_inter_tx_type_cost[2];
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   //! inter_tx_type_costs
