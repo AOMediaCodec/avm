@@ -1032,9 +1032,9 @@ typedef struct {
   //! Cost of signaling secondary transform index
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];
 #if CONFIG_IST_SET_FLAG
-  //! Cost of signaling secondary transform set index for DCT_DCT primary
-  //! transform type
 #if CONFIG_INTRA_TX_IST_PARSE
+  /*! Cost of signaling secondary transform set index for DCT_DCT primary
+   * transform type */
   int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
 #if CONFIG_F105_IST_MEM_REDUCE
   /*! Cost of signaling secondary transform set index for ADST_ADST primary
