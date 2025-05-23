@@ -5172,7 +5172,8 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       PSNR_STATS psnr;
       double frame_ssim2 = 0.0, weight = 0.0;
       aom_clear_system_state();
-      aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
+      aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth,
+                           is_lossless_requested(&cpi->oxcf.rc_cfg));
       adjust_image_stat(psnr.psnr[1], psnr.psnr[2], psnr.psnr[3], psnr.psnr[0],
                         &(cpi->psnr[0]));
       cpi->total_sq_error[0] += psnr.sse[0];
