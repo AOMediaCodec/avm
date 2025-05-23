@@ -3670,7 +3670,14 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
           check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
                          is_comp, xd->mi_row, xd->mi_col, block_width,
-                         block_height, cm->width, cm->height);
+                         block_height,
+#if CONFIG_F054_PIC_BOUNDARY
+                         xd->plane[0].dst.width, xd->plane[0].dst.height
+
+#else
+                     cm->width, cm->height
+#endif  // CONFIG_F054_PIC_BOUNDARY
+          );
 #if CONFIG_SKIP_MODE_ENHANCEMENT
       if (xd->mi[0]->skip_mode && rmb_candi_exist) {
         ref_frame_idx0[*refmv_count - 1] = rf[0];

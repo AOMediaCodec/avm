@@ -3802,7 +3802,7 @@ void av1_build_one_bawp_inter_predictor(
 
   int ref_h = scaled_y_gen(bh, sf);
   if ((mi_y_p + ref_h) >= height_p) ref_h = height_p - mi_y_p;
-#else   // CONFIG_BAWP_ACROSS_SCALES
+#else  // CONFIG_BAWP_ACROSS_SCALES
   const int x_off = mbmi->mv[ref].as_mv.col >> 3;
   const int y_off = mbmi->mv[ref].as_mv.row >> 3;
 
@@ -3812,8 +3812,13 @@ void av1_build_one_bawp_inter_predictor(
   const int mi_x_p = mi_x >> inter_pred_params->subsampling_x;
   const int mi_y_p = mi_y >> inter_pred_params->subsampling_y;
 
+#if CONFIG_F054_PIC_BOUNDARY
+  const int width_p = pd->dst.width;
+  const int height_p = pd->dst.height;
+#else
   const int width_p = cm->width >> inter_pred_params->subsampling_x;
   const int height_p = cm->height >> inter_pred_params->subsampling_y;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   int ref_w = bw;
   if ((mi_x_p + bw) >= width_p) ref_w = width_p - mi_x_p;
@@ -6790,6 +6795,9 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col) {
+#if CONFIG_F054_PIC_BOUNDARY
+  (void)cm;
+#endif  // CONFIG_F054_PIC_BOUNDARY
   // Predictor, i.e., the reconstructed block found from intrabc.
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   uint16_t *const dst = pd->dst.buf;
@@ -6798,14 +6806,23 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   FULLPEL_MV dv = get_fullmv_from_mv(&mbmi->mv[0].as_mv);
   const int cur_x = mi_col * MI_SIZE;
   const int cur_y = mi_row * MI_SIZE;
+#if CONFIG_F054_PIC_BOUNDARY
+  if (cur_x >= pd->dst.width || cur_y >= pd->dst.height) return false;
+#else
   if (cur_x >= cm->width || cur_y >= cm->height) return false;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   int ref_w = bw;
   int ref_h = bh;
+#if CONFIG_F054_PIC_BOUNDARY
+  if (cur_x + bw >= pd->dst.width) ref_w = pd->dst.width - cur_x;
+  if (cur_y + bh >= pd->dst.height) ref_h = pd->dst.height - cur_y;
+#else
   if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
   if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
   const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
@@ -6813,10 +6830,17 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const int ref_y = cur_y + dv.row;
   const int ref_tmplt_x = ref_x - BAWP_REF_LINES;
   const int ref_tmplt_y = ref_y - BAWP_REF_LINES;
+#if CONFIG_F054_PIC_BOUNDARY
+  assert(cur_tmplt_x + ref_w < pd->dst.width);
+  assert(cur_tmplt_y + ref_h < pd->dst.height);
+  if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= pd->dst.width ||
+      ref_y + ref_h >= pd->dst.height) {
+#else
   assert(cur_tmplt_x + ref_w < cm->width);
   assert(cur_tmplt_y + ref_h < cm->height);
   if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= cm->width ||
       ref_y + ref_h >= cm->height) {
+#endif  // CONFIG_F054_PIC_BOUNDARY
     return false;
   }
   // Restriction: the reference block's template can't be outside the local
