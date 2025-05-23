@@ -6262,6 +6262,10 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
                                            tmp_bw, mib_size_log2);
 #endif  // CONFIG_IBC_SR_EXT == 1
 #if CONFIG_IBC_SR_EXT == 2
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+    valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
+                                     mib_size_log2);
+#else
 #if CONFIG_ENABLE_IBC_NAT
     if (!frame_is_intra_only(
             cm))  // Inter frame: Using 128x128 but the modificantion made in
@@ -6273,6 +6277,7 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
 #endif
       valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                        mib_size_log2);
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 #endif  // CONFIG_IBC_SR_EXT == 2
     if (valid) return 1;
   }
@@ -6575,7 +6580,14 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       }
 #if CONFIG_IBC_SR_EXT
     } else {
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+      int num_left_sb = 1;
+      if (cm->mib_size_log2 == 4) {
+        num_left_sb = 4;
+      }
+#else
       const int num_left_sb = 1;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
       int left_coded_mi_edge =
           AOMMAX((sb_col - num_left_sb) * cm->mib_size, tile->mi_col_start);
       int right_coded_mi_edge =

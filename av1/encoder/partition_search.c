@@ -545,10 +545,11 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  *                              stats for the current block
  * \param[in]    partition      Partition mode of the parent block
  * \param[in]    cur_region_type      Region type of the current block
- * \param[in]    bsize          Current block size
- * \param[in]    ctx            Pointer to structure holding coding contexts and
- *                              chosen modes for the current block
- * \param[in]    best_rd        Upper bound of rd cost of a valid partition
+ * \param[in]    sb_root_partition_info      Partition information of the
+ * superblock \param[in]    bsize          Current block size \param[in]    ctx
+ * Pointer to structure holding coding contexts and chosen modes for the current
+ * block \param[in]    best_rd        Upper bound of rd cost of a valid
+ * partition
  *
  * Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
@@ -559,6 +560,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
                           TileDataEnc *tile_data, MACROBLOCK *const x,
                           int mi_row, int mi_col, RD_STATS *rd_cost,
                           PARTITION_TYPE partition, REGION_TYPE cur_region_type,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                          int sb_root_partition_info,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
                           BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                           RD_STATS best_rd) {
   if (best_rd.rdcost < 0) {
@@ -580,7 +584,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   xd->mi[0]->region_type = cur_region_type;
   // set tree_type for each mbmi
   xd->mi[0]->tree_type = xd->tree_type;
-
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  xd->mi[0]->sb_root_partition_info = sb_root_partition_info;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   if (ctx->rd_mode_is_ready) {
     assert(ctx->mic.sb_type[plane_type] == bsize);
     assert(ctx->mic.partition == partition);
@@ -3225,16 +3231,26 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   switch (partition) {
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
-                    PARTITION_NONE, pc_tree->region_type, bsize, ctx_none,
-                    invalid_rdc);
+                    PARTITION_NONE, pc_tree->region_type,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                    pc_tree->sb_root_partition_info,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                    bsize, ctx_none, invalid_rdc);
       break;
     case PARTITION_HORZ:
-      pc_tree->horizontal[cur_region_type][0] =
-          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, subsize,
-                                 pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
-      pc_tree->horizontal[cur_region_type][1] =
-          av1_alloc_pc_tree_node(xd->tree_type, mi_row + hbh, mi_col, subsize,
-                                 pc_tree, PARTITION_HORZ, 1, 1, ss_x, ss_y);
+      pc_tree->horizontal[cur_region_type][0] = av1_alloc_pc_tree_node(
+          xd->tree_type, mi_row, mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
+      pc_tree->horizontal[cur_region_type][1] = av1_alloc_pc_tree_node(
+          xd->tree_type, mi_row + hbh, mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          subsize, pc_tree, PARTITION_HORZ, 1, 1, ss_x, ss_y);
+
       av1_rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
                            ptree ? ptree->sub_tree[0] : NULL,
@@ -3268,12 +3284,18 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       }
       break;
     case PARTITION_VERT:
-      pc_tree->vertical[cur_region_type][0] =
-          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, subsize,
-                                 pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
-      pc_tree->vertical[cur_region_type][1] =
-          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col + hbw, subsize,
-                                 pc_tree, PARTITION_VERT, 1, 1, ss_x, ss_y);
+      pc_tree->vertical[cur_region_type][0] = av1_alloc_pc_tree_node(
+          xd->tree_type, mi_row, mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
+      pc_tree->vertical[cur_region_type][1] = av1_alloc_pc_tree_node(
+          xd->tree_type, mi_row, mi_col + hbw,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          subsize, pc_tree, PARTITION_VERT, 1, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
                            ptree ? ptree->sub_tree[0] : NULL,
@@ -3318,8 +3340,11 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
             (mi_col + x_idx >= mi_params->mi_cols))
           continue;
         pc_tree->split[cur_region_type][i] = av1_alloc_pc_tree_node(
-            xd->tree_type, mi_row + y_idx, mi_col + x_idx, subsize, pc_tree,
-            PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
+            xd->tree_type, mi_row + y_idx, mi_col + x_idx,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+            cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+            subsize, pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
 
         av1_init_rd_stats(&tmp_rdc);
         av1_rd_use_partition(cpi, td, tile_data,
@@ -3958,9 +3983,15 @@ static void rectangular_partition_search(
     }
     sub_tree[0] = av1_alloc_pc_tree_node(
         xd->tree_type, mi_pos_rect[i][0][0], mi_pos_rect[i][0][1],
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+        cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
         blk_params.subsize, pc_tree, partition_type, 0, 0, ss_x, ss_y);
     sub_tree[1] = av1_alloc_pc_tree_node(
         xd->tree_type, mi_pos_rect[i][1][0], mi_pos_rect[i][1][1],
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+        cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
         blk_params.subsize, pc_tree, partition_type, 1, 1, ss_x, ss_y);
 
     bool both_blocks_skippable = true;
@@ -4317,7 +4348,11 @@ static void none_partition_search(
 
   // PARTITION_NONE evaluation and cost update.
   pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
-                pc_tree->region_type, bsize, ctx_none, best_remain_rdcost);
+                pc_tree->region_type,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                pc_tree->sb_root_partition_info,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                bsize, ctx_none, best_remain_rdcost);
   x->inter_mode_cache = NULL;
   if (this_rdc->rate != INT_MAX &&
       !is_inter_sdp_chroma(cm, cur_region_type, x->e_mbd.tree_type)) {
@@ -4456,9 +4491,12 @@ static void split_partition_search(
       continue;
     if (pc_tree->split[pc_tree->region_type][idx] == NULL) {
       pc_tree->split[pc_tree->region_type][idx] = av1_alloc_pc_tree_node(
-          x->e_mbd.tree_type, mi_row + y_idx, mi_col + x_idx, subsize, pc_tree,
-          PARTITION_SPLIT, idx, idx == 3, part_search_state->ss_x,
-          part_search_state->ss_y);
+          x->e_mbd.tree_type, mi_row + y_idx, mi_col + x_idx,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+          subsize, pc_tree, PARTITION_SPLIT, idx, idx == 3,
+          part_search_state->ss_x, part_search_state->ss_y);
     }
 #if CONFIG_SDP_CFL_LATENCY_FIX
     CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition =
@@ -5590,9 +5628,13 @@ static INLINE void search_partition_horz_4a(
       pc_tree->horizontal4a[cur_region_type][idx] = NULL;
     }
     const int this_mi_row = mi_row + eighth_step * cum_step_multipliers[idx];
-    pc_tree->horizontal4a[cur_region_type][idx] = av1_alloc_pc_tree_node(
-        xd->tree_type, this_mi_row, mi_col, subblock_sizes[idx], pc_tree,
-        PARTITION_HORZ_4A, idx, idx == 3, ss_x, ss_y);
+    pc_tree->horizontal4a[cur_region_type][idx] =
+        av1_alloc_pc_tree_node(xd->tree_type, this_mi_row, mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               subblock_sizes[idx], pc_tree, PARTITION_HORZ_4A,
+                               idx, idx == 3, ss_x, ss_y);
   }
 #if CONFIG_SDP_CFL_LATENCY_FIX
   for (int i = 0; i < 4; ++i)
@@ -5710,9 +5752,13 @@ static INLINE void search_partition_horz_4b(
       pc_tree->horizontal4b[cur_region_type][idx] = NULL;
     }
     const int this_mi_row = mi_row + eighth_step * cum_step_multipliers[idx];
-    pc_tree->horizontal4b[cur_region_type][idx] = av1_alloc_pc_tree_node(
-        xd->tree_type, this_mi_row, mi_col, subblock_sizes[idx], pc_tree,
-        PARTITION_HORZ_4B, idx, idx == 3, ss_x, ss_y);
+    pc_tree->horizontal4b[cur_region_type][idx] =
+        av1_alloc_pc_tree_node(xd->tree_type, this_mi_row, mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               subblock_sizes[idx], pc_tree, PARTITION_HORZ_4B,
+                               idx, idx == 3, ss_x, ss_y);
   }
 #if CONFIG_SDP_CFL_LATENCY_FIX
   for (int i = 0; i < 4; ++i)
@@ -5830,9 +5876,13 @@ static INLINE void search_partition_vert_4a(
       pc_tree->vertical4a[cur_region_type][idx] = NULL;
     }
     const int this_mi_col = mi_col + eighth_step * cum_step_multipliers[idx];
-    pc_tree->vertical4a[cur_region_type][idx] = av1_alloc_pc_tree_node(
-        xd->tree_type, mi_row, this_mi_col, subblock_sizes[idx], pc_tree,
-        PARTITION_VERT_4A, idx, idx == 3, ss_x, ss_y);
+    pc_tree->vertical4a[cur_region_type][idx] =
+        av1_alloc_pc_tree_node(xd->tree_type, mi_row, this_mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               subblock_sizes[idx], pc_tree, PARTITION_VERT_4A,
+                               idx, idx == 3, ss_x, ss_y);
   }
 #if CONFIG_SDP_CFL_LATENCY_FIX
   for (int i = 0; i < 4; ++i)
@@ -5950,9 +6000,13 @@ static INLINE void search_partition_vert_4b(
       pc_tree->vertical4b[cur_region_type][idx] = NULL;
     }
     const int this_mi_col = mi_col + eighth_step * cum_step_multipliers[idx];
-    pc_tree->vertical4b[cur_region_type][idx] = av1_alloc_pc_tree_node(
-        xd->tree_type, mi_row, this_mi_col, subblock_sizes[idx], pc_tree,
-        PARTITION_VERT_4B, idx, idx == 3, ss_x, ss_y);
+    pc_tree->vertical4b[cur_region_type][idx] =
+        av1_alloc_pc_tree_node(xd->tree_type, mi_row, this_mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                               subblock_sizes[idx], pc_tree, PARTITION_VERT_4B,
+                               idx, idx == 3, ss_x, ss_y);
   }
 #if CONFIG_SDP_CFL_LATENCY_FIX
   for (int i = 0; i < 4; ++i)
@@ -6074,6 +6128,9 @@ static INLINE void search_partition_horz_3(
 
     pc_tree->horizontal3[cur_region_type][idx] = av1_alloc_pc_tree_node(
         xd->tree_type, mi_row + offset_mr[idx], mi_col + offset_mc[idx],
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+        cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
         subblock_sizes[idx], pc_tree, PARTITION_HORZ_3, idx, idx == 3, ss_x,
         ss_y);
   }
@@ -6199,6 +6256,9 @@ static INLINE void search_partition_vert_3(
 
     pc_tree->vertical3[cur_region_type][idx] = av1_alloc_pc_tree_node(
         xd->tree_type, mi_row + offset_mr[idx], mi_col + offset_mc[idx],
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+        cm->sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
         subblock_sizes[idx], pc_tree, PARTITION_VERT_3, idx, idx == 3, ss_x,
         ss_y);
   }

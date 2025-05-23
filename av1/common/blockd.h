@@ -703,6 +703,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief store GDF mode in current SB in current implementation */
   int local_gdf_mode;
 #endif  // CONFIG_BRU
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  /*! \brief Which partition the superblock used. */
+  int sb_root_partition_info;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 } MB_MODE_INFO;
 
 /*! \brief Stores the subblock motion info of the current coding block
@@ -767,6 +771,10 @@ typedef struct PARTITION_TREE {
    * tree or not in SDP */
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  /*! \brief Which partition the superblock used. */
+  int sb_root_partition_info;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 } PARTITION_TREE;
 
 PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index);
