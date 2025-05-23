@@ -842,6 +842,290 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
 #endif  // CONFIG_IBC_SR_EXT == 1 || CONFIG_ENABLE_IBC_NAT
 
 #if CONFIG_IBC_SR_EXT == 2
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+static INLINE int is_two_blk_overlap(int blk1_x_left, int blk1_x_right,
+                                     int blk1_y_top, int blk1_y_bottom,
+                                     int blk2_x_left, int blk2_x_right,
+                                     int blk2_y_top, int blk2_y_bottom) {
+  if (blk2_x_left > blk1_x_right || blk2_x_right < blk1_x_left) return 0;
+  if (blk2_y_top > blk1_y_bottom || blk2_y_bottom < blk1_y_top) return 0;
+  return 1;
+}
+static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
+                                           int mi_row, int mi_col, int bh,
+                                           int bw, int mib_size_log2) {
+  int sb_root_partition_info = 0;
+  if (xd->mi && xd->mi[0]) {
+    sb_root_partition_info = xd->mi[0]->sb_root_partition_info;
+  }
+  assert(((sb_root_partition_info == 1 || sb_root_partition_info == 2) &&
+          mib_size_log2 > 4) ||
+         mib_size_log2 == 4);
+  int ref_log2 = 7;
+#if CONFIG_IBC_SUBPEL_PRECISION
+  int has_col_offset = dv.col & 7;  // sub-pel col
+  int has_row_offset = dv.row & 7;  // sub-pel col
+  int left_interp_border = has_col_offset ? IBC_LEFT_INTERP_BORDER : 0;
+  int right_interp_border = has_col_offset ? IBC_RIGHT_INTERP_BORDER : 0;
+  int top_interp_border = has_row_offset ? IBC_TOP_INTERP_BORDER : 0;
+  int bottom_interp_border = has_row_offset ? IBC_BOTTOM_INTERP_BORDER : 0;
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+  const int SCALE_PX_TO_MV = 8;
+  const int src_top_edge = (mi_row * MI_SIZE) * SCALE_PX_TO_MV + dv.row;
+  const int src_left_edge = (mi_col * MI_SIZE) * SCALE_PX_TO_MV + dv.col;
+  const int src_bottom_edge = (mi_row * MI_SIZE + bh) * SCALE_PX_TO_MV + dv.row;
+  const int src_right_edge = (mi_col * MI_SIZE + bw) * SCALE_PX_TO_MV + dv.col;
+
+  const int src_top_y = (src_top_edge >> 3)
+#if CONFIG_IBC_SUBPEL_PRECISION
+                        - top_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
+  const int src_left_x = (src_left_edge >> 3)
+#if CONFIG_IBC_SUBPEL_PRECISION
+                         - left_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
+  const int src_bottom_y = (src_bottom_edge >> 3) - 1
+#if CONFIG_IBC_SUBPEL_PRECISION
+                           + bottom_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
+  const int src_right_x = (src_right_edge >> 3) - 1
+#if CONFIG_IBC_SUBPEL_PRECISION
+                          + right_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+      ;
+  const int act_left_x = mi_col * MI_SIZE;  // active(current) coding blk
+  const int act_top_y = mi_row * MI_SIZE;   // active(current) coding blk
+  const int act_right_x = act_left_x + bw - 1;
+  const int act_bottom_y = act_top_y + bh - 1;
+  const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
+  if (((dv.col >> 3) + bw
+#if CONFIG_IBC_SUBPEL_PRECISION
+       + right_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+       ) > 0 &&
+      ((dv.row >> 3) + bh
+#if CONFIG_IBC_SUBPEL_PRECISION
+       + bottom_interp_border
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+       ) > 0)
+    return 0;
+  // reference blk cannot be in bottom-right region (uncoded region)
+  if ((src_top_y >> sb_size_log2) < (act_top_y >> sb_size_log2)) return 0;
+  if ((src_bottom_y >> sb_size_log2) > (act_top_y >> sb_size_log2)) return 0;
+  // reference blk must be in the same sb row
+  int numLeftSB = (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  if (sb_size_log2 == 6) {
+    numLeftSB = 5;
+  }
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  const int valid_SB =
+      ((src_right_x >> sb_size_log2) <= (act_left_x >> sb_size_log2)) &&
+      ((src_left_x >> sb_size_log2) >=
+       ((act_left_x >> sb_size_log2) - numLeftSB));
+  // reference blk must be in the current SB or left n SBs
+  if (!valid_SB) return 0;
+
+  int TL_same_ref = -1;
+  int BR_same_ref = -1;
+  // 1: ref and curr blk in the same 128x128, no collocation shift required;
+  // 0: ref and curr blk NOT in the same 128x128, shift required;
+  //-1: no need to check, always valid
+  int src_colo_left_x = src_left_x;
+  int src_colo_top_y = src_top_y;
+  int src_colo_right_x = src_right_x;
+  int src_colo_bottom_y = src_bottom_y;
+  if (sb_size_log2 == 6 || sb_size_log2 == 7) {
+    const int sb_off =
+        (act_left_x >> sb_size_log2) - (src_left_x >> sb_size_log2);
+    if (sb_off == numLeftSB) {
+      TL_same_ref = 0;
+      BR_same_ref =
+          (src_right_x >> sb_size_log2) == (act_left_x >> sb_size_log2);
+      src_colo_left_x += sb_off * (1 << sb_size_log2);
+      src_colo_right_x += sb_off * (1 << sb_size_log2);
+    } else if (sb_off != 0) {
+      TL_same_ref = -1;
+      BR_same_ref =
+          (src_right_x >> sb_size_log2) == (act_left_x >> sb_size_log2);
+    } else {
+      assert(sb_off == 0);
+      TL_same_ref = 1;
+      BR_same_ref =
+          (src_right_x >> sb_size_log2) == (act_left_x >> sb_size_log2);
+    }
+  } else if (sb_size_log2 == 8) {
+    // |R|Q0|Q1|
+    //------------
+    // |P|Q2|Q3|
+    if ((((act_left_x >> ref_log2) & 0x01) == 0) &&
+        (((act_top_y >> ref_log2) & 0x01) == 0)) {  // Q0
+      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+        // refer to Q0
+        TL_same_ref = 1;
+        BR_same_ref = 1;
+      } else if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 1) &&
+                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  1)) {  // refer to P
+        TL_same_ref = 0;
+        BR_same_ref = 0;
+        src_colo_left_x += (1 << ref_log2);
+        src_colo_right_x += (1 << ref_log2);
+        src_colo_top_y -= (1 << ref_log2);
+        src_colo_bottom_y -= (1 << ref_log2);
+      } else {
+        return 0;
+      }
+    } else if ((((act_left_x >> ref_log2) & 0x01) == 0) &&
+               (((act_top_y >> ref_log2) & 0x01) == 1)) {  // Q2
+      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+        // refer to Q2 itself
+        TL_same_ref = 1;
+        BR_same_ref = 1;
+      } else if (sb_root_partition_info == 2 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 1) &&
+                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 1) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == -1) &&
+                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  -1)) {  // refer to Q1
+        TL_same_ref = 0;
+        BR_same_ref = 0;
+        src_colo_left_x -= (1 << ref_log2);
+        src_colo_right_x -= (1 << ref_log2);
+        src_colo_top_y += (1 << ref_log2);
+        src_colo_bottom_y += (1 << ref_log2);
+      } else if (sb_root_partition_info == 1 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  -1)) {  // refer to Q0 due to vertical split of SB
+        TL_same_ref = 0;
+        BR_same_ref = (src_bottom_y >> ref_log2) == (act_top_y >> ref_log2);
+        src_colo_top_y += (1 << ref_log2);
+        src_colo_bottom_y += (1 << ref_log2);
+      } else {
+        return 0;
+      }
+    } else if ((((act_left_x >> ref_log2) & 0x01) == 1) &&
+               (((act_top_y >> ref_log2) & 0x01) == 0)) {  // Q1
+      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+        // refer to Q1 itself
+        TL_same_ref = 1;
+        BR_same_ref = 1;
+      } else if (sb_root_partition_info == 2 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  0)) {  // refer to Q0 due to quad/hor split of SB
+        TL_same_ref = 0;
+        BR_same_ref = (src_right_x >> ref_log2) == (act_left_x >> ref_log2);
+        src_colo_left_x += (1 << ref_log2);
+        src_colo_right_x += (1 << ref_log2);
+      } else if (sb_root_partition_info == 1 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 1) &&
+                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  1)) {  // refer to Q2 due to ver split of SB
+        TL_same_ref = 0;
+        BR_same_ref = 0;
+        src_colo_left_x += (1 << ref_log2);
+        src_colo_right_x += (1 << ref_log2);
+        src_colo_top_y -= (1 << ref_log2);
+        src_colo_bottom_y -= (1 << ref_log2);
+      } else {
+        return 0;
+      }
+    } else if ((((act_left_x >> ref_log2) & 0x01) == 1) &&
+               (((act_top_y >> ref_log2) & 0x01) == 1)) {  // Q3
+      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+        // refer to Q3 itself
+        TL_same_ref = 1;
+        BR_same_ref = 1;
+      } else if (sb_root_partition_info == 2 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
+                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  0)) {  // refer to Q2 due to quad/hor split of SB
+        TL_same_ref = 0;
+        BR_same_ref = (src_right_x >> ref_log2) == (act_left_x >> ref_log2);
+        src_colo_left_x += (1 << ref_log2);
+        src_colo_right_x += (1 << ref_log2);
+      } else if (sb_root_partition_info == 1 &&
+                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
+                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) ==
+                  -1)) {  // refer to Q1 due to ver split of SB
+        TL_same_ref = 0;
+        BR_same_ref = (src_bottom_y >> ref_log2) == (act_top_y >> ref_log2);
+        src_colo_top_y += (1 << ref_log2);
+        src_colo_bottom_y += (1 << ref_log2);
+      } else {
+        return 0;
+      }
+    }
+  } else {
+    assert(0);  // other sb_size not supported
+  }
+  const int sb_size = 1 << sb_size_log2;
+  const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
+  const int is_chroma_tree = xd->tree_type == CHROMA_PART;
+  const unsigned char *is_mi_coded_map = xd->is_mi_coded[is_chroma_tree];
+  if (TL_same_ref == 1) {
+    const int LT_mi_col_offset =
+        (src_colo_left_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+    const int LT_mi_row_offset =
+        (src_colo_top_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+    const int LT_pos =
+        LT_mi_row_offset * xd->is_mi_coded_stride + LT_mi_col_offset;
+    if (is_mi_coded_map[LT_pos] == 0) return 0;
+  } else if (TL_same_ref == 0) {
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+    const int LT_mi_col_offset =
+        (src_colo_left_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+    const int LT_mi_row_offset =
+        (src_colo_top_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+    const int LT_pos =
+        LT_mi_row_offset * xd->is_mi_coded_stride + LT_mi_col_offset;
+    if (is_mi_coded_map[LT_pos] == 1) return 0;
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+    if (is_two_blk_overlap(src_colo_left_x, src_colo_right_x, src_colo_top_y,
+                           src_colo_bottom_y, act_left_x, act_right_x,
+                           act_top_y, act_bottom_y))
+      return 0;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  }
+  if (BR_same_ref == 1) {
+    const int BR_mi_col_offset =
+        (src_right_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+    const int BR_mi_row_offset =
+        (src_bottom_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+    const int BR_pos =
+        BR_mi_row_offset * xd->is_mi_coded_stride + BR_mi_col_offset;
+    if (is_mi_coded_map[BR_pos] == 0) return 0;
+    assert(src_right_x < act_left_x || src_bottom_y < act_top_y);
+  }
+  return 1;
+}
+#else
 static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
                                            int mi_row, int mi_col, int bh,
                                            int bw, int mib_size_log2) {
@@ -960,6 +1244,7 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
   }
   return 1;
 }
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 #endif  // CONFIG_IBC_SR_EXT == 2
 
 static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
@@ -1087,6 +1372,10 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                              tmp_bw, mib_size_log2);
 #endif  // CONFIG_IBC_SR_EXT == 1
 #if CONFIG_IBC_SR_EXT == 2
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+      valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
+                                       mib_size_log2);
+#else
 #if CONFIG_ENABLE_IBC_NAT
       if (!frame_is_intra_only(
               cm))  // Inter frame: Using 128x128 but the modificantion made in
@@ -1097,6 +1386,7 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 #endif  // CONFIG_ENABLE_IBC_NAT
         valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh,
                                          tmp_bw, mib_size_log2);
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 #endif  // CONFIG_IBC_SR_EXT == 2
       if (valid) return 1;
     }

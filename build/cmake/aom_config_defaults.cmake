@@ -326,6 +326,8 @@ set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
 
 set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
                    "Enable reduction of the CDFs for MVD related sybmols")
+set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1
+                   "CWG F177 align inter/intra local intraBC search range")
 
 set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
 

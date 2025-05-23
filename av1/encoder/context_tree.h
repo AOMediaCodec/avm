@@ -99,6 +99,9 @@ typedef struct PC_TREE {
 #if CONFIG_SDP_CFL_LATENCY_FIX
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+  int sb_root_partition_info;
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {
@@ -121,6 +124,9 @@ void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
 
 PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
+#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+                                BLOCK_SIZE sb_size,
+#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
                                 BLOCK_SIZE bsize, PC_TREE *parent,
                                 PARTITION_TYPE parent_partition, int index,
                                 int is_last, int subsampling_x,
