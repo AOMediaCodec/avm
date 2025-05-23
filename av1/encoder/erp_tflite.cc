@@ -70,6 +70,7 @@ static const unsigned char *get_model_data(BLOCK_SIZE bsize, bool is_hd) {
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
     BLOCK_SIZE bsize, bool is_hd) {
   const unsigned char *const model_tflite_data = get_model_data(bsize, is_hd);
+  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
   auto model = tflite::GetModel(model_tflite_data);
   tflite::MutableOpResolver resolver;
   RegisterSelectedOpsAllQps(&resolver);

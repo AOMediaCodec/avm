@@ -51,6 +51,7 @@ std::mutex tfliteMutex;
 
 static std::unique_ptr<tflite::Interpreter> create_interpreter(
     unsigned char *model_def, std::vector<TfLiteDelegateType> &to_delete) {
+  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
   std::lock_guard<std::mutex> lock(tfliteMutex);
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
