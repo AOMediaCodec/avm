@@ -378,6 +378,9 @@ typedef struct cfg_options {
    */
   unsigned int enable_inter_ist;
 #if CONFIG_CHROMA_TX
+  /*!\brief enable only dct transform for chroma
+   *
+   */
   unsigned int enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
