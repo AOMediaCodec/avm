@@ -1540,7 +1540,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
             level, v);
   }
 #endif
-
+  if (plane == AOM_PLANE_U) {
+    memset(xd->tmp_sign, 0, sizeof(xd->tmp_sign));
+  }
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
