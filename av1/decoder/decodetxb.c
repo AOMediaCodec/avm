@@ -1256,6 +1256,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 
+  if (plane == AOM_PLANE_U) {
+    memset(xd->tmp_sign, 0, sizeof(xd->tmp_sign));
+  }
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -1305,7 +1308,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_IMPROVEIDTX
         } else {
           int32_t tmp_sign = 0;
-          if (c < xd->eob_u) tmp_sign = xd->tmp_sign[tmp_sign_idx];
+          if (xd->eob_u != 0) tmp_sign = xd->tmp_sign[tmp_sign_idx];
           sign =
               aom_read_symbol(r, ec_ctx->v_dc_sign_cdf[tmp_sign][dc_sign_ctx],
                               2, ACCT_INFO("sign", "v_dc_sign_cdf", "plane_v"));
@@ -1321,7 +1324,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
           sign = aom_read_bit(r, ACCT_INFO("sign", "plane_y_or_u"));
         else {
           int32_t tmp_sign = 0;
-          if (c < xd->eob_u) tmp_sign = xd->tmp_sign[pos];
+          if (xd->eob_u != 0) tmp_sign = xd->tmp_sign[pos];
           sign = aom_read_symbol(r, ec_ctx->v_ac_sign_cdf[tmp_sign], 2,
                                  ACCT_INFO("sign", "v_ac_sign_cdf", "plane_v"));
         }
