@@ -719,10 +719,12 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
                                     get_ref_frame_buf(cm, nearest_rf[1])))) {
     if (check_tip_threshold) {
       tip_check_enable_tip_mode(cm);
+      cm->features.allow_tip_hole_fill =
+          cm->features.tip_frame_mode ? cm->seq_params.enable_tip_hole_fill
+                                      : false;
     }
 
     if (cm->features.tip_frame_mode) {
-      cm->features.allow_tip_hole_fill = cm->seq_params.enable_tip_hole_fill;
       RefCntBuffer *ref0_frame_buf = get_ref_frame_buf(cm, nearest_rf[0]);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int ref0_frame_order_hint = ref0_frame_buf->display_order_hint;
