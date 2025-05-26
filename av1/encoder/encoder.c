@@ -439,7 +439,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_affine_refine = tool_cfg->enable_affine_refine;
 #endif  // CONFIG_AFFINE_REFINEMENT
   seq->enable_tip = tool_cfg->enable_tip;
-  seq->enable_tip_hole_fill = seq->enable_tip;
+  seq->enable_tip_hole_fill = seq->enable_tip != 0;
 #if CONFIG_TIP_IMPLICIT_QUANT
   seq->enable_tip_explicit_qp = 0;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
