@@ -8431,6 +8431,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   const int mi_stride = xd->mi_stride;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+  const TileInfo *const tile = &xd->tile;
 
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int is_sb_border = (mi_row % cm->mib_size == 0);
@@ -8439,25 +8440,30 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (up_available) {
     const int mi_row_offset = -1;
     MB_MODE_INFO *above_mbmi = xd->mi[mi_row_offset * mi_stride];
-    uint8_t above_block_width;
     const int above_mc_offset_start = above_mbmi->mi_col_start - mi_col;
 
     if (above_mc_offset_start < 0) do_top_left = 0;
 
-#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-    int adjust_mi_col_offset = 0;
-#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     for (i = above_mc_offset_start;
          i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
-#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-      adjust_mi_col_offset =
-          (((mi_col + i) >> is_sb_border) << is_sb_border) - mi_col;
-      above_mbmi = xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
-#else
       above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
+      mi_step = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      if (is_sb_border && ((mi_col + i) % 2)) {
+        // Block MI width is 1 and block is in odd column
+        if (mi_step == 1) continue;
+
+        const int adjust_mi_col_offset =
+            ((ROUND_POWER_OF_TWO(mi_col + i, 1)) << 1) - mi_col;
+
+        const POSITION block_pos = { -1, adjust_mi_col_offset };
+        if (!is_inside(tile, mi_col, mi_row, &block_pos)) {
+          continue;
+        }
+
+        above_mbmi = xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+      }
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-      above_block_width = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
-      mi_step = above_block_width;
 
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
       if (above_mbmi->skip_mode == 0)
@@ -8465,13 +8471,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
           if (above_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(above_mbmi, ref, pts, pts_inref, 0, -1,
-#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-                           adjust_mi_col_offset,
-#else
-                           i,
-#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-                           1);
+            record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
             pts += 2;
             pts_inref += 2;
             if (++np >= LEAST_SQUARES_SAMPLES_MAX)
@@ -8491,19 +8491,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
     }
 
-#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-    do_top_right = (adjust_mi_col_offset >= xd->width) &&
-                   (adjust_mi_col_offset < cm->mi_params.mi_cols - mi_col);
-#else
     do_top_right = (i == xd->width) && (i < cm->mi_params.mi_cols - mi_col);
-#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   }
 
   // Scan the nearest left columns
   if (left_available) {
     const int mi_col_offset = -1;
     MB_MODE_INFO *left_mbmi = xd->mi[mi_col_offset];
-    uint8_t left_block_height;
     const int left_mr_offset_start = left_mbmi->mi_row_start - mi_row;
 
     if (left_mr_offset_start < 0) do_top_left = 0;
@@ -8511,8 +8505,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     for (i = left_mr_offset_start;
          i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row); i += mi_step) {
       left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
-      left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
-      mi_step = left_block_height;
+      mi_step = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
@@ -8548,27 +8541,46 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     const int mi_row_offset = -1;
     const int mi_col_offset = -1;
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-    const int adjust_mi_col_offset =
-        (((mi_col + mi_col_offset) >> is_sb_border) << is_sb_border) - mi_col;
-    const MB_MODE_INFO *top_left_mbmi =
-        xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+    int has_valid_top_left = 1;
+    MB_MODE_INFO *top_left_mbmi =
+        xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+    const int top_left_mi_col = (mi_col + mi_col_offset);
+    if (is_sb_border && (top_left_mi_col % 2)) {
+      mi_step = mi_size_wide[top_left_mbmi->sb_type[PLANE_TYPE_Y]];
+      if (mi_step == 1) {
+        // Block MI width is 1 and block is in odd column
+        has_valid_top_left = 0;
+      } else {
+        int adjust_mi_col_offset = 0;
+        if (top_left_mi_col > top_left_mbmi->mi_col_start) {
+          adjust_mi_col_offset = top_left_mi_col - 1 - mi_col;
+        } else {
+          adjust_mi_col_offset = top_left_mi_col + 1 - mi_col;
+        }
+
+        top_left_mbmi =
+            xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+      }
+    }
+
+    if (has_valid_top_left) {
 #else
     const MB_MODE_INFO *top_left_mbmi =
         xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-    if (top_left_mbmi->skip_mode == 0)
+      if (top_left_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
-        if (top_left_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(top_left_mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
-          pts += 2;
-          pts_inref += 2;
-          if (++np >= LEAST_SQUARES_SAMPLES_MAX)
-            return LEAST_SQUARES_SAMPLES_MAX;
+        for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
+          if (top_left_mbmi->ref_frame[ref] == ref_frame) {
+            record_samples(top_left_mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
+            pts += 2;
+            pts_inref += 2;
+            if (++np >= LEAST_SQUARES_SAMPLES_MAX)
+              return LEAST_SQUARES_SAMPLES_MAX;
+          }
         }
-      }
 #else
     if (top_left_mbmi->ref_frame[0] == ref_frame &&
         top_left_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -8578,6 +8590,9 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       if (++np >= LEAST_SQUARES_SAMPLES_MAX) return LEAST_SQUARES_SAMPLES_MAX;
     }
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+    }
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   }
   assert(np <= LEAST_SQUARES_SAMPLES_MAX);
 
@@ -8589,34 +8604,58 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       has_top_right(cm, xd, mi_row, mi_col, AOMMAX(xd->width, xd->height))) {
 #endif
     const POSITION top_right_block_pos = { -1, xd->width };
-    const TileInfo *const tile = &xd->tile;
+
     if (is_inside(tile, mi_col, mi_row, &top_right_block_pos)) {
       const int mi_row_offset = -1;
       const int mi_col_offset = xd->width;
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-      const int adjust_mi_col_offset =
-          (((mi_col + mi_col_offset) >> is_sb_border) << is_sb_border) - mi_col;
-      const MB_MODE_INFO *top_right_mbmi =
-          xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+      int has_valid_top_right = 1;
+      MB_MODE_INFO *top_right_mbmi =
+          xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+      const int top_right_mi_col = (mi_col + mi_col_offset);
+      if (is_sb_border && (top_right_mi_col % 2)) {
+        mi_step = mi_size_wide[top_right_mbmi->sb_type[PLANE_TYPE_Y]];
+        if (mi_step == 1) {
+          // Block MI width is 1 and block is in odd column
+          has_valid_top_right = 0;
+        } else {
+          int adjust_mi_col_offset = 0;
+          if (top_right_mi_col > top_right_mbmi->mi_col_start) {
+            adjust_mi_col_offset = top_right_mi_col - 1 - mi_col;
+          } else {
+            adjust_mi_col_offset = top_right_mi_col + 1 - mi_col;
+          }
+
+          const POSITION block_pos = { -1, adjust_mi_col_offset };
+          if (is_inside(tile, mi_col, mi_row, &block_pos)) {
+            top_right_mbmi =
+                xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+          } else {
+            has_valid_top_right = 0;
+          }
+        }
+      }
+
+      if (has_valid_top_right) {
 #else
       const MB_MODE_INFO *top_right_mbmi =
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
 #if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (top_right_mbmi->skip_mode == 0)
+        if (top_right_mbmi->skip_mode == 0)
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
-          if (top_right_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(top_right_mbmi, ref, pts, pts_inref, 0, -1,
-                           xd->width, 1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-              return LEAST_SQUARES_SAMPLES_MAX;
+          for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
+            if (top_right_mbmi->ref_frame[ref] == ref_frame) {
+              record_samples(top_right_mbmi, ref, pts, pts_inref, 0, -1,
+                             xd->width, 1);
+              pts += 2;
+              pts_inref += 2;
+              if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+                return LEAST_SQUARES_SAMPLES_MAX;
+              }
             }
           }
-        }
 #else
       if (top_right_mbmi->ref_frame[0] == ref_frame &&
           top_right_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -8624,6 +8663,9 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         if (++np >= LEAST_SQUARES_SAMPLES_MAX) return LEAST_SQUARES_SAMPLES_MAX;
       }
 #endif  // CONFIG_COMPOUND_WARP_SAMPLES
+#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
+      }
+#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     }
   }
   assert(np <= LEAST_SQUARES_SAMPLES_MAX);
