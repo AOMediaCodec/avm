@@ -7586,7 +7586,7 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
   }
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
-  const int enable_compound_mv = cm->seq_params.enable_tip;
+  const int enable_compound_mv = cm->seq_params.enable_tip != 0;
   for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
     int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
@@ -7744,7 +7744,7 @@ static int motion_field_projection(AV1_COMMON *cm,
     scaled_blk_row_hr = scaled_blk_row_hr_0;
   }
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  const int enable_compound_mv = cm->seq_params.enable_tip;
+  const int enable_compound_mv = cm->seq_params.enable_tip != 0;
   for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
     int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
