@@ -9248,6 +9248,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
       ;
+  // TCQ is disabled in lossless coding mode
+  if (features->coded_lossless) features->tcq_mode = 0;
+
   setup_segmentation_dequant(cm, xd);
   if (features->coded_lossless) {
     cm->lf.filter_level[0] = 0;
