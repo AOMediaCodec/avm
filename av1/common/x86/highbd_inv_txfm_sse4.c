@@ -6850,7 +6850,6 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
 #endif  // CONFIG_CORE_TX
 }
 
-#if CONFIG_E194_FLEX_SECTX
 // 128bit intrinsic implementation of ROUND_POWER_OF_TWO_SIGNED.
 static INLINE __m128i round_power_of_two_signed_epi32(__m128i val, int bits) {
   const __m128i v_bias_d = _mm_set1_epi32((1 << bits) >> 1);
@@ -6858,7 +6857,6 @@ static INLINE __m128i round_power_of_two_signed_epi32(__m128i val, int bits) {
   const __m128i v_tmp_d = _mm_add_epi32(_mm_add_epi32(val, v_bias_d), v_sign_d);
   return _mm_srai_epi32(v_tmp_d, bits);
 }
-#endif  // CONFIG_E194_FLEX_SECTX
 
 // Inverse secondary transform
 void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
@@ -6872,10 +6870,6 @@ void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-#if !CONFIG_E194_FLEX_SECTX
-  const int rnd_factor = 1 << (7 - 1);
-  const __m128i round = _mm_set1_epi32(rnd_factor);
-#endif  // !CONFIG_E194_FLEX_SECTX
 
   int reduced_width, reduced_height;
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -6915,11 +6909,7 @@ void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
       tmp = _mm_add_epi32(tmp, sum);
       _mm_storeu_si128(tmpBlock, tmp);
     }
-#if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     kernel += reduced_width;
-#else
-    kernel += (size * size);
-#endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
   }
   int *out = dst;
   __m128i *tmpBlock = (__m128i *)out;
@@ -6927,11 +6917,7 @@ void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
   const __m128i min_value = _mm_set1_epi32(-(1 << (7 + bd)));
   for (int j = 0; j < reduced_width; j += 4, tmpBlock++) {
     __m128i tmp = _mm_loadu_si128(tmpBlock);
-#if CONFIG_E194_FLEX_SECTX
     tmp = round_power_of_two_signed_epi32(tmp, 7);
-#else
-    tmp = _mm_srai_epi32(_mm_add_epi32(tmp, round), 7);
-#endif  // CONFIG_E194_FLEX_SECTX
     tmp = _mm_min_epi32(_mm_max_epi32(tmp, min_value), max_value);
     _mm_storeu_si128(tmpBlock, tmp);
   }

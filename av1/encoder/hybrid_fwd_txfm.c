@@ -1551,7 +1551,6 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
       scan_order_in = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
                                      : stx_scan_orders_8x8[log2width - 2];
     }
-#if CONFIG_E194_FLEX_SECTX
     int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
     const int16_t *sup_reg_mapping =
         &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0];
@@ -1560,12 +1559,6 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
                           : src[scan_order_in[r]];
       tmp++;
     }
-#else
-    for (int r = 0; r < sb_size * sb_size; r++) {
-      *tmp = src[scan_order_in[r]];
-      tmp++;
-    }
-#endif  // CONFIG_E194_FLEX_SECTX
 #if CONFIG_E124_IST_REDUCE_METHOD4
 #if CONFIG_F105_IST_MEM_REDUCE
     const int st_size_class =
@@ -1610,11 +1603,7 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     }
     memset(coeff, 0, width * height * sizeof(tran_low_t));
     tmp = buf1;
-#if CONFIG_E194_FLEX_SECTX
     for (int i = 0; i < reduced_width; i++) {
-#else
-    for (int i = 0; i < sb_size * sb_size; i++) {
-#endif  // CONFIG_E194_FLEX_SECTX
       // Align scan order of IST with primary transform scan order
       coeff[scan[i]] = *tmp++;
     }

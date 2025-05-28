@@ -3783,9 +3783,6 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
   int coef;
   int *out = dst;
   int shift = 7;
-#if !CONFIG_E194_FLEX_SECTX
-  int offset = 1 << (shift - 1);
-#endif  // CONFIG_E194_FLEX_SECTX
 
   int reduced_width, reduced_height;
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -3826,15 +3823,7 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
     tmpSum = _mm_add_epi32(tmpSum,
                            _mm_shuffle_epi32(tmpSum, _MM_SHUFFLE(1, 0, 3, 2)));
     coef = _mm_cvtsi128_si32(tmpSum);
-#if CONFIG_E194_FLEX_SECTX
     *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
-#else
-    *out++ = clamp_value((coef + offset) >> shift, 8 + bd);
-#endif  // CONFIG_E194_FLEX_SECTX
-#if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     kernel += reduced_width;
-#else
-    kernel += (size * size);
-#endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
   }
 }

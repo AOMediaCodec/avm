@@ -1750,9 +1750,6 @@ void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
   int *out = dst;
   const int shift = 7;
-#if !CONFIG_E194_FLEX_SECTX
-  const int offset = 1 << (shift - 1);
-#endif  // !CONFIG_E194_FLEX_SECTX
 
   int reduced_width, reduced_height;
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -1784,17 +1781,9 @@ void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     int *srcPtr = src;
     for (int i = 0; i < reduced_height; i++) {
       resi += *srcPtr++ * *kernel_tmp;
-#if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
       kernel_tmp += reduced_width;
-#else
-      kernel_tmp += (size * size);
-#endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     }
-#if CONFIG_E194_FLEX_SECTX
     *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(resi, shift), 8 + bd);
-#else
-    *out++ = clamp_value((resi + offset) >> shift, 8 + bd);
-#endif  // CONFIG_E194_FLEX_SECTX
     kernel++;
   }
 }
@@ -1825,12 +1814,8 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     tran_low_t *tmp = buf0;
     tran_low_t *src = coeff;
 
-#if CONFIG_E194_FLEX_SECTX
     int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
     for (int r = 0; r < reduced_width; r++) {
-#else
-    for (int r = 0; r < sb_size * sb_size; r++) {
-#endif  // CONFIG_E194_FLEX_SECTX
       // Align scan order of IST with primary transform scan order
       *tmp = src[scan[r]];
       tmp++;
@@ -1895,7 +1880,6 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     inv_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     tmp = buf1;
     src = coeff;
-#if CONFIG_E194_FLEX_SECTX
     memset(src, 0, width * height * sizeof(tran_low_t));
     const int16_t *sup_reg_mapping =
         &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0];
@@ -1906,12 +1890,6 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
         src[scan_order_out[r]] = *tmp;
       tmp++;
     }
-#else
-    for (int r = 0; r < sb_size * sb_size; r++) {
-      src[scan_order_out[r]] = *tmp;
-      tmp++;
-    }
-#endif  // CONFIG_E194_FLEX_SECTX
 #if STX_COEFF_DEBUG
     fprintf(stderr, "(ptx coeff)\n");
     for (int i = 0; i < height; i++) {

@@ -751,9 +751,6 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
   int coef;
   int *out = dst;
   int shift = 7;
-#if !CONFIG_E194_FLEX_SECTX
-  int offset = 1 << (shift - 1);
-#endif  // !CONFIG_E194_FLEX_SECTX
 
   int reduced_width, reduced_height;
 #if CONFIG_E124_IST_REDUCE_METHOD4
@@ -786,15 +783,7 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     for (int i = 0; i < reduced_width; i++) {
       coef += *srcPtr++ * *kernel_tmp++;
     }
-#if CONFIG_E194_FLEX_SECTX
     *out++ = clamp_value(ROUND_POWER_OF_TWO_SIGNED(coef, shift), 8 + bd);
-#else
-    *out++ = clamp_value((coef + offset) >> shift, 8 + bd);
-#endif  // CONFIG_E194_FLEX_SECTX
-#if CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
     kernel += reduced_width;
-#else
-    kernel += (size * size);
-#endif  // CONFIG_E194_FLEX_SECTX || CONFIG_E124_IST_REDUCE_METHOD4
   }
 }

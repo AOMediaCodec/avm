@@ -595,8 +595,6 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_aom_config_var(CONFIG_E194_FLEX_SECTX 1
-                   "Secondary transforms with flexible support regions for 8x8")
 set_aom_config_var(CONFIG_F105_IST_MEM_REDUCE 1
                    "Prune ADST_ADST IST sets for 8x8 intra blocks")
 set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")

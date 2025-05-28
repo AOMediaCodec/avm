@@ -321,7 +321,6 @@ enum {
 #if CONFIG_E124_IST_REDUCE_METHOD4
 #define IST_8x8_HEIGHT_RED 20
 #endif  // CONFIG_E124_IST_REDUCE_METHOD4
-#if CONFIG_E194_FLEX_SECTX
 // Note: IST_8x8_WIDTH needs to be a multiple of 4 for sse4 to work
 #define IST_8x8_WIDTH_MAX 64
 #define IST_8x8_WIDTH 48
@@ -330,10 +329,6 @@ enum {
 #if CONFIG_F105_IST_MEM_REDUCE
 #define IST_ADST_NZ_CNT 20
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-#define IST_8x8_WIDTH 64
-#define IST_8x8_HEIGHT 32
-#endif  // CONFIG_E194_FLEX_SECTX
 
 #define STX_SYNTAX_DEBUG 0
 #define STX_COEFF_DEBUG 0
