@@ -4778,16 +4778,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
 #if CONFIG_TCQ
-  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
-    // Disable TCQ for lossless since TCQ may not be reversible
-    features->tcq_mode = 0;
+  if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
+    features->tcq_mode =
+        frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
   } else {
-    if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
-      features->tcq_mode =
-          frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
-    } else {
-      features->tcq_mode = cm->seq_params.enable_tcq;
-    }
+    features->tcq_mode = cm->seq_params.enable_tcq;
   }
 #endif  // CONFIG_TCQ
 

@@ -1839,6 +1839,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
                            && !av1_superres_scaled(cm)
 #endif  // CONFIG_ENABLE_SR
       ;
+  if (features->coded_lossless) features->tcq_mode = 0;
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
