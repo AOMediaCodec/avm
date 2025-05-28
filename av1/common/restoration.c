@@ -390,7 +390,7 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
   const int plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
 #endif  // CONFIG_ENABLE_SR
-#endif
+#endif // CONFIG_F054_PIC_BOUNDARY
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
   // Top limit is a multiple of RU height minus the offset, clamped to be
@@ -3329,7 +3329,7 @@ static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 #else
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
 #endif  // CONFIG_ENABLE_SR
-#endif
+#endif // CONFIG_F054_PIC_BOUNDARY
 
   int tile_stripe;
   for (tile_stripe = 0;; ++tile_stripe) {
