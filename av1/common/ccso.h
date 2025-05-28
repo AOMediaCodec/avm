@@ -36,10 +36,8 @@ static const int edge_clf_to_edge_interval[2] = { 3, 2 };
 extern "C" {
 #endif
 
-#if CONFIG_CCSO_IMPROVE
 void av1_copy_ccso_filters(CcsoInfo *to, CcsoInfo *from, int plane,
                            bool frame_level, bool block_level, int sb_count);
-#endif  // CONFIG_CCSO_IMPROVE
 
 #if CONFIG_F054_PIC_BOUNDARY
 void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
@@ -49,11 +47,7 @@ void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd);
 #endif  // CONFIG_F054_PIC_BOUNDARY
 
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
-#if CONFIG_CCSO_IMPROVE
                         const int quant_step_size,
-#else
-                        const uint8_t quant_step_size,
-#endif
                         const int inv_quant_step, const int *rec_idx,
                         const int edge_clf);
 
@@ -67,11 +61,7 @@ typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif  // CCSO_REFACTORING
-#if CONFIG_CCSO_IMPROVE
                                  const uint16_t thr,
-#else
-                                 const uint8_t thr,
-#endif  // CONFIG_CCSO_IMPROVE
                                  const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf);

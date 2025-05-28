@@ -621,7 +621,6 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
   }
 }
 
-#if CONFIG_CCSO_IMPROVE
 // This funtion is to check if the 1st mbmi of the current ccso unit is inside
 // the current tile. The 1st mbmi is used to signal the ccso block control flag
 // for the current ccso unit.
@@ -724,7 +723,6 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
     return 0;
   }
 }
-#endif  // CONFIG_CCSO_IMPROVE
 
 #if CONFIG_CDEF_ENHANCEMENTS
 // This funtion is to check if the 1st mbmi of the current cdef unit is inside

@@ -234,12 +234,9 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const int blk_size_x =
       (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
 #endif  // CONFIG_CCSO_FU_BUGFIX
-#if CONFIG_CCSO_IMPROVE
   int blk_idc;
-#endif
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
-#if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
     const int log2_filter_unit_size = CCSO_BLK_SIZE;
 #else
@@ -261,16 +258,11 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
           &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[0])->ccso_info;
       blk_idc = ref_frame_ccso_info->sb_filter_control[0][sb_idx];
     }
-#else
-    const int blk_idc =
-        aom_read_symbol(r, xd->tile_ctx->ccso_cdf[0], 2, ACCT_INFO("blk_idc"));
-#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_y = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_y = blk_idc;
-#if CONFIG_CCSO_IMPROVE
     span_ccso(cm, xd, 0, blk_idc);
   } else if (cm->ccso_info.ccso_enable[0] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
@@ -280,12 +272,10 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
             ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                            (mi_col & ~blk_size_x)]
             ->ccso_blk_y;
-#endif  // CONFIG_CCSO_IMPROVE
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[1]) {
-#if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
     const int log2_filter_unit_size =
         (CCSO_BLK_SIZE - xd->plane[1].subsampling_x);
@@ -307,16 +297,11 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
           &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[1])->ccso_info;
       blk_idc = ref_frame_ccso_info->sb_filter_control[1][sb_idx];
     }
-#else
-    const int blk_idc =
-        aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1], 2, ACCT_INFO("blk_idc"));
-#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_u = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_u = blk_idc;
-#if CONFIG_CCSO_IMPROVE
     span_ccso(cm, xd, 1, blk_idc);
   } else if (cm->ccso_info.ccso_enable[1] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
@@ -326,12 +311,10 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
             ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                            (mi_col & ~blk_size_x)]
             ->ccso_blk_u;
-#endif  // CONFIG_CCSO_IMPROVE
   }
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[2]) {
-#if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
     const int log2_filter_unit_size =
         (CCSO_BLK_SIZE - xd->plane[2].subsampling_x);
@@ -353,16 +336,11 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
           &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[2])->ccso_info;
       blk_idc = ref_frame_ccso_info->sb_filter_control[2][sb_idx];
     }
-#else
-    const int blk_idc =
-        aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2], 2, ACCT_INFO("blk_idc"));
-#endif  // CONFIG_CCSO_IMPROVE
     xd->ccso_blk_v = blk_idc;
     mi_params
         ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                        (mi_col & ~blk_size_x)]
         ->ccso_blk_v = blk_idc;
-#if CONFIG_CCSO_IMPROVE
     span_ccso(cm, xd, 2, blk_idc);
   } else if (cm->ccso_info.ccso_enable[2] &&
              av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
@@ -372,7 +350,6 @@ static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
             ->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                            (mi_col & ~blk_size_x)]
             ->ccso_blk_v;
-#endif  // CONFIG_CCSO_IMPROVE
   }
 }
 

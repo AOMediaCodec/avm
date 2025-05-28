@@ -326,7 +326,6 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
     av1_copy_rst_frame_filters(&ref_buf->rst_info[1], &tmp_buf->rst_info[1]);
     av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
 #endif
-#if CONFIG_CCSO_IMPROVE
     if (cm->bru.frame_inactive_flag) {
       ref_buf->ccso_info.ccso_frame_flag = 0;
     } else {
@@ -381,7 +380,6 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
       av1_copy_ccso_filters(&ref_buf->ccso_info, &tmp_buf->ccso_info, plane, 1,
                             1, sb_count);
     }
-#endif
     // replace cur by bru_ref
     assign_frame_buffer_p(&cm->cur_frame, ref_buf);
     return ref_buf;

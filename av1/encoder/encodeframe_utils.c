@@ -1814,14 +1814,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->switchable_flex_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-#if CONFIG_CCSO_IMPROVE
     for (int ctx = 0; ctx < CCSO_CONTEXT; ctx++) {
       AVERAGE_CDF(ctx_left->ccso_cdf[plane][ctx], ctx_tr->ccso_cdf[plane][ctx],
                   2);
     }
-#else
-    AVERAGE_CDF(ctx_left->ccso_cdf[plane], ctx_tr->ccso_cdf[plane], 2);
-#endif  // CONFIG_CCSO_IMPROVE
   }
 #if CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,

@@ -293,7 +293,6 @@ typedef struct FrameHash {
   int is_present;
 } FrameHash;
 
-#if CONFIG_CCSO_IMPROVE
 /** ccso info */
 typedef struct {
   bool reuse_ccso[CCSO_NUM_COMPONENTS];
@@ -325,7 +324,7 @@ typedef struct {
       reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
                                             // speedup
 } CcsoInfo;
-#endif  // CONFIG_CCSO_IMPROVE
+
 typedef struct RefCntBuffer {
   // For a RefCntBuffer, the following are reference-holding variables:
   // - cm->ref_frame_map[]
@@ -412,9 +411,7 @@ typedef struct RefCntBuffer {
 
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
-#if CONFIG_CCSO_IMPROVE
   CcsoInfo ccso_info;
-#endif  // CONFIG_CCSO_IMPROVE
 } RefCntBuffer;
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
@@ -526,30 +523,6 @@ enum {
    */
   REFINE_ALL = 2,
 } UENUM1BYTE(OPTFLOW_REFINE_TYPE);
-
-#if !CONFIG_CCSO_IMPROVE
-/** ccso info */
-typedef struct {
-  /** ccso band offset only option */
-  uint8_t ccso_bo_only[CCSO_NUM_COMPONENTS];
-#if CONFIG_D143_CCSO_FM_FLAG
-  /** ccso frame flag */
-  bool ccso_frame_flag;
-#endif  // CONFIG_D143_CCSO_FM_FLAG
-  /** ccso enable */
-  bool ccso_enable[CCSO_NUM_COMPONENTS];
-  /** ccso filter offset */
-  int8_t filter_offset[CCSO_NUM_COMPONENTS][CCSO_BAND_NUM * 16];
-  /** ccso log2 of max bands */
-  int max_band_log2[CCSO_NUM_COMPONENTS];
-  /** quant index */
-  uint8_t quant_idx[CCSO_NUM_COMPONENTS];
-  /** extended filter support */
-  uint8_t ext_filter_support[CCSO_NUM_COMPONENTS];
-  /** edge classifier index */
-  uint8_t edge_clf[CCSO_NUM_COMPONENTS];
-} CcsoInfo;
-#endif  //! CONFIG_CCSO_IMPROVE
 
 /*!\cond */
 
@@ -2497,7 +2470,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 #endif  // CONFIG_TMVP_MEM_OPT
   }
 
-#if CONFIG_CCSO_IMPROVE
   if (buf->ccso_info.sb_filter_control[0] == NULL ||
       buf_rows != mi_params->mi_rows || buf_cols != mi_params->mi_cols ||
       buf->buf.subsampling_x != cm->seq_params.subsampling_x ||
@@ -2539,7 +2511,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
              sizeof(*buf->ccso_info.sb_filter_control[pli]) * sb_count);
     }
   }
-#endif  // CONFIG_CCSO_IMPROVE
 
   const int is_tpl_mvs_mem_size_too_small = (cm->tpl_mvs_mem_size < mem_size);
   int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_too_small;

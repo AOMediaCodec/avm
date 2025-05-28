@@ -89,9 +89,7 @@ extern "C" {
 
 #define WIENERNS_4PART_CTX_MAX 1
 
-#if CONFIG_CCSO_IMPROVE
 #define CCSO_CONTEXT 4
-#endif  // CONFIG_CCSO_IMPROVE
 
 #if CONFIG_CDEF_ENHANCEMENTS
 #define CDEF_STRENGTH_INDEX0_CTX 4
@@ -581,11 +579,7 @@ typedef struct frame_contexts {
   aom_cdf_prob switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
                                           [MAX_LR_FLEX_MB_PLANE][CDF_SIZE(2)];
   aom_cdf_prob wiener_restore_cdf[CDF_SIZE(2)];
-#if CONFIG_CCSO_IMPROVE
   aom_cdf_prob ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)];
-#else
-  aom_cdf_prob ccso_cdf[3][CDF_SIZE(2)];
-#endif  // CONFIG_CCSO_IMPROVE
 #if CONFIG_CDEF_ENHANCEMENTS
   // CDF for CDEF strength index 0
   aom_cdf_prob cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)];

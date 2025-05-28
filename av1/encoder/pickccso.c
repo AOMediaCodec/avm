@@ -32,11 +32,9 @@ typedef struct {
   bool best_filter_enabled[CCSO_NUM_COMPONENTS];
   bool final_filter_enabled[CCSO_NUM_COMPONENTS];
   uint8_t final_ext_filter_support[CCSO_NUM_COMPONENTS];
-#if CONFIG_CCSO_IMPROVE
   int final_reuse_ccso[CCSO_NUM_COMPONENTS];
   int final_sb_reuse_ccso[CCSO_NUM_COMPONENTS];
   uint8_t final_scale_idx[CCSO_NUM_COMPONENTS];
-#endif  // CONFIG_CCSO_IMPROVE
   uint8_t final_quant_idx[CCSO_NUM_COMPONENTS];
   uint8_t final_ccso_bo_only[CCSO_NUM_COMPONENTS];
 
@@ -58,16 +56,12 @@ typedef struct {
 } CcsoCtx;
 
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
-#if CONFIG_CCSO_IMPROVE
 const uint16_t quant_sz[4][4] = { { 16, 8, 32, 0 },
                                   { 32, 16, 64, 128 },
                                   { 48, 24, 96, 192 },
                                   { 64, 32, 128, 256 } };
 
 const int ccso_scale[4] = { 1, 2, 3, 4 };
-#else
-const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
-#endif  // CONFIG_CCSO_IMPROVE
 
 void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
                              uint8_t *const src_cls1, const int src_y_stride,
@@ -108,11 +102,7 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif  // CCSO_REFACTORING
-#if CONFIG_CCSO_IMPROVE
                                  const uint16_t qstep,
-#else
-                                 const uint8_t qstep,
-#endif  // CONFIG_CCSO_IMPROVE
                                  const uint8_t filter_sup, uint8_t *src_cls0,
                                  uint8_t *src_cls1, int edge_clf,
                                  int ccso_stride, int ccso_stride_ext) {
@@ -610,11 +600,7 @@ void ccso_try_luma_filter(
           }
 #endif  // CONFIG_BRU
           if (ccso_bo_only) {
-#if CONFIG_CCSO_IMPROVE
             ccso_filter_block_hbd_with_buf_bo_only(
-#else
-            ccso_filter_block_hbd_with_buf_c(
-#endif
                 src_y_unit, dst_unit, src_unit0, src_unit1, ccso_stride_ext,
                 dst_stride, ccso_stride, x + unit_x, y + unit_y, pic_width,
                 pic_height, filter_offset, unit_size,
@@ -642,11 +628,7 @@ void ccso_try_luma_filter(
       }  // unit_y
 #else
       if (ccso_bo_only) {
-#if CONFIG_CCSO_IMPROVE
         ccso_filter_block_hbd_with_buf_bo_only(
-#else
-        ccso_filter_block_hbd_with_buf_c(
-#endif  // CONFIG_CCSO_IMPROVE
             src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
             ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size,
 #if CONFIG_CCSO_FU_BUGFIX
@@ -742,11 +724,7 @@ static void ccso_try_chroma_filter(
           }
 #endif  // CONFIG_BRU
           if (ccso_bo_only) {
-#if CONFIG_CCSO_IMPROVE
             ccso_filter_block_hbd_with_buf_bo_only(
-#else
-            ccso_filter_block_hbd_with_buf_c(
-#endif
                 src_y_unit, dst_unit, src_unit0, src_unit1, ccso_stride_ext,
                 dst_stride, ccso_stride, x + unit_x, y + unit_y, pic_width,
                 pic_height, filter_offset,
@@ -773,11 +751,7 @@ static void ccso_try_chroma_filter(
       }  // unit_y
 #else
       if (ccso_bo_only) {
-#if CONFIG_CCSO_IMPROVE
         ccso_filter_block_hbd_with_buf_bo_only(
-#else
-        ccso_filter_block_hbd_with_buf_c(
-#endif  // CONFIG_CCSO_IMPROVE
             src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
             ccso_stride, x, y, pic_width, pic_height, filter_offset,
 #if CONFIG_CCSO_FU_BUGFIX
@@ -917,7 +891,6 @@ static void compute_distortion(
   }
 }
 
-#if CONFIG_CCSO_IMPROVE
 int get_ccso_context(const int sb_y, const int sb_x, const int ccso_nhfb,
                      bool *m_filter_control) {
   int neighbor0_sb_y = -1;
@@ -1190,85 +1163,6 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 
   *filter_enable = cur_filter_enabled;
 }
-#else
-/* Derive block level on/off for CCSO */
-static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
-                          const uint64_t *unfiltered_dist,
-                          const uint64_t *training_dist, bool *m_filter_control,
-                          uint64_t *cur_total_dist, int *cur_total_rate,
-                          bool *filter_enable) {
-  aom_cdf_prob ccso_cdf[CDF_SIZE(2)];
-  static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
-  av1_copy(ccso_cdf, default_ccso_cdf);
-  const int log2_filter_unit_size =
-      plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const int ccso_nvfb =
-      ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
-       (1 << log2_filter_unit_size >> 2) - 1) /
-      (1 << log2_filter_unit_size >> 2);
-  const int ccso_nhfb =
-      ((mi_params->mi_cols >> xd->plane[plane].subsampling_x) +
-       (1 << log2_filter_unit_size >> 2) - 1) /
-      (1 << log2_filter_unit_size >> 2);
-  bool cur_filter_enabled = false;
-  int sb_idx = 0;
-#if CONFIG_BRU
-  const int ss_x = xd->plane[plane].subsampling_x;
-  const int ss_y = xd->plane[plane].subsampling_y;
-  const int sb_unit_size_x =
-      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_x));
-  const int sb_unit_size_y =
-      (1 << log2_filter_unit_size >> (MI_SIZE_LOG2 - ss_y));
-#endif  // CONFIG_BRU
-  for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
-    for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
-      uint64_t ssd;
-      uint64_t best_ssd = UINT64_MAX;
-      int best_rate = INT_MAX;
-      uint8_t cur_best_filter_control = 0;
-      int cost_from_cdf[2];
-      av1_cost_tokens_from_cdf(cost_from_cdf, ccso_cdf, NULL);
-#if CONFIG_BRU
-      // check BRU skip in entire CCSO FU
-      if (bru_is_fu_skipped_mbmi(cm, x_sb * sb_unit_size_x,
-                                 y_sb * sb_unit_size_y, sb_unit_size_x,
-                                 sb_unit_size_y)) {
-        assert(m_filter_control[sb_idx] == 0);
-        m_filter_control[sb_idx] = 0;
-        sb_idx++;
-        continue;
-      }
-#endif  // CONFIG_BRU
-      for (int cur_filter_control = 0; cur_filter_control < 2;
-           cur_filter_control++) {
-        if (!(*filter_enable)) {
-          continue;
-        }
-        if (cur_filter_control == 0) {
-          ssd = unfiltered_dist[sb_idx];
-        } else {
-          ssd = training_dist[sb_idx];
-        }
-        if (ssd < best_ssd) {
-          best_rate = cost_from_cdf[cur_filter_control];
-          best_ssd = ssd;
-          cur_best_filter_control = cur_filter_control;
-          m_filter_control[sb_idx] = cur_filter_control;
-        }
-      }
-      update_cdf(ccso_cdf, cur_best_filter_control, 2);
-      if (cur_best_filter_control != 0) {
-        cur_filter_enabled = true;
-      }
-      *cur_total_rate += best_rate;
-      *cur_total_dist += best_ssd;
-      sb_idx++;
-    }
-  }
-  *filter_enable = cur_filter_enabled;
-}
-#endif  // CONFIG_CCSO_IMPROVE
 
 /* Compute the residual for each entry of the LUT using CCSO enabled filter
  * blocks
@@ -1322,20 +1216,14 @@ static void ccso_compute_class_err(CcsoCtx *ctx, AV1_COMMON *cm,
 
 /* Count the bits for signaling the offset index */
 static INLINE int count_lut_bits(int8_t *temp_filter_offset,
-#if CONFIG_CCSO_IMPROVE
                                  int scale_idx,
-#endif
                                  const int max_band_log2,
                                  const int max_edge_interval,
                                  const uint8_t ccso_bo_only) {
-#if CONFIG_CCSO_IMPROVE
   int ccso_offset_reordered[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   for (int idx = 0; idx < 8; ++idx)
     ccso_offset_reordered[idx] =
         ccso_offset_reordered[idx] * ccso_scale[scale_idx];
-#else
-  const int ccso_offset_reordered[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
-#endif  // CONFIG_CCSO_IMPROVE
   int temp_bits = 0;
   int num_edge_offset_intervals = ccso_bo_only ? 1 : max_edge_interval;
   for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
@@ -1355,9 +1243,7 @@ static INLINE int count_lut_bits(int8_t *temp_filter_offset,
 
 /* Derive the offset value in the look-up table */
 static void derive_lut_offset(int8_t *temp_filter_offset,
-#if CONFIG_CCSO_IMPROVE
                               int scale_idx,
-#endif
                               const int max_band_log2,
                               const int max_edge_interval,
                               const uint8_t ccso_bo_only,
@@ -1365,12 +1251,10 @@ static void derive_lut_offset(int8_t *temp_filter_offset,
                               const int chroma_error[CCSO_BAND_NUM * 16]) {
   float temp_offset = 0;
   int num_edge_offset_intervals = ccso_bo_only ? 1 : max_edge_interval;
-#if CONFIG_CCSO_IMPROVE
   int this_ccso_offset[8] = { 0 };
 
   for (int idx = 0; idx < 8; ++idx)
     this_ccso_offset[idx] = ccso_offset[idx] * ccso_scale[scale_idx];
-#endif  // CONFIG_CCSO_IMPROVE
   for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
     for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
       for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
@@ -1378,40 +1262,21 @@ static void derive_lut_offset(int8_t *temp_filter_offset,
         if (chroma_count[lut_idx_ext]) {
           temp_offset =
               (float)chroma_error[lut_idx_ext] / chroma_count[lut_idx_ext];
-#if CONFIG_CCSO_IMPROVE
           if ((temp_offset < this_ccso_offset[0]) ||
               (temp_offset >= this_ccso_offset[7])) {
             temp_filter_offset[lut_idx_ext] = clamp(
                 (int)temp_offset, this_ccso_offset[0], this_ccso_offset[7]);
-#else
-          if ((temp_offset < ccso_offset[0]) ||
-              (temp_offset >= ccso_offset[7])) {
-            temp_filter_offset[lut_idx_ext] =
-                clamp((int)temp_offset, ccso_offset[0], ccso_offset[7]);
-#endif  // CONFIG_CCSO_IMPROVE
           } else {
             for (int offset_idx = 0; offset_idx < 7; offset_idx++) {
-#if CONFIG_CCSO_IMPROVE
               if ((temp_offset >= this_ccso_offset[offset_idx]) &&
                   (temp_offset <= this_ccso_offset[offset_idx + 1])) {
                 if (fabs(temp_offset - this_ccso_offset[offset_idx]) >
                     fabs(temp_offset - this_ccso_offset[offset_idx + 1])) {
                   temp_filter_offset[lut_idx_ext] =
                       this_ccso_offset[offset_idx + 1];
-#else
-              if ((temp_offset >= ccso_offset[offset_idx]) &&
-                  (temp_offset <= ccso_offset[offset_idx + 1])) {
-                if (fabs(temp_offset - ccso_offset[offset_idx]) >
-                    fabs(temp_offset - ccso_offset[offset_idx + 1])) {
-                  temp_filter_offset[lut_idx_ext] = ccso_offset[offset_idx + 1];
-#endif  // CONFIG_CCSO_IMPROVE
                 } else {
-#if CONFIG_CCSO_IMPROVE
                   temp_filter_offset[lut_idx_ext] =
                       this_ccso_offset[offset_idx];
-#else
-                  temp_filter_offset[lut_idx_ext] = ccso_offset[offset_idx];
-#endif  // CONFIG_CCSO_IMPROVE
                 }
                 break;
               }
@@ -1428,10 +1293,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                                MACROBLOCKD *xd, const uint16_t *org_uv,
                                const uint16_t *ext_rec_y,
                                const uint16_t *rec_uv, int rdmult
-#if CONFIG_CCSO_IMPROVE
                                ,
                                bool error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                                ,
                                ThreadData *td
@@ -1519,7 +1382,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                      pic_height_c, pic_width_c, ctx->unfiltered_dist_block,
                      ccso_nhfb, &ctx->unfiltered_dist_frame);
 
-#if CONFIG_CCSO_IMPROVE
   ctx->unfiltered_dist_frame =
       ROUND_POWER_OF_TWO(ctx->unfiltered_dist_frame, (xd->bd - 8) * 2);
   const uint64_t best_unfiltered_cost =
@@ -1531,12 +1393,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   int best_ref_idx = -1;
   int final_ref_idx = -1;
   const int total_scale_idx = 4;
-#else
-  const double best_unfiltered_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, 1, ctx->unfiltered_dist_frame, cm->seq_params.bit_depth);
-  double best_filtered_cost;
-  double final_filtered_cost = DBL_MAX;
-#endif  // CONFIG_CCSO_IMPROVE
 
   uint8_t best_edge_classifier = 0;
   uint8_t final_edge_classifier = 0;
@@ -1557,17 +1413,13 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   frame_bits += 1;                 // bo only flag
 #endif                             // CONFIG_CCSO_SIGFIX
   frame_bits += 2;                 // quant step size
-#if CONFIG_CCSO_IMPROVE
   frame_bits += 2;  // scale index
-#endif
   frame_bits += 3;  // filter support index
   frame_bits += 1;  // edge_clf
   frame_bits += 2;  // band number log2
 #if CONFIG_CCSO_SIGFIX
   frame_bits_bo_only += 3;  // band number log2
-#if CONFIG_CCSO_IMPROVE
   frame_bits_bo_only += 2;  // scale index
-#endif
 #endif  // CONFIG_CCSO_SIGFIX
   uint8_t *src_cls0;
   uint8_t *src_cls1;
@@ -1579,7 +1431,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
          sizeof(*src_cls0) * xd->plane[0].dst.height * xd->plane[0].dst.width);
   memset(src_cls1, 0,
          sizeof(*src_cls1) * xd->plane[0].dst.height * xd->plane[0].dst.width);
-#if CONFIG_CCSO_IMPROVE
   const int is_intra_frame = frame_is_intra_only(cm);
   int check_ccso = 0;
 
@@ -1603,7 +1454,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   }
 
   for (int scale_idx = 0; scale_idx < total_scale_idx; ++scale_idx) {
-#endif  // CONFIG_CCSO_IMPROVE
     for (uint8_t ccso_bo_only = 0; ccso_bo_only < 2; ccso_bo_only++) {
 #if CONFIG_CCSO_SIGFIX
       int num_filter_iter = ccso_bo_only ? 1 : total_filter_support;
@@ -1627,11 +1477,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   cm->mib_size_log2 - (ss_x > ss_y ? ss_x : ss_y) +
                       MI_SIZE_LOG2,
 #endif  // CCSO_REFACTORING
-#if CONFIG_CCSO_IMPROVE
                   quant_sz[scale_idx][quant_idx],
-#else
-                quant_sz[quant_idx],
-#endif
                   ext_filter_support, src_cls0, src_cls1, edge_clf,
                   ctx->ccso_stride, ctx->ccso_stride_ext);
             }
@@ -1647,31 +1493,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                  max_band_log2++) {
               const int shift_bits = cm->seq_params.bit_depth - max_band_log2;
               const int max_band = 1 << max_band_log2;
-#if !CONFIG_CCSO_IMPROVE
-              best_filtered_cost = DBL_MAX;
-              bool ccso_enable = true;
-              bool keep_training = true;
-              bool improvement = false;
-              double prev_total_cost = DBL_MAX;
-              int control_idx = 0;
-              for (int y = 0; y < ccso_nvfb; y++) {
-                for (int x = 0; x < ccso_nhfb; x++) {
-#if CONFIG_BRU
-                  if (cm->bru.enabled &&
-                      bru_is_fu_skipped_mbmi(cm, x * sb_unit_size_x,
-                                             y * sb_unit_size_y, sb_unit_size_x,
-                                             sb_unit_size_y)) {
-                    // check BRU skip in entire CCSO FU
-                    ctx->filter_control[control_idx] = 0;
-                  } else
-                    ctx->filter_control[control_idx] = 1;
-#else
-                  ctx->filter_control[control_idx] = 1;
-#endif  // CONFIG_BRU
-                  control_idx++;
-                }
-              }
-#endif  //! CONFIG_CCSO_IMPROVE
               if (ccso_bo_only) {
                 for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
                   memset(ctx->total_class_err_bo[band_num], 0,
@@ -1712,7 +1533,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                     ext_rec_y, org_uv, rec_uv, src_cls0, src_cls1, shift_bits);
               }
 
-#if CONFIG_CCSO_IMPROVE
               unsigned int
                   checked_reuse_ref[2][7];  // used to store the already checked
                                             // ccso parameters to avoid checking
@@ -1958,110 +1778,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
       }
     }  // end bo only
   }
-#else
-            int training_iter_count = 0;
-            while (keep_training) {
-              improvement = false;
-              if (ccso_enable) {
-                memset(ctx->chroma_error, 0, sizeof(ctx->chroma_error));
-                memset(ctx->chroma_count, 0, sizeof(ctx->chroma_count));
-                memset(filter_offset, 0, sizeof(filter_offset));
-                memcpy(temp_rec_uv_buf, rec_uv,
-                       sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
-                           ctx->ccso_stride);
-                ccso_compute_class_err(ctx, cm, plane, xd, max_band_log2,
-                                       max_edge_interval, ccso_bo_only);
-                derive_lut_offset(filter_offset, max_band_log2,
-                                  max_edge_interval, ccso_bo_only,
-                                  ctx->chroma_count, ctx->chroma_error);
-              }
-              memcpy(temp_rec_uv_buf, rec_uv,
-                     sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
-                         ctx->ccso_stride);
-              if (plane > 0)
-                ccso_try_chroma_filter(
-                    cm, xd, plane, ext_rec_y, temp_rec_uv_buf, ctx->ccso_stride,
-                    filter_offset, src_cls0, src_cls1, shift_bits, ccso_bo_only,
-                    ctx->ccso_stride, ctx->ccso_stride_ext);
-              else
-                ccso_try_luma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
-                                     ctx->ccso_stride, filter_offset, src_cls0,
-                                     src_cls1, shift_bits, ccso_bo_only,
-                                     ctx->ccso_stride, ctx->ccso_stride_ext);
-              ctx->filtered_dist_frame = 0;
-              compute_distortion(
-                  org_uv, ctx->ccso_stride, temp_rec_uv_buf, ctx->ccso_stride,
-                  log2_filter_unit_size_y, log2_filter_unit_size_x,
-#if CCSO_REFACTORING
-                  cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
-#if CONFIG_BRU
-                  cm, ss_y, ss_x,
-#endif  // CONFIG_BRU
-                  pic_height_c, pic_width_c, ctx->training_dist_block,
-                  ccso_nhfb, &ctx->filtered_dist_frame);
-
-              uint64_t cur_total_dist = 0;
-              int cur_total_rate = 0;
-              derive_blk_md(cm, xd, plane, ctx->unfiltered_dist_block,
-                            ctx->training_dist_block, ctx->filter_control,
-                            &cur_total_dist, &cur_total_rate, &ccso_enable);
-              if (ccso_enable) {
-                const int lut_bits =
-                    count_lut_bits(filter_offset, max_band_log2,
-                                   max_edge_interval, ccso_bo_only);
-                const int cur_total_bits =
-                    lut_bits +
-                    (
-#if CONFIG_CCSO_SIGFIX
-                        ccso_bo_only ? frame_bits_bo_only :
-#endif  // CONFIG_CCSO_SIGFIX
-                                     frame_bits) +
-                    sb_count;
-                const double cur_total_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-                    rdmult, cur_total_bits, cur_total_dist,
-                    cm->seq_params.bit_depth);
-                if (cur_total_cost < prev_total_cost) {
-                  prev_total_cost = cur_total_cost;
-                  improvement = true;
-                }
-                if (cur_total_cost < best_filtered_cost) {
-                  best_filtered_cost = cur_total_cost;
-                  ctx->best_filter_enabled[plane] = ccso_enable;
-                  memcpy(ctx->best_filter_offset[plane], filter_offset,
-                         sizeof(filter_offset));
-                  best_edge_classifier = edge_clf;
-                  memcpy(ctx->best_filter_control, ctx->filter_control,
-                         sizeof(*ctx->filter_control) * sb_count);
-                }
-              }
-              training_iter_count++;
-              if (!improvement || training_iter_count > CCSO_MAX_ITERATIONS) {
-                keep_training = false;
-              }
-            }
-
-            if (best_filtered_cost < final_filtered_cost) {
-              final_filtered_cost = best_filtered_cost;
-              ctx->final_filter_enabled[plane] =
-                  ctx->best_filter_enabled[plane];
-              ctx->final_quant_idx[plane] = quant_idx;
-              ctx->final_ext_filter_support[plane] = ext_filter_support;
-              ctx->final_ccso_bo_only[plane] = ccso_bo_only;
-              memcpy(ctx->final_filter_offset[plane],
-                     ctx->best_filter_offset[plane],
-                     sizeof(ctx->best_filter_offset[plane]));
-              ctx->final_band_log2 = max_band_log2;
-              final_edge_classifier = best_edge_classifier;
-              memcpy(ctx->final_filter_control, ctx->best_filter_control,
-                     sizeof(*ctx->best_filter_control) * sb_count);
-            }
-          }
-        }
-      }
-    }
-  }
-#endif  // CONFIG_CCSO_IMPROVE
 
   if (best_unfiltered_cost < final_filtered_cost) {
     memset(ctx->final_filter_control, 0,
@@ -2071,7 +1787,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
     cm->ccso_info.ccso_enable[plane] = true;
   }
 
-#if CONFIG_CCSO_IMPROVE
   if (cm->ccso_info.ccso_enable[plane] &&
       (ctx->final_reuse_ccso[plane] || ctx->final_sb_reuse_ccso[plane])) {
     assert(get_ref_frame_buf(cm, final_ref_idx) != NULL);
@@ -2085,9 +1800,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
       xd->plane[plane].subsampling_y;
   cm->cur_frame->ccso_info.subsampling_x[plane] =
       xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CCSO_IMPROVE
   if (cm->ccso_info.ccso_enable[plane]) {
-#if CONFIG_CCSO_IMPROVE
     cm->cur_frame->ccso_info.ccso_enable[plane] = 1;
     cm->cur_frame->ccso_info.reuse_root_ref[plane] =
         cm->current_frame.display_order_hint;
@@ -2108,16 +1821,13 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
     const int step_w = (bw + f_w - 1) / f_w;
 
     if (!cm->ccso_info.sb_reuse_ccso[plane]) {
-#endif  // CONFIG_CCSO_IMPROVE
       for (int y_sb = 0; y_sb < ccso_nvfb; y_sb += step_h) {
         for (int x_sb = 0; x_sb < ccso_nhfb; x_sb += step_w) {
-#if CONFIG_CCSO_IMPROVE
           for (int row = y_sb; row < y_sb + step_h; row++) {
             for (int col = x_sb; col < x_sb + step_w; col++) {
               int sb_idx = row * ccso_nhfb + col;
               cm->cur_frame->ccso_info.sb_filter_control[plane][sb_idx] =
                   ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
-#endif  // CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
               const int grid_idx_mbmi =
                   (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * row *
@@ -2233,7 +1943,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
               ->ccso_blk_v = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif  // CONFIG_CCSO_FU_BUGFIX
               }
-#if CONFIG_CCSO_IMPROVE
 #if CONFIG_CCSO_FU_BUGFIX
               const int ccso_mib_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2));
               const int ccso_mib_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2));
@@ -2277,22 +1986,18 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
               }
             }
           }
-#endif  // CONFIG_CCSO_IMPROVE
 
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_CCSO_IMPROVE
           const int ccso_ctx = get_ccso_context(y_sb, x_sb, ccso_nhfb,
                                                 ctx->final_filter_control);
 
           ++td->counts->default_ccso_cnts
                 [plane][ccso_ctx]
                 [ctx->final_filter_control[y_sb * ccso_nhfb + x_sb]];
-#endif  // CONFIG_CCSO_IMPROVE
 #endif
         }
       }
     }
-#if CONFIG_CCSO_IMPROVE
     else {
       assert(ref_frame_ccso_info != NULL);
 
@@ -2401,16 +2106,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   } else {
     cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
   }
-#else
-  memcpy(cm->ccso_info.filter_offset[plane], ctx->final_filter_offset[plane],
-         sizeof(ctx->final_filter_offset[plane]));
-  cm->ccso_info.quant_idx[plane] = ctx->final_quant_idx[plane];
-  cm->ccso_info.ext_filter_support[plane] =
-      ctx->final_ext_filter_support[plane];
-  cm->ccso_info.ccso_bo_only[plane] = ctx->final_ccso_bo_only[plane];
-  cm->ccso_info.max_band_log2[plane] = ctx->final_band_log2;
-  cm->ccso_info.edge_clf[plane] = final_edge_classifier;
-#endif  // CONFIG_CCSO_IMPROVE
   aom_free(ctx->unfiltered_dist_block);
   aom_free(ctx->training_dist_block);
   aom_free(ctx->filter_control);
@@ -2437,10 +2132,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
                  uint16_t *org_uv[3]
-#if CONFIG_CCSO_IMPROVE
                  ,
                  bool error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                  ,
                  ThreadData *td
@@ -2448,7 +2141,6 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 ) {
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
-#if CONFIG_CCSO_IMPROVE
   if (rdmult_temp >= INT_MAX
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       || is_global_intrabc_allowed(cm)
@@ -2464,12 +2156,6 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
     }
     return;
   }
-#else
-  if (rdmult_temp < INT_MAX)
-    rdmult = (int)rdmult_temp;
-  else
-    return;
-#endif  // CONFIG_CCSO_IMPROVE
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
@@ -2479,10 +2165,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   ctx->ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
   derive_ccso_filter(ctx, cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
                      rec_uv[AOM_PLANE_Y], rdmult
-#if CONFIG_CCSO_IMPROVE
                      ,
                      error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                      ,
                      td
@@ -2493,15 +2177,11 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
 #endif  // CONFIG_D143_CCSO_FM_FLAG
   if (num_planes > 1) {
-#if CONFIG_CCSO_IMPROVE
     rdmult = (rdmult * 7) >> 3;
-#endif  // CONFIG_CCSO_IMPROVE
     derive_ccso_filter(ctx, cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
                        rec_uv[AOM_PLANE_U], rdmult
-#if CONFIG_CCSO_IMPROVE
                        ,
                        error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
@@ -2509,10 +2189,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
     );
     derive_ccso_filter(ctx, cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
                        rec_uv[AOM_PLANE_V], rdmult
-#if CONFIG_CCSO_IMPROVE
                        ,
                        error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                        ,
                        td

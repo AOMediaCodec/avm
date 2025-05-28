@@ -2783,7 +2783,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->cdef_info.nb_cdef_strengths = 1;
     cm->cdef_info.cdef_uv_strengths[0] = 0;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
-#if CONFIG_BRU && CONFIG_CCSO_IMPROVE
+#if CONFIG_BRU
     // if not use ccso, need to init
     cm->ccso_info.ccso_frame_flag = false;
     cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
@@ -2793,7 +2793,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       cm->ccso_info.sb_reuse_ccso[plane] = false;
       cm->ccso_info.reuse_ccso[plane] = false;
     }
-#endif  // CONFIG_BRU && CONFIG_CCSO_IMPROVE
+#endif  // CONFIG_BRU
   }
   if (use_ccso) {
     av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -2827,10 +2827,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       }
     }
     ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv
-#if CONFIG_CCSO_IMPROVE
                 ,
                 cpi->error_resilient_frame_seen
-#endif
 #if CONFIG_ENTROPY_STATS
                 ,
                 &cpi->td
@@ -3750,11 +3748,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
   if (tip_direct_output_rdcost < normal_coding_rdcost &&
       (!cm->features.coded_lossless || tip_as_output_sse == 0)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
-#if CONFIG_CCSO_IMPROVE
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
-#endif  // CONFIG_CCSO_IMPROVE
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
@@ -4066,7 +4062,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_CCSO_IMPROVE
     cm->ccso_info.ccso_frame_flag = false;
     cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
         cm->ccso_info.ccso_enable[2] = 0;
@@ -4075,7 +4070,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       cm->ccso_info.sb_reuse_ccso[plane] = false;
       cm->ccso_info.reuse_ccso[plane] = false;
     }
-#endif  // CONFIG_CCSO_IMPROVE
   }
 #endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
