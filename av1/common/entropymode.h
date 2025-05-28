@@ -692,13 +692,8 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
-#if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
-#else
-  aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
-                               [CDF_SIZE(TX_TYPES)];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
@@ -711,15 +706,11 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)];
 #if CONFIG_IST_SET_FLAG
-#if CONFIG_INTRA_TX_IST_PARSE
   aom_cdf_prob most_probable_stx_set_cdf[CDF_SIZE(IST_DIR_SIZE)];
 #if CONFIG_F105_IST_MEM_REDUCE
   aom_cdf_prob most_probable_stx_set_cdf_ADST_ADST[CDF_SIZE(
       IST_REDUCE_SET_SIZE_ADST_ADST)];
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-  aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_IST_SET_FLAG
   aom_cdf_prob pb_mv_mpp_flag_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(2)];
 

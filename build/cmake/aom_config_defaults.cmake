@@ -595,9 +595,6 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_aom_config_var(
-  CONFIG_INTRA_TX_IST_PARSE 1
-  "Parsing dependency removal for intra tx type and IST set signaling.")
 set_aom_config_var(CONFIG_E194_FLEX_SECTX 1
                    "Secondary transforms with flexible support regions for 8x8")
 set_aom_config_var(CONFIG_F105_IST_MEM_REDUCE 1

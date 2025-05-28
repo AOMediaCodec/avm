@@ -1917,7 +1917,6 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
 #endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_INTRA_TX_IST_PARSE
 #if CONFIG_F105_IST_MEM_REDUCE
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
@@ -1931,11 +1930,6 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
   return x->mode_costs.most_probable_stx_set_flag_cost
       [most_probable_stx_mapping[intra_mode][stx_set_flag]];
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
-  assert(stx_set_ctx < IST_DIR_SIZE);
-  return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 }
 
 // TODO(angiebird): use this function whenever it's possible
@@ -2026,7 +2020,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
         int tx_type_cost = 0;
         if (eob != 1) {
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
-#if CONFIG_INTRA_TX_IST_PARSE
           const TxSetType tx_set_type =
               av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
           const int size_info = av1_size_class[tx_size];
@@ -2037,12 +2030,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
             tx_type_cost +=
                 x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                                  [tx_type_idx];
-#else
-          TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-          tx_type_cost +=
-              x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
-                                               [intra_dir][primary_tx_type];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
           } else {
             bool is_long_side_dct =
                 is_dct_type(tx_size, get_primary_tx_type(tx_type));
@@ -2061,7 +2048,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
                                                   [tx_idx_for_large_txfm];
           }
 #else
-#if CONFIG_INTRA_TX_IST_PARSE
           const TxSetType tx_set_type =
               av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
           const int size_info = av1_size_class[tx_size];
@@ -2070,12 +2056,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
           tx_type_cost +=
               x->mode_costs
                   .intra_tx_type_costs[ext_tx_set][square_tx_size][tx_type_idx];
-#else
-          TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-          tx_type_cost +=
-              x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
-                                               [intra_dir][primary_tx_type];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         } else {
           return tx_type_cost;
@@ -5497,7 +5477,6 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
 #endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_INTRA_TX_IST_PARSE
 #if CONFIG_F105_IST_MEM_REDUCE
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
@@ -5513,11 +5492,6 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
   update_cdf(fc->most_probable_stx_set_cdf,
              most_probable_stx_mapping[intra_mode][stx_set_flag], IST_DIR_SIZE);
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
-  assert(stx_set_ctx < IST_DIR_SIZE);
-  update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 }
 
 static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
@@ -5660,27 +5634,15 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_ENTROPY_STATS
           const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_INTRA_TX_IST_PARSE
           ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]]
                                 [av1_tx_type_to_idx(primary_tx_type,
                                                     tx_set_type, intra_dir,
                                                     av1_size_class[tx_size])];
-#else
-          ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]][intra_dir]
-                                [av1_tx_type_to_idx(primary_tx_type,
-                                                    tx_set_type, intra_dir,
-                                                    av1_size_class[tx_size])];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_ENTROPY_STATS
           if (allow_update_cdf) {
             update_cdf(
-#if CONFIG_INTRA_TX_IST_PARSE
                 fc->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
                                     [txsize_sqr_map[tx_size]],
-#else
-              fc->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
-                                  [txsize_sqr_map[tx_size]][intra_dir],
-#endif  // CONFIG_INTRA_TX_IST_PARSE
                 av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                                    intra_dir, av1_size_class[tx_size]),
                 cm->features.reduced_tx_set_used

@@ -19,7 +19,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_INTRA_TX_IST_PARSE
 // Mapping of IST kernel set to an index based on intra mode.
 // The index will be signaled in the bitstream
 static const uint8_t
@@ -53,7 +52,6 @@ static const uint8_t
       { 1, 6, 0, 4, 2, 5, 3 },  // SMOOTH_V_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // SMOOTH_H_PRED
     };
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #if CONFIG_F105_IST_MEM_REDUCE
 static const uint8_t
     most_probable_stx_mapping_ADST_ADST[INTRA_MODES - 1][IST_DIR_SIZE] = {

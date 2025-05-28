@@ -1822,22 +1822,8 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                 ? av1_num_reduced_tx_set
                 : av1_num_ext_tx_set_intra[tx_set_type],
             ACCT_INFO("tx_type"));
-#if CONFIG_INTRA_TX_IST_PARSE
         *tx_type =
             av1_tx_idx_to_type(tx_type_idx, tx_set_type, intra_mode, size_info);
-#else
-        *tx_type = av1_tx_idx_to_type(
-            aom_read_symbol(
-                r,
-                ec_ctx
-                    ->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
-                                      [square_tx_size][intra_mode],
-                cm->features.reduced_tx_set_used
-                    ? av1_num_reduced_tx_set
-                    : av1_num_ext_tx_set_intra[tx_set_type],
-                ACCT_INFO("tx_type")),
-            tx_set_type, intra_mode, size_info);
-#endif  // CONFIG_INTRA_TX_IST_PARSE
       } else {
         int is_long_side_dct = 1;
         if (tx_size_sqr_up == TX_32X32) {
@@ -1857,7 +1843,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                                        .filter_intra_mode]
               : get_intra_mode(mbmi, PLANE_TYPE_Y);
       const int size_info = av1_size_class[tx_size];
-#if CONFIG_INTRA_TX_IST_PARSE
       *tx_type = av1_tx_idx_to_type(
           aom_read_symbol(
               r,
@@ -1868,18 +1853,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                   : av1_num_ext_tx_set_intra[tx_set_type],
               ACCT_INFO("tx_type")),
           tx_set_type, intra_mode, size_info);
-#else
-      *tx_type = av1_tx_idx_to_type(
-          aom_read_symbol(
-              r,
-              ec_ctx->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
-                                      [square_tx_size][intra_mode],
-              cm->features.reduced_tx_set_used
-                  ? av1_num_reduced_tx_set
-                  : av1_num_ext_tx_set_intra[tx_set_type],
-              ACCT_INFO("tx_type")),
-          tx_set_type, intra_mode, size_info);
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     }
   }
@@ -1935,7 +1908,6 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
   TX_TYPE stx_set_flag = DC_PRED;
   if (!inter_block) {
-#if CONFIG_INTRA_TX_IST_PARSE
     uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
 #if CONFIG_F105_IST_MEM_REDUCE
     TX_TYPE reordered_stx_set_flag;
@@ -1963,13 +1935,6 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
     stx_set_flag =
         inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-    uint8_t intra_mode = get_intra_mode(mbmi, AOM_PLANE_Y);
-    uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
-    assert(stx_set_ctx < IST_DIR_SIZE);
-    stx_set_flag = aom_read_symbol(r, ec_ctx->stx_set_cdf[stx_set_ctx],
-                                   IST_DIR_SIZE, ACCT_INFO("stx_set_flag"));
-#endif  // CONFIG_INTRA_TX_IST_PARSE
     assert(stx_set_flag < IST_DIR_SIZE);
   }
 #if !CONFIG_E124_IST_REDUCE_METHOD1

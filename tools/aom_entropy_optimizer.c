@@ -762,20 +762,11 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Transforms");
 
 #if CONFIG_IST_ANY_SET
-#if CONFIG_INTRA_TX_IST_PARSE
   cts_each_dim[0] = IST_DIR_SIZE;
   optimize_cdf_table(&fc.stx_set_cnts[0], probsfile, 1, cts_each_dim,
                      "static aom_cdf_prob default_most_probable_stx_set_cdf"
                      "[CDF_SIZE(IST_DIR_SIZE)]",
                      0, &total_count, 0, mem_wanted, "Transforms");
-#else
-  cts_each_dim[0] = IST_DIR_SIZE;
-  cts_each_dim[1] = IST_DIR_SIZE;
-  optimize_cdf_table(&fc.stx_set_cnts[0][0], probsfile, 2, cts_each_dim,
-                     "static aom_cdf_prob default_stx_set_cdf"
-                     "[TX_SIZES][CDF_SIZE(STX_TYPES)]",
-                     0, &total_count, 0, mem_wanted, "Transforms");
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_IST_ANY_SET
 
   cts_each_dim[0] = NUM_MV_PREC_MPP_CONTEXT;
@@ -1033,7 +1024,6 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Transforms");
 #endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   /* tx type */
-#if CONFIG_INTRA_TX_IST_PARSE
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = TX_TYPES;
@@ -1045,20 +1035,6 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA]"
       "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]",
       0, &total_count, mem_wanted, "Transforms");
-#else
-  cts_each_dim[0] = EXT_TX_SETS_INTRA;
-  cts_each_dim[1] = EXT_TX_SIZES;
-  cts_each_dim[2] = INTRA_MODES;
-  cts_each_dim[3] = TX_TYPES;
-  int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, INTRA_TX_SET1,
-                                                         INTRA_TX_SET2 };
-  optimize_cdf_table_var_modes_4d(
-      &fc.intra_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
-      intra_ext_tx_types_each_ctx,
-      "static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA]"
-      "[EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(TX_TYPES)]",
-      0, &total_count, mem_wanted, "Transforms");
-#endif
 
   cts_each_dim[0] = EXT_TX_SETS_INTER;
   cts_each_dim[1] = EOB_TX_CTXS;

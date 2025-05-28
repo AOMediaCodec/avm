@@ -1033,7 +1033,6 @@ typedef struct {
   //! Cost of signaling secondary transform index
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];
 #if CONFIG_IST_SET_FLAG
-#if CONFIG_INTRA_TX_IST_PARSE
   /*! Cost of signaling secondary transform set index for DCT_DCT primary
    * transform type */
   int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
@@ -1042,9 +1041,6 @@ typedef struct {
    * transform type */
   int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCE_SET_SIZE_ADST_ADST];
 #endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-  int stx_set_flag_cost[IST_DIR_SIZE][IST_DIR_SIZE];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #endif  // CONFIG_IST_SET_FLAG
 
   //! Rate rate associated with each alpha codeword
@@ -1431,12 +1427,7 @@ typedef struct {
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];
   //! intra_tx_type_costs
-#if CONFIG_INTRA_TX_IST_PARSE
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
-#else
-  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
-                         [TX_TYPES];
-#endif  // CONFIG_INTRA_TX_IST_PARSE
 #if CONFIG_TX_TYPE_FLEX_IMPROVE
   //! tx_type_cost_for_length32_side
   int tx_ext_32_costs[2][2];
