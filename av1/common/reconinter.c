@@ -1435,9 +1435,9 @@ void av1_warp_plane_bilinear_c(WarpedMotionParams *wm, int bd,
 
 #define MAX_LS_DIM 4
 // Swap two rows for Gaussian elimination routine
-void swap_rows(int32_t *mat, int32_t *sol, const int i, const int j,
+void swap_rows(int64_t *mat, int64_t *sol, const int i, const int j,
                const int dim) {
-  int32_t temp = sol[i];
+  int64_t temp = sol[i];
   sol[i] = sol[j];
   sol[j] = temp;
   for (int col = 0; col < dim; col++) {
@@ -1452,7 +1452,7 @@ void swap_rows(int32_t *mat, int32_t *sol, const int i, const int j,
 #define GE_MULT_PREC_BITS 12
 
 // Perform Gaussian elimination routine to solve a matrix inverse problem
-int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
+int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
                          const int dim) {
   int shifts[MAX_LS_DIM] = { 0 };
   int16_t inv_pivot[MAX_LS_DIM] = { 0 };
@@ -1482,9 +1482,9 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
   int mat_diag_bits[MAX_LS_DIM] = { 0 };
   int sol_bits[MAX_LS_DIM] = { 0 };
   for (int i = 0; i < dim; i++) {
-    mat_diag_bits[i] = 1 + get_msb_signed(mat[i * dim + i]);
+    mat_diag_bits[i] = 1 + get_msb_signed_64(mat[i * dim + i]);
     min_diag_msb = AOMMIN(min_diag_msb, mat_diag_bits[i]);
-    sol_bits[i] = 1 + get_msb_signed(sol[i]);
+    sol_bits[i] = 1 + get_msb_signed_64(sol[i]);
   }
   for (int i = 0; i < dim; i++) {
     shifts[i] =
@@ -1500,23 +1500,23 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
       assert(a_extra_shift < 64);
       mat[i * dim + j] =
           abits >= 0 ? (mat[i * dim + j] * (1 << abits))
-                     : ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], -abits);
+                     : ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], -abits);
     }
     int bbits = shifts[i] + a_extra_shift + b_extra_shift;
     sol[i] = bbits >= 0 ? (sol[i] * (1 << bbits))
-                        : ROUND_POWER_OF_TWO_SIGNED(sol[i], -bbits);
+                        : ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -bbits);
     precbits[i] = precbits[i] - b_extra_shift + shifts[i];
   }
 
   // Elimination for the i-th column
-  int32_t diff = 0;
+  int64_t diff = 0;
   for (int i = 0; i < dim; i++) {
-    int32_t pivot = mat[i * dim + i];
+    int64_t pivot = mat[i * dim + i];
     int idx_pivot = i;
 
     for (int j = i + 1; j < dim; j++) {
-      int32_t new_pivot = mat[j * dim + i];
-      if (abs(new_pivot) > abs(pivot)) {
+      int64_t new_pivot = mat[j * dim + i];
+      if (llabs(new_pivot) > llabs(pivot)) {
         idx_pivot = j;
         pivot = new_pivot;
       }
@@ -1528,34 +1528,32 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
     // Put the row with the pivot first, and get inverse of the pivot
     if (i != idx_pivot) swap_rows(mat, sol, i, idx_pivot, dim);
     inv_pivot[i] = (pivot > 0 ? 1 : -1) *
-                   resolve_divisor_32(abs(pivot), inv_pivot_shift + i);
+                   resolve_divisor_64(llabs(pivot), inv_pivot_shift + i);
 
     for (int k = i + 1; k < dim; k++) {
       // Compute Akj = Akj - Aki * Aij / Aii, while keeping all intermediate
       // result within K bits
-      int msb_ki = get_msb_signed(mat[k * dim + i]);
+      int msb_ki = get_msb_signed_64(mat[k * dim + i]);
       int msb_invpiv = get_msb_signed(inv_pivot[i]);
       // Apply an upshift first if intermediate results will be close to zero.
       int inc_bits = AOMMAX(
           0, GE_MULT_PREC_BITS - msb_ki - msb_invpiv + inv_pivot_shift[i]);
       int fshift = inc_bits;
-      int32_t f = (int32_t)stable_mult_shift(
-          (int64_t)mat[k * dim + i], (int64_t)inv_pivot[i],
-          inv_pivot_shift[i] - inc_bits, msb_ki, msb_invpiv, MAX_LS_BITS,
-          &fshift);
-      int msb_f = get_msb_signed(f);
+      int64_t f = stable_mult_shift(mat[k * dim + i], (int64_t)inv_pivot[i],
+                                    inv_pivot_shift[i] - inc_bits, msb_ki,
+                                    msb_invpiv, MAX_LS_BITS, &fshift);
+      int msb_f = get_msb_signed_64(f);
       mat[k * dim + i] = 0;
 
       for (int j = i + 1; j < dim; j++) {
-        int msb_ij = get_msb_signed(mat[i * dim + j]);
-        diff = (int32_t)stable_mult_shift((int64_t)mat[i * dim + j], (int64_t)f,
-                                          fshift, msb_ij, msb_f, MAX_LS_BITS,
-                                          NULL);
+        int msb_ij = get_msb_signed_64(mat[i * dim + j]);
+        diff = stable_mult_shift(mat[i * dim + j], f, fshift, msb_ij, msb_f,
+                                 MAX_LS_BITS, NULL);
         mat[k * dim + j] -= diff;
       }
-      int msb_sol = get_msb_signed(sol[i]);
-      diff = (int32_t)stable_mult_shift((int64_t)sol[i], (int64_t)f, fshift,
-                                        msb_sol, msb_f, MAX_LS_BITS, NULL);
+      int msb_sol = get_msb_signed_64(sol[i]);
+      diff = stable_mult_shift(sol[i], f, fshift, msb_sol, msb_f, MAX_LS_BITS,
+                               NULL);
       sol[k] -= diff;
     }
   }
@@ -1567,24 +1565,25 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
     int max_mult_bits = 0;
     for (int j = i + 1; j < dim; j++)
       max_mult_bits =
-          AOMMAX(max_mult_bits,
-                 2 + get_msb_signed(mat[i * dim + j]) + get_msb_signed(sol[j]));
+          AOMMAX(max_mult_bits, 2 + get_msb_signed_64(mat[i * dim + j]) +
+                                    get_msb_signed_64(sol[j]));
     int redbit = AOMMAX(0, max_mult_bits - MAX_LS_BITS + 3);
-    sol[i] = ROUND_POWER_OF_TWO_SIGNED(sol[i], redbit);
+    sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], redbit);
     for (int j = i + 1; j < dim; j++) {
-      diff = ROUND_POWER_OF_TWO_SIGNED(mat[i * dim + j], redbit) * sol[j];
+      diff = ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], redbit) * sol[j];
       sol[i] = sol[i] - diff;
     }
-    sol[i] = (int32_t)stable_mult_shift(
-        (int64_t)sol[i], (int64_t)inv_pivot[i], inv_pivot_shift[i] - redbit,
-        get_msb_signed(sol[i]), get_msb_signed(inv_pivot[i]), MAX_LS_BITS,
-        NULL);
+    sol[i] =
+        stable_mult_shift(sol[i], (int64_t)inv_pivot[i],
+                          inv_pivot_shift[i] - redbit, get_msb_signed(sol[i]),
+                          get_msb_signed(inv_pivot[i]), MAX_LS_BITS, NULL);
   }
 
   // Apply remaining downscaling
   for (int i = 0; i < dim; i++)
-    sol[i] = precbits[i] >= 0 ? (sol[i] * (1 << precbits[i]))
-                              : ROUND_POWER_OF_TWO_SIGNED(sol[i], -precbits[i]);
+    sol[i] = precbits[i] >= 0
+                 ? (sol[i] * (1 << precbits[i]))
+                 : ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -precbits[i]);
 
   return 1;
 }
@@ -1592,10 +1591,12 @@ int gaussian_elimination(int32_t *mat, int32_t *sol, int *precbits,
 // Solve a 4-dimensional matrix inverse
 int solver_4d(const int32_t *mat_a, const int32_t *vec_b, int *precbits,
               int *sol) {
-  int32_t mat[16] = { 0 };
-  memcpy(mat, mat_a, 16 * sizeof(int32_t));
-  memcpy(sol, vec_b, 4 * sizeof(int32_t));
-  int ret = gaussian_elimination(mat, sol, precbits, 4);
+  int64_t mat[16] = { 0 };
+  int64_t vec[4] = { 0 };
+  for (int i = 0; i < 16; i++) mat[i] = (int64_t)mat_a[i];
+  for (int i = 0; i < 4; i++) vec[i] = (int64_t)vec_b[i];
+  int ret = gaussian_elimination(mat, vec, precbits, 4);
+  for (int i = 0; i < 4; i++) sol[i] = (int)vec[i];
   return ret;
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
