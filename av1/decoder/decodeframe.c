@@ -4303,33 +4303,20 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 
         if (!cm->ccso_info.reuse_ccso[plane]) {
           cm->ccso_info.ccso_bo_only[plane] = aom_rb_read_literal(rb, 1);
-#if !CONFIG_CCSO_SIGFIX
-          cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
-          cm->ccso_info.ext_filter_support[plane] = aom_rb_read_literal(rb, 3);
-#endif  // !CONFIG_CCSO_SIGFIX
-
           cm->ccso_info.scale_idx[plane] = aom_rb_read_literal(rb, 2);
-
           if (cm->ccso_info.ccso_bo_only[plane]) {
-#if CONFIG_CCSO_SIGFIX
             cm->ccso_info.quant_idx[plane] = 0;
             cm->ccso_info.ext_filter_support[plane] = 0;
             cm->ccso_info.edge_clf[plane] = 0;
-#endif  // CONFIG_CCSO_SIGFIX
             cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 3);
           } else {
-#if CONFIG_CCSO_SIGFIX
             cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
             cm->ccso_info.ext_filter_support[plane] =
                 aom_rb_read_literal(rb, 3);
             cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
-#endif  // CONFIG_CCSO_SIGFIX
             cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
           }
           const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
-#if !CONFIG_CCSO_SIGFIX
-          cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
-#endif  // !CONFIG_CCSO_SIGFIX
           const int edge_clf = cm->ccso_info.edge_clf[plane];
           const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
           const int num_edge_offset_intervals =

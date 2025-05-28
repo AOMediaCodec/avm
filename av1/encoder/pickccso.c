@@ -1403,20 +1403,16 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   const int total_quant_idx = 4;
   const int total_band_log2_plus1 = 4;
   uint8_t frame_bits = 1;
-#if CONFIG_CCSO_SIGFIX
   uint8_t frame_bits_bo_only = 1;  // enabling flag
   frame_bits_bo_only += 1;         // bo only flag
   frame_bits += 1;                 // bo only flag
-#endif                             // CONFIG_CCSO_SIGFIX
   frame_bits += 2;                 // quant step size
   frame_bits += 2;  // scale index
   frame_bits += 3;  // filter support index
   frame_bits += 1;  // edge_clf
   frame_bits += 2;  // band number log2
-#if CONFIG_CCSO_SIGFIX
   frame_bits_bo_only += 3;  // band number log2
   frame_bits_bo_only += 2;  // scale index
-#endif  // CONFIG_CCSO_SIGFIX
   uint8_t *src_cls0;
   uint8_t *src_cls1;
   src_cls0 = aom_malloc(sizeof(*src_cls0) * xd->plane[0].dst.height *
@@ -1451,15 +1447,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   for (int scale_idx = 0; scale_idx < total_scale_idx; ++scale_idx) {
     for (uint8_t ccso_bo_only = 0; ccso_bo_only < 2; ccso_bo_only++) {
-#if CONFIG_CCSO_SIGFIX
       int num_filter_iter = ccso_bo_only ? 1 : total_filter_support;
       int num_quant_iter = ccso_bo_only ? 1 : total_quant_idx;
       int num_edge_clf_iter = ccso_bo_only ? 1 : total_edge_classifier;
-#else
-    int num_filter_iter = total_filter_support;
-    int num_quant_iter = total_quant_idx;
-    int num_edge_clf_iter = total_edge_classifier;
-#endif  // CONFIG_CCSO_SIGFIX
       for (int ext_filter_support = 0; ext_filter_support < num_filter_iter;
            ext_filter_support++) {
         for (int quant_idx = 0; quant_idx < num_quant_iter; quant_idx++) {
