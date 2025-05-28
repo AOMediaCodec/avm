@@ -102,10 +102,10 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif  // CCSO_REFACTORING
-                                 const uint16_t qstep,
-                                 const uint8_t filter_sup, uint8_t *src_cls0,
-                                 uint8_t *src_cls1, int edge_clf,
-                                 int ccso_stride, int ccso_stride_ext) {
+                                 const uint16_t qstep, const uint8_t filter_sup,
+                                 uint8_t *src_cls0, uint8_t *src_cls1,
+                                 int edge_clf, int ccso_stride,
+                                 int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -1215,8 +1215,7 @@ static void ccso_compute_class_err(CcsoCtx *ctx, AV1_COMMON *cm,
 }
 
 /* Count the bits for signaling the offset index */
-static INLINE int count_lut_bits(int8_t *temp_filter_offset,
-                                 int scale_idx,
+static INLINE int count_lut_bits(int8_t *temp_filter_offset, int scale_idx,
                                  const int max_band_log2,
                                  const int max_edge_interval,
                                  const uint8_t ccso_bo_only) {
@@ -1242,8 +1241,7 @@ static INLINE int count_lut_bits(int8_t *temp_filter_offset,
 }
 
 /* Derive the offset value in the look-up table */
-static void derive_lut_offset(int8_t *temp_filter_offset,
-                              int scale_idx,
+static void derive_lut_offset(int8_t *temp_filter_offset, int scale_idx,
                               const int max_band_log2,
                               const int max_edge_interval,
                               const uint8_t ccso_bo_only,
@@ -1292,8 +1290,7 @@ static void derive_lut_offset(int8_t *temp_filter_offset,
 static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                                MACROBLOCKD *xd, const uint16_t *org_uv,
                                const uint16_t *ext_rec_y,
-                               const uint16_t *rec_uv, int rdmult
-                               ,
+                               const uint16_t *rec_uv, int rdmult,
                                bool error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                                ,
@@ -1407,12 +1404,12 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   frame_bits_bo_only += 1;         // bo only flag
   frame_bits += 1;                 // bo only flag
   frame_bits += 2;                 // quant step size
-  frame_bits += 2;  // scale index
-  frame_bits += 3;  // filter support index
-  frame_bits += 1;  // edge_clf
-  frame_bits += 2;  // band number log2
-  frame_bits_bo_only += 3;  // band number log2
-  frame_bits_bo_only += 2;  // scale index
+  frame_bits += 2;                 // scale index
+  frame_bits += 3;                 // filter support index
+  frame_bits += 1;                 // edge_clf
+  frame_bits += 2;                 // band number log2
+  frame_bits_bo_only += 3;         // band number log2
+  frame_bits_bo_only += 2;         // scale index
   uint8_t *src_cls0;
   uint8_t *src_cls1;
   src_cls0 = aom_malloc(sizeof(*src_cls0) * xd->plane[0].dst.height *
@@ -1463,16 +1460,15 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   cm->mib_size_log2 - (ss_x > ss_y ? ss_x : ss_y) +
                       MI_SIZE_LOG2,
 #endif  // CCSO_REFACTORING
-                  quant_sz[scale_idx][quant_idx],
-                  ext_filter_support, src_cls0, src_cls1, edge_clf,
-                  ctx->ccso_stride, ctx->ccso_stride_ext);
+                  quant_sz[scale_idx][quant_idx], ext_filter_support, src_cls0,
+                  src_cls1, edge_clf, ctx->ccso_stride, ctx->ccso_stride_ext);
             }
             int num_band_iter = total_band_log2_plus1;
             if (ccso_bo_only) {
 #if CONFIG_CCSO_BO_REDUCE
               num_band_iter = total_band_log2_plus1 + 3;
 #else
-            num_band_iter = total_band_log2_plus1 + 4;
+              num_band_iter = total_band_log2_plus1 + 4;
 #endif  // CONFIG_CCSO_BO_REDUCE
             }
             for (int max_band_log2 = 0; max_band_log2 < num_band_iter;
@@ -1848,14 +1844,16 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   mbmi->ccso_blk_y =
                       ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #else
-          mi_params
-              ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                                 row * mi_params->mi_stride +
-                             (1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                                 col]
-              ->ccso_blk_y = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                             col]
+                    ->ccso_blk_y =
+                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif
               } else if (plane == AOM_PLANE_U) {
 #if CONFIG_BRU
@@ -1883,14 +1881,16 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   mbmi->ccso_blk_u =
                       ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #else
-          mi_params
-              ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
-                                 row * mi_params->mi_stride +
-                             (1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
-                                 col]
-              ->ccso_blk_u = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[1].subsampling_x)) *
+                             col]
+                    ->ccso_blk_u =
+                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif  // CONFIG_CCSO_FU_BUGFIX
               } else {
 #if CONFIG_BRU
@@ -1919,14 +1919,16 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   mbmi->ccso_blk_v =
                       ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #else
-          mi_params
-              ->mi_grid_base[(1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
-                                 row * mi_params->mi_stride +
-                             (1 << CCSO_BLK_SIZE >>
-                              (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
-                                 col]
-              ->ccso_blk_v = ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
+                mi_params
+                    ->mi_grid_base
+                        [(1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_y)) *
+                             row * mi_params->mi_stride +
+                         (1 << CCSO_BLK_SIZE >>
+                          (MI_SIZE_LOG2 - xd->plane[2].subsampling_x)) *
+                             col]
+                    ->ccso_blk_v =
+                    ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
 #endif  // CONFIG_CCSO_FU_BUGFIX
               }
 #if CONFIG_CCSO_FU_BUGFIX
@@ -1983,8 +1985,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 #endif
         }
       }
-    }
-    else {
+    } else {
       assert(ref_frame_ccso_info != NULL);
 
       memcpy(cm->cur_frame->ccso_info.sb_filter_control[plane],
@@ -2117,9 +2118,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 /* Derive the look-up table for a frame */
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
-                 uint16_t *org_uv[3]
-                 ,
-                 bool error_resilient_frame_seen
+                 uint16_t *org_uv[3], bool error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                  ,
                  ThreadData *td
@@ -2150,9 +2149,7 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   ctx->ccso_stride = xd->plane[0].dst.width;
   ctx->ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
   derive_ccso_filter(ctx, cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
-                     rec_uv[AOM_PLANE_Y], rdmult
-                     ,
-                     error_resilient_frame_seen
+                     rec_uv[AOM_PLANE_Y], rdmult, error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                      ,
                      td
@@ -2163,18 +2160,14 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   if (num_planes > 1) {
     rdmult = (rdmult * 7) >> 3;
     derive_ccso_filter(ctx, cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
-                       rec_uv[AOM_PLANE_U], rdmult
-                       ,
-                       error_resilient_frame_seen
+                       rec_uv[AOM_PLANE_U], rdmult, error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
 #endif
     );
     derive_ccso_filter(ctx, cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
-                       rec_uv[AOM_PLANE_V], rdmult
-                       ,
-                       error_resilient_frame_seen
+                       rec_uv[AOM_PLANE_V], rdmult, error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                        ,
                        td

@@ -47,9 +47,8 @@ void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd);
 #endif  // CONFIG_F054_PIC_BOUNDARY
 
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
-                        const int quant_step_size,
-                        const int inv_quant_step, const int *rec_idx,
-                        const int edge_clf);
+                        const int quant_step_size, const int inv_quant_step,
+                        const int *rec_idx, const int edge_clf);
 
 void derive_ccso_sample_pos(AV1_COMMON *cm, int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support);
@@ -61,8 +60,7 @@ typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CCSO_REFACTORING
                                  const int proc_unit_log2,
 #endif  // CCSO_REFACTORING
-                                 const uint16_t thr,
-                                 const uint8_t filter_sup,
+                                 const uint16_t thr, const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf);
 

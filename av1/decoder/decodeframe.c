@@ -4342,8 +4342,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
           av1_copy_ccso_filters(&cm->ccso_info, ref_frame_ccso_info, plane, 1,
                                 0, 0);
         }
-      }
-      else {  // disable ccso
+      } else {  // disable ccso
         cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
       }
     }
