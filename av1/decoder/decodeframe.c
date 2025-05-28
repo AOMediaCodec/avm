@@ -7404,7 +7404,12 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_INTER_DDT
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
-  seq_params->enable_tip = aom_rb_read_literal(rb, 2);
+  uint8_t enable_tip = aom_rb_read_bit(rb);
+  if (enable_tip) {
+    seq_params->enable_tip = 1 + aom_rb_read_bit(rb);
+  } else {
+    seq_params->enable_tip = 0;
+  }
   if (seq_params->enable_tip) {
     seq_params->enable_tip_hole_fill = aom_rb_read_bit(rb);
   } else {
@@ -8744,7 +8749,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-        if (aom_rb_read_bit(rb)) {
+        if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         } else {
           features->tip_frame_mode =

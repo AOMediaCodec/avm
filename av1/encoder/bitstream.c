@@ -6765,7 +6765,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #endif  // CONFIG_INTER_DDT
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
   aom_wb_write_bit(wb, seq_params->enable_mrls);
-  aom_wb_write_literal(wb, seq_params->enable_tip, 2);
+  aom_wb_write_bit(wb, seq_params->enable_tip != 0);
+  if (seq_params->enable_tip) {
+    aom_wb_write_bit(wb, seq_params->enable_tip != 1);
+  }
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
   }
@@ -7462,10 +7465,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
                        features->tip_frame_mode != TIP_FRAME_AS_OUTPUT));
 #endif  // CONFIG_ENABLE_SR
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-        const int is_tip_direct_output =
-            (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-        aom_wb_write_bit(wb, is_tip_direct_output);
-        if (!is_tip_direct_output) {
+        if (cm->seq_params.enable_tip == 1) {
+          const int is_tip_direct_output =
+              (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+          aom_wb_write_bit(wb, is_tip_direct_output);
+          if (!is_tip_direct_output) {
+            aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
+          }
+        } else {
           aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
         }
 #else
