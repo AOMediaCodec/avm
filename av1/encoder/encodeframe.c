@@ -1701,7 +1701,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
                                          cm->seq_params.bit_depth)
                         : quant_params->base_qindex;
     xd->lossless[i] =
-        qindex == 0 &&
+        qindex == 0 && cm->features.tcq_mode == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&

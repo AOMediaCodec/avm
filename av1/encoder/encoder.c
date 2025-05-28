@@ -590,9 +590,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_tiles_cdfs_avg = tool_cfg->enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_TCQ
-  seq->enable_tcq = tool_cfg->enable_tcq;
+  seq->enable_tcq =
+      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
-    seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
+    seq->enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
+                                    ? 0
+                                    : tool_cfg->enable_parity_hiding;
   } else {
     seq->enable_parity_hiding = 0;
   }
@@ -4735,7 +4738,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
 #if CONFIG_TCQ
-  if (cm->features.coded_lossless) {
+  if (is_lossless_requested(&oxcf->rc_cfg)) {
     // Disable TCQ for lossless since TCQ may not be reversible
     features->tcq_mode = 0;
   } else {
