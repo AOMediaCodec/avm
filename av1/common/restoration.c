@@ -378,6 +378,10 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 
   int ss_x = plane && cm->seq_params.subsampling_x;
   int ss_y = plane && cm->seq_params.subsampling_y;
+#if CONFIG_F054_PIC_BOUNDARY
+  const int plane_height = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
+  const int plane_width = cm->mi_params.mi_cols * MI_SIZE >> ss_x;
+#else
 #if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
@@ -386,6 +390,7 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
   const int plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
 #endif  // CONFIG_ENABLE_SR
+#endif
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
   // Top limit is a multiple of RU height minus the offset, clamped to be
@@ -490,6 +495,7 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
 
   // For large resolution, the minimum RU size is set to
   // RESTORATION_UNITSIZE_MAX >> 1 to reduce the encode complexity.
+  // This special setting is only for encoder
   if (width * height > 1920 * 1080 * 2)
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
 
@@ -3314,12 +3320,16 @@ static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
+#if CONFIG_F054_PIC_BOUNDARY
+  const int plane_height = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
+#else
 #if CONFIG_ENABLE_SR
   const int plane_height =
       ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
 #else
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
 #endif  // CONFIG_ENABLE_SR
+#endif
 
   int tile_stripe;
   for (tile_stripe = 0;; ++tile_stripe) {
