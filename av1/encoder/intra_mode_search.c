@@ -214,11 +214,15 @@ static void rd_pick_intra_dip_sby_modelrd(
     }
   }
 }
-
+/*! \brief Extra features passed to DIP pruning model. */
 struct extra_dip_info {
+  /*! \brief Whether any intra mode beats best_rd passed to intra search. */
   int beat_best_rd;
+  /*! \brief RD cost of the DC mode. */
   int64_t dc_mode_rd;
+  /*! \brief The best_rd passed to intra search. */
   int64_t orig_best_rd;
+  /*! \brief Best non-DIP mode found during intra search. */
   int best_mode;
 };
 #endif  // CONFIG_DIP_EXT_PRUNING

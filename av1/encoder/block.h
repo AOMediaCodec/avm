@@ -987,6 +987,7 @@ typedef struct {
 #if CONFIG_DIP
   //! intra_dip_cost
   int intra_dip_cost[DIP_CTXS][2];
+  //! intra_dip_mode_cost
   int intra_dip_mode_cost[16];
 #endif  // CONFIG_DIP
   //! angle_delta_cost

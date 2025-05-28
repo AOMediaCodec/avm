@@ -615,6 +615,7 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_DIP
   /*! \brief intra_dip prediction mode (0=disable). */
   uint8_t use_intra_dip;
+  /*! \brief intra_dip prediction mode selection. */
   uint8_t intra_dip_mode;
 #if CONFIG_DIP_EXT_PRUNING
   /*! \brief DIP input features (downsampled edge pixels). */

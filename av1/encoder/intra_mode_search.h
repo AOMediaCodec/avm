@@ -158,9 +158,12 @@ int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
 /*! \brief Holds the rate and distortion information of DIP modes.
  */
 typedef struct {
+  /*! \brief Combined DIP mode + transpose flag. */
   uint8_t intra_dip_mode;
+  /*! \brief Model RD for this DIP mode. */
   int64_t modelrd;
 } DIPModeRDInfo;
+/*! \brief Number of DIP model RD candidates to consider for full RD search. */
 #define TOP_DIP_INTRA_MODEL_COUNT 5
 #endif  // CONFIG_DIP_EXT_PRUNING
 
