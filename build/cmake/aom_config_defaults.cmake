@@ -472,8 +472,6 @@ set_aom_config_var(CONFIG_E125_MHCCP_SIMPLIFY 1
                    "Simplify the parameter derivation for MHCCP")
 set_aom_config_var(CONFIG_MHCCP_CONVOLVE_SIMPLIFY 1
                    "Simplify the convolve for MHCCP")
-set_aom_config_var(CONFIG_CCSO_FT_SHAPE 1
-                   "Change CCSO filter shape to meet hardware requirement")
 
 set_aom_config_var(CONFIG_E149_MHCCP_4PARA 1 "Using 4 parameters in MHCCP")
 set_aom_config_var(

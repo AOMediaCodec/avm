@@ -1398,11 +1398,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   uint8_t final_edge_classifier = 0;
   const int total_edge_classifier = 2;
   int8_t filter_offset[CCSO_BAND_NUM * 16];
-#if CONFIG_CCSO_FT_SHAPE
   const int total_filter_support = 7;
-#else
-  const int total_filter_support = 6;
-#endif
 
   const int total_quant_idx = 4;
   const int total_band_log2_plus1 = 4;
