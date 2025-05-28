@@ -1402,15 +1402,19 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
                                  int use_bacp, int sub_block_id);
 
 static INLINE int use_border_aware_compound(const AV1_COMMON *cm,
+                                            MACROBLOCKD *xd,
                                             const MB_MODE_INFO *mbmi) {
   if (is_masked_compound_type(mbmi->interinter_comp.type) ||
       mbmi->mode == GLOBAL_GLOBALMV)
     return 0;
 
   (void)cm;
+  const struct scale_factors *const sf0 = xd->block_ref_scale_factors[0];
+  const struct scale_factors *const sf1 = xd->block_ref_scale_factors[1];
   return has_second_ref(mbmi) &&
          (mbmi->mode >= COMP_INTER_MODE_START &&
           mbmi->mode < COMP_INTER_MODE_END) &&
+         !av1_is_scaled(sf0) && !av1_is_scaled(sf1) &&
          (mbmi->interinter_comp.type == COMPOUND_DIFFWTD ||
           mbmi->interinter_comp.type == COMPOUND_AVERAGE);
 }

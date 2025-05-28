@@ -5493,7 +5493,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = tip_ref_frame ? cm->features.enable_imp_msk_bld
-                                   : use_border_aware_compound(cm, mi) &&
+                                   : use_border_aware_compound(cm, xd, mi) &&
                                          mi->cwp_idx == CWP_EQUAL &&
                                          cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
@@ -6079,7 +6079,7 @@ static void build_inter_predictors_8x8_and_bigger(
                                    is_compound && tip_weight == TIP_EQUAL_WTD &&
 #endif  // CONFIG_TIP_ENHANCEMENT
                                        cm->features.enable_imp_msk_bld
-                                   : use_border_aware_compound(cm, mi) &&
+                                   : use_border_aware_compound(cm, xd, mi) &&
                                          mi->cwp_idx == CWP_EQUAL &&
                                          cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
