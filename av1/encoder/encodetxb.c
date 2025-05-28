@@ -2071,8 +2071,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
           if (get_secondary_tx_type(tx_type) > 0)
             tx_type_cost += get_sec_tx_set_cost(x, xd, mbmi, tx_size, tx_type);
 #else
-        if (get_secondary_tx_type(tx_type) > 0)
-          tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
+          if (get_secondary_tx_type(tx_type) > 0)
+            tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
         }
@@ -2090,8 +2090,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
       if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
         tx_type_cost += get_sec_tx_set_cost(x, xd, mbmi, tx_size, tx_type);
 #else
-    if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
-      tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
+      if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
+        tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
       return tx_type_cost;

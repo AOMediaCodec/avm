@@ -1357,7 +1357,7 @@ typedef struct FRAME_COUNTS {
   unsigned int stx_cnts[2][TX_SIZES][CDF_SIZE(STX_TYPES)];        // placeholder
 #if CONFIG_IST_SET_FLAG
   unsigned int stx_set_cnts[CDF_SIZE(IST_DIR_SIZE)];  // placeholder
-#endif  // CONFIG_IST_SET_FLAG
+#endif                                                // CONFIG_IST_SET_FLAG
   unsigned int pb_mv_mpp_flag_cnts[NUM_MV_PREC_MPP_CONTEXT]
                                   [CDF_SIZE(2)];  // placeholder
   unsigned int pb_mv_precision_cnts[MV_PREC_DOWN_CONTEXTS]

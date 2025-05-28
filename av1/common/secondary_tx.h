@@ -6897,8 +6897,7 @@ static const int16_t
 // IST 8x8 kernel
 static const int16_t
     ist_8x8_kernel
-        [IST_SET_SIZE][STX_TYPES - 1]
-        [IST_8x8_HEIGHT_MAX]
+        [IST_SET_SIZE][STX_TYPES - 1][IST_8x8_HEIGHT_MAX]
         [IST_8x8_WIDTH] = { {
                                 {
                                     { 109, -40, -43, -10, -12, -7, -4, 15,
