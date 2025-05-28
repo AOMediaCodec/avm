@@ -4250,11 +4250,8 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
-#if CONFIG_D143_CCSO_FM_FLAG
   cm->ccso_info.ccso_frame_flag = aom_rb_read_literal(rb, 1);
-
   if (cm->ccso_info.ccso_frame_flag) {
-#endif  // CONFIG_D143_CCSO_FM_FLAG
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       CcsoInfo *ref_frame_ccso_info = NULL;
       cm->cur_frame->ccso_info.subsampling_y[plane] =
@@ -4363,7 +4360,6 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
         cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
       }
     }
-#if CONFIG_D143_CCSO_FM_FLAG
   } else {
     cm->cur_frame->ccso_info.ccso_enable[0] = 0;
     cm->cur_frame->ccso_info.ccso_enable[1] = 0;
@@ -4372,7 +4368,6 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
     cm->ccso_info.ccso_enable[1] = 0;
     cm->ccso_info.ccso_enable[2] = 0;
   }
-#endif  // CONFIG_D143_CCSO_FM_FLAG
 }
 
 static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {

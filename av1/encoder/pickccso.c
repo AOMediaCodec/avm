@@ -2169,9 +2169,7 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 #endif
   );
 
-#if CONFIG_D143_CCSO_FM_FLAG
   cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
-#endif  // CONFIG_D143_CCSO_FM_FLAG
   if (num_planes > 1) {
     rdmult = (rdmult * 7) >> 3;
     derive_ccso_filter(ctx, cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
@@ -2192,10 +2190,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                        td
 #endif
     );
-#if CONFIG_D143_CCSO_FM_FLAG
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[1];
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[2];
-#endif  // CONFIG_D143_CCSO_FM_FLAG
   }
   aom_free(ctx);
 }

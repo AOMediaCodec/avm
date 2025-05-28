@@ -5770,10 +5770,8 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
-#if CONFIG_D143_CCSO_FM_FLAG
   aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
   if (cm->ccso_info.ccso_frame_flag) {
-#endif  // CONFIG_D143_CCSO_FM_FLAG
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
       if (cm->ccso_info.ccso_enable[plane]) {
@@ -5837,9 +5835,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         }
       }
     }
-#if CONFIG_D143_CCSO_FM_FLAG
   }
-#endif  // CONFIG_D143_CCSO_FM_FLAG
 }
 
 static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb,

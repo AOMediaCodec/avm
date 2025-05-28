@@ -559,9 +559,6 @@ set_aom_config_var(CONFIG_SCC_DETERMINATION 1
 set_aom_config_var(CONFIG_IST_ANY_SET 1
                    "Enable R-D Optimized IST set selection from CWG-D159.")
 
-set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
-                   "Enable CCSO frame level joint flag.")
-
 set_aom_config_var(CONFIG_CCSO_BO_REDUCE 1 "Reduce band only 128 case.")
 
 set_aom_config_var(

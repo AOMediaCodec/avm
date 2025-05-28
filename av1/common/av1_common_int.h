@@ -299,10 +299,8 @@ typedef struct {
   bool sb_reuse_ccso[CCSO_NUM_COMPONENTS];
   /** ccso band offset only option */
   uint8_t ccso_bo_only[CCSO_NUM_COMPONENTS];
-#if CONFIG_D143_CCSO_FM_FLAG
   /** ccso frame flag */
   bool ccso_frame_flag;
-#endif  // CONFIG_D143_CCSO_FM_FLAG
   /** ccso enable */
   bool ccso_enable[CCSO_NUM_COMPONENTS];
   /** ccso filter offset */
