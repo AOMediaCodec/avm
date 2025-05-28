@@ -462,11 +462,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
 #endif  // CONFIG_AIMC
 
-#if CONFIG_EXTENDED_SDP
   for (int i = 0; i < INTER_SDP_BSIZE_GROUP; i++) {
     RESET_CDF_COUNTER(fc->region_type_cdf[i], REGION_TYPES);
   }
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;

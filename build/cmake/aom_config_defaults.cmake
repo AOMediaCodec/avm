@@ -173,8 +173,6 @@ set_aom_config_var(
   "AV2 Fully recursive partitions including H partitions experiment flag")
 set_aom_config_var(CONFIG_CB1TO4_SPLIT 1 NUMBER
                    "AV2 amended flexible partition experiment flag")
-set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
-                   "AV2 intra SDP latency issue addressing flag")
 set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
 set_aom_config_var(CONFIG_DIP_EXT 1 "AV2 DIP Improvements.")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
@@ -224,13 +222,6 @@ set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
-
-set_aom_config_var(CONFIG_EXTENDED_SDP 1
-                   "Enable SDP for intra blocks in inter frame")
-set_aom_config_var(
-  CONFIG_EXTENDED_SDP_64x64 1
-  "Enable SDP for intra blocks in inter frame up to 64x64 size")
-
 # End: CWG-C016
 set_aom_config_var(
   CONFIG_COMBINE_PC_NS_WIENER 1 NUMBER
@@ -621,9 +612,6 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
                    "Fix precision of inter DDT.")
-set_aom_config_var(
-  CONFIG_ALIGN_DEBLOCK_ERP_SDP 1
-  "Align deblocking filter boundaries with AVM partitioning scheme.")
 
 set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")

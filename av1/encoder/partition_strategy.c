@@ -1518,7 +1518,6 @@ int evaluate_ab_partition_based_on_split(
       : (rect_part == PARTITION_HORZ) ? rect_part_win_info->rect_part_win[HORZ]
                                       : rect_part_win_info->rect_part_win[VERT];
   num_win += (sub_part_win) ? 1 : 0;
-#if CONFIG_EXTENDED_SDP
   REGION_TYPE cur_region_type = pc_tree->region_type;
   if (pc_tree->split[cur_region_type][split_idx1]) {
     num_win += (pc_tree->split[cur_region_type][split_idx1]->partitioning ==
@@ -1529,17 +1528,6 @@ int evaluate_ab_partition_based_on_split(
   if (pc_tree->split[cur_region_type][split_idx2]) {
     num_win += (pc_tree->split[cur_region_type][split_idx2]->partitioning ==
                 PARTITION_NONE);
-#else
-  if (pc_tree->split[split_idx1]) {
-    num_win +=
-        (pc_tree->split[split_idx1]->partitioning == PARTITION_NONE) ? 1 : 0;
-  } else {
-    num_win += 1;
-  }
-  if (pc_tree->split[split_idx2]) {
-    num_win +=
-        (pc_tree->split[split_idx2]->partitioning == PARTITION_NONE) ? 1 : 0;
-#endif  // CONFIG_EXTENDED_SDP
   } else {
     num_win += 1;
   }
@@ -2239,7 +2227,6 @@ void av1_gather_erp_rect_features(
 
   // Whether we are in the middle of a PARTITION_3 subblock
   const PC_TREE *parent = pc_tree->parent;
-#if CONFIG_EXTENDED_SDP
   REGION_TYPE cur_region_type = pc_tree->region_type;
   ml_features[num_features++] =
       parent && (parent->horizontal3[cur_region_type][1] == pc_tree ||
@@ -2247,12 +2234,6 @@ void av1_gather_erp_rect_features(
   ml_features[num_features++] =
       parent && (parent->vertical3[cur_region_type][1] == pc_tree ||
                  parent->vertical3[cur_region_type][2] == pc_tree);
-#else
-  ml_features[num_features++] = parent && (parent->horizontal3[1] == pc_tree ||
-                                           parent->horizontal3[2] == pc_tree);
-  ml_features[num_features++] = parent && (parent->vertical3[1] == pc_tree ||
-                                           parent->vertical3[2] == pc_tree);
-#endif  // CONFIG_EXTENDED_SDP
   assert(num_features == 19);
 }
 

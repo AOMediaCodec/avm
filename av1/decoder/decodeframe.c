@@ -966,12 +966,10 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   set_offsets(cm, xd, bsize, mi_row, mi_col, bw, bh, x_mis, y_mis, parent,
               index);
   xd->mi[0]->partition = partition;
-#if CONFIG_EXTENDED_SDP
   // set region_type for each mbmi
   xd->mi[0]->region_type = parent->region_type;
   // set tree_type for each mbmi
   xd->mi[0]->tree_type = xd->tree_type;
-#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_BRU
   xd->mi[0]->local_rest_type =
       1;  // set non zero default type, it is only matter 1 or 0 in SW
@@ -2165,7 +2163,6 @@ direct_recon:
           xd->mi[y * idx + x]->uv_mode = xd->mi[0]->uv_mode;
           xd->mi[y * idx + x]->angle_delta[PLANE_TYPE_UV] =
               xd->mi[0]->angle_delta[PLANE_TYPE_UV];
-#if CONFIG_ALIGN_DEBLOCK_ERP_SDP
           xd->mi[y * idx + x]->cfl_alpha_signs = xd->mi[0]->cfl_alpha_signs;
           xd->mi[y * idx + x]->cfl_alpha_idx = xd->mi[0]->cfl_alpha_idx;
           xd->mi[y * idx + x]->partition = xd->mi[0]->partition;
@@ -2175,7 +2172,6 @@ direct_recon:
           xd->mi[y * idx + x]->chroma_mi_col_start =
               xd->mi[0]->chroma_mi_col_start;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#endif  // CONFIG_ALIGN_DEBLOCK_ERP_SDP
           if (av1_allow_palette(cm->features.allow_screen_content_tools,
                                 bsize)) {
             xd->mi[y * idx + x]->palette_mode_info.palette_size[PLANE_TYPE_UV] =
@@ -2489,11 +2485,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                         BLOCK_SIZE bsize, SB_INFO *sbi,
                                         PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_INTRA_SDP_LATENCY_FIX
                                         PARTITION_TREE *ptree_luma,
-#else
-                                        const PARTITION_TREE *ptree_luma,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                         int parse_decode_flag) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -2521,7 +2513,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
 
-#if CONFIG_INTRA_SDP_LATENCY_FIX
   const int is_intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
   const int total_loop_num =
       is_intra_sdp_enabled && bsize == BLOCK_64X64 ? 2 : 1;
@@ -2542,7 +2533,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     xd->tree_type = SHARED_PART;
     return;
   }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   // parse_decode_flag takes the following values :
   // 01 - do parse only
@@ -2552,7 +2542,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                                      decode_block,
                                                      parse_decode_block };
   const int is_sb_root = bsize == cm->sb_size;
-#if CONFIG_EXTENDED_SDP
   if (is_sb_root) {
     if (!frame_is_intra_only(cm)) {
       ptree->region_type = MIXED_INTER_INTRA_REGION;
@@ -2562,7 +2551,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       ptree->extended_sdp_allowed_flag = 0;
     }
   }
-#endif  // CONFIG_EXTENDED_SDP
 
   if (parse_decode_flag & 1) {
     if (is_sb_root) {
@@ -2612,14 +2600,14 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
     ptree->is_settled = 1;
-#if CONFIG_INTRA_SDP_LATENCY_FIX
+
     if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
       ptree_luma->bsize = bsize;
       ptree_luma->mi_row = mi_row;
       ptree_luma->mi_col = mi_col;
       ptree_luma->is_settled = 1;
     }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+
     PARTITION_TREE *parent = ptree->parent;
     set_chroma_ref_info(
         xd->tree_type, mi_row, mi_col, ptree->index, bsize,
@@ -2636,16 +2624,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              bsize);
 
-#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_INTRA_SDP_LATENCY_FIX
-    if (!is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma,
-                                             bsize)) {
-      ptree_luma = NULL;
-    }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_INTRA_SDP_LATENCY_FIX
-
     ptree->partition = partition;
 
-#if CONFIG_EXTENDED_SDP
     if (!is_sb_root && parent) {
       if (parent->extended_sdp_allowed_flag)
         ptree->extended_sdp_allowed_flag =
@@ -2671,7 +2651,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->region_type = INTRA_REGION;
       }
     }
-#endif  // CONFIG_EXTENDED_SDP
 
     switch (partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2685,26 +2664,23 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#if CONFIG_INTRA_SDP_LATENCY_FIX
         if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
           ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
           ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
           ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
           ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
         }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
       case PARTITION_VERT:
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-#if CONFIG_INTRA_SDP_LATENCY_FIX
+
         if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
           ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
           ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
         }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
       case PARTITION_HORZ_3:
       case PARTITION_VERT_3:
@@ -2712,21 +2688,19 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#if CONFIG_INTRA_SDP_LATENCY_FIX
+
         if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
           ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
           ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
           ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
           ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
         }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }
   } else {
     partition = ptree->partition;
-#if CONFIG_EXTENDED_SDP
     const PARTITION_TREE *parent = ptree->parent;
     if (!is_sb_root && parent) {
       if (!frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
@@ -2735,7 +2709,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         xd->tree_type = LUMA_PART;
       }
     }
-#endif  // CONFIG_EXTENDED_SDP
   }
 
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -2979,7 +2952,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     default: assert(0 && "Invalid partition type");
   }
 
-#if CONFIG_EXTENDED_SDP
   PARTITION_TREE *parent = ptree->parent;
   if (!is_sb_root && parent) {
     if (!frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
@@ -2992,19 +2964,14 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       xd->tree_type = SHARED_PART;
     }
   }
-#endif  // CONFIG_EXTENDED_SDP
 
 #undef DEC_PARTITION
 #undef DEC_BLOCK
 #undef DEC_BLOCK_EPT_ARG
 #undef DEC_BLOCK_STX_ARG
 
-  if (parse_decode_flag & 1)
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-  {
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+  if (parse_decode_flag & 1) {
     update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
-#if CONFIG_INTRA_SDP_LATENCY_FIX
     if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
       xd->tree_type = CHROMA_PART;
       update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize,
@@ -3012,7 +2979,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       xd->tree_type = SHARED_PART;
     }
   }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 }
 
 static AOM_INLINE void setup_bool_decoder(
@@ -3042,49 +3008,21 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
   AV1_COMMON *const cm = &pbi->common;
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
-#if CONFIG_INTRA_SDP_LATENCY_FIX
   xd->tree_type = SHARED_PART;
   const int is_intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
-#else
-  const int total_loop_num =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-       cm->seq_params.enable_sdp)
-          ? 2
-          : 1;
-  xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+
   if (parse_decode_flag & 1) {
     av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
-#if CONFIG_INTRA_SDP_LATENCY_FIX
     if (is_intra_sdp_enabled) av1_reset_ptree_in_sbi(xd->sbi, CHROMA_PART);
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
   }
   decode_partition(
       pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
       td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_INTRA_SDP_LATENCY_FIX
       (is_intra_sdp_enabled ? td->dcb.xd.sbi->ptree_root[1] : NULL),
-#else
-      NULL,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       parse_decode_flag);
-#if !CONFIG_INTRA_SDP_LATENCY_FIX
-  if (total_loop_num == 2) {
-    xd->tree_type = CHROMA_PART;
-    if (parse_decode_flag & 1) {
-      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
-    }
-    decode_partition(pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
-                     td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
-#if CONFIG_EXT_RECUR_PARTITIONS
-                     td->dcb.xd.sbi->ptree_root[0],
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-                     parse_decode_flag);
-    xd->tree_type = SHARED_PART;
-  }
-#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
+
 #if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     if (pbi->bru_opt_mode) {

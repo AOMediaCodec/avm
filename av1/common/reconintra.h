@@ -120,16 +120,12 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
   }
 #endif  // CONFIG_ENABLE_IBC_NAT
 
-#if CONFIG_EXTENDED_SDP
   int cur_region_type = MIXED_INTER_INTRA_REGION;
   if (xd->mi != NULL) cur_region_type = xd->mi[0]->region_type;
-#endif
 #if CONFIG_IBC_SR_EXT
   return (frame_is_intra_only(cm) || cm->features.allow_local_intrabc) &&
-#if CONFIG_EXTENDED_SDP
          xd->tree_type != CHROMA_PART &&
          (frame_is_intra_only(cm) || cur_region_type != INTRA_REGION) &&
-#endif  // CONFIG_EXTENDED_SDP
 #if !CONFIG_ENABLE_IBC_NAT
          cm->features.allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
@@ -139,11 +135,8 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
 #if !CONFIG_ENABLE_IBC_NAT
          cm->features.allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-#if CONFIG_EXTENDED_SDP
          xd->tree_type != CHROMA_PART &&
-         xd->mi[0]->region_type != INTRA_REGION &&
-#endif  // CONFIG_EXTENDED_SDP
-         cm->features.allow_intrabc;
+         xd->mi[0]->region_type != INTRA_REGION && cm->features.allow_intrabc;
 #endif  // CONFIG_IBC_SR_EXT
 }
 

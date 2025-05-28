@@ -1288,10 +1288,7 @@ static int read_intra_segment_id(AV1_COMMON *const cm,
                                  aom_reader *r, int skip) {
   struct segmentation *const seg = &cm->seg;
   if (!seg->enabled) return 0;  // Default for disabled segmentation
-#if CONFIG_EXTENDED_SDP
-  if (frame_is_intra_only(cm))
-#endif  // CONFIG_EXTENDED_SDP
-    assert(seg->update_map && !seg->temporal_update);
+  if (frame_is_intra_only(cm)) assert(seg->update_map && !seg->temporal_update);
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
@@ -2381,12 +2378,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
-#if CONFIG_EXTENDED_SDP
   if (xd->tree_type != CHROMA_PART) {
     set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
     set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
   }
-#endif  // CONFIG_EXTENDED_SDP
 
   if (seg->segid_preskip && xd->tree_type != CHROMA_PART)
     mbmi->segment_id = read_intra_segment_id(cm, xd, bsize, r, 0);
@@ -2437,9 +2432,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->segment_id = read_intra_segment_id(
         cm, xd, bsize, r, mbmi->skip_txfm[xd->tree_type == CHROMA_PART]);
 
-#if CONFIG_EXTENDED_SDP
   mbmi->seg_id_predicted = 0;
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) read_gdf(cm, r, xd);
@@ -5154,11 +5147,7 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
   if (xd->tree_type == SHARED_PART)
     mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
 
-  if (frame_is_intra_only(cm)
-#if CONFIG_EXTENDED_SDP
-      || mi->region_type == INTRA_REGION
-#endif  // CONFIG_EXTENDED_SDP
-  ) {
+  if (frame_is_intra_only(cm) || mi->region_type == INTRA_REGION) {
     read_intra_frame_mode_info(cm, dcb, r);
 #if CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.enable_refmvbank) {

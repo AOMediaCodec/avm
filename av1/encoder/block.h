@@ -934,10 +934,8 @@ typedef struct {
    * \name Partition Costs
    ****************************************************************************/
   /**@{*/
-#if CONFIG_EXTENDED_SDP
   //! Cost for coding the region type.
   int region_type_cost[INTER_SDP_BSIZE_GROUP][REGION_TYPES];
-#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
   /*! Cost for sending split token. */
   int do_split_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];

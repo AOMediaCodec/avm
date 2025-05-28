@@ -513,12 +513,10 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*! \brief The partition type of the current coding block. */
   PARTITION_TYPE partition;
-#if CONFIG_EXTENDED_SDP
   /*! \brief The region type used for the current block. */
   REGION_TYPE region_type;
   /*! \brief The tree type for current block */
   TREE_TYPE tree_type;
-#endif  // CONFIG_EXTENDED_SDP
   /*! \brief The prediction mode used */
   PREDICTION_MODE mode;
   /*! \brief The JMVD scaling mode for the current coding block. The supported
@@ -871,12 +869,10 @@ typedef struct PARTITION_TREE {
   struct PARTITION_TREE *sub_tree[4];
   /*! \brief The partition type used to split the current block. */
   PARTITION_TYPE partition;
-#if CONFIG_EXTENDED_SDP
   /*! \brief The region type used for the current block. */
   REGION_TYPE region_type;
   /*! \brief Whethe SDP is allowed for one block in inter frame. */
   int extended_sdp_allowed_flag;
-#endif  // CONFIG_EXTENDED_SDP
   /*! \brief Block size of the current block. */
   BLOCK_SIZE bsize;
   /*! \brief Whether the chroma block info is ready. */
@@ -1434,7 +1430,6 @@ static INLINE void initialize_chroma_ref_info(int mi_row, int mi_col,
   info->bsize_base = bsize;
 }
 
-#if CONFIG_EXTENDED_SDP
 static INLINE int is_bsize_allowed_for_extended_sdp(BLOCK_SIZE bsize,
                                                     PARTITION_TYPE partition) {
   const int bw = block_size_wide[bsize];
@@ -1489,7 +1484,6 @@ static INLINE int is_extended_sdp_allowed(int enable_extended_sdp,
       break;
   }
 }
-#endif  // CONFIG_EXTENDED_SDP
 
 // Decide whether a block needs coding multiple chroma coding blocks in it at
 // once to get around sub-4x4 coding.
@@ -4786,11 +4780,7 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_INTRA_SDP_LATENCY_FIX
 static AOM_INLINE PARTITION_TREE *get_partition_subtree_const(
-#else
-static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     const PARTITION_TREE *partition_tree, int idx) {
   if (!partition_tree) {
     return NULL;

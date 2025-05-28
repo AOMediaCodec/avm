@@ -639,9 +639,7 @@ typedef struct frame_contexts {
                                   [SQUARE_SPLIT_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob rect_type_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                             [CDF_SIZE(2)];
-#if CONFIG_EXTENDED_SDP
   aom_cdf_prob region_type_cdf[INTER_SDP_BSIZE_GROUP][CDF_SIZE(REGION_TYPES)];
-#endif  // CONFIG_EXTENDED_SDP
 
   aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_CONTEXTS]
                                    [PARTITION_CONTEXTS][CDF_SIZE(2)];

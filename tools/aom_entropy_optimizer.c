@@ -628,14 +628,12 @@ int main(int argc, const char **argv) {
       "[CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)]",
       0, &total_count, 0, mem_wanted, "Transforms");
 
-#if CONFIG_EXTENDED_SDP
   cts_each_dim[0] = INTER_SDP_BSIZE_GROUP;
   cts_each_dim[1] = REGION_TYPES;
   optimize_cdf_table(&fc.region_type[0][0], probsfile, 2, cts_each_dim,
                      "static aom_cdf_prob default_region_type_cdf"
                      "[INTER_SDP_BSIZE_GROUP][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Partitions");
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;

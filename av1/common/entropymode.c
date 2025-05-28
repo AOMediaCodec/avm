@@ -419,10 +419,8 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_AIMC
 
-#if CONFIG_EXTENDED_SDP
 static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
                                            [CDF_SIZE(REGION_TYPES)] = {
-#if CONFIG_EXTENDED_SDP_64x64
                                              // w * h <= 128
                                              { AOM_CDF2(8192), 0 },
                                              // w * h <= 512
@@ -431,20 +429,7 @@ static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
                                              { AOM_CDF2(8192), 0 },
                                              // w * h <= 4096
                                              { AOM_CDF2(8192), 0 },
-#else
-                                             // w * h <= 64
-                                             { AOM_CDF2(16384), 0 },
-                                             // w * h <= 128
-                                             { AOM_CDF2(16384), 0 },
-                                             // w * h <= 256
-                                             { AOM_CDF2(16384), 0 },
-                                             // w * h <= 512
-                                             { AOM_CDF2(16384), 0 },
-                                             // w * h <= 1024
-                                             { AOM_CDF2(16384), 0 }
-#endif  // CONFIG_EXTENDED_SDP_64x64
                                            };
-#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
 // clang-format off
 #if CONFIG_PARTITION_CONTEXT_REDUCE
@@ -9188,9 +9173,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->filter_dir_cdf, default_filter_dir_cdf);
 #endif  // CONFIG_ENABLE_MHCCP
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
-#if CONFIG_EXTENDED_SDP
   av1_copy(fc->region_type_cdf, default_region_type_cdf);
-#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_copy(fc->do_split_cdf, default_do_split_cdf);
   av1_copy(fc->do_square_split_cdf, default_do_square_split_cdf);
@@ -9782,10 +9765,8 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          UV_INTRA_MODES);
 #endif  // CONFIG_AIMC
 
-#if CONFIG_EXTENDED_SDP
   CUMULATIVE_AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf,
                          REGION_TYPES);
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   CUMULATIVE_AVERAGE_CDF(ctx_left->do_split_cdf, ctx_tr->do_split_cdf, 2);
@@ -10252,9 +10233,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->uv_mode_cdf[1], UV_INTRA_MODES);
 #endif  // CONFIG_AIMC
 
-#if CONFIG_EXTENDED_SDP
   SHIFT_CDF(ctx_ptr->region_type_cdf, REGION_TYPES);
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   SHIFT_CDF(ctx_ptr->do_split_cdf, 2);
@@ -10775,10 +10754,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                  UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
   AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
 #endif  // CONFIG_AIMC
-
-#if CONFIG_EXTENDED_SDP
   AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf, REGION_TYPES);
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->do_split_cdf, ctx_tr->do_split_cdf, 2);

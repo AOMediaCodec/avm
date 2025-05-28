@@ -2311,7 +2311,6 @@ static INLINE int frame_is_intra_only(const AV1_COMMON *const cm) {
          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
 }
 
-#if CONFIG_EXTENDED_SDP
 // Check whether this is chroma component of an intra region in inter frame
 static INLINE int is_inter_sdp_chroma(const AV1_COMMON *const cm,
                                       REGION_TYPE cur_region_type,
@@ -2319,7 +2318,6 @@ static INLINE int is_inter_sdp_chroma(const AV1_COMMON *const cm,
   return !frame_is_intra_only(cm) && cur_region_type == INTRA_REGION &&
          cur_tree_type == CHROMA_PART;
 }
-#endif  // CONFIG_EXTENDED_SDP
 
 static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
   return cm->current_frame.frame_type == S_FRAME;
@@ -2745,12 +2743,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
       if (xd->chroma_up_available) {
         MB_MODE_INFO *const chroma_above_base_mi = base_mi[-xd->mi_stride];
         const bool above_mi_uses_decoupled_tree =
-#if CONFIG_EXTENDED_SDP
-            chroma_above_base_mi->tree_type != SHARED_PART
-#else
-            xd->tree_type != SHARED_PART
-#endif  // CONFIG_EXTENDED_SDP
-            ;
+            chroma_above_base_mi->tree_type != SHARED_PART;
         const CHROMA_REF_INFO *const above_base_chroma_ref_info =
             &chroma_above_base_mi->chroma_ref_info;
         if (above_mi_uses_decoupled_tree ||
@@ -2773,12 +2766,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
         const CHROMA_REF_INFO *const left_base_chroma_ref_info =
             &chroma_left_base_mi->chroma_ref_info;
         const bool left_mi_uses_decoupled_tree =
-#if CONFIG_EXTENDED_SDP
-            chroma_left_base_mi->tree_type != SHARED_PART
-#else
-            xd->tree_type != SHARED_PART
-#endif  // CONFIG_EXTENDED_SDP
-            ;
+            chroma_left_base_mi->tree_type != SHARED_PART;
         if (left_mi_uses_decoupled_tree ||
             left_base_chroma_ref_info->is_chroma_ref) {
           xd->chroma_left_mbmi = chroma_left_base_mi;
@@ -3056,12 +3044,10 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-#if CONFIG_EXTENDED_SDP
 static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
   const int width = block_size_wide[bsize];
   const int height = block_size_high[bsize];
   const int num_samples = width * height;
-#if CONFIG_EXTENDED_SDP_64x64
   if (num_samples <= 128)
     return 0;
   else if (num_samples <= 512)
@@ -3070,20 +3056,7 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
     return 2;
   else
     return 3;
-#else
-  if (num_samples <= 64)
-    return 0;
-  else if (num_samples <= 128)
-    return 1;
-  else if (num_samples <= 256)
-    return 2;
-  else if (num_samples <= 512)
-    return 3;
-  else
-    return 4;
-#endif  // CONFIG_EXTENDED_SDP_64x64
 }
-#endif  // CONFIG_EXTENDED_SDP
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 /*!\brief Returns the context used by \ref PARTITION_SPLIT. */
@@ -3565,27 +3538,17 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_BANK_IMPROVE
 
-#if CONFIG_INTRA_SDP_LATENCY_FIX
 static AOM_INLINE int is_sdp_enabled_in_keyframe(const AV1_COMMON *const cm) {
   return (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
           cm->seq_params.enable_sdp);
 }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 // The blocksize above which chroma and luma partitions will stayed coupled.
 // Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at
 // BLOCK_128X128, but can be de-coupled later).
 static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
-#if CONFIG_INTRA_SDP_LATENCY_FIX
   return bsize >= BLOCK_64X64 && bsize <= BLOCK_LARGEST;
-#else
-#if CONFIG_EXT_RECUR_PARTITIONS
-  return bsize >= BLOCK_128X128 && bsize <= BLOCK_256X256;
-#else
-  return bsize == BLOCK_128X128;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 }
 
 // Whether the partition tree contains a block size that is strictly smaller
@@ -3615,12 +3578,10 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
     return false;
   }
 
-#if CONFIG_INTRA_SDP_LATENCY_FIX
   if (bsize > BLOCK_64X64) {
     assert(bsize <= BLOCK_LARGEST);
     return true;
   }
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 
   if (ptree_luma->partition == PARTITION_NONE) {
     return false;
@@ -3645,13 +3606,9 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
 }
 
 static INLINE int check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-    TREE_TYPE tree_type, PARTITION_TYPE partition, BLOCK_SIZE bsize, int mi_row,
-    int mi_col, int ss_x, int ss_y,
+    const AV1_COMMON *const cm, TREE_TYPE tree_type, PARTITION_TYPE partition,
+    BLOCK_SIZE bsize, int mi_row, int mi_col, int ss_x, int ss_y,
     const CHROMA_REF_INFO *parent_chroma_ref_info) {
-#if CONFIG_INTRA_SDP_LATENCY_FIX
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
   bool sdp_tree_type = ((tree_type == LUMA_PART) ||
                         (intra_sdp_enabled && tree_type == SHARED_PART));
@@ -3659,9 +3616,6 @@ static INLINE int check_is_chroma_size_valid(
   // tree type will be set to SHARED_PART for blocks
   // greater than 64x64 in key frames
   if (sdp_tree_type) {
-#else
-  if (tree_type == LUMA_PART) {
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
     // If we handling luma tree and the current luma tree is decoupled from
     // chroma tree, we don't need to concern with chroma bsize. But if they are
     // still coupled, then we need to make sure the corresponding chroma bsize
@@ -3880,23 +3834,15 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
   const RECT_PART_TYPE implied_rect_type =
       rect_type_implied_by_bsize(bsize, tree_type);
 
-  const int is_horz_size_valid = is_partition_valid(bsize, PARTITION_HORZ) &&
-                                 implied_rect_type != VERT &&
-                                 check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-                                     cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-                                     tree_type, PARTITION_HORZ, bsize, mi_row,
-                                     mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_horz_size_valid =
+      is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info);
 
-  const int is_vert_size_valid = is_partition_valid(bsize, PARTITION_VERT) &&
-                                 implied_rect_type != HORZ &&
-                                 check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-                                     cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-                                     tree_type, PARTITION_VERT, bsize, mi_row,
-                                     mi_col, ss_x, ss_y, chroma_ref_info);
+  const int is_vert_size_valid =
+      is_partition_valid(bsize, PARTITION_VERT) && implied_rect_type != HORZ &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info);
 
   const bool is_block_splittable = is_partition_point(bsize);
   partition_allowed[PARTITION_NONE] =
@@ -3930,12 +3876,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != VERT &&
       is_ext_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_HORZ_3, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_3, ss_x, ss_y)
@@ -3947,12 +3889,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       ext_partition_allowed && implied_rect_type != HORZ &&
       is_ext_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_VERT_3, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
 #if CONFIG_CB1TO4_SPLIT
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_3, ss_x, ss_y)
@@ -3966,12 +3904,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_HORZ_4A, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_4A, bsize,
+                                 mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4A, ss_x,
                                     ss_y);
@@ -3981,12 +3915,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
       get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_HORZ_4B, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_4B, bsize,
+                                 mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4B, ss_x,
                                     ss_y);
@@ -3996,12 +3926,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_VERT_4A, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_4A, bsize,
+                                 mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4A, ss_x,
                                     ss_y);
@@ -4011,12 +3937,8 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
       is_uneven_4way_partition_allowed(bsize, VERT, tree_type) &&
       get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(
-#if CONFIG_INTRA_SDP_LATENCY_FIX
-          cm,
-#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
-          tree_type, PARTITION_VERT_4B, bsize, mi_row, mi_col, ss_x, ss_y,
-          chroma_ref_info) &&
+      check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_4B, bsize,
+                                 mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4B, ss_x,
                                     ss_y);

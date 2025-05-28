@@ -941,9 +941,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   // Only store reconstructed luma when there's chroma RDO. When there's no
   // chroma RDO, the reconstructed luma will be stored in encode_superblock().
-#if CONFIG_EXTENDED_SDP
   if (frame_is_intra_only(cm) || xd->tree_type != CHROMA_PART)
-#endif  // CONFIG_EXTENDED_SDP
     xd->cfl.store_y = store_cfl_required_rdo(cm, x);
   if (xd->tree_type == SHARED_PART) {
     if (xd->cfl.store_y) {
@@ -1742,7 +1740,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     mode_cost += ref_frame_cost;
     mode_cost += mrl_idx_cost;
   }
-#else  // CONFIG_LOSSLESS_DPCM
+#else   // CONFIG_LOSSLESS_DPCM
   const int context = get_y_mode_idx_ctx(xd);
   int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
   mode_set_index += ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
@@ -1756,10 +1754,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                                 [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                  SECOND_MODE_COUNT * (mode_set_index - 1)];
   }
-#if CONFIG_EXTENDED_SDP
-  if (mbmi->region_type != INTRA_REGION)
-#endif  // CONFIG_EXTENDED_SDP
-    mode_cost += ref_frame_cost;
+  if (mbmi->region_type != INTRA_REGION) mode_cost += ref_frame_cost;
   mode_cost += mrl_idx_cost;
 #endif  // CONFIG_LOSSLESS_DPCM
 #else

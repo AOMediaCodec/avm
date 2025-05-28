@@ -107,12 +107,10 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
 void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                          FRAME_CONTEXT *fc) {
   int i, j;
-#if CONFIG_EXTENDED_SDP
   for (i = 0; i < INTER_SDP_BSIZE_GROUP; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->region_type_cost[i],
                              fc->region_type_cdf[i], NULL);
   }
-#endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
