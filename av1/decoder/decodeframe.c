@@ -7700,7 +7700,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
 
-  while (abs(max_disp_order_hint - cur_disp_order_hint) >
+  while (abs(max_disp_order_hint - cur_disp_order_hint) >=
          (display_order_hint_factor >> 1)) {
     if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
     cur_disp_order_hint += display_order_hint_factor;
@@ -7724,7 +7724,7 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   const int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
   int disp_order_hint = buf->order_hint;
-  while (abs(max_disp_order_hint - disp_order_hint) >
+  while (abs(max_disp_order_hint - disp_order_hint) >=
          (display_order_hint_factor >> 1)) {
     if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
 
