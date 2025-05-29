@@ -1505,12 +1505,10 @@ typedef struct TIP_Buffer {
    * related info.
    */
   RefCntBuffer *tip_frame;
-#if CONFIG_TIP_DIRECT_FRAME_MV
   /*!
    * Buffer to store temporary frame when doing frame motion compensation.
    */
   RefCntBuffer *tmp_tip_frame;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
   /*!
    * Info specific to each plane.
    */
@@ -1931,7 +1929,6 @@ typedef struct AV1Common {
    */
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
   /*!
    * Frame level MV for TIP direct frames.
    */
@@ -1940,7 +1937,6 @@ typedef struct AV1Common {
    * Interpolation filter for TIP direct frames.
    */
   InterpFilter tip_interp_filter;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
 #if CONFIG_TIP_ENHANCEMENT
   //! Index for TIP weighted prediction parameters.

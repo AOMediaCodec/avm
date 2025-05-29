@@ -1144,18 +1144,14 @@ static INLINE void init_frame_info(FRAME_INFO *frame_info,
 
 static INLINE void init_tip_ref_frame(AV1_COMMON *const cm) {
   cm->tip_ref.tip_frame = aom_calloc(1, sizeof(*cm->tip_ref.tip_frame));
-#if CONFIG_TIP_DIRECT_FRAME_MV
   cm->tip_ref.tmp_tip_frame = aom_calloc(1, sizeof(*cm->tip_ref.tmp_tip_frame));
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static INLINE void free_tip_ref_frame(AV1_COMMON *const cm) {
   aom_free_frame_buffer(&cm->tip_ref.tip_frame->buf);
   aom_free(cm->tip_ref.tip_frame);
-#if CONFIG_TIP_DIRECT_FRAME_MV
   aom_free_frame_buffer(&cm->tip_ref.tmp_tip_frame->buf);
   aom_free(cm->tip_ref.tmp_tip_frame);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static INLINE void init_optflow_bufs(AV1_COMMON *const cm) {
@@ -2306,7 +2302,6 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
 
   tip_frame->frame_type = INTER_FRAME;
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
   tip_frame = cm->tip_ref.tmp_tip_frame;
   if (aom_realloc_frame_buffer(
           &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
@@ -2316,7 +2311,6 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
                        "Failed to allocate frame buffer");
   }
   tip_frame->frame_type = INTER_FRAME;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
@@ -3522,16 +3516,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #endif                    // CONFIG_IMPROVE_REFINED_MV
     );
 
-#if !CONFIG_TIP_DIRECT_FRAME_MV
-    av1_finalize_encoded_frame(cpi);
-    if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
-      return AOM_CODEC_ERROR;
-#endif  // !CONFIG_TIP_DIRECT_FRAME_MV
-
-#if CONFIG_TIP_DIRECT_FRAME_MV
     const int64_t rdmult =
         av1_compute_rd_mult(cpi, cm->quant_params.base_qindex);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
 #if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
@@ -3573,15 +3559,12 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
             base_qindex_backup;
       }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-#if CONFIG_TIP_DIRECT_FRAME_MV
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     }
 #endif  // CONFIG_LF_SUB_PU
 
     // Compute sse and rate.
     YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-#if CONFIG_TIP_DIRECT_FRAME_MV
     cm->tip_interp_filter = MULTITAP_SHARP;
     const int search_dir[8][2] = {
       { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 },
@@ -3696,9 +3679,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       return AOM_CODEC_ERROR;
 
     *sse = best_sse;
-#else
-    *sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
     const int64_t bits = (*size << 3);
     *rate = (bits << 5);  // To match scale.
@@ -3722,7 +3702,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     tip_as_ref_rate = *rate;
   } else {
     tip_as_ref_sse = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-#if CONFIG_TIP_DIRECT_FRAME_MV
     tip_as_ref_sse += aom_highbd_sse(
         cpi->source->u_buffer, cpi->source->uv_stride,
         cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
@@ -3731,7 +3710,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
         cpi->source->v_buffer, cpi->source->uv_stride,
         cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
         cpi->source->uv_width, cpi->source->uv_height);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
+
     const int64_t bits = (*size << 3);
     tip_as_ref_rate = (bits << 5);  // To match scale.
   }
@@ -3812,7 +3791,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 #if !CONFIG_IMPROVE_REFINED_MV
     av1_copy_tip_frame_tmvp_mvs(cm);
 #endif  // !CONFIG_IMPROVE_REFINED_MV
-#if CONFIG_TIP_DIRECT_FRAME_MV
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av1_enc_calc_subpel_params
@@ -3828,7 +3806,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
     }
 #endif  // CONFIG_LF_SUB_PU
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
 
@@ -3873,13 +3850,10 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     if (rate != NULL) {
       *rate = tip_as_output_rate;
     }
-  }
-#if CONFIG_TIP_DIRECT_FRAME_MV
-  else {
+  } else {
     cm->tip_global_motion.as_int = 0;
     cm->tip_interp_filter = MULTITAP_SHARP;
   }
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
   return AOM_CODEC_OK;
 }
@@ -4237,7 +4211,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   if (sse != NULL) {
     int64_t tip_as_ref_sse =
         aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-#if CONFIG_TIP_DIRECT_FRAME_MV
     tip_as_ref_sse += aom_highbd_sse(
         cpi->source->u_buffer, cpi->source->uv_stride,
         cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
@@ -4246,7 +4219,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         cpi->source->v_buffer, cpi->source->uv_stride,
         cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
         cpi->source->uv_width, cpi->source->uv_height);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     *sse = tip_as_ref_sse;
   }
   if (rate != NULL) {

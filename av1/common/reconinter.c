@@ -5167,11 +5167,7 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
   mbmi.mv[1].as_mv = best_mv_ref[1];
   mbmi.ref_frame[0] = TIP_FRAME;
   mbmi.ref_frame[1] = NONE_FRAME;
-#if CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.interp_fltr = cm->tip_interp_filter;
-#else
-  mbmi.interp_fltr = EIGHTTAP_REGULAR;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
   mbmi.use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi.use_intrabc[0] = 0;
   mbmi.mode = NEWMV;

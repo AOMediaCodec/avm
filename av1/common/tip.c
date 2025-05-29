@@ -961,11 +961,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->mv[1].as_mv = mv[1];
   mbmi->ref_frame[0] = TIP_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
-#if CONFIG_TIP_DIRECT_FRAME_MV
   mbmi->interp_fltr = cm->tip_interp_filter;
-#else
-  mbmi->interp_fltr = EIGHTTAP_REGULAR;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi->use_intrabc[0] = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -1129,12 +1125,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
-#if CONFIG_TIP_DIRECT_FRAME_MV
-                          cm->tip_interp_filter
-#else
-                          MULTITAP_SHARP
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
-    );
+                          cm->tip_interp_filter);
 
 #if CONFIG_REFINEMV
 #if CONFIG_OPFL_MEMBW_REDUCTION
@@ -1387,12 +1378,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
-#if CONFIG_TIP_DIRECT_FRAME_MV
-                          cm->tip_interp_filter
-#else
-                          MULTITAP_SHARP
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
-    );
+                          cm->tip_interp_filter);
 
 #if CONFIG_TIP_ENHANCEMENT
     if (is_compound) {
@@ -1546,7 +1532,6 @@ static void tip_setup_tip_frame_plane(
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&mv[1], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
-#if CONFIG_TIP_DIRECT_FRAME_MV
         mv[0].row = (int16_t)clamp(mv[0].row + cm->tip_global_motion.as_mv.row,
                                    MV_LOW + 1, MV_UPP - 1);
         mv[0].col = (int16_t)clamp(mv[0].col + cm->tip_global_motion.as_mv.col,
@@ -1555,15 +1540,9 @@ static void tip_setup_tip_frame_plane(
                                    MV_LOW + 1, MV_UPP - 1);
         mv[1].col = (int16_t)clamp(mv[1].col + cm->tip_global_motion.as_mv.col,
                                    MV_LOW + 1, MV_UPP - 1);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       } else {
-#if CONFIG_TIP_DIRECT_FRAME_MV
         mv[0] = cm->tip_global_motion.as_mv;
         mv[1] = cm->tip_global_motion.as_mv;
-#else
-        mv[0] = zero_mv[0];
-        mv[1] = zero_mv[1];
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       }
 
 #if CONFIG_IMPROVE_REFINED_MV
@@ -1603,13 +1582,8 @@ static void tip_setup_tip_frame_plane(
           mbmi.refinemv_flag = 0;
 
           // Save the MVs before refinement into the TMVP list.
-#if CONFIG_TIP_DIRECT_FRAME_MV
           mbmi.mv[0].as_mv = cm->tip_global_motion.as_mv;
           mbmi.mv[1].as_mv = cm->tip_global_motion.as_mv;
-#else
-          mbmi.mv[0].as_mv = zero_mv[0];
-          mbmi.mv[1].as_mv = zero_mv[1];
-#endif
           av1_copy_frame_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
                              blk_col << TMVP_SHIFT_BITS,
                              step << TMVP_SHIFT_BITS, step << TMVP_SHIFT_BITS);
@@ -1715,22 +1689,17 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&this_mv[1].as_mv, tpl_mv->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
-#if CONFIG_TIP_DIRECT_FRAME_MV
+
         this_mv[0].as_mv.row += cm->tip_global_motion.as_mv.row;
         this_mv[0].as_mv.col += cm->tip_global_motion.as_mv.col;
         this_mv[1].as_mv.row += cm->tip_global_motion.as_mv.row;
         this_mv[1].as_mv.col += cm->tip_global_motion.as_mv.col;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
         if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
             (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[0] = tip_ref->ref_frame[0];
-#if CONFIG_TIP_DIRECT_FRAME_MV
           mv->mv[0].as_mv.row = this_mv[0].as_mv.row;
           mv->mv[0].as_mv.col = this_mv[0].as_mv.col;
-#else
-          mv->mv[0].as_int = this_mv[0].as_int;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 #if CONFIG_TMVP_MV_COMPRESSION
           process_mv_for_tmvp(&mv->mv[0].as_mv);
 #endif  // CONFIG_TMVP_MV_COMPRESSION
@@ -1739,12 +1708,8 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
         if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
             (abs(this_mv[1].as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[1] = tip_ref->ref_frame[1];
-#if CONFIG_TIP_DIRECT_FRAME_MV
           mv->mv[1].as_mv.row = this_mv[1].as_mv.row;
           mv->mv[1].as_mv.col = this_mv[1].as_mv.col;
-#else
-          mv->mv[1].as_int = this_mv[1].as_int;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 #if CONFIG_TMVP_MV_COMPRESSION
           process_mv_for_tmvp(&mv->mv[1].as_mv);
 #endif  // CONFIG_TMVP_MV_COMPRESSION

@@ -143,9 +143,7 @@ static void dec_free_mi(CommonModeInfoParams *mi_params) {
 static INLINE void dec_init_tip_ref_frame(AV1_COMMON *const cm) {
   TIP *tip_ref = &cm->tip_ref;
   tip_ref->tip_frame = aom_calloc(1, sizeof(*tip_ref->tip_frame));
-#if CONFIG_TIP_DIRECT_FRAME_MV
   tip_ref->tmp_tip_frame = aom_calloc(1, sizeof(*tip_ref->tmp_tip_frame));
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static INLINE void dec_free_tip_ref_frame(AV1_COMMON *const cm) {
@@ -156,11 +154,9 @@ static INLINE void dec_free_tip_ref_frame(AV1_COMMON *const cm) {
   aom_free(cm->tip_ref.tip_frame);
   cm->tip_ref.tip_frame = NULL;
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
   aom_free_frame_buffer(&cm->tip_ref.tmp_tip_frame->buf);
   aom_free(cm->tip_ref.tmp_tip_frame);
   cm->tip_ref.tmp_tip_frame = NULL;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static INLINE void dec_init_optflow_bufs(AV1_COMMON *const cm) {

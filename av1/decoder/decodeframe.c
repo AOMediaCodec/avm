@@ -938,13 +938,13 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
         avg_v_ac_delta_q;
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-#if CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
+#if CONFIG_LF_SUB_PU
   if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
     init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
     loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
     aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
   }
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
+#endif  // CONFIG_LF_SUB_PU
 }
 
 static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
@@ -4653,7 +4653,6 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
     tip_frame_buf->render_height = cm->render_height;
   }
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
   tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
   if (aom_realloc_frame_buffer(
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
@@ -4675,7 +4674,6 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
@@ -8658,10 +8656,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_LF_SUB_PU
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
       cm->tip_global_motion.as_int = 0;
       cm->tip_interp_filter = MULTITAP_SHARP;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 #if CONFIG_TIP_ENHANCEMENT
       cm->tip_global_wtd_index = 0;
       cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
@@ -8722,7 +8718,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         }
 #endif  // CONFIG_LF_SUB_PU
-#if CONFIG_TIP_DIRECT_FRAME_MV
+
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
           int all_zero = aom_rb_read_bit(rb);
           if (!all_zero) {
@@ -8740,7 +8736,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->tip_interp_filter =
               aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
         }
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
       }
@@ -8892,11 +8887,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
-#else
-    YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
   tip_frame_buf->bit_depth = seq_params->bit_depth;
   tip_frame_buf->color_primaries = seq_params->color_primaries;
   tip_frame_buf->transfer_characteristics =
@@ -9346,12 +9337,6 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
 #endif  // CONFIG_IMPROVE_REFINED_MV
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
-#if !CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
-      if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-        init_tip_lf_parameter(cm, 0, num_planes);
-        loop_filter_tip_frame(cm, 0, num_planes);
-      }
-#endif  // !CONFIG_TIP_DIRECT_FRAME_MV && CONFIG_LF_SUB_PU
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
     }

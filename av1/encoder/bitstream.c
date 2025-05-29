@@ -7406,7 +7406,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
         }
 #endif  // CONFIG_LF_SUB_PU
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
           aom_wb_write_bit(wb, cm->tip_global_motion.as_int == 0);
           if (cm->tip_global_motion.as_int != 0) {
@@ -7419,7 +7418,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
           }
           aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP);
         }
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       }
 
 #if CONFIG_BRU
