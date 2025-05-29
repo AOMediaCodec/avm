@@ -2692,7 +2692,6 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
 }
 */
 
-#if CONFIG_IMPROVEIDTX
 /* allowed transform types with parity hiding of DC term */
 static const int ph_allowed_tx_types[TX_TYPES] = {
   1,  // DCT in both horizontal and vertical
@@ -2712,7 +2711,6 @@ static const int ph_allowed_tx_types[TX_TYPES] = {
   1,  // FLIPADST in vertical, identity in horizontal
   1,  // Identity in vertical, FLIPADST in horizontal
 };
-#endif  // CONFIG_IMPROVEIDTX
 
 #if CONFIG_INTER_DDT
 // Determine whether to replace ADST by DDT or not

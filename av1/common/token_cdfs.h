@@ -214,7 +214,6 @@ static const aom_cdf_prob av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS]
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS]
                               [CDF_SIZE(2)] = {
@@ -447,58 +446,7 @@ static const aom_cdf_prob
                                     },
                                 },
                               };
-#else
-static const aom_cdf_prob
-    av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS]
-                              [CDF_SIZE(2)] = {
-                                {
-                                    { AOM_CDF2(21818), 75 },
-                                    { AOM_CDF2(27819), 98 },
-                                    { AOM_CDF2(8274), 0 },
-                                    { AOM_CDF2(31710), 15 },
-                                    { AOM_CDF2(7454), 32 },
-                                    { AOM_CDF2(31241), 93 },
-                                    { AOM_CDF2(2677), 75 },
-                                    { AOM_CDF2(32634), 124 },
-                                    { AOM_CDF2(2202), 2 },
-                                },
-                                {
-                                    { AOM_CDF2(22819), 31 },
-                                    { AOM_CDF2(30824), 75 },
-                                    { AOM_CDF2(6360), 0 },
-                                    { AOM_CDF2(32676), 24 },
-                                    { AOM_CDF2(2302), 37 },
-                                    { AOM_CDF2(32471), 98 },
-                                    { AOM_CDF2(897), 93 },
-                                    { AOM_CDF2(32760), 0 },
-                                    { AOM_CDF2(163), 0 },
-                                },
-                                {
-                                    { AOM_CDF2(25236), 32 },
-                                    { AOM_CDF2(32367), 78 },
-                                    { AOM_CDF2(1923), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(32720), 123 },
-                                    { AOM_CDF2(147), 124 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                },
-                                {
-                                    { AOM_CDF2(27557), 36 },
-                                    { AOM_CDF2(32760), 0 },
-                                    { AOM_CDF2(44), 50 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(32748), 0 },
-                                    { AOM_CDF2(248), 50 },
-                                    { AOM_CDF2(16384), 0 },
-                                    { AOM_CDF2(16384), 0 },
-                                },
-                              };
-#endif  // CONFIG_IMPROVEIDTX
 
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     av1_default_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS]
                             [DC_SIGN_CONTEXTS][CDF_SIZE(2)] = {
@@ -607,60 +555,6 @@ static const aom_cdf_prob
                                   },
                               },
                             };
-#else
-static const aom_cdf_prob
-    av1_default_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_CONTEXTS]
-                            [CDF_SIZE(2)] = {
-                              {
-                                  {
-                                      { AOM_CDF2(16652), 124 },
-                                      { AOM_CDF2(14886), 118 },
-                                      { AOM_CDF2(17707), 124 },
-                                  },
-                                  {
-                                      { AOM_CDF2(15915), 123 },
-                                      { AOM_CDF2(14080), 123 },
-                                      { AOM_CDF2(17210), 118 },
-                                  },
-                              },
-                              {
-                                  {
-                                      { AOM_CDF2(17200), 118 },
-                                      { AOM_CDF2(14885), 118 },
-                                      { AOM_CDF2(18128), 118 },
-                                  },
-                                  {
-                                      { AOM_CDF2(15544), 115 },
-                                      { AOM_CDF2(12812), 120 },
-                                      { AOM_CDF2(18232), 115 },
-                                  },
-                              },
-                              {
-                                  {
-                                      { AOM_CDF2(17990), 90 },
-                                      { AOM_CDF2(14608), 90 },
-                                      { AOM_CDF2(19344), 115 },
-                                  },
-                                  {
-                                      { AOM_CDF2(14893), 76 },
-                                      { AOM_CDF2(11419), 100 },
-                                      { AOM_CDF2(20031), 75 },
-                                  },
-                              },
-                              {
-                                  {
-                                      { AOM_CDF2(18144), 90 },
-                                      { AOM_CDF2(14547), 120 },
-                                      { AOM_CDF2(19543), 118 },
-                                  },
-                                  {
-                                      { AOM_CDF2(16231), 91 },
-                                      { AOM_CDF2(12740), 123 },
-                                      { AOM_CDF2(20359), 90 },
-                                  },
-                              },
-                            };
-#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS]
@@ -1526,7 +1420,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB]
     [CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
@@ -1639,31 +1532,6 @@ static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
           },
       },
     };
-#else
-static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
-    [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
-      {
-          { AOM_CDF3(23271, 27817), 90 },
-          { AOM_CDF3(24771, 29173), 75 },
-          { AOM_CDF3(23819, 29019), 78 },
-      },
-      {
-          { AOM_CDF3(23803, 29221), 75 },
-          { AOM_CDF3(24296, 29490), 76 },
-          { AOM_CDF3(23766, 29419), 75 },
-      },
-      {
-          { AOM_CDF3(28144, 32057), 6 },
-          { AOM_CDF3(28776, 32294), 2 },
-          { AOM_CDF3(28673, 32357), 1 },
-      },
-      {
-          { AOM_CDF3(28399, 30583), 100 },
-          { AOM_CDF3(28087, 30427), 0 },
-          { AOM_CDF3(32306, 32749), 110 },
-      },
-    };
-#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
     [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
@@ -3282,7 +3150,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_EOB_POS_LUMA
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
       {
@@ -3615,75 +3482,6 @@ static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
       },
     };
 #else
-static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs_idtx
-    [TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
-      {
-          { AOM_CDF4(8897, 14111, 17988), 5 },
-          { AOM_CDF4(8432, 13532, 17722), 31 },
-          { AOM_CDF4(10291, 16529, 20208), 0 },
-          { AOM_CDF4(11496, 17581, 21700), 0 },
-          { AOM_CDF4(9057, 16762, 21247), 91 },
-          { AOM_CDF4(7501, 13874, 19478), 117 },
-          { AOM_CDF4(4582, 8648, 12367), 123 },
-          { AOM_CDF4(10852, 16340, 20155), 31 },
-          { AOM_CDF4(10629, 16243, 20025), 31 },
-          { AOM_CDF4(11902, 17947, 21360), 6 },
-          { AOM_CDF4(14405, 20779, 23858), 6 },
-          { AOM_CDF4(11842, 20735, 24288), 6 },
-          { AOM_CDF4(10165, 18650, 23484), 6 },
-          { AOM_CDF4(4210, 8575, 11835), 5 },
-      },
-      {
-          { AOM_CDF4(16690, 23891, 28000), 7 },
-          { AOM_CDF4(16140, 22757, 27171), 90 },
-          { AOM_CDF4(17546, 24654, 27638), 1 },
-          { AOM_CDF4(19203, 26454, 29257), 7 },
-          { AOM_CDF4(12667, 24459, 28177), 76 },
-          { AOM_CDF4(9531, 18597, 26075), 91 },
-          { AOM_CDF4(7207, 13939, 19381), 120 },
-          { AOM_CDF4(17762, 25010, 28762), 32 },
-          { AOM_CDF4(16937, 24663, 28383), 6 },
-          { AOM_CDF4(16613, 23984, 27959), 6 },
-          { AOM_CDF4(19495, 25794, 28945), 6 },
-          { AOM_CDF4(12279, 23306, 27566), 6 },
-          { AOM_CDF4(11361, 18204, 26131), 32 },
-          { AOM_CDF4(6290, 12077, 16862), 31 },
-      },
-      {
-          { AOM_CDF4(32095, 32509, 32613), 35 },
-          { AOM_CDF4(25007, 29319, 31906), 50 },
-          { AOM_CDF4(27190, 29979, 32071), 50 },
-          { AOM_CDF4(31868, 32408, 32588), 50 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(10923, 21845, 23666), 100 },
-          { AOM_CDF4(25746, 28087, 30427), 50 },
-          { AOM_CDF4(31714, 32563, 32714), 35 },
-          { AOM_CDF4(27858, 31774, 32618), 20 },
-          { AOM_CDF4(27381, 31536, 32528), 56 },
-          { AOM_CDF4(29201, 31943, 32650), 57 },
-          { AOM_CDF4(25696, 30487, 32308), 57 },
-          { AOM_CDF4(25023, 29793, 31862), 61 },
-          { AOM_CDF4(17298, 23494, 28761), 62 },
-      },
-      {
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-      },
-    };
-#endif  // CONFIG_IMPROVEIDTX
-#else
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs_idtx[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]
                                          [CDF_SIZE(BR_CDF_SIZE)] = {
@@ -3851,7 +3649,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_ENTROPY_PARA
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
     [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
@@ -4184,76 +3981,6 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
           },
       },
     };
-#else
-static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
-    [TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]
-    [CDF_SIZE(NUM_BASE_LEVELS + 2)] = {
-      {
-          { AOM_CDF4(24384, 30332, 31490), 100 },
-          { AOM_CDF4(20548, 29288, 31038), 100 },
-          { AOM_CDF4(15186, 24624, 28958), 0 },
-          { AOM_CDF4(10704, 17798, 21628), 75 },
-          { AOM_CDF4(9067, 17158, 21958), 123 },
-          { AOM_CDF4(6971, 13316, 18446), 104 },
-          { AOM_CDF4(5706, 9774, 12423), 76 },
-          { AOM_CDF4(29603, 32005, 32367), 75 },
-          { AOM_CDF4(20121, 28833, 30848), 78 },
-          { AOM_CDF4(14012, 24029, 28843), 0 },
-          { AOM_CDF4(10046, 16967, 21475), 5 },
-          { AOM_CDF4(5592, 12661, 18644), 75 },
-          { AOM_CDF4(3202, 7691, 14144), 75 },
-          { AOM_CDF4(2207, 4296, 6564), 0 },
-      },
-      {
-          { AOM_CDF4(26156, 30884, 31985), 100 },
-          { AOM_CDF4(21371, 30233, 31859), 100 },
-          { AOM_CDF4(18493, 26474, 30566), 1 },
-          { AOM_CDF4(14673, 20058, 23922), 0 },
-          { AOM_CDF4(10241, 16975, 22969), 7 },
-          { AOM_CDF4(6144, 9882, 16179), 7 },
-          { AOM_CDF4(6350, 8617, 11594), 1 },
-          { AOM_CDF4(30864, 32309, 32554), 5 },
-          { AOM_CDF4(19604, 30047, 31750), 75 },
-          { AOM_CDF4(12869, 25820, 30420), 1 },
-          { AOM_CDF4(12626, 18888, 23235), 5 },
-          { AOM_CDF4(4582, 10988, 19978), 6 },
-          { AOM_CDF4(3228, 6205, 13001), 1 },
-          { AOM_CDF4(2006, 3391, 5190), 5 },
-      },
-      {
-          { AOM_CDF4(27772, 31935, 32612), 75 },
-          { AOM_CDF4(21871, 32110, 32697), 90 },
-          { AOM_CDF4(21885, 27250, 32364), 6 },
-          { AOM_CDF4(18679, 22447, 26488), 26 },
-          { AOM_CDF4(11557, 14775, 28087), 29 },
-          { AOM_CDF4(12483, 15604, 21845), 0 },
-          { AOM_CDF4(16991, 18204, 19418), 100 },
-          { AOM_CDF4(31355, 32630, 32746), 55 },
-          { AOM_CDF4(20685, 31727, 32617), 31 },
-          { AOM_CDF4(12684, 27880, 32091), 32 },
-          { AOM_CDF4(10320, 17759, 25275), 31 },
-          { AOM_CDF4(3807, 8335, 24454), 62 },
-          { AOM_CDF4(1845, 3911, 9505), 32 },
-          { AOM_CDF4(2488, 3645, 6018), 6 },
-      },
-      {
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(32612, 32752, 32756), 115 },
-          { AOM_CDF4(15864, 32304, 32748), 6 },
-          { AOM_CDF4(5631, 29499, 32713), 30 },
-          { AOM_CDF4(2521, 15404, 31928), 50 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-          { AOM_CDF4(8192, 16384, 24576), 0 },
-      },
-    };
-#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]

@@ -7401,7 +7401,6 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
 
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
-#if CONFIG_IMPROVEIDTX
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP][CDF_SIZE(
         2)] = { { { { AOM_CDF2(16673) },
@@ -7653,66 +7652,6 @@ static const aom_cdf_prob default_txfm_4way_partition_type_cdf
       },
     };
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-static const aom_cdf_prob
-    default_txfm_do_partition_cdf[2][TXFM_SPLIT_GROUP][CDF_SIZE(2)] = {
-      { { AOM_CDF2(20632), 0 },
-        { AOM_CDF2(29862), 0 },
-        { AOM_CDF2(23828), 0 },
-        { AOM_CDF2(26060), 0 },
-        { AOM_CDF2(21902), 0 },
-        { AOM_CDF2(25710), 0 },
-        { AOM_CDF2(24489), 0 },
-        { AOM_CDF2(25587), 0 },
-        { AOM_CDF2(17164), 0 } },
-      { { AOM_CDF2(24794), 0 },
-        { AOM_CDF2(31474), 0 },
-        { AOM_CDF2(25563), 0 },
-        { AOM_CDF2(21545), 0 },
-        { AOM_CDF2(22498), 0 },
-        { AOM_CDF2(24370), 0 },
-        { AOM_CDF2(11806), 0 },
-        { AOM_CDF2(29665), 0 },
-        { AOM_CDF2(23174), 0 } }
-    };
-
-static const aom_cdf_prob
-    default_txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(
-        TX_PARTITION_TYPE_NUM)] = {
-      { { AOM_CDF5(32752, 32756, 32760, 32764), 0 },
-        { AOM_CDF5(16549, 22822, 25872, 32740), 0 },
-        { AOM_CDF5(15340, 20500, 25966, 25970), 0 },
-        { AOM_CDF5(18230, 21466, 24216, 28561), 0 },
-        { AOM_CDF5(14935, 22264, 23398, 30368), 0 },
-        { AOM_CDF5(15649, 17012, 23660, 25757), 0 },
-        { AOM_CDF5(23648, 25383, 26749, 29566), 0 },
-        { AOM_CDF5(21521, 23074, 25020, 27669), 0 },
-        { AOM_CDF5(22766, 25127, 26100, 29626), 0 },
-        { AOM_CDF5(15863, 19633, 22458, 27238), 0 },
-        { AOM_CDF5(25257, 32748, 32752, 32756), 0 },
-        { AOM_CDF5(24393, 32748, 32752, 32756), 0 },
-        { AOM_CDF5(18894, 23485, 25768, 32740), 0 },
-        { AOM_CDF5(17643, 20372, 24334, 24338), 0 },
-        { AOM_CDF5(19275, 21416, 23255, 28161), 0 },
-        { AOM_CDF5(19317, 21686, 23361, 26871), 0 } },
-      { { AOM_CDF5(19661, 28231, 31760, 32264), 0 },
-        { AOM_CDF5(16550, 18677, 20272, 32702), 0 },
-        { AOM_CDF5(15124, 18085, 19283, 19346), 0 },
-        { AOM_CDF5(13731, 15655, 17229, 23585), 0 },
-        { AOM_CDF5(17776, 20731, 21624, 29587), 0 },
-        { AOM_CDF5(17883, 19176, 22070, 24907), 0 },
-        { AOM_CDF5(22221, 24828, 27231, 29368), 0 },
-        { AOM_CDF5(17078, 18451, 19686, 25478), 0 },
-        { AOM_CDF5(15594, 17509, 19179, 24413), 0 },
-        { AOM_CDF5(9877, 12942, 15665, 22406), 0 },
-        { AOM_CDF5(24067, 32615, 32666, 32717), 0 },
-        { AOM_CDF5(22884, 32661, 32696, 32732), 0 },
-        { AOM_CDF5(14173, 17393, 21695, 32740), 0 },
-        { AOM_CDF5(13697, 18582, 22134, 22138), 0 },
-        { AOM_CDF5(10851, 12023, 13254, 22599), 0 },
-        { AOM_CDF5(13302, 15600, 17200, 24322), 0 } }
-    };
-#endif  // CONFIG_IMPROVEIDTX
 #else
 static const aom_cdf_prob default_inter_4way_txfm_partition_cdf
     [2][TXFM_PARTITION_INTER_CONTEXTS][CDF_SIZE(4)] = {
@@ -9233,6 +9172,7 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf,
                          ctx_tr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_warp_mode_cdf,
                          ctx_tr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -10226,6 +10166,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
   AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf, ctx_tr->coeff_br_lf_uv_cdf,
               BR_CDF_SIZE);
+
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,

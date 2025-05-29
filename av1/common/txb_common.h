@@ -129,12 +129,7 @@ static AOM_FORCE_INLINE int get_br_ctx_skip(const uint8_t *const levels,
   mag += levels[pos - stride];
 #endif  // CONFIG_COEFF_HR_LR1
   mag = AOMMIN(mag, 6);
-#if CONFIG_IMPROVEIDTX
   return mag;
-#else
-  if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return mag;
-  return mag + 7;
-#endif  // CONFIG_IMPROVEIDTX
 }
 
 static INLINE int get_br_ctx_2d(const uint8_t *const levels,
@@ -374,12 +369,8 @@ static AOM_FORCE_INLINE int get_nz_mag_skip(const uint8_t *const levels,
                                             const int bwl) {
   int mag = clip_max3[levels[-1]];                      // { 0, -1 }
   mag += clip_max3[levels[-(1 << bwl) - TX_PAD_LEFT]];  // { -1, 0 }
-#if CONFIG_IMPROVEIDTX
   const int ctx = AOMMIN(mag, 6);
   return ctx;
-#else
-  return mag;
-#endif  // CONFIG_IMPROVEIDTX
 }
 
 /*
@@ -391,19 +382,11 @@ static AOM_FORCE_INLINE int get_sign_skip(const int8_t *const signs,
                                           const uint8_t *const levels,
                                           const int bwl) {
   int signc = 0;
-#if CONFIG_IMPROVEIDTX
   if (levels[-1]) signc += signs[-1];  // { 0, -1 }
   if (levels[-(1 << bwl) - TX_PAD_LEFT])
     signc += signs[-(1 << bwl) - TX_PAD_LEFT];  // { -1, 0 }
   if (levels[-(1 << bwl) - TX_PAD_LEFT - 1])
     signc += signs[-(1 << bwl) - TX_PAD_LEFT - 1];  // { -1, -1 }
-#else
-  if (levels[1]) signc += signs[1];  // { 0, +1 }
-  if (levels[(1 << bwl) + TX_PAD_LEFT])
-    signc += signs[(1 << bwl) + TX_PAD_LEFT];  // { +1, 0 }
-  if (levels[(1 << bwl) + TX_PAD_LEFT + 1])
-    signc += signs[(1 << bwl) + TX_PAD_LEFT + 1];  // { +1, +1 }
-#endif  // CONFIG_IMPROVEIDTX
   if (signc > 2) return 5;
   if (signc < -2) return 6;
   if (signc > 0) return 1;
@@ -415,11 +398,7 @@ static AOM_FORCE_INLINE int get_sign_skip(const int8_t *const signs,
 static INLINE int get_sign_ctx_skip(const int8_t *const signs,
                                     const uint8_t *const levels,
                                     const int coeff_idx, const int bwl) {
-#if CONFIG_IMPROVEIDTX
   const int8_t *const signs_pt = signs + get_padded_idx_left(coeff_idx, bwl);
-#else
-  const int8_t *const signs_pt = signs + get_padded_idx(coeff_idx, bwl);
-#endif  // CONFIG_IMPROVEIDTX
   const uint8_t *const level_pt = levels + get_padded_idx_left(coeff_idx, bwl);
   int sign_ctx = get_sign_skip(signs_pt, level_pt, bwl);
   if (level_pt[0] > COEFF_BASE_RANGE && sign_ctx != 0) sign_ctx += 2;
@@ -617,10 +596,7 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats_chroma(
 static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
     const int stats,
     const int coeff_idx,  // raster order
-    const int bwl, const TX_CLASS tx_class
-    ,
-    const int plane
-) {
+    const int bwl, const TX_CLASS tx_class, const int plane) {
   // tx_class == 0(TX_CLASS_2D)
   if ((tx_class | coeff_idx) == 0) return 0;
   int ctx = (stats + 1) >> 1;
@@ -714,14 +690,7 @@ static AOM_FORCE_INLINE int get_upper_levels_ctx_2d(const uint8_t *levels,
   mag = AOMMIN(levels[-1], 3);                          // { 0, -1 }
   mag += AOMMIN(levels[-(1 << bwl) - TX_PAD_LEFT], 3);  // { -1, 0 }
   const int ctx = AOMMIN(mag, 6);
-#if CONFIG_IMPROVEIDTX
   return ctx;
-#else
-  const int row = (coeff_idx >> bwl);
-  const int col = (coeff_idx - (row << bwl)) + TX_PAD_LEFT;
-  if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return ctx;
-  return ctx + 7;
-#endif  // CONFIG_IMPROVEIDTX
 }
 
 // This function returns the base range context index/increment for the
@@ -802,8 +771,7 @@ static AOM_FORCE_INLINE int get_lower_levels_lf_ctx(const uint8_t *levels,
 }
 
 static INLINE int get_lower_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
-                                          int bwl, int plane
-) {
+                                          int bwl, int plane) {
   assert(coeff_idx > 0);
   int mag = 0;
   // Note: AOMMIN(level, 3) is useless for decoder since level < 3.
@@ -852,15 +820,12 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx_chroma(const uint8_t *levels,
 
 static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
                                                  int coeff_idx, int bwl,
-                                                 TX_CLASS tx_class,
-                                                 int plane
-) {
+                                                 TX_CLASS tx_class, int plane) {
   const int stats =
       get_nz_mag(levels + get_padded_idx(coeff_idx, bwl), bwl, tx_class);
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_class, plane);
 }
 
-#if CONFIG_IMPROVEIDTX
 // This function determines the context index for 2D IDTX residual coding
 // used primarily by the trellis optimization for IDTX.
 static INLINE int get_upper_levels_ctx_general(int is_first, int scan_idx,
@@ -874,7 +839,6 @@ static INLINE int get_upper_levels_ctx_general(int is_first, int scan_idx,
   }
   return get_upper_levels_ctx_2d(levels, coeff_idx, bwl);
 }
-#endif  // CONFIG_IMPROVEIDTX
 
 static INLINE int get_lower_levels_ctx_general(int is_last, int scan_idx,
                                                int bwl, int height,
@@ -903,10 +867,7 @@ static INLINE int get_lower_levels_ctx_general(int is_last, int scan_idx,
     if (limits) {
       return get_lower_levels_lf_ctx(levels, coeff_idx, bwl, tx_class);
     } else {
-      return get_lower_levels_ctx(levels, coeff_idx, bwl, tx_class
-                                  ,
-                                  plane
-      );
+      return get_lower_levels_ctx(levels, coeff_idx, bwl, tx_class, plane);
     }
   }
 }

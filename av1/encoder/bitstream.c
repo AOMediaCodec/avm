@@ -401,10 +401,8 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
   const int max_blocks_wide = max_block_wide(xd, mbmi->sb_type[plane_type], 0);
   const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_IMPROVEIDTX
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane_type == PLANE_TYPE_Y);
-#endif  // CONFIG_IMPROVEIDTX
   const int txb_size_index =
       is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
@@ -430,11 +428,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
     if (allow_horz || allow_vert) {
       do_partition = (partition != TX_PARTITION_NONE);
       aom_cdf_prob *do_partition_cdf =
-#if CONFIG_IMPROVEIDTX
           ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
-#else
-          ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif  // CONFIG_IMPROVEIDTX
       aom_write_symbol(w, do_partition, do_partition_cdf, 2);
     }
 
@@ -446,7 +440,6 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
         assert(txsize_group > 0);
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
         aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
             ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                 [txsize_group_h_and_v];
@@ -454,9 +447,6 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
             ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                 [txsize_group - 1];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-            ec_ctx->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX
         aom_write_symbol(w, partition - 1, partition_type_cdf,
                          TX_PARTITION_TYPE_NUM);
       }
@@ -471,7 +461,6 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
         if (txsize_group) {
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
           aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
               ec_ctx->txfm_2or3_way_partition_type_cdf[is_fsc][is_inter]
                                                       [txsize_group_h_or_v - 1];
@@ -479,9 +468,6 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
               ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                   [txsize_group - 1];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-              ec_ctx->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
           aom_write_symbol(w, has_first_split, partition_type_cdf, 2);
 #else

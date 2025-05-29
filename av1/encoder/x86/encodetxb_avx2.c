@@ -172,11 +172,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i abs01 = _mm256_abs_epi16(c0c1);
       const __m256i abs01_8 = _mm256_packs_epi16(y_zeros, abs01);
       const __m256i sig01 = _mm256_sign_epi16(one16, c0c1);
-#if !CONFIG_IMPROVEIDTX
-      const __m256i sig01_8 = _mm256_packs_epi16(sig01, y_zeros);
-#else
       const __m256i sig01_8 = _mm256_packs_epi16(y_zeros, sig01);
-#endif
       const __m256i res_ = _mm256_shuffle_epi32(abs01_8, 0xd8);
       const __m256i res = _mm256_permute4x64_epi64(res_, 0xd8);
       const __m256i res_sig_ = _mm256_shuffle_epi32(sig01_8, 0xd8);
@@ -218,16 +214,6 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       xx_storel_64(ls + stride * 2 + TX_PAD_LEFT, res1);
       xx_storel_32(ls + stride * 3, x_zeros);
       xx_storel_64(ls + stride * 3 + TX_PAD_LEFT, _mm_srli_si128(res1, 8));
-#if !CONFIG_IMPROVEIDTX
-      xx_storel_64(si, sig0);
-      xx_storel_32(si + width, x_zeros);
-      xx_storel_64(si + stride, _mm_srli_si128(sig0, 8));
-      xx_storel_32(si + stride + width, x_zeros);
-      xx_storel_64(si + stride * 2, sig1);
-      xx_storel_32(si + stride * 2 + width, x_zeros);
-      xx_storel_64(si + stride * 3, _mm_srli_si128(sig1, 8));
-      xx_storel_32(si + stride * 3 + width, x_zeros);
-#else
       xx_storel_32(si, x_zeros);
       xx_storel_64(si + TX_PAD_LEFT, sig0);
       xx_storel_32(si + stride, x_zeros);
@@ -236,7 +222,6 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       xx_storel_64(si + stride * 2 + TX_PAD_LEFT, sig1);
       xx_storel_32(si + stride * 3, x_zeros);
       xx_storel_64(si + stride * 3 + TX_PAD_LEFT, _mm_srli_si128(sig1, 8));
-#endif
       cf += 32;
       ls += stride << 2;
       si += stride << 2;
@@ -265,18 +250,11 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       xx_storel_32(ls + stride, x_zeros);
       xx_storeu_128(ls + stride + TX_PAD_LEFT,
                     _mm256_extracti128_si256(res, 1));
-#if !CONFIG_IMPROVEIDTX
-      xx_storeu_128(si, _mm256_castsi256_si128(sig));
-      xx_storel_32(si + width, x_zeros);
-      xx_storeu_128(si + stride, _mm256_extracti128_si256(sig, 1));
-      xx_storel_32(si + stride + width, x_zeros);
-#else
       xx_storel_32(si, x_zeros);
       xx_storeu_128(si + TX_PAD_LEFT, _mm256_castsi256_si128(sig));
       xx_storel_32(si + stride, x_zeros);
       xx_storeu_128(si + stride + TX_PAD_LEFT,
                     _mm256_extracti128_si256(sig, 1));
-#endif
       cf += 32;
       ls += stride << 1;
       si += stride << 1;
@@ -302,13 +280,8 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i sig = _mm256_shuffle_epi32(sig_, 0xd8);
       xx_storel_32(ls, x_zeros);
       yy_storeu_256(ls + TX_PAD_LEFT, res);
-#if !CONFIG_IMPROVEIDTX
-      yy_storeu_256(si, sig);
-      xx_storel_32(si + width, x_zeros);
-#else
       xx_storel_32(si, x_zeros);
       yy_storeu_256(si + TX_PAD_LEFT, sig);
-#endif
       cf += 32;
       ls += stride;
       si += stride;

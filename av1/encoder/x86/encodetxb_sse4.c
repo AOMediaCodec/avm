@@ -149,17 +149,10 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
       const __m128i absZA = _mm_abs_epi16(_mm_packs_epi32(zeros, coeffA));
       const __m128i absZB = _mm_abs_epi16(_mm_packs_epi32(zeros, coeffB));
       const __m128i coeffAB = _mm_packs_epi16(absZA, absZB);
-#if !CONFIG_IMPROVEIDTX
-      const __m128i signZA =
-          _mm_sign_epi16(one16, _mm_packs_epi32(coeffA, zeros));
-      const __m128i signZB =
-          _mm_sign_epi16(one16, _mm_packs_epi32(coeffB, zeros));
-#else
       const __m128i signZA =
           _mm_sign_epi16(one16, _mm_packs_epi32(zeros, coeffA));
       const __m128i signZB =
           _mm_sign_epi16(one16, _mm_packs_epi32(zeros, coeffB));
-#endif
       const __m128i signAB = _mm_packs_epi16(signZA, signZB);
       xx_storeu_128(ls, coeffAB);
       xx_storeu_128(si, signAB);
@@ -179,13 +172,8 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
       const __m128i signAB8 = _mm_packs_epi16(signAB, zeros);
       xx_storeu_128(ls, zeros);
       xx_storeu_128(ls + TX_PAD_LEFT, absAB8);
-#if !CONFIG_IMPROVEIDTX
-      xx_storeu_128(si, signAB8);
-      xx_storeu_128(si + stride, zeros);
-#else
       xx_storeu_128(si, zeros);
       xx_storeu_128(si + TX_PAD_LEFT, signAB8);
-#endif
       si += stride;
       ls += stride;
       cf += width;
@@ -194,10 +182,8 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
   } else {
     do {
       xx_storeu_128(ls, zeros);
-#if CONFIG_IMPROVEIDTX
       xx_storeu_128(si, zeros);
       si += TX_PAD_LEFT;
-#endif
       ls += TX_PAD_LEFT;
       int j = 0;
       do {
@@ -218,13 +204,8 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
         j += 16;
         cf += 16;
       } while (j < width);
-#if CONFIG_IMPROVEIDTX
       *(int32_t *)(si + width) = 0;
       si += stride - TX_PAD_LEFT;
-#else
-      xx_storeu_128(si + width, zeros);
-      si += stride;
-#endif
       *(int32_t *)(ls + width) = 0;
       ls += stride - TX_PAD_LEFT;
       i += 1;

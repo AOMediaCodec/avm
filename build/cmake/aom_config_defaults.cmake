@@ -154,8 +154,6 @@ set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
-set_aom_config_var(CONFIG_IMPROVEIDTX 1
-                   "AV2 enable improved identity transform coding.")
 set_aom_config_var(CONFIG_EXT_QUANT_UPD 1 "AV2 updated ext-quant.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
                    "AV2 enable coding 1 LR in coefficient coding.")

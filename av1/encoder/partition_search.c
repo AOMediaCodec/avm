@@ -61,11 +61,9 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
   const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txb_size_index];
   const int allow_horz = allow_tx_horz_split(bsize, max_tx_size);
   const int allow_vert = allow_tx_vert_split(bsize, max_tx_size);
-#if CONFIG_IMPROVEIDTX
   const int plane_type = xd->tree_type == CHROMA_PART;
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane_type == PLANE_TYPE_Y);
-#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
@@ -81,19 +79,11 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
     do_partition = (partition != TX_PARTITION_NONE);
     if (allow_update_cdf) {
       aom_cdf_prob *do_partition_cdf =
-#if CONFIG_IMPROVEIDTX
           xd->tile_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
-#else
-          xd->tile_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif  // CONFIG_IMPROVEIDTX
       update_cdf(do_partition_cdf, do_partition, 2);
     }
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_IMPROVEIDTX
     ++counts->txfm_do_partition[is_fsc][is_inter][bsize_group][do_partition];
-#else
-    ++counts->txfm_do_partition[is_inter][bsize_group][do_partition];
-#endif
 #endif  // CONFIG_ENTROPY_STATS
   }
 
@@ -108,7 +98,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
           get_split4_partition(partition);
       if (allow_update_cdf) {
         aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
             xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                       [txsize_group_h_and_v];
@@ -116,15 +105,10 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
             xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                       [txsize_group - 1];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-            xd->tile_ctx
-                ->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX
         update_cdf(partition_type_cdf, split4_partition - 1,
                    TX_PARTITION_TYPE_NUM);
       }
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       ++counts->txfm_4way_partition_type[is_fsc][is_inter][txsize_group_h_and_v]
                                         [split4_partition - 1];
@@ -132,10 +116,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
       ++counts->txfm_4way_partition_type[is_fsc][is_inter][txsize_group - 1]
                                         [split4_partition - 1];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-      ++counts->txfm_4way_partition_type[is_inter][txsize_group - 1]
-                                        [split4_partition - 1];
-#endif  // CONFIG_IMPROVEIDTX
 #endif  // CONFIG_ENTROPY_STATS
     }
 #if CONFIG_4WAY_5WAY_TX_PARTITION
@@ -152,7 +132,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
       ) {
         aom_cdf_prob *partition_type_cdf =
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
             xd->tile_ctx
                 ->txfm_2or3_way_partition_type_cdf[is_fsc][is_inter]
@@ -161,10 +140,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
             xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
                                                       [txsize_group - 1];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-            xd->tile_ctx
-                ->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
-#endif  // CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
         update_cdf(partition_type_cdf, has_first_split, 2);
 #else
@@ -177,7 +152,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
 #else
       if (txsize_group) {
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#if CONFIG_IMPROVEIDTX
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
         ++counts->txfm_2or3_way_partition_type[is_fsc][is_inter]
                                               [txsize_group_h_or_v - 1]
@@ -186,10 +160,6 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
         ++counts->txfm_4way_partition_type[is_fsc][is_inter][txsize_group - 1]
                                           [has_first_split];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-#else
-        ++counts->txfm_4way_partition_type[is_inter][txsize_group - 1]
-                                          [has_first_split];
-#endif  // CONFIG_IMPROVEIDTX
       }
 #endif  // CONFIG_ENTROPY_STATS
     }
