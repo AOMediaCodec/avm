@@ -1573,10 +1573,10 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
       diff = ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], redbit) * sol[j];
       sol[i] = sol[i] - diff;
     }
-    sol[i] =
-        stable_mult_shift(sol[i], (int64_t)inv_pivot[i],
-                          inv_pivot_shift[i] - redbit, get_msb_signed(sol[i]),
-                          get_msb_signed(inv_pivot[i]), MAX_LS_BITS, NULL);
+    sol[i] = stable_mult_shift(sol[i], (int64_t)inv_pivot[i],
+                               inv_pivot_shift[i] - redbit,
+                               get_msb_signed_64(sol[i]),
+                               get_msb_signed(inv_pivot[i]), MAX_LS_BITS, NULL);
   }
 
   // Apply remaining downscaling
