@@ -1435,7 +1435,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         int br_lf_cctx_rate[BR_CDF_SIZE];
         int prev_cost_lf_cctx = 0;
         int i, j;
-#if !CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
         av1_cost_tokens_from_cdf(br_lf_cctx_rate, fc->coeff_br_lf_uv_cdf[ctx],
                                  NULL);
 #endif
@@ -1651,7 +1651,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                              fc->coeff_base_ph_cdf[ctx], NULL);
   }
 
-#if !CONFIG_COEFF_BR_PH_BYPASS // cost
+#if !CONFIG_COEFF_BR_PH_BYPASS  // cost
   for (int ctx = 0; ctx < COEFF_BR_PH_CONTEXTS; ++ctx) {
     int br_ph_rate[BR_CDF_SIZE];
     int prev_cost = 0;

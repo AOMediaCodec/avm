@@ -127,11 +127,13 @@ static INLINE int get_br_ctx_2d(const uint8_t *const levels,
 }
 
 #if CONFIG_CHROMA_CODING
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
 static AOM_FORCE_INLINE int get_br_ctx_lf_eob_chroma(const int c,
                                                      const TX_CLASS tx_class) {
   if (tx_class == TX_CLASS_2D && c == 0) return 0;
   return 4;
 }
+#endif
 
 static INLINE int get_br_ctx_2d_chroma(const uint8_t *const levels, const int c,
                                        const int bwl) {

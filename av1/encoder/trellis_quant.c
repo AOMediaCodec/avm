@@ -186,7 +186,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
           cost += get_br_lf_cost_tcq_uv(abs_qc);
 #else
           int br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
@@ -302,7 +302,7 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
           cost += get_br_lf_cost_tcq_uv(abs_qc);
 #else
           cost +=

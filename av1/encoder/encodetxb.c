@@ -376,7 +376,8 @@ static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
 }
 
 #if CONFIG_COEFF_BR_PH_BYPASS
-static AOM_FORCE_INLINE int get_br_ph_cost(tran_low_t level, int hr_ctx, int *hr_level) {
+static AOM_FORCE_INLINE int get_br_ph_cost(tran_low_t level, int hr_ctx,
+                                           int *hr_level) {
   int cost = 0;
   *hr_level = 0;
   if (level >= 1 + NUM_BASE_LEVELS) {
@@ -387,7 +388,7 @@ static AOM_FORCE_INLINE int get_br_ph_cost(tran_low_t level, int hr_ctx, int *hr
   return cost;
 }
 #endif
-  
+
 #if CONFIG_COEFF_HR_ADAPTIVE
 static AOM_FORCE_INLINE int get_br_cost(tran_low_t level, const int *coeff_lps,
                                         int hr_ctx, int *hr_level) {
@@ -402,9 +403,10 @@ static AOM_FORCE_INLINE int get_br_cost(tran_low_t level, const int *coeff_lps,
   }
   return cost;
 }
-  
+
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-static AOM_FORCE_INLINE int get_br_lf_cost_uv(tran_low_t level, int hr_ctx, int *hr_level) {
+static AOM_FORCE_INLINE int get_br_lf_cost_uv(tran_low_t level, int hr_ctx,
+                                              int *hr_level) {
   int cost = 0;
   *hr_level = 0;
   if (level >= 1 + LF_NUM_BASE_LEVELS) {
@@ -458,11 +460,11 @@ static AOM_FORCE_INLINE int get_br_cost_with_diff(tran_low_t level,
 
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
 static AOM_FORCE_INLINE int get_br_lf_cost_with_diff_uv(tran_low_t level,
-                                                     int *diff, int hr_ctx,
-                                                     int *hr_level) {
+                                                        int *diff, int hr_ctx,
+                                                        int *hr_level) {
   int cost = 0;
   *hr_level = 0;
-  if (level >=  1 + LF_NUM_BASE_LEVELS) {
+  if (level >= 1 + LF_NUM_BASE_LEVELS) {
     const int r = level - LF_NUM_BASE_LEVELS - 1;
     *hr_level = r;
     int bits, diff_bits;
@@ -473,7 +475,7 @@ static AOM_FORCE_INLINE int get_br_lf_cost_with_diff_uv(tran_low_t level,
   return cost;
 }
 #endif
-  
+
 static AOM_FORCE_INLINE int get_br_lf_cost_with_diff(tran_low_t level,
                                                      const int *coeff_lps,
                                                      int *diff, int hr_ctx,
@@ -518,12 +520,12 @@ static INLINE int get_low_range(int abs_qc, int lf) {
 static INLINE int get_high_range_uv(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
   int parity = abs_qc & 1;
-  //int br_max = base_levels - 1 - parity;
+  // int br_max = base_levels - 1 - parity;
   int high_range = (abs_qc - parity - (base_levels - 1)) >> 1;
   return high_range;
 }
 #endif
-  
+
 static INLINE int get_high_range(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
   int low_range = get_low_range(abs_qc, lf);
@@ -1101,7 +1103,7 @@ static INLINE void write_coeff_hidden(aom_writer *w, TX_CLASS tx_class,
                                       ,
                                       br_cdf_arr br_cdf_ph
 #endif
-                                      ) {
+) {
   const int q_index = (level >> 1);
   const int pos = scan[0];
 
@@ -1132,7 +1134,7 @@ static void write_high_range(aom_writer *w, int enable_tcq, int level, int lf
                              int plane
 #endif
 ) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // code_hr_t
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // code_hr_t
   int max = lf ? (plane == 0 ? (COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS)
                              : LF_NUM_BASE_LEVELS)
                : COEFF_BASE_RANGE + NUM_BASE_LEVELS;
@@ -2463,18 +2465,20 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (plane > 0) {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
             const int ctx = get_br_ctx_lf_eob_chroma(pos, tx_class);
+#endif
 #if CONFIG_COEFF_HR_ADAPTIVE
-            int hr_ctx = 0; /* eob */
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+            int hr_ctx = 0;       /* eob */
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
             cost += get_br_lf_cost_uv(level, hr_ctx, &hr_level);
 #else
-            cost +=
-                get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_ctx, &hr_level
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_ctx, &hr_level
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-                               , plane, 1
+                                   ,
+                                   plane, 1
 #endif
-                               );
+            );
 #endif
 #else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
@@ -2703,7 +2707,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (plane > 0) {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
             cost += get_br_lf_cost_uv(level, hr_level_avg, &hr_level);
             hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
@@ -2712,9 +2716,10 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_level_avg,
                                    &hr_level
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-                                   , plane, 0
+                                   ,
+                                   plane, 0
 #endif
-                                   );
+            );
             hr_level_avg = (hr_level_avg + hr_level) >> 1;
 #else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
@@ -2812,7 +2817,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #endif  // CONFIG_IMPROVEIDTX
 
       if (q_index > NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_PH_BYPASS // cost
+#if CONFIG_COEFF_BR_PH_BYPASS  // cost
         cost += get_br_ph_cost(q_index, hr_level_avg >> 1, &hr_level);
 #else
         const int ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
@@ -2907,7 +2912,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (plane > 0) {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
             cost += get_br_lf_cost_uv(level, hr_level_avg, &hr_level);
 #else
             const int ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
@@ -2915,9 +2920,10 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_level_avg,
                                    &hr_level
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-                                   , plane, 0
+                                   ,
+                                   plane, 0
 #endif
-                                   );
+            );
 #else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -3356,9 +3362,10 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
           int brcost_diff = 0;
-          cost += get_br_lf_cost_with_diff_uv( abs_qc, &brcost_diff, hr_level_avg, hr_level);
+          cost += get_br_lf_cost_with_diff_uv(abs_qc, &brcost_diff,
+                                              hr_level_avg, hr_level);
           diff += brcost_diff;
 #else
           const int br_ctx = get_br_lf_ctx_chroma(levels, ci, bwl, tx_class);
@@ -3594,7 +3601,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
           int hr_level_avg = 0;
           int dummy_hr_level;
           cost += get_br_lf_cost_uv(abs_qc, hr_level_avg, &dummy_hr_level);
@@ -3606,9 +3613,10 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx],
                                  hr_level_avg, &dummy_hr_level
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-                                   , plane, 1
+                                 ,
+                                 plane, 1
 #endif
-                                 );
+          );
 #else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -3797,7 +3805,7 @@ static INLINE int get_coeff_cost_general(
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_LF_UV_BYPASS // cost
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
           cost += get_br_lf_cost_uv(abs_qc, hr_level_avg, hr_level);
 #else
           int br_ctx;
@@ -3809,9 +3817,10 @@ static INLINE int get_coeff_cost_general(
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx],
                                  hr_level_avg, hr_level
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
-                                   , plane, is_last
+                                 ,
+                                 plane, is_last
 #endif
-                                 );
+          );
 #else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -4883,7 +4892,7 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
   const int base_ctx_ph = get_base_ctx_ph(levels, pos, bwl, tx_class);
   int rate_ph = txb_costs_ph->base_ph_cost[base_ctx_ph][AOMMIN(q_index, 3)];
   if (q_index > NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_PH_BYPASS // cost
+#if CONFIG_COEFF_BR_PH_BYPASS  // cost
     rate_ph += get_br_ph_cost(q_index, hr_level_avg, &dummy_hr_level);
 #else
     int br_ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
@@ -4950,7 +4959,7 @@ static AOM_FORCE_INLINE void cost_hide_par(
     rate_cand += txb_costs->dc_sign_cost[dc_sign_ctx][tcoeff < 0];
 #endif  // CONFIG_IMPROVEIDTX
     if (q_index > NUM_BASE_LEVELS) {
-#if CONFIG_COEFF_BR_PH_BYPASS // cost
+#if CONFIG_COEFF_BR_PH_BYPASS  // cost
       int dummy_hr_level;
       rate_cand += get_br_ph_cost(q_index, hr_level_avg, &dummy_hr_level);
 #else

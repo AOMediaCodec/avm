@@ -99,7 +99,6 @@ static AOM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {
   return low;
 }
 
-
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
 // Get the high range part of a coeff
 static AOM_FORCE_INLINE int get_high_range_uv(int abs_qc, int lf) {
