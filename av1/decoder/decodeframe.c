@@ -7569,7 +7569,8 @@ static INLINE void read_screen_content_params(AV1_COMMON *const cm,
   }
 }
 
-static void set_primary_ref_frame_and_ctx(AV1_COMMON *const cm) {
+static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
@@ -7584,7 +7585,7 @@ static void set_primary_ref_frame_and_ctx(AV1_COMMON *const cm) {
       features->derived_primary_ref_frame = choose_primary_ref_frame(cm);
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
-    if (features->primary_ref_frame == PRIMARY_REF_NONE) {
+    if (!pbi->signal_primary_ref_frame) {
       features->primary_ref_frame = features->derived_primary_ref_frame;
     }
   }
@@ -7882,6 +7883,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   int signal_primary_ref_frame = -1;
   features->derived_primary_ref_frame = PRIMARY_REF_NONE;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+  pbi->signal_primary_ref_frame = -1;
 
   if (!seq_params->reduced_still_picture_hdr) {
     if (seq_params->frame_id_numbers_present_flag) {
@@ -7944,6 +7946,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
+      pbi->signal_primary_ref_frame = signal_primary_ref_frame;
       if (signal_primary_ref_frame)
         features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #else
@@ -8714,7 +8717,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     xd->bd = (int)seq_params->bit_depth;
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-    set_primary_ref_frame_and_ctx(cm);
+    set_primary_ref_frame_and_ctx(pbi);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
     CommonContexts *const above_contexts = &cm->above_contexts;
@@ -8853,7 +8856,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   xd->bd = (int)seq_params->bit_depth;
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-  set_primary_ref_frame_and_ctx(cm);
+  set_primary_ref_frame_and_ctx(pbi);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   CommonContexts *const above_contexts = &cm->above_contexts;
@@ -9101,7 +9104,7 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
 #if CONFIG_TIP_LD
-    set_primary_ref_frame_and_ctx(cm);
+    set_primary_ref_frame_and_ctx(pbi);
     cm->seg.enabled = 0;
     if (cm->cur_frame->seg_map) {
       memset(cm->cur_frame->seg_map, 0,
@@ -9232,7 +9235,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
 #if CONFIG_TIP_LD
-    set_primary_ref_frame_and_ctx(cm);
+    set_primary_ref_frame_and_ctx(pbi);
 #else
     av1_setup_past_independence(cm);
 #endif  // CONFIG_TIP_LD

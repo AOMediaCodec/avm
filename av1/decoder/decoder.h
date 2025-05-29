@@ -380,6 +380,10 @@ typedef struct AV1Decoder {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int error_resilient_frame_seen;
 #endif
+  /*!
+   * Indicate if the primary reference frame is signaled.
+   */
+  int signal_primary_ref_frame;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
