@@ -909,7 +909,7 @@ static void dec_calc_subpel_params_and_extend(
 static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     uint16_t **mc_buf,
                                     CONV_BUF_TYPE *tmp_conv_dst) {
-  av1_setup_tip_motion_field(cm, 0);
+  av1_setup_tip_motion_field(cm);
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
                       dec_calc_subpel_params_and_extend
 #if CONFIG_IMPROVE_REFINED_MV
@@ -9257,21 +9257,22 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
-  if (cm->features.allow_ref_frame_mvs &&
-#if CONFIG_TIP_LD
-      (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)
-#else
-        cm->has_both_sides_refs
-#endif  // CONFIG_TIP_LD
-  ) {
-    if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+  if (!cm->features.allow_ref_frame_mvs) return;
+
+  if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
+    // TPL mvs at non-sampled locations will be filled after it is hole-filled
+    // and smoothed.
+    av1_fill_tpl_mvs_sample_gap(cm);
+    return;
+  }
+
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
 #if CONFIG_IMPROVE_REFINED_MV
-      xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
+    xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
 #endif  // CONFIG_IMPROVE_REFINED_MV
-      av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
-    } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
-      av1_setup_tip_motion_field(cm, 0);
-    }
+    av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
+  } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
+    av1_setup_tip_motion_field(cm);
   }
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
@@ -9304,15 +9305,6 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
       cm->cur_frame->frame_context = *cm->fc;
     }
   }
-
-#if CONFIG_TMVP_MEM_OPT
-  if (cm->features.allow_ref_frame_mvs &&
-      cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
-    // TPL mvs at non-sampled locations will be filled after it is hole-filled
-    // and smoothed.
-    av1_fill_tpl_mvs_sample_gap(cm);
-  }
-#endif  // CONFIG_TMVP_MEM_OPT
 }
 
 uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,

@@ -23,9 +23,14 @@ extern "C" {
 
 #define TIP_RD_CORRECTION 100000
 
-// Derive temporal motion field from one closest forward and one closet backward
+// Encoder: Decide TIP mode is enabled or disabled. If TIP is enabled, derive
+// temporal motion field from one closest forward and one closet backward
 // reference frames, then fill the hole
-void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold);
+void av1_enc_setup_tip_motion_field(AV1_COMMON *cm);
+
+// Derive temporal motion field from one closest forward and one closet
+// backward reference frames, then fill the hole
+void av1_setup_tip_motion_field(AV1_COMMON *cm);
 
 // Generate the whole TIP frame with the temporal motion field
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
