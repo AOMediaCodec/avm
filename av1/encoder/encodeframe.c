@@ -1504,7 +1504,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, av1_enc_setup_tip_frame_time);
 #endif
-      av1_setup_tip_motion_field(cm, 1);
+      av1_enc_setup_tip_motion_field(cm);
       if (cm->features.tip_frame_mode) {
 #if !CONFIG_TIP_LD
         cm->features.use_optflow_tip = 1;

@@ -646,7 +646,85 @@ static void tip_motion_field_within_frame(AV1_COMMON *cm) {
   }
 }
 
-static void tip_check_enable_tip_mode(AV1_COMMON *cm) {
+static void tip_config_tip_parameter(AV1_COMMON *cm) {
+  TIP *tip_ref = &cm->tip_ref;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
+  const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
+  MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
+                                       tip_ref->ref_frame[1] };
+
+  RefCntBuffer *ref0_frame_buf = get_ref_frame_buf(cm, nearest_rf[0]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int ref0_frame_order_hint = ref0_frame_buf->display_order_hint;
+#else
+  const int ref0_frame_order_hint = ref0_frame_buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_to_ref0_offset =
+      get_relative_dist(order_hint_info, cur_order_hint, ref0_frame_order_hint);
+
+  RefCntBuffer *ref1_frame_buf = get_ref_frame_buf(cm, nearest_rf[1]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int ref1_frame_order_hint = ref1_frame_buf->display_order_hint;
+#else
+  const int ref1_frame_order_hint = ref1_frame_buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_to_ref1_offset =
+      get_relative_dist(order_hint_info, cur_order_hint, ref1_frame_order_hint);
+
+#if CONFIG_TIP_LD
+  int ref_frames_offset = 0;
+  if (cm->has_both_sides_refs) {
+    ref_frames_offset = get_relative_dist(
+        order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
+  } else {
+    ref_frames_offset = get_relative_dist(
+        order_hint_info, ref0_frame_order_hint, ref1_frame_order_hint);
+  }
+#else
+  const int ref_frames_offset = get_relative_dist(
+      order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
+#endif  // CONFIG_TIP_LD
+  tip_ref->ref_frame_buffer[0] = ref0_frame_buf;
+  tip_ref->ref_frame_buffer[1] = ref1_frame_buf;
+  tip_ref->ref_scale_factor[0] = get_ref_scale_factors_const(cm, nearest_rf[0]);
+  tip_ref->ref_scale_factor[1] = get_ref_scale_factors_const(cm, nearest_rf[1]);
+  tip_ref->ref_frames_offset_sf[0] =
+      tip_derive_scale_factor(cur_to_ref0_offset, ref_frames_offset);
+  tip_ref->ref_frames_offset_sf[1] =
+      tip_derive_scale_factor(cur_to_ref1_offset, ref_frames_offset);
+  tip_ref->ref_frames_offset = ref_frames_offset;
+  tip_ref->ref_offset[0] = cur_to_ref0_offset;
+  tip_ref->ref_offset[1] = cur_to_ref1_offset;
+  tip_ref->ref_order_hint[0] = ref0_frame_order_hint;
+  tip_ref->ref_order_hint[1] = ref1_frame_order_hint;
+}
+
+void av1_setup_tip_motion_field(AV1_COMMON *cm) {
+  if (cm->features.tip_frame_mode) {
+    tip_config_tip_parameter(cm);
+    tip_temporal_scale_motion_field(cm, cm->tip_ref.ref_frames_offset);
+    if (cm->features.allow_tip_hole_fill) {
+      tip_fill_motion_field_holes(cm);
+      tip_blk_average_filter_mv(cm);
+    }
+#if CONFIG_TMVP_MEM_OPT
+    av1_fill_tpl_mvs_sample_gap(cm);
+#endif  // CONFIG_TMVP_MEM_OPT
+    tip_motion_field_within_frame(cm);
+
+#if CONFIG_TIP_LD
+    cm->features.use_optflow_tip =
+        cm->features.tip_frame_mode && cm->has_both_sides_refs;
+#endif  // CONFIG_TIP_LD
+  }
+}
+
+static void enc_check_enable_tip_mode(AV1_COMMON *cm) {
   const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
@@ -688,7 +766,7 @@ static void tip_check_enable_tip_mode(AV1_COMMON *cm) {
   }
 }
 
-static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
+static void enc_decide_tip_mode(AV1_COMMON *cm) {
   TIP *tip_ref = &cm->tip_ref;
   if (cm->current_frame.frame_type == KEY_FRAME ||
       cm->current_frame.frame_type == INTRA_ONLY_FRAME ||
@@ -699,13 +777,6 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
     return;
   }
 
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
                                        tip_ref->ref_frame[1] };
 
@@ -713,60 +784,10 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
       (is_ref_motion_field_eligible(cm, get_ref_frame_buf(cm, nearest_rf[0])) ||
        is_ref_motion_field_eligible(cm,
                                     get_ref_frame_buf(cm, nearest_rf[1])))) {
-    if (check_tip_threshold) {
-      tip_check_enable_tip_mode(cm);
-      cm->features.allow_tip_hole_fill =
-          cm->features.tip_frame_mode ? cm->seq_params.enable_tip_hole_fill
-                                      : false;
-    }
+    enc_check_enable_tip_mode(cm);
 
     if (cm->features.tip_frame_mode) {
-      RefCntBuffer *ref0_frame_buf = get_ref_frame_buf(cm, nearest_rf[0]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int ref0_frame_order_hint = ref0_frame_buf->display_order_hint;
-#else
-      const int ref0_frame_order_hint = ref0_frame_buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int cur_to_ref0_offset = get_relative_dist(
-          order_hint_info, cur_order_hint, ref0_frame_order_hint);
-
-      RefCntBuffer *ref1_frame_buf = get_ref_frame_buf(cm, nearest_rf[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int ref1_frame_order_hint = ref1_frame_buf->display_order_hint;
-#else
-      const int ref1_frame_order_hint = ref1_frame_buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int cur_to_ref1_offset = get_relative_dist(
-          order_hint_info, cur_order_hint, ref1_frame_order_hint);
-
-#if CONFIG_TIP_LD
-      int ref_frames_offset = 0;
-      if (cm->has_both_sides_refs) {
-        ref_frames_offset = get_relative_dist(
-            order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
-      } else {
-        ref_frames_offset = get_relative_dist(
-            order_hint_info, ref0_frame_order_hint, ref1_frame_order_hint);
-      }
-#else
-      const int ref_frames_offset = get_relative_dist(
-          order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
-#endif  // CONFIG_TIP_LD
-      tip_ref->ref_frame_buffer[0] = ref0_frame_buf;
-      tip_ref->ref_frame_buffer[1] = ref1_frame_buf;
-      tip_ref->ref_scale_factor[0] =
-          get_ref_scale_factors_const(cm, nearest_rf[0]);
-      tip_ref->ref_scale_factor[1] =
-          get_ref_scale_factors_const(cm, nearest_rf[1]);
-      tip_ref->ref_frames_offset_sf[0] =
-          tip_derive_scale_factor(cur_to_ref0_offset, ref_frames_offset);
-      tip_ref->ref_frames_offset_sf[1] =
-          tip_derive_scale_factor(cur_to_ref1_offset, ref_frames_offset);
-      tip_ref->ref_frames_offset = ref_frames_offset;
-      tip_ref->ref_offset[0] = cur_to_ref0_offset;
-      tip_ref->ref_offset[1] = cur_to_ref1_offset;
-      tip_ref->ref_order_hint[0] = ref0_frame_order_hint;
-      tip_ref->ref_order_hint[1] = ref1_frame_order_hint;
+      cm->features.allow_tip_hole_fill = cm->seq_params.enable_tip_hole_fill;
     }
   } else {
     cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
@@ -776,24 +797,9 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
   }
 }
 
-void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold) {
-  tip_config_tip_parameter(cm, check_tip_threshold);
-  if (cm->features.tip_frame_mode) {
-    tip_temporal_scale_motion_field(cm, cm->tip_ref.ref_frames_offset);
-    if (cm->features.allow_tip_hole_fill) {
-      tip_fill_motion_field_holes(cm);
-      tip_blk_average_filter_mv(cm);
-    }
-#if CONFIG_TMVP_MEM_OPT
-    av1_fill_tpl_mvs_sample_gap(cm);
-#endif  // CONFIG_TMVP_MEM_OPT
-    tip_motion_field_within_frame(cm);
-
-#if CONFIG_TIP_LD
-    cm->features.use_optflow_tip =
-        cm->features.tip_frame_mode && cm->has_both_sides_refs;
-#endif  // CONFIG_TIP_LD
-  }
+void av1_enc_setup_tip_motion_field(AV1_COMMON *cm) {
+  enc_decide_tip_mode(cm);
+  av1_setup_tip_motion_field(cm);
 }
 
 #define MAKE_BFP_SAD_WRAPPER_COMMON8x8(fnname)                                \
