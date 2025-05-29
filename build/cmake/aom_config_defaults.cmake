@@ -392,8 +392,6 @@ set_aom_config_var(
   CONFIG_TX_TYPE_FLEX_IMPROVE 1
   "Enable transform type flexbility improvement for large transform blocks")
 
-set_aom_config_var(CONFIG_OPTIMIZE_CTX_TIP_WARP 1
-                   "Optimize entropy contexts of TIP, warp extended, TIP DRL")
 set_aom_config_var(CONFIG_CWG_E099_DRL_WRL_SIMPLIFY 1
                    "Enable the simplification of DRL and WRL")
 set_aom_config_var(CONFIG_BANK_IMPROVE 1

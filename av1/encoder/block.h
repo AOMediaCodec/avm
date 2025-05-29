@@ -1136,13 +1136,13 @@ typedef struct {
   /*! Costs for coding the mv resolution. */
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
 #if CONFIG_INTER_MODE_CONSOLIDATION
   int tip_drl_mode_cost[3][2];
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /**@}*/
 
   /*****************************************************************************
@@ -1167,10 +1167,8 @@ typedef struct {
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
   //! tip_cost
   int tip_cost[TIP_CONTEXTS][2];
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   //! tip_mode_cost
   int tip_mode_cost[TIP_PRED_MODES];
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   /**@}*/
 
   /*****************************************************************************
@@ -1335,11 +1333,7 @@ typedef struct {
   int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   //! warp_extend_cost
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   int warp_extend_cost[WARP_EXTEND_CTX][2];
-#else
-  int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_REFINEMV
   //! refinemv_flag_cost

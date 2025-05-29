@@ -5806,7 +5806,7 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_ENTROPY_PARA
 #if CONFIG_INTER_MODE_CONSOLIDATION
 static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
@@ -5832,7 +5832,7 @@ static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
 };
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_INTER_MODE_CONSOLIDATION
 static const aom_cdf_prob default_tip_drl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(31561) }, { AOM_CDF2(27203) }, { AOM_CDF2(21916) }
@@ -6541,50 +6541,8 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_WARP_PRECISION
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static const aom_cdf_prob default_warp_extend_cdf[WARP_EXTEND_CTX][CDF_SIZE(
     2)] = { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) } };
-#else
-static const aom_cdf_prob default_warp_extend_cdf[WARP_EXTEND_CTXS1]
-                                                 [WARP_EXTEND_CTXS2]
-                                                 [CDF_SIZE(2)] = {
-                                                   {
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                   },
-                                                   {
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(29503), 75 },
-                                                       { AOM_CDF2(16863), 1 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(27913), 75 },
-                                                   },
-                                                   {
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16628), 0 },
-                                                       { AOM_CDF2(9629), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(14836), 1 },
-                                                   },
-                                                   {
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                   },
-                                                   {
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(28376), 75 },
-                                                       { AOM_CDF2(16236), 1 },
-                                                       { AOM_CDF2(16384), 0 },
-                                                       { AOM_CDF2(23492), 76 },
-                                                   },
-                                                 };
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
 static const aom_cdf_prob
     default_warp_delta_param_cdf[2][CDF_SIZE(WARP_DELTA_NUMSYMBOLS_LOW)] = {
@@ -6594,38 +6552,8 @@ static const aom_cdf_prob
                   21845, 24030, 26214, 28399, 30583) }
     };
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static const aom_cdf_prob default_warp_extend_cdf[WARP_EXTEND_CTX][CDF_SIZE(
     2)] = { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) } };
-#else
-static const aom_cdf_prob
-    default_warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]
-                           [CDF_SIZE(2)] = { { { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) } },
-                                             { { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) } },
-                                             { { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) } },
-                                             { { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) } },
-                                             { { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) },
-                                               { AOM_CDF2(16384) } } };
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_REFINEMV
@@ -6726,7 +6654,6 @@ static const aom_cdf_prob default_tip_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(8752), 90 },
 };
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if CONFIG_INTER_MODE_CONSOLIDATION
 static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
     TIP_PRED_MODES)] = { AOM_CDF2(29069), 0 };
@@ -6734,16 +6661,13 @@ static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
 static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
     TIP_PRED_MODES)] = { AOM_CDF3(10923, 21845), 0 };
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
 static const aom_cdf_prob default_tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(23040) }, { AOM_CDF2(15360) }, { AOM_CDF2(10240) }
 };
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(
     TIP_PRED_MODES)] = { AOM_CDF3(10923, 21845) };
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #endif  // CONFIG_ENTROPY_PARA
 
 #if CONFIG_NEW_CONTEXT_MODELING
@@ -9069,9 +8993,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // !CONFIG_AIMC
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
   av1_copy(fc->tip_cdf, default_tip_cdf);
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   av1_copy(fc->tip_pred_mode_cdf, default_tip_pred_mode_cdf);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   av1_copy(fc->palette_y_mode_cdf, default_palette_y_mode_cdf);
   av1_copy(fc->palette_uv_mode_cdf, default_palette_uv_mode_cdf);
   av1_copy(fc->single_ref_cdf, default_single_ref_cdf);
@@ -9146,12 +9068,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->warp_param_sign_cdf, default_warp_param_sign_cdf);
 #endif  // CONFIG_WARP_PRECISION
   av1_copy(fc->warp_extend_cdf, default_warp_extend_cdf);
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   av1_copy(fc->skip_drl_cdf, default_skip_drl_cdf);
 #if CONFIG_INTER_MODE_CONSOLIDATION
   av1_copy(fc->tip_drl_cdf, default_tip_drl_cdf);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
   av1_copy(fc->bawp_cdf[0], default_bawp_cdf[0]);
@@ -9562,12 +9484,12 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // CONFIG_REFINEMV
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
 #if CONFIG_INTER_MODE_CONSOLIDATION
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   CUMULATIVE_AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
@@ -9677,10 +9599,8 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // CONFIG_EXPLICIT_BAWP
 #endif
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_cdf, ctx_tr->tip_cdf, 2);
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_pred_mode_cdf, ctx_tr->tip_pred_mode_cdf,
                          TIP_PRED_MODES);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
@@ -10125,12 +10045,12 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #endif  // CONFIG_REFINEMV
 
   SHIFT_CDF(ctx_ptr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SHIFT_CDF(ctx_ptr->skip_drl_cdf, 2);
 #if CONFIG_INTER_MODE_CONSOLIDATION
   SHIFT_CDF(ctx_ptr->tip_drl_cdf, 2);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   SHIFT_CDF(ctx_ptr->use_optflow_cdf, 2);
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
@@ -10205,9 +10125,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #endif  // CONFIG_EXPLICIT_BAWP
 #endif
   SHIFT_CDF(ctx_ptr->tip_cdf, 2);
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   SHIFT_CDF(ctx_ptr->tip_pred_mode_cdf, TIP_PRED_MODES);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 3);
@@ -10610,12 +10528,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_REFINEMV
 
   AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
 #if CONFIG_INTER_MODE_CONSOLIDATION
   AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
 
@@ -10709,10 +10627,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_EXPLICIT_BAWP
 #endif  // CONFIG_BAWP
   AVERAGE_CDF(ctx_left->tip_cdf, ctx_tr->tip_cdf, 2);
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   AVERAGE_CDF(ctx_left->tip_pred_mode_cdf, ctx_tr->tip_pred_mode_cdf,
               TIP_PRED_MODES);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   AVERAGE_CDF(ctx_left->palette_y_size_cdf, ctx_tr->palette_y_size_cdf,
               PALETTE_SIZES);
   AVERAGE_CDF(ctx_left->palette_uv_size_cdf, ctx_tr->palette_uv_size_cdf,

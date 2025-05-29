@@ -1117,7 +1117,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #endif
 }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
                                         FRAME_COUNTS *counts,
                                         const MB_MODE_INFO *mbmi) {
@@ -1180,21 +1180,20 @@ static void update_tip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
   }
 }
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                    const MB_MODE_INFO *mbmi) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
 #if CONFIG_INTER_MODE_CONSOLIDATION
     update_tip_drl_index_stats(max_drl_bits, fc, counts, mbmi);
 #else
     update_skip_drl_index_stats(max_drl_bits, fc, counts, mbmi);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
     return;
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
@@ -1921,22 +1920,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
           const int ctx = av1_get_warp_extend_ctx(xd);
 #if CONFIG_ENTROPY_STATS
           counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
 #endif
           update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
                      2);
-#else
-          const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-          const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-#if CONFIG_ENTROPY_STATS
-          counts->warp_extend[ctx1][ctx2][mbmi->motion_mode == WARP_EXTEND]++;
-#endif
-          update_cdf(fc->warp_extend_cdf[ctx1][ctx2],
-                     mbmi->motion_mode == WARP_EXTEND, 2);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
           if (motion_mode == WARP_EXTEND) {
             continue_motion_mode_signaling = false;
           }
@@ -2023,22 +2012,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
         const int ctx = av1_get_warp_extend_ctx(xd);
 #if CONFIG_ENTROPY_STATS
         counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
 #endif
         update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
                    2);
-#else
-        const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-        const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-#if CONFIG_ENTROPY_STATS
-        counts->warp_extend[ctx1][ctx2][mbmi->motion_mode == WARP_EXTEND]++;
-#endif
-        update_cdf(fc->warp_extend_cdf[ctx1][ctx2],
-                   mbmi->motion_mode == WARP_EXTEND, 2);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
         if (motion_mode == WARP_EXTEND) {
           continue_motion_mode_signaling = false;
         }

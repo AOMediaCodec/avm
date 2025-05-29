@@ -127,7 +127,6 @@ static AOM_INLINE void write_inter_mode(
     const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
 
 ) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index =
         tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
@@ -135,7 +134,6 @@ static AOM_INLINE void write_inter_mode(
                      TIP_PRED_MODES);
     return;
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
@@ -869,16 +867,9 @@ static AOM_INLINE void write_motion_mode(
       return;
 
     if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
       const int ctx = av1_get_warp_extend_ctx(xd);
       aom_write_symbol(w, motion_mode == WARP_EXTEND,
                        xd->tile_ctx->warp_extend_cdf[ctx], 2);
-#else
-      const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-      const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-      aom_write_symbol(w, motion_mode == WARP_EXTEND,
-                       xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
       if (motion_mode == WARP_EXTEND) {
         return;
       }
@@ -941,16 +932,9 @@ static AOM_INLINE void write_motion_mode(
 
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
     const int ctx = av1_get_warp_extend_ctx(xd);
     aom_write_symbol(w, motion_mode == WARP_EXTEND,
                      xd->tile_ctx->warp_extend_cdf[ctx], 2);
-#else
-    const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-    const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-    aom_write_symbol(w, motion_mode == WARP_EXTEND,
-                     xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
     if (motion_mode == WARP_EXTEND) {
       return;
     }

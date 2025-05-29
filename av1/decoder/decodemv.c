@@ -543,13 +543,11 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                        const MACROBLOCKD *xd,
                                        const MB_MODE_INFO *mbmi,
                                        BLOCK_SIZE bsize) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index = aom_read_symbol(
         r, ec_ctx->tip_pred_mode_cdf, TIP_PRED_MODES, ACCT_INFO("tip_mode"));
     return tip_pred_index_to_mode[tip_pred_index];
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
@@ -932,18 +930,10 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       return WARP_EXTEND;
 
     if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
       const int ctx = av1_get_warp_extend_ctx(xd);
       const int use_warp_extend =
           aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx], 2,
                           ACCT_INFO("use_warp_extend"));
-#else
-      const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-      const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-      const int use_warp_extend =
-          aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2,
-                          ACCT_INFO("use_warp_extend"));
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
       if (use_warp_extend) {
         return WARP_EXTEND;
       }
@@ -1031,17 +1021,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
     const int ctx = av1_get_warp_extend_ctx(xd);
     const int use_warp_extend = aom_read_symbol(
         r, xd->tile_ctx->warp_extend_cdf[ctx], 2, ACCT_INFO("use_warp_extend"));
-#else
-    const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-    const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-    const int use_warp_extend =
-        aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2,
-                        ACCT_INFO("use_warp_extend"));
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
     if (use_warp_extend) {
       return WARP_EXTEND;
     }
@@ -2415,9 +2397,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_MORPH_PRED
   if (xd->tree_type != CHROMA_PART) mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV

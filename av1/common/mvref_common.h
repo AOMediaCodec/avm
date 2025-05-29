@@ -659,7 +659,6 @@ static INLINE int get_optflow_context(const int mode) {
 static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
                                             FRAME_CONTEXT *ec_ctx,
                                             const int16_t mode_ctx, int idx) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
 #if CONFIG_INTER_MODE_CONSOLIDATION
     return ec_ctx->tip_drl_cdf[AOMMIN(idx, 2)];
@@ -667,7 +666,6 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
     return ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)];
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) {
@@ -1435,7 +1433,6 @@ static INLINE int av1_get_warp_causal_ctx(const MACROBLOCKD *xd) {
 }
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
 static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
@@ -1447,73 +1444,6 @@ static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
 
   return ctx;
 }
-#else
-// The use_warp_extend symbol has two components to its context:
-// First context is the extension type (copy, extend from warp model, etc.)
-// Second context is log2(number of MI units along common edge)
-static INLINE int av1_get_warp_extend_ctx1(const MACROBLOCKD *xd,
-                                           const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == NEARMV) {
-    return 0;
-  } else {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    assert(mbmi->mode == WARP_NEWMV);
-#else
-    assert(mbmi->mode == NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    const TileInfo *const tile = &xd->tile;
-    const POSITION mi_pos = { xd->height - 1, -1 };
-    if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
-          xd->left_available))
-      return 1;
-    const MB_MODE_INFO *left_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (!is_inter_ref_frame(left_mi->ref_frame[0])) return 1;
-    if (left_mi->ref_frame[0] != mbmi->ref_frame[0]) return 1;
-    const WarpedMotionParams *gm_params =
-        &xd->global_motion[left_mi->ref_frame[0]];
-    if (is_warp_mode(left_mi->motion_mode)) {
-      return 2;
-    } else if (is_global_mv_block(left_mi, gm_params->wmtype)) {
-      return 3;
-    } else {
-      // Neighbor block is translation-only
-      return 4;
-    }
-  }
-}
-
-static INLINE int av1_get_warp_extend_ctx2(const MACROBLOCKD *xd,
-                                           const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == NEARMV) {
-    return 0;
-  } else {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    assert(mbmi->mode == WARP_NEWMV);
-#else
-    assert(mbmi->mode == NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    const TileInfo *const tile = &xd->tile;
-    const POSITION mi_pos = { -1, xd->width - 1 };
-    if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available))
-      return 1;
-    const MB_MODE_INFO *above_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (!is_inter_ref_frame(above_mi->ref_frame[0])) return 1;
-    if (above_mi->ref_frame[0] != mbmi->ref_frame[0]) return 1;
-    const WarpedMotionParams *gm_params =
-        &xd->global_motion[above_mi->ref_frame[0]];
-    if (is_warp_mode(above_mi->motion_mode)) {
-      return 2;
-    } else if (is_global_mv_block(above_mi, gm_params->wmtype)) {
-      return 3;
-    } else {
-      // Neighbor block is translation-only
-      return 4;
-    }
-  }
-}
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 // Get the position of back-up WARP_EXTED mode base.
 int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,

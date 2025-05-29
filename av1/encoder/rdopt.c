@@ -602,13 +602,11 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
 
   assert(is_inter_mode(mode));
 
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index =
         tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
     return mode_costs->tip_mode_cost[tip_pred_index];
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   int warp_mode_cost = 0;
   if (is_warpmv_mode_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
@@ -3733,17 +3731,9 @@ static int64_t motion_mode_rd(
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             if (continue_motion_mode_signaling &&
                 allowed_motion_modes & (1 << WARP_EXTEND)) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
               const int ctx = av1_get_warp_extend_ctx(xd);
               rd_stats->rate +=
                   mode_costs->warp_extend_cost[ctx][motion_mode == WARP_EXTEND];
-#else
-              const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-              const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-              rd_stats->rate +=
-                  mode_costs->warp_extend_cost[ctx1][ctx2]
-                                              [motion_mode == WARP_EXTEND];
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
               if (motion_mode == WARP_EXTEND) {
                 continue_motion_mode_signaling = false;
               }
@@ -3790,18 +3780,10 @@ static int64_t motion_mode_rd(
 
               if (continue_motion_mode_signaling &&
                   (allowed_motion_modes & (1 << WARP_EXTEND))) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
                 const int ctx = av1_get_warp_extend_ctx(xd);
                 rd_stats->rate +=
                     mode_costs
                         ->warp_extend_cost[ctx][motion_mode == WARP_EXTEND];
-#else
-                const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
-                const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-                rd_stats->rate +=
-                    mode_costs->warp_extend_cost[ctx1][ctx2]
-                                                [motion_mode == WARP_EXTEND];
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
                 if (motion_mode == WARP_EXTEND) {
                   continue_motion_mode_signaling = false;
                 }
@@ -4368,7 +4350,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
   return ret;
 }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                                     const MACROBLOCK *x) {
 #if CONFIG_SEP_COMP_DRL
@@ -4376,11 +4358,7 @@ static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
 #else
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
 #endif
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   assert(mbmi->skip_mode || is_tip_ref_frame(mbmi->ref_frame[0]));
-#else
-  assert(mbmi->skip_mode);
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
@@ -4407,7 +4385,7 @@ static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
 
   return cost;
 }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 // Computes the bit cost of writing the DRL index with max_drl_bits possible
 // values. It will also guarantee a DRL cost of zero if the mode does not need
@@ -4420,11 +4398,9 @@ static INLINE int get_drl_cost(
     int max_drl_bits, const MB_MODE_INFO *mbmi,
 #endif  // CONFIG_BRU
                  const MB_MODE_INFO_EXT *mbmi_ext, const MACROBLOCK *x) {
-#if CONFIG_OPTIMIZE_CTX_TIP_WARP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     return get_skip_drl_cost(max_drl_bits, mbmi, x);
   }
-#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if !CONFIG_INTER_MODE_CONSOLIDATION
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
