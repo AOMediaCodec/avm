@@ -681,11 +681,8 @@ void av1_get_optflow_based_mv(
 #if CONFIG_AFFINE_REFINEMENT
     WarpedMotionParams *wms, int *use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-    int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1
-#if CONFIG_OPTFLOW_ON_TIP
-    ,
+    int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1,
     int do_pred, int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
     ,
     MV *best_mv_ref, int pu_width, int pu_height
@@ -704,11 +701,8 @@ void av1_opfl_rebuild_inter_predictor(
     const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
-#if CONFIG_OPTFLOW_ON_TIP
-    ,
+    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
@@ -1331,11 +1325,9 @@ void common_calc_subpel_params_and_extend(
     SubpelParams *subpel_params, int *src_stride);
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             const uint16_t *ref_ptr, int ref_stride, int bd,
                             int bw, int bh);
-#endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_SUBBLK_REF_DS
 unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,

@@ -917,12 +917,10 @@ typedef struct {
    * TIP mode.
    */
   TIP_FRAME_MODE tip_frame_mode;
-#if CONFIG_OPTFLOW_ON_TIP
   /*!
    * Whether optflow refinement is used for TIP frames
    */
   int use_optflow_tip;
-#endif  // CONFIG_OPTFLOW_ON_TIP
   /*!
    * Enables/disables hole fill for TIP
    */
@@ -2115,8 +2113,6 @@ typedef struct AV1Common {
    * TIP reference frame
    */
   TIP tip_ref;
-
-#if CONFIG_OPTFLOW_ON_TIP
   /*!
    * Blk buffer of the first reference for tip optflow
    */
@@ -2141,7 +2137,6 @@ typedef struct AV1Common {
    * Buffer of vertical gradient in buffer 1
    */
   int16_t *gy1;
-#endif  // CONFIG_OPTFLOW_ON_TIP
   /*!
    * Size of the superblock used for this frame.
    */
@@ -5149,11 +5144,7 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
     return 0;
 #endif  // CONFIG_COMPOUND_4XN
 
-#if CONFIG_OPTFLOW_ON_TIP
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-#else
-  if (!has_second_ref(mbmi)) return 0;
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
@@ -5161,12 +5152,10 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
   const unsigned int cur_index = cm->cur_frame->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int d0, d1;
-#if CONFIG_OPTFLOW_ON_TIP
   if (mbmi->ref_frame[0] == TIP_FRAME) {
     d0 = cm->tip_ref.ref_offset[0];
     d1 = cm->tip_ref.ref_offset[1];
   } else {
-#endif  // CONFIG_OPTFLOW_ON_TIP
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
@@ -5175,12 +5164,11 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
     d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref1->display_order_hint);
 #else
-  d0 = (int)cur_index - (int)ref0->order_hint;
-  d1 = (int)cur_index - (int)ref1->order_hint;
+    d0 = (int)cur_index - (int)ref0->order_hint;
+    d1 = (int)cur_index - (int)ref1->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_OPTFLOW_ON_TIP
   }
-#endif  // CONFIG_OPTFLOW_ON_TIP
+
   if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
 
   return OPFL_DIST_RATIO_THR == 0 ||

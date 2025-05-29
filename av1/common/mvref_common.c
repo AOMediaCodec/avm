@@ -705,24 +705,14 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                                     xd,
 #endif  // CONFIG_COMPOUND_4XN
                                     mi, AOM_PLANE_Y, tip_ref_frame);
-  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
-#if CONFIG_OPTFLOW_ON_TIP
-                                 ,
-                                 use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, use_4x4);
 #else
   const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                        mi);
-  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
-#if CONFIG_OPTFLOW_ON_TIP
-                                 ,
-                                 1
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, 1);
 #endif  // CONFIG_IMPROVE_REFINED_MV
 #if CONFIG_AFFINE_REFINEMENT_SB
   int sb_idx = 0;
@@ -1060,12 +1050,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_4XN
 
                                                        mi);
-  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
-#if CONFIG_OPTFLOW_ON_TIP
-                                 ,
-                                 1
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, 1);
   int w, h;
 #if CONFIG_AFFINE_REFINEMENT_SB
   int sb_idx = 0;

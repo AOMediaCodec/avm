@@ -1158,7 +1158,6 @@ static INLINE void free_tip_ref_frame(AV1_COMMON *const cm) {
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
-#if CONFIG_OPTFLOW_ON_TIP
 static INLINE void init_optflow_bufs(AV1_COMMON *const cm) {
   cm->dst0_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
   cm->dst1_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
@@ -1173,7 +1172,6 @@ static INLINE void free_optflow_bufs(AV1_COMMON *const cm) {
   aom_free(cm->gx0);
   aom_free(cm->gx1);
 }
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
 AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
                                 FIRSTPASS_STATS *frame_stats_buf,
@@ -1435,9 +1433,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   // The buffers related to TIP are not used during LAP stage. Hence,
   // the allocation is limited to encode stage.
   if (cpi->compressor_stage == ENCODE_STAGE) init_tip_ref_frame(cm);
-#if CONFIG_OPTFLOW_ON_TIP
+
   init_optflow_bufs(cm);
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   cm->error.setjmp = 0;
 
@@ -1689,9 +1686,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif  // CONFIG_INTERNAL_STATS
 
   if (cpi->compressor_stage == ENCODE_STAGE) free_tip_ref_frame(cm);
-#if CONFIG_OPTFLOW_ON_TIP
+
   free_optflow_bufs(cm);
-#endif  // CONFIG_OPTFLOW_ON_TIP
+
 #if CONFIG_BRU
   free_bru_info(cm);
 #endif  // CONFIG_BRU
@@ -3515,7 +3512,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
   if (allow_tip_direct_output(cm)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
-#if CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
+
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av1_enc_calc_subpel_params
@@ -3524,7 +3521,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
                         0 /* copy_refined_mvs */
 #endif                    // CONFIG_IMPROVE_REFINED_MV
     );
-#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
+
 #if !CONFIG_TIP_DIRECT_FRAME_MV
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)

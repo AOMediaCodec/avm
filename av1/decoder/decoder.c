@@ -163,7 +163,6 @@ static INLINE void dec_free_tip_ref_frame(AV1_COMMON *const cm) {
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
-#if CONFIG_OPTFLOW_ON_TIP
 static INLINE void dec_init_optflow_bufs(AV1_COMMON *const cm) {
   cm->dst0_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
   cm->dst1_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
@@ -172,13 +171,13 @@ static INLINE void dec_init_optflow_bufs(AV1_COMMON *const cm) {
   cm->gy0 = cm->gx0 + (8 * 8);
   cm->gy1 = cm->gx1 + (8 * 8);
 }
+
 static INLINE void dec_free_optflow_bufs(AV1_COMMON *const cm) {
   aom_free(cm->dst0_16_tip);
   aom_free(cm->dst1_16_tip);
   aom_free(cm->gx0);
   aom_free(cm->gx1);
 }
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_PARAKIT_COLLECT_DATA
 AV1Decoder *av1_decoder_create(BufferPool *const pool, const char *path,
@@ -246,9 +245,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 #endif
 
   dec_init_tip_ref_frame(cm);
-#if CONFIG_OPTFLOW_ON_TIP
   dec_init_optflow_bufs(cm);
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   cm->error.setjmp = 0;
 
@@ -429,9 +426,7 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   }
 
   dec_free_tip_ref_frame(&pbi->common);
-#if CONFIG_OPTFLOW_ON_TIP
   dec_free_optflow_bufs(&pbi->common);
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_BRU
   free_bru_info(&pbi->common);

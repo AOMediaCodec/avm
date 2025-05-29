@@ -282,35 +282,20 @@ static INLINE void clamp_mv_ref(MV *mv, int bw, int bh, const MACROBLOCKD *xd) {
   clamp_mv(mv, &mv_limits);
 }
 
-static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                         ,
-                                         int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-) {
-#if CONFIG_OPTFLOW_ON_TIP
+static INLINE int opfl_get_subblock_size(int bw, int bh, int plane,
+                                         int use_4x4) {
   return ((plane || (bh <= 8 && bw <= 8)) && use_4x4) ? OF_MIN_BSIZE : OF_BSIZE;
-#else
-  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
-#endif  // CONFIG_OPTFLOW_ON_TIP
 }
 
 // Get the OPFL sub-block size based on luma component and derive
 // sub-block size for chroma based on sub-sampling.
 static INLINE void opfl_subblock_size_plane(const MACROBLOCKD *xd, int plane,
-#if CONFIG_OPTFLOW_ON_TIP
-                                            int use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                                            int *opfl_sub_bw,
+                                            int use_4x4, int *opfl_sub_bw,
                                             int *opfl_sub_bh) {
   const int width_y = xd->plane[AOM_PLANE_Y].width;
   const int height_y = xd->plane[AOM_PLANE_Y].height;
-  const int sub_bsize_y = opfl_get_subblock_size(width_y, height_y, AOM_PLANE_Y
-#if CONFIG_OPTFLOW_ON_TIP
-                                                 ,
-                                                 use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  const int sub_bsize_y =
+      opfl_get_subblock_size(width_y, height_y, AOM_PLANE_Y, use_4x4);
   *opfl_sub_bw =
       AOMMAX((sub_bsize_y >> xd->plane[plane].subsampling_x), OF_MIN_BSIZE);
   *opfl_sub_bh =

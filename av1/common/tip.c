@@ -12,12 +12,8 @@
 
 #include "av1/common/tip.h"
 #include "config/aom_scale_rtcd.h"
-#if CONFIG_OPTFLOW_ON_TIP
 #include "config/aom_dsp_rtcd.h"
-#endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_OPTFLOW_ON_TIP
 #include "av1/common/reconinter.h"
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPTFLOW_ON_TIP
 
 // Maximum block size is allowed to combine the blocks with same MV
 #define MAX_BLOCK_SIZE_WITH_SAME_MV \
@@ -793,14 +789,13 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold) {
 #endif  // CONFIG_TMVP_MEM_OPT
     tip_motion_field_within_frame(cm);
 
-#if CONFIG_OPTFLOW_ON_TIP && CONFIG_TIP_LD
+#if CONFIG_TIP_LD
     cm->features.use_optflow_tip =
         cm->features.tip_frame_mode && cm->has_both_sides_refs;
-#endif  // CONFIG_OPTFLOW_ON_TIP && CONFIG_TIP_LD
+#endif  // CONFIG_TIP_LD
   }
 }
 
-#if CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 #define MAKE_BFP_SAD_WRAPPER_COMMON8x8(fnname)                                \
   static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
                                  const uint16_t *ref_ptr, int ref_stride) {   \
@@ -1215,7 +1210,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   xd->tmp_conv_dst = org_buf;
 }
-#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 
 static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, TIP_PLANE *tip_plane,
@@ -1251,7 +1245,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int is_compound = 1;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
-#if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
 #if CONFIG_SUBBLK_REF_EXT
   uint16_t
@@ -1361,7 +1354,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     );
     return;
   }
-#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 
   const int bd = cm->seq_params.bit_depth;
 

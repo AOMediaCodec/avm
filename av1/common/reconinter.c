@@ -1709,9 +1709,7 @@ void av1_opfl_build_inter_predictor(
 ) {
   assert(cm->seq_params.order_hint_info.enable_order_hint);
   const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
-#if CONFIG_OPTFLOW_ON_TIP
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   // Do references one at a time
   const int is_compound = 0;
@@ -1721,15 +1719,10 @@ void av1_opfl_build_inter_predictor(
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
   const WarpTypesAllowed warp_types = { is_global_mv_block(mi, wm->wmtype),
                                         is_warp_mode(mi->motion_mode) };
-#if CONFIG_OPTFLOW_ON_TIP
   const struct scale_factors *const sf =
       is_tip
           ? cm->tip_ref.ref_scale_factor[ref]
           : (is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref]);
-#else
-  const struct scale_factors *const sf =
-      is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
@@ -1745,11 +1738,7 @@ void av1_opfl_build_inter_predictor(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
-#if CONFIG_OPTFLOW_ON_TIP
   const struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
-#else
-  struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   av1_init_inter_params(inter_pred_params, bw, bh, pre_y, pre_x,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
@@ -2619,11 +2608,8 @@ void av1_get_optflow_based_mv(
 #if CONFIG_AFFINE_REFINEMENT
     WarpedMotionParams *wms, int *use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-    int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1
-#if CONFIG_OPTFLOW_ON_TIP
-    ,
+    int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1,
     int do_pred, int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
     ,
     MV *best_mv_ref, int pu_width, int pu_height
@@ -2633,12 +2619,7 @@ void av1_get_optflow_based_mv(
   *use_affine_opfl = 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
   const int target_prec = MV_REFINE_PREC_BITS;
-  const int n = opfl_get_subblock_size(bw, bh, plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                       ,
-                                       use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  const int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
   int n_blocks = (bw / n) * (bh / n);
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
@@ -2656,12 +2637,10 @@ void av1_get_optflow_based_mv(
 
   // Obtain d0 and d1
   int d0, d1;
-#if CONFIG_OPTFLOW_ON_TIP
   if (mbmi->ref_frame[0] == TIP_FRAME) {
     d0 = cm->tip_ref.ref_offset[0];
     d1 = cm->tip_ref.ref_offset[1];
   } else {
-#endif  // CONFIG_OPTFLOW_ON_TIP
     const RefCntBuffer *const r0_buf =
         get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const r1_buf =
@@ -2674,14 +2653,13 @@ void av1_get_optflow_based_mv(
                            cm->cur_frame->display_order_hint,
                            r1_buf->display_order_hint);
 #else
-  d0 = get_relative_dist(&cm->seq_params.order_hint_info,
-                         cm->cur_frame->order_hint, r0_buf->order_hint);
-  d1 = get_relative_dist(&cm->seq_params.order_hint_info,
-                         cm->cur_frame->order_hint, r1_buf->order_hint);
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info,
+                           cm->cur_frame->order_hint, r0_buf->order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info,
+                           cm->cur_frame->order_hint, r1_buf->order_hint);
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_OPTFLOW_ON_TIP
   }
-#endif  // CONFIG_OPTFLOW_ON_TIP
+
   if (d0 == 0 || d1 == 0) {
     // Though OPFL is disabled when the distance from either of the reference
     // frames is zero, the MV offset buffers are still used to update the
@@ -2695,9 +2673,7 @@ void av1_get_optflow_based_mv(
 
   reduce_temporal_dist(&d0, &d1);
 
-#if CONFIG_OPTFLOW_ON_TIP
   if (do_pred) {
-#endif  // CONFIG_OPTFLOW_ON_TIP
     // Obrain P0 and P1
     InterPredParams params0, params1;
     av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
@@ -2716,9 +2692,7 @@ void av1_get_optflow_based_mv(
                                    &best_mv_ref[1], pu_width, pu_height
 #endif  // CONFIG_REFINEMV
     );
-#if CONFIG_OPTFLOW_ON_TIP
   }
-#endif  // CONFIG_OPTFLOW_ON_TIP
 
   int grad_prec_bits;
 
@@ -2727,17 +2701,10 @@ void av1_get_optflow_based_mv(
   (void)gy1;
 
   // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
-#if CONFIG_OPTFLOW_ON_TIP
   const int tmp_w = (mbmi->ref_frame[0] == TIP_FRAME) ? bw : MAX_SB_SIZE;
   const int tmp_h = (mbmi->ref_frame[0] == TIP_FRAME) ? bh : MAX_SB_SIZE;
   int16_t *tmp0 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
   int16_t *tmp1 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
-#else
-  int16_t *tmp0 =
-      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  int16_t *tmp1 =
-      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-#endif  // CONFIG_OPTFLOW_ON_TIP
   av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1, 0);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
@@ -2989,10 +2956,7 @@ void make_inter_pred_of_nxn(
     const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-#if CONFIG_OPTFLOW_ON_TIP
-    int use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-    SubpelParams *subpel_params
+    int use_4x4, SubpelParams *subpel_params
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
@@ -3011,11 +2975,7 @@ void make_inter_pred_of_nxn(
   const int is_subsampling_422 =
       plane && (xd->plane[plane].subsampling_x == 1 &&
                 xd->plane[plane].subsampling_y == 0);
-  opfl_subblock_size_plane(xd, plane,
-#if CONFIG_OPTFLOW_ON_TIP
-                           use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                           &opfl_sub_bw, &opfl_sub_bh);
+  opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
 
   int n_blocks = 0;
   int bw = inter_pred_params->orig_block_width;
@@ -3369,11 +3329,8 @@ void av1_opfl_rebuild_inter_predictor(
     const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
-#if CONFIG_OPTFLOW_ON_TIP
-    ,
+    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
@@ -3389,31 +3346,27 @@ void av1_opfl_rebuild_inter_predictor(
 ) {
   SubpelParams subpel_params;
 
-  make_inter_pred_of_nxn(dst, dst_stride, mv_refined, vxy_bufs, vxy_size,
-                         inter_pred_params, xd, mi_x, mi_y,
+  make_inter_pred_of_nxn(
+      dst, dst_stride, mv_refined, vxy_bufs, vxy_size, inter_pred_params, xd,
+      mi_x, mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-                         build_for_decode,
+      build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
-                         cm, pu_width, plane, comp_refine_type, wms, mv,
-                         use_affine_opfl,
+      cm, pu_width, plane, comp_refine_type, wms, mv, use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                         ref, mc_buf, calc_subpel_params_func,
-#if CONFIG_OPTFLOW_ON_TIP
-                         use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                         &subpel_params
+      ref, mc_buf, calc_subpel_params_func, use_4x4, &subpel_params
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
-                         ,
-                         mi, pu_height, mi_mv
+      ,
+      mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
-                         ,
-                         use_sub_pad
+      ,
+      use_sub_pad
 #endif
 #if CONFIG_WARP_BD_BOX
-                         ,
-                         use_sub_pad_warp
+      ,
+      use_sub_pad_warp
 #endif  // CONFIG_WARP_BD_BOX
   );
 }
@@ -5372,12 +5325,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
 
   int use_4x4 = tip_ref_frame ? 0 : 1;
-  int n = opfl_get_subblock_size(bw, bh, plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                 ,
-                                 use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
+  int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
   const int n_blocks = (bw / n) * (bh / n);
 
   // optical flow refined MVs in a subblock (16x16) unit
@@ -5457,10 +5405,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
           use_affine_opfl ? wms : NULL, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1,
-#if CONFIG_OPTFLOW_ON_TIP
-          use_4x4, do_pred,
-#endif  // CONFIG_OPTFLOW_ON_TIP
+          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, use_4x4, do_pred,
           best_mv_ref, pu_width, pu_height);
       for (int i = 0; i < sb_rows; i++) {
         for (int j = 0; j < sb_cols; j++) {
@@ -5500,11 +5445,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane,
-#if CONFIG_OPTFLOW_ON_TIP
-                           use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                           &opfl_sub_bw, &opfl_sub_bh);
+  opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
 
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
@@ -5603,11 +5544,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           cm, pu_width, mi->comp_refine_type, use_affine_opfl ? wms : NULL,
           &mi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-          ref, mc_buf, calc_subpel_params_func
-#if CONFIG_OPTFLOW_ON_TIP
-          ,
-          use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
+          ref, mc_buf, calc_subpel_params_func, use_4x4
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
           ,
           mi, pu_height, mi_mv
@@ -5996,12 +5933,7 @@ static void build_inter_predictors_8x8_and_bigger(
                    is_affine_refinement_allowed(cm, xd, mi->mode)));
 #endif  // CONFIG_AFFINE_REFINEMENT
     // Allocate gradient and dst buffers
-    const int n = opfl_get_subblock_size(bw, bh, plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                         ,
-                                         use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-    );
+    const int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
     const int n_blocks = (bw / n) * (bh / n);
     int16_t *gx0 = xd->opfl_gxy_bufs;
     int16_t *gx1 = xd->opfl_gxy_bufs + (MAX_SB_SQUARE * 1);
@@ -6041,11 +5973,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_AFFINE_REFINEMENT
           wms, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-          vx0, vy0, vx1, vy1, dst0, dst1
-#if CONFIG_OPTFLOW_ON_TIP
-          ,
-          use_4x4, do_pred
-#endif  // CONFIG_OPTFLOW_ON_TIP
+          vx0, vy0, vx1, vy1, dst0, dst1, use_4x4, do_pred
 #if CONFIG_REFINEMV
           ,
           best_mv_ref, pu_width, pu_height
@@ -6066,11 +5994,7 @@ static void build_inter_predictors_8x8_and_bigger(
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
-  opfl_subblock_size_plane(xd, plane,
-#if CONFIG_OPTFLOW_ON_TIP
-                           use_4x4,
-#endif  // CONFIG_OPTFLOW_ON_TIP
-                           &opfl_sub_bw, &opfl_sub_bh);
+  opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
@@ -6240,37 +6164,33 @@ static void build_inter_predictors_8x8_and_bigger(
       inter_pred_params.interp_filter_params[1] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
+      av1_opfl_rebuild_inter_predictor(
+          dst, dst_stride, plane, mv_refined,
 #if CONFIG_IMPROVE_REFINED_MV
-                                       opfl_vxy_bufs,
+          opfl_vxy_bufs,
 #else
-                                       xd->opfl_vxy_bufs,
+          xd->opfl_vxy_bufs,
 #endif  // CONFIG_IMPROVE_REFINED_MV
-                                       N_OF_OFFSETS, &inter_pred_params, xd,
-                                       mi_x, mi_y,
+          N_OF_OFFSETS, &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                       build_for_decode,
+          build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 #if CONFIG_AFFINE_REFINEMENT
-                                       cm, pu_width, mi->comp_refine_type, wms,
-                                       &mi->mv[ref], use_affine_opfl,
+          cm, pu_width, mi->comp_refine_type, wms, &mi->mv[ref],
+          use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-                                       ref, mc_buf, calc_subpel_params_func
-#if CONFIG_OPTFLOW_ON_TIP
-                                       ,
-                                       use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
+          ref, mc_buf, calc_subpel_params_func, use_4x4
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
-                                       ,
-                                       mi, pu_height, mi_mv
+          ,
+          mi, pu_height, mi_mv
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
 #if CONFIG_OPFL_MEMBW_REDUCTION
-                                       ,
-                                       1
+          ,
+          1
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #if CONFIG_WARP_BD_BOX
-                                       ,
-                                       *ext_warp_used
+          ,
+          *ext_warp_used
 #endif  // CONFIG_WARP_BD_BOX
       );
       continue;

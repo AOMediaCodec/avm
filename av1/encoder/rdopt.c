@@ -11822,12 +11822,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
             // Did this mode help, i.e., is it the new best mode
             if (this_rd < search_state.best_rd) {
-#if CONFIG_OPTFLOW_ON_TIP
               if (is_tip_ref_frame(ref_frame) &&
                   this_rd + TIP_RD_CORRECTION > search_state.best_rd) {
                 continue;
               }
-#endif  // CONFIG_OPTFLOW_ON_TIP
               assert(IMPLIES(comp_pred, cm->current_frame.reference_mode !=
                                             SINGLE_REFERENCE));
               search_state.best_pred_sse =

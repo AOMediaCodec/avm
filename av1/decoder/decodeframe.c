@@ -8686,9 +8686,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
           features->tip_frame_mode = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
+#if !CONFIG_TIP_LD
         features->use_optflow_tip = 1;
-#endif  // CONFIG_OPTFLOW_ON_TIP && !CONFIG_TIP_LD
+#endif  // !CONFIG_TIP_LD
         if (features->tip_frame_mode >= TIP_FRAME_MODES) {
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP mode.");
