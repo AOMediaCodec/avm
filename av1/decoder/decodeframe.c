@@ -7688,7 +7688,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-        || buf->temporal_layer_id > cm->current_frame.temporal_layer_id
+        || buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     )
       continue;
@@ -7715,7 +7715,7 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   int max_disp_order_hint = 0;
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-    if (buf->temporal_layer_id > cm->current_frame.temporal_layer_id) continue;
+    if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
