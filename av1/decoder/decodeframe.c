@@ -7686,21 +7686,23 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-    if (buf == NULL) continue;
+    if (buf == NULL
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+        || buf->temporal_layer_id > cm->current_frame.temporal_layer_id
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    )
+      continue;
     if ((int)buf->display_order_hint > max_disp_order_hint)
       max_disp_order_hint = buf->display_order_hint;
   }
 
-  // If the order_hint is above the threshold distance of 35 frames (largest
-  // possible lag_in_frames) from the found reference frame, we assume it was
-  // modified using:
-  //     order_hint = display_order_hint % display_order_hint_factor
-  // Here, the actual display_order_hint is recovered.
   int cur_disp_order_hint = current_frame->order_hint;
-  while (abs(max_disp_order_hint - cur_disp_order_hint) > 35) {
+  int display_order_hint_factor =
+      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+
+  while (abs(max_disp_order_hint - cur_disp_order_hint) >
+         (display_order_hint_factor >> 1)) {
     if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
-    int display_order_hint_factor =
-        1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
     cur_disp_order_hint += display_order_hint_factor;
   }
   return cur_disp_order_hint;
@@ -7712,19 +7714,18 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    if (buf->temporal_layer_id > cm->current_frame.temporal_layer_id) continue;
+#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
   }
 
-  // If the order_hint is above the threshold distance of 35 frames (largest
-  // possible lag_in_frames) from the found reference frame, we assume it was
-  // modified using:
-  //     order_hint = display_order_hint % display_order_hint_factor
-  // Here, the actual display_order_hint is recovered.
   const int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
   int disp_order_hint = buf->order_hint;
-  while (abs(max_disp_order_hint - disp_order_hint) > 35) {
+  while (abs(max_disp_order_hint - disp_order_hint) >
+         (display_order_hint_factor >> 1)) {
     if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
 
     disp_order_hint += display_order_hint_factor;
