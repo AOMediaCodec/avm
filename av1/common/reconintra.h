@@ -28,7 +28,6 @@ extern "C" {
 #define DF_RESTRICT_ORIP 1
 #define ORIP_BLOCK_SIZE 32
 
-#if CONFIG_AIMC
 /*! \brief set the luma intra mode and delta angles for a given mode index.
  * \param[in]    mode_idx           mode index in intra mode decision
  *                                  process.
@@ -59,7 +58,6 @@ static const int default_mode_list_uv[DIR_MODE_END - DIR_MODE_START] = {
   UV_V_PRED,   UV_H_PRED,    UV_D45_PRED,  UV_D135_PRED,
   UV_D67_PRED, UV_D113_PRED, UV_D157_PRED, UV_D203_PRED
 };
-#endif  // CONFIG_AIMC
 
 void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,

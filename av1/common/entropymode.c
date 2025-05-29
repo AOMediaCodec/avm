@@ -20,63 +20,6 @@
 #include "av1/common/txb_common.h"
 #include "av1/encoder/mcomp.h"
 
-#if !CONFIG_AIMC
-static const aom_cdf_prob
-    default_kf_y_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][CDF_SIZE(
-        INTRA_MODES)] = {
-      { { AOM_CDF13(15588, 17027, 19338, 20218, 20682, 21110, 21825, 23244,
-                    24189, 28165, 29093, 30466) },
-        { AOM_CDF13(12016, 18066, 19516, 20303, 20719, 21444, 21888, 23032,
-                    24434, 28658, 30172, 31409) },
-        { AOM_CDF13(10052, 10771, 22296, 22788, 23055, 23239, 24133, 25620,
-                    26160, 29336, 29929, 31567) },
-        { AOM_CDF13(14091, 15406, 16442, 18808, 19136, 19546, 19998, 22096,
-                    24746, 29585, 30958, 32462) },
-        { AOM_CDF13(12122, 13265, 15603, 16501, 18609, 20033, 22391, 25583,
-                    26437, 30261, 31073, 32475) } },
-      { { AOM_CDF13(10023, 19585, 20848, 21440, 21832, 22760, 23089, 24023,
-                    25381, 29014, 30482, 31436) },
-        { AOM_CDF13(5983, 24099, 24560, 24886, 25066, 25795, 25913, 26423,
-                    27610, 29905, 31276, 31794) },
-        { AOM_CDF13(7444, 12781, 20177, 20728, 21077, 21607, 22170, 23405,
-                    24469, 27915, 29090, 30492) },
-        { AOM_CDF13(8537, 14689, 15432, 17087, 17408, 18172, 18408, 19825,
-                    24649, 29153, 31096, 32210) },
-        { AOM_CDF13(7543, 14231, 15496, 16195, 17905, 20717, 21984, 24516,
-                    26001, 29675, 30981, 31994) } },
-      { { AOM_CDF13(12613, 13591, 21383, 22004, 22312, 22577, 23401, 25055,
-                    25729, 29538, 30305, 32077) },
-        { AOM_CDF13(9687, 13470, 18506, 19230, 19604, 20147, 20695, 22062,
-                    23219, 27743, 29211, 30907) },
-        { AOM_CDF13(6183, 6505, 26024, 26252, 26366, 26434, 27082, 28354, 28555,
-                    30467, 30794, 32086) },
-        { AOM_CDF13(10718, 11734, 14954, 17224, 17565, 17924, 18561, 21523,
-                    23878, 28975, 30287, 32252) },
-        { AOM_CDF13(9194, 9858, 16501, 17263, 18424, 19171, 21563, 25961, 26561,
-                    30072, 30737, 32463) } },
-      { { AOM_CDF13(12602, 14399, 15488, 18381, 18778, 19315, 19724, 21419,
-                    25060, 29696, 30917, 32409) },
-        { AOM_CDF13(8203, 13821, 14524, 17105, 17439, 18131, 18404, 19468,
-                    25225, 29485, 31158, 32342) },
-        { AOM_CDF13(8451, 9731, 15004, 17643, 18012, 18425, 19070, 21538, 24605,
-                    29118, 30078, 32018) },
-        { AOM_CDF13(7714, 9048, 9516, 16667, 16817, 16994, 17153, 18767, 26743,
-                    30389, 31536, 32528) },
-        { AOM_CDF13(8843, 10280, 11496, 15317, 16652, 17943, 19108, 22718,
-                    25769, 29953, 30983, 32485) } },
-      { { AOM_CDF13(12578, 13671, 15979, 16834, 19075, 20913, 22989, 25449,
-                    26219, 30214, 31150, 32477) },
-        { AOM_CDF13(9563, 13626, 15080, 15892, 17756, 20863, 22207, 24236,
-                    25380, 29653, 31143, 32277) },
-        { AOM_CDF13(8356, 8901, 17616, 18256, 19350, 20106, 22598, 25947, 26466,
-                    29900, 30523, 32261) },
-        { AOM_CDF13(10835, 11815, 13124, 16042, 17018, 18039, 18947, 22753,
-                    24615, 29489, 30883, 32482) },
-        { AOM_CDF13(7618, 8288, 9859, 10509, 15386, 18657, 22903, 28776, 29180,
-                    31355, 31802, 32593) } }
-    };
-#endif
-
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -248,7 +191,6 @@ static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                 };
 #endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)] = {
   AOM_CDF4(28618, 30909, 31555), 118
@@ -329,95 +271,6 @@ static const aom_cdf_prob default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(6384) },
 };
 #endif  // CONFIG_ENTROPY_PARA
-#else
-static const aom_cdf_prob default_angle_delta_cdf
-    [PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
-    [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)] = {
-      { { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
-        { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
-        { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
-        { AOM_CDF7(4581, 11226, 15147, 17138, 21834, 28397) },
-        { AOM_CDF7(1737, 10927, 14509, 19588, 22745, 28823) },
-        { AOM_CDF7(2664, 10176, 12485, 17650, 21600, 30495) },
-        { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
-        { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) } },
-      { { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
-        { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
-        { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
-        { AOM_CDF7(4581, 11226, 15147, 17138, 21834, 28397) },
-        { AOM_CDF7(1737, 10927, 14509, 19588, 22745, 28823) },
-        { AOM_CDF7(2664, 10176, 12485, 17650, 21600, 30495) },
-        { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
-        { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) } }
-    };
-
-static const aom_cdf_prob default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
-    INTRA_MODES)] = { { AOM_CDF13(22801, 23489, 24293, 24756, 25601, 26123,
-                                  26606, 27418, 27945, 29228, 29685, 30349) },
-                      { AOM_CDF13(18673, 19845, 22631, 23318, 23950, 24649,
-                                  25527, 27364, 28152, 29701, 29984, 30852) },
-                      { AOM_CDF13(19770, 20979, 23396, 23939, 24241, 24654,
-                                  25136, 27073, 27830, 29360, 29730, 30659) },
-                      { AOM_CDF13(20155, 21301, 22838, 23178, 23261, 23533,
-                                  23703, 24804, 25352, 26575, 27016, 28049) } };
-
-static const aom_cdf_prob
-    default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES][CDF_SIZE(
-        UV_INTRA_MODES)] = {
-      { { AOM_CDF13(22631, 24152, 25378, 25661, 25986, 26520, 27055, 27923,
-                    28244, 30059, 30941, 31961) },
-        { AOM_CDF13(9513, 26881, 26973, 27046, 27118, 27664, 27739, 27824,
-                    28359, 29505, 29800, 31796) },
-        { AOM_CDF13(9845, 9915, 28663, 28704, 28757, 28780, 29198, 29822, 29854,
-                    30764, 31777, 32029) },
-        { AOM_CDF13(13639, 13897, 14171, 25331, 25606, 25727, 25953, 27148,
-                    28577, 30612, 31355, 32493) },
-        { AOM_CDF13(9764, 9835, 9930, 9954, 25386, 27053, 27958, 28148, 28243,
-                    31101, 31744, 32363) },
-        { AOM_CDF13(11825, 13589, 13677, 13720, 15048, 29213, 29301, 29458,
-                    29711, 31161, 31441, 32550) },
-        { AOM_CDF13(14175, 14399, 16608, 16821, 17718, 17775, 28551, 30200,
-                    30245, 31837, 32342, 32667) },
-        { AOM_CDF13(12885, 13038, 14978, 15590, 15673, 15748, 16176, 29128,
-                    29267, 30643, 31961, 32461) },
-        { AOM_CDF13(12026, 13661, 13874, 15305, 15490, 15726, 15995, 16273,
-                    28443, 30388, 30767, 32416) },
-        { AOM_CDF13(19052, 19840, 20579, 20916, 21150, 21467, 21885, 22719,
-                    23174, 28861, 30379, 32175) },
-        { AOM_CDF13(18627, 19649, 20974, 21219, 21492, 21816, 22199, 23119,
-                    23527, 27053, 31397, 32148) },
-        { AOM_CDF13(17026, 19004, 19997, 20339, 20586, 21103, 21349, 21907,
-                    22482, 25896, 26541, 31819) },
-        { AOM_CDF13(12124, 13759, 14959, 14992, 15007, 15051, 15078, 15166,
-                    15255, 15753, 16039, 16606) } },
-      { { AOM_CDF14(10407, 11208, 12900, 13181, 13823, 14175, 14899, 15656,
-                    15986, 20086, 20995, 22455, 24212) },
-        { AOM_CDF14(4532, 19780, 20057, 20215, 20428, 21071, 21199, 21451,
-                    22099, 24228, 24693, 27032, 29472) },
-        { AOM_CDF14(5273, 5379, 20177, 20270, 20385, 20439, 20949, 21695, 21774,
-                    23138, 24256, 24703, 26679) },
-        { AOM_CDF14(6740, 7167, 7662, 14152, 14536, 14785, 15034, 16741, 18371,
-                    21520, 22206, 23389, 24182) },
-        { AOM_CDF14(4987, 5368, 5928, 6068, 19114, 20315, 21857, 22253, 22411,
-                    24911, 25380, 26027, 26376) },
-        { AOM_CDF14(5370, 6889, 7247, 7393, 9498, 21114, 21402, 21753, 21981,
-                    24780, 25386, 26517, 27176) },
-        { AOM_CDF14(4816, 4961, 7204, 7326, 8765, 8930, 20169, 20682, 20803,
-                    23188, 23763, 24455, 24940) },
-        { AOM_CDF14(6608, 6740, 8529, 9049, 9257, 9356, 9735, 18827, 19059,
-                    22336, 23204, 23964, 24793) },
-        { AOM_CDF14(5998, 7419, 7781, 8933, 9255, 9549, 9753, 10417, 18898,
-                    22494, 23139, 24764, 25989) },
-        { AOM_CDF14(10660, 11298, 12550, 12957, 13322, 13624, 14040, 15004,
-                    15534, 20714, 21789, 23443, 24861) },
-        { AOM_CDF14(10522, 11530, 12552, 12963, 13378, 13779, 14245, 15235,
-                    15902, 20102, 22696, 23774, 25838) },
-        { AOM_CDF14(10099, 10691, 12639, 13049, 13386, 13665, 14125, 15163,
-                    15636, 19676, 20474, 23519, 25208) },
-        { AOM_CDF14(3144, 5087, 7382, 7504, 7593, 7690, 7801, 8064, 8232, 9248,
-                    9875, 10521, 29048) } }
-    };
-#endif  // CONFIG_AIMC
 
 static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
                                            [CDF_SIZE(REGION_TYPES)] = {
@@ -8697,10 +8550,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
-#if !CONFIG_AIMC
-  av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
-  av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);
-#endif  // !CONFIG_AIMC
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
   av1_copy(fc->tip_cdf, default_tip_cdf);
   av1_copy(fc->tip_pred_mode_cdf, default_tip_pred_mode_cdf);
@@ -8871,17 +8720,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->wienerns_4part_cdf, default_wienerns_4part_cdf);
   av1_copy(fc->pc_wiener_restore_cdf, default_pc_wiener_restore_cdf);
   av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
-#if CONFIG_AIMC
   av1_copy(fc->y_mode_set_cdf, default_y_mode_set_cdf);
   av1_copy(fc->y_mode_idx_cdf_0, default_y_first_mode_cdf);
   av1_copy(fc->y_mode_idx_cdf_1, default_y_second_mode_cdf);
-#else
-  av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
-#endif  // CONFIG_AIMC
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
-#if CONFIG_AIMC
   av1_copy(fc->cfl_cdf, default_cfl_cdf);
-#endif  // CONFIG_AIMC
   av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
 #if CONFIG_MRLS_IMPROVE
   av1_copy(fc->multi_line_mrl_cdf, default_multi_line_mrl_cdf);
@@ -9464,25 +9307,14 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
                          CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
                          INTRA_MODE_SETS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
                          FIRST_MODE_COUNT);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
                          SECOND_MODE_COUNT);
-#else
-  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
-#endif  // CONFIG_AIMC
-#if CONFIG_AIMC
   CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
                          UV_INTRA_MODES - 1);
-#else
-  CUMULATIVE_AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
-                            UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
-  CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1],
-                         UV_INTRA_MODES);
-#endif  // CONFIG_AIMC
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf,
                          REGION_TYPES);
@@ -9502,11 +9334,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // !CONFIG_NEW_PART_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_interp_cdf,
                          ctx_tr->switchable_interp_cdf, SWITCHABLE_FILTERS);
-#if !CONFIG_AIMC
-  CUMULATIVE_AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
-                         2 * MAX_ANGLE_DELTA + 1);
-#endif  // !CONFIG_AIMC
 
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
@@ -9913,20 +9740,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #else
   SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
-#else
-  SHIFT_CDF(ctx_ptr->y_mode_cdf, INTRA_MODES);
-#endif  // CONFIG_AIMC
-#if CONFIG_AIMC
   SHIFT_CDF(ctx_ptr->uv_mode_cdf, UV_INTRA_MODES - 1);
-#else
-  SHIFT_CDF_STRIDE(ctx_ptr->uv_mode_cdf[0], UV_INTRA_MODES - 1,
-                   CDF_SIZE(UV_INTRA_MODES));
-  SHIFT_CDF(ctx_ptr->uv_mode_cdf[1], UV_INTRA_MODES);
-#endif  // CONFIG_AIMC
 
   SHIFT_CDF(ctx_ptr->region_type_cdf, REGION_TYPES);
 
@@ -9939,10 +9756,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->uneven_4way_partition_type_cdf, NUM_UNEVEN_4WAY_PARTS);
 #endif  // !CONFIG_NEW_PART_CTX
   SHIFT_CDF(ctx_ptr->switchable_interp_cdf, SWITCHABLE_FILTERS);
-#if !CONFIG_AIMC
-  SHIFT_CDF(ctx_ptr->kf_y_cdf, INTRA_MODES);
-  SHIFT_CDF(ctx_ptr->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
-#endif  // !CONFIG_AIMC
 
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
@@ -10409,23 +10222,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #else
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
-#else
-  AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
-#endif  // CONFIG_AIMC
-#if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES - 1);
-#else
-  AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
-                 UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
-  AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
-#endif  // CONFIG_AIMC
   AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf, REGION_TYPES);
 
   AVERAGE_CDF(ctx_left->do_split_cdf, ctx_tr->do_split_cdf, 2);
@@ -10440,11 +10243,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // !CONFIG_NEW_PART_CTX
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
-#if !CONFIG_AIMC
-  AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
-  AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
-              2 * MAX_ANGLE_DELTA + 1);
-#endif  // !CONFIG_AIMC
 
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX

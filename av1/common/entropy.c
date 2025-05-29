@@ -442,21 +442,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->wienerns_4part_cdf, 4);
   RESET_CDF_COUNTER(fc->pc_wiener_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->merged_param_cdf, 2);
-#if CONFIG_AIMC
   RESET_CDF_COUNTER(fc->y_mode_set_cdf, INTRA_MODE_SETS);
   RESET_CDF_COUNTER(fc->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
   RESET_CDF_COUNTER(fc->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
-#else
-  RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
-#endif  // CONFIG_AIMC
-#if CONFIG_AIMC
   RESET_CDF_COUNTER(fc->uv_mode_cdf, UV_INTRA_MODES - 1);
   RESET_CDF_COUNTER(fc->cfl_cdf, 2);
-#else
-  RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
-                           CDF_SIZE(UV_INTRA_MODES));
-  RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
-#endif  // CONFIG_AIMC
 
   for (int i = 0; i < INTER_SDP_BSIZE_GROUP; i++) {
     RESET_CDF_COUNTER(fc->region_type_cdf[i], REGION_TYPES);
@@ -496,10 +486,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     }
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
-#if !CONFIG_AIMC
-  RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);
-  RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
-#endif  // !CONFIG_AIMC
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[0], 4);

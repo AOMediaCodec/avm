@@ -485,10 +485,8 @@ void av1_rd_pick_palette_intra_sby(
     }
 
     mbmi->mode = DC_PRED;
-#if CONFIG_AIMC
     mbmi->joint_y_mode_delta_angle = DC_PRED;
     mbmi->y_mode_idx = DC_PRED;
-#endif  // CONFIG_AIMC
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_DIP
     mbmi->use_intra_dip = 0;
@@ -698,7 +696,6 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->use_dpcm_uv = 0;
   mbmi->dpcm_mode_uv = 0;
 #endif  // CONFIG_LOSSLESS_DPCM
-#if CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode))
     mbmi->uv_mode_idx = 1;
   else
@@ -706,7 +703,6 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   dc_mode_cost = get_uv_mode_cost(mbmi, x->mode_costs, xd, is_cfl_allowed(xd),
                                   mbmi->uv_mode_idx);
   assert(mbmi->uv_mode_idx >= 0 && mbmi->uv_mode_idx < UV_INTRA_MODES);
-#endif                         // CONFIG_AIMC
   int count_buf[1 << 12];      // Maximum (1 << 12) color levels.
   int count_buf_8bit[1 << 8];  // Maximum (1 << 8) bins for hbd path.
   av1_count_colors_highbd(src_u, src_stride, rows, cols, seq_params->bit_depth,

@@ -498,7 +498,7 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
 #else
-  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
@@ -691,7 +691,7 @@ typedef struct SequenceHeader {
   uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization
                            // 1 - Tile averaging for CDF initialization
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  uint8_t enable_tiles_cdfs_avg;  // To turn on/off tiles cdfs average
+  uint8_t enable_tiles_cdfs_avg;   // To turn on/off tiles cdfs average
 #endif                               // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
@@ -2697,7 +2697,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     xd->left_mbmi = NULL;
   }
 
-#if CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
   if (xd->up_available) {
     xd->above_right_mbmi = xd->mi[-xd->mi_stride + bw - 1];
   } else {
@@ -2708,7 +2707,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   } else {
     xd->bottom_left_mbmi = NULL;
   }
-#endif  // CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
 
   fetch_spatial_neighbors(xd);
 
@@ -2845,21 +2843,6 @@ static INLINE aom_cdf_prob *get_fsc_mode_cdf(const MACROBLOCKD *xd,
   const int ctx = get_fsc_mode_ctx(xd, is_key);
   return tile_ctx->fsc_mode_cdf[ctx][fsc_size_group];
 }
-
-#if !CONFIG_AIMC
-static INLINE int get_y_mode_ctx(const MB_MODE_INFO *neighbor) {
-  const PREDICTION_MODE neighbor_mode = av1_get_block_mode(neighbor);
-  return intra_mode_context[neighbor_mode];
-}
-
-static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
-                                           const MB_MODE_INFO *neighbor0,
-                                           const MB_MODE_INFO *neighbor1) {
-  const int neighbor0_ctx = get_y_mode_ctx(neighbor0);
-  const int neighbor1_ctx = get_y_mode_ctx(neighbor1);
-  return tile_ctx->kf_y_cdf[neighbor0_ctx][neighbor1_ctx];
-}
-#endif  // !CONFIG_AIMC
 
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
 static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,

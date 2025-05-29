@@ -577,14 +577,10 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
   int cdf_idx = cm->coef_cdf_category;
 #endif
-#if !CONFIG_AIMC
-  const PREDICTION_MODE y_mode = mbmi->mode;
-#endif  // !CONFIG_AIMC
   (void)counts;
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   if (xd->tree_type != CHROMA_PART) {
     const int intraonly = frame_is_intra_only(cm);
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       update_cdf(fc->dpcm_cdf, mbmi->use_dpcm_y, 2);
@@ -667,27 +663,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                    counts,
 #endif  // CONFIG_ENTROPY_STATS
                    intraonly);
-#else
-    if (intraonly) {
-#if CONFIG_ENTROPY_STATS
-      const int neighbor0_ctx = get_y_mode_ctx(xd->neighbors[0]);
-      const int neighbor1_ctx = get_y_mode_ctx(xd->neighbors[1]);
-      ++counts->kf_y_mode[neighbor0_ctx][neighbor1_ctx][y_mode];
-#endif  // CONFIG_ENTROPY_STATS
-      update_cdf(get_y_mode_cdf(fc, xd->neighbors[0], xd->neighbors[1]), y_mode,
-                 INTRA_MODES);
-    } else {
-#if CONFIG_ENTROPY_STATS
-      ++counts->y_mode[size_group_lookup[bsize]][y_mode];
-#endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
-    }
-    update_fsc_cdf(cm, xd,
-#if CONFIG_ENTROPY_STATS
-                   counts,
-#endif  // CONFIG_ENTROPY_STATS
-                   intraonly);
-#endif  // CONFIG_AIMC
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode)) {
 #if CONFIG_LOSSLESS_DPCM
       if (xd->lossless[mbmi->segment_id]) {
@@ -818,29 +793,14 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       }
     }
 #endif  // CONFIG_DIP
-#if !CONFIG_AIMC
-    if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
-#if CONFIG_ENTROPY_STATS
-      ++counts->angle_delta[mbmi->mode - V_PRED]
-                           [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
-#endif
-
-      update_cdf(fc->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED],
-                 mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
-                 2 * MAX_ANGLE_DELTA + 1);
-    }
-#endif  // !CONFIG_AIMC
   }
 
   if (!xd->is_chroma_ref) return;
   if (xd->tree_type != LUMA_PART) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
-#if CONFIG_AIMC
     const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
-#endif  // CONFIG_AIMC
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_AIMC
     if (cfl_allowed) {
       const int cfl_ctx = get_cfl_ctx(xd);
       ++counts->cfl_mode[cfl_ctx][uv_mode == UV_CFL_PRED];
@@ -850,11 +810,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     } else {
       ++counts->uv_mode[uv_context][uv_mode];
     }
-#else
-    ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
-#endif  // CONFIG_AIMC
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_AIMC
     if (cfl_allowed) {
       const int cfl_ctx = get_cfl_ctx(xd);
       update_cdf(fc->cfl_cdf[cfl_ctx], mbmi->uv_mode == UV_CFL_PRED, 2);
@@ -910,10 +866,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
     }
-#else
-    update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
-               UV_INTRA_MODES - !cfl_allowed);
-#endif  // CONFIG_AIMC
     if (uv_mode == UV_CFL_PRED) {
       const int8_t joint_sign = mbmi->cfl_alpha_signs;
       const uint8_t idx = mbmi->cfl_alpha_idx;
@@ -939,23 +891,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
       }
     }
-#if !CONFIG_AIMC
-    if (av1_is_directional_mode(get_uv_mode(uv_mode)) &&
-        av1_use_angle_delta(bsize)) {
-#if CONFIG_ENTROPY_STATS
-      ++counts->angle_delta[uv_mode - UV_V_PRED]
-                           [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
-#endif
-      if (cm->seq_params.enable_sdp)
-        update_cdf(fc->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - UV_V_PRED],
-                   mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
-                   2 * MAX_ANGLE_DELTA + 1);
-      else
-        update_cdf(fc->angle_delta_cdf[PLANE_TYPE_Y][uv_mode - UV_V_PRED],
-                   mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
-                   2 * MAX_ANGLE_DELTA + 1);
-    }
-#endif  // !CONFIG_AIMC
   }
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
     update_palette_cdf(xd, mbmi, counts);
@@ -1802,23 +1737,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #else
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
-#else
-  AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
-#endif  // CONFIG_AIMC
-#if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES);
-#else
-  AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
-                 UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
-  AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
-#endif  // CONFIG_AIMC
 
   for (int i = 0; i < INTER_SDP_BSIZE_GROUP; i++) {
     AVERAGE_CDF(ctx_left->region_type_cdf[i], ctx_tr->region_type_cdf[i],
@@ -1866,12 +1791,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
-#if !CONFIG_AIMC
-  AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
-  AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
-              2 * MAX_ANGLE_DELTA + 1);
-#endif  // !CONFIG_AIMC
-
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
   // Square blocks

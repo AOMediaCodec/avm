@@ -814,13 +814,11 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // colors to remaining colors) and terminate the search if current number of
   // palette colors is not the winner.
   int prune_palette_search_level;
-#if CONFIG_AIMC
   // Reuse chroma mode rate and distortion info during intra modes evaluation
   // in inter frames.
   // False: No reuse
   // True: Reuse UV mode RD info.
   bool reuse_uv_mode_rd_info;
-#endif  // CONFIG_AIMC
 #if CONFIG_DIP
   bool skip_intra_dip_search;
 #endif  // CONFIG_DIP

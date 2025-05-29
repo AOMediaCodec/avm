@@ -243,37 +243,6 @@ static void optimize_cdf_table(aom_count_type *counts, FILE *const probsfile,
   fprintf(logfile, "============================\n");
 }
 
-#if !CONFIG_AIMC
-static void optimize_uv_mode(aom_count_type *counts, FILE *const probsfile,
-                             int dim_of_cts, int *cts_each_dim, char *prefix) {
-  aom_count_type *ct_ptr = counts;
-
-  fprintf(probsfile, "%s = {\n", prefix);
-  fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
-  fprintf(logfile, "%s\n", prefix);
-  cts_each_dim[2] = UV_INTRA_MODES - 1;
-  for (int k = 0; k < cts_each_dim[1]; ++k) {
-    fprintf(probsfile, "%*c{ ", 2 * SPACES_PER_TAB, ' ');
-    parse_counts_for_cdf_opt(&ct_ptr, probsfile, 0, dim_of_cts - 2,
-                             cts_each_dim + 2);
-    if (k + 1 == cts_each_dim[1]) {
-      fprintf(probsfile, " }\n");
-    } else {
-      fprintf(probsfile, " },\n");
-    }
-    ++ct_ptr;
-  }
-  fprintf(probsfile, "%*c},\n", SPACES_PER_TAB, ' ');
-  fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
-  cts_each_dim[2] = UV_INTRA_MODES;
-  parse_counts_for_cdf_opt(&ct_ptr, probsfile, 2, dim_of_cts - 1,
-                           cts_each_dim + 1);
-  fprintf(probsfile, "%*c}\n", SPACES_PER_TAB, ' ');
-  fprintf(probsfile, "};\n\n");
-  fprintf(logfile, "============================\n");
-}
-#endif
-
 /* See optimize_cdf_table for usage.
    modes_each_ctx: input symbol counts per each context row
 */
@@ -525,7 +494,6 @@ int main(int argc, const char **argv) {
 
   int cts_each_dim[10];
   int total_count = 0;
-#if CONFIG_AIMC
   cts_each_dim[0] = INTRA_MODE_SETS;
   optimize_cdf_table(&fc.y_mode_set_idx[0], probsfile, 1, cts_each_dim,
                      "const aom_cdf_prob "
@@ -547,32 +515,9 @@ int main(int argc, const char **argv) {
                      "default_y_second_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE("
                      "SECOND_MODE_COUNT)]",
                      0, &total_count, 0, mem_wanted, "Intra");
-#else
-  /* Intra mode (keyframe luma) */
-  cts_each_dim[0] = KF_MODE_CONTEXTS;
-  cts_each_dim[1] = KF_MODE_CONTEXTS;
-  cts_each_dim[2] = INTRA_MODES;
-  optimize_cdf_table(&fc.kf_y_mode[0][0][0], probsfile, 3, cts_each_dim,
-                     "const aom_cdf_prob\n"
-                     "default_kf_y_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]"
-                     "[CDF_SIZE(INTRA_MODES)]");
 
-  cts_each_dim[0] = DIRECTIONAL_MODES;
-  cts_each_dim[1] = 2 * MAX_ANGLE_DELTA + 1;
-  optimize_cdf_table(&fc.angle_delta[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob default_angle_delta_cdf"
-                     "[DIRECTIONAL_MODES][CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)]");
-
-  /* Intra mode (non-keyframe luma) */
-  cts_each_dim[0] = BLOCK_SIZE_GROUPS;
-  cts_each_dim[1] = INTRA_MODES;
-  optimize_cdf_table(
-      &fc.y_mode[0][0], probsfile, 2, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)]");
-#endif
   /* Intra mode (chroma) */
-#if CONFIG_AIMC
+
   cts_each_dim[0] = UV_MODE_CONTEXTS;
   cts_each_dim[1] = UV_INTRA_MODES - 1;
   optimize_cdf_table(&fc.uv_mode[0][0], probsfile, 2, cts_each_dim,
@@ -587,17 +532,6 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
-#else
-  cts_each_dim[0] = CFL_ALLOWED_TYPES;
-  cts_each_dim[1] = INTRA_MODES;
-  cts_each_dim[2] = UV_INTRA_MODES;
-  int uvmode_each_ctx[2] = { 13, 14 };
-  optimize_uv_mode(&fc.uv_mode[0][0][0], probsfile, 3, cts_each_dim,
-                   "static const aom_cdf_prob "
-                   "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
-                   "[CDF_SIZE(UV_INTRA_MODES)]",
-                   0, &total_count, uvmode_each_ctx, mem_wanted, "Intra");
-#endif  // CONFIG_AIMC
 
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
   /* MRL index */

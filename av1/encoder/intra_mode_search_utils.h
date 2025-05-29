@@ -286,16 +286,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
     }
   }
 #endif  // CONFIG_DIP
-#if !CONFIG_AIMC
-  if (av1_is_directional_mode(mbmi->mode)) {
-    if (av1_use_angle_delta(bsize)) {
-      total_rate +=
-          mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]
-                                      [MAX_ANGLE_DELTA +
-                                       mbmi->angle_delta[PLANE_TYPE_Y]];
-    }
-  }
-#endif  // !CONFIG_AIMC
   if (av1_allow_intrabc(&cpi->common, xd
 #if CONFIG_ENABLE_IBC_NAT
                         ,
@@ -354,23 +344,6 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
       total_rate += palette_mode_cost;
     }
   }
-#if !CONFIG_AIMC
-  if (av1_is_directional_mode(get_uv_mode(mode))) {
-    if (av1_use_angle_delta(bsize)) {
-      if (cpi->common.seq_params.enable_sdp) {
-        total_rate +=
-            mode_costs->angle_delta_cost[PLANE_TYPE_UV][mode - V_PRED]
-                                        [mbmi->angle_delta[PLANE_TYPE_UV] +
-                                         MAX_ANGLE_DELTA];
-      } else {
-        total_rate +=
-            mode_costs->angle_delta_cost[PLANE_TYPE_Y][mode - V_PRED]
-                                        [mbmi->angle_delta[PLANE_TYPE_UV] +
-                                         MAX_ANGLE_DELTA];
-      }
-    }
-  }
-#endif  // !CONFIG_AIMC
   return total_rate;
 }
 
@@ -427,13 +400,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       SSE_TYPE_INTRA
 #endif  // CONFIG_MRSSE
   );
-#if !CONFIG_AIMC
-  if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
-    mode_cost += mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]
-                                             [MAX_ANGLE_DELTA +
-                                              mbmi->angle_delta[PLANE_TYPE_Y]];
-  }
-#endif  // !CONFIG_AIMC
   if (mbmi->mode == DC_PRED &&
       av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y])) {
 #if CONFIG_D149_CTX_MODELING_OPT

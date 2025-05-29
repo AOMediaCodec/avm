@@ -114,9 +114,7 @@ typedef struct IntraModeSearchState {
   UV_PREDICTION_MODE mode_uv; /*!< \brief The best uv mode */
   PALETTE_MODE_INFO pmi_uv;   /*!< \brief Color map if mode_uv is palette */
   int8_t uv_angle_delta;      /*!< \brief Angle delta if mode_uv directional */
-#if CONFIG_AIMC
-  int uv_mode_idx; /*!< \brief UV mode Index */
-#endif             // CONFIG_AIMC
+  int uv_mode_idx;            /*!< \brief UV mode Index */
   /**@}*/
 
   /*!
@@ -125,7 +123,6 @@ typedef struct IntraModeSearchState {
   int64_t best_pred_rd[REFERENCE_MODES];
 } IntraModeSearchState;
 
-#if CONFIG_AIMC
 /*! \brief Holds the rate and distortion information of uv modes and used only
  * when the speed feature 'reuse_uv_mode_rd_info' is enabled.
  */
@@ -152,7 +149,6 @@ typedef struct {
 int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
                      MACROBLOCKD *xd, CFL_ALLOWED_TYPE cfl_allowed,
                      int mode_index);
-#endif  // CONFIG_AIMC
 
 #if CONFIG_DIP_EXT_PRUNING
 /*! \brief Holds the rate and distortion information of DIP modes.
@@ -220,11 +216,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               BLOCK_SIZE bsize, unsigned int ref_frame_cost,
                               const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats,
                               RD_STATS *rd_stats_y, RD_STATS *rd_stats_uv,
-#if CONFIG_AIMC
-                              ModeRDInfoUV *mode_rd_info_uv,
-#endif  // CONFIG_AIMC
-                              int64_t best_rd, int64_t *best_intra_rd,
-                              int64_t *best_model_rd,
+                              ModeRDInfoUV *mode_rd_info_uv, int64_t best_rd,
+                              int64_t *best_intra_rd, int64_t *best_model_rd,
                               int64_t top_intra_model_rd[]);
 
 /*!\brief Search for the best forward skip coding mode for intra blocks.
@@ -259,15 +252,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
  */
 void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                      int *rate_tokenonly, int64_t *distortion, int *skippable,
-                     BLOCK_SIZE bsize,
-#if CONFIG_AIMC
-                     int mode_costs,
-#else
-                     const int *mode_costs,
-#endif  // CONFIG_AIMC
-                     uint8_t *dir_skip_mask, int64_t *best_rd,
-                     int64_t *best_model_rd, PICK_MODE_CONTEXT *ctx,
-                     MB_MODE_INFO *best_mbmi);
+                     BLOCK_SIZE bsize, int mode_costs, uint8_t *dir_skip_mask,
+                     int64_t *best_rd, int64_t *best_model_rd,
+                     PICK_MODE_CONTEXT *ctx, MB_MODE_INFO *best_mbmi);
 
 /*!\brief Evaluate luma palette mode for inter frames.
  *
@@ -376,12 +363,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
                                     const PICK_MODE_CONTEXT *ctx,
-                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size
-#if CONFIG_AIMC
-                                    ,
-                                    ModeRDInfoUV *mode_rd_info_uv
-#endif  // CONFIG_AIMC
-);
+                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size,
+                                    ModeRDInfoUV *mode_rd_info_uv);
 
 /*! \brief Return the number of colors in src. Used by palette mode.
  */
@@ -389,15 +372,6 @@ void av1_count_colors_highbd(const uint16_t *src, int stride, int rows,
                              int cols, int bit_depth, int *val_count,
                              int *val_count_8bit, int *num_color_bins,
                              int *num_colors);
-#if !CONFIG_AIMC
-/*! \brief set the luma intra mode and delta angles for a given mode index.
- * \param[in]    mode_idx           mode index in intra mode decision
- *                                  process.
- * \param[in]    mbmi               Pointer to structure holding
- *                                  the mode info for the current macroblock.
- */
-void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi);
-#endif
 /*! \brief prune luma intra mode    based on the model rd.
  * \param[in]    this_model_rd      model rd for current mode.
  * \param[in]    best_model_rd      Best model RD seen for this block so

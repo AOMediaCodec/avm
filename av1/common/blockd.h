@@ -661,7 +661,6 @@ typedef struct MB_MODE_INFO {
   uint8_t dpcm_mode_uv;
 #endif
 
-#if CONFIG_AIMC
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;
   /*! \brief mode index of uv mode after re-ordering. */
@@ -672,7 +671,6 @@ typedef struct MB_MODE_INFO {
   uint8_t y_intra_mode_list[LUMA_MODE_COUNT];
   /*! \brief re-ordered mode list for uv mode. */
   uint8_t uv_intra_mode_list[UV_INTRA_MODES];
-#endif  // CONFIG_AIMC
   /**@}*/
 
   /*****************************************************************************
@@ -1221,11 +1219,7 @@ static INLINE int get_ref_mv_idx(const MB_MODE_INFO *mbmi, int ref_idx) {
 }
 #endif  // CONFIG_SEP_COMP_DRL
 
-#if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi);
-#else
-PREDICTION_MODE av1_get_block_mode(const MB_MODE_INFO *mi);
-#endif  // CONFIG_AIMC
 
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
@@ -2289,7 +2283,6 @@ typedef struct macroblockd {
    * up_available == true; otherwise NULL.
    */
   MB_MODE_INFO *above_mbmi;
-#if CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
   /*!
    * MB_MODE_INFO for 4x4 block to the bottom-left of the current block, if
    * left_available == true; otherwise NULL.
@@ -2300,7 +2293,6 @@ typedef struct macroblockd {
    * up_available == true; otherwise NULL.
    */
   MB_MODE_INFO *above_right_mbmi;
-#endif  // CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
   /*!
    * Neighboring blocks' mbmi
    * if no available mbmi, set to be NULL.

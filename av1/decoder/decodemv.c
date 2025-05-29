@@ -48,12 +48,6 @@
 
 #define DEC_MISMATCH_DEBUG 0
 
-#if !CONFIG_AIMC
-static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
-  return (PREDICTION_MODE)aom_read_symbol(r, cdf, INTRA_MODES, ACCT_INFO());
-}
-#endif  // !CONFIG_AIMC
-
 #if CONFIG_GDF
 #if CONFIG_BRU
 void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
@@ -496,18 +490,6 @@ static uint8_t read_mh_dir(aom_cdf_prob *mh_dir_cdf, aom_reader *r) {
   return mh_dir;
 }
 #endif  // CONFIG_ENABLE_MHCCP
-
-#if !CONFIG_AIMC
-static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
-                                             aom_reader *r,
-                                             CFL_ALLOWED_TYPE cfl_allowed,
-                                             PREDICTION_MODE y_mode) {
-  const UV_PREDICTION_MODE uv_mode =
-      aom_read_symbol(r, ec_ctx->uv_mode_cdf[cfl_allowed][y_mode],
-                      UV_INTRA_MODES - !cfl_allowed, ACCT_INFO());
-  return uv_mode;
-}
-#endif  // !CONFIG_AIMC
 
 static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
                                int8_t *signs_out) {
@@ -1637,13 +1619,6 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 }
 
-#if !CONFIG_AIMC
-static int read_angle_delta(aom_reader *r, aom_cdf_prob *cdf) {
-  const int sym = aom_read_symbol(r, cdf, 2 * MAX_ANGLE_DELTA + 1, ACCT_INFO());
-  return sym - MAX_ANGLE_DELTA;
-}
-#endif  // !CONFIG_AIMC
-
 static void read_filter_intra_mode_info(const AV1_COMMON *const cm,
                                         MACROBLOCKD *const xd, aom_reader *r) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -2297,7 +2272,6 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 }
 
-#if CONFIG_AIMC
 // read mode set index and mode index in set for y component,
 // and map it to y mode and delta angle
 static void read_intra_luma_mode(MACROBLOCKD *const xd, aom_reader *r) {
@@ -2359,7 +2333,6 @@ static void read_intra_uv_mode(MACROBLOCKD *const xd,
   else
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 }
-#endif  // CONFIG_AIMC
 
 static void read_intra_frame_mode_info(AV1_COMMON *const cm,
                                        DecoderCodingBlock *dcb, aom_reader *r) {
@@ -2476,11 +2449,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       return;
     }
   }
-#if !CONFIG_AIMC
-  const int use_angle_delta = av1_use_angle_delta(bsize);
-#endif  // !CONFIG_AIMC
   if (xd->tree_type != CHROMA_PART) {
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       mbmi->use_dpcm_y = read_dpcm_mode(ec_ctx, r);
@@ -2516,25 +2485,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     } else {
       mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
     }
-#else
-    mbmi->mode = read_intra_mode(
-        r, get_y_mode_cdf(ec_ctx, xd->neighbors[0], xd->neighbors[1]));
-    if (allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                        xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                        bsize, mbmi)) {
-      aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 1);
-      mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
-    } else {
-      mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-    }
-    mbmi->angle_delta[PLANE_TYPE_Y] =
-        (use_angle_delta && av1_is_directional_mode(mbmi->mode))
-            ? read_angle_delta(
-                  r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED])
-            : 0;
-#endif  // CONFIG_AIMC
+
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       if (mbmi->use_dpcm_y == 0) {
@@ -2592,7 +2543,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   if (xd->tree_type != LUMA_PART) {
     if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
       if (xd->lossless[mbmi->segment_id]) {
         mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
@@ -2616,27 +2566,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #else   // CONFIG_LOSSLESS_DPCM
       read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
 #endif  // CONFIG_LOSSLESS_DPCM
-#else
-      mbmi->uv_mode =
-          read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
-      if (cm->seq_params.enable_sdp) {
-        mbmi->angle_delta[PLANE_TYPE_UV] =
-            (use_angle_delta &&
-             av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
-                ? read_angle_delta(
-                      r, ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
-                                                [mbmi->uv_mode - V_PRED])
-                : 0;
-      } else {
-        mbmi->angle_delta[PLANE_TYPE_UV] =
-            (use_angle_delta &&
-             av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
-                ? read_angle_delta(
-                      r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y]
-                                                [mbmi->uv_mode - V_PRED])
-                : 0;
-      }
-#endif  // CONFIG_AIMC
+
       if (mbmi->uv_mode == UV_CFL_PRED) {
         {
           mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
@@ -3322,7 +3252,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = read_dpcm_mode(ec_ctx, r);
@@ -3359,30 +3288,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   } else {
     mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
   }
-#else
-  const int use_angle_delta = av1_use_angle_delta(bsize);
-  mbmi->mode = read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
-
-  if (allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                      xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                      bsize, mbmi) &&
-      xd->tree_type != CHROMA_PART) {
-    aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 0);
-    mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
-    if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
-      mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-    }
-  } else {
-    mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-  }
-  mbmi->angle_delta[PLANE_TYPE_Y] =
-      use_angle_delta && av1_is_directional_mode(mbmi->mode)
-          ? read_angle_delta(
-                r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED])
-          : 0;
-#endif  // CONFIG_AIMC
 
 #if CONFIG_LOSSLESS_DPCM
   if (xd->tree_type != CHROMA_PART)
@@ -3445,7 +3350,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   }
 #endif  // CONFIG_LOSSLESS_DPCM
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
-#if CONFIG_AIMC
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
@@ -3469,25 +3373,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #else   // CONFIG_LOSSLESS_DPCM
     read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
 #endif  // CONFIG_LOSSLESS_DPCM
-#else
-    mbmi->uv_mode =
-        read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
-    if (cm->seq_params.enable_sdp) {
-      mbmi->angle_delta[PLANE_TYPE_UV] =
-          use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
-              ? read_angle_delta(
-                    r, ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
-                                              [mbmi->uv_mode - V_PRED])
-              : 0;
-    } else {
-      mbmi->angle_delta[PLANE_TYPE_UV] =
-          use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
-              ? read_angle_delta(
-                    r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y]
-                                              [mbmi->uv_mode - V_PRED])
-              : 0;
-    }
-#endif  // CONFIG_AIMC
+
     if (mbmi->uv_mode == UV_CFL_PRED) {
       {
         mbmi->cfl_idx = read_cfl_index(ec_ctx, r);

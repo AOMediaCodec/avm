@@ -18,20 +18,12 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 
-#if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi) {
   if (!mi) return DC_PRED;
   if (is_inter_block(mi, SHARED_PART) || is_intrabc_block(mi, SHARED_PART))
     return DC_PRED;
   return mi->joint_y_mode_delta_angle;
 }
-#else
-PREDICTION_MODE av1_get_block_mode(const MB_MODE_INFO *mi) {
-  if (!mi) return DC_PRED;
-  assert(!is_inter_block(mi, SHARED_PART) || is_intrabc_block(mi, SHARED_PART));
-  return mi->mode;
-}
-#endif  // CONFIG_AIMC
 
 void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride) {
   av1_zero(xd->is_mi_coded);

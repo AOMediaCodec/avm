@@ -8501,11 +8501,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
       const TX_SIZE max_uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
       av1_rd_pick_intra_sbuv_mode(cpi, x, &rate_uv, &rate_uv_tokenonly,
                                   &dist_uv, &uv_skip_txfm, ctx, bsize,
-                                  max_uv_tx_size
-#if CONFIG_AIMC
-                                  ,
-                                  NULL /*ModeRDInfoUV*/
-#endif                                 // CONFIG_AIMC
+                                  max_uv_tx_size, NULL /*ModeRDInfoUV*/
       );
       av1_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
                      ctx->num_4x4_blk_chroma);
@@ -11849,9 +11845,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     top_intra_model_rd[i] = INT64_MAX;
   }
 
-#if CONFIG_AIMC
   get_y_intra_mode_set(mbmi, xd);
-#endif  // CONFIG_AIMC
 
 #if CONFIG_LOSSLESS_DPCM
   int dpcm_loop_num = 1;
@@ -11872,7 +11866,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                            : 1);
          fsc_mode++) {
       uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
-#if CONFIG_AIMC
       ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
       // When fsc_mode is enabled, rate of the chroma mode across luma modes is
       // different. Hence, the reuse of chroma mode rd_info is not applicable
@@ -11880,7 +11873,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       if (!xd->lossless[mbmi->segment_id]) {
         av1_zero(mode_rd_info_uv.mode_evaluated);
       }
-#endif
       for (int mrl_index = 0;
            mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
 #if CONFIG_MRLS_IMPROVE
@@ -11895,13 +11887,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             if (sf->intra_sf.skip_intra_in_interframe &&
                 search_state.intra_search_state.skip_intra_modes)
               break;
-#if CONFIG_AIMC
             mbmi->y_mode_idx = mode_idx;
             mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
             set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
-#else
-        set_y_mode_and_delta_angle(mode_idx, mbmi);
-#endif  // CONFIG_AIMC
             if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
                  cpi->sf.intra_sf.disable_smooth_intra) &&
                 (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
@@ -11910,12 +11898,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
                 mbmi->mode == PAETH_PRED)
               continue;
-#if !CONFIG_AIMC
-            if (av1_is_directional_mode(mbmi->mode) &&
-                av1_use_angle_delta(bsize) == 0 &&
-                mbmi->angle_delta[PLANE_TYPE_Y] != 0)
-              continue;
-#endif  // !CONFIG_AIMC
             if (mbmi->mrl_index > 0 &&
                 av1_is_directional_mode(mbmi->mode) == 0) {
               continue;
@@ -11941,16 +11923,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               continue;
             }
 #endif  // CONFIG_MRLS_IMPROVE
-#if !CONFIG_AIMC
-            if (mbmi->angle_delta[PLANE_TYPE_Y] &&
-                mbmi->fsc_mode[PLANE_TYPE_Y]) {
-              continue;
-            }
-            if (mbmi->angle_delta[PLANE_TYPE_UV] &&
-                mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
-              continue;
-            }
-#endif  // CONFIG_AIMC
             const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
             if (cached_mi) {
               const PREDICTION_MODE cached_mode = cached_mi->mode;
@@ -12000,12 +11972,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             intra_rd_stats.rdcost = av1_handle_intra_mode(
                 &search_state.intra_search_state, cpi, x, bsize,
                 intra_ref_frame_cost, ctx, &intra_rd_stats, &intra_rd_stats_y,
-                &intra_rd_stats_uv,
-#if CONFIG_AIMC
-                &mode_rd_info_uv,
-#endif  // CONFIG_AIMC
-                search_state.best_rd, &search_state.best_intra_rd,
-                &best_model_rd, top_intra_model_rd);
+                &intra_rd_stats_uv, &mode_rd_info_uv, search_state.best_rd,
+                &search_state.best_intra_rd, &best_model_rd,
+                top_intra_model_rd);
 
             // Collect mode stats for multiwinner mode processing
             const int txfm_search_done = 1;

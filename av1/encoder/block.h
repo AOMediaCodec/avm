@@ -956,10 +956,6 @@ typedef struct {
   int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
   //! Luma mode cost for intra frame.
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
-#if !CONFIG_AIMC
-  //! Chroma mode cost
-  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
-#endif  // !CONFIG_AIMC
   //! filter_intra_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int filter_intra_cost[2];
@@ -1001,7 +997,6 @@ typedef struct {
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];
 #endif  // CONFIG_ENABLE_MHCCP
 
-#if CONFIG_AIMC
   //! y primary flag cost
   int y_primary_flag_cost[INTRA_MODE_SETS];
   //! y first mode cost
@@ -1012,7 +1007,6 @@ typedef struct {
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
   //! CFL mode cost
   int cfl_mode_cost[CFL_CONTEXTS][2];
-#endif  // CONFIG_AIMC
 
   //! Cost of signaling secondary transform index
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];

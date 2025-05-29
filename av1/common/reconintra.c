@@ -346,7 +346,6 @@ static void init_intra_predictors_internal(void) {
 #undef intra_pred_allsizes
 }
 
-#if CONFIG_AIMC
 // get the context for y_mode_idx
 // the context of y_mode_idx depends on the count of directional neighboring
 // modes
@@ -398,12 +397,10 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
   // not
   int is_mode_selected_list[LUMA_MODE_COUNT];
 
-#if CONFIG_SIMPLIFIED_AIMC
   const int block_width = block_size_wide[mi->sb_type[PLANE_TYPE_Y]];
   const int block_height = block_size_high[mi->sb_type[PLANE_TYPE_Y]];
   // Check whether the block area size is greater than 64 samples
   const int is_large_block = (block_width * block_height > 64);
-#endif  // CONFIG_SIMPLIFIED_AIMC
 
   const int is_small_block = (mi->sb_type[PLANE_TYPE_Y] < BLOCK_8X8);
 
@@ -437,9 +434,7 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
     }
 
     // Add offsets to derive the neighboring modes
-#if CONFIG_SIMPLIFIED_AIMC
     if (is_large_block) {
-#endif  // CONFIG_SIMPLIFIED_AIMC
       for (i = 0; i < 4; ++i) {
         for (j = 0; j < directional_mode_cnt; ++j) {
           int left_derived_mode = (neighbor_joint_modes[j] - i +
@@ -461,9 +456,7 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
           }
         }
       }
-#if CONFIG_SIMPLIFIED_AIMC
     }
-#endif  // CONFIG_SIMPLIFIED_AIMC
   }
 
   // fill the remaining list with default modes
@@ -525,7 +518,6 @@ int get_cfl_ctx(MACROBLOCKD *xd) {
       xd->chroma_left_mbmi ? xd->chroma_left_mbmi->uv_mode == UV_CFL_PRED : 0;
   return above_ctx + left_ctx;
 }
-#endif  // CONFIG_AIMC
 
 // Directional prediction, zone 1: 0 < angle < 90
 void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,

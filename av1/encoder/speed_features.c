@@ -324,9 +324,7 @@ static void set_good_speed_features_framesize_independent(
 
   sf->intra_sf.intra_pruning_with_hog = 1;
   sf->intra_sf.intra_pruning_with_hog_thresh = -1.2f;
-#if CONFIG_AIMC
   sf->intra_sf.reuse_uv_mode_rd_info = true;
-#endif  // CONFIG_AIMC
 
   sf->tx_sf.adaptive_tx_type_search_idx = 1;
   sf->tx_sf.adaptive_tx_partition_type_search_idx = 1;
@@ -794,9 +792,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->intra_pruning_with_hog = 0;
   intra_sf->src_var_thresh_intra_skip = 1;
   intra_sf->prune_palette_search_level = 0;
-#if CONFIG_AIMC
   intra_sf->reuse_uv_mode_rd_info = false;
-#endif  // CONFIG_AIMC
 #if CONFIG_DIP
   intra_sf->skip_intra_dip_search = false;
 #endif  // CONFIG_DIP

@@ -556,11 +556,6 @@ typedef struct frame_contexts {
   aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
   aom_cdf_prob pc_wiener_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
-#if !CONFIG_AIMC
-  aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
-  aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
-                          [CDF_SIZE(UV_INTRA_MODES)];
-#endif  // !CONFIG_AIMC
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];
 #else
@@ -591,14 +586,12 @@ typedef struct frame_contexts {
                              [CDF_SIZE(CFL_MULTI_PARAM_V)];
 #endif  // MHCCP_3_PARAMETERS
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_AIMC
   // y mode cdf
   aom_cdf_prob y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)];
   aom_cdf_prob y_mode_idx_cdf_0[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)];
   aom_cdf_prob y_mode_idx_cdf_1[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)];
   aom_cdf_prob uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)];
   aom_cdf_prob cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)];
-#endif  // CONFIG_AIMC
   aom_cdf_prob do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                            [CDF_SIZE(2)];
   aom_cdf_prob do_square_split_cdf[PARTITION_STRUCTURE_NUM]
@@ -620,18 +613,6 @@ typedef struct frame_contexts {
 #endif  // !CONFIG_NEW_PART_CTX
   aom_cdf_prob switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]
                                     [CDF_SIZE(SWITCHABLE_FILTERS)];
-#if !CONFIG_AIMC
-  /* kf_y_cdf is discarded after use, so does not require persistent storage.
-     However, we keep it with the other CDFs in this struct since it needs to
-     be copied to each tile to support parallelism just like the others.
-  */
-  aom_cdf_prob kf_y_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
-                       [CDF_SIZE(INTRA_MODES)];
-
-  aom_cdf_prob angle_delta_cdf[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
-                              [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];
-#endif  // !CONFIG_AIMC
-
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
   aom_cdf_prob intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)];

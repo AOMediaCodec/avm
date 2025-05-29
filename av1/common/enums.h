@@ -285,7 +285,6 @@ enum {
 
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
-#if CONFIG_AIMC
 #define FIRST_MODE_COUNT 13
 #define SECOND_MODE_COUNT 16
 #define Y_MODE_CONTEXTS 3
@@ -293,7 +292,6 @@ enum {
 #define NON_DIRECTIONAL_MODES_COUNT 5
 #define UV_MODE_CONTEXTS 2
 #define CFL_CONTEXTS 3
-#endif  // CONFIG_AIMC
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size
@@ -1088,10 +1086,8 @@ enum {
 #else
 #define NO_D149_FOR_WARP_CAUSAL 0
 #endif  // CONFIG_D149_CTX_MODELING_OPT && CONFIG_COMPOUND_WARP_CAUSAL
-#if CONFIG_AIMC
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7
-#endif
 
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 // The warpmv and warpmv_new mode is signalled as a separate flag

@@ -204,8 +204,6 @@ set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
-set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
-set_aom_config_var(CONFIG_SIMPLIFIED_AIMC 1 "Simplification for AIMC.")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
