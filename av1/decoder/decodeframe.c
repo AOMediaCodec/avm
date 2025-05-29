@@ -8979,9 +8979,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 
-#if !CONFIG_TIP_DIRECT_MODE_SIGNALING
-    read_tile_info(pbi, rb);
-#endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
@@ -9057,9 +9054,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     features->disable_cdf_update = 1;
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if !CONFIG_TIP_DIRECT_MODE_SIGNALING
-    read_tile_info(pbi, rb);
-#endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
