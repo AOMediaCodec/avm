@@ -51,8 +51,8 @@ std::mutex tfliteMutex;
 
 static std::unique_ptr<tflite::Interpreter> create_interpreter(
     unsigned char *model_def, std::vector<TfLiteDelegateType> &to_delete) {
-  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
   std::lock_guard<std::mutex> lock(tfliteMutex);
+  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
   const int num_threads = 1;
