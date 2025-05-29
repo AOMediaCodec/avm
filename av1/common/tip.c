@@ -1115,7 +1115,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = cm->features.enable_imp_msk_bld;
+  const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
+  const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
+  uint8_t use_bacp = cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
+                     !av1_is_scaled(sf1);
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
   for (int ref = 0; ref < 2; ++ref) {
@@ -1364,11 +1367,14 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
+  const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
+  const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
   uint8_t use_bacp =
 #if CONFIG_TIP_ENHANCEMENT
       is_compound && tip_weight == TIP_EQUAL_WTD &&
 #endif  // CONFIG_TIP_ENHANCEMENT
-      cm->features.enable_imp_msk_bld;
+      cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
+      !av1_is_scaled(sf1);
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
   for (int ref = 0; ref < 1 + is_compound; ++ref) {

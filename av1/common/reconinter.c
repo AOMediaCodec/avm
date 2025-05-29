@@ -5408,10 +5408,13 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = tip_ref_frame ? cm->features.enable_imp_msk_bld
-                                   : use_border_aware_compound(cm, xd, mi) &&
-                                         mi->cwp_idx == CWP_EQUAL &&
-                                         cm->features.enable_imp_msk_bld;
+  uint8_t use_bacp =
+      tip_ref_frame
+          ? cm->features.enable_imp_msk_bld &&
+                !av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) &&
+                !av1_is_scaled(cm->tip_ref.ref_scale_factor[1])
+          : use_border_aware_compound(cm, xd, mi) && mi->cwp_idx == CWP_EQUAL &&
+                cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
   int opfl_sub_bw = OF_BSIZE;
@@ -5969,14 +5972,17 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = tip_ref_frame ?
+  uint8_t use_bacp = tip_ref_frame
+                         ?
 #if CONFIG_TIP_ENHANCEMENT
-                                   is_compound && tip_weight == TIP_EQUAL_WTD &&
+                         is_compound && tip_weight == TIP_EQUAL_WTD &&
 #endif  // CONFIG_TIP_ENHANCEMENT
-                                       cm->features.enable_imp_msk_bld
-                                   : use_border_aware_compound(cm, xd, mi) &&
-                                         mi->cwp_idx == CWP_EQUAL &&
-                                         cm->features.enable_imp_msk_bld;
+                             cm->features.enable_imp_msk_bld &&
+                             !av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) &&
+                             !av1_is_scaled(cm->tip_ref.ref_scale_factor[1])
+                         : use_border_aware_compound(cm, xd, mi) &&
+                               mi->cwp_idx == CWP_EQUAL &&
+                               cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_WARP_BD_BOX
