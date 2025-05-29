@@ -225,7 +225,7 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 1)];
   aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS)];
 #endif  // CONFIG_EOB_POS_LUMA
-#if CONFIG_CHROMA_CODING
+
   // Y CDFs
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][LF_SIG_COEF_CONTEXTS]
 #if CONFIG_TCQ
@@ -258,20 +258,6 @@ typedef struct frame_contexts {
   aom_cdf_prob coeff_base_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB][CDF_SIZE(3)];
   aom_cdf_prob coeff_br_lf_uv_cdf[LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_br_uv_cdf[LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
-#else
-  aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]
-                                 [CDF_SIZE(3)];
-  aom_cdf_prob coeff_base_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]
-                             [CDF_SIZE(4)];
-  aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
-                                [CDF_SIZE(LF_BASE_SYMBOLS)];
-  aom_cdf_prob coeff_base_lf_eob_cdf[TX_SIZES][PLANE_TYPES]
-                                    [SIG_COEF_CONTEXTS_EOB]
-                                    [CDF_SIZE(LF_BASE_SYMBOLS - 1)];
-  aom_cdf_prob coeff_br_lf_cdf[PLANE_TYPES][LF_LEVEL_CONTEXTS]
-                              [CDF_SIZE(BR_CDF_SIZE)];
-  aom_cdf_prob coeff_br_cdf[PLANE_TYPES][LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#endif  // CONFIG_CHROMA_CODING
 #if CONFIG_IMPROVEIDTX
   aom_cdf_prob idtx_sign_cdf[TX_SIZES][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[TX_SIZES][IDTX_SIG_COEF_CONTEXTS]

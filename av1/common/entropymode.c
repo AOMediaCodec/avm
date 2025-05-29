@@ -9221,7 +9221,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          BR_CDF_SIZE);
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_single_mode_cdf,
                          ctx_tr->inter_single_mode_cdf, INTER_SINGLE_MODES);
-#if CONFIG_CHROMA_CODING
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_uv_cdf, ctx_tr->coeff_base_uv_cdf,
                          4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_uv_cdf, ctx_tr->coeff_br_uv_cdf,
@@ -9234,8 +9233,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf,
                          ctx_tr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
-#endif  // CONFIG_CHROMA_CODING
-
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_warp_mode_cdf,
                          ctx_tr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -9767,14 +9764,12 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->coeff_br_cdf_idtx, BR_CDF_SIZE);
   SHIFT_CDF(ctx_ptr->coeff_br_cdf, BR_CDF_SIZE);
   SHIFT_CDF(ctx_ptr->inter_single_mode_cdf, INTER_SINGLE_MODES);
-#if CONFIG_CHROMA_CODING
   SHIFT_CDF(ctx_ptr->coeff_base_uv_cdf, 4);
   SHIFT_CDF(ctx_ptr->coeff_br_uv_cdf, BR_CDF_SIZE);
   SHIFT_CDF(ctx_ptr->coeff_base_eob_uv_cdf, 3);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
   SHIFT_CDF(ctx_ptr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
-#endif  // CONFIG_CHROMA_CODING
 
   SHIFT_CDF(ctx_ptr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -10221,7 +10216,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf, BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->inter_single_mode_cdf, ctx_tr->inter_single_mode_cdf,
               INTER_SINGLE_MODES);
-#if CONFIG_CHROMA_CODING
   AVERAGE_CDF(ctx_left->coeff_base_uv_cdf, ctx_tr->coeff_base_uv_cdf, 4);
   AVERAGE_CDF(ctx_left->coeff_br_uv_cdf, ctx_tr->coeff_br_uv_cdf, BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->coeff_base_eob_uv_cdf, ctx_tr->coeff_base_eob_uv_cdf,
@@ -10232,8 +10226,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
   AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf, ctx_tr->coeff_br_lf_uv_cdf,
               BR_CDF_SIZE);
-#endif  // CONFIG_CHROMA_CODING
-
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,

@@ -2262,7 +2262,6 @@ int main(int argc, const char **argv) {
                      1, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // CONFIG_EOB_POS_LUMA
 
-#if CONFIG_CHROMA_CODING
   // LF Base, BR
 #if CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -2351,7 +2350,6 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_EOB][CDF_SIZE(NUM_BASE_LEVELS + "
       "1)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_CHROMA_CODING
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = COEFF_BASE_PH_CONTEXTS;
@@ -2373,7 +2371,6 @@ int main(int argc, const char **argv) {
                      "PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
 
-#if CONFIG_CHROMA_CODING
 #if CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -2430,58 +2427,8 @@ int main(int argc, const char **argv) {
                      "av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS]"
                      "[LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
-#else
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
-  cts_each_dim[2] = PLANE_TYPES;
-  cts_each_dim[3] = LF_SIG_COEF_CONTEXTS;
-  cts_each_dim[4] = LF_BASE_SYMBOLS;
-  optimize_cdf_table(
-      &fc.coeff_base_lf_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
-      "static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]"
-      "[CDF_SIZE(LF_BASE_SYMBOLS)]",
-      1, &total_count, 340, mem_wanted,
-      "Coefficients");  // Exclude: 4*5*1*(33-16)
 
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
-  cts_each_dim[2] = PLANE_TYPES;
-  cts_each_dim[3] = SIG_COEF_CONTEXTS_EOB;
-  cts_each_dim[4] = LF_BASE_SYMBOLS - 1;
-  optimize_cdf_table(
-      &fc.coeff_base_lf_eob_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
-      "static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]"
-      "[CDF_SIZE(LF_BASE_SYMBOLS - 1)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
-
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = PLANE_TYPES;
-  cts_each_dim[2] = LF_LEVEL_CONTEXTS;
-  cts_each_dim[3] = BR_CDF_SIZE;
-  optimize_cdf_table(&fc.coeff_lps_lf_multi[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "av1_default_coeff_lps_lf_multi_cdfs[TOKEN_CDF_Q_CTXS]"
-                     "[PLANE_TYPES][LF_LEVEL_CONTEXTS]"
-                     "[CDF_SIZE(BR_CDF_SIZE)]",
-                     1, &total_count, 0, mem_wanted, "Coefficients");
-
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = PLANE_TYPES;
-  cts_each_dim[2] = LEVEL_CONTEXTS;
-  cts_each_dim[3] = BR_CDF_SIZE;
-  optimize_cdf_table(&fc.coeff_lps_multi[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS]"
-                     "[PLANE_TYPES][LEVEL_CONTEXTS]"
-                     "[CDF_SIZE(BR_CDF_SIZE)]",
-                     1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_CHROMA_CODING
-
-#if CONFIG_CHROMA_CODING && CONFIG_TCQ
+#if CONFIG_TCQ
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = SIG_COEF_CONTEXTS;
@@ -2495,17 +2442,6 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS][TCQ_CTXS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, dq_minus_entries_def, mem_wanted, "Coefficients");
-#elif CONFIG_CHROMA_CODING
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
-  cts_each_dim[2] = SIG_COEF_CONTEXTS;
-  cts_each_dim[3] = NUM_BASE_LEVELS + 2;
-  optimize_cdf_table(
-      &fc.coeff_base_multi[0][0][0][0], probsfile, 4, cts_each_dim,
-      "static const aom_cdf_prob av1_default_coeff_base_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS]"
-      "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -2518,7 +2454,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_CHROMA_CODING
+#endif  // CONFIG_TCQ
 
 #if CONFIG_IMPROVEIDTX
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -2565,7 +2501,6 @@ int main(int argc, const char **argv) {
       1, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // CONFIG_IMPROVEIDTX
 
-#if CONFIG_CHROMA_CODING
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = SIG_COEF_CONTEXTS_EOB;
@@ -2576,19 +2511,6 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_EOB]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 1)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#else
-  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
-  cts_each_dim[2] = PLANE_TYPES;
-  cts_each_dim[3] = SIG_COEF_CONTEXTS_EOB;
-  cts_each_dim[4] = NUM_BASE_LEVELS + 1;
-  optimize_cdf_table(
-      &fc.coeff_base_eob_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
-      "static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]"
-      "[CDF_SIZE(NUM_BASE_LEVELS + 1)]",
-      1, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_CHROMA_CODING
 
 #if CONFIG_CONTEXT_DERIVATION
 #if CONFIG_IMPROVEIDTX

@@ -135,7 +135,6 @@ macro(fix_experiment_configs)
   endif()
 
   if(CONFIG_TCQ)
-    change_config_and_warn(CONFIG_CHROMA_CODING 1 CONFIG_TCQ)
     change_config_and_warn(CONFIG_CONTEXT_DERIVATION 1 CONFIG_TCQ)
   endif()
 
