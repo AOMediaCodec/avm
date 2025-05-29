@@ -8822,6 +8822,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->tcq_mode = seq_params->enable_tcq;
   }
 #endif  // CONFIG_TCQ
+  if (!cm->seq_params.enable_parity_hiding
+#if CONFIG_TCQ
+      || features->tcq_mode
+#endif  // CONFIG_TCQ
+  )
+    features->allow_parity_hiding = false;
+  else
+    features->allow_parity_hiding = aom_rb_read_bit(rb);
 
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, rb);
@@ -8877,7 +8885,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
                                       cm->seq_params.bit_depth);
     xd->lossless[i] =
-        cm->features.tcq_mode == 0 && qindex == 0 &&
+        qindex == 0 && features->tcq_mode == 0 &&
+        features->allow_parity_hiding == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
@@ -8941,15 +8950,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!features->coded_lossless && seq_params->enable_ccso) {
     setup_ccso(cm, rb);
   }
-
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || features->tcq_mode
-#endif  // CONFIG_TCQ
-  )
-    features->allow_parity_hiding = false;
-  else
-    features->allow_parity_hiding = aom_rb_read_bit(rb);
 
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
