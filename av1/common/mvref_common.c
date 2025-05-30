@@ -1627,11 +1627,21 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
 #endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
   if (rf[1] == NONE_FRAME) {
     // single reference frame
-    for (int ref = 0; ref < 2; ++ref) {
-      if (candidate->ref_frame[ref] == rf[0]) {
-        if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
-        ++*ref_match_count;
-      }
+    if (candidate->ref_frame[0] == rf[0]) {
+      if (is_inter_mode(candidate->mode) &&
+          compound_ref0_mode(candidate->mode) == NEWMV)
+        ++*newmv_count;
+      ++*ref_match_count;
+    }
+    if (candidate->ref_frame[1] == rf[0]
+#if CONFIG_SAME_REF_COMPOUND
+        && candidate->ref_frame[0] != candidate->ref_frame[1]
+#endif  // CONFIG_SAME_REF_COMPOUND
+    ) {
+      if (is_inter_compound_mode(candidate->mode) &&
+          compound_ref1_mode(candidate->mode) == NEWMV)
+        ++*newmv_count;
+      ++*ref_match_count;
     }
   } else {
     if (is_tip_ref_frame(candidate->ref_frame[0]) &&
@@ -1843,8 +1853,23 @@ static AOM_INLINE void add_ref_mv_candidate(
           ref_mv_weight[index] = weight;
           ++(*refmv_count);
         }
-        if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
-        ++*ref_match_count;
+        if (ref == 0) {
+          if (is_inter_mode(candidate->mode) &&
+              compound_ref0_mode(candidate->mode) == NEWMV)
+            ++*newmv_count;
+          ++*ref_match_count;
+        }
+
+        if (ref == 1
+#if CONFIG_SAME_REF_COMPOUND
+            && candidate->ref_frame[0] != candidate->ref_frame[1]
+#endif  // CONFIG_SAME_REF_COMPOUND
+        ) {
+          if (is_inter_compound_mode(candidate->mode) &&
+              compound_ref1_mode(candidate->mode) == NEWMV)
+            ++*newmv_count;
+          ++*ref_match_count;
+        }
 #if CONFIG_IMPROVE_TIP_SMVP
       } else if (cand_tip_ref_frames[ref] == rf[0]) {
         int_mv this_refmv = cand_tip_mvs[ref];
