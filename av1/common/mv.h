@@ -15,6 +15,7 @@
 
 #include "av1/common/common.h"
 #include "av1/common/common_data.h"
+#include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/aom_filter.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 
@@ -384,10 +385,11 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
 // Get the index value of AMVD MVD from the MVD value
 static INLINE int16_t get_index_from_amvd_mvd(int this_mvd_comp) {
   int index;
-  for (index = 0; index <= MAX_AMVD_INDEX; index++) {
+  for (index = 0; index < MAX_AMVD_INDEX; index++) {
     if (abs(this_mvd_comp) == amvd_index_to_mvd[index]) break;
   }
-  assert(index >= 0 && index <= MAX_AMVD_INDEX);
+  assert(IMPLIES(index == MAX_AMVD_INDEX,
+                 abs(this_mvd_comp) == amvd_index_to_mvd[index]));
   index = this_mvd_comp < 0 ? -1 * index : index;
   return index;
 }
