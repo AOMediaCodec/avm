@@ -935,7 +935,7 @@ typedef struct {
    * In the current implementation, both |enable_bawp| and
    * |enable_intra_bawp| are controlled by command line
    * control flag |enable_bawp|.
-   * Because both CONFIG_BAWP and CONFIG_MORPH_PRED share (almost) the same
+   * Because both bawp and morph pred share (almost) the same
    * linear derivation process.
    * Eventually CONFIG flags will be merged. It makes sense to use only
    * one command line control flag for BAWP.

@@ -15,7 +15,6 @@
 #include "test/acm_random.h"
 #include "test/util.h"
 
-#if CONFIG_BAWP
 namespace {
 typedef void (*make_bawp_func)(uint16_t *dst, int dst_stride, int16_t alpha,
                                int32_t beta, int shift, int bw, int bh, int bd);
@@ -138,4 +137,3 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif  // HAVE_AVX2
 }  // namespace
-#endif  // CONFIG_BAWP
