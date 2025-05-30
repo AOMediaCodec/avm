@@ -581,9 +581,9 @@ typedef struct frame_contexts {
   // y mode cdf
   aom_cdf_prob y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)];
   aom_cdf_prob y_mode_idx_cdf_0[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)];
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
   aom_cdf_prob y_mode_idx_cdf_1[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)];
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   aom_cdf_prob uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)];
   aom_cdf_prob cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_AIMC

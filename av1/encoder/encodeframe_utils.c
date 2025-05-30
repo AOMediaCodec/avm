@@ -599,7 +599,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
           update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
         }
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
         else {
           const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                       SECOND_MODE_COUNT * (mode_set_index - 1);
@@ -609,7 +609,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                      SECOND_MODE_COUNT);
         }
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
       } else {
         update_cdf(fc->dpcm_vert_horz_cdf, mbmi->dpcm_mode_y, 2);
       }
@@ -628,7 +628,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
         update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
       }
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
       else {
         const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                     SECOND_MODE_COUNT * (mode_set_index - 1);
@@ -638,7 +638,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                    SECOND_MODE_COUNT);
       }
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
     }
 #else  // CONFIG_LOSSLESS_DPCM
     const int context = get_y_mode_idx_ctx(xd);
@@ -655,7 +655,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
       update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
     }
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
     else {
       const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                   SECOND_MODE_COUNT * (mode_set_index - 1);
@@ -665,7 +665,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                  SECOND_MODE_COUNT);
     }
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
 #endif  // CONFIG_LOSSLESS_DPCM
     update_fsc_cdf(cm, xd,
 #if CONFIG_ENTROPY_STATS
@@ -1746,10 +1746,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
 #else
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC

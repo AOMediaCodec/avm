@@ -208,10 +208,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     // y mode costs
     av1_cost_tokens_from_cdf(mode_costs->y_first_mode_costs[i],
                              fc->y_mode_idx_cdf_0[i], NULL);
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
     av1_cost_tokens_from_cdf(mode_costs->y_second_mode_costs[i],
                              fc->y_mode_idx_cdf_1[i], NULL);
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   }
 #else
   for (i = 0; i < KF_MODE_CONTEXTS; ++i)

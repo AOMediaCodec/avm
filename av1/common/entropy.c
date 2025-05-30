@@ -409,9 +409,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_AIMC
   RESET_CDF_COUNTER(fc->y_mode_set_cdf, INTRA_MODE_SETS);
   RESET_CDF_COUNTER(fc->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
-#if !TEST_27
+#if !CONFIG_CTX_Y_SECOND_MODE
   RESET_CDF_COUNTER(fc->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
-#endif  // !TEST_27
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
 #else
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC
