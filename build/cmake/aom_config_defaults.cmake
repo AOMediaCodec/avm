@@ -227,7 +227,7 @@ set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1
                    "AV2 experiment flag to bypass UV LF syntax. FG8-Test9.")
 
 set_aom_config_var(CONFIG_COEFF_BR_PH_BYPASS 1
-                   "AV2 experiment flag to bypass BR PH syntax")
+                   "AV2 experiment flag to bypass BR PH syntax. FG8-Test10.")
 
 set_aom_config_var(CONFIG_EXTENDED_SDP 1
                    "Enable SDP for intra blocks in inter frame")
