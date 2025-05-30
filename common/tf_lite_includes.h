@@ -21,7 +21,7 @@
 // Since TF Lite is external code, instruct the compiler to
 // ignore this warning when including it.
 // Note that Clang supports this GCC pragma.
-#if defined(__GNUC__) || defined(__GNUG__)
+#if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wcomment"
@@ -39,7 +39,7 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/op_resolver.h"
 
-#if defined(__GNUC__) || defined(__GNUG__)
+#if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #elif defined(__clang__)
 #pragma clang diagnostic pop
