@@ -696,6 +696,7 @@ Enc Run (All-intra):
   extends: .enc-run-common
   variables:
     AOMENC_OUTPUT: all-intra
+    AOMENC_LIMIT: 15
   script:
     - ${AOMENC}
         --debug
@@ -753,6 +754,7 @@ Enc Run (Random Access):
         --end-usage=q
         --qp=${AOMENC_QP}
         --enable-keyframe-filtering=0
+        --psnr
         --obu
         --limit=${AOMENC_LIMIT}
         -o "${AOMENC_OUTPUT}.obu"
@@ -795,6 +797,7 @@ Enc Run (Low-delay):
         --qp=${AOMENC_QP}
         --subgop-config-str=ld
         --enable-keyframe-filtering=0
+        --psnr
         --obu
         --limit=${AOMENC_LIMIT}
         -o "${AOMENC_OUTPUT}.obu"
