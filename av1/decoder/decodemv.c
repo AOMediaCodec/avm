@@ -2379,6 +2379,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] =
         read_skip_txfm(cm, xd, mbmi->segment_id, r);
   } else {
+    // Segment SEG_LVL_SKIP should be disabled for intra prediction
+    if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                         "Corrupted segment features");
+    }
     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
   }
 #else
@@ -4843,6 +4848,11 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
       mbmi->skip_txfm[xd->tree_type == CHROMA_PART] =
           read_skip_txfm(cm, xd, mbmi->segment_id, r);
   } else {
+    // Segment SEG_LVL_SKIP should be disabled for intra prediction
+    if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                         "Corrupted segment features");
+    }
     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
   }
 #else
