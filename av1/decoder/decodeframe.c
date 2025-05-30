@@ -9252,19 +9252,67 @@ static AOM_INLINE void superres_post_decode(AV1Decoder *pbi) {
 }
 #endif  // CONFIG_ENABLE_SR
 
+static AOM_INLINE void tip_mode_legal_check(AV1Decoder *const pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) return;
+
+  if (cm->current_frame.frame_type == KEY_FRAME ||
+      cm->current_frame.frame_type == INTRA_ONLY_FRAME ||
+      cm->current_frame.frame_type == S_FRAME) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+
+  if (!cm->features.allow_ref_frame_mvs) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+
+  if (!cm->seq_params.enable_tip) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+
+  if (cm->ref_frames_info.num_total_refs < 2) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+
+  TIP *tip_ref = &cm->tip_ref;
+  if (tip_ref->ref_frame[0] == NONE_FRAME ||
+      tip_ref->ref_frame[1] == NONE_FRAME) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+
+  if (tip_ref->ref_frame[0] != NONE_FRAME &&
+      tip_ref->ref_frame[1] != NONE_FRAME &&
+      (!is_ref_motion_field_eligible(
+           cm, get_ref_frame_buf(cm, tip_ref->ref_frame[0])) ||
+       !is_ref_motion_field_eligible(
+           cm, get_ref_frame_buf(cm, tip_ref->ref_frame[1])))) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid TIP mode.");
+  }
+}
+
 static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
+  tip_mode_legal_check(pbi);
+
   if (!cm->features.allow_ref_frame_mvs) return;
 
+#if CONFIG_TMVP_MEM_OPT
   if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
     // TPL mvs at non-sampled locations will be filled after it is hole-filled
     // and smoothed.
     av1_fill_tpl_mvs_sample_gap(cm);
     return;
   }
+#endif  // CONFIG_TMVP_MEM_OPT
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
 #if CONFIG_IMPROVE_REFINED_MV
