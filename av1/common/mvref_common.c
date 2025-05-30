@@ -1568,10 +1568,9 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     const MACROBLOCKD *xd,
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    int mi_row, int mi_col, int mi_row_cand, int mi_col_cand,
-    const MB_MODE_INFO *const candidate, uint8_t *refmv_count,
-    uint8_t *ref_match_count, uint8_t *newmv_count, CANDIDATE_MV *ref_mv_stack,
-    uint16_t *ref_mv_weight, uint16_t weight) {
+    int mi_row_cand, int mi_col_cand, const MB_MODE_INFO *const candidate,
+    uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
+    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint16_t weight) {
   int index = 0;
 
   const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
@@ -1583,9 +1582,6 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   int_mv ref_mv[2];
   get_tip_mv(cm, &cand_mv.as_mv, cand_tpl_col, cand_tpl_row, ref_mv);
-
-  clamp_tip_smvp_refmv(cm, &ref_mv[0].as_mv, mi_row, mi_col);
-  clamp_tip_smvp_refmv(cm, &ref_mv[1].as_mv, mi_row, mi_col);
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
   clamp_mv_ref(&ref_mv[0].as_mv, xd->width << MI_SIZE_LOG2,
@@ -1852,7 +1848,6 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_IMPROVE_TIP_SMVP
       } else if (cand_tip_ref_frames[ref] == rf[0]) {
         int_mv this_refmv = cand_tip_mvs[ref];
-        clamp_tip_smvp_refmv(cm, &this_refmv.as_mv, mi_row, mi_col);
 
         for (index = 0; index < *refmv_count; ++index) {
           if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
@@ -2090,8 +2085,8 @@ static AOM_INLINE void add_ref_mv_candidate(
           xd,
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
-          mi_row, mi_col, mi_row_cand, mi_col_cand, candidate, refmv_count,
-          ref_match_count, newmv_count, ref_mv_stack, ref_mv_weight, weight);
+          mi_row_cand, mi_col_cand, candidate, refmv_count, ref_match_count,
+          newmv_count, ref_mv_stack, ref_mv_weight, weight);
     } else {
       // compound reference frame
       if (candidate->ref_frame[0] == rf[0] &&
