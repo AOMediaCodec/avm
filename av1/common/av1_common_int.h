@@ -606,9 +606,7 @@ typedef struct SequenceHeader {
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   uint8_t enable_mv_traj;  // enables/disables mv trajectory tracking
 #endif                     // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
-#endif                  // CONFIG_BAWP
   uint8_t enable_cwp;   // enables/disables compound weighted prediction
 #if CONFIG_D071_IMP_MSK_BLD
   uint8_t enable_imp_msk_bld;  // enable implicit maksed blending
@@ -927,19 +925,17 @@ typedef struct {
    * Enables/disables parity hiding.
    */
   bool allow_parity_hiding;
-#if CONFIG_BAWP
   /*!
    * Enables/disables block adaptive weighted prediction
    */
   bool enable_bawp;
-#endif  // CONFIG_BAWP
 #if CONFIG_MORPH_PRED
   /*!
    * Enables/disables intra BAWP (Morph Pred)
    * In the current implementation, both |enable_bawp| and
    * |enable_intra_bawp| are controlled by command line
    * control flag |enable_bawp|.
-   * Becaseu both CONFIG_BAWP and CONFIG_MORPH_PRED share (almost) the same
+   * Because both CONFIG_BAWP and CONFIG_MORPH_PRED share (almost) the same
    * linear derivation process.
    * Eventually CONFIG flags will be merged. It makes sense to use only
    * one command line control flag for BAWP.
@@ -5053,15 +5049,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     return (1 << SIMPLE_TRANSLATION);
 #endif
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
   if (mbmi->bawp_flag[0] > 0) {
-#else
-  if (mbmi->bawp_flag > 0) {
-#endif  // CONFIG_BAWP_CHROMA
     return (1 << SIMPLE_TRANSLATION);
   }
-#endif  // CONFIG_BAWP
 
   int allowed_motion_modes = (1 << SIMPLE_TRANSLATION);
 

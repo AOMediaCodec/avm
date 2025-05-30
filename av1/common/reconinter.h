@@ -132,9 +132,7 @@ static const int wedge_index_2_dist[MAX_WEDGE_TYPES] = {
 };
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-#if CONFIG_BAWP
 #define BAWP_REF_LINES 1
-#endif
 
 // Angles are with respect to horizontal anti-clockwise
 #if !CONFIG_WEDGE_MOD_EXT
@@ -377,15 +375,7 @@ static INLINE int allow_warp_inter_intra(const AV1_COMMON *const cm,
   return mbmi->mode == WARPMV && motion_mode >= WARP_CAUSAL &&
          is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
-         is_interintra_allowed_ref(mbmi->ref_frame)
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-         && mbmi->bawp_flag[0] == 0
-#else
-         && mbmi->bawp_flag == 0
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
-      ;
+         is_interintra_allowed_ref(mbmi->ref_frame) && mbmi->bawp_flag[0] == 0;
 }
 #endif  // CONFIG_WARP_INTER_INTRA
 
@@ -624,9 +614,7 @@ void av1_build_one_inter_predictor(
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
                                 const BUFFER_SET *dst_orig,
-#endif
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
@@ -1588,7 +1576,6 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
-#if CONFIG_BAWP
 static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
                                  const MB_MODE_INFO *mbmi, int mi_row,
                                  int mi_col) {
@@ -1618,9 +1605,7 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
   else
     return 0;
 }
-#endif  // CONFIG_BAWP
 
-#if CONFIG_EXPLICIT_BAWP
 static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
   return mbmi->mode == NEWMV || mbmi->mode == NEARMV
 #if !CONFIG_INTER_MODE_CONSOLIDATION
@@ -1628,7 +1613,6 @@ static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
 #endif  //! CONFIG_INTER_MODE_CONSOLIDATION
       ;
 }
-#endif  // CONFIG_EXPLICIT_BAWP
 
 // derive the context of the mpp_flag
 int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);

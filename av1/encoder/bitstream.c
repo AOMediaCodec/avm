@@ -2653,11 +2653,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi)) {
     assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
     assert(mbmi->comp_group_idx == 0);
-#if CONFIG_BAWP_CHROMA
     assert(mbmi->bawp_flag[0] == 0);
-#else
-    assert(mbmi->bawp_flag == 0);
-#endif  // CONFIG_BAWP_CHROMA
   }
   assert(IMPLIES(mbmi->refinemv_flag, mbmi->cwp_idx == CWP_EQUAL));
 #endif  // CONFIG_REFINEMV
@@ -2675,13 +2671,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     assert(is_inter);
     assert(!have_drl_index(mode));
     assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
     assert(mbmi->bawp_flag[0] == 0);
-#else
-    assert(mbmi->bawp_flag == 0);
-#endif  // CONFIG_BAWP_CHROMA
-#endif
   }
 
 #if !CONFIG_SKIP_TXFM_OPT
@@ -2760,11 +2750,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                          ec_ctx->amvd_mode_cdf[amvd_index][amvd_ctx], 2);
       }
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
         aom_write_symbol(w, mbmi->bawp_flag[0] > 0, xd->tile_ctx->bawp_cdf[0],
                          2);
         if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
@@ -2784,10 +2771,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                              EXPLICIT_BAWP_SCALE_CNT);
           }
         }
-#else
-        aom_write_symbol(w, mbmi->bawp_flag[0] == 1, xd->tile_ctx->bawp_cdf[0],
-                         2);
-#endif  // CONFIG_EXPLICIT_BAWP
       }
 
       if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
@@ -2797,34 +2780,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       } else {
         assert(mbmi->bawp_flag[1] == 0);
       }
-#else
-      if (cm->features.enable_bawp &&
-          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
-        aom_write_symbol(w, mbmi->bawp_flag > 0, xd->tile_ctx->bawp_cdf, 2);
-        if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi)) {
-          const int ctx_index =
-              (mbmi->mode == NEARMV)
-                  ? 0
-#if CONFIG_INTER_MODE_CONSOLIDATION
-                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
-#else
-                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-          aom_write_symbol(w, mbmi->bawp_flag > 1,
-                           xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2);
-          if (mbmi->bawp_flag > 1) {
-            aom_write_symbol(w, mbmi->bawp_flag - 2,
-                             xd->tile_ctx->explicit_bawp_scale_cdf,
-                             EXPLICIT_BAWP_SCALE_CNT);
-          }
-        }
-#else
-        aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
-#endif  // CONFIG_EXPLICIT_BAWP
-      }
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
+
 #if CONFIG_COMPOUND_WARP_CAUSAL
       if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
                                             xd->mi_row, xd->mi_col) &&
@@ -6267,9 +6223,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   aom_wb_write_bit(wb, seq_params->enable_mv_traj);
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   aom_wb_write_bit(wb, seq_params->enable_bawp);
-#endif  // CONFIG_BAWP
   aom_wb_write_bit(wb, seq_params->enable_cwp);
 #if CONFIG_D071_IMP_MSK_BLD
   aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
@@ -7229,10 +7183,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (current_frame->skip_mode_info.skip_mode_allowed)
     aom_wb_write_bit(wb, current_frame->skip_mode_info.skip_mode_flag);
 
-#if CONFIG_BAWP
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
     aom_wb_write_bit(wb, features->enable_bawp);
-#endif  // CONFIG_BAWP
 
   if (!frame_is_intra_only(cm) &&
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {

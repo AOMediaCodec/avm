@@ -368,10 +368,9 @@ if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes" or aom_config("CONFIG_AFFINE_RE
 #
 # Block Adaptive Weighted Prediction
 #
-if (aom_config("CONFIG_BAWP") eq "yes"){
-  add_proto qw/void av1_make_bawp_block/, "uint16_t *dst, int dst_stride, int16_t alpha, int32_t beta, int shift, int bw, int bh, int bd";
-  specialize qw/av1_make_bawp_block avx2/;
-}
+add_proto qw/void av1_make_bawp_block/, "uint16_t *dst, int dst_stride, int16_t alpha, int32_t beta, int shift, int bw, int bh, int bd";
+specialize qw/av1_make_bawp_block avx2/;
+
 
 # Helper functions.
 add_proto qw/void av1_round_shift_array/, "int32_t *arr, int size, int bit";

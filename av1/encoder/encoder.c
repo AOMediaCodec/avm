@@ -444,9 +444,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   seq->enable_bawp = tool_cfg->enable_bawp;
-#endif  // CONFIG_BAWP
   seq->enable_cwp = tool_cfg->enable_cwp;
 #if CONFIG_D071_IMP_MSK_BLD
   seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
@@ -4530,9 +4528,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->allow_ref_frame_mvs &= !cm->tiles.large_scale;
   features->allow_warpmv_mode = features->enabled_motion_modes;
   // temporal set of frame level enable_bawp flag.
-#if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;
-#endif
 #if CONFIG_MORPH_PRED
   features->enable_intra_bawp = seq_params->enable_bawp;
 #endif  // CONFIG_MORPH_PRED

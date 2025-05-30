@@ -1596,19 +1596,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 
   AVERAGE_CDF(ctx_left->warp_extend_cdf, ctx_tr->warp_extend_cdf, 2);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
   AVERAGE_CDF(ctx_left->bawp_cdf[0], ctx_tr->bawp_cdf[0], 2);
   AVERAGE_CDF(ctx_left->bawp_cdf[1], ctx_tr->bawp_cdf[1], 2);
-#else
-  AVERAGE_CDF(ctx_left->bawp_cdf, ctx_tr->bawp_cdf, 2);
-#endif  // CONFIG_BAWP_CHROMA
-#if CONFIG_EXPLICIT_BAWP
   AVERAGE_CDF(ctx_left->explicit_bawp_cdf, ctx_tr->explicit_bawp_cdf, 2);
   AVERAGE_CDF(ctx_left->explicit_bawp_scale_cdf,
               ctx_tr->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif
+
   AVERAGE_CDF(ctx_left->palette_y_size_cdf, ctx_tr->palette_y_size_cdf,
               PALETTE_SIZES);
   AVERAGE_CDF(ctx_left->palette_uv_size_cdf, ctx_tr->palette_uv_size_cdf,

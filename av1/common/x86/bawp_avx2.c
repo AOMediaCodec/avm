@@ -15,7 +15,6 @@
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
-#if CONFIG_BAWP
 void av1_make_bawp_block_avx2(uint16_t *dst, int dst_stride, int16_t alpha,
                               int32_t beta, int shift, int bw, int bh, int bd) {
   const __m256i alpha_reg = _mm256_set1_epi32((int)alpha);
@@ -92,4 +91,3 @@ void av1_make_bawp_block_avx2(uint16_t *dst, int dst_stride, int16_t alpha,
     av1_make_bawp_block_c(dst, dst_stride, alpha, beta, shift, bw, bh, bd);
   }
 }
-#endif  // CONFIG_BAWP

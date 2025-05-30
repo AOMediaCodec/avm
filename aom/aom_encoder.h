@@ -317,12 +317,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_mv_traj;
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   /*!\brief enable block adaptive weighted prediction
    *
    */
   unsigned int enable_bawp;
-#endif  // CONFIG_BAWP
   /*!\brief enable compound weighted prediction
    *
    */

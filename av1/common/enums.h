@@ -38,7 +38,6 @@ extern "C" {
 #define QUAD_WEDGE_ANGLES 5
 #endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
-#define BAWP_BUGFIX 1
 #define ADJUST_SUPER_RES_Q 1
 
 #if CONFIG_INTER_COMPOUND_BY_JOINT
@@ -1189,14 +1188,12 @@ enum {
 #endif  // CONFIG_C076_INTER_MOD_CTX
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
-#if CONFIG_EXPLICIT_BAWP
 // Explicit BAWP scaling factor counts
 #define EXPLICIT_BAWP_SCALE_CNT 2
 // Explicit BAWP scaling factor context counts
 #define BAWP_SCALES_CTX_COUNT 3
 // The allowed value range for bawp_flag
 #define BAWP_OPTION_CNT 4
-#endif  // CONFIG_EXPLICIT_BAWP
 
 #if CONFIG_INTER_MODE_CONSOLIDATION
 #define AMVD_MODE_CONTEXTS 3

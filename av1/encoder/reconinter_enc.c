@@ -168,17 +168,12 @@ void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
 
 void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
                                 const BUFFER_SET *ctx,
-#endif
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                                 int bw, int bh, int mi_x, int mi_y) {
-  av1_build_inter_predictors(cm, xd, plane, mi,
-#if CONFIG_BAWP
-                             ctx,
-#endif
+  av1_build_inter_predictors(cm, xd, plane, mi, ctx,
 #if CONFIG_REFINEMV
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
@@ -247,15 +242,9 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
     // if luma build is not available, we need to get refinemv based on luma
     // need to search DMVR here based on luma plane
     if (plane_from != 0) {
-#if CONFIG_BAWP
       enc_build_inter_predictors(cm, xd, 0, xd->mi[0], ctx, 1,
                                  xd->plane[0].width, xd->plane[0].height,
                                  mi_col * MI_SIZE, mi_row * MI_SIZE);
-#else
-      enc_build_inter_predictors(cm, xd, 0, xd->mi[0], 1, xd->plane[0].width,
-                                 xd->plane[0].height, mi_col * MI_SIZE,
-                                 mi_row * MI_SIZE);
-#endif
     }
   }
 #endif  // CONFIG_REFINEMV
@@ -264,21 +253,13 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
-#if CONFIG_BAWP
+
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], ctx,
 #if CONFIG_REFINEMV
                                0,
 #endif  // CONFIG_REFINEMV
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y);
-#else
-    enc_build_inter_predictors(cm, xd, plane, xd->mi[0],
-#if CONFIG_REFINEMV
-                               0,
-#endif  // CONFIG_REFINEMV
-                               xd->plane[plane].width, xd->plane[plane].height,
-                               mi_x, mi_y);
-#endif
 
 #if CONFIG_INTERINTRA_IMPROVEMENT
     assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),

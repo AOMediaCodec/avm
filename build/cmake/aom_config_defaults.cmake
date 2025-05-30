@@ -293,12 +293,6 @@ set_aom_config_var(CONFIG_SAME_REF_COMPOUND 1
                    "Allow compound mode to refer to the same reference frame")
 set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
                    "Bug fix on display order hints of key frames")
-set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
-set_aom_config_var(CONFIG_EXPLICIT_BAWP 1
-                   "Explicit signaling for block adaptive weighted prediction")
-set_aom_config_var(CONFIG_BAWP_CHROMA 1
-                   "Enable block adaptive weighted prediction for Chroma")
-
 set_aom_config_var(
   CONFIG_BAWP_FIX_DIVISION_16x16_MC
   1

@@ -813,24 +813,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->warp_extend_cdf[i], NULL);
     }
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
     av1_cost_tokens_from_cdf(mode_costs->bawp_flg_cost[0], fc->bawp_cdf[0],
                              NULL);
     av1_cost_tokens_from_cdf(mode_costs->bawp_flg_cost[1], fc->bawp_cdf[1],
                              NULL);
-#else
-    av1_cost_tokens_from_cdf(mode_costs->bawp_flg_cost, fc->bawp_cdf, NULL);
-#endif  // CONFIG_BAWP_CHROMA
-#if CONFIG_EXPLICIT_BAWP
     for (i = 0; i < BAWP_SCALES_CTX_COUNT; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->explict_bawp_cost[i],
                                fc->explicit_bawp_cdf[i], NULL);
     }
     av1_cost_tokens_from_cdf(mode_costs->explict_bawp_scale_cost,
                              fc->explicit_bawp_scale_cdf, NULL);
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif
+
     for (i = 0; i < COMP_GROUP_IDX_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_group_idx_cost[i],
                                fc->comp_group_idx_cdf[i], NULL);

@@ -44,9 +44,7 @@ void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col);
 
 void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
                                 const BUFFER_SET *ctx,
-#endif
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV

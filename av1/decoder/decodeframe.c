@@ -1010,10 +1010,7 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        int build_for_refine_mv_only
 #endif  // CONFIG_REFINEMV
 ) {
-  av1_build_inter_predictors(cm, &dcb->xd, plane, mi,
-#if CONFIG_BAWP
-                             NULL,
-#endif
+  av1_build_inter_predictors(cm, &dcb->xd, plane, mi, NULL,
 #if CONFIG_REFINEMV
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
@@ -7096,9 +7093,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   seq_params->enable_mv_traj = aom_rb_read_bit(rb);
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   seq_params->enable_bawp = aom_rb_read_bit(rb);
-#endif  // CONFIG_BAWP
   seq_params->enable_cwp = aom_rb_read_bit(rb);
 #if CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
@@ -8981,12 +8976,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   current_frame->skip_mode_info.skip_mode_flag =
       current_frame->skip_mode_info.skip_mode_allowed ? aom_rb_read_bit(rb) : 0;
 
-#if CONFIG_BAWP
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
     features->enable_bawp = aom_rb_read_bit(rb);
   else
     features->enable_bawp = 0;
-#endif  // CONFIG_BAWP
+
 #if CONFIG_MORPH_PRED
   features->enable_intra_bawp = seq_params->enable_bawp;
 #endif  // CONFIG_MORPH_PRED

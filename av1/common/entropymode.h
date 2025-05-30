@@ -410,17 +410,10 @@ typedef struct frame_contexts {
 
   aom_cdf_prob warp_extend_cdf[WARP_EXTEND_CTX][CDF_SIZE(2)];
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
   aom_cdf_prob bawp_cdf[2][CDF_SIZE(2)];
-#else
-  aom_cdf_prob bawp_cdf[CDF_SIZE(2)];
-#endif  // CONFIG_BAWP_CHROMA
-#if CONFIG_EXPLICIT_BAWP
   aom_cdf_prob explicit_bawp_cdf[BAWP_SCALES_CTX_COUNT][CDF_SIZE(2)];
   aom_cdf_prob explicit_bawp_scale_cdf[CDF_SIZE(EXPLICIT_BAWP_SCALE_CNT)];
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif  // CONFIG_BAWP
+
   aom_cdf_prob tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob tip_pred_mode_cdf[CDF_SIZE(TIP_PRED_MODES)];
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];

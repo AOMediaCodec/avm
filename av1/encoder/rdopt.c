@@ -3639,12 +3639,8 @@ static int64_t motion_mode_rd(
             if (!is_warp_mode(mbmi->motion_mode))
               rd_stats->rate += switchable_rate;
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
             if (cm->features.enable_bawp &&
-                av1_allow_bawp(cm, mbmi, mi_row, mi_col))
-#if CONFIG_EXPLICIT_BAWP
-            {
+                av1_allow_bawp(cm, mbmi, mi_row, mi_col)) {
               rd_stats->rate +=
                   mode_costs->bawp_flg_cost[0][mbmi->bawp_flag[0] > 0];
               const int ctx_index =
@@ -3653,7 +3649,7 @@ static int64_t motion_mode_rd(
 #if CONFIG_INTER_MODE_CONSOLIDATION
                       : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
 #else
-                      : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
               if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi))
                 rd_stats->rate +=
@@ -3663,42 +3659,11 @@ static int64_t motion_mode_rd(
                 rd_stats->rate +=
                     mode_costs->explict_bawp_scale_cost[mbmi->bawp_flag[0] - 2];
             }
-#else
-              rd_stats->rate +=
-                  mode_costs->bawp_flg_cost[0][mbmi->bawp_flag[0] == 1];
-#endif  // CONFIG_EXPLICIT_BAWP
             if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
                 mbmi->bawp_flag[0]) {
               rd_stats->rate +=
                   mode_costs->bawp_flg_cost[1][mbmi->bawp_flag[1] == 1];
             }
-#else
-            if (cm->features.enable_bawp &&
-                av1_allow_bawp(cm, mbmi, mi_row, mi_col))
-#if CONFIG_EXPLICIT_BAWP
-            {
-              rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag > 0];
-              const int ctx_index =
-                  (mbmi->mode == NEARMV)
-                      ? 0
-#if CONFIG_INTER_MODE_CONSOLIDATION
-                      : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
-#else
-                      : (mbmi->mode == AMVDNEWMV ? 1 : 2);
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-              if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi))
-                rd_stats->rate +=
-                    mode_costs
-                        ->explict_bawp_cost[ctx_index][mbmi->bawp_flag > 1];
-              if (mbmi->bawp_flag > 1)
-                rd_stats->rate +=
-                    mode_costs->explict_bawp_scale_cost[mbmi->bawp_flag - 2];
-            }
-#else
-              rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag == 1];
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif  // CONFIG_BAWP_CHROMA
-#endif
 
             MOTION_MODE motion_mode = mbmi->motion_mode;
             bool continue_motion_mode_signaling = (mbmi->mode != WARPMV
@@ -5271,16 +5236,10 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
 static int skip_repeated_newmv(
     AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const int do_tx_search, const PREDICTION_MODE this_mode,
-    const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-    const int bawp_flag_y, const int bawp_flag_uv,
-#else
-    const int bawp_flag,
-#endif  // CONFIG_BAWP_CHROMA
-#endif
-    MB_MODE_INFO *best_mbmi, motion_mode_candidate *motion_mode_cand,
-    int64_t *ref_best_rd, RD_STATS *best_rd_stats, RD_STATS *best_rd_stats_y,
+    const MvSubpelPrecision pb_mv_precision, const int bawp_flag_y,
+    const int bawp_flag_uv, MB_MODE_INFO *best_mbmi,
+    motion_mode_candidate *motion_mode_cand, int64_t *ref_best_rd,
+    RD_STATS *best_rd_stats, RD_STATS *best_rd_stats_y,
     RD_STATS *best_rd_stats_uv, inter_mode_info *mode_info,
     HandleInterModeArgs *args, int drl_cost, const MV_REFERENCE_FRAME *refs,
     int_mv *cur_mv, int64_t *best_rd, const BUFFER_SET orig_dst,
@@ -5392,17 +5351,9 @@ static int skip_repeated_newmv(
           if (best_mbmi->ref_mv_idx == i &&
 #endif
                 best_mbmi->mv[0].as_int != ref_mv.as_int &&
-                best_mbmi->pb_mv_precision == pb_mv_precision
-
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-                && best_mbmi->bawp_flag[0] == bawp_flag_y &&
-                best_mbmi->bawp_flag[1] == bawp_flag_uv
-#else
-                && best_mbmi->bawp_flag == bawp_flag
-#endif  // CONFIG_BAWP_CHROMA
-#endif
-            ) {
+                best_mbmi->pb_mv_precision == pb_mv_precision &&
+                best_mbmi->bawp_flag[0] == bawp_flag_y &&
+                best_mbmi->bawp_flag[1] == bawp_flag_uv) {
               assert(*best_rd != INT64_MAX);
               assert(best_mbmi->mv[0].as_int == mode_info[i].mv.as_int);
 #if CONFIG_SEP_COMP_DRL
@@ -5929,29 +5880,11 @@ static int64_t handle_inter_mode(
                                           mbmi->ref_frame, this_mode);
 #endif
 
-#if CONFIG_BAWP
 #if CONFIG_SEP_COMP_DRL
-#if CONFIG_EXPLICIT_BAWP
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
-#else
-  inter_mode_info mode_info[2][NUM_MV_PRECISIONS]
-                           [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
-#endif  // CONFIG_EXPLICIT_BAWP
-#else
-  inter_mode_info mode_info[2][NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH];
-#endif
-
   // initialize mode_info
-#if CONFIG_EXPLICIT_BAWP
   for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
-#else
-  const int is_bawp_allowed = cm->features.enable_bawp &&
-                              av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
-  const int bawp_limit = is_bawp_allowed ? 2 : 1;
-
-  for (int bawp = 0; bawp < bawp_limit; ++bawp) {
-#endif  // CONFIG_EXPLICIT_BAWP
     for (int prec = MV_PRECISION_8_PEL; prec <= mbmi->max_mv_precision;
          ++prec) {
       if (!is_pb_mv_prec_active && prec != mbmi->max_mv_precision) continue;
@@ -5992,15 +5925,8 @@ static int64_t handle_inter_mode(
   }
 #endif
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
@@ -6057,16 +5983,7 @@ static int64_t handle_inter_mode(
   }
 
   int flex_mv_cost[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
-#if CONFIG_BAWP
-#if CONFIG_EXPLICIT_BAWP
   int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS] = { 0 };
-#else
-  int idx_mask[2][NUM_MV_PRECISIONS] = { { 0, 0, 0, 0, 0, 0, 0 },
-                                         { 0, 0, 0, 0, 0, 0, 0 } };
-#endif  // CONFIG_EXPLICIT_BAWP
-#else
-  int idx_mask[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
-#endif
   if (is_pb_mv_prec_active) {
     const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av1_get_mpp_flag_context(cm, xd);
@@ -6085,20 +6002,15 @@ static int64_t handle_inter_mode(
           mode_costs, mbmi->max_mv_precision, pb_mv_precision, down_ctx,
           mbmi->most_probable_pb_mv_precision, mpp_flag_context, mbmi);
       set_mv_precision(mbmi, pb_mv_precision);
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
       mbmi->bawp_flag[0] = 0;
       mbmi->bawp_flag[1] = 0;
-#else
-      mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
+
       idx_mask[0][pb_mv_precision] = ref_mv_idx_to_search(
           cpi, x, rd_stats, args, ref_best_rd, mode_info[0][pb_mv_precision],
           bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-#if CONFIG_BAWP_CHROMA
+
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
         for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
           mbmi->bawp_flag[0] = bawp;
           idx_mask[bawp][pb_mv_precision] =
@@ -6106,103 +6018,32 @@ static int64_t handle_inter_mode(
                                    mode_info[bawp][pb_mv_precision], bsize,
                                    ref_set, flex_mv_cost[pb_mv_precision]);
         }
-#else
-        mbmi->bawp_flag[0] = 1;
-        idx_mask[1][pb_mv_precision] = ref_mv_idx_to_search(
-            cpi, x, rd_stats, args, ref_best_rd, mode_info[1][pb_mv_precision],
-            bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-#endif  // CONFIG_EXPLICIT_BAWP
-#else
-      if (cm->features.enable_bawp &&
-          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
-        for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
-          mbmi->bawp_flag = bawp;
-          idx_mask[bawp][pb_mv_precision] =
-              ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
-                                   mode_info[bawp][pb_mv_precision], bsize,
-                                   ref_set, flex_mv_cost[pb_mv_precision]);
-        }
-#else
-        mbmi->bawp_flag = 1;
-        idx_mask[1][pb_mv_precision] = ref_mv_idx_to_search(
-            cpi, x, rd_stats, args, ref_best_rd, mode_info[1][pb_mv_precision],
-            bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif  // CONFIG_BAWP_CHROMA
-#if CONFIG_BAWP_CHROMA
         mbmi->bawp_flag[0] = 0;
-#else
-        mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
       }
-#else
-      idx_mask[pb_mv_precision] = ref_mv_idx_to_search(
-          cpi, x, rd_stats, args, ref_best_rd, mode_info[pb_mv_precision],
-          bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-#endif
     }
 
     // restore the MV precision to max value
     set_mv_precision(mbmi, mbmi->max_mv_precision);
   } else {
     set_mv_precision(mbmi, mbmi->max_mv_precision);
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
+
     mbmi->bawp_flag[0] = 0;
     mbmi->bawp_flag[1] = 0;
-#else
-    mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
+
     idx_mask[0][mbmi->max_mv_precision] = ref_mv_idx_to_search(
         cpi, x, rd_stats, args, ref_best_rd,
         mode_info[0][mbmi->max_mv_precision], bsize, ref_set, 0);
 
-#if CONFIG_BAWP_CHROMA
     if (cm->features.enable_bawp &&
         av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
       for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
         mbmi->bawp_flag[0] = bawp;
         idx_mask[bawp][mbmi->max_mv_precision] = ref_mv_idx_to_search(
             cpi, x, rd_stats, args, ref_best_rd,
             mode_info[bawp][mbmi->max_mv_precision], bsize, ref_set, 0);
       }
-#else
-      mbmi->bawp_flag[0] = 1;
-      idx_mask[1][mbmi->max_mv_precision] = ref_mv_idx_to_search(
-          cpi, x, rd_stats, args, ref_best_rd,
-          mode_info[1][mbmi->max_mv_precision], bsize, ref_set, 0);
-#endif
-#else
-    if (cm->features.enable_bawp &&
-        av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
-      for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
-        mbmi->bawp_flag = bawp;
-        idx_mask[bawp][mbmi->max_mv_precision] = ref_mv_idx_to_search(
-            cpi, x, rd_stats, args, ref_best_rd,
-            mode_info[bawp][mbmi->max_mv_precision], bsize, ref_set, 0);
-      }
-#else
-      mbmi->bawp_flag = 1;
-      idx_mask[1][mbmi->max_mv_precision] = ref_mv_idx_to_search(
-          cpi, x, rd_stats, args, ref_best_rd,
-          mode_info[1][mbmi->max_mv_precision], bsize, ref_set, 0);
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif  // CONFIG_BAWP_CHROMA
-
-#if CONFIG_BAWP_CHROMA
       mbmi->bawp_flag[0] = 0;
-#else
-      mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
     }
-#else
-    idx_mask[mbmi->max_mv_precision] = ref_mv_idx_to_search(
-        cpi, x, rd_stats, args, ref_best_rd, mode_info[mbmi->max_mv_precision],
-        bsize, ref_set, 0);
-#endif
   }
 
 #if CONFIG_MOTION_MODE_RD_PRUNE
@@ -6439,19 +6280,6 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_SEP_COMP_DRL
             }
 
-#if !CONFIG_BAWP
-            mode_info[mbmi->pb_mv_precision][ref_mv_idx].full_search_mv.as_int =
-                INVALID_MV;
-            mode_info[mbmi->pb_mv_precision][ref_mv_idx].mv.as_int = INVALID_MV;
-            mode_info[mbmi->pb_mv_precision][ref_mv_idx].rd = INT64_MAX;
-            mode_info[mbmi->pb_mv_precision][ref_mv_idx].drl_cost = drl_cost;
-            if (mbmi->mode != WARPMV &&
-                !mask_check_bit(idx_mask[mbmi->pb_mv_precision], ref_mv_idx)) {
-              // MV did not perform well in simple translation search. Skip it.
-              continue;
-            }
-#endif  // !CONFIG_BAWP
-
             if (mbmi->mode != WARPMV && cpi->sf.flexmv_sf.skip_similar_ref_mv &&
                 skip_similar_ref_mv(cpi, x, bsize)) {
               continue;
@@ -6460,41 +6288,32 @@ static int64_t handle_inter_mode(
             assert(IMPLIES(mbmi->mode == WARPMV,
                            mbmi->pb_mv_precision == mbmi->max_mv_precision));
 
-#if CONFIG_BAWP
             int_mv bawp_off_mv[2];
             int64_t bawp_off_newmv_ret_val = 0;
-#if BAWP_BUGFIX
             int bawp_off_rate_mv = 0;
-#endif
             for (i = 0; i < is_comp_pred + 1; ++i) {
               bawp_off_mv[i].as_int = cur_mv[i].as_int;
             }
 
-#if CONFIG_BAWP_CHROMA
             int bawp_eanbled = cm->features.enable_bawp &&
 #if CONFIG_REFINEMV
                                !mbmi->refinemv_flag &&
 #endif  // CONFIG_REFINEMV
                                av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
-#if CONFIG_EXPLICIT_BAWP
             if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
               bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
-#endif  // CONFIG_EXPLICIT_BAWP
             for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
-#if CONFIG_EXPLICIT_BAWP
 #if CONFIG_SEP_COMP_DRL
               if (mbmi->ref_mv_idx[0] > 0 && bawp_flag > 1 &&
                   best_mbmi.bawp_flag[0] == 0)
                 continue;
 #else
-              if (mbmi->ref_mv_idx > 0 && bawp_flag > 1 &&
-                  best_mbmi.bawp_flag[0] == 0)
-                continue;
+            if (mbmi->ref_mv_idx > 0 && bawp_flag > 1 &&
+                best_mbmi.bawp_flag[0] == 0)
+              continue;
 #endif  // CONFIG_SEP_COMP_DRL
               mbmi->bawp_flag[0] = bawp_flag;
-#else
-              mbmi->bawp_flag[0] = bawp_flag;
-#endif  // CONFIG_EXPLICIT_BAWP
+
               for (int bawp_flag_uv = 0; bawp_flag_uv <= AOMMIN(1, bawp_flag);
                    bawp_flag_uv++) {
                 if (bawp_flag_uv &&
@@ -6503,32 +6322,6 @@ static int64_t handle_inter_mode(
                   continue;
                 }
                 mbmi->bawp_flag[1] = bawp_flag_uv;
-#else
-            int bawp_eanbled = cm->features.enable_bawp &&
-#if CONFIG_REFINEMV
-                               !mbmi->refinemv_flag &&
-#endif  // CONFIG_REFINEMV
-                               av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
-#if CONFIG_EXPLICIT_BAWP
-            if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
-              bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
-#endif  // CONFIG_EXPLICIT_BAWP
-            for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
-#if CONFIG_EXPLICIT_BAWP
-#if CONFIG_SEP_COMP_DRL
-              if (mbmi->ref_mv_idx[0] > 0 && bawp_flag > 1 &&
-                  best_mbmi.bawp_flag == 0)
-                continue;
-#else
-              if (mbmi->ref_mv_idx > 0 && bawp_flag > 1 &&
-                  best_mbmi.bawp_flag == 0)
-                continue;
-#endif  // CONFIG_SEP_COMP_DRL
-              mbmi->bawp_flag = bawp_flag;
-#else
-              mbmi->bawp_flag = bawp_flag;
-#endif  // CONFIG_EXPLICIT_BAWP
-#endif  // CONFIG_BAWP_CHROMA
 
 #if CONFIG_SEP_COMP_DRL
                 mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx_type]
@@ -6572,18 +6365,10 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_SEP_COMP_DRL
 
 #if CONFIG_REFINEMV
-#if CONFIG_BAWP_CHROMA
                 assert(!(mbmi->bawp_flag[0] && mbmi->refinemv_flag));
-#else
-                assert(!(mbmi->bawp_flag && mbmi->refinemv_flag));
-#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_BAWP_CHROMA
                 if (mbmi->bawp_flag[0] >= 1) {
-#else
-              if (mbmi->bawp_flag >= 1) {
-#endif                                         // CONFIG_BAWP_CHROMA
                   bawp_off_mv[1].as_int = -1;  // bawp_off_mv[1] won't be used
                                                // when mbmi->bawp_flag==1.
                   assert(is_comp_pred == 0);
@@ -6593,8 +6378,6 @@ static int64_t handle_inter_mode(
                   }
 
 #if CONFIG_SEP_COMP_DRL
-#if CONFIG_EXPLICIT_BAWP
-#if CONFIG_BAWP_CHROMA
                   mode_info[mbmi->bawp_flag[0]][mbmi->pb_mv_precision]
                            [ref_mv_idx_type]
                                .full_search_mv.as_int =
@@ -6605,28 +6388,6 @@ static int64_t handle_inter_mode(
                                .full_mv_rate =
                       mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
                           .full_mv_rate;
-#else
-                  mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision]
-                           [ref_mv_idx_type]
-                               .full_search_mv.as_int =
-                      mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                          .full_search_mv.as_int;
-                  mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision]
-                           [ref_mv_idx_type]
-                               .full_mv_rate =
-                      mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                          .full_mv_rate;
-#endif  // CONFIG_BAWP_CHROMA
-#else
-                  mode_info[1][mbmi->pb_mv_precision][ref_mv_idx_type]
-                      .full_search_mv.as_int =
-                      mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                          .full_search_mv.as_int;
-                  mode_info[1][mbmi->pb_mv_precision][ref_mv_idx_type]
-                      .full_mv_rate =
-                      mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                          .full_mv_rate;
-#endif
 #else
                 mode_info[1][mbmi->pb_mv_precision][ref_mv_idx]
                     .full_search_mv.as_int =
@@ -6637,34 +6398,23 @@ static int64_t handle_inter_mode(
                         .full_mv_rate;
 #endif  // CONFIG_SEP_COMP_DRL
 
-#if BAWP_BUGFIX
                   rate_mv = bawp_off_rate_mv;
-#endif
                   if (bawp_off_newmv_ret_val != 0) continue;
                 } else {
-#endif  // CONFIG_BAWP
-        // The above call to build_cur_mv does not handle NEWMV modes.
-        // Build the mv here if we have NEWMV for any predictors.
+                  // The above call to build_cur_mv does not handle NEWMV modes.
+                  // Build the mv here if we have NEWMV for any predictors.
                   if (have_newmv_in_inter_mode(this_mode)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
                     start_timing(cpi, handle_newmv_time);
 #endif
                     newmv_ret_val = handle_newmv(
                         cpi, x, bsize, cur_mv, &rate_mv, args,
-#if CONFIG_BAWP
                         mode_info[bawp_flag][mbmi->pb_mv_precision]);
-#else
-                mode_info[mbmi->pb_mv_precision]);
-#endif
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
                     end_timing(cpi, handle_newmv_time);
 #endif
-
-#if CONFIG_BAWP
-#if BAWP_BUGFIX
                     bawp_off_rate_mv = rate_mv;
-#endif
                     for (i = 0; i < is_comp_pred + 1; ++i) {
                       bawp_off_mv[i].as_int = cur_mv[i].as_int;
                     }
@@ -6673,10 +6423,6 @@ static int64_t handle_inter_mode(
                   }
                 }
                 if (have_newmv_in_inter_mode(this_mode)) {
-#else
-            if (newmv_ret_val != 0) continue;
-#endif
-
 #if CONFIG_C071_SUBBLK_WARPMV
                   int mv_outlim = 0;
                   for (int ref = 0; ref < is_comp_pred + 1; ref++) {
@@ -6716,22 +6462,11 @@ static int64_t handle_inter_mode(
                   if (skip_new_mv &&
                       skip_repeated_newmv(
                           cpi, x, bsize, do_tx_search, this_mode,
-                          mbmi->pb_mv_precision,
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-                          mbmi->bawp_flag[0], mbmi->bawp_flag[1],
-#else
-                        mbmi->bawp_flag,
-#endif  // CONFIG_BAWP_CHROMA
-#endif
-                          &best_mbmi, motion_mode_cand, &ref_best_rd,
-                          &best_rd_stats, &best_rd_stats_y,
-#if CONFIG_BAWP
+                          mbmi->pb_mv_precision, mbmi->bawp_flag[0],
+                          mbmi->bawp_flag[1], &best_mbmi, motion_mode_cand,
+                          &ref_best_rd, &best_rd_stats, &best_rd_stats_y,
                           &best_rd_stats_uv,
                           mode_info[bawp_flag][mbmi->pb_mv_precision], args,
-#else
-                    &best_rd_stats_uv, mode_info[mbmi->pb_mv_precision], args,
-#endif
                           drl_cost, refs, cur_mv, &best_rd, orig_dst,
                           ref_mv_idx))
                     continue;
@@ -6759,14 +6494,14 @@ static int64_t handle_inter_mode(
 #if CONFIG_COMPOUND_WARP_CAUSAL
                   mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
 #else
-          mbmi->num_proj_ref = 0;
+              mbmi->num_proj_ref = 0;
 #endif
                   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SEP_COMP_DRL
                   mbmi->ref_mv_idx[0] = ref_mv_idx[0];
                   mbmi->ref_mv_idx[1] = ref_mv_idx[1];
 #else
-          mbmi->ref_mv_idx = ref_mv_idx;
+              mbmi->ref_mv_idx = ref_mv_idx;
 #endif  // CONFIG_SEP_COMP_DRL
 
                   // Compute cost for signalling this DRL index
@@ -6798,7 +6533,7 @@ static int64_t handle_inter_mode(
                             cm, xd, bsize)][mbmi->refinemv_flag];
                   }
 #else
-          rd_stats->rate += rate_mv;
+              rd_stats->rate += rate_mv;
 #endif  // CONFIG_REFINEMV
 
                   // Copy the motion vector for this mode into mbmi struct
@@ -6807,14 +6542,14 @@ static int64_t handle_inter_mode(
                     mbmi->mv[i].as_int = tmp_cur_mv[i].as_int;
 #else
 
-            mbmi->mv[i].as_int = cur_mv[i].as_int;
+                mbmi->mv[i].as_int = cur_mv[i].as_int;
 #endif  // CONFIG_REFINEMV
                   }
 #if CONFIG_C071_SUBBLK_WARPMV
                   assert(check_mv_precision(cm, mbmi, x));
 
 #else
-          assert(check_mv_precision(cm, mbmi));
+              assert(check_mv_precision(cm, mbmi));
 
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -6825,7 +6560,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_SEP_COMP_DRL
                       mbmi->ref_mv_idx[0] == 0 && mbmi->ref_mv_idx[1] == 0;
 #else
-              mbmi->ref_mv_idx == 0;
+                  mbmi->ref_mv_idx == 0;
 #endif  // CONFIG_SEP_COMP_DRL
                   if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd &&
                       !like_nearest) {
@@ -6881,7 +6616,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                         tmp_cur_mv,
 #else
-                cur_mv,
+                    cur_mv,
 #endif  // CONFIG_REFINEMV
                         bsize, &compmode_interinter_cost, rd_buffers, &orig_dst,
                         &tmp_dst,
@@ -6890,7 +6625,7 @@ static int64_t handle_inter_mode(
                         &tmp_rate_mv,
 #else
 
-                &rate_mv,
+                    &rate_mv,
 #endif  // CONFIG_REFINEMV
 
                         rd_stats, skip_rd, &skip_build_pred);
@@ -6912,7 +6647,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_C071_SUBBLK_WARPMV
                   assert(check_mv_precision(cm, mbmi, x));
 #else
-          assert(check_mv_precision(cm, mbmi));
+              assert(check_mv_precision(cm, mbmi));
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -6933,7 +6668,7 @@ static int64_t handle_inter_mode(
 
 #else
 
-          assert(check_mv_precision(cm, mbmi));
+              assert(check_mv_precision(cm, mbmi));
 
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -6943,7 +6678,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_SEP_COMP_DRL
                     args->modelled_rd[this_mode][ref_mv_idx_type][refs[0]] = rd;
 #else
-            args->modelled_rd[this_mode][ref_mv_idx][refs[0]] = rd;
+                args->modelled_rd[this_mode][ref_mv_idx][refs[0]] = rd;
 #endif  // CONFIG_SEP_COMP_DRL
                   }
 
@@ -6975,8 +6710,8 @@ static int64_t handle_inter_mode(
                                  args->modelled_rd[mode1][get_ref_mv_idx(
                                      mbmi, 1)][refs[1]]);
 #else
-                  AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],
-                         args->modelled_rd[mode1][ref_mv_idx][refs[1]]);
+                      AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],
+                             args->modelled_rd[mode1][ref_mv_idx][refs[1]]);
 #endif  // CONFIG_SEP_COMP_DRL
                       if ((rd >> 3) * 6 > mrd && ref_best_rd < INT64_MAX) {
                         restore_dst_buf(xd, orig_dst, num_planes);
@@ -7010,8 +6745,8 @@ static int64_t handle_inter_mode(
                       mbmi->mode == WARPMV,
                       (rd_stats->rate == base_rate && tmp_rate_mv == 0)));
 #else
-          assert(IMPLIES(mbmi->mode == WARPMV,
-                         (rd_stats->rate == base_rate && rate_mv == 0)));
+              assert(IMPLIES(mbmi->mode == WARPMV,
+                             (rd_stats->rate == base_rate && rate_mv == 0)));
 #endif  // CONFIG_REFINEMV
         // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
         // WARP_CAUSAL or WARP_EXTEND or WARP_DELTA
@@ -7021,7 +6756,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                       &tmp_rate_mv,
 #else
-              &rate_mv,
+                  &rate_mv,
 #endif  // CONFIG_REFINEMV
                       &orig_dst, best_est_rd, do_tx_search, inter_modes_info,
 #if CONFIG_MOTION_MODE_RD_PRUNE
@@ -7040,7 +6775,7 @@ static int64_t handle_inter_mode(
 
 #else
 
-          assert(check_mv_precision(cm, mbmi));
+              assert(check_mv_precision(cm, mbmi));
 
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -7054,7 +6789,6 @@ static int64_t handle_inter_mode(
                       best_precision_dx_so_far = precision_dx;
                       best_precision_rd_so_far = tmp_rd;
                     }
-#if CONFIG_BAWP
 #if CONFIG_SEP_COMP_DRL
                     if (tmp_rd < mode_info[bawp_flag][mbmi->pb_mv_precision]
                                           [ref_mv_idx_type]
@@ -7078,58 +6812,25 @@ static int64_t handle_inter_mode(
                                    .rd = tmp_rd;
                     }
 #else
-                  if (tmp_rd <
-                      mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
-                          .rd) {
-                    // Only update mode_info if the new result is actually
-                    // better.
+                if (tmp_rd <
                     mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
-                        .mv.as_int = mbmi->mv[0].as_int;
+                        .rd) {
+                  // Only update mode_info if the new result is actually
+                  // better.
+                  mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
+                      .mv.as_int = mbmi->mv[0].as_int;
 #if CONFIG_REFINEMV
-                    mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
-                        .rate_mv = tmp_rate_mv;
+                  mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
+                      .rate_mv = tmp_rate_mv;
 #else
-                    mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
-                        .rate_mv = rate_mv;
+                  mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
+                      .rate_mv = rate_mv;
 #endif  // CONFIG_REFINEMV
-                    mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx].rd =
-                        tmp_rd;
-                  }
+                  mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx].rd =
+                      tmp_rd;
+                }
 #endif  // CONFIG_SEP_COMP_DRL
-#else
-#if CONFIG_SEP_COMP_DRL
-            if (tmp_rd < mode_info[mbmi->pb_mv_precision][ref_mv_idx_type].rd) {
-              // Only update mode_info if the new result is actually
-              // better.
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx_type].mv.as_int =
-                  mbmi->mv[0].as_int;
-#if CONFIG_REFINEMV
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx_type].rate_mv =
-                  tmp_rate_mv;
-#else
 
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx_type].rate_mv =
-                  rate_mv;
-#endif  // CONFIG_REFINEMV
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx_type].rd = tmp_rd;
-            }
-#else
-            if (tmp_rd < mode_info[mbmi->pb_mv_precision][ref_mv_idx].rd) {
-              // Only update mode_info if the new result is actually
-              // better.
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx].mv.as_int =
-                  mbmi->mv[0].as_int;
-#if CONFIG_REFINEMV
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx].rate_mv =
-                  tmp_rate_mv;
-#else
-
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx].rate_mv = rate_mv;
-#endif  // CONFIG_REFINEMV
-              mode_info[mbmi->pb_mv_precision][ref_mv_idx].rd = tmp_rd;
-            }
-#endif  // CONFIG_SEP_COMP_DRL
-#endif
                     // Collect mode stats for multiwinner mode processing
                     store_winner_mode_stats(
                         &cpi->common, x, mbmi, rd_stats, rd_stats_y,
@@ -7167,7 +6868,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                       motion_mode_cand->rate_mv = tmp_rate_mv;
 #else
-              motion_mode_cand->rate_mv = rate_mv;
+                  motion_mode_cand->rate_mv = rate_mv;
 #endif  // CONFIG_REFINEMV
                       motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
                     }
@@ -7177,7 +6878,7 @@ static int64_t handle_inter_mode(
 
 #else
 
-            assert(check_mv_precision(cm, mbmi));
+                assert(check_mv_precision(cm, mbmi));
 
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -7193,20 +6894,16 @@ static int64_t handle_inter_mode(
                       best_ref_mv_idx[0] = ref_mv_idx[0];
                       best_ref_mv_idx[1] = ref_mv_idx[1];
 #else
-              best_ref_mv_idx = ref_mv_idx;
+                  best_ref_mv_idx = ref_mv_idx;
 #endif  // CONFIG_SEP_COMP_DRL
                     }
                   }
                   restore_dst_buf(xd, orig_dst, num_planes);
 #if CONFIG_REFINEMV
                 }
-#endif  // CONFIG_REFINEMV
-#if CONFIG_BAWP
-              }
-#if CONFIG_BAWP_CHROMA
-            }
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+#endif           // CONFIG_REFINEMV
+              }  // bawp_chroma loop
+            }    // bawp loop
           }
         }
       }
@@ -7691,15 +7388,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   const int is_ibc_cost = 1;
 #endif
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -8718,16 +8408,8 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
-
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_DIP
   mbmi->use_intra_dip = 0;
@@ -10231,15 +9913,8 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
 #endif  // CONFIG_WARP_INTER_INTRA
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
   mbmi->jmvd_scale_mode = 0;
 }
 
@@ -11004,17 +10679,14 @@ static void tx_search_best_inter_candidates(
     }
 
     // Build the prediction for this mode
-#if CONFIG_BAWP
+    // Set buf for bawp to access the neigboring samples
     struct macroblockd_plane *p = xd->plane;
     const BUFFER_SET orig_dst = {
       { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
       { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
     };
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
-#else
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-#endif
-                                  0, av1_num_planes(cm) - 1);
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize, 0,
+                                  av1_num_planes(cm) - 1);
 
     // Initialize RD stats
     RD_STATS rd_stats;
@@ -11329,15 +11001,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   set_mv_precision(mbmi, mbmi->max_mv_precision);
   set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 #if CONFIG_D072_SKIP_MODE_IMPROVE
   // Reset skip mode flag.
   mbmi->skip_mode = 0;
@@ -12333,15 +11998,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV

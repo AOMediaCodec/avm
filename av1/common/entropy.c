@@ -302,18 +302,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warp_param_sign_cdf, 2);
 #endif  // CONFIG_WARP_PRECISION
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
   RESET_CDF_COUNTER(fc->bawp_cdf[0], 2);
   RESET_CDF_COUNTER(fc->bawp_cdf[1], 2);
-#else
-  RESET_CDF_COUNTER(fc->bawp_cdf, 2);
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
-#if CONFIG_EXPLICIT_BAWP
   RESET_CDF_COUNTER(fc->explicit_bawp_cdf, 2);
   RESET_CDF_COUNTER(fc->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
-#endif  // CONFIG_EXPLICIT_BAWP
   RESET_CDF_COUNTER(fc->tip_cdf, 2);
   RESET_CDF_COUNTER(fc->tip_pred_mode_cdf, TIP_PRED_MODES);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);

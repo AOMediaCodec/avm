@@ -3364,7 +3364,6 @@ void av1_build_one_inter_predictor(
   }
 }
 
-#if CONFIG_BAWP
 #if CONFIG_BAWP_ACROSS_SCALES
 // The below functions are used for scaling X, Y position
 // for BAWP with across scale prediction
@@ -3452,17 +3451,9 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 {
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_MORPH_PRED
-#if CONFIG_BAWP_CHROMA
   if (!mbmi->morph_pred) assert(mbmi->bawp_flag[0] >= 1);
 #else
-  if (!mbmi->morph_pred) assert(mbmi->bawp_flag == 1);
-#endif  // CONFIG_BAWP_CHROMA
-#else
-#if CONFIG_BAWP_CHROMA
   assert(mbmi->bawp_flag[0] >= 1);
-#else
-  assert(mbmi->bawp_flag == 1);
-#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_MORPH_PRED
   // only integer position of reference, may need to consider
   // fractional position of ref samples
@@ -3626,11 +3617,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #endif                      // CONFIG_BAWP_FIX_DIVISION_16x16_MC
   const int16_t shift = 8;  // maybe a smaller value can be used
 
-#if CONFIG_BAWP_CHROMA
   if (mbmi->bawp_flag[0] > 1 && plane == 0) {
-#else
-  if (mbmi->bawp_flag > 1) {
-#endif  // CONFIG_BAWP_CHROMA
     if (count > 0) {
       const int beta = derive_linear_parameters_beta(
           sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
@@ -3640,7 +3627,6 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     }
   } else {
     if (count > 0) {
-#if CONFIG_BAWP_CHROMA
       if (plane == 0) {
         const int16_t alpha = derive_linear_parameters_alpha(
             sum_x, sum_y, sum_xx, sum_xy, count, shift);
@@ -3648,11 +3634,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
       } else {
         mbmi->bawp_alpha[plane][ref] = mbmi->bawp_alpha[0][ref];
       }
-#else
-      const int16_t alpha = derive_linear_parameters_alpha(
-          sum_x, sum_y, sum_xx, sum_xy, count, shift);
-      mbmi->bawp_alpha[plane][ref] = (alpha == 0) ? (1 << shift) : alpha;
-#endif  // CONFIG_BAWP_CHROMA
+
       const int beta = derive_linear_parameters_beta(
           sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
       mbmi->bawp_beta[plane][ref] = beta;
@@ -3809,13 +3791,7 @@ void av1_build_one_bawp_inter_predictor(
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
 #endif  // CONFIG_BAWP_ACROSS_SCALES
-#if CONFIG_EXPLICIT_BAWP
-#if CONFIG_BAWP_CHROMA
-    if (mbmi->bawp_flag[0] > 1 && plane == 0)
-#else
-    if (mbmi->bawp_flag > 1)
-#endif  // CONFIG_BAWP_CHROMA
-    {
+    if (mbmi->bawp_flag[0] > 1 && plane == 0) {
       const int first_ref_dist =
           cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
       const int bawp_scale_table[3][EXPLICIT_BAWP_SCALE_CNT] = { { -1, 1 },
@@ -3829,17 +3805,14 @@ void av1_build_one_bawp_inter_predictor(
 #else
               : (mbmi->mode == AMVDNEWMV ? 1 : 2);
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-#if CONFIG_BAWP_CHROMA
+
       int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag[0] - 2];
-#else
-      int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag - 2];
-#endif  // CONFIG_BAWP_CHROMA
       const int delta_sign = delta_scales > 0 ? 1 : -1;
       const int delta_magtitude = delta_sign * delta_scales;
       if (first_ref_dist > 4) delta_scales = delta_sign * (delta_magtitude + 1);
       mbmi->bawp_alpha[plane][ref] = 256 + (delta_scales * 16);
     }
-#endif  // CONFIG_EXPLICIT_BAWP
+
     derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
 #if CONFIG_BAWP_ACROSS_SCALES
                            ref_left, ref_stride, ref, plane, ref_w, ref_h, sf);
@@ -3852,7 +3825,6 @@ void av1_build_one_bawp_inter_predictor(
   int32_t beta = mbmi->bawp_beta[plane][ref];
   av1_make_bawp_block(dst, dst_stride, alpha, beta, shift, bw, bh, xd->bd);
 }
-#endif  // CONFIG_BAWP
 
 // True if the following hold:
 //  1. Not intrabc
@@ -5166,11 +5138,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   const int ss_y = pd->subsampling_y;
   assert(!is_intrabc_block(mi, xd->tree_type));
   assert(is_compound);
-#if CONFIG_BAWP_CHROMA
   assert(!mi->bawp_flag[0]);
-#else
-  assert(!mi->bawp_flag);
-#endif  // CONFIG_BAWP_CHROMA
   assert(!is_masked_compound_type(mi->interinter_comp.type));
 
   assert(mi->cwp_idx == CWP_EQUAL);
@@ -5508,9 +5476,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 static void build_inter_predictors_8x8_and_bigger(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
     const BUFFER_SET *dst_orig,
-#endif  // CONFIG_BAWP
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -5574,11 +5540,7 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(mi->refinemv_flag, is_compound));
   assert(IMPLIES(mi->refinemv_flag && switchable_refinemv_flag(cm, mi),
                  mi->interinter_comp.type == COMPOUND_AVERAGE));
-#if CONFIG_BAWP_CHROMA
   assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag[0] == 0));
-#else
-  assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag == 0));
-#endif  // CONFIG_BAWP_CHROMA
   assert(IMPLIES(mi->refinemv_flag, mi->interp_fltr == MULTITAP_SHARP));
 
   assert(IMPLIES(tip_ref_frame,
@@ -6127,18 +6089,12 @@ static void build_inter_predictors_8x8_and_bigger(
       );
       continue;
     }
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
     if (mi->bawp_flag[0] > 0 && (plane == 0 || mi->bawp_flag[1])) {
-#else
-    if (mi->bawp_flag > 0 && plane == 0) {
-#endif  // CONFIG_BAWP_CHROMA
       av1_build_one_bawp_inter_predictor(
           dst, dst_stride, &mv, &inter_pred_params, cm, xd, dst_orig, bw, bh,
           mi_x, mi_y, ref, plane, mc_buf, calc_subpel_params_func);
       continue;
     }
-#endif  // CONFIG_BAWP
 
 #if CONFIG_TIP_ENHANCEMENT
     if (tip_ref_frame) {
@@ -6166,9 +6122,7 @@ static void build_inter_predictors_8x8_and_bigger(
 // and the non-TIP ref mode block.
 static void build_inter_predictors_8x8_and_bigger_facade(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
     const BUFFER_SET *dst_orig,
-#endif  // CONFIG_BAWP
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -6253,10 +6207,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
                        ((col_offset << TMVP_MI_SZ_LOG2) >> ss_x);
 
         build_inter_predictors_8x8_and_bigger(
-            cm, xd, plane, mi,
-#if CONFIG_BAWP
-            dst_orig,
-#endif
+            cm, xd, plane, mi, dst_orig,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
             build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -6279,10 +6230,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   } else {
     MV mv[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
     build_inter_predictors_8x8_and_bigger(
-        cm, xd, plane, mi,
-#if CONFIG_BAWP
-        dst_orig,
-#endif
+        cm, xd, plane, mi, dst_orig,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
         build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
@@ -6302,9 +6250,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
-#if CONFIG_BAWP
                                 const BUFFER_SET *dst_orig,
-#endif
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
@@ -6332,10 +6278,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
     build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y, mc_buf,
                                   calc_subpel_params_func);
   } else {
-    build_inter_predictors_8x8_and_bigger_facade(cm, xd, plane, mi,
-#if CONFIG_BAWP
-                                                 dst_orig,
-#endif
+    build_inter_predictors_8x8_and_bigger_facade(cm, xd, plane, mi, dst_orig,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
                                                  build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE

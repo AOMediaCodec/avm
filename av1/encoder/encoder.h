@@ -901,10 +901,8 @@ typedef struct {
   // enable MV trajectory tracking
   int enable_mv_traj;
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   // enable block adaptive weighted prediction
   int enable_bawp;
-#endif  // CONFIG_BAWP
   // enable compound weighted prediction
   int enable_cwp;
 #if CONFIG_D071_IMP_MSK_BLD
@@ -1642,9 +1640,7 @@ typedef struct FRAME_COUNTS {
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   int8_t cwp_idx[MAX_CWP_NUM - 1][2];
-#if CONFIG_BAWP
   unsigned int bawp[2];
-#endif  // CONFIG_BAWP
   unsigned int tip_ref[TIP_CONTEXTS][2];
   unsigned int tip_pred_mode_cnt[TIP_PRED_MODES];
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];

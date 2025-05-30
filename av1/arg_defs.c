@@ -433,11 +433,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                             "(0: disable MV traj tracking, "
                             " 1: enable MV traj tracking (default))"),
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
+
   .enable_bawp = ARG_DEF(NULL, "enable-bawp", 1,
                          "Enable block adaptive weighted prediction (BAWP)"
                          "(0: false, 1: true (default))"),
-#endif  // CONFIG_BAWP
+
   .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
                         "Enable compound weighted prediction (CWP)"
                         "(0: false, 1: true (default))"),

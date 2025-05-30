@@ -451,9 +451,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   &g_av1_codec_arg_defs.enable_mv_traj,
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
-#endif  // CONFIG_BAWP
 #if CONFIG_ENABLE_MHCCP
   &g_av1_codec_arg_defs.enable_mhccp,
 #endif  // CONFIG_ENABLE_MHCCP
@@ -673,9 +671,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_extended_sdp = 1;
   config->enable_mrls = 1;
   config->enable_tip = 1;
-#if CONFIG_BAWP
   config->enable_bawp = 1;
-#endif  // CONFIG_BAWP
   config->enable_cwp = 1;
 #if CONFIG_D071_IMP_MSK_BLD
   config->enable_imp_msk_bld = 1;
@@ -1649,10 +1645,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : MV traj (%d)\n",
           encoder_cfg->enable_mv_traj);
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   fprintf(stdout, "                               : BAWP (%d)\n",
           encoder_cfg->enable_bawp);
-#endif  // CONFIG_BAWP
   fprintf(stdout, "                               : CWP (%d)\n",
           encoder_cfg->enable_cwp);
 

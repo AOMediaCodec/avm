@@ -485,16 +485,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                            &mbmi->chroma_ref_info);
     }
     int start_plane = 0;
-#if CONFIG_BAWP
+    // set the buf to access the neighboring samples for bawp
     struct macroblockd_plane *p = xd->plane;
     const BUFFER_SET orig_dst = {
       { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
       { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
     };
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
-#else
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-#endif
                                   start_plane, av1_num_planes(cm) - 1);
 
 #if CONFIG_MISMATCH_DEBUG
@@ -1759,11 +1756,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_BRU
       }
 #endif  // CONFIG_BRU
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
+
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
         update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
         if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
           const int ctx_index =
@@ -1781,9 +1776,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                        EXPLICIT_BAWP_SCALE_CNT);
           }
         }
-#else
-        update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] == 1, 2);
-#endif  // CONFIG_EXPLICIT_BAWP
         if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
             mbmi->bawp_flag[0]) {
           update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
@@ -1792,35 +1784,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         counts->bawp[mbmi->bawp_flag[0] == 1]++;
 #endif  // CONFIG_ENTROPY_STATS
       }
-#else
-      if (cm->features.enable_bawp &&
-          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-#if CONFIG_EXPLICIT_BAWP
-        update_cdf(fc->bawp_cdf, mbmi->bawp_flag > 0, 2);
-        if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi)) {
-          const int ctx_index =
-              (mbmi->mode == NEARMV)
-                  ? 0
-#if CONFIG_INTER_MODE_CONSOLIDATION
-                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
-#else
-                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-          update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag > 1, 2);
-          if (mbmi->bawp_flag > 1) {
-            update_cdf(fc->explicit_bawp_scale_cdf, mbmi->bawp_flag - 2,
-                       EXPLICIT_BAWP_SCALE_CNT);
-          }
-        }
-#else
-        update_cdf(fc->bawp_cdf, mbmi->bawp_flag == 1, 2);
-#endif  // CONFIG_EXPLICIT_BAWP
-#if CONFIG_ENTROPY_STATS
-        counts->bawp[mbmi->bawp_flag == 1]++;
-#endif  // CONFIG_ENTROPY_STATS
-      }
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
 
       const int allowed_motion_modes = motion_mode_allowed(
           cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);

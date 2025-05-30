@@ -162,9 +162,7 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   arg_def_t enable_mv_traj;
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_BAWP
   arg_def_t enable_bawp;
-#endif  // CONFIG_BAWP
   arg_def_t enable_cwp;
 #if CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_imp_msk_bld;

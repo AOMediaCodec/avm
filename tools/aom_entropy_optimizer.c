@@ -1484,13 +1484,11 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
   /* Bawp flag */
-#if CONFIG_BAWP
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.bawp[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_bawp_cdf[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif
   /* Intra/inter flag */
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   cts_each_dim[0] = INTRA_INTER_SKIP_TXFM_CONTEXTS;

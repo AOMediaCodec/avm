@@ -89,9 +89,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_extended_sdp);
     GET_PARAMS(enable_mrls);
     GET_PARAMS(enable_tip);
-#if CONFIG_BAWP
     GET_PARAMS(enable_bawp);
-#endif  // CONFIG_BAWP
     GET_PARAMS(enable_cwp);
 #if CONFIG_D071_IMP_MSK_BLD
     GET_PARAMS(enable_imp_msk_bld);

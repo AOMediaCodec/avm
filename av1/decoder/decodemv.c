@@ -2136,15 +2136,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-    for (int plane = 0; plane < 2; ++plane) {
-      mbmi->bawp_flag[plane] = 0;
-    }
-#else
-    mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+    mbmi->bawp_flag[0] = 0;
+    mbmi->bawp_flag[1] = 0;
 #if !CONFIG_C076_INTER_MOD_CTX
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
 #endif  // !CONFIG_C076_INTER_MOD_CTX
@@ -3233,15 +3226,8 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -3967,15 +3953,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -4170,13 +4149,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->valid_num_warp_candidates);
 #endif  // CONFIG_SEP_COMP_DRL
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag[0] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[0], 2,
                                              ACCT_INFO("bawp_flag_luma"));
-#if CONFIG_EXPLICIT_BAWP
         if (mbmi->bawp_flag[0] && av1_allow_explicit_bawp(mbmi)) {
           const int ctx_index =
               (mbmi->mode == NEARMV)
@@ -4195,7 +4171,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
               r, xd->tile_ctx->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT,
               ACCT_INFO("explicit_bawp_scales"));
         }
-#endif  // CONFIG_EXPLICIT_BAWP
       }
 
       if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
@@ -4205,34 +4180,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       } else {
         mbmi->bawp_flag[1] = 0;
       }
-#else
-      if (cm->features.enable_bawp &&
-          av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-        mbmi->bawp_flag = aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2,
-                                          ACCT_INFO("bawp_flag"));
-#if CONFIG_EXPLICIT_BAWP
-        if (mbmi->bawp_flag && av1_allow_explicit_bawp(mbmi)) {
-          const int ctx_index =
-              (mbmi->mode == NEARMV)
-                  ? 0
-#if CONFIG_INTER_MODE_CONSOLIDATION
-                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
-#else
-                  : (mbmi->mode == AMVDNEWMV ? 1 : 2);
-#endif  // CONFIG_INTER_MODE_CONSOLIDATION
-          mbmi->bawp_flag +=
-              aom_read_symbol(r, xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2,
-                              ACCT_INFO("explicit_bawp_flag"));
-        }
-        if (mbmi->bawp_flag > 1) {
-          mbmi->bawp_flag += aom_read_symbol(
-              r, xd->tile_ctx->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT,
-              ACCT_INFO("explicit_bawp_scales"));
-        }
-#endif  // CONFIG_EXPLICIT_BAWP
-      }
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
 
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
         const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
@@ -4822,15 +4769,8 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
   set_most_probable_mv_precision(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
 
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-  for (int plane = 0; plane < 2; ++plane) {
-    mbmi->bawp_flag[plane] = 0;
-  }
-#else
-  mbmi->bawp_flag = 0;
-#endif  // CONFIG_BAWP_CHROMA
-#endif
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;

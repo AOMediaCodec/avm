@@ -575,21 +575,14 @@ typedef struct MB_MODE_INFO {
   int8_t interintra_wedge_index;
   /*! \brief Struct that stores the data used in interinter compound mode. */
   INTERINTER_COMPOUND_DATA interinter_comp;
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
+
   /*! \brief The block level bawp enabling flag, and the value range for
-   * bawp_flag depends on whether CONFIG_EXPLICIT_BAWP is turned on or not.*/
+   * bawp_flag depends on whether EXPLICIT_BAWP is turned on or not.*/
   int8_t bawp_flag[2];  //[luma/chroma]
-#else
-  /*! \brief The block level bawp enabling flag, and the value range for
-   * bawp_flag depends on whether CONFIG_EXPLICIT_BAWP is turned on or not.*/
-  int8_t bawp_flag;
-#endif  // CONFIG_BAWP_CHROMA
   /*! \brief The bawp parameters weight*/
   int16_t bawp_alpha[3][2];  //[yuv][ref0/1], current only [0][0] is used.
   /*! \brief The bawp parameters offset*/
   int32_t bawp_beta[3][2];  //[yuv][ref0/1], current only [0][0] is used.
-#endif                      // CONFIG_BAWP
 
   //! Index for compound weighted prediction parameters.
   int8_t cwp_idx;
@@ -4067,15 +4060,7 @@ static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
-         is_interintra_allowed_ref(mbmi->ref_frame)
-#if CONFIG_BAWP
-#if CONFIG_BAWP_CHROMA
-         && mbmi->bawp_flag[0] == 0
-#else
-         && mbmi->bawp_flag == 0
-#endif  // CONFIG_BAWP_CHROMA
-#endif  // CONFIG_BAWP
-      ;
+         is_interintra_allowed_ref(mbmi->ref_frame) && mbmi->bawp_flag[0] == 0;
 }
 
 static INLINE int is_interintra_allowed_bsize_group(int group) {
