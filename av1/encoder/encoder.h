@@ -2632,6 +2632,8 @@ typedef struct {
 } TimeStamps;
 
 #if CONFIG_BRU
+/*!\cond */
+
 /*!
  * \brief structure store active sb locaitons in queue
  */
@@ -2700,6 +2702,7 @@ static INLINE bool is_valid_ard_location(int x, int y, int width, int height) {
   return (x >= 0 && x < width && y >= 0 && y < height);
 }
 
+/*!\endcond */
 #endif  // CONFIG_BRU
 
 /*!

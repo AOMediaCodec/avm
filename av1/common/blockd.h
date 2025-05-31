@@ -1976,6 +1976,9 @@ typedef struct {
    * the first bank slot and in turn used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
+  /*!
+   * Number of available reference filters.
+   */
   int num_ref_filters;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfo;
@@ -2100,10 +2103,12 @@ typedef struct {
    */
   CANDIDATE_MV rmb_buffer[REF_MV_BANK_LIST_NUM][REF_MV_BANK_SIZE];
 #if CONFIG_LC_REF_MV_BANK
-  // Single inter with 0~5 has its own ref mv bank list;
-  // Compound inter with [0, 0] and [0, 1] has its own ref mv bank list;
-  // For all other inter predictions, they share one ref mv bank list, thus it
-  // needs to store the ref frames.
+  /*!
+   * Single inter with 0~5 has its own ref mv bank list;
+   * Compound inter with [0, 0] and [0, 1] has its own ref mv bank list;
+   * For all other inter predictions, they share one ref mv bank list, thus it
+   * needs to store the ref frames.
+   */
   MV_REFERENCE_FRAME rmb_ref_frame[REF_MV_BANK_SIZE];
 #endif  // CONFIG_LC_REF_MV_BANK
   /*!

@@ -2687,6 +2687,7 @@ static int prune_motion_mode(int64_t this_model_rd,
  *                                  information to perform a full transform
  *                                  search only on winning candidates searched
  *                                  with an estimate for transform coding RD.
+ * \param[in,out] top_motion_mode_model_rd       Top motion mode model RDs.
  * \param[in]     eval_motion_mode  Boolean whether or not to evaluate motion
  *                                  motion modes other than SIMPLE_TRANSLATION.
  * \return Returns INT64_MAX if the determined motion mode is invalid and the

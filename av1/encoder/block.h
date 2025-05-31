@@ -1118,6 +1118,7 @@ typedef struct {
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
 #if CONFIG_INTER_MODE_CONSOLIDATION
+  //! tip_drl_mode_cost
   int tip_drl_mode_cost[3][2];
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -1167,9 +1168,10 @@ typedef struct {
 #else
   int use_optflow_cost[INTER_MODE_CONTEXTS][2];
 #endif  // CONFIG_OPFL_CTX_OPT
-  /*! inter_compound_mode_cost */
 #if CONFIG_INTER_COMPOUND_BY_JOINT
+  /*! Cost to signal if inter compound mode is joint or not. */
   int inter_compound_mode_is_joint_cost[NUM_CTX_IS_JOINT][NUM_OPTIONS_IS_JOINT];
+  /*! Cost to signal non-joint inter compound mode type. */
   int inter_compound_mode_non_joint_type_cost[NUM_CTX_NON_JOINT_TYPE]
                                              [NUM_OPTIONS_NON_JOINT_TYPE];
 #if !CONFIG_INTER_MODE_CONSOLIDATION
@@ -1177,6 +1179,7 @@ typedef struct {
                                          [NUM_OPTIONS_JOINT_TYPE];
 #endif  //! CONFIG_INTER_MODE_CONSOLIDATION
 #else
+  /*! inter_compound_mode_cost */
   int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_REF_TYPES];
 #endif  // CONFIG_INTER_COMPOUND_BY_JOINT
   /*! inter_compound_mode_same_refs_cost */
@@ -1206,7 +1209,9 @@ typedef struct {
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_REDUCE_SYMBOL_SIZE
+  //! wedge_quad_cost
   int wedge_quad_cost[WEDGE_QUADS];
+  //! wedge_angle_cost
   int wedge_angle_cost[WEDGE_QUADS][QUAD_WEDGE_ANGLES];
 #else
   //! wedge_angle_dir_cost

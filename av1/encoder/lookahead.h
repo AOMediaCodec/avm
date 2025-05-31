@@ -132,10 +132,9 @@ struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
 #if CONFIG_BRU
 /**\brief One entry leave the queue
  *
- * \param[in] ctx       Pointer to the lookahead context
- * \param[in] left_order_hint, which frame need to leave
- * \param[in] cur_order_hint
- * \param[in] stage     Encoder stage
+ * \param[in] ctx               Pointer to the lookahead context
+ * \param[in] left_order_hint   which frame need to leave
+ * \param[in] stage             Encoder stage
  *
  * \retval Return NULL, if no buffer exists at the specified index
  */
@@ -143,10 +142,12 @@ struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
                                             int left_order_hint,
                                             COMPRESSOR_STAGE stage);
 
+/*!\cond */
 void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
                                int refresh_frame_flags,
                                RefCntBuffer *const ref_frame_map[REF_FRAMES],
                                COMPRESSOR_STAGE stage);
+/*!\endcond */
 #endif  // CONFIG_BRU
 
 /**\brief Get the number of frames currently in the lookahead queue

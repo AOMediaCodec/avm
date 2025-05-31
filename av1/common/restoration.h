@@ -441,11 +441,13 @@ typedef struct {
   int skip_pcwiener_filtering;
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_BRU
+  /*!\cond */
   MB_MODE_INFO **mbmi_ptr;
   int mi_stride;
   int ss_x;
   int ss_y;
   struct aom_internal_error_info *error;
+  /*!\endcond */
 #endif  // CONFIG_BRU
 } RestorationUnitInfo;
 

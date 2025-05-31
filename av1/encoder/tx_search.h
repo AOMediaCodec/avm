@@ -294,6 +294,8 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                 current encoding macroblock
  * \param[in]    rd_stats       Pointer to struct to keep track of the RD stats
  * \param[in]    bsize          Current macroblock size
+ * \param[in]    enable_modelrd_tx_prune          If true, enable pruning using
+ *                                                model RD.
  * \param[in]    ref_best_rd    Best RD cost seen for this block so far
  * Nothing is returned. The selected transform size and type will be saved
  * in the MB_MODE_INFO structure.
@@ -398,6 +400,8 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                                 stats for the chroma planes
  * \param[in]    mode_rate      Rate cost to encode the prediction mode info. of
                                 the current macroblock
+ * \param[in]    enable_modelrd_tx_prune          If true, enable pruning using
+ *                                                model RD
  * \param[in]    ref_best_rd    Best RD cost seen for this block so far
  *
  * \return       An integer value is returned indicating if a valid transform

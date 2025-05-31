@@ -452,6 +452,9 @@ typedef struct BufferPool {
 /*!\endcond */
 
 #if CONFIG_GDF
+/*!
+ * \brief Structure used for GDF (Guided Detail Filter).
+ */
 typedef struct {
   int gdf_mode;       /*!< GDF frame flag (0 : disable,
                                            1 : enable all block,
@@ -468,22 +471,23 @@ typedef struct {
   int gdf_unit_size;   /*!< GDF parameter indicates feature extract/error lookup
                           size */
 
-  int *gdf_block_flags; /*! GDF array store block on/off flags, active if
+  int *gdf_block_flags; /*!< GDF array store block on/off flags, active if
                            gdf_mode == 2 */
 
-  int err_height;     /*! Height of GDF memory storing look-uped expected coding
-                          error */
-  int err_stride;     /*! Stride of GDF memory storing look-uped expected coding
-                         error */
-  int lap_stride;     /*! Stride of GDF memory storing laplacian values */
-  int cls_stride;     /*! Stride of GDF memory storing class values */
-  uint16_t **lap_ptr; /*! GDF poiter to memory storing laplacian values */
-  uint32_t *cls_ptr;  /*! GDF poiter to memory storing class values */
-  int16_t *err_ptr;   /*! GDF poiter to memory storing look-uped expected coding
-                         error */
-  uint16_t *inp_ptr;  /*! GDF poiter to memory storing guided frame for GDF,
-                         i.e., before LF frame */
-  uint16_t *inp_pad_ptr;
+  int err_height; /*!< Height of GDF memory storing look-uped expected coding
+                      error */
+  int err_stride; /*!< Stride of GDF memory storing look-uped expected coding
+                     error */
+  int lap_stride; /*!< Stride of GDF memory storing laplacian values */
+  int cls_stride; /*!< Stride of GDF memory storing class values */
+  uint16_t **lap_ptr; /*!< GDF poiter to memory storing laplacian values */
+  uint32_t *cls_ptr;  /*!< GDF poiter to memory storing class values */
+  int16_t *err_ptr;  /*!< GDF poiter to memory storing look-uped expected coding
+                        error */
+  uint16_t *inp_ptr; /*!< GDF poiter to memory storing guided frame for GDF,
+                        i.e., before LF frame */
+  uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
+                            into which inp_ptr points */
 } GdfInfo;
 #endif  // CONFIG_GDF
 
@@ -871,10 +875,13 @@ typedef struct {
   int primary_ref_frame;
 #if CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
-   * The derived primary reference frame by the decoder.
+   * The derived primary reference frame.
    */
   int derived_primary_ref_frame;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+  /*!
+   * The derived secondary reference frame.
+   */
   int derived_secondary_ref_frame;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
@@ -1552,6 +1559,9 @@ typedef struct TIP_Buffer {
 } TIP;
 
 #if CONFIG_BRU
+/*!
+ * \brief Structure used for BRU (Backward Reference Update).
+ */
 typedef struct BRU_Info {
   /*!
    * Flag to store BRU active mode.
@@ -1864,8 +1874,8 @@ typedef struct AV1Common {
   /**@}*/
 
 #if CONFIG_GDF
-  GdfInfo gdf_info;
-#endif  // CONFIG_GDF
+  GdfInfo gdf_info; /*!< Guided detail filter info */
+#endif              // CONFIG_GDF
 
   /*!
    * CDEF (Constrained Directional Enhancement Filter) parameters.
