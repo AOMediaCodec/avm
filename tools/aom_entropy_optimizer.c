@@ -126,9 +126,7 @@ static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
   int moffset = 5;    // bits offset for RAM
   int tot_count = 1;  // total bit counts per syntax
   int ctx_count = 0;  // total context count per syntax
-#if CONFIG_ENTROPY_PARA
   int para_bits = 9;  // additional ROM bits needed by PARA
-#endif
 
   if (dim_arr == NULL) {
     int dim_last = cts_each_dim[dim_of_cts - 1];
@@ -177,27 +175,18 @@ static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
     if (!has_rom_multiplier) {
       printf("RAM %6d bits %-8.2f bytes %-5.2f kbytes ", tot_count,
              ((float)tot_count) / 8.0, ((float)tot_count) / 8.0 / 1024.0);
-#if CONFIG_ENTROPY_PARA
       int rom_count = tot_count + ctx_count * para_bits;
       printf("ROM %6d bits %-8.2f bytes %-5.2f kbytes ", rom_count,
              ((float)rom_count) / 8.0, ((float)rom_count) / 8.0 / 1024.0);
-#else
-      printf("ROM %6d bits %-8.2f bytes %-5.2f kbytes ", tot_count,
-             ((float)tot_count) / 8.0, ((float)tot_count) / 8.0 / 1024.0);
-#endif
       *total_count += tot_count;
     } else {
       printf("RAM %6d bits %-8.2f bytes %-5.2f kbytes ", tot_count / 4,
              ((float)tot_count) / 8.0 / 4.0,
              ((float)tot_count) / 8.0 / 1024.0 / 4);
-#if CONFIG_ENTROPY_PARA
+
       int rom_count = tot_count + ctx_count * para_bits;
       printf("ROM %6d bits %-8.2f bytes %-5.2f kbytes ", rom_count,
              ((float)rom_count) / 8.0, ((float)rom_count) / 8.0 / 1024.0);
-#else
-      printf("ROM %6d bits %-8.2f bytes %-5.2f kbytes ", tot_count,
-             ((float)tot_count) / 8.0, ((float)tot_count) / 8.0 / 1024.0);
-#endif
       *total_count += tot_count / 4;
       ctx_count /= 4;
     }
@@ -1828,7 +1817,6 @@ int main(int argc, const char **argv) {
       "default_filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)]",
       0, &total_count, 0, mem_wanted, "Intra");
 
-#if CONFIG_ENTROPY_PARA
   cts_each_dim[0] = 3;
   cts_each_dim[1] = CCSO_CONTEXT;
   cts_each_dim[2] = 2;
@@ -1836,13 +1824,6 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
-#else
-  cts_each_dim[0] = 2;
-  optimize_cdf_table(&fc.default_ccso_cnts[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_ccso_cdf[2]",
-                     0, &total_count, 0, mem_wanted, "Filters");
-#endif
 
 #if CONFIG_CDEF_ENHANCEMENTS
   cts_each_dim[0] = CDEF_STRENGTH_INDEX0_CTX;
