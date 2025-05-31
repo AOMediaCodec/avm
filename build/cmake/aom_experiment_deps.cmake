@@ -45,11 +45,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_THROUGHPUT_ANALYSIS 0 !CONFIG_ACCOUNTING)
   endif()
 
-  # CONFIG_PARA_BD_REDUCE is dependent on CONFIG_ENTROPY_PARA.
-  if(NOT CONFIG_ENTROPY_PARA AND CONFIG_PARA_BD_REDUCE)
-    change_config_and_warn(CONFIG_PARA_BD_REDUCE 0 !CONFIG_ENTROPY_PARA)
-  endif()
-
   # CONFIG_IST_ANY_SET is dependent on CONFIG_IST_SET_FLAG. If
   # CONFIG_IST_SET_FLAG is off, CONFIG_IST_ANY_SET needs to be turned off.
   if(NOT CONFIG_IST_SET_FLAG AND CONFIG_IST_ANY_SET)

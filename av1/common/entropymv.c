@@ -15,11 +15,7 @@
 
 static const nmv_context default_nmv_context = {
 #if !CONFIG_VQ_MVD_CODING
-#if CONFIG_ENTROPY_PARA
   { AOM_CDF4(671, 5207, 9061), 75 },  // joints_cdf
-#else
-  { AOM_CDF4(1126, 6354, 9638) },  // joints_cdf
-#endif  // CONFIG_ENTROPY_PARA
 #else
 #if CONFIG_REDUCE_SYMBOL_SIZE
   { AOM_CDF2(24576), 0 },  // joint_shell_set_cdf
@@ -104,19 +100,14 @@ static const nmv_context default_nmv_context = {
       { AOM_CDF2(13771), 0 },
       { AOM_CDF2(13429), 1 },
       { AOM_CDF2(14771), 1 },
-  },                              // col_mv_index_cdf
+  },  // col_mv_index_cdf
 #endif  // !CONFIG_VQ_MVD_CODING
 
-#if CONFIG_ENTROPY_PARA
   { AOM_CDF4(4, 19409, 32748), 1 },  // amvd_joints_cdf
-#else
-  { AOM_CDF4(4, 18825, 32748) },  // amvd_joints_cdf
-#endif  // CONFIG_ENTROPY_PARA
   {
       {
 
 #if !CONFIG_VQ_MVD_CODING
-#if CONFIG_ENTROPY_PARA
           {
               { AOM_CDF9(9045, 14234, 20059, 25670, 29656, 31856, 32661, 32708),
                 76 },
@@ -139,38 +130,13 @@ static const nmv_context default_nmv_context = {
                           32732, 32736, 32740),
                 75 },
           },
-#else
-          // Vertical component
-          { { AOM_CDF9(21158, 25976, 29130, 31210, 32237, 32636, 32712,
-                       32716) },
-            { AOM_CDF10(20546, 25501, 29187, 31196, 32175, 32597, 32708, 32712,
-                        32716) },
-            { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852, 23831,
-                        26810, 29789) },
-            { AOM_CDF11(22643, 27104, 29724, 31229, 32115, 32523, 32692, 32700,
-                        32704, 32708) },
-            { AOM_CDF11(26781, 29925, 31300, 32056, 32465, 32650, 32704, 32708,
-                        32712, 32716) },
-            { AOM_CDF11(26807, 30081, 31455, 32131, 32503, 32658, 32704, 32708,
-                        32712, 32716) },
-            { AOM_CDF11(30184, 31733, 32301, 32550, 32685, 32708, 32712, 32716,
-                        32720, 32724) } },  // class_cdf // fp
-#endif  // CONFIG_ENTROPY_PARA
-
-#if CONFIG_ENTROPY_PARA
           { AOM_CDF11(28615, 31027, 32182, 32608, 32712, 32716, 32720, 32724,
                       32728, 32732),
             0 },
 #else
-          { AOM_CDF11(29390, 31689, 32431, 32665, 32712, 32716, 32720, 32724,
-                      32728, 32732) },  // class_cdf // fp
-#endif  // CONFIG_ENTROPY_PARA
-
-#else
           { AOM_CDF8(7804, 11354, 12626, 18581, 24598, 29144, 31608), 1 },
 #endif  // !CONFIG_VQ_MVD_CODING
 
-#if CONFIG_ENTROPY_PARA
 #if !CONFIG_VQ_MVD_CODING
           {
               {
@@ -210,37 +176,10 @@ static const nmv_context default_nmv_context = {
               { AOM_CDF2(16384), 0 },
           },
 #endif  // !CONFIG_VQ_MVD_CODING
-
       },
-#else
-          { { { AOM_CDF2(23476) }, { AOM_CDF2(22382) }, { AOM_CDF2(10351) } },
-            { { AOM_CDF2(21865) },
-              { AOM_CDF2(16937) },
-              { AOM_CDF2(13425) } } },  // class0_fp_cdf
-          { { AOM_CDF2(16528) },
-            { AOM_CDF2(11848) },
-            { AOM_CDF2(7635) } },  // fp_cdf
-
-          { AOM_CDF2(128 * 128) },  // sign_cdf
-          { AOM_CDF2(4654) },       // class0_hp_cdf
-          { AOM_CDF2(12899) },      // hp_cdf
-          { AOM_CDF2(26486) },      // class0_cdf
-          { { AOM_CDF2(20370) },
-            { AOM_CDF2(19352) },
-            { AOM_CDF2(20184) },
-            { AOM_CDF2(19290) },
-            { AOM_CDF2(20751) },
-            { AOM_CDF2(23123) },
-            { AOM_CDF2(25179) },
-            { AOM_CDF2(27939) },
-            { AOM_CDF2(31466) },
-            { AOM_CDF2(16384) } },  // bits_cdf
-      },
-#endif  // CONFIG_ENTROPY_PARA
       {
 
 #if !CONFIG_VQ_MVD_CODING
-#if CONFIG_ENTROPY_PARA
           {
               { AOM_CDF9(8910, 13492, 19259, 24751, 28899, 31567, 32600, 32708),
                 76 },
@@ -263,35 +202,12 @@ static const nmv_context default_nmv_context = {
                           32724, 32728, 32732),
                 75 },
           },
-#else
-          // Horizontal component
-          { { AOM_CDF9(19297, 23907, 27450, 30145, 31606, 32456, 32712,
-                       32716) },  // class_cdf
-            { AOM_CDF10(18861, 23816, 27819, 30238, 31643, 32355, 32697, 32704,
-                        32708) },  // class_cdf
-            { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852, 23831,
-                        26810, 29789) },
-            { AOM_CDF11(20444, 25375, 28587, 30567, 31750, 32345, 32628, 32700,
-                        32704, 32708) },
-            { AOM_CDF11(25106, 29051, 30835, 31758, 32302, 32574, 32703, 32707,
-                        32711, 32715) },
-            { AOM_CDF11(24435, 28901, 30875, 31825, 32348, 32583, 32702, 32706,
-                        32710, 32714) },
-            { AOM_CDF11(29338, 31380, 32155, 32475, 32654, 32708, 32712, 32716,
-                        32720, 32724) } },
-#endif  // CONFIG_ENTROPY_PARA
-#if CONFIG_ENTROPY_PARA
           { AOM_CDF11(29563, 31499, 32361, 32658, 32712, 32716, 32720, 32724,
                       32728, 32732),
             0 },
 #else
-          { AOM_CDF11(28341, 31295, 32320, 32640, 32712, 32716, 32720, 32724,
-                      32728, 32732) },  // class_cdf // fp
-#endif  // CONFIG_ENTROPY_PARA
-#else
           { AOM_CDF8(7392, 11106, 12422, 18167, 24480, 29230, 31714), 1 },
 #endif  // !CONFIG_VQ_MVD_CODING
-#if CONFIG_ENTROPY_PARA
 #if !CONFIG_VQ_MVD_CODING
           {
               {
@@ -333,31 +249,6 @@ static const nmv_context default_nmv_context = {
 #endif  // !CONFIG_VQ_MVD_CODING
       },
   },
-#else
-          { { { AOM_CDF2(21083) }, { AOM_CDF2(21153) }, { AOM_CDF2(7888) } },
-            { { AOM_CDF2(22423) },
-              { AOM_CDF2(16285) },
-              { AOM_CDF2(14031) } } },  // class0_fp_cdf
-          { { AOM_CDF2(16600) },
-            { AOM_CDF2(12569) },
-            { AOM_CDF2(8367) } },  // fp_cdf
-
-          { AOM_CDF2(128 * 128) },  // sign_cdf
-          { AOM_CDF2(3238) },       // class0_hp_cdf
-          { AOM_CDF2(15376) },      // hp_cdf
-          { AOM_CDF2(24569) },      // class0_cdf
-          { { AOM_CDF2(20048) },
-            { AOM_CDF2(19425) },
-            { AOM_CDF2(19816) },
-            { AOM_CDF2(19138) },
-            { AOM_CDF2(20583) },
-            { AOM_CDF2(23446) },
-            { AOM_CDF2(23440) },
-            { AOM_CDF2(26025) },
-            { AOM_CDF2(29968) },
-            { AOM_CDF2(16384) } },  // bits_cdf
-      } },
-#endif  // CONFIG_ENTROPY_PARA
 };
 
 void av1_init_mv_probs(AV1_COMMON *cm) {

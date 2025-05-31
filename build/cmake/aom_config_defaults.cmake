@@ -157,7 +157,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_EXT_QUANT_UPD 1 "AV2 updated ext-quant.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
                    "AV2 enable coding 1 LR in coefficient coding.")
-set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
