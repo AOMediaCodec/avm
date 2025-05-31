@@ -851,6 +851,7 @@ Previous Enc Run (Low-delay):
 Dec Run (All-intra):
   extends: .dec-run-common
   variables:
+    AOMENC_LIMIT: 15  # Should match the same variable in 'Enc Run (All-intra)'
     AOMENC_OUTPUT: all-intra
     AOMDEC_OUTPUT: dec-all-intra
   needs:
