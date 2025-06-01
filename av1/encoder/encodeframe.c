@@ -1400,6 +1400,14 @@ static AOM_INLINE void set_default_interp_skip_flags(
 static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const int cur_order_hint = cm->current_frame.display_order_hint;
+#if CONFIG_BRU
+  if (cm->bru.enabled) {
+    if ((cm->tip_ref.ref_frame[0] == cm->bru.update_ref_idx) ||
+        (cm->tip_ref.ref_frame[1] == cm->bru.update_ref_idx)) {
+      return 0;
+    }
+  }
+#endif
   if (cm->has_both_sides_refs) return 1;
   if (cur_order_hint < INTER_REFS_PER_FRAME) return 1;
 
@@ -1481,9 +1489,6 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #endif  // CONFIG_TIP_ENHANCEMENT
 
   if (cm->seq_params.enable_tip
-#if CONFIG_BRU
-      && !cm->bru.enabled
-#endif  // CONFIG_BRU
 #if CONFIG_TIP_LD
       && could_tip_mode_be_selected(cpi)
 #endif  // CONFIG_TIP_LD

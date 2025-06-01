@@ -235,10 +235,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
          x_pos += cm->gdf_info.gdf_block_size) {
-#if CONFIG_BRU
-      const int bru_blk_skip =
-          !bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2, y_pos >> MI_SIZE_LOG2);
-#endif
       for (int v_pos = y_pos;
            v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
            v_pos += cm->gdf_info.gdf_unit_size) {
@@ -251,10 +247,26 @@ void gdf_filter_frame(AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+#if CONFIG_BRU
+          // FU level skip
+          int use_gdf_local = 1;
+          if (cm->bru.enabled) {
+            const int mbmi_idx = get_mi_grid_idx(
+                &cm->mi_params, i_min >> MI_SIZE_LOG2, j_min >> MI_SIZE_LOG2);
+            use_gdf_local =
+                cm->mi_params.mi_grid_base[mbmi_idx]->local_gdf_mode;
+          }
+#endif
           if ((cm->gdf_info.gdf_mode == 1 ||
                cm->gdf_info.gdf_block_flags[blk_idx]) &&
+#if CONFIG_BRU
+              use_gdf_local &&
+#endif
               (i_max > i_min) && (j_max > j_min)) {
 #if CONFIG_BRU
+            const int bru_blk_skip = !bru_is_sb_active(
+                cm, u_pos >> MI_SIZE_LOG2,
+                (v_pos + GDF_TEST_STRIPE_OFF) >> MI_SIZE_LOG2);
             if (cm->bru.enabled && bru_blk_skip) {
               aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                  "GDF on not active SB");

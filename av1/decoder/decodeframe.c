@@ -965,6 +965,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
       1;  // set non zero default type, it is only matter 1 or 0 in SW
   xd->mi[0]->local_ccso_blk_flag =
       1;  // set non zero default type, it is only matter 1 or 0 in SW
+  xd->mi[0]->local_gdf_mode =
+      1;  // set non zero default type, it is only matter 1 or 0 in SW
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
     xd->mi[0]->sb_active_mode = xd->sbi->sb_active_mode;
     bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0], bsize);
@@ -1208,53 +1210,6 @@ static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
 }
 
 #if CONFIG_BRU
-static AOM_INLINE int bru_is_valid_mv(AV1_COMMON *const cm,
-                                      MACROBLOCKD *const xd, BLOCK_SIZE bsize) {
-  if (!cm->bru.enabled) return 1;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
-  const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
-  if (tip_ref_frame) return 1;
-  const int is_compound = has_second_ref(mbmi);
-  for (int ref = 0; ref < 1 + is_compound; ++ref) {
-    if (mbmi->ref_frame[ref] == cm->bru.update_ref_idx) {
-      const int_mv mi_mv = mbmi->mv[ref];
-      if (mi_mv.as_int != 0) {
-        PadBlock block;
-        PadBlock cur_sb;
-        int pos_x = xd->mi_col << (SUBPEL_BITS + MI_SIZE_LOG2);
-        int pos_y = xd->mi_row << (SUBPEL_BITS + MI_SIZE_LOG2);
-        const int bw = max_block_wide(xd, bsize, 0);
-        const int bh = max_block_high(xd, bsize, 0);
-        int use_optflow_refinement = opfl_allowed_for_cur_block(cm,
-#if CONFIG_COMPOUND_4XN
-                                                                xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                                mbmi);
-        const MV mv_q4 = clamp_mv_to_umv_border_sb(
-            xd, &mi_mv.as_mv, bw, bh, use_optflow_refinement, 0, 0);
-        // Get reference block top left coordinate.
-        pos_x += mv_q4.col;
-        pos_y += mv_q4.row;
-
-        block.x0 = pos_x >> SUBPEL_BITS;
-        block.y0 = pos_y >> SUBPEL_BITS;
-        // Get reference block bottom right coordinate.
-        block.x1 = (pos_x >> SUBPEL_BITS) + (bw - 1) + 1;
-        block.y1 = (pos_y >> SUBPEL_BITS) + (bh - 1) + 1;
-        // check is inside cur sb
-        cur_sb.x0 = xd->sbi->mi_col << MI_SIZE_LOG2;
-        cur_sb.y0 = xd->sbi->mi_row << MI_SIZE_LOG2;
-        cur_sb.x1 = cur_sb.x0 + (cm->mib_size << MI_SIZE_LOG2);
-        cur_sb.y1 = cur_sb.y0 + (cm->mib_size << MI_SIZE_LOG2);
-        int valid_block = block.x0 >= cur_sb.x0 && block.y0 >= cur_sb.y0 &&
-                          block.x1 <= cur_sb.x1 && block.y1 <= cur_sb.y1;
-        if (!valid_block) return 0;
-      }
-    }
-  }
-  return 1;
-}
-
 void dec_bru_swap_stage(AV1_COMMON *cm, MACROBLOCKD *const xd) {
   if (cm->bru.enabled) {
     RefCntBuffer *tmp_buf = cm->cur_frame;
@@ -1510,10 +1465,9 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     // values.
 #if CONFIG_BRU
     // check BRU inter prediction motion vector
-    if (!bru_is_valid_mv(cm, xd, bsize)) {
-      aom_internal_error(
-          &cm->error, AOM_CODEC_ERROR,
-          "Invalid BRU activte: only active SB can be predicted by intra");
+    if (!bru_is_valid_inter(cm, xd)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "Invalid BRU inter prediction");
     }
 #endif  // CONFIG_BRU
     if (td->read_coeffs_tx_inter_block_visit != decode_block_void)

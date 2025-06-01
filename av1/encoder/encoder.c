@@ -2460,7 +2460,13 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
          x_pos += cm->gdf_info.gdf_block_size) {
 #if CONFIG_BRU
       // mark skip flag for inactive FU
-      if (!bru_is_sb_active(cm, x_pos >> MI_SIZE_LOG2, y_pos >> MI_SIZE_LOG2)) {
+      if (bru_is_fu_skipped_mbmi(
+              cm, x_pos >> MI_SIZE_LOG2,
+              AOMMIN(y_pos + GDF_TEST_STRIPE_OFF,
+                     rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE) >>
+                  MI_SIZE_LOG2,
+              cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2,
+              cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2)) {
         bru_skip_blk[blk_idx] = 1;
         blk_idx++;
         continue;
@@ -2478,6 +2484,14 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+#if CONFIG_BRU
+          // skip optimize on not active SB
+          // only matter if SB < 128
+          if (!bru_is_sb_active(cm, j_min >> MI_SIZE_LOG2,
+                                i_min >> MI_SIZE_LOG2)) {
+            continue;
+          }
+#endif
           gdf_set_lap_and_cls_unit(
               i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
               cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,

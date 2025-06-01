@@ -8164,6 +8164,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
+  mbmi->local_gdf_mode = 1;
 #endif  // CONFIG_BRU
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mv[0].as_int = 0;
@@ -8292,14 +8293,6 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
   const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
-#if CONFIG_BRU
-  if (cm->bru.enabled) {
-    if (ref_frame == cm->bru.update_ref_idx ||
-        second_ref_frame == cm->bru.update_ref_idx) {
-      return;
-    }
-  }
-#endif  // CONFIG_BRU
 
 #if !CONFIG_SKIP_MODE_NO_REFINEMENTS
   const PREDICTION_MODE this_mode =
@@ -8518,7 +8511,18 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
 #endif
-
+#if CONFIG_BRU
+    if (cm->bru.enabled) {
+      if ((mbmi->ref_frame[0] != INVALID_IDX) &&
+          mbmi->ref_frame[0] == cm->bru.update_ref_idx) {
+        continue;
+      }
+      if ((mbmi->ref_frame[1] != INVALID_IDX) &&
+          mbmi->ref_frame[1] == cm->bru.update_ref_idx) {
+        continue;
+      }
+    }
+#endif  // CONFIG_BRU
     // Infer the index of compound weighted prediction from DRL list
     mbmi->cwp_idx =
 #if CONFIG_SEP_COMP_DRL
@@ -9895,6 +9899,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
+  mbmi->local_gdf_mode = 1;
 #endif  // CONFIG_BRU
 
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
@@ -10847,6 +10852,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
+  mbmi->local_gdf_mode = 1;
 #endif  // CONFIG_BRU
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);
@@ -11161,7 +11167,22 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       for (MV_REFERENCE_FRAME second_rf = NONE_FRAME;
            second_rf < cm->ref_frames_info.num_total_refs; ++second_rf) {
         MV_REFERENCE_FRAME second_ref_frame = second_rf;
-
+#if CONFIG_BRU
+        // write this to a function
+        if (cm->bru.enabled) {
+          assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
+          if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
+            if (ref_frame != INVALID_IDX &&
+                cm->bru.update_ref_idx == ref_frame) {
+              continue;
+            }
+            if (second_ref_frame != INVALID_IDX &&
+                cm->bru.update_ref_idx == second_ref_frame) {
+              continue;
+            }
+          }
+        }
+#endif  // CONFIG_BRU
 #if CONFIG_NO_JOINTMODE_WHEN_SAME_REFINDEX
         if ((ref_frame == second_ref_frame) &&
             (is_joint_mvd_coding_mode(this_mode)))
@@ -11280,22 +11301,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, this_mode,
                                 ref_frames, &sf_args))
               continue;
-#if CONFIG_BRU
-            // write this to a function
-            if (cm->bru.enabled) {
-              assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
-              if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
-                if (ref_frame != INVALID_IDX &&
-                    cm->bru.update_ref_idx == ref_frame) {
-                  continue;
-                }
-                if (comp_pred && second_ref_frame != INVALID_IDX &&
-                    cm->bru.update_ref_idx == second_ref_frame) {
-                  continue;
-                }
-              }
-            }
-#endif  // CONFIG_BRU
 #if CONFIG_INTER_MODE_CONSOLIDATION
             if (cm->seq_params.enable_adaptive_mvd == 0 && mbmi->use_amvd == 1)
               continue;

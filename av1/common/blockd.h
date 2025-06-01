@@ -808,6 +808,8 @@ typedef struct MB_MODE_INFO {
   /*! \brief store ccso blk flag in current SB shared for y/u/v in current
    * implementation*/
   int local_ccso_blk_flag;
+  /*! \brief store GDF mode in current SB in current implementation */
+  int local_gdf_mode;
 #endif  // CONFIG_BRU
 } MB_MODE_INFO;
 

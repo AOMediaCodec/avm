@@ -19,10 +19,10 @@
 #include "av1/common/ccso.h"
 
 /* clean up tx_skip array for support and inactive SBs */
-void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
-                               TREE_TYPE tree_type,
-                               const CHROMA_REF_INFO *chroma_ref_info,
-                               int plane, int blk_w, int blk_h) {
+static void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row,
+                                      int mi_col, TREE_TYPE tree_type,
+                                      const CHROMA_REF_INFO *chroma_ref_info,
+                                      int plane, int blk_w, int blk_h) {
   (void)tree_type;
   (void)chroma_ref_info;
   if (mi_col + blk_w > cm->mi_params.mi_cols)
@@ -54,6 +54,31 @@ void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
       cm->mi_params.tx_skip[plane][idx] = 1;
     }
   }
+}
+
+/* copy segment id for support and inactive SBs*/
+static void bru_copy_segment_id(const CommonModeInfoParams *const mi_params,
+                                const uint8_t *last_segment_ids,
+                                uint8_t *current_segment_ids, int mi_offset,
+                                int x_inside_boundary, int y_inside_boundary) {
+  for (int y = 0; y < y_inside_boundary; y++)
+    for (int x = 0; x < x_inside_boundary; x++)
+      current_segment_ids[mi_offset + y * mi_params->mi_cols + x] =
+          last_segment_ids
+              ? last_segment_ids[mi_offset + y * mi_params->mi_cols + x]
+              : 0;
+}
+
+/* set segment id for support and inactive SBs*/
+static void bru_set_segment_id(const AV1_COMMON *cm, int mi_offset,
+                               int x_inside_boundary, int y_inside_boundary,
+                               int segment_id) {
+  assert(segment_id >= 0 && segment_id < MAX_SEGMENTS);
+
+  for (int y = 0; y < y_inside_boundary; y++)
+    for (int x = 0; x < x_inside_boundary; x++)
+      cm->cur_frame->seg_map[mi_offset + y * cm->mi_params.mi_cols + x] =
+          segment_id;
 }
 
 /* Set correct mbmi address for inactive and support SB since there is no chance
@@ -232,6 +257,13 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
 #endif
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif
+#if CONFIG_DIP
+  mbmi->use_intra_dip = 0;
+#endif  // CONFIG_DIP
+  mbmi->seg_id_predicted = 0;
   // todo find del idx
   mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;
@@ -256,6 +288,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->cdef_strength = -1;
   mbmi->local_rest_type = 0;
   mbmi->local_ccso_blk_flag = 0;
+  mbmi->local_gdf_mode = 0;
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   /// bru use only pixel precision
   set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
@@ -279,6 +312,23 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
     bru_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
                               &mbmi->chroma_ref_info, plane, MAX_MIB_SIZE,
                               MAX_MIB_SIZE);
+  }
+  if (cm->seg.enabled) {
+    const int mi_offset = xd->mi_row * cm->mi_params.mi_cols + xd->mi_col;
+    const int bw = mi_size_wide[bsize];
+    const int bh = mi_size_high[bsize];
+    const int x_inside_boundary =
+        AOMMIN(cm->mi_params.mi_cols - xd->mi_col, bw);
+    const int y_inside_boundary =
+        AOMMIN(cm->mi_params.mi_rows - xd->mi_row, bh);
+    if (!cm->seg.update_map) {
+      bru_copy_segment_id(&cm->mi_params, cm->last_frame_seg_map,
+                          cm->cur_frame->seg_map, mi_offset, x_inside_boundary,
+                          y_inside_boundary);
+    } else {
+      bru_set_segment_id(cm, mi_offset, x_inside_boundary, y_inside_boundary,
+                         mbmi->segment_id);
+    }
   }
 }
 

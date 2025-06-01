@@ -21,6 +21,42 @@
 #define MAX_ACTIVE_REGION 8
 #endif
 
+/* This function test the reference frame used for inter prediction.
+   BRU conformance requires any inter prediction should not use any pixels in
+   BRU reference frame.
+*/
+static AOM_INLINE int bru_is_valid_inter(const AV1_COMMON *const cm,
+                                         MACROBLOCKD *const xd) {
+  // None-BRU frame does not need to check BRU inter
+  if (!cm->bru.enabled) return 1;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BruActiveMode active_mode = xd->mi[0]->sb_active_mode;
+  const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
+  const int is_compound = has_second_ref(mbmi);
+  if (active_mode != BRU_ACTIVE_SB) {
+    if (tip_ref_frame || is_compound) return 0;
+    if (mbmi->ref_frame[0] != cm->bru.update_ref_idx) return 0;
+    const int_mv mi_mv = mbmi->mv[0];
+    // MV must be (0,0)
+    if (mi_mv.as_int != 0) {
+      return 0;
+    }
+  } else {
+    if (tip_ref_frame) {
+      if ((cm->tip_ref.ref_frame[0] == cm->bru.update_ref_idx) ||
+          (cm->tip_ref.ref_frame[1] == cm->bru.update_ref_idx))
+        return 0;
+    }
+    for (int ref = 0; ref < 1 + is_compound; ++ref) {
+      if (mbmi->ref_frame[ref] == cm->bru.update_ref_idx) {
+        // if any ref is BRU ref, it is illegal
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
 /* Dynamic allocate active map and active region structure */
 static INLINE void realloc_bru_info(AV1_COMMON *cm) {
   BruInfo *bru_info = &cm->bru;
@@ -235,11 +271,6 @@ static AOM_INLINE int bru_get_num_of_active_region(const AV1_COMMON *const cm) {
 }
 void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
                           BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src);
-void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
-                               TREE_TYPE tree_type,
-                               const CHROMA_REF_INFO *chroma_ref_info,
-                               int plane, int blk_row, int blk_col);
-
 BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,
                                    const int mi_col, const int mi_row,
                                    const BLOCK_SIZE bsize,

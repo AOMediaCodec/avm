@@ -5432,6 +5432,10 @@ static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
   if (get_ref_frame_buf(cm, start_frame) == NULL ||
       get_ref_frame_buf(cm, start_frame)->frame_type != INTER_FRAME)
     return;
+#if CONFIG_BRU
+  if (start_frame == cm->bru.update_ref_idx) return;
+  if (target_frame == cm->bru.update_ref_idx) return;
+#endif
   if (!checked_ref[start_frame][side] && *checked_count < max_check) {
     checked_ref[start_frame][side] = 1;
     (*checked_count)++;
