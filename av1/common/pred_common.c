@@ -415,6 +415,53 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
 #else
 // Derive the primary reference frame from the reference list based on qindex
 // and frame distances.
+#if CONFIG_PRIMARY_QP_FIRST
+int choose_primary_ref_frame(const AV1_COMMON *const cm) {
+  const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
+                         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+  if (intra_only || cm->features.error_resilient_mode) {
+    return PRIMARY_REF_NONE;
+  }
+
+  // In large scale case, always use Last frame's frame contexts.
+  if (cm->tiles.large_scale) return 0;
+
+  int primary_ref_frame = PRIMARY_REF_NONE;
+  const int n_refs = cm->ref_frames_info.num_total_refs;
+  const int current_qp = cm->quant_params.base_qindex;
+  const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
+  const int cur_frame_disp = cm->current_frame.display_order_hint;
+  const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
+
+  // initialize
+  RefCandidate primary_cand = { -1, INT_MAX, -1, -1 };
+
+  for (int i = 0; i < n_refs; i++) {
+    RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (cur_ref.ref_frame_for_inference == -1 ||
+        cur_ref.frame_type != INTER_FRAME)
+      continue;
+
+    const int ref_qp = cur_ref.base_qindex;
+    const int qp_diff = abs(ref_qp - current_qp);
+
+    // comparision
+    if (qp_diff < primary_cand.qp_diff ||
+        (qp_diff == primary_cand.qp_diff &&
+         is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+                       primary_cand.disp_order))) {
+      primary_cand =
+          (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+    }
+  }
+
+  // final result
+  primary_ref_frame =
+      primary_cand.idx != -1 ? primary_cand.idx : PRIMARY_REF_NONE;
+
+  return primary_ref_frame;
+}
+#else
 int choose_primary_ref_frame(const AV1_COMMON *const cm) {
   const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
                          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
@@ -474,6 +521,7 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
 
   return primary_ref_frame;
 }
+#endif  // CONFIG_PRIMARY_QP_FIRST
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
