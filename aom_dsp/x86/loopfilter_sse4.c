@@ -10,11 +10,21 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <emmintrin.h>
 #include <smmintrin.h>
+
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_dsp/loopfilter.h"
+
+#include "aom_ports/aom_timer.h"
+
+// int64_t ref_time = 0;
+// int64_t test_time = 0;
+
+// int num_same = 0;
+// int num_diff = 0;
 
 // Helper function: ROUND_POWER_OF_TWO for SIMD 32-bit integers (SSE version)
 static inline __m128i mm_round_power_of_two_epi32_sse(__m128i value, int n) {
@@ -458,6 +468,485 @@ static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
   }
 }
 
+static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
+    uint16_t *s, int pitch, int max_filt_neg, int max_filt_pos,
+    uint16_t q_thresh, uint16_t side_thresh) {
+  const int stride = pitch;
+  if (!q_thresh || !side_thresh) return 0;
+
+  int max_samples_neg = max_filt_neg / 2 - 1;
+  int max_samples_pos = max_filt_pos / 2 - 1;
+
+  if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
+
+  int8_t mask = 0;
+
+  __m128i xmm_sample_mask = _mm_set_epi16(1, 0, 0, 1, 1, 0, 0, 1);
+
+  __m128i xmm_row_m5 = _mm_loadl_epi64((__m128i *)&s[-5 * stride]);
+  __m128i xmm_row_m4 = _mm_loadl_epi64((__m128i *)&s[-4 * stride]);
+  __m128i xmm_row_m3 = _mm_loadl_epi64((__m128i *)&s[-3 * stride]);
+  __m128i xmm_row_m2 = _mm_loadl_epi64((__m128i *)&s[-2 * stride]);
+  __m128i xmm_row_m1 = _mm_loadl_epi64((__m128i *)&s[-1 * stride]);
+  __m128i xmm_row_p0 = _mm_loadl_epi64((__m128i *)&s[0]);
+  __m128i xmm_row_p1 = _mm_loadl_epi64((__m128i *)&s[1 * stride]);
+  __m128i xmm_row_p2 = _mm_loadl_epi64((__m128i *)&s[2 * stride]);
+  __m128i xmm_row_p3 = _mm_loadl_epi64((__m128i *)&s[3 * stride]);
+  __m128i xmm_row_p4 = _mm_loadl_epi64((__m128i *)&s[4 * stride]);
+
+  // Put two 4x16 bits together, if we are doing the same operation
+
+  // Calculate second derivitive at -2, -1, 0, 1:
+
+  // For 2nd deriv at -2 and -1:
+  __m128i xmm_row_m3m2 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_m2, 8), xmm_row_m3);
+  __m128i xmm_row_m2m1 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_m1, 8), xmm_row_m2);
+  __m128i xmm_row_m1p0 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p0, 8), xmm_row_m1);
+  __m128i xmm_sd_m2m1 =
+      _mm_sub_epi16(xmm_row_m3m2, _mm_slli_epi16(xmm_row_m2m1, 1));
+  xmm_sd_m2m1 = _mm_add_epi16(xmm_sd_m2m1, xmm_row_m1p0);
+  xmm_sd_m2m1 = _mm_abs_epi16(xmm_sd_m2m1);
+  xmm_sd_m2m1 = _mm_mullo_epi16(xmm_sd_m2m1, xmm_sample_mask);
+
+  // For 2nd deriv at 0 and 1:
+  __m128i xmm_row_p0p1 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p1, 8), xmm_row_p0);
+  __m128i xmm_row_p1p2 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p2, 8), xmm_row_p1);
+  __m128i xmm_sd_p0p1 =
+      _mm_sub_epi16(xmm_row_m1p0, _mm_slli_epi16(xmm_row_p0p1, 1));
+  xmm_sd_p0p1 = _mm_add_epi16(xmm_sd_p0p1, xmm_row_p1p2);
+  xmm_sd_p0p1 = _mm_abs_epi16(xmm_sd_p0p1);
+  xmm_sd_p0p1 = _mm_mullo_epi16(xmm_sd_p0p1, xmm_sample_mask);
+
+  // Calculate diffs at 3 and 4, where
+  // diff_neg(x) = s[-1] - s[-1-x] - x * (s[-1] - s[-2])
+  // diff_pos(x) = s[0] - s[x] - x * (s[0] - s[1])
+  __m128i xmm_row_m2p1 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p1, 8), xmm_row_m2);
+  __m128i xmm_row_m1p0_sub_m2p1 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m2p1);
+
+  // For diff_neg(3) and diff_pos(3)
+  __m128i xmm_three = _mm_set1_epi16(3);
+  __m128i xmm_row_m4p3 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p3, 8), xmm_row_m4);
+  __m128i xmm_diffs_3 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m4p3);
+  xmm_diffs_3 = _mm_sub_epi16(
+      xmm_diffs_3, _mm_mullo_epi16(xmm_three, xmm_row_m1p0_sub_m2p1));
+  xmm_diffs_3 = _mm_abs_epi16(xmm_diffs_3);
+  xmm_diffs_3 = _mm_mullo_epi16(xmm_diffs_3, xmm_sample_mask);
+
+  // For diff_neg(4) and diff_pos(4)
+  __m128i xmm_four = _mm_set1_epi16(4);
+  __m128i xmm_row_m5p4 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p4, 8), xmm_row_m5);
+  __m128i xmm_diffs_4 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m5p4);
+  xmm_diffs_4 = _mm_sub_epi16(xmm_diffs_4,
+                              _mm_mullo_epi16(xmm_four, xmm_row_m1p0_sub_m2p1));
+  xmm_diffs_4 = _mm_abs_epi16(xmm_diffs_4);
+  xmm_diffs_4 = _mm_mullo_epi16(xmm_diffs_4, xmm_sample_mask);
+
+  // Do horizontal add to get these numbers
+  __m128i xmm_sds = _mm_hadd_epi16(xmm_sd_m2m1, xmm_sd_p0p1);
+  __m128i xmm_diffs = _mm_hadd_epi16(xmm_diffs_3, xmm_diffs_4);
+  __m128i xmm_results = _mm_hadd_epi16(xmm_sds, xmm_diffs);
+
+  // Do averaging
+  xmm_results =
+      _mm_srli_epi16(_mm_add_epi16(xmm_results, _mm_set1_epi16(1)), 1);
+
+  // Store into memory. This array consists of:
+  // { sd[-2], sd[-1], sd[0], sd[1],
+  //   diff_neg[3], diff_pos[3], diff_neg[4], diff_pos[4]}
+  DECLARE_ALIGNED(16, uint16_t, res_arr[8]);
+  _mm_store_si128((__m128i *)res_arr, xmm_results);
+
+  // Testing for 1 sample modification
+  //-----------------------------------------------
+  mask |= (res_arr[0] > side_thresh) * -1;
+  mask |= (res_arr[3] > side_thresh) * -1;
+
+  if (mask) return 0;
+
+  if (max_samples_pos == 1) return 1;
+
+  // Testing for 2 sample modification
+  //-----------------------------------------------
+  const int side_thresh2 = side_thresh >> 2;
+
+  mask |= (res_arr[0] > side_thresh2) * -1;
+  mask |= (res_arr[3] > side_thresh2) * -1;
+
+  mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_6_THRESH) * -1;
+
+  if (mask) return 1;
+
+  if (max_samples_pos == 2) return 2;
+
+  // Testing 3 sample modification
+  //-----------------------------------------------
+  const int side_thresh3 = side_thresh >> FILT_8_THRESH_SHIFT;
+
+  mask |= (res_arr[0] > side_thresh3) * -1;
+  mask |= (res_arr[3] > side_thresh3) * -1;
+
+  mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_8_THRESH) * -1;
+
+  int end_dir_thresh = (side_thresh * 3) >> 4;
+
+  if (max_samples_neg > 2) mask |= (res_arr[4] > end_dir_thresh) * -1;
+  mask |= (res_arr[5] > end_dir_thresh) * -1;
+
+  if (mask) return 2;
+
+  if (max_samples_pos == 3) return 3;
+
+  // Testing 4 sample modification and above
+  //-----------------------------------------------
+  int transition = (res_arr[1] + res_arr[2]) << DF_Q_THRESH_SHIFT;
+
+  // 4 sample modification
+  {
+    const int q_thresh4 = q_thresh * q_first[0];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 4) >> 4;
+
+    if (max_samples_neg >= 4) mask |= (res_arr[6] > end_dir_thresh) * -1;
+    mask |= (res_arr[7] > end_dir_thresh) * -1;
+
+    if (mask) return 3;
+    if (max_samples_pos <= 4) return 4;
+  }
+
+  // Calculate diffs at 6 and 7
+  __m128i xmm_row_m8 = _mm_loadl_epi64((__m128i *)&s[-8 * stride]);
+  __m128i xmm_row_m7 = _mm_loadl_epi64((__m128i *)&s[-7 * stride]);
+  __m128i xmm_row_p6 = _mm_loadl_epi64((__m128i *)&s[6 * stride]);
+  __m128i xmm_row_p7 = _mm_loadl_epi64((__m128i *)&s[7 * stride]);
+
+  // For diff_neg(6) and diff_pos(6)
+  __m128i xmm_six = _mm_set1_epi16(6);
+  __m128i xmm_row_m7p6 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p6, 8), xmm_row_m7);
+  __m128i xmm_diffs_6 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m7p6);
+  xmm_diffs_6 = _mm_sub_epi16(xmm_diffs_6,
+                              _mm_mullo_epi16(xmm_six, xmm_row_m1p0_sub_m2p1));
+  xmm_diffs_6 = _mm_abs_epi16(xmm_diffs_6);
+  xmm_diffs_6 = _mm_mullo_epi16(xmm_diffs_6, xmm_sample_mask);
+
+  // For diff_neg(7) and diff_pos(7)
+  __m128i xmm_seven = _mm_set1_epi16(7);
+  __m128i xmm_row_m8p7 =
+      _mm_add_epi16(_mm_slli_si128(xmm_row_p7, 8), xmm_row_m8);
+  __m128i xmm_diffs_7 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m8p7);
+  xmm_diffs_7 = _mm_sub_epi16(
+      xmm_diffs_7, _mm_mullo_epi16(xmm_seven, xmm_row_m1p0_sub_m2p1));
+  xmm_diffs_7 = _mm_abs_epi16(xmm_diffs_7);
+  xmm_diffs_7 = _mm_mullo_epi16(xmm_diffs_7, xmm_sample_mask);
+
+  // Do horizontal add to get these numbers
+  __m128i xmm_diffs_67 = _mm_hadd_epi16(xmm_diffs_6, xmm_diffs_7);
+  xmm_diffs_67 = _mm_hadd_epi16(xmm_diffs_67, _mm_setzero_si128());
+
+  // Do averaging
+  xmm_diffs_67 =
+      _mm_srli_epi16(_mm_add_epi16(xmm_diffs_67, _mm_set1_epi16(1)), 1);
+
+  // Store into memory. This array consists of:
+  // { diff_neg[6], diff_pos[6], diff_neg[7], diff_pos[7]}
+  DECLARE_ALIGNED(16, uint16_t, res_arr_67[4]);
+  _mm_storel_epi64((__m128i *)res_arr_67, xmm_diffs_67);
+
+  // 6 sample modification
+  {
+    const int q_thresh4 = q_thresh * q_first[2];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 6) >> 4;
+
+    if (max_samples_neg >= 6) mask |= (res_arr_67[0] > end_dir_thresh) * -1;
+    mask |= (res_arr_67[1] > end_dir_thresh) * -1;
+
+    if (mask) return 4;
+    if (max_samples_pos <= 6) return 6;
+  }
+
+  // 8 sample modification (using diff_7 so it doesn't go out of 8 pixels)
+  {
+    const int q_thresh4 = q_thresh * q_first[4];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 8) >> 4;
+
+    if (max_samples_neg >= 7) mask |= (res_arr_67[2] > end_dir_thresh) * -1;
+    mask |= (res_arr_67[3] > end_dir_thresh) * -1;
+
+    if (mask) return 6;
+    if (max_samples_pos <= 8) return 8;
+  }
+
+  return MAX_DBL_FLT_LEN;
+}
+
+// TODO: there is a chance of overflow for 12-bit pixels. Only use this for bit
+// depth < 12.
+static INLINE int filt_choice_highbd_vertical_px4_sse4_1(uint16_t *s, int pitch,
+                                                         int max_filt_neg,
+                                                         int max_filt_pos,
+                                                         uint16_t q_thresh,
+                                                         uint16_t side_thresh) {
+  const int stride = pitch;
+  if (!q_thresh || !side_thresh) return 0;
+
+  int max_samples_neg = max_filt_neg / 2 - 1;
+  int max_samples_pos = max_filt_pos / 2 - 1;
+
+  if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
+
+  int8_t mask = 0;
+
+  __m128i xmm_sd_mask = _mm_set_epi16(0, 1, -2, 1, 0, 1, -2, 1);
+
+  __m128i xmm_row0_m4_to_p3 = _mm_loadu_si128((__m128i *)(s - 4));
+  __m128i xmm_row3_m4_to_p3 = _mm_loadu_si128((__m128i *)(s + 3 * stride - 4));
+
+  __m128i xmm_row03_m4_to_m1 =
+      _mm_unpacklo_epi64(xmm_row0_m4_to_p3, xmm_row3_m4_to_p3);
+  __m128i xmm_row03_m3_to_p0 =
+      _mm_unpacklo_epi64(_mm_srli_si128(xmm_row0_m4_to_p3, 2),
+                         _mm_srli_si128(xmm_row3_m4_to_p3, 2));
+  __m128i xmm_row03_m2_to_p1 =
+      _mm_unpacklo_epi64(_mm_srli_si128(xmm_row0_m4_to_p3, 4),
+                         _mm_srli_si128(xmm_row3_m4_to_p3, 4));
+  __m128i xmm_row03_m1_to_p2 =
+      _mm_unpacklo_epi64(_mm_srli_si128(xmm_row0_m4_to_p3, 6),
+                         _mm_srli_si128(xmm_row3_m4_to_p3, 6));
+  __m128i xmm_row03_p0_to_p3 =
+      _mm_unpackhi_epi64(xmm_row0_m4_to_p3, xmm_row3_m4_to_p3);
+
+  __m128i xmm_row03_sd_m2 = _mm_mullo_epi16(xmm_sd_mask, xmm_row03_m3_to_p0);
+  __m128i xmm_row03_sd_m1 = _mm_mullo_epi16(xmm_sd_mask, xmm_row03_m2_to_p1);
+  __m128i xmm_row03_sd_p0 = _mm_mullo_epi16(xmm_sd_mask, xmm_row03_m1_to_p2);
+  __m128i xmm_row03_sd_p1 = _mm_mullo_epi16(xmm_sd_mask, xmm_row03_p0_to_p3);
+
+  __m128i xmm_row03_sd_m2m1 = _mm_hadd_epi16(xmm_row03_sd_m2, xmm_row03_sd_m1);
+  __m128i xmm_row03_sd_p0p1 = _mm_hadd_epi16(xmm_row03_sd_p0, xmm_row03_sd_p1);
+
+  __m128i xmm_row03_sds = _mm_hadd_epi16(xmm_row03_sd_m2m1, xmm_row03_sd_p0p1);
+  xmm_row03_sds = _mm_abs_epi16(xmm_row03_sds);
+
+  __m128i xmm_diff3_pos_mask = _mm_set_epi16(-1, 0, 3, -2, -1, 0, 3, -2);
+  __m128i xmm_diff3_neg_mask = _mm_set_epi16(-2, 3, 0, -1, -2, 3, 0, -1);
+
+  __m128i xmm_row03_diff3_pos =
+      _mm_mullo_epi16(xmm_row03_p0_to_p3, xmm_diff3_pos_mask);
+  __m128i xmm_row03_diff3_neg =
+      _mm_mullo_epi16(xmm_row03_m4_to_m1, xmm_diff3_neg_mask);
+
+  __m128i xmm_row03_diff3 =
+      _mm_hadd_epi16(xmm_row03_diff3_neg, xmm_row03_diff3_pos);
+  xmm_row03_diff3 = _mm_hadd_epi16(xmm_row03_diff3, _mm_setzero_si128());
+  xmm_row03_diff3 = _mm_abs_epi16(xmm_row03_diff3);
+
+  __m128i xmm_row03_res = _mm_hadd_epi16(xmm_row03_sds, xmm_row03_diff3);
+  xmm_row03_res =
+      _mm_srli_epi16(_mm_add_epi16(xmm_row03_res, _mm_set1_epi16(1)), 1);
+
+  // Store into memory. This array consists of:
+  // { sd[-2], sd[-1], sd[0], sd[1], diff_neg[3], diff_pos[3], 0, 0}
+  DECLARE_ALIGNED(16, uint16_t, res_arr[8]);
+  _mm_store_si128((__m128i *)res_arr, xmm_row03_res);
+
+  // Testing for 1 sample modification
+  //-----------------------------------------------
+  mask |= (res_arr[0] > side_thresh) * -1;
+  mask |= (res_arr[3] > side_thresh) * -1;
+
+  if (mask) return 0;
+
+  if (max_samples_pos == 1) return 1;
+
+  // Testing for 2 sample modification
+  //-----------------------------------------------
+  const int side_thresh2 = side_thresh >> 2;
+
+  mask |= (res_arr[0] > side_thresh2) * -1;
+  mask |= (res_arr[3] > side_thresh2) * -1;
+
+  mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_6_THRESH) * -1;
+
+  if (mask) return 1;
+
+  if (max_samples_pos == 2) return 2;
+
+  // Testing 3 sample modification
+  //-----------------------------------------------
+  const int side_thresh3 = side_thresh >> FILT_8_THRESH_SHIFT;
+
+  mask |= (res_arr[0] > side_thresh3) * -1;
+  mask |= (res_arr[3] > side_thresh3) * -1;
+
+  mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_8_THRESH) * -1;
+
+  int end_dir_thresh = (side_thresh * 3) >> 4;
+
+  if (max_samples_neg > 2) mask |= (res_arr[4] > end_dir_thresh) * -1;
+  mask |= (res_arr[5] > end_dir_thresh) * -1;
+
+  if (mask) return 2;
+
+  if (max_samples_pos == 3) return 3;
+
+  // Testing 4 sample modification and above
+  //-----------------------------------------------
+  int transition = (res_arr[1] + res_arr[2]) << DF_Q_THRESH_SHIFT;
+
+  __m128i xmm_row0_p0_to_p7 =
+      _mm_add_epi16(_mm_srli_si128(xmm_row0_m4_to_p3, 8),
+                    _mm_slli_si128(_mm_loadl_epi64((__m128i *)(s + 4)), 8));
+  __m128i xmm_row3_p0_to_p7 = _mm_add_epi16(
+      _mm_srli_si128(xmm_row3_m4_to_p3, 8),
+      _mm_slli_si128(_mm_loadl_epi64((__m128i *)(s + 3 * stride + 4)), 8));
+
+  __m128i xmm_row0_m8_to_m1 =
+      _mm_add_epi16(_mm_loadl_epi64((__m128i *)(s - 8)),
+                    _mm_slli_si128(xmm_row0_m4_to_p3, 8));
+  __m128i xmm_row3_m8_to_m1 =
+      _mm_add_epi16(_mm_loadl_epi64((__m128i *)(s + 3 * stride - 8)),
+                    _mm_slli_si128(xmm_row3_m4_to_p3, 8));
+
+  // [0, 0, 0, -1, 0, 0, 4, -3]
+  __m128i xmm_diff4_neg_mask = _mm_set_epi16(-3, 4, 0, 0, -1, 0, 0, 0);
+
+  __m128i xmm_row0_diff4_neg =
+      _mm_mullo_epi16(xmm_row0_m8_to_m1, xmm_diff4_neg_mask);
+  __m128i xmm_row3_diff4_neg =
+      _mm_mullo_epi16(xmm_row3_m8_to_m1, xmm_diff4_neg_mask);
+  __m128i xmm_row03_diff4_neg =
+      _mm_hadd_epi16(xmm_row0_diff4_neg, xmm_row3_diff4_neg);
+
+  // [-3, 4, 0, 0, -1, 0, 0, 0]
+  __m128i xmm_diff4_pos_mask = _mm_set_epi16(0, 0, 0, -1, 0, 0, 4, -3);
+
+  __m128i xmm_row0_diff4_pos =
+      _mm_mullo_epi16(xmm_row0_p0_to_p7, xmm_diff4_pos_mask);
+  __m128i xmm_row3_diff4_pos =
+      _mm_mullo_epi16(xmm_row3_p0_to_p7, xmm_diff4_pos_mask);
+  __m128i xmm_row03_diff4_pos =
+      _mm_hadd_epi16(xmm_row0_diff4_pos, xmm_row3_diff4_pos);
+
+  __m128i xmm_row03_diff4 =
+      _mm_hadd_epi16(xmm_row03_diff4_neg, xmm_row03_diff4_pos);
+
+  // [0, -1, 0, 0, 0, 0, 6, -5]
+  __m128i xmm_diff6_neg_mask = _mm_set_epi16(-5, 6, 0, 0, 0, 0, -1, 0);
+
+  __m128i xmm_row0_diff6_neg =
+      _mm_mullo_epi16(xmm_row0_m8_to_m1, xmm_diff6_neg_mask);
+  __m128i xmm_row3_diff6_neg =
+      _mm_mullo_epi16(xmm_row3_m8_to_m1, xmm_diff6_neg_mask);
+  __m128i xmm_row03_diff6_neg =
+      _mm_hadd_epi16(xmm_row0_diff6_neg, xmm_row3_diff6_neg);
+
+  // [-5, 6, 0, 0, 0, 0, -1, 0]
+  __m128i xmm_diff6_pos_mask = _mm_set_epi16(0, -1, 0, 0, 0, 0, 6, -5);
+
+  __m128i xmm_row0_diff6_pos =
+      _mm_mullo_epi16(xmm_row0_p0_to_p7, xmm_diff6_pos_mask);
+  __m128i xmm_row3_diff6_pos =
+      _mm_mullo_epi16(xmm_row3_p0_to_p7, xmm_diff6_pos_mask);
+  __m128i xmm_row03_diff6_pos =
+      _mm_hadd_epi16(xmm_row0_diff6_pos, xmm_row3_diff6_pos);
+
+  __m128i xmm_row03_diff6 =
+      _mm_hadd_epi16(xmm_row03_diff6_neg, xmm_row03_diff6_pos);
+
+  __m128i xmm_row03_diff46 = _mm_hadd_epi16(xmm_row03_diff4, xmm_row03_diff6);
+  xmm_row03_diff46 = _mm_abs_epi16(xmm_row03_diff46);
+
+  // [-1, 0, 0, 0, 0, 0, 7, -6]
+  __m128i xmm_diff7_neg_mask = _mm_set_epi16(-6, 7, 0, 0, 0, 0, 0, -1);
+
+  __m128i xmm_row0_diff7_neg =
+      _mm_mullo_epi16(xmm_row0_m8_to_m1, xmm_diff7_neg_mask);
+  __m128i xmm_row3_diff7_neg =
+      _mm_mullo_epi16(xmm_row3_m8_to_m1, xmm_diff7_neg_mask);
+  __m128i xmm_row03_diff7_neg =
+      _mm_hadd_epi16(xmm_row0_diff7_neg, xmm_row3_diff7_neg);
+
+  // [-6, 7, 0, 0, 0, 0, 0, -1]
+  __m128i xmm_diff7_pos_mask = _mm_set_epi16(-1, 0, 0, 0, 0, 0, 7, -6);
+
+  __m128i xmm_row0_diff7_pos =
+      _mm_mullo_epi16(xmm_row0_p0_to_p7, xmm_diff7_pos_mask);
+  __m128i xmm_row3_diff7_pos =
+      _mm_mullo_epi16(xmm_row3_p0_to_p7, xmm_diff7_pos_mask);
+  __m128i xmm_row03_diff7_pos =
+      _mm_hadd_epi16(xmm_row0_diff7_pos, xmm_row3_diff7_pos);
+
+  __m128i xmm_row03_diff7 =
+      _mm_hadd_epi16(xmm_row03_diff7_neg, xmm_row03_diff7_pos);
+
+  xmm_row03_diff7 = _mm_hadd_epi16(xmm_row03_diff7, _mm_setzero_si128());
+  xmm_row03_diff7 = _mm_abs_epi16(xmm_row03_diff7);
+
+  __m128i xmm_diff467 = _mm_hadd_epi16(xmm_row03_diff46, xmm_row03_diff7);
+  xmm_diff467 =
+      _mm_srli_epi16(_mm_add_epi16(xmm_diff467, _mm_set1_epi16(1)), 1);
+
+  // Store into memory. This array consists of:
+  // { diff4_neg, diff4_pos, diff6_neg, diff6_pos, diff7_neg, diff7_pos, 0, 0}
+  _mm_store_si128((__m128i *)res_arr, xmm_diff467);
+
+  // 4 sample modification
+  {
+    const int q_thresh4 = q_thresh * q_first[0];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 4) >> 4;
+
+    if (max_samples_neg >= 4) mask |= (res_arr[0] > end_dir_thresh) * -1;
+    mask |= (res_arr[1] > end_dir_thresh) * -1;
+
+    if (mask) return 3;
+    if (max_samples_pos <= 4) return 4;
+  }
+
+  // 6 sample modification
+  {
+    const int q_thresh4 = q_thresh * q_first[2];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 6) >> 4;
+
+    if (max_samples_neg >= 6) mask |= (res_arr[2] > end_dir_thresh) * -1;
+    mask |= (res_arr[3] > end_dir_thresh) * -1;
+
+    if (mask) return 4;
+    if (max_samples_pos <= 6) return 6;
+  }
+
+  // 8 sample modification (using diff_7 so it doesn't go out of 8 pixels)
+  {
+    const int q_thresh4 = q_thresh * q_first[4];
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * 8) >> 4;
+
+    if (max_samples_neg >= 7) mask |= (res_arr[4] > end_dir_thresh) * -1;
+    mask |= (res_arr[5] > end_dir_thresh) * -1;
+
+    if (mask) return 6;
+    if (max_samples_pos <= 8) return 8;
+  }
+
+  return MAX_DBL_FLT_LEN;
+}
+
 void aom_highbd_lpf_horizontal_generic_sse4_1(uint16_t *s, int pitch,
 #if CONFIG_ASYM_DF
                                               int filt_width_neg,
@@ -480,8 +969,49 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(uint16_t *s, int pitch,
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
-  int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
-                                  *q_thresh, *side_thresh, s + count - 1);
+  int filter;
+  if (count == 4) {
+    /*
+    const int MAX_COUNT = 100000;
+    struct aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    int total_f1 = 0;
+    for (int k = 0; k < MAX_COUNT; k++) {
+      int filter1 = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
+                                       *q_thresh, *side_thresh, s + count - 1);
+      total_f1 += filter1;
+    }
+    aom_usec_timer_mark(&timer);
+    ref_time += aom_usec_timer_elapsed(&timer);
+
+    aom_usec_timer_start(&timer);
+    int total_f = 0;
+    for (int k = 0; k < MAX_COUNT; k++) {
+      */
+    filter = filt_choice_highbd_horizontal_px4_sse4_1(
+        s, pitch, filt_width_neg, filt_width_pos, *q_thresh, *side_thresh);
+    /*
+      total_f += filter;
+    }
+    aom_usec_timer_mark(&timer);
+    test_time += aom_usec_timer_elapsed(&timer);
+
+    if (total_f == total_f1) {
+      num_same++;
+    } else {
+      num_diff++;
+    }
+
+    if (num_same + num_diff == 10000) {
+      printf("\nref_time: %ld, test_time: %ld, num_same: %d, num_diff: %d\n",
+             ref_time, test_time, num_same, num_diff);
+      exit(0);
+    }
+      */
+  } else {
+    filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
+                                *q_thresh, *side_thresh, s + count - 1);
+  }
 #else
   const int filter0 =
       filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
@@ -524,10 +1054,49 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
+  int filter;
+  if (count == 4) {
+    /*
+    const int MAX_COUNT = 100000;
+    struct aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    int total_f1 = 0;
+    for (int k = 0; k < MAX_COUNT; k++) {
+      int filter1 =
+          filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
+                             *side_thresh, s + (count - 1) * pitch);
+      total_f1 += filter1;
+    }
+    aom_usec_timer_mark(&timer);
+    ref_time += aom_usec_timer_elapsed(&timer);
 
-  int filter =
-      filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
-                         *side_thresh, s + (count - 1) * pitch);
+    aom_usec_timer_start(&timer);
+    int total_f = 0;
+    for (int k = 0; k < MAX_COUNT; k++) {
+      */
+    filter = filt_choice_highbd_vertical_px4_sse4_1(
+        s, pitch, filt_width_neg, filt_width_pos, *q_thresh, *side_thresh);
+    /*
+          total_f += filter;
+        }
+        aom_usec_timer_mark(&timer);
+        test_time += aom_usec_timer_elapsed(&timer);
+
+        if (total_f == total_f1) {
+          num_same++;
+        } else {
+          num_diff++;
+        }
+
+        if (num_same + num_diff == 10000) {
+          printf("\nref_time: %ld, test_time: %ld, num_same: %d, num_diff:
+       %d\n", ref_time, test_time, num_same, num_diff); exit(0);
+        }
+          */
+  } else {
+    filter = filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
+                                *side_thresh, s + (count - 1) * pitch);
+  }
 #else
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filt_pos = (filt_width_pos >> 1) - 1;
