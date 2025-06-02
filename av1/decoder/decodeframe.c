@@ -8317,6 +8317,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                "Reference buffer frame ID mismatch");
         }
       }
+#if CONFIG_BRU
+      if (cm->bru.update_ref_idx != -1) {
+        for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+          if (cm->bru.update_ref_idx != i) {
+            if (cm->ref_frame_map[cm->bru.explicit_ref_idx] ==
+                cm->ref_frame_map[cm->remapped_ref_idx[i]]) {
+              aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                 "Only one reference can be updated for BRU");
+            }
+          }
+        }
+      }
+#endif
       // With explicit_ref_frame_map, cm->remapped_ref_idx has been
       // overwritten. The reference lists also needs to be reset.
       if (explicit_ref_frame_map) {
