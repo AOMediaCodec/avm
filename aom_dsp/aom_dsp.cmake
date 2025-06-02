@@ -37,6 +37,7 @@ list(
   "${AOM_ROOT}/aom_dsp/grain_synthesis.h"
   "${AOM_ROOT}/aom_dsp/intrapred.c"
   "${AOM_ROOT}/aom_dsp/intrapred_common.h"
+  "${AOM_ROOT}/aom_dsp/loopfilter.h"
   "${AOM_ROOT}/aom_dsp/loopfilter.c"
   "${AOM_ROOT}/aom_dsp/prob.h"
   "${AOM_ROOT}/aom_dsp/recenter.h"
@@ -96,7 +97,8 @@ list(
   "${AOM_ROOT}/aom_dsp/x86/blend_mask_sse4.h"
   "${AOM_ROOT}/aom_dsp/x86/blend_a64_hmask_sse4.c"
   "${AOM_ROOT}/aom_dsp/x86/blend_a64_mask_sse4.c"
-  "${AOM_ROOT}/aom_dsp/x86/blend_a64_vmask_sse4.c")
+  "${AOM_ROOT}/aom_dsp/x86/blend_a64_vmask_sse4.c"
+  "${AOM_ROOT}/aom_dsp/x86/loopfilter_sse4.c")
 
 list(
   APPEND
