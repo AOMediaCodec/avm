@@ -264,6 +264,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->use_intra_dip = 0;
 #endif  // CONFIG_DIP
   mbmi->seg_id_predicted = 0;
+  mbmi->use_amvd = 0;
   // todo find del idx
   mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;

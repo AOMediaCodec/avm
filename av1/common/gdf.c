@@ -265,8 +265,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
               (i_max > i_min) && (j_max > j_min)) {
 #if CONFIG_BRU
             const int bru_blk_skip = !bru_is_sb_active(
-                cm, u_pos >> MI_SIZE_LOG2,
-                (v_pos + GDF_TEST_STRIPE_OFF) >> MI_SIZE_LOG2);
+                cm, j_min >> MI_SIZE_LOG2, i_min >> MI_SIZE_LOG2);
             if (cm->bru.enabled && bru_blk_skip) {
               aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                  "GDF on not active SB");
