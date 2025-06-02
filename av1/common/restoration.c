@@ -3051,7 +3051,7 @@ void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
                                  void *priv, int32_t *tmpbuf,
                                  RestorationLineBuffers *rlbs, int *processed) {
   const int tile_h = tile_rect->bottom - tile_rect->top;
-  const int ext_size = unit_size * 3 / 2 + RESTORATION_UNIT_OFFSET;
+  const int ext_size = unit_size * 3 / 2 + (RESTORATION_UNIT_OFFSET >> ss_y);
 
   int y0 = 0, i = 0;
   while (y0 < tile_h) {
