@@ -156,7 +156,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
-    const int disp_diff = cur_frame_disp - ref_disp;
+    const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
+                                            cur_frame_disp, ref_disp);
     int tdist = abs(disp_diff);
     const int score =
         max_disp > cur_frame_disp
