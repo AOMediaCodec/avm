@@ -7512,6 +7512,12 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
     cur_disp_order_hint += display_order_hint_factor;
   }
+  // We restrict the derived display order hint to a range, to avoid 32 bit
+  // integer overflow and some corner cases when display order hint operations
+  // are performed in DISPLAY_ORDER_HINT_BITS bit range
+  if (cur_disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Derived display order hint is invalid");
   return cur_disp_order_hint;
 }
 
@@ -7537,6 +7543,12 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 
     disp_order_hint += display_order_hint_factor;
   }
+  // We restrict the derived display order hint to a range, to avoid 32 bit
+  // integer overflow and some corner cases when display order hint operations
+  // are performed in DISPLAY_ORDER_HINT_BITS bit range
+  if (disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Derived display order hint is invalid");
   return disp_order_hint;
 }
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
