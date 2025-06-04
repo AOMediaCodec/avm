@@ -8374,12 +8374,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           int ref = cm->remapped_ref_idx[i];
           scores[i].distance =
               seq_params->order_hint_info.enable_order_hint
-                  ? ((int)current_frame->display_order_hint -
+                  ? get_relative_dist(
+                        &seq_params->order_hint_info,
+                        (int)current_frame->display_order_hint,
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-                     (int)cm->ref_frame_map_pairs[ref].disp_order)
+                        (int)cm->ref_frame_map_pairs[ref].disp_order
 #else
-                       (int)ref_frame_map_pairs[ref].disp_order)
+                          (int)ref_frame_map_pairs[ref].disp_order
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+                        )
                   : 1;
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
