@@ -206,6 +206,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_interinter_wedge;
   arg_def_t enable_interintra_wedge;
   arg_def_t enable_global_motion;
+  arg_def_t enable_skip_mode;
   arg_def_t enable_warped_motion;
   arg_def_t enable_warp_causal;
   arg_def_t enable_warp_delta;

@@ -468,6 +468,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_global_motion;
+  /*!\brief enable skip mode
+   *
+   */
+  unsigned int enable_skip_mode;
   /*!\brief enable diff weighted compound
    *
    */

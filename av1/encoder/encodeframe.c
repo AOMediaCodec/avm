@@ -1850,7 +1850,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_enc_setup_ph_frame(cpi);
 
   cm->current_frame.skip_mode_info.skip_mode_flag =
-      check_skip_mode_enabled(cpi);
+      check_skip_mode_enabled(cpi) && cpi->oxcf.tool_cfg.enable_skip_mode;
 
   enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
   enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;

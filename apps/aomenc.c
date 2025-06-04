@@ -448,6 +448,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_pc_wiener,
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
   &g_av1_codec_arg_defs.enable_tip,
+  &g_av1_codec_arg_defs.enable_skip_mode,
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   &g_av1_codec_arg_defs.enable_mv_traj,
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
@@ -718,6 +719,7 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   config->enable_warp_extend = 1;
   config->enable_global_motion = 1;
+  config->enable_skip_mode = 1;
   config->enable_diff_wtd_comp = 1;
   config->enable_interintra_comp = 1;
   config->enable_masked_comp = 1;
@@ -1639,8 +1641,9 @@ static void show_stream_config(struct stream_state *stream,
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   }
 
-  fprintf(stdout, "                               : TIP (%d)\n",
-          encoder_cfg->enable_tip);
+  fprintf(stdout,
+          "                               : TIP (%d),  Skip Mode (%d)\n",
+          encoder_cfg->enable_tip, encoder_cfg->enable_skip_mode);
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   fprintf(stdout, "                               : MV traj (%d)\n",
           encoder_cfg->enable_mv_traj);

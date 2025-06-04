@@ -128,6 +128,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #endif  // CONFIG_LF_SUB_PU
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);
+    GET_PARAMS(enable_skip_mode);
     GET_PARAMS(enable_warp_causal);
     GET_PARAMS(enable_warp_delta);
 #if CONFIG_SIX_PARAM_WARP_DELTA

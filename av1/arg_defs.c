@@ -553,6 +553,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_global_motion = ARG_DEF(NULL, "enable-global-motion", 1,
                                   "Enable global motion "
                                   "(0: false (default), 1: true)"),
+  .enable_skip_mode = ARG_DEF(NULL, "enable-skip-mode", 1,
+                              "Enable skip mode "
+                              "(0: false, 1: true (default))"),
   .enable_warped_motion = ARG_DEF(NULL, "enable-warped-motion", 1,
                                   "Enable local warped motion "
                                   "(0: false, 1: true (default))"),

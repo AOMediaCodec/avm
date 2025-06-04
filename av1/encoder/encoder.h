@@ -931,6 +931,8 @@ typedef struct {
   bool enable_ref_frame_mvs;
   // Indicates if global motion should be enabled.
   bool enable_global_motion;
+  // Indicates if skip mode should be enabled.
+  bool enable_skip_mode;
   // Indicates if palette should be enabled.
   bool enable_palette;
   unsigned int max_drl_refmvs;

@@ -178,6 +178,7 @@ struct av1_extracfg {
   int enable_interinter_wedge;    // enable interinter-wedge compound usage
   int enable_interintra_wedge;    // enable interintra-wedge compound usage
   int enable_global_motion;       // enable global motion usage for sequence
+  int enable_skip_mode;           // enable skip mode for sequence
   int enable_warped_motion;       // enable local warped motion for sequence
   int enable_warp_causal;         // enable spatial warp prediction for sequence
   int enable_warp_delta;          // enable explicit warp models for sequence
@@ -536,6 +537,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable interinter wedge compound
   1,  // enable interintra wedge compound
   0,  // enable_global_motion usage
+  1,  // enable skip mode at sequence level
   1,  // enable_warped_motion at sequence level
   1,  // enable_warp_causal at sequence level
   1,  // enable_warp_delta at sequence level
@@ -1066,6 +1068,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_interinter_wedge = extra_cfg->enable_interinter_wedge;
   cfg->enable_interintra_wedge = extra_cfg->enable_interintra_wedge;
   cfg->enable_global_motion = extra_cfg->enable_global_motion;
+  cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
   cfg->enable_warp_causal = extra_cfg->enable_warp_causal;
   cfg->enable_warp_delta = extra_cfg->enable_warp_delta;
 #if CONFIG_SIX_PARAM_WARP_DELTA
@@ -1217,6 +1220,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_interinter_wedge = cfg->enable_interinter_wedge;
   extra_cfg->enable_interintra_wedge = cfg->enable_interintra_wedge;
   extra_cfg->enable_global_motion = cfg->enable_global_motion;
+  extra_cfg->enable_skip_mode = cfg->enable_skip_mode;
   extra_cfg->enable_warp_causal = cfg->enable_warp_causal;
   extra_cfg->enable_warp_delta = cfg->enable_warp_delta;
 #if CONFIG_SIX_PARAM_WARP_DELTA
@@ -1544,6 +1548,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
+  tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
   tool_cfg->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
@@ -4265,6 +4270,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_global_motion,
                               argv, err_string)) {
     extra_cfg.enable_global_motion = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_skip_mode,
+                              argv, err_string)) {
+    extra_cfg.enable_skip_mode = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warped_motion,
                               argv, err_string)) {
     extra_cfg.enable_warped_motion = arg_parse_int_helper(&arg, err_string);
@@ -4759,7 +4767,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
         1,   1, 1, 1,
-        1,   0, 0, 1,
+        1,   1, 0, 0,
+        1,
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT
