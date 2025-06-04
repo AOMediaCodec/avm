@@ -4770,7 +4770,7 @@ static INLINE void free_ibp_info(
 #endif  //! CONFIG_IBP_WEIGHT
 
 #define DISPLAY_ORDER_HINT_BITS 30
-#define RELATIVE_DIFF_BITS 8
+#define RELATIVE_DIST_BITS 8
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (!oh->enable_order_hint) return 0;
@@ -4792,8 +4792,8 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   // asymmetric issue in the below bit operation when |a-b| equals to exactly
   // 1 << (DISPLAY_ORDER_HINT_BITS - 1), in which case
   // get_relative_dist(a,b) != -get_relative_dist(b,a)
-  diff = clamp(diff, -(1 << (RELATIVE_DIFF_BITS - 1)),
-               1 << (RELATIVE_DIFF_BITS - 1));
+  const int max_relative_dist = (1 << (RELATIVE_DIST_BITS - 1)) - 1;
+  diff = clamp(diff, -max_relative_dist, max_relative_dist);
   const int m = 1 << (bits - 1);
   diff = (diff & (m - 1)) - (diff & m);
   return diff;
