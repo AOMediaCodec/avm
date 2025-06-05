@@ -192,8 +192,10 @@ typedef struct LV_MAP_COEFF_COST {
 #endif  // CONFIG_TCQ
                      [LF_BASE_SYMBOLS * 2];
   //! Cost for encoding an increment to the low-frequency chroma coefficient
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   int lps_lf_cost_uv[LF_LEVEL_CONTEXTS_UV]
                     [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif
   /*! \brief Cost for encoding the base_eob of a chroma level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
@@ -229,8 +231,10 @@ typedef struct LV_MAP_COEFF_COST {
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
   //! Cost for encoding an increment to the parity-hidden coefficient
+#if !CONFIG_COEFF_BR_PH_BYPASS
   int lps_ph_cost[COEFF_BR_PH_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif
   /*! \brief Cost for encoding the base_eob of a level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
@@ -1002,7 +1006,9 @@ typedef struct {
   //! y first mode cost
   int y_first_mode_costs[Y_MODE_CONTEXTS][FIRST_MODE_COUNT];
   //! y second mode cost
+#if !CONFIG_CTX_Y_SECOND_MODE
   int y_second_mode_costs[Y_MODE_CONTEXTS][SECOND_MODE_COUNT];
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   //! uv mode cost
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
   //! CFL mode cost
@@ -1068,8 +1074,10 @@ typedef struct {
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+#if !CONFIG_PLT_DIR_CTX
   //! palette_direction_cost
   int palette_direction_cost[2];
+#endif  // !CONFIG_PLT_DIR_CTX
   //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
   //! palette_uv_row_flag_cost

@@ -598,7 +598,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           ++counts->y_mode_idx_0[context][mode_idx];
 #endif
           update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
-        } else {
+        }
+#if !CONFIG_CTX_Y_SECOND_MODE
+        else {
           const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                       SECOND_MODE_COUNT * (mode_set_index - 1);
 #if CONFIG_ENTROPY_STATS
@@ -607,6 +609,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                      SECOND_MODE_COUNT);
         }
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
       } else {
         update_cdf(fc->dpcm_vert_horz_cdf, mbmi->dpcm_mode_y, 2);
       }
@@ -624,7 +627,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         ++counts->y_mode_idx_0[context][mode_idx];
 #endif
         update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
-      } else {
+      }
+#if !CONFIG_CTX_Y_SECOND_MODE
+      else {
         const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                     SECOND_MODE_COUNT * (mode_set_index - 1);
 #if CONFIG_ENTROPY_STATS
@@ -633,6 +638,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                    SECOND_MODE_COUNT);
       }
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
     }
 #else  // CONFIG_LOSSLESS_DPCM
     const int context = get_y_mode_idx_ctx(xd);
@@ -648,7 +654,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->y_mode_idx_0[context][mode_idx];
 #endif
       update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
-    } else {
+    }
+#if !CONFIG_CTX_Y_SECOND_MODE
+    else {
       const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                   SECOND_MODE_COUNT * (mode_set_index - 1);
 #if CONFIG_ENTROPY_STATS
@@ -657,6 +665,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                  SECOND_MODE_COUNT);
     }
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
 #endif  // CONFIG_LOSSLESS_DPCM
     update_fsc_cdf(cm, xd,
 #if CONFIG_ENTROPY_STATS
@@ -1493,9 +1502,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               LF_BASE_SYMBOLS);
   AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
               ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf, ctx_tr->coeff_br_lf_uv_cdf,
               BR_CDF_SIZE);
-
+#endif
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,
@@ -1709,7 +1719,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
   AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf, ctx_tr->pc_wiener_restore_cdf,
               2);
+#if !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
 #if CONFIG_MRLS_IMPROVE
@@ -1734,8 +1746,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
+#if !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES);
 
   for (int i = 0; i < INTER_SDP_BSIZE_GROUP; i++) {
@@ -1861,7 +1875,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
 
   AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf, 4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif
   AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
 }
 #endif  // !CONFIG_ENHANCED_FRAME_CONTEXT_INIT

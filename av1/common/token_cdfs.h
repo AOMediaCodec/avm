@@ -1145,6 +1145,15 @@ static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
       },
     };
 
+#if CONFIG_EOB_PT_CTX_REDUCTION
+static const aom_cdf_prob av1_default_eob_extra_cdfs[TOKEN_CDF_Q_CTXS]
+                                                    [CDF_SIZE(2)] = {
+                                                      { AOM_CDF2(16384), 0 },
+                                                      { AOM_CDF2(16384), 0 },
+                                                      { AOM_CDF2(16384), 0 },
+                                                      { AOM_CDF2(16384), 0 },
+                                                    };
+#else
 static const aom_cdf_prob
     av1_default_eob_extra_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                               [EOB_COEF_CONTEXTS][CDF_SIZE(2)] = {
@@ -1637,6 +1646,7 @@ static const aom_cdf_prob
                                     },
                                 },
                               };
+#endif
 
 #if CONFIG_EOB_POS_LUMA
 static const aom_cdf_prob
@@ -10326,7 +10336,7 @@ static const aom_cdf_prob
                                         { AOM_CDF4(7108, 15722, 21972), 90 },
                                     },
                                   };
-
+#if !CONFIG_COEFF_BR_PH_BYPASS
 static const aom_cdf_prob
     av1_default_coeff_br_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BR_PH_CONTEXTS]
                                 [CDF_SIZE(BR_CDF_SIZE)] = {
@@ -10367,6 +10377,7 @@ static const aom_cdf_prob
                                       { AOM_CDF4(6535, 12315, 17263), 101 },
                                   },
                                 };
+#endif
 
 #if CONFIG_DIP
 static const aom_cdf_prob default_intra_dip_mode_n6_cdf[CDF_SIZE(6)] = {

@@ -226,6 +226,11 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   }
   int max_idx_bits = mbmi->max_num_warp_candidates - 1;
   for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    if ((CONFIG_CTX_WARP_REFIDX_REDUCTION >> bit_idx) & 1) {
+      aom_write_literal(w, mbmi->warp_ref_idx != bit_idx, 1);
+      if (mbmi->warp_ref_idx == bit_idx) break;
+      continue;
+    }
     aom_cdf_prob *warp_ref_idx_cdf = av1_get_warp_ref_idx_cdf(ec_ctx, bit_idx);
     aom_write_symbol(w, mbmi->warp_ref_idx != bit_idx, warp_ref_idx_cdf, 2);
 
@@ -727,9 +732,14 @@ static void write_warp_delta_param(const MACROBLOCKD *xd, int index,
 #if CONFIG_WARP_PRECISION
   if (max_coded_index >= WARP_DELTA_NUMSYMBOLS_LOW &&
       coded_value >= coded_value_low_max) {
+#if CONFIG_BYPASS_WARP_PARAM_HIGH
+    aom_write_literal(w, coded_value - 7, WARP_DELTA_NUMSYMBOLS_HIGH);
+
+#else
     aom_write_symbol(w, coded_value - 7,
                      xd->tile_ctx->warp_delta_param_high_cdf[index_type],
                      WARP_DELTA_NUMSYMBOLS_HIGH);
+#endif
   }
 #endif  // CONFIG_WARP_PRECISION
 }
@@ -783,8 +793,12 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            max_coded_index);
     // Code sign
     if (coded_delta_param[index]) {
+#if CONFIG_BYPASS_WARP_PARAM_SIGN
+      aom_write_bit(w, coded_delta_param[index] < 0);
+#else
       aom_write_symbol(w, coded_delta_param[index] < 0,
                        xd->tile_ctx->warp_param_sign_cdf, 2);
+#endif
     }
 #else
     coded_delta_param[index] = (value / step_size) + max_coded_index;
@@ -1013,7 +1027,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
 #if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
+#if CONFIG_PLT_DIR_CTX
+    aom_write_bit(w, p->direction);
+#else
     aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
+#endif  // CONFIG_PLT_DIR_CTX
   }
 #else
   const int direction = 0;
@@ -2233,10 +2251,17 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
     aom_write_symbol(w, mode_idx, ec_ctx->y_mode_idx_cdf_0[context],
                      FIRST_MODE_COUNT);
   } else {
+#if CONFIG_CTX_Y_SECOND_MODE
+    aom_write_literal(
+        w,
+        mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
+        4);
+#else
     aom_write_symbol(
         w,
         mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
         ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   }
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
@@ -3123,7 +3148,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
+static void write_intrabc_drl_idx(int max_ref_bv_num,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                  FRAME_CONTEXT *ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                   const MB_MODE_INFO *mbmi,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                                   aom_writer *w) {
@@ -3135,13 +3163,21 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
 #endif
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   (void)mbmi_ext_frame;
-
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
+#if CONFIG_BYPASS_INTRABC_DRL_IDX
+    aom_write_bit(w, mbmi->intrabc_drl_idx != idx);
+#else
     aom_write_symbol(w, mbmi->intrabc_drl_idx != idx,
                      ec_ctx->intrabc_drl_idx_cdf[bit_cnt], 2);
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+
     if (mbmi->intrabc_drl_idx == idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
 }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -3194,7 +3230,10 @@ static AOM_INLINE void write_intrabc_info(
 #else
         MAX_REF_BV_STACK_SIZE,
 #endif  // CONFIG_IBC_MAX_DRL
-        ec_ctx, mbmi, mbmi_ext_frame, w);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+        ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+        mbmi, mbmi_ext_frame, w);
 
 #if CONFIG_IBC_SUBPEL_PRECISION
     if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
@@ -4523,13 +4562,19 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
-static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
-                                           const WienerInfo *wiener_info,
-                                           WienerInfoBank *bank,
-                                           aom_writer *wb) {
+static AOM_INLINE void write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+    MACROBLOCKD *xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+    int wiener_win, const WienerInfo *wiener_info, WienerInfoBank *bank,
+    aom_writer *wb) {
   const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
   const int exact_match = (equal_ref >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif  // CONFIG_MERGE_PARA_CTX
   const int ref = wiener_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4587,13 +4632,18 @@ static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
   return;
 }
 
-static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
-                                            const SgrprojInfo *sgrproj_info,
-                                            SgrprojInfoBank *bank,
-                                            aom_writer *wb) {
+static AOM_INLINE void write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+    MACROBLOCKD *xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+    const SgrprojInfo *sgrproj_info, SgrprojInfoBank *bank, aom_writer *wb) {
   const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
   const int exact_match = (equal_ref >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif  // CONFIG_MERGE_PARA_CTX
   const int ref = sgrproj_info->bank_ref;
   assert(IMPLIES(exact_match, ref == equal_ref));
   assert(ref < AOMMAX(1, bank->bank_size));
@@ -4646,8 +4696,12 @@ static int check_and_write_merge_info(
       check_wienerns_bank_eq(bank, wienerns_info, nsfilter_params->ncoeffs,
                              wiener_class_id, ref_for_class);
   const int exact_match = (is_equal >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  (void)xd;
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-
+#endif  // CONFIG_MERGE_PARA_CTX
   if (!exact_match) {
     ref_for_class[wiener_class_id] =
         wienerns_info->bank_ref_for_class[wiener_class_id];
@@ -4675,7 +4729,12 @@ static int check_and_write_exact_match(
   const int exact_match =
       check_wienerns_eq(wienerns_info, ref_wienerns_info,
                         nsfilter_params->ncoeffs, wiener_class_id);
+#if CONFIG_MERGE_PARA_CTX
+  (void)xd;
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif  // CONFIG_MERGE_PARA_CTX
   return exact_match;
 }
 
@@ -5017,12 +5076,18 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
     switch (unit_rtype) {
       case RESTORE_WIENER:
-        write_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                            &xd->wiener_info[plane], w);
+        write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+            xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+            wiener_win, &rui->wiener_info, &xd->wiener_info[plane], w);
         break;
       case RESTORE_SGRPROJ:
-        write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
-                             w);
+        write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+            xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+            &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
         break;
       case RESTORE_WIENER_NONSEP:
         write_wienerns_filter(xd, plane, rsi, &rui->wienerns_info,
@@ -5040,8 +5105,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                          &xd->wiener_info[plane], w);
+      write_wiener_filter(
+#if !CONFIG_MERGE_PARA_CTX
+          xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+          wiener_win, &rui->wiener_info, &xd->wiener_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
@@ -5050,7 +5118,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
+      write_sgrproj_filter(
+#if !CONFIG_MERGE_PARA_CTX
+          xd,
+#endif  // !CONFIG_MERGE_PARA_CTX
+          &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,

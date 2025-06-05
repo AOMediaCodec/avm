@@ -348,8 +348,12 @@ static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
     }
     if (plane > 0) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
+        cost += get_br_lf_cost_tcq_uv(abs_qc);
+#else
         int br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
         cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+#endif
       }
     } else {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
@@ -393,9 +397,13 @@ static int get_mid_cost_lf_dc(int ci, tran_low_t abs_qc, int sign,
   else
     cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
   if (plane > 0) {
+#if CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
+    cost += get_br_lf_cost_tcq_uv(abs_qc);
+#else
     if (abs_qc > LF_NUM_BASE_LEVELS) {
       cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost_uv[mid_ctx]);
     }
+#endif
   } else {
     if (abs_qc > LF_NUM_BASE_LEVELS) {
       cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[mid_ctx]);

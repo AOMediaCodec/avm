@@ -199,8 +199,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     // y mode costs
     av1_cost_tokens_from_cdf(mode_costs->y_first_mode_costs[i],
                              fc->y_mode_idx_cdf_0[i], NULL);
+#if !CONFIG_CTX_Y_SECOND_MODE
     av1_cost_tokens_from_cdf(mode_costs->y_second_mode_costs[i],
                              fc->y_mode_idx_cdf_1[i], NULL);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   }
 
   for (j = 0; j < UV_MODE_CONTEXTS; ++j)
@@ -263,8 +265,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+#if !CONFIG_PLT_DIR_CTX
   av1_cost_tokens_from_cdf(mode_costs->palette_direction_cost,
                            fc->palette_direction_cdf, NULL);
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_LINE_COPY
   for (i = 0; i < PALETTE_ROW_FLAG_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->palette_y_row_flag_cost[i],
@@ -777,9 +781,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #endif  // CONFIG_WARP_PRECISION
 
     for (i = 0; i < 3; i++) {
-      for (j = 0; j < WARP_REF_CONTEXTS; j++) {
-        av1_cost_tokens_from_cdf(mode_costs->warp_ref_idx_cost[i][j],
-                                 fc->warp_ref_idx_cdf[i][j], NULL);
+      if ((CONFIG_CTX_WARP_REFIDX_REDUCTION >> i) & 1) {
+        for (j = 0; j < WARP_REF_CONTEXTS; j++) {
+          mode_costs->warp_ref_idx_cost[i][j][0] = av1_cost_literal(1);
+          mode_costs->warp_ref_idx_cost[i][j][1] = av1_cost_literal(1);
+        }
+      } else {
+        for (j = 0; j < WARP_REF_CONTEXTS; j++) {
+          av1_cost_tokens_from_cdf(mode_costs->warp_ref_idx_cost[i][j],
+                                   fc->warp_ref_idx_cdf[i][j], NULL);
+        }
       }
     }
 
@@ -859,8 +870,13 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   av1_cost_tokens_from_cdf(mode_costs->pc_wiener_restore_cost,
                            fc->pc_wiener_restore_cdf, NULL);
   // Bit cost for parameter to designate whether unit coeffs are merged.
+#if CONFIG_MERGE_PARA_CTX
+  mode_costs->merged_param_cost[0] = av1_cost_literal(1);
+  mode_costs->merged_param_cost[1] = av1_cost_literal(1);
+#else
   av1_cost_tokens_from_cdf(mode_costs->merged_param_cost, fc->merged_param_cdf,
                            NULL);
+#endif  // !CONFIG_MERGE_PARA_CTX
 }
 
 // Values are now correlated to quantizer.
@@ -1319,8 +1335,13 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
             pcost->base_bob_cost[ctx],
             fc->coeff_base_bob_cdf[AOMMIN(tx_size, TX_16X16)][ctx], NULL);
       for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
+#if CONFIG_EOB_PT_CTX_REDUCTION
+        av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx], fc->eob_extra_cdf,
+                                 NULL);
+#else
         av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
                                  fc->eob_extra_cdf[tx_size][plane][ctx], NULL);
+#endif
       for (int gr = 0; gr < DC_SIGN_GROUPS; ++gr) {
         for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx) {
           av1_cost_tokens_from_cdf(pcost->dc_sign_cost[gr][ctx],
@@ -1331,8 +1352,15 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       if (plane == PLANE_TYPE_UV) {
         for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i)
           for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
+#if CONFIG_BY_PASS_V_SIGN
+          {
+            pcost->v_dc_sign_cost[i][ctx][0] = av1_cost_literal(1);
+            pcost->v_dc_sign_cost[i][ctx][1] = av1_cost_literal(1);
+          }
+#else
             av1_cost_tokens_from_cdf(pcost->v_dc_sign_cost[i][ctx],
                                      fc->v_dc_sign_cdf[i][ctx], NULL);
+#endif
 #if !CONFIG_CTX_V_AC_SIGN
         for (int i = 0; i < CROSS_COMPONENT_CONTEXTS; ++i)
           av1_cost_tokens_from_cdf(pcost->v_ac_sign_cost[i],
@@ -1341,12 +1369,15 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
 #endif  // CONFIG_CONTEXT_DERIVATION
 
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
       for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS_UV; ++ctx) {
         int br_lf_cctx_rate[BR_CDF_SIZE];
         int prev_cost_lf_cctx = 0;
         int i, j;
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS  // cost
         av1_cost_tokens_from_cdf(br_lf_cctx_rate, fc->coeff_br_lf_uv_cdf[ctx],
                                  NULL);
+#endif
         for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
           for (j = 0; j < BR_CDF_SIZE - 1; j++) {
             pcost->lps_lf_cost_uv[ctx][i + j] =
@@ -1364,6 +1395,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->lps_lf_cost_uv[ctx][i] - pcost->lps_lf_cost_uv[ctx][i - 1];
         }
       }
+#endif
 
       for (int ctx = 0; ctx < LEVEL_CONTEXTS_UV; ++ctx) {
         int br_rate_cctx[BR_CDF_SIZE];
@@ -1532,6 +1564,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                              fc->coeff_base_ph_cdf[ctx], NULL);
   }
 
+#if !CONFIG_COEFF_BR_PH_BYPASS  // cost
   for (int ctx = 0; ctx < COEFF_BR_PH_CONTEXTS; ++ctx) {
     int br_ph_rate[BR_CDF_SIZE];
     int prev_cost = 0;
@@ -1553,6 +1586,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
           pcost->lps_ph_cost[ctx][i] - pcost->lps_ph_cost[ctx][i - 1];
     }
   }
+#endif
 }
 
 #if CONFIG_IBC_SUBPEL_PRECISION
