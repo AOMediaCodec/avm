@@ -591,7 +591,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_TCQ
   seq->enable_tcq =
-      !is_lossless_requested(&oxcf->rc_cfg) && tool_cfg->enable_tcq;
+      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
     seq->enable_parity_hiding =
         !is_lossless_requested(&oxcf->rc_cfg) && tool_cfg->enable_parity_hiding;
