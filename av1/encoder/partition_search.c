@@ -3932,6 +3932,9 @@ static AOM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_BRU
   const bool allow_rect = part_cfg->enable_rect_partitions ||
                           !(blk_params->has_rows && blk_params->has_cols);
+  const int min_partition_size = (blk_params->has_rows && blk_params->has_cols)
+                                     ? blk_params->min_partition_size
+                                     : BLOCK_4X4;
 
   part_search_state->do_rectangular_split = allow_rect;
 
@@ -3940,15 +3943,13 @@ static AOM_INLINE void init_allowed_partitions(
 
   // Initialize allowed partition types for the partition block.
   part_search_state->is_block_splittable = is_partition_point(bsize);
-  part_search_state->partition_none_allowed =
-      partition_allowed[PARTITION_NONE] &&
-      is_bsize_geq(blk_params->bsize, blk_params->min_partition_size);
+  part_search_state->partition_none_allowed = partition_allowed[PARTITION_NONE];
   part_search_state->partition_rect_allowed[HORZ] =
       partition_allowed[PARTITION_HORZ] && part_cfg->enable_rect_partitions &&
-      is_bsize_geq(horz_subsize, blk_params->min_partition_size);
+      is_bsize_geq(horz_subsize, min_partition_size);
   part_search_state->partition_rect_allowed[VERT] =
       partition_allowed[PARTITION_VERT] && part_cfg->enable_rect_partitions &&
-      is_bsize_geq(vert_subsize, blk_params->min_partition_size);
+      is_bsize_geq(vert_subsize, min_partition_size);
 
   part_search_state->partition_3_allowed[HORZ] =
       partition_allowed[PARTITION_HORZ_3] &&
@@ -3988,6 +3989,9 @@ static AOM_INLINE void init_allowed_partitions(
   // Reset the flag indicating whether a partition leading to a rdcost lower
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
+  assert(part_search_state->partition_none_allowed ||
+         part_search_state->partition_rect_allowed[VERT] ||
+         part_search_state->partition_rect_allowed[HORZ]);
 }
 
 // Initialize state variables of partition search used in
@@ -7279,7 +7283,6 @@ BEGIN_PARTITION_SEARCH:
   bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
   prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
                             partition_boundaries);
-
   int ext_recur_depth_val = 0;
 
   if (cpi->sf.part_sf.ext_recur_depth_level == 0) {
