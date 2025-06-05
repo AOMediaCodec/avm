@@ -45,6 +45,16 @@ static INLINE int derive_linear_parameters_beta(int sum_x, int sum_y, int count,
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
+
+#if CONFIG_SDP_CFL_LATENCY
+  assert(xd->is_cfl_allowed_in_sdp < CFL_ALLOWED_TYPES_FOR_SDP);
+  if (xd->is_cfl_allowed_in_sdp != CFL_ALLOWED_FOR_CHROMA) {
+    assert(xd->tree_type == CHROMA_PART);
+    if (xd->is_cfl_allowed_in_sdp == CFL_DISALLOWED_FOR_CHROMA)
+      return CFL_DISALLOWED;
+  }
+#endif
+
   const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
   const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;

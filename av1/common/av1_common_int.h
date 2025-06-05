@@ -3536,7 +3536,11 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
   }
 
   if (ptree_luma->partition == PARTITION_NONE) {
+#if CONFIG_SDP_CFL_LATENCY
+    return true;
+#else
     return false;
+#endif
   }
 #if CONFIG_INTRA_SDP_SIMPLIFICATION
   // intra sdp logic - If the first two splits of luma prtition from 64X64
@@ -3565,6 +3569,75 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
   }
   return true;
 }
+
+#if CONFIG_SDP_CFL_LATENCY
+
+static int is_allow_cfl_for_this_luma_partition(
+    PARTITION_TYPE luma_partition, PARTITION_TYPE current_partition,
+    BLOCK_SIZE bsize_luma) {
+  assert(bsize_luma == BLOCK_64X64);
+  if (luma_partition == current_partition) return CFL_ALLOWED_FOR_CHROMA;
+
+  PARTITION_TYPE luma_partition_check = luma_partition;
+
+  switch (luma_partition_check) {
+    case PARTITION_NONE: return CFL_DISALLOWED_FOR_CHROMA; break;
+    case PARTITION_HORZ:
+    case PARTITION_HORZ_3:
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+      if (current_partition == PARTITION_HORZ ||
+          current_partition == PARTITION_HORZ_3 ||
+          current_partition == PARTITION_HORZ_4A ||
+          current_partition == PARTITION_HORZ_4B)
+        return CFL_ALLOWED_FOR_CHROMA;
+      else
+        return CFL_DISALLOWED_FOR_CHROMA;
+      break;
+    case PARTITION_VERT:
+    case PARTITION_VERT_3:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+      if (current_partition == PARTITION_VERT ||
+          current_partition == PARTITION_VERT_3 ||
+          current_partition == PARTITION_VERT_4A ||
+          current_partition == PARTITION_VERT_4B)
+        return CFL_ALLOWED_FOR_CHROMA;
+      else
+        return CFL_DISALLOWED_FOR_CHROMA;
+      break;
+    default: return CFL_DISALLOWED_FOR_CHROMA; break;
+  }
+
+  return CFL_DISALLOWED_FOR_CHROMA;
+}
+
+static AOM_INLINE int is_cfl_allowed_for_sdp(AV1_COMMON const *cm,
+                                             const MACROBLOCKD *const xd,
+                                             const PARTITION_TREE *ptree_luma,
+                                             PARTITION_TYPE current_partition,
+                                             BLOCK_SIZE bsize_luma) {
+  if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
+  if (xd->tree_type != CHROMA_PART) return CFL_ALLOWED_FOR_CHROMA;
+
+  if ((bsize_luma != BLOCK_64X64)) {
+    return CFL_DISALLOWED_FOR_CHROMA;
+  }
+  if (current_partition == PARTITION_NONE) return CFL_ALLOWED_FOR_CHROMA;
+
+  if (ptree_luma && is_luma_chroma_share_same_partition(xd->tree_type,
+                                                        ptree_luma, bsize_luma))
+    return CFL_ALLOWED_FOR_CHROMA;
+
+  if (ptree_luma) {
+    return is_allow_cfl_for_this_luma_partition(ptree_luma->partition,
+                                                current_partition, bsize_luma);
+  }
+
+  return CFL_DISALLOWED_FOR_CHROMA;
+}
+
+#endif
 
 static INLINE int check_is_chroma_size_valid(
     const AV1_COMMON *const cm, TREE_TYPE tree_type, PARTITION_TYPE partition,

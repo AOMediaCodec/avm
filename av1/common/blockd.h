@@ -874,6 +874,9 @@ typedef struct PARTITION_TREE {
   /*! \brief Data related to the chroma block that the current luma block
    * corresponds to. */
   CHROMA_REF_INFO chroma_ref_info;
+#if CONFIG_SDP_CFL_LATENCY
+  int is_cfl_allowed_for_this_chroma_partition;
+#endif
 } PARTITION_TREE;
 
 PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index);
@@ -2633,6 +2636,9 @@ typedef struct macroblockd {
   int_mv mv_refined[2 * N_OF_OFFSETS];
   /** variable to store affine refinement parameters per subblock */
   WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];
+#if CONFIG_SDP_CFL_LATENCY
+  int is_cfl_allowed_in_sdp;
+#endif
 } MACROBLOCKD;
 
 /*!\cond */

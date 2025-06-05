@@ -402,6 +402,10 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
   dst->region_type = src->region_type;
   dst->extended_sdp_allowed_flag = src->extended_sdp_allowed_flag;
   REGION_TYPE cur_region_type = src->region_type;
+#if CONFIG_SDP_CFL_LATENCY
+  dst->is_cfl_allowed_for_this_chroma =
+      src->parent->is_cfl_allowed_for_this_chroma;
+#endif
   dst->rd_cost = src->rd_cost;
   dst->none_rd = src->none_rd;
   dst->skippable = src->skippable;

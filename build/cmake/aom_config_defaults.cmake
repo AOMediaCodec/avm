@@ -482,6 +482,7 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
                    "Enable to simplify MVP list construction")
 set_aom_config_var(CONFIG_BRU 1 "enable BRU update")
+set_aom_config_var(CONFIG_SDP_CFL_LATENCY 1 "Reduce SDP-CFL latency")
 
 # IST for sub-TU partitions from CWG-E151
 set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1

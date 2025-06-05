@@ -96,6 +96,9 @@ typedef struct PC_TREE {
   RD_STATS rd_cost;
   RD_STATS none_rd;
   bool skippable;
+#if CONFIG_SDP_CFL_LATENCY
+  int is_cfl_allowed_for_this_chroma;
+#endif
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {

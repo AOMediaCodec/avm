@@ -2414,6 +2414,9 @@ static AOM_INLINE void decode_partition(
                                                      decode_block,
                                                      parse_decode_block };
   const int is_sb_root = bsize == cm->sb_size;
+#if CONFIG_SDP_CFL_LATENCY
+  if (is_sb_root) ptree->is_cfl_allowed_for_this_chroma_partition = 0;
+#endif
   if (is_sb_root) {
     if (!frame_is_intra_only(cm)) {
       ptree->region_type = MIXED_INTER_INTRA_REGION;
@@ -2491,7 +2494,12 @@ static AOM_INLINE void decode_partition(
                     ? PARTITION_NONE
                     : read_partition(cm, xd, mi_row, mi_col, reader, has_rows,
                                      has_cols, ptree, ptree_luma, bsize);
-
+#if CONFIG_SDP_CFL_LATENCY
+    ptree->is_cfl_allowed_for_this_chroma_partition |=
+        is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
+    const int is_cfl_allowed_in_sdp =
+        ptree->is_cfl_allowed_for_this_chroma_partition;
+#endif
     ptree->partition = partition;
 
     if (!is_sb_root && parent) {
@@ -2563,6 +2571,37 @@ static AOM_INLINE void decode_partition(
         break;
       default: break;
     }
+#if CONFIG_SDP_CFL_LATENCY
+    switch (partition) {
+      case PARTITION_NONE:
+        xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;  //
+        break;
+      case PARTITION_HORZ_4A:
+      case PARTITION_HORZ_4B:
+      case PARTITION_VERT_4A:
+      case PARTITION_VERT_4B:
+      case PARTITION_HORZ_3:
+      case PARTITION_VERT_3:
+      case PARTITION_SPLIT:
+        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        ptree->sub_tree[2]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        ptree->sub_tree[3]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        break;
+      case PARTITION_HORZ:
+      case PARTITION_VERT:
+        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+        break;
+      default: break;
+    }
+#endif
   } else {
     partition = ptree->partition;
     const PARTITION_TREE *parent = ptree->parent;
