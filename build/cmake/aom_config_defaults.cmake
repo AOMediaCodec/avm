@@ -163,6 +163,8 @@ set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
 set_aom_config_var(CONFIG_CDF_SCALE 1
                    "AV2 enable entropy cdf scaling improvement.")
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
+set_aom_config_var(CONFIG_INTRA_SDP_SIMPLIFICATION 1 NUMBER
+                   "Simplify intra sdp logic")
 set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
 set_aom_config_var(CONFIG_DIP_EXT 1 "AV2 DIP Improvements.")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
