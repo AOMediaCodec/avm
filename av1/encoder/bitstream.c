@@ -1681,11 +1681,10 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       aom_write_symbol(w, lossless_inter_tx_type,
                        xd->tile_ctx->lossless_inter_tx_type_cdf, 2);
     }
+    return;
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
-      ((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
-       (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1792,9 +1791,7 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                          CctxType cctx_type, TX_SIZE tx_size, aom_writer *w) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(xd->is_chroma_ref);
-  if (((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
-       (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
-      !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+  if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
