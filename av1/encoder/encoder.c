@@ -600,7 +600,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->enable_parity_hiding = 0;
   }
 #else
-  seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
+  seq->enable_parity_hiding =
+      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_parity_hiding;
 #endif  // CONFIG_TCQ
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
