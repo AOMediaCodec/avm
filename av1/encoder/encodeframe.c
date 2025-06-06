@@ -1550,7 +1550,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 
 static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
+  if (!cm->seq_params.enable_parity_hiding
 #if CONFIG_TCQ
       || cm->features.tcq_mode
 #endif  // CONFIG_TCQ
@@ -1693,6 +1693,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
     }
   }
+  av1_enc_setup_ph_frame(cpi);
 
   const CommonQuantParams *quant_params = &cm->quant_params;
   for (i = 0; i < MAX_SEGMENTS; ++i) {
@@ -1702,6 +1703,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
                         : quant_params->base_qindex;
     xd->lossless[i] =
         qindex == 0 && cm->features.tcq_mode == 0 &&
+        cm->features.allow_parity_hiding == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
@@ -1846,8 +1848,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #endif  // CONFIG_LF_SUB_PU
 
   av1_enc_setup_tip_frame(cpi);
-
-  av1_enc_setup_ph_frame(cpi);
 
   cm->current_frame.skip_mode_info.skip_mode_flag =
       check_skip_mode_enabled(cpi) && cpi->oxcf.tool_cfg.enable_skip_mode;

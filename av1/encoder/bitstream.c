@@ -7034,6 +7034,20 @@ static AOM_INLINE void write_uncompressed_header_obu(
   encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
   encode_segmentation(cm, xd, wb);
 
+  if (!cm->seq_params.enable_parity_hiding
+#if CONFIG_TCQ
+      || features->tcq_mode
+#endif  // CONFIG_TCQ
+  ) {
+    assert(features->allow_parity_hiding == false);
+  } else {
+    aom_wb_write_bit(wb, features->allow_parity_hiding);
+  }
+
+  assert(
+      IMPLIES(features->coded_lossless,
+              features->tcq_mode == 0 && features->allow_parity_hiding == 0));
+
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
   if (quant_params->base_qindex > 0) {
@@ -7073,16 +7087,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (!features->coded_lossless && cm->seq_params.enable_ccso) {
       encode_ccso(cm, wb);
     }
-  }
-
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || features->tcq_mode
-#endif  // CONFIG_TCQ
-  ) {
-    assert(features->allow_parity_hiding == false);
-  } else {
-    aom_wb_write_bit(wb, features->allow_parity_hiding);
   }
 
   // Write TX mode

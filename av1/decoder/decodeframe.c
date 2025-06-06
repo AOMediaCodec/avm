@@ -8772,6 +8772,39 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   setup_segmentation(cm, rb);
 
+  if (!cm->seq_params.enable_parity_hiding
+#if CONFIG_TCQ
+      || features->tcq_mode
+#endif  // CONFIG_TCQ
+  )
+    features->allow_parity_hiding = false;
+  else
+    features->allow_parity_hiding = aom_rb_read_bit(rb);
+
+  for (int i = 0; i < MAX_SEGMENTS; ++i) {
+    const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
+                                      cm->seq_params.bit_depth);
+    xd->lossless[i] =
+        qindex == 0 && cm->features.tcq_mode == 0 &&
+        features->allow_parity_hiding == 0 &&
+        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
+#if CONFIG_EXT_QUANT_UPD
+        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
+        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+#else
+          quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
+#endif  // CONFIG_EXT_QUANT_UPD
+    xd->qindex[i] = qindex;
+  }
+  features->coded_lossless = is_coded_lossless(cm, xd);
+  features->all_lossless = features->coded_lossless
+#if CONFIG_ENABLE_SR
+                           && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+      ;
+
   cm->delta_q_info.delta_q_res = 1;
   cm->delta_q_info.delta_lf_res = 1;
   cm->delta_q_info.delta_lf_present_flag = 0;
@@ -8794,29 +8827,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
 
-  for (int i = 0; i < MAX_SEGMENTS; ++i) {
-    const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                                      cm->seq_params.bit_depth);
-    xd->lossless[i] =
-        cm->features.tcq_mode == 0 && qindex == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-#if CONFIG_EXT_QUANT_UPD
-        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-          quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
-#endif  // CONFIG_EXT_QUANT_UPD
-    xd->qindex[i] = qindex;
-  }
-  features->coded_lossless = is_coded_lossless(cm, xd);
-  features->all_lossless = features->coded_lossless
-#if CONFIG_ENABLE_SR
-                           && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-      ;
   setup_segmentation_dequant(cm, xd);
+
   if (features->coded_lossless) {
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;
@@ -8862,15 +8874,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!features->coded_lossless && seq_params->enable_ccso) {
     setup_ccso(cm, rb);
   }
-
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || features->tcq_mode
-#endif  // CONFIG_TCQ
-  )
-    features->allow_parity_hiding = false;
-  else
-    features->allow_parity_hiding = aom_rb_read_bit(rb);
 
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
