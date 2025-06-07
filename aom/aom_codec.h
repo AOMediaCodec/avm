@@ -100,7 +100,7 @@ extern "C" {
 
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
-
+#include "config/aom_config.h"
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
 #if defined(__GNUC__) && __GNUC__
@@ -544,12 +544,27 @@ aom_codec_err_t aom_codec_set_option(aom_codec_ctx_t *ctx, const char *name,
 typedef enum ATTRIBUTE_PACKED {
   OBU_SEQUENCE_HEADER = 1,
   OBU_TEMPORAL_DELIMITER = 2,
+#if F106_OBU_TILEGROUP
+  OBU_TILEGROUP, //3
+  OBU_METADATA, //4
+  OBU_TILE_LIST, //5
+#else
   OBU_FRAME_HEADER = 3,
   OBU_TILE_GROUP = 4,
   OBU_METADATA = 5,
   OBU_FRAME = 6,
   OBU_REDUNDANT_FRAME_HEADER = 7,
   OBU_TILE_LIST = 8,
+#endif
+#if F106_OBU_SWITCH
+  OBU_SWITCH,
+#endif
+#if F106_OBU_SEF
+  OBU_SEF,
+#endif
+#if F106_OBU_TIP
+  OBU_TIP,
+#endif
   OBU_PADDING = 15,
 } OBU_TYPE;
 
