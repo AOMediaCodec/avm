@@ -60,12 +60,26 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
+#if F106_OBU_SWITCH
+    case OBU_SWITCH:
+#endif
+#if F106_OBU_SEF
+    case OBU_SEF:
+#endif
+#if F106_OBU_TIP
+    case OBU_TIP:
+#endif
+#if F106_OBU_TILEGROUP
+    case OBU_TILEGROUP:
+    case OBU_METADATA:
+#else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
     case OBU_METADATA:
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
     case OBU_TILE_LIST:
+#endif
     case OBU_PADDING: return true;
   }
   return false;

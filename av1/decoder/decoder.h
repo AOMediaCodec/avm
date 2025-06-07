@@ -327,7 +327,9 @@ typedef struct AV1Decoder {
   // State if the camera frame header is already decoded while
   // large_scale_tile = 1.
   int camera_frame_header_ready;
+#if !F106_OBU_TILEGROUP
   size_t frame_header_size;
+#endif
   DataBuffer obu_size_hdr;
   int output_frame_width_in_tiles_minus_1;
   int output_frame_height_in_tiles_minus_1;
@@ -382,6 +384,11 @@ typedef struct AV1Decoder {
    * Indicate if the primary reference frame is signaled.
    */
   int signal_primary_ref_frame;
+  
+#if F106_OBU_TILEGROUP
+  uint32_t uch_size_in_bits;
+#endif
+
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

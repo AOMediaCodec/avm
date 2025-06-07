@@ -12,7 +12,7 @@
 #include <assert.h>
 
 #include "av1/common/obu_util.h"
-
+#include "config/aom_config.h"
 #include "aom_dsp/bitreader_buffer.h"
 
 // Returns 1 when OBU type is valid, and 0 otherwise.
@@ -21,12 +21,26 @@ static int valid_obu_type(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
+#if F106_OBU_SWITCH
+    case OBU_SWITCH:
+#endif
+#if F106_OBU_SEF
+    case OBU_SEF:
+#endif
+#if F106_OBU_TIP
+    case OBU_TIP:
+#endif
+#if F106_OBU_TILEGROUP
+    case OBU_TILEGROUP:
+    case OBU_METADATA:
+#else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
     case OBU_METADATA:
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
     case OBU_TILE_LIST:
+#endif
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

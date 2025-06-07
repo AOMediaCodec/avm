@@ -447,8 +447,14 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       if (status != AOM_CODEC_OK) return status;
 
       got_sequence_header = 1;
-    } else if (obu_header.type == OBU_FRAME_HEADER ||
-               obu_header.type == OBU_FRAME) {
+    }
+#if F106_OBU_TILEGROUP
+    else if(obu_header.type == OBU_TILEGROUP)
+#else
+    else if (obu_header.type == OBU_FRAME_HEADER ||
+               obu_header.type == OBU_FRAME)
+#endif
+    {
       if (got_sequence_header && reduced_still_picture_hdr) {
         found_keyframe = 1;
         break;
@@ -456,8 +462,16 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         // make sure we have enough bits to get the frame type out
         if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
         struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+#if F106_OBU_TILEGROUP
+        int first_tile_group_in_frame = aom_rb_read_bit(&rb);
+        if(!first_tile_group_in_frame){
+          aom_rb_read_bit(&rb);
+        }
+#endif
+#if !F106_OBU_SEF
         const int show_existing_frame = aom_rb_read_bit(&rb);
         if (!show_existing_frame) {
+#endif
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
           FRAME_TYPE frame_type = KEY_FRAME;
           if (aom_rb_read_bit(&rb)) {
@@ -466,7 +480,11 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
             if (aom_rb_read_bit(&rb)) {
               frame_type = KEY_FRAME;
             } else {
+#if F106_OBU_SWITCH
+              frame_type = INTRA_ONLY_FRAME;
+#else
               frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
+#endif
             }
           }
 #else
@@ -478,7 +496,9 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           } else if (frame_type == INTRA_ONLY_FRAME) {
             intra_only_flag = 1;
           }
+#if !F106_OBU_SEF
         }
+#endif
       }
     }
     // skip past any unread OBU header data
@@ -1514,7 +1534,9 @@ static aom_codec_err_t ctrl_get_frame_header_info(aom_codec_alg_priv_t *ctx,
       const AV1Decoder *pbi = frame_worker_data->pbi;
       frame_header_info->coded_tile_data_size = pbi->obu_size_hdr.size;
       frame_header_info->coded_tile_data = pbi->obu_size_hdr.data;
+#if !F106_OBU_TILEGROUP
       frame_header_info->extra_size = pbi->frame_header_size;
+#endif
     } else {
       return AOM_CODEC_ERROR;
     }
