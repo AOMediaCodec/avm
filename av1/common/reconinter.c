@@ -1904,26 +1904,16 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
   const int64_t angle = -d * am_params->rot_angle;
   cos_angle = unit_offset;
   sin_angle = angle * (1 << (WARPEDMODEL_PREC_BITS - AFFINE_PREC_BITS));
-  const int64_t diag_min = unit_offset - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1;
-  const int64_t diag_max = unit_offset + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1;
-  const int64_t ndiag_min = -WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1;
-  const int64_t ndiag_max = WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1;
-  wm->wmmat[2] = (int32_t)clamp64(
-      ROUND_POWER_OF_TWO_SIGNED_64(scale_x * cos_angle, WARPEDMODEL_PREC_BITS),
-      diag_min, diag_max);
-  wm->wmmat[5] = (int32_t)clamp64(
-      ROUND_POWER_OF_TWO_SIGNED_64(scale_y * cos_angle, WARPEDMODEL_PREC_BITS),
-      diag_min, diag_max);
+  wm->wmmat[2] = clamp64_to_32(
+      ROUND_POWER_OF_TWO_SIGNED_64(scale_x * cos_angle, WARPEDMODEL_PREC_BITS));
+  wm->wmmat[5] = clamp64_to_32(
+      ROUND_POWER_OF_TWO_SIGNED_64(scale_y * cos_angle, WARPEDMODEL_PREC_BITS));
   if (d > 0) {
     // Parameters of A^-1
-    wm->wmmat[3] =
-        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_x * sin_angle,
-                                                      WARPEDMODEL_PREC_BITS),
-                         ndiag_min, ndiag_max);
-    wm->wmmat[4] =
-        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_y * sin_angle,
-                                                      WARPEDMODEL_PREC_BITS),
-                         ndiag_min, ndiag_max);
+    wm->wmmat[3] = clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(
+        -scale_x * sin_angle, WARPEDMODEL_PREC_BITS));
+    wm->wmmat[4] = clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(
+        scale_y * sin_angle, WARPEDMODEL_PREC_BITS));
     int64_t tmp_tx = (int64_t)wm->wmmat[2] * (int64_t)am_params->tran_x -
                      (int64_t)wm->wmmat[3] * (int64_t)am_params->tran_y;
     int64_t tmp_ty = (int64_t)wm->wmmat[4] * (int64_t)am_params->tran_x +
@@ -1938,14 +1928,10 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
         WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
   } else {
     // Parameters of A
-    wm->wmmat[3] =
-        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(-scale_y * sin_angle,
-                                                      WARPEDMODEL_PREC_BITS),
-                         ndiag_min, ndiag_max);
-    wm->wmmat[4] =
-        (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(scale_x * sin_angle,
-                                                      WARPEDMODEL_PREC_BITS),
-                         ndiag_min, ndiag_max);
+    wm->wmmat[3] = clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(
+        -scale_y * sin_angle, WARPEDMODEL_PREC_BITS));
+    wm->wmmat[4] = clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(
+        scale_x * sin_angle, WARPEDMODEL_PREC_BITS));
     wm->wmmat[0] = (int32_t)clamp64(
         (int64_t)am_params->tran_x * (-d), -WARPEDMODEL_TRANS_CLAMP,
         WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
@@ -3084,7 +3070,8 @@ void make_inter_pred_of_nxn(
           // av1_make_inter_predictor()
 #if CONFIG_WARP_BD_BOX
           WarpBoundaryBox warp_bd_box;
-          if (use_sub_pad_warp && (sub_bh < 8 || sub_bw < 8)) {
+          if ((use_sub_pad_warp && (sub_bh < 8 || sub_bw < 8)) ||
+              !this_wm.use_affine_filter) {
             av1_get_reference_area_with_padding_single_warp(
                 cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
                 mi_x + (i << inter_pred_params->subsampling_x),

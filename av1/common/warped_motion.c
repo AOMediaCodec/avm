@@ -684,11 +684,11 @@ void av1_reduce_warp_model(WarpedMotionParams *wm) {
     int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
 
     int original = wm->wmmat[i] - offset;
-    int rounded = ROUND_POWER_OF_TWO_SIGNED(original, WARP_PARAM_REDUCE_BITS) *
+    int clamped = clamp(original, min_value, max_value);
+    int rounded = ROUND_POWER_OF_TWO_SIGNED(clamped, WARP_PARAM_REDUCE_BITS) *
                   (1 << WARP_PARAM_REDUCE_BITS);
-    int clamped = clamp(rounded, min_value, max_value);
 
-    wm->wmmat[i] = clamped + offset;
+    wm->wmmat[i] = rounded + offset;
   }
 }
 
@@ -1597,23 +1597,6 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
         (1 << WARPEDMODEL_PREC_BITS) + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
   }
 }
-
-#else
-
-static int32_t get_mult_shift_ndiag(int64_t Px, int16_t iDet, int shift) {
-  int64_t v = Px * (int64_t)iDet;
-  return (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(v, shift),
-                          -WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
-                          WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
-}
-
-static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
-  int64_t v = Px * (int64_t)iDet;
-  return (int32_t)clamp64(
-      ROUND_POWER_OF_TWO_SIGNED_64(v, shift),
-      (1 << WARPEDMODEL_PREC_BITS) - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
-      (1 << WARPEDMODEL_PREC_BITS) + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
-}
 #endif  // USE_LIMITED_PREC_MULT
 
 static int find_affine_int(int np, const int *pts1, const int *pts2,
@@ -1707,10 +1690,14 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   Py[0] = (int64_t)A[1][1] * By[0] - (int64_t)A[0][1] * By[1];
   Py[1] = -(int64_t)A[0][1] * By[0] + (int64_t)A[0][0] * By[1];
 
-  wm->wmmat[2] = get_mult_shift_diag(Px[0], iDet, shift);
-  wm->wmmat[3] = get_mult_shift_ndiag(Px[1], iDet, shift);
-  wm->wmmat[4] = get_mult_shift_ndiag(Py[0], iDet, shift);
-  wm->wmmat[5] = get_mult_shift_diag(Py[1], iDet, shift);
+  wm->wmmat[2] =
+      clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(Px[0] * iDet, shift));
+  wm->wmmat[3] =
+      clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(Px[1] * iDet, shift));
+  wm->wmmat[4] =
+      clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(Py[0] * iDet, shift));
+  wm->wmmat[5] =
+      clamp64_to_32(ROUND_POWER_OF_TWO_SIGNED_64(Py[1] * iDet, shift));
 
   av1_reduce_warp_model(wm);
   // check compatibility with the fast warp filter
@@ -1821,10 +1808,10 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
     // y coefficients are (project(center) - project(above)) / (center.y -
     // above.y), which simplifies to (project(center) - project(above)) /
     // 2^(half_height_log2)
-    wm_params->wmmat[3] = (int32_t)(ROUND_POWER_OF_TWO_64(
-        proj_center_x - proj_above_x, half_height_log2));
-    wm_params->wmmat[5] = (int32_t)(ROUND_POWER_OF_TWO_64(
-        proj_center_y - proj_above_y, half_height_log2));
+    wm_params->wmmat[3] = clamp64_to_32(
+        ROUND_POWER_OF_TWO_64(proj_center_x - proj_above_x, half_height_log2));
+    wm_params->wmmat[5] = clamp64_to_32(
+        ROUND_POWER_OF_TWO_64(proj_center_y - proj_above_y, half_height_log2));
   } else {
     // If the neighboring block is to the left of the current block, we do the
     // same thing as for the above case, but with x and y axes interchanged
@@ -1846,10 +1833,10 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
     //    (project(center) - project(left)) / (center.y - left.y)
     // which simplifies to
     //    (project(center) - project(left)) / 2^(half_width_log2)
-    wm_params->wmmat[2] = (int32_t)(ROUND_POWER_OF_TWO_64(
-        proj_center_x - proj_left_x, half_width_log2));
-    wm_params->wmmat[4] = (int32_t)(ROUND_POWER_OF_TWO_64(
-        proj_center_y - proj_left_y, half_width_log2));
+    wm_params->wmmat[2] = clamp64_to_32(
+        ROUND_POWER_OF_TWO_64(proj_center_x - proj_left_x, half_width_log2));
+    wm_params->wmmat[4] = clamp64_to_32(
+        ROUND_POWER_OF_TWO_64(proj_center_y - proj_left_y, half_width_log2));
   }
 
   av1_reduce_warp_model(wm_params);
@@ -2000,11 +1987,11 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   ref_x2 = pts_inref[2 * 2];
   ref_y2 = pts_inref[2 * 2 + 1];
 
-  derive_model->wmmat[2] = (int32_t)((ref_x1 - ref_x0) >> width_log2);
-  derive_model->wmmat[4] = (int32_t)((ref_y1 - ref_y0) >> width_log2);
+  derive_model->wmmat[2] = clamp64_to_32((ref_x1 - ref_x0) >> width_log2);
+  derive_model->wmmat[4] = clamp64_to_32((ref_y1 - ref_y0) >> width_log2);
 
-  derive_model->wmmat[3] = (int32_t)((ref_x2 - ref_x0) >> height_log2);
-  derive_model->wmmat[5] = (int32_t)((ref_y2 - ref_y0) >> height_log2);
+  derive_model->wmmat[3] = clamp64_to_32((ref_x2 - ref_x0) >> height_log2);
+  derive_model->wmmat[5] = clamp64_to_32((ref_y2 - ref_y0) >> height_log2);
 
   int64_t wmmat0 = (int64_t)ref_x0 -
                    (int64_t)derive_model->wmmat[2] * (int64_t)x0 -
