@@ -1198,6 +1198,21 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
 #endif  // CONFIG_INSPECTION
 }
 
+#if CONFIG_REFINED_MVS_IN_TMVP
+static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
+                                                  DecoderCodingBlock *dcb,
+                                                  BLOCK_SIZE bsize) {
+  MACROBLOCKD *const xd = &dcb->xd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - xd->mi_col);
+  const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - xd->mi_row);
+  av1_copy_frame_refined_mvs(cm, xd, mbmi, xd->mi_row, xd->mi_col,
+                             x_inside_boundary, y_inside_boundary);
+}
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
+
 static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
                                                   int plane, aom_reader *r) {
   (void)r;
@@ -1573,6 +1588,29 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                               plane_start, plane_end);
     }
   }
+
+#if CONFIG_REFINED_MVS_IN_TMVP
+  // Fill refined MVs into the temporal MV prediction list
+  if (!frame_is_intra_only(cm) &&
+      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+#if CONFIG_IMPROVE_REFINED_MV
+    if (enable_refined_mvs_in_tmvp(cm, xd, mbmi)) {
+#else
+    if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                   xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                   mbmi)
+#if CONFIG_REFINEMV
+        ||
+        (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE)
+#endif  // CONFIG_REFINEMV
+    ) {
+#endif  // CONFIG_IMPROVE_REFINED_MV
+      td->copy_frame_mvs_block_visit(cm, dcb, bsize);
+    }
+  }
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
   av1_visit_palette(pbi, xd, r, set_color_index_map_offset);
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);
@@ -2022,33 +2060,6 @@ direct_recon:
       (pbi->bru_opt_mode && bru_is_sb_active(cm, mi_col, mi_row)))
 #endif  // CONFIG_BRU
     decode_token_recon_block(pbi, td, r, partition, bsize);
-
-#if CONFIG_REFINED_MVS_IN_TMVP
-  if (!frame_is_intra_only(cm) &&
-      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
-    MB_MODE_INFO *const mi = xd->mi[0];
-#if CONFIG_IMPROVE_REFINED_MV
-    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
-#else
-    if (opfl_allowed_for_cur_block(cm,
-#if CONFIG_COMPOUND_4XN
-                                   xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                   mi)
-#if CONFIG_REFINEMV
-        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
-#endif  // CONFIG_REFINEMV
-    ) {
-#endif  // CONFIG_IMPROVE_REFINED_MV
-      const int bw = mi_size_wide[bsize];
-      const int bh = mi_size_high[bsize];
-      const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
-      const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
-      av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
-                                 x_inside_boundary, y_inside_boundary);
-    }
-  }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
   // Note: the copying here must match corresponding encoder-side copying in
   // av1_update_state().
@@ -5164,6 +5175,9 @@ static AOM_INLINE void set_decode_func_pointers(ThreadData *td,
   td->inverse_tx_inter_block_visit = decode_block_void;
   td->inverse_cctx_block_visit = decode_block_void;
   td->predict_inter_block_visit = predict_inter_block_void;
+#if CONFIG_REFINED_MVS_IN_TMVP
+  td->copy_frame_mvs_block_visit = predict_inter_block_void;
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
   td->cfl_store_inter_block_visit = cfl_store_inter_block_void;
 
   if (parse_decode_flag & 0x1) {
@@ -5176,6 +5190,9 @@ static AOM_INLINE void set_decode_func_pointers(ThreadData *td,
     td->inverse_tx_inter_block_visit = inverse_transform_inter_block;
     td->inverse_cctx_block_visit = inverse_cross_chroma_transform_block;
     td->predict_inter_block_visit = predict_inter_block;
+#if CONFIG_REFINED_MVS_IN_TMVP
+    td->copy_frame_mvs_block_visit = copy_frame_mvs_inter_block;
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
     td->cfl_store_inter_block_visit = cfl_store_inter_block;
   }
 }
