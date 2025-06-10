@@ -15,7 +15,7 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/encoder/ratectrl.h"
-
+#include "config/aom_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1171,6 +1171,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
+#if !CONFIG_F024_KEYOBU
   if (!cm->seq_params.single_picture_header_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
@@ -1182,8 +1183,11 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
     }
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
-
-  if (!encode_show_existing_frame(cm) &&
+#endif
+  if (
+#if !CONFIG_F024_KEYOBU
+      !encode_show_existing_frame(cm) &&
+#endif
       cm->seq_params.film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     // Copy the current frame's film grain params to the its corresponding

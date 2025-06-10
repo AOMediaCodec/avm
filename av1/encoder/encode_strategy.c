@@ -58,11 +58,12 @@ const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
 
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av1_get_ref_frames_enc(AV1_COMP *const cpi, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs) {
+                            RefFrameMapPair *ref_frame_map_pairs)
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs) {
+                            RefFrameMapPair *ref_frame_map_pairs)
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+{
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_F322_OBUER_ERM
@@ -180,14 +181,22 @@ static INLINE void update_gf_group_index(AV1_COMP *cpi) {
   // a show_existing_frame with a source other than altref, or if it is not
   // a displayed forward keyframe, the index was incremented when it was
   // originally encoded.
+#if CONFIG_F024_KEYOBU
+  ++cpi->gf_group.index;
+#else
   if (!cpi->common.show_existing_frame || cpi->rc.is_src_frame_alt_ref ||
       cpi->common.current_frame.frame_type == KEY_FRAME) {
     ++cpi->gf_group.index;
   }
+#endif
 }
-
-// Update show_existing_frame flag for frames of type OVERLAY_UPDATE in the
-// current GF interval
+#if CONFIG_F024_KEYOBU
+// Update show_existing_alt_ref flag
+#else
+// Update show_existing_frame flag
+#endif
+// for frames of type OVERLAY_UPDATE in the
+//  current GF interval
 static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
                                              int apply_filtering,
                                              int enable_overlay,
@@ -527,10 +536,12 @@ static int allow_show_existing(const AV1_COMP *const cpi,
 // encoded.
 static void update_frame_flags(const AV1_COMMON *const cm,
                                unsigned int *frame_flags) {
+#if !CONFIG_F024_KEYOBU
   if (encode_show_existing_frame(cm)) {
     *frame_flags &= ~FRAMEFLAGS_KEY;
     return;
   }
+#endif
 
   if (cm->current_frame.frame_type == KEY_FRAME) {
     *frame_flags |= FRAMEFLAGS_KEY;
@@ -621,6 +632,7 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                            const int ref_frames) {
+  // refresh_level = -1
   int arf_count = 0;
   int oldest_arf_order = INT32_MAX;
   int oldest_arf_idx = -1;
@@ -640,7 +652,6 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     const int reference_frame_level = ref_pair.pyr_level;
     // Keep future frames and three closest previous frames in output order
     if (frame_order > cur_frame_disp - 3) continue;
-
     // Keep track of the oldest reference frame matching the specified
     // refresh level from the subgop cfg
     if (refresh_level > 0 && refresh_level == reference_frame_level) {
@@ -649,7 +660,6 @@ static int get_refresh_idx(int update_arf, int refresh_level,
         oldest_ref_level_idx = map_idx;
       }
     }
-
     // Keep track of the oldest level 1 frame if the current frame is level also
     // 1
     if (reference_frame_level == 1) {
@@ -742,11 +752,19 @@ int av1_get_refresh_frame_flags(
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // Switch frames and shown key-frames overwrite all reference slots
-  if (av1_is_shown_keyframe(cpi, frame_params->frame_type) ||
-      frame_params->frame_type == S_FRAME) {
+  if (
+#if CONFIG_F024_KEYOBU
+      (
+#endif  // CONFIG_F024_KEYOBU
+          av1_is_shown_keyframe(cpi, frame_params->frame_type)
+#if CONFIG_F024_KEYOBU  // CONFIG_F024_KEYOBU_FIX
+          && cpi->common.seq_params.max_mlayer_id == 0)
+#endif  // CONFIG_F024_KEYOBU
+      || frame_params->frame_type == S_FRAME) {
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
+#if !CONFIG_F024_KEYOBU
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.
   if (frame_params->show_existing_frame &&
@@ -759,7 +777,7 @@ int av1_get_refresh_frame_flags(
           frame_params->frame_type == KEY_FRAME)) {
     return 0;
   }
-
+#endif
   const int refresh_mask = 0;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
@@ -767,6 +785,9 @@ int av1_get_refresh_frame_flags(
   if (is_frame_droppable(ext_refresh_frame_flags)) return 0;
 
   if (ext_refresh_frame_flags->update_pending) {
+#if 0  //[jkei]
+    printf("<<%s>> refresh_mask: %d\n", __func__, refresh_mask);
+#endif
     return refresh_mask;
   }
 
@@ -791,7 +812,6 @@ int av1_get_refresh_frame_flags(
         free_fb_index);
     return mask;
   }
-
   // No refresh necessary for these frame types
   if (frame_update_type == OVERLAY_UPDATE ||
       frame_update_type == KFFLT_OVERLAY_UPDATE ||
@@ -811,6 +831,7 @@ int av1_get_refresh_frame_flags(
                       cpi->switch_frame_mode,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                       ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+
   return 1 << refresh_idx;
 }
 
@@ -846,7 +867,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // Decide whether it is allowed to perform key frame filtering
     int allow_kf_filtering =
         oxcf->kf_cfg.enable_keyframe_filtering &&
-        !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
+        !is_stat_generation_stage(cpi) &&
+#if !CONFIG_F024_KEYOBU
+        !frame_params->show_existing_frame &&
+#endif
         has_enough_frames_for_key_filtering(cpi->rc.frames_to_key,
                                             oxcf->algo_cfg.arnr_max_frames,
                                             oxcf->gf_cfg.lag_in_frames) &&
@@ -931,7 +955,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   set_show_existing_alt_ref(&cpi->gf_group, apply_filtering,
                             oxcf->algo_cfg.enable_overlay,
                             show_existing_alt_ref);
-
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
@@ -1013,20 +1036,39 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
     // TODO(bohanli): find a consistent condition for fwd keyframes
+#if CONFIG_F024_KEYOBU
+    frame_params.frame_params_obu_type = NUM_OBU_TYPES;
+#endif
     if (oxcf->kf_cfg.fwd_kf_enabled &&
         (gf_group->index == (gf_group->size - 1)) &&
         (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
          gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
         gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
+#if CONFIG_F024_KEYOBU
+      frame_params.frame_params_update_type_was_overlay = 1;
+      // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
+      //  pointing an OLK
+      frame_params.frame_params_obu_type = OBU_OLK;
+#else
       frame_params.show_existing_frame = 1;
+#endif
     } else {
+#if CONFIG_F024_KEYOBU
+      frame_params.frame_params_update_type_was_overlay =
+#else
       frame_params.show_existing_frame =
+#endif
           (gf_group->show_existing_alt_ref &&
            (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
             gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE)) ||
           gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
     }
-    frame_params.show_existing_frame &= allow_show_existing(cpi, *frame_flags);
+#if CONFIG_F024_KEYOBU
+    frame_params.frame_params_update_type_was_overlay
+#else
+    frame_params.show_existing_frame
+#endif
+        &= allow_show_existing(cpi, *frame_flags);
 
     // Reset show_existing_alt_ref decision to 0 after it is used.
     if (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
@@ -1034,7 +1076,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       gf_group->show_existing_alt_ref = 0;
     }
   } else {
+#if CONFIG_F024_KEYOBU
+    frame_params.frame_params_update_type_was_overlay = 0;
+#else
     frame_params.show_existing_frame = 0;
+#endif
   }
 
   if (!is_stat_generation_stage(cpi)) {
@@ -1044,14 +1090,18 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
+#if !CONFIG_F024_KEYOBU
   if (frame_params.show_existing_frame) {
     source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
     frame_params.show_frame = 1;
   } else {
+#endif  // !CONFIG_F024_KEYOBU
     source = choose_frame_source(cpi, &flush, &last_source,
                                  -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
                                  &bru_ref_source, &frame_params);
+#if !CONFIG_F024_KEYOBU
   }
+#endif  // !CONFIG_F024_KEYOBU
 
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (frame_params.frame_type == S_FRAME) cpi->common.show_frame = 1;
@@ -1092,14 +1142,17 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   av1_apply_encoding_flags(cpi, source->flags);
+#if !CONFIG_F024_KEYOBU
   if (!frame_params.show_existing_frame)
+#endif
     *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
 
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
-
+#if !CONFIG_F024_KEYOBU
   if (!frame_params.show_existing_frame) {
+#endif
     if (cpi->film_grain_table) {
       cm->cur_frame->film_grain_params_present = aom_film_grain_table_lookup(
           cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
@@ -1112,15 +1165,17 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
     if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
     cm->frame_presentation_time = (uint32_t)pts64;
+#if !CONFIG_F024_KEYOBU
   }
-
+#endif
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
-
+#if !CONFIG_F024_KEYOBU
   if (frame_params.show_existing_frame &&
       frame_params.frame_type != KEY_FRAME) {
     // Force show-existing frames to be INTER, except forward keyframes
     frame_params.frame_type = INTER_FRAME;
   }
+#endif
 
   // TODO(david.turner@argondesign.com): Move all the encode strategy
   // (largely near av1_get_compressed_data) in here
@@ -1149,7 +1204,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
+#if !CONFIG_F024_KEYOBU
     mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
+#endif  // !CONFIG_F024_KEYOBU
 #endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
@@ -1159,12 +1216,20 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (frame_params.frame_type == KEY_FRAME) {
     source->disp_order_hint = 0;
   }
-  if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
+
+#if CONFIG_F024_KEYOBU
+  if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
+#else
+  if (frame_params.frame_type == KEY_FRAME)
+#endif
+    cm->showable_frame = 0;
 
 #if CONFIG_MISMATCH_DEBUG
+#if !CONFIG_F024_KEYOBU
   if (has_no_stats_stage(cpi)) {
     mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
   }
+#endif  // !CONFIG_F024_KEYOBU
 #endif  // CONFIG_MISMATCH_DEBUG
 
   if (!is_stat_generation_stage(cpi))
@@ -1173,8 +1238,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Shown keyframes and S frames refresh all reference buffers
   const int force_refresh_all =
       ((frame_params.frame_type == KEY_FRAME && frame_params.show_frame) ||
-       frame_params.frame_type == S_FRAME) &&
-      !frame_params.show_existing_frame;
+       frame_params.frame_type == S_FRAME)
+#if CONFIG_F024_KEYOBU
+      ;
+#else
+      && !frame_params.show_existing_frame;
+#endif
 
   (void)force_refresh_all;
   av1_configure_buffer_updates(cpi, frame_update_type);
@@ -1364,7 +1433,18 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
         cur_frame_disp, cm->ref_frame_map_pairs);
-
+#if CONFIG_F024_KEYOBU
+    frame_params.fb_idx_for_overlay = INVALID_IDX;
+    if (frame_params.frame_params_update_type_was_overlay) {
+      for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+        const RefCntBuffer *const buf = cm->ref_frame_map[frame];
+        if (buf == NULL) continue;
+        const int frame_order = (int)buf->display_order_hint;
+        if (frame_order == cur_frame_disp)
+          frame_params.fb_idx_for_overlay = frame;
+      }
+    }
+#else
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
@@ -1376,6 +1456,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
           frame_params.existing_fb_idx_to_show = frame;
       }
     }
+#endif
   }
 
   // The way frame_params->remapped_ref_idx is setup is a placeholder.
@@ -1391,13 +1472,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   init_bru_frame(cm);
 
   cpi->td.mb.delta_qindex = 0;
-
+#if !CONFIG_F024_KEYOBU
   if (!frame_params.show_existing_frame) {
+#endif
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[0], 0, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
+#if !CONFIG_F024_KEYOBU
   }
+#endif // !CONFIG_F024_KEYOBU
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {

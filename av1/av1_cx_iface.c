@@ -2949,8 +2949,9 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   if (cpi->b_calculate_psnr >= 1) {
     calculate_psnr(cpi, &psnr);
   }
-
+#if !CONFIG_F024_KEYOBU
   if (!cm->show_existing_frame) {
+#endif
     // Get reference frame information
     int ref_poc[INTER_REFS_PER_FRAME];
     for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
@@ -2969,7 +2970,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 #if CONFIG_CWG_F317
            !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
 #else
-           !valid_ref_case)
+         !valid_ref_case)
 #endif
               ? -1
               : ref_poc[ref_idx];
@@ -3046,13 +3047,16 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
               cpi->common.cur_frame->buf.y_crop_height);
 #else
-    if (cpi->oxcf.tool_cfg.enable_bru)
-      fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
-              cm->bru.total_units);
-    else
-      fprintf(stdout, "]\n");
+  if (cpi->oxcf.tool_cfg.enable_bru)
+    fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
+            cm->bru.total_units);
+  else
+    fprintf(stdout, "]\n");
 #endif  // CONFIG_CWG_F317_TEST_PATTERN
+
+#if !CONFIG_F024_KEYOBU
   }
+#endif
 }
 
 // TODO(Mufaddal): Check feasibility of abstracting functions related to LAP
@@ -3305,10 +3309,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
+#if CONFIG_F024_KEYOBU
+      if (!cpi->common.is_olk_overlay && cpi->common.update_type_was_overlay) {
+        is_frame_visible_null = 1;
+      }
+#else
       if (cpi->common.current_frame.frame_type != KEY_FRAME &&
           cpi->common.show_existing_frame) {
         is_frame_visible_null = 1;
       }
+#endif
       assert(IMPLIES(is_frame_visible_null, frame_size == 0));
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
 
@@ -3377,11 +3387,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         cx_data_sz -= frame_size;
 
         index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
-
+#if CONFIG_F024_KEYOBU
+        has_no_show_keyframe |=
+            (cpi->no_show_fwd_kf &&
+             cpi->common.current_frame.frame_type == KEY_FRAME);
+#else
         has_no_show_keyframe |=
             (!is_frame_visible &&
              cpi->common.current_frame.frame_type == KEY_FRAME);
-
+#endif
         if (cpi->print_per_frame_stats) {
           report_stats(cpi, frame_size, cx_time);
         }
@@ -3467,11 +3481,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
           ctx->pts_offset;
       pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
+#if CONFIG_F024_KEYOBU
       if (has_no_show_keyframe) {
         // If one of the invisible frames in the packet is a keyframe, set
         // the delayed random access point flag.
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
+#endif
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
           timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
 

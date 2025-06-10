@@ -51,6 +51,9 @@ struct aom_codec_alg_priv {
   int byte_alignment;
   int skip_loop_filter;
   int skip_film_grain;
+#if CONFIG_F024_KEYOBU
+  uint64_t random_access;
+#endif  // CONFIG_F024_KEYOBU
   int bru_opt_mode;
   unsigned int row_mt;
   EXTERNAL_REFERENCES ext_refs;
@@ -487,13 +490,18 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       if (status != AOM_CODEC_OK) return status;
 
       got_sequence_header = 1;
+#if CONFIG_F024_KEYOBU
+    } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
+      found_keyframe = 1;
+      break;
+#endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP
-#if CONFIG_CWG_F317
-    } else if (obu_header.type == OBU_TILE_GROUP ||
-               obu_header.type == OBU_BRIDGE_FRAME) {
+#if CONFIG_F024_KEYOBU
+    } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
+               obu_header.type == OBU_REGULAR_TILE_GROUP) {
 #else
     } else if (obu_header.type == OBU_TILE_GROUP) {
-#endif  // CONFIG_CWG_F317
+#endif
 #else
 #if CONFIG_CWG_F317
     } else if (obu_header.type == OBU_FRAME_HEADER ||
@@ -519,7 +527,6 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         // make sure we have enough bits to get the frame type out
         if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
         struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
-
 #if CONFIG_F106_OBU_TILEGROUP
         int first_tile_group_in_frame = aom_rb_read_bit(&rb);
         if (!first_tile_group_in_frame) {
@@ -553,27 +560,35 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
             if (aom_rb_read_bit(&rb)) {
               frame_type = INTER_FRAME;
             } else {
+#if !CONFIG_F024_KEYOBU
               if (aom_rb_read_bit(&rb)) {
                 frame_type = KEY_FRAME;
               } else {
+#endif  // !CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
                 frame_type = INTRA_ONLY_FRAME;
 #else
-            frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
+          frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
-              }
-            }
+#if !CONFIG_F024_KEYOBU
+              }  // not key_frame
+#endif  // !CONFIG_F024_KEYOBU
+            }  // not inter_frame
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
+#if !CONFIG_F024_KEYOBU
           if (frame_type == KEY_FRAME) {
             found_keyframe = 1;
             break;  // Stop here as no further OBUs will change the outcome.
-          } else if (frame_type == INTRA_ONLY_FRAME) {
-            intra_only_flag = 1;
-          }
+          } else
+#endif  // !CONFIG_F024_KEYOBU
+            if (frame_type == INTRA_ONLY_FRAME) {
+              intra_only_flag = 1;
+            }
 #if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
-        }
+        }  //  if (!show_existing_frame)
 #endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
       }
     }
@@ -626,6 +641,9 @@ static void init_buffer_callbacks(aom_codec_alg_priv_t *ctx) {
   cm->features.byte_alignment = ctx->byte_alignment;
   pbi->skip_loop_filter = ctx->skip_loop_filter;
   pbi->skip_film_grain = ctx->skip_film_grain;
+#if CONFIG_F024_KEYOBU
+  pbi->random_access_point_index = ctx->random_access;
+#endif  // CONFIG_F024_KEYOBU
   pbi->bru_opt_mode = ctx->bru_opt_mode;
 
   if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
@@ -722,7 +740,13 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
          ctx->base.ibp_directional_weights,
          sizeof(ctx->base.ibp_directional_weights));
   worker->hook = frame_worker_hook;
-
+#if CONFIG_F024_KEYOBU
+  frame_worker_data->pbi->olk_encountered = 0;
+  frame_worker_data->pbi->random_accessed = false;
+  frame_worker_data->pbi->is_first_layer_decoded = true;
+  frame_worker_data->pbi->random_access_point_index = 0;
+  frame_worker_data->pbi->random_access_point_count = 0;
+#endif
   init_buffer_callbacks(ctx);
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
@@ -823,7 +847,9 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames; ++i)
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
+#if !CONFIG_F024_KEYOBU
   data2->show_existing = cm->show_existing_frame;
+#endif  // !CONFIG_F024_KEYOBU
   return res;
 }
 #endif
@@ -838,6 +864,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     return decoder_inspect(ctx, data, data_sz, user_priv);
   }
 #endif
+
   // Release any pending output frames from the previous decoder_decode call.
   // We need to do this even if the decoder is being flushed or the input
   // arguments are invalid.
@@ -861,6 +888,11 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
+#if CONFIG_F024_KEYOBU
+    if (data == NULL && data_sz == 0) {
+      return flush_remaining_frames(pbi);
+    }
+#else
     // Output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
@@ -872,6 +904,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       }
       return AOM_CODEC_OK;
     }
+#endif  // CONFIG_F024_KEYOBU
   }
 
   /* Sanity checks */
@@ -1156,7 +1189,6 @@ static aom_codec_err_t ctrl_get_new_frame_image(aom_codec_alg_priv_t *ctx,
     YV12_BUFFER_CONFIG new_frame;
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
-
     if (av1_get_frame_to_show(frame_worker_data->pbi, &new_frame) == 0) {
       yuvconfig2image(new_img, &new_frame, NULL);
       return AOM_CODEC_OK;
@@ -1387,7 +1419,7 @@ static aom_codec_err_t ctrl_get_sb_size(aom_codec_alg_priv_t *ctx,
   }
   return AOM_CODEC_INVALID_PARAM;
 }
-
+#if !CONFIG_F024_KEYOBU
 static aom_codec_err_t ctrl_get_show_existing_frame_flag(
     aom_codec_alg_priv_t *ctx, va_list args) {
   int *const arg = va_arg(args, int *);
@@ -1396,7 +1428,7 @@ static aom_codec_err_t ctrl_get_show_existing_frame_flag(
              ->pbi->common.show_existing_frame;
   return AOM_CODEC_OK;
 }
-
+#endif
 static aom_codec_err_t ctrl_get_s_frame_info(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
   aom_s_frame_info *const s_frame_info = va_arg(args, aom_s_frame_info *);
@@ -1441,8 +1473,10 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
   for (int step_idx = 0; step_idx < stat_count; step_idx++) {
     SubGOPStepData *step_data = &subgop_step[step_idx];
     step_data->disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
+#if !CONFIG_F024_KEYOBU
     step_data->show_existing_frame =
         subgop_stats->show_existing_frame[step_idx];
+#endif
     step_data->show_frame = subgop_stats->show_frame[step_idx];
     step_data->qindex = subgop_stats->qindex[step_idx];
     step_data->refresh_frame_flags =
@@ -1686,6 +1720,19 @@ static aom_codec_err_t ctrl_set_skip_film_grain(aom_codec_alg_priv_t *ctx,
 
   return AOM_CODEC_OK;
 }
+#if CONFIG_F024_KEYOBU
+static aom_codec_err_t ctrl_set_random_access(aom_codec_alg_priv_t *ctx,
+                                              va_list args) {
+  ctx->random_access = va_arg(args, int);
+
+  if (ctx->frame_worker) {
+    AVxWorker *const worker = ctx->frame_worker;
+    FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+    frame_worker_data->pbi->random_access_point_index = ctx->random_access;
+  }
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_F024_KEYOBU
 
 static aom_codec_err_t ctrl_set_bru_opt_mode(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -1767,6 +1814,9 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_ROW_MT, ctrl_set_row_mt },
   { AV1D_SET_EXT_REF_PTR, ctrl_set_ext_ref_ptr },
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
+#if CONFIG_F024_KEYOBU
+  { AV1D_SET_RANDOM_ACCESS, ctrl_set_random_access },
+#endif  // CONFIG_F024_KEYOBU
   { AV1D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
   { AV1D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
@@ -1792,7 +1842,9 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AOMD_GET_SCREEN_CONTENT_TOOLS_INFO, ctrl_get_screen_content_tools_info },
   { AOMD_GET_STILL_PICTURE, ctrl_get_still_picture },
   { AOMD_GET_SB_SIZE, ctrl_get_sb_size },
+#if !CONFIG_F024_KEYOBU
   { AOMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
+#endif
   { AOMD_GET_S_FRAME_INFO, ctrl_get_s_frame_info },
   { AOMD_GET_FRAME_INFO, ctrl_get_dec_frame_info },
 

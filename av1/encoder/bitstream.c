@@ -2696,20 +2696,21 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // but only inactive need to return.
 #if CONFIG_CWG_F317
   if (!bru_is_sb_active(cm, mi_col, mi_row) ||
-      cm->bridge_frame_info.is_bridge_frame) {
+      cm->bridge_frame_info.is_bridge_frame)
 #else
-  if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+  if (!bru_is_sb_active(cm, mi_col, mi_row))
 #endif
+  {
     if (!is_inter_block(mbmi, xd->tree_type)) {
       aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                          "BRU: intra prediction on inactive/support SB");
     }
 #if CONFIG_CWG_F317
-    if (!cm->bru.frame_inactive_flag &&
-        !cm->bridge_frame_info.is_bridge_frame) {
+    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
 #else
-    if (!cm->bru.frame_inactive_flag) {
+    if (!cm->bru.frame_inactive_flag)
 #endif
+    {
       if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
       if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         write_ccso(cm, xd, w);
@@ -4134,10 +4135,11 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
   assert(!cm->features.coded_lossless);
   if (!cm->seq_params.enable_gdf || !is_allow_gdf(cm)) return;
 #if CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
 #else
-  if (cm->bru.frame_inactive_flag) {
+  if (cm->bru.frame_inactive_flag)
 #endif  // CONFIG_CWG_F317
+  {
     return;
   }
 #if CONFIG_CWG_F362
@@ -4441,10 +4443,11 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
     return;
   }
 #if CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
 #else
-  if (cm->bru.frame_inactive_flag) {
+  if (cm->bru.frame_inactive_flag)
 #endif  // CONFIG_CWG_F317
+  {
     cm->features.disable_cdf_update = 1;
   }
 #if CONFIG_CWG_F317
@@ -6142,10 +6145,11 @@ static AOM_INLINE void write_multi_frame_header(
 #if CONFIG_MFH_SIGNAL_TILE_INFO
   aom_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
   if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_tile_info_present_flag) {
+      mfh_param->mfh_tile_info_present_flag)
 #else
-  if (mfh_param->mfh_frame_size_present_flag) {
+  if (mfh_param->mfh_frame_size_present_flag)
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
+  {
     const int coded_width = mfh_param->mfh_frame_width;
     const int coded_height = mfh_param->mfh_frame_height;
     aom_wb_write_literal(wb, mfh_param->mfh_frame_width_bits_minus1, 4);
@@ -6383,7 +6387,12 @@ static AOM_INLINE void write_show_exisiting_frame(
     AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
+  aom_wb_write_literal(wb,
+#if CONFIG_F024_KEYOBU
+                       cpi->fb_idx_for_overlay,
+#else
+                       cpi->existing_fb_idx_to_show,
+#endif
                        cm->seq_params.ref_frames_log2);
 
   if (seq_params->decoder_model_info_present_flag &&
@@ -6449,14 +6458,21 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // CONFIG_CWG_F317
 
   if (seq_params->still_picture) {
+#if !CONFIG_F024_KEYOBU
     assert(cm->show_existing_frame == 0);
+#endif
     assert(cm->show_frame == 1);
     assert(current_frame->frame_type == KEY_FRAME);
   }
 
   if (!seq_params->single_picture_header_flag) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
-    if (obu_type == OBU_SEF) {
+#if CONFIG_F024_KEYOBU
+    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
+#else
+    if (obu_type == OBU_SEF)
+#endif
+    {
       write_show_exisiting_frame(cpi, wb);
       return;
     }
@@ -6478,36 +6494,63 @@ static AOM_INLINE void write_uncompressed_header_obu
         aom_wb_write_bit(wb, 0);  // show_existing_frame
     }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
+
+#if CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
     bool frame_type_signaled = true;
+    frame_type_signaled &= (obu_type != OBU_CLK && obu_type != OBU_OLK);
 #if CONFIG_F106_OBU_SWITCH
     frame_type_signaled &= (obu_type != OBU_SWITCH);
 #endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F106_OBU_TIP
-    frame_type_signaled &= (obu_type != OBU_TIP);
+    frame_type_signaled &=
+        (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP);
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_CWG_F317
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
-#endif
-    if (frame_type_signaled) {
+#endif  // CONFIG_CWG_F317
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
         // CONFIG_F106_OBU_TIP)
+#else   // CONFIG_F024_KEYOBU
+#if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
+ CONFIG_F106_OBU_TIP)
+     bool frame_type_signaled = true;
+#if CONFIG_F106_OBU_SWITCH
+ frame_type_signaled &= (obu_type != OBU_SWITCH);
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+ frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F106_OBU_TIP
+ frame_type_signaled &= (obu_type != OBU_TIP);
+#endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_CWG_F317
+ frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
+#endif  // CONFIG_CWG_F317
+
+#endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
+        // CONFIG_F106_OBU_TIP)
+#endif  //  CONFIG_F024_KEYOBU
+
+#if CONFIG_F024_KEYOBU || (CONFIG_F106_OBU_TILEGROUP && \
+                           (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP))
+    if (frame_type_signaled) {
+#endif  // CONFIG_F024_KEYOBU || (CONFIG_F106_OBU_TILEGROUP &&
+        // (CONFIG_F106_OBU_SWITCH ||  CONFIG_F106_OBU_TIP))
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       aom_wb_write_bit(wb, is_inter_frame);
+#if !CONFIG_F024_KEYOBU
       if (!is_inter_frame) {
         const int is_key_frame = (current_frame->frame_type == KEY_FRAME);
         aom_wb_write_bit(wb, is_key_frame);
-#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SWITCH
         if (!is_key_frame) {
           aom_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME);
         }
-#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SWITCH
       }
-#if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
-    }  // frame_type_signaled
+#endif  // CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU || CONFIG_F106_OBU_TILEGROUP && \
+                              (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
+    }
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
         // CONFIG_F106_OBU_TIP)
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -6522,6 +6565,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       if (cm->show_frame) {
@@ -6530,6 +6574,9 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     } else
 #endif  // CONFIG_CWG_F317
+#if CONFIG_F024_KEYOBU
+        if (obu_type != OBU_OLK)
+#endif  // CONFIG_F024_KEYOBU
       aom_wb_write_bit(wb, cm->show_frame);
 
     if (cm->show_frame) {
@@ -6659,8 +6706,8 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F317
       }
 #endif  // CONFIG_CWG_F317
-    }
-  }
+    }  // if (!features->error_resilient_mode && !frame_is_intra_only(cm))
+  }  // !if (seq_params->single_picture_hdr_flag)
 
 #if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   if (seq_params->decoder_model_info_present_flag) {
@@ -6701,6 +6748,132 @@ static AOM_INLINE void write_uncompressed_header_obu
   }
 #endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
+#if CONFIG_F024_KEYOBU
+  if (obu_type == OBU_OLK) {
+    cpi->olk_encountered = 1;
+    cm->last_olk_disp_order_hint[cm->mlayer_id] =
+        cm->current_frame.display_order_hint;
+    cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;
+    // it needs to be this way since ref_frame_map is not updated yet here not
+    // as update_frame_buffers()
+    // In this encoder, the OLK updates only one reference slot
+    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
+      if ((current_frame->refresh_frame_flags >> ref_pos) & 1) {
+        cm->enc_olk_fb_idx[cm->mlayer_id] = ref_pos;
+        break;
+      }
+    }
+  } else if (obu_type == OBU_CLK ||
+             cm->is_leading_picture ==
+                 0) {  // first regular frame, olk_encountered is set 0
+    cpi->olk_encountered = 0;
+    cm->enc_olk_fb_idx[cm->mlayer_id] = INVALID_IDX;
+  }
+#endif  // CONFIG_F024_KEYOBU
+
+#if CONFIG_F024_KEYOBU
+  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
+    int refresh_idx = -1;
+    if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
+      if (current_frame->refresh_frame_flags !=
+          ((1 << seq_params->ref_frames) - 1)) {
+        aom_internal_error(
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "CLK frame should have refresh_frame_flags equals to "
+            "%d when max_mlayer_id = 0",
+            ((1 << seq_params->ref_frames) - 1));
+      }
+    } else {
+      if (cm->seq_params.enable_short_refresh_frame_flags) {
+        for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+          if ((current_frame->refresh_frame_flags >> i) & 1) {
+            refresh_idx = i;
+            break;
+          }
+        }
+        aom_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
+      } else {
+        aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                             cm->seq_params.ref_frames);
+      }
+    }  // else (obu_type == OBU_CLK && seq_params->max_mlayer_id!= 1) || OBU_OLK
+  } else {
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      aom_wb_write_literal(
+          wb, cm->bridge_frame_info.bridge_frame_overwrite_flag, 1);
+
+      if (!cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+        if (current_frame->refresh_frame_flags !=
+            (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
+          aom_internal_error(
+              &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+              "Bridge frame refresh_frame_flags is not equal to 1 "
+              "<< bridge_frame_ref_idx");
+        }
+      }
+    }
+
+    if (!cm->bridge_frame_info.is_bridge_frame ||
+        cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+#endif  // CONFIG_CWG_F317
+      // Shown keyframes and switch-frames automatically refreshes all reference
+      // frames.  For all other frame types, we need to write
+      // refresh_frame_flags.
+      if (
+#if !CONFIG_F024_KEYOBU
+          (current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+#endif  // !CONFIG_F024_KEYOBU
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          (current_frame->frame_type == INTER_FRAME &&
+           cpi->switch_frame_mode != 1) ||
+          (current_frame->frame_type == S_FRAME &&
+           cpi->switch_frame_mode != 1) ||
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        current_frame->frame_type == INTER_FRAME ||
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          current_frame->frame_type == INTRA_ONLY_FRAME) {
+        if (cm->seq_params.enable_short_refresh_frame_flags &&
+            !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
+#if CONFIG_F322_OBUER_ERM
+            !frame_is_sframe(cm)
+#else
+          !cm->features.error_resilient_mode
+#endif
+        ) {
+          const bool has_refresh_frame_flags =
+              current_frame->refresh_frame_flags != 0;
+          aom_wb_write_literal(wb, has_refresh_frame_flags, 1);
+          if (has_refresh_frame_flags) {
+            int refresh_idx = 0;
+            for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+              if ((current_frame->refresh_frame_flags >> i) & 1) {
+                refresh_idx = i;
+                break;
+              }
+            }
+            aom_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
+          }
+        }
+        // if (cm->seq_params.enable_short_refresh_frame_flags &&
+        //  !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
+        //  !frame_is_sframe(cm))
+        else {
+          aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                               cm->seq_params.ref_frames);
+        }
+      }
+//  ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+//        (current_frame->frame_type == INTER_FRAME &&
+//         cpi->switch_frame_mode != 1) ||
+//        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1)
+//        || current_frame->frame_type == INTRA_ONLY_FRAME)
+#if CONFIG_CWG_F317
+    }  //(!cm->bridge_frame_info.is_bridge_frame ||
+       // cm->bridge_frame_info.bridge_frame_overwrite_flag)
+#endif  // CONFIG_CWG_F317
+  }  // else of (CLK || OLK)
+#else  // CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
     aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag,
@@ -6719,9 +6892,9 @@ static AOM_INLINE void write_uncompressed_header_obu
   if (!cm->bridge_frame_info.is_bridge_frame ||
       cm->bridge_frame_info.bridge_frame_overwrite_flag) {
 #endif  // CONFIG_CWG_F317
-    // Shown keyframes and switch-frames automatically refreshes all reference
-    // frames.  For all other frame types, we need to write
-    // refresh_frame_flags.
+        // Shown keyframes and switch-frames automatically refreshes all
+        // reference frames.  For all other frame types, we need to write
+        // refresh_frame_flags.
     if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         (current_frame->frame_type == INTER_FRAME &&
@@ -6761,16 +6934,18 @@ static AOM_INLINE void write_uncompressed_header_obu
                              cm->seq_params.ref_frames);
       }
     }
-//  ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
-//        (current_frame->frame_type == INTER_FRAME &&
-//         cpi->switch_frame_mode != 1) ||
-//        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1)
-//        || current_frame->frame_type == INTRA_ONLY_FRAME)
+    //  ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+    //        (current_frame->frame_type == INTER_FRAME &&
+    //         cpi->switch_frame_mode != 1) ||
+    //        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode !=
+    //        1)
+    //        || current_frame->frame_type == INTRA_ONLY_FRAME)
 #if CONFIG_CWG_F317
   }  //(!cm->bridge_frame_info.is_bridge_frame ||
-     // cm->bridge_frame_info.bridge_frame_overwrite_flag)
+  // cm->bridge_frame_info.bridge_frame_overwrite_flag)
 #endif  // CONFIG_CWG_F317
 
+#endif  // CONFIG_F024_KEYOBU
 #if !CONFIG_F322_OBUER_ERM
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if ((!(cpi->switch_frame_mode == 1)) &&
@@ -6909,7 +7084,12 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
 
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+      if (obu_type != OBU_REGULAR_TIP && obu_type != OBU_LEADING_TIP &&
+          current_frame->frame_type == INTER_FRAME)
+#else
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
+#endif
 #else
       if (current_frame->frame_type == INTER_FRAME)
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
@@ -6960,7 +7140,11 @@ static AOM_INLINE void write_uncompressed_header_obu
           !cm->bru.frame_inactive_flag) {
         if (cm->seq_params.enable_tip == 1) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+          if (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP)
+#else
           if (obu_type != OBU_TIP)
+#endif
 #else
           const int is_tip_direct_output =
               (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
@@ -7364,6 +7548,20 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
                               OBU_TYPE obu_type, int obu_temporal,
                               int obu_layer, uint8_t *const dst) {
 #if CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F024_KEYOBU
+  bool count_header = (obu_type == OBU_REGULAR_TILE_GROUP ||
+                       obu_type == OBU_LEADING_TILE_GROUP);
+#if CONFIG_F106_OBU_SWITCH
+  count_header |= (obu_type == OBU_SWITCH);
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
+  count_header |= (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
+  count_header |= (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP);
+#endif  // CONFIG_F106_OBU_TIP
+  count_header |= (obu_type == OBU_CLK || obu_type == OBU_OLK);
+#else
   bool count_header = (obu_type == OBU_TILE_GROUP);
 #if CONFIG_F106_OBU_SWITCH
   count_header |= (obu_type == OBU_SWITCH);
@@ -7374,6 +7572,7 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #if CONFIG_F106_OBU_TIP
   count_header |= (obu_type == OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F024_KEYOBU
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   count_header |= (obu_type == OBU_RAS_FRAME);
@@ -7382,11 +7581,24 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #if CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
-      (obu_type == OBU_FRAME ||
+          (
+#if CONFIG_F024_KEYOBU
+              obu_type == OBU_LEADING_FRAME ||
+              obu_type == OBU_LEADING_FRAME_HEADER ||
+              obu_type == OBU_REGULAR_FRAME ||
+              obu_type == OBU_REGULAR_FRAME_HEADER || obu_type == OBU_CLK ||
+              obu_type == OBU_OLK)
+#else
+          obu_type == OBU_FRAME
+#endif  // CONFIG_F024_KEYOBU
+      ||
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-       obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH ||
+      obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH ||
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-       obu_type == OBU_FRAME_HEADER)
+#if !CONFIG_F024_KEYOBU
+      obu_type == OBU_FRAME_HEADER
+#endif  // !CONFIG_F024_KEYOBU
+  )
 #endif  // CONFIG_F106_OBU_TILEGROUP
   )
     ++level_params->frame_header_count;
@@ -7772,15 +7984,27 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
   struct aom_write_bit_buffer wb = { dst, 0 };
   int first_tile_group_in_frame = start_tile_idx == 0 ? 1 : 0;
   bool send_first_tile_group_indication = true;
+#if CONFIG_F024_KEYOBU
+#if CONFIG_F106_OBU_SEF
+  send_first_tile_group_indication &= obu_type != OBU_REGULAR_SEF;
+  send_first_tile_group_indication &= obu_type != OBU_LEADING_SEF;
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
+  send_first_tile_group_indication &= obu_type != OBU_REGULAR_TIP;
+  send_first_tile_group_indication &= obu_type != OBU_LEADING_TIP;
+#endif  // CONFIG_F106_OBU_TIP
+#else
 #if CONFIG_F106_OBU_SEF
   send_first_tile_group_indication &= obu_type != OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F317
   send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
 #endif  // CONFIG_CWG_F317
+
   if (send_first_tile_group_indication)
     aom_wb_write_bit(&wb, first_tile_group_in_frame);
 
@@ -7806,6 +8030,20 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
   skip_tile_indices |= cpi->common.bridge_frame_info.is_bridge_frame;
 #endif  // CONFIG_CWG_F317
 
+#if CONFIG_F024_KEYOBU
+#if CONFIG_F106_OBU_SEF
+  skip_tile_indices |= obu_type == OBU_LEADING_SEF;
+  skip_tile_indices |= obu_type == OBU_REGULAR_SEF;
+#else
+  skip_tile_indices |= !cm->show_existing_frame;
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
+  skip_tile_indices |= obu_type == OBU_LEADING_TIP;
+  skip_tile_indices |= obu_type == OBU_REGULAR_TIP;
+#else
+  skip_tile_indices |= (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
+#endif  // CONFIG_F106_OBU_TIP
+#else
 #if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
   skip_tile_indices |= obu_type == OBU_SEF;
@@ -7818,7 +8056,7 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
       (cpi->common.show_existing_frame ||
        cpi->common.features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-
+#endif  // CONFIG_F024_KEYOBU
   if (skip_tile_indices) {
     av1_add_trailing_bits(&wb);
   } else {
@@ -7863,14 +8101,25 @@ static uint32_t write_tilegroup_obu(
     saved_wb_first_tg->bit_offset = *first_tg_bitoffset;
   }
   bool skip_tilegroup_payload = false;
+
 #if CONFIG_F106_OBU_SEF
+#if CONFIG_F024_KEYOBU
+  skip_tilegroup_payload |= (obu_type == OBU_LEADING_SEF);
+  skip_tilegroup_payload |= (obu_type == OBU_REGULAR_SEF);
+#else
   skip_tilegroup_payload |= (obu_type == OBU_SEF);
+#endif  // CONFIG_F024_KEYOBU
 #else
   skip_tilegroup_payload |= cm->show_existing_frame == 1;
 #endif  // CONFIG_F106_OBU_SEF
 
 #if CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+  skip_tilegroup_payload |= (obu_type == OBU_LEADING_TIP);
+  skip_tilegroup_payload |= (obu_type == OBU_REGULAR_TIP);
+#else
   skip_tilegroup_payload |= (obu_type == OBU_TIP);
+#endif  // CONFIG_F024_KEYOBU
 #else
   skip_tilegroup_payload |=
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
@@ -8942,7 +9191,12 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_MULTILAYER_HLS
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
-  if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
+#if CONFIG_F024_KEYOBU
+  if (cm->current_frame.frame_type == KEY_FRAME)
+#else
+  if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type))
+#endif
+  {
     obu_header_size =
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
 
@@ -9065,8 +9319,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     const int write_raw_frame_hash =
         ((cpi->oxcf.tool_cfg.frame_hash_metadata & 1) ||
          ((cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && !apply_grain)) &&
-        (cm->show_frame || cm->showable_frame) &&
-        !encode_show_existing_frame(cm);
+        (cm->show_frame || cm->showable_frame)
+#if !CONFIG_F024_KEYOBU
+        && !encode_show_existing_frame(cm)
+#endif
+        ;
 #if !CONFIG_METADATA
     if (write_raw_frame_hash)
       data += av1_write_frame_hash_metadata(cpi, data, NULL);
@@ -9127,19 +9384,34 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // !CONFIG_METADATA
   }
 #if CONFIG_F106_OBU_TILEGROUP
-  OBU_TYPE obu_type = OBU_TILE_GROUP;
+  OBU_TYPE obu_type =
+#if CONFIG_F024_KEYOBU
+      cm->is_leading_picture == 1 ? OBU_LEADING_TILE_GROUP
+                                  : OBU_REGULAR_TILE_GROUP;
+#else   // CONFIG_F024_KEYOBU
+      OBU_TILE_GROUP;
+#endif  // CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
+  if (cm->current_frame.frame_type == KEY_FRAME)
+    obu_type = cpi->no_show_fwd_kf ? OBU_OLK : OBU_CLK;
+#endif
 #if CONFIG_F106_OBU_SWITCH
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
 #endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_F106_OBU_SEF
+
+#if CONFIG_F106_OBU_SEF && !CONFIG_F024_KEYOBU
   if (encode_show_existing_frame(cm) &&
       (cm->cur_frame->frame_type == KEY_FRAME))
     obu_type = OBU_SEF;
-#endif  // CONFIG_F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SEF && !CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TIP
   if (cm->current_frame.frame_type == INTER_FRAME &&
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+#if CONFIG_F024_KEYOBU
+    obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_TIP : OBU_REGULAR_TIP;
+#else
     obu_type = OBU_TIP;
+#endif  // CONFIG_F024_KEYOBU
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) obu_type = OBU_BRIDGE_FRAME;
@@ -9153,6 +9425,12 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   int start_tile_idx;
   int end_tile_idx = -1;
   for (int tg_idx = 0; tg_idx < max_tg_num; tg_idx++) {
+#if CONFIG_F024_KEYOBU
+    if (cm->current_frame.frame_type == KEY_FRAME && tg_idx != 0) {
+      obu_type = (cm->is_leading_picture == 1) ? OBU_LEADING_TILE_GROUP
+                                               : OBU_REGULAR_TILE_GROUP;
+    }
+#endif  // CONFIG_F024_KEYOBU
     obu_header_size = av1_write_obu_header(level_params, obu_type, obu_temporal,
                                            obu_layer, data);
     start_tile_idx = end_tile_idx + 1;
@@ -9176,16 +9454,26 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
 #if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
-    if (obu_type == OBU_SEF) break;
+#if CONFIG_F024_KEYOBU
+    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
+#else
+    if (obu_type == OBU_SEF)
+#endif  // CONFIG_F024_KEYOBU
+      break;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
-    if (obu_type == OBU_TIP) break;
+#if CONFIG_F024_KEYOBU
+    if (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP)
+#else
+    if (obu_type == OBU_TIP)
+#endif  // CONFIG_F024_KEYOBU
+      break;
 #endif  // CONFIG_F106_OBU_TIP
     if (cm->bru.frame_inactive_flag) break;
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) break;
 #endif  // CONFIG_CWG_F317
-#else
+#else   // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
     if ((encode_show_existing_frame(cm) &&
          (cm->cur_frame->frame_type == KEY_FRAME)) ||
         cm->bru.frame_inactive_flag ||
@@ -9199,8 +9487,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #else  // CONFIG_F106_OBU_TILEGROUP
   const int write_frame_header =
       (cpi->num_tg > 1 ||
-       (encode_show_existing_frame(cm) &&
-        (cm->cur_frame->frame_type == KEY_FRAME)) ||
+       (
+#if !CONFIG_F024_KEYOBU
+           encode_show_existing_frame(cm) &&
+#endif  // !CONFIG_F024_KEYOBU
+           (cm->cur_frame->frame_type == KEY_FRAME)) ||
        cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
        cm->bridge_frame_info.is_bridge_frame ||
@@ -9211,20 +9502,38 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (write_frame_header) {
     // Write Frame Header OBU.
     fh_info.frame_header = data;
+
+#if CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F317
-    obu_header_size = av1_write_obu_header(
-        level_params,
-        (cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME
-                                                       : OBU_FRAME_HEADER),
-        obu_temporal, obu_layer, data);
-    obu_payload_size =
-        write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
+    OBU_TYPE obu_type =
+        cpi->common.bridge_frame_info.is_bridge_frame
+            ? OBU_BRIDGE_FRAME
+            : (cm->is_leading_picture == 1 ? OBU_LEADING_FRAME_HEADER
+                                           : OBU_REGULAR_FRAME_HEADER);
 #else
-    obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
-                                           obu_temporal, obu_layer, data);
-    obu_payload_size =
-        write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
+    OBU_TYPE obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_FRAME_HEADER
+                                                    : OBU_REGULAR_FRAME_HEADER;
 #endif  // CONFIG_CWG_F317
+#else
+#if CONFIG_CWG_F317
+    OBU_TYPE obu_type =
+        (cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME
+                                                       : OBU_FRAME_HEADER);
+#else
+    OBU_TYPE obu_type = OBU_FRAME_HEADER;
+#endif  // CONFIG_CWG_F317
+#endif  // CONFIG_F024_KEYOBU
+
+    obu_header_size = av1_write_obu_header(level_params, obu_type, obu_temporal,
+                                           obu_layer, data);
+    obu_payload_size =
+        write_frame_header_obu(cpi, &saved_wb, data + obu_header_size,
+#if CONFIG_F024_KEYOBU
+                               obu_type
+#else
+                               1
+#endif  // CONFIG_F024_KEYOBU
+        );
 
     length_field = obu_memmove(obu_header_size, obu_payload_size, data);
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
@@ -9241,7 +9550,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
     }
   }
-
+#if CONFIG_F024_KEYOBU
+  const bool non_signaled_frame = write_frame_header;
+#else  // CONFIG_F024_KEYOBU
   const bool non_signaled_show_existing_frame = (cm->show_existing_frame &&
 #if CONFIG_F322_OBUER_ERM
                                                  !frame_is_sframe(cm)
@@ -9256,6 +9567,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cm->bridge_frame_info.is_bridge_frame ||
 #endif  // CONFIG_CWG_F317
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+#endif  // CONFIG_F024_KEYOBU
   if (non_signaled_frame) {
     data_size = 0;
   } else {

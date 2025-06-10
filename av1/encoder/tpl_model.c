@@ -1040,10 +1040,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
                               frame_update_type != KFFLT_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
+#if !CONFIG_F024_KEYOBU
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE ||
         frame_update_type == OVERLAY_UPDATE ||
         frame_update_type == KFFLT_OVERLAY_UPDATE;
+#endif
     frame_params.frame_type =
         (frame_update_type == KF_UPDATE ||
          av1_check_keyframe_arf(gf_index, gf_group, cpi->rc.frames_since_key))
@@ -1183,8 +1185,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
                               frame_update_type != KFFLT_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
+#if !CONFIG_F024_KEYOBU
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE;
+#endif
     frame_params.frame_type = INTER_FRAME;
     int lookahead_index = frame_display_index - anc_frame_offset;
 

@@ -95,7 +95,10 @@ int av1_check_byte_alignment(AV1_COMMON *const cm,
 // failure.
 int av1_check_trailing_bits(struct AV1Decoder *pbi,
                             struct aom_read_bit_buffer *rb);
-
+#if CONFIG_F024_KEYOBU
+int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
+                               const SequenceHeader *seq_params_new);
+#endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP
 // On success, returns the tilegroup header size. On failure, calls
 // aom_internal_error and does not return.

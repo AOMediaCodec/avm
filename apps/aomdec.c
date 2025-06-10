@@ -120,6 +120,11 @@ static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
+#if CONFIG_F024_KEYOBU
+static const arg_def_t randomaccess =
+    ARG_DEF(NULL, "random-access", 0,
+            "Random access to random-access-th random access point");
+#endif
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
 #if CONFIG_ICC_METADATA
@@ -154,6 +159,9 @@ static const arg_def_t *all_args[] = { &help,
                                        &oppointarg,
                                        &outallarg,
                                        &skipfilmgrain,
+#if CONFIG_F024_KEYOBU
+                                       &randomaccess,
+#endif  // CONFIG_F024_KEYOBU
                                        &bruoptmodearg,
 #if CONFIG_ICC_METADATA
                                        &icc_file,
@@ -642,6 +650,9 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
+#if CONFIG_F024_KEYOBU
+  int random_access = 0;
+#endif  // CONFIG_F024_KEYOBU
   int bru_opt_mode = 0;
   aom_image_t *scaled_img = NULL;
   aom_image_t *img_shifted = NULL;
@@ -787,6 +798,10 @@ static int main_loop(int argc, const char **argv_) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
+#if CONFIG_F024_KEYOBU
+    } else if (arg_match(&arg, &randomaccess, argi)) {
+      random_access = arg_parse_uint(&arg);
+#endif  // CONFIG_F024_KEYOBU
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
 #if CONFIG_ICC_METADATA
@@ -929,6 +944,15 @@ static int main_loop(int argc, const char **argv_) {
     goto fail;
   }
 
+#if CONFIG_F024_KEYOBU
+  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_RANDOM_ACCESS,
+                                    random_access)) {
+    fprintf(stderr, "Failed to set random_access: %s\n",
+            aom_codec_error(&decoder));
+    goto fail;
+  }
+#endif  // CONFIG_F024_KEYOBU
+
   if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_BRU_OPT_MODE,
                                     bru_opt_mode)) {
     fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
@@ -1005,14 +1029,12 @@ static int main_loop(int argc, const char **argv_) {
     }
 
     aom_usec_timer_start(&timer);
-
     if (flush_decoder) {
       // Flush the decoder.
       if (aom_codec_decode(&decoder, NULL, 0, NULL)) {
         warn("Failed to flush decoder: %s", aom_codec_error(&decoder));
       }
     }
-
     aom_usec_timer_mark(&timer);
     dx_time += aom_usec_timer_elapsed(&timer);
 
@@ -1022,7 +1044,10 @@ static int main_loop(int argc, const char **argv_) {
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
       }
-      got_data = 1;
+#if CONFIG_F024_KEYOBU
+      if (!flush_decoder)
+#endif
+        got_data = 1;
 
       if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AOMD_GET_FRAME_CORRUPTED,
                                         &corrupted)) {

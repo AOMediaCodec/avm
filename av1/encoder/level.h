@@ -43,7 +43,9 @@ typedef struct {
   int frame_header_count;
   int tiles;
   int show_frame;
+#if !CONFIG_F024_KEYOBU
   int show_existing_frame;
+#endif
 } FrameRecord;
 
 // Record frame info. in a rolling window.

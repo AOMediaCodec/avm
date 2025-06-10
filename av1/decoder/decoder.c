@@ -64,8 +64,10 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   if (!enable_subgop_stats) return;
   // Update subgop related frame data.
   subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
+#if !CONFIG_F024_KEYOBU
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
+#endif
   subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
@@ -597,7 +599,56 @@ static void release_current_frame(AV1Decoder *pbi) {
   unlock_buffer_pool(pool);
   cm->cur_frame = NULL;
 }
+#if CONFIG_F024_KEYOBU
+// This function flushes out the DPB, all the slots in the dpb is free to use
+aom_codec_err_t flush_remaining_frames(struct AV1Decoder *pbi) {
+  aom_codec_err_t res = AOM_CODEC_OK;
+  AV1_COMMON *const cm = &pbi->common;
+  BufferPool *const pool = cm->buffer_pool;
+  //  unsigned int last_output_display_order =
+  //      pbi->output_frames[pbi->num_output_frames - 1]->display_order_hint;
+  lock_buffer_pool(pool);
 
+  for (size_t i = 0; i < pbi->num_output_frames; i++)
+    decrease_ref_count(pbi->output_frames[i], pool);
+
+  unlock_buffer_pool(pool);
+  pbi->num_output_frames = 0;
+  for (int idx = 0; idx < FRAME_BUFFERS; idx++) {
+    if (is_frame_eligible_for_output(&pool->frame_bufs[idx])) {
+      int pos_found = -1;
+      int doh_with_layer = pool->frame_bufs[idx].display_order_hint *
+                               (cm->seq_params.max_mlayer_id + 1) +
+                           pool->frame_bufs[idx].mlayer_id;
+      // TODO: [jkei] would it be better to use sort()?
+      for (unsigned int out_idx = 0; out_idx < pbi->num_output_frames;
+           out_idx++) {
+        int doh_with_layer_in_output_frames =
+            pbi->output_frames[out_idx]->display_order_hint *
+                (cm->seq_params.max_mlayer_id + 1) +
+            pbi->output_frames[out_idx]->mlayer_id;
+        if (doh_with_layer_in_output_frames > doh_with_layer) {
+          pos_found = out_idx;
+          break;
+        }
+      }  // for
+      if (pos_found == -1) {
+        pbi->output_frames[pbi->num_output_frames] = &pool->frame_bufs[idx];
+        pbi->output_frames[pbi->num_output_frames]->ref_count++;
+      } else {
+        for (int i = (int)pbi->num_output_frames - pos_found - 1;
+             i >= pos_found; i--) {
+          pbi->output_frames[i + 1] = pbi->output_frames[i];
+        }
+        pbi->output_frames[pos_found] = &pool->frame_bufs[idx];
+        pbi->output_frames[pos_found]->ref_count++;
+      }
+      pbi->num_output_frames++;
+    }
+  }
+  return res;
+}
+#endif  // CONFIG_F024_KEYOBU
 // This function outputs frames that are ready to be output.
 // The output frames may be the output trigger frame along with
 // past frames that have not yet been output,
@@ -668,14 +719,14 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 #endif  // CONFIG_MISMATCH_DEBUG
 
     // Add the next frames (showable_frame == 1) into the output queue.
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !CONFIG_F024_KEYOBU
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !CONFIG_F024_KEYOBU
     uint64_t next_frame_output_order = trigger_frame_output_order + k;
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
@@ -684,11 +735,17 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if CONFIG_F024_KEYOBU
+          is_successive_output(cm, next_disp_order, trigger_frame->mlayer_id,
+                               cm->ref_frame_map[i])
+#else
           derive_output_order_idx(cm, cm->ref_frame_map[i]) ==
-              next_frame_output_order) {
+              next_frame_output_order
+#endif
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-          cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
+          cm->ref_frame_map[i]->display_order_hint == next_disp_order
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
+      ) {
         assign_output_frame_buffer_p(
             &pbi->output_frames[pbi->num_output_frames++],
             cm->ref_frame_map[i]);
@@ -769,6 +826,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         decrease_ref_count(cm->ref_frame_map[ref_index], pool);
         if ((cm->current_frame.frame_type == KEY_FRAME &&
              cm->show_frame == 1) &&
+#if CONFIG_F024_KEYOBU
+            cm->seq_params.max_mlayer_id == 0 &&
+#endif
             ref_index > 0) {
           cm->ref_frame_map[ref_index] = NULL;
         } else {
@@ -780,8 +840,11 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     }
     update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                         pbi->enable_subgop_stats);
-    if (((cm->show_frame && !cm->cur_frame->frame_output_done) ||
-         cm->show_existing_frame)) {
+    if (((cm->show_frame && !cm->cur_frame->frame_output_done)
+#if !CONFIG_F024_KEYOBU
+         || cm->show_existing_frame
+#endif
+         )) {
       output_frame_buffers(pbi, -1);
       decrease_ref_count(cm->cur_frame, pool);
     } else {
@@ -844,6 +907,14 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
+#if CONFIG_F024_KEYOBU
+  // Flush the DPB before CLK and before OLK
+  // This should be done before new fb is assigned to current frame to make all
+  // the DPB available
+  if (is_random_accessed_temporal_unit(source, size)) {
+    if (pbi->is_first_layer_decoded) flush_remaining_frames(pbi);
+  }
+#endif
   check_ref_count_status_dec(pbi);
   if (assign_cur_frame_new_fb(cm) == NULL) {
     cm->error.error_code = AOM_CODEC_MEM_ERROR;
@@ -920,8 +991,9 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   }
 
   aom_clear_system_state();
-
+#if !CONFIG_F024_KEYOBU
   if (!cm->show_existing_frame) {
+#endif
     if (cm->seg.enabled) {
       if (cm->prev_frame &&
           (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
@@ -931,7 +1003,9 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
         cm->last_frame_seg_map = NULL;
       }
     }
+#if !CONFIG_F024_KEYOBU
   }
+#endif
 
   // Update progress in frame parallel decode.
   cm->error.setjmp = 0;
