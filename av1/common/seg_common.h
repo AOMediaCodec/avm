@@ -62,10 +62,22 @@ struct segmentation {
 };
 
 struct segmentation_probs {
-  aom_cdf_prob tree_cdf[CDF_SIZE(MAX_SEGMENTS)];
   aom_cdf_prob pred_cdf[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)];
+#if CONFIG_EXT_SEG
+  // *_cdf[]  : seg_id 0 ~ 7, before post-processing
+  // *_cdf1[] : seg_id 8 ~ 15, before post-processing
+  aom_cdf_prob tree_cdf[CDF_SIZE(MAX_SEGMENTS_8)];
+  aom_cdf_prob tree_cdf1[CDF_SIZE(MAX_SEGMENTS_8)];
+  aom_cdf_prob spatial_pred_seg_cdf[SPATIAL_PREDICTION_PROBS]
+                                   [CDF_SIZE(MAX_SEGMENTS_8)];
+  aom_cdf_prob spatial_pred_seg_cdf1[SPATIAL_PREDICTION_PROBS]
+                                    [CDF_SIZE(MAX_SEGMENTS_8)];
+  aom_cdf_prob seg_id_ext_flag_cdf[SPATIAL_PREDICTION_PROBS][CDF_SIZE(2)];
+#else
+  aom_cdf_prob tree_cdf[CDF_SIZE(MAX_SEGMENTS)];
   aom_cdf_prob spatial_pred_seg_cdf[SPATIAL_PREDICTION_PROBS]
                                    [CDF_SIZE(MAX_SEGMENTS)];
+#endif  // CONFIG_EXT_SEG
 };
 
 static INLINE int segfeature_active(const struct segmentation *seg,

@@ -234,7 +234,19 @@ void av1_choose_segmap_coding_method(AV1_COMMON *cm, MACROBLOCKD *xd) {
   }
 
   int seg_id_cost[MAX_SEGMENTS];
+
+#if CONFIG_EXT_SEG
+  if (seg->enable_ext_seg == 1) {
+    av1_cost_tokens_from_cdf(seg_id_cost, segp->tree_cdf, NULL);
+    av1_cost_tokens_from_cdf(seg_id_cost + MAX_SEGMENTS_8, segp->tree_cdf1,
+                             NULL);
+  } else {
+    av1_cost_tokens_from_cdf(seg_id_cost, segp->tree_cdf, NULL);
+  }
+#else
   av1_cost_tokens_from_cdf(seg_id_cost, segp->tree_cdf, NULL);
+#endif  // CONFIG_EXT_SEG
+
   no_pred_cost = 0;
   for (int i = 0; i < MAX_SEGMENTS; ++i)
     no_pred_cost += no_pred_segcounts[i] * seg_id_cost[i];

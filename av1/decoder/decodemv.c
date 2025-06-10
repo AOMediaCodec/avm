@@ -986,9 +986,35 @@ static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   struct segmentation *const seg = &cm->seg;
   struct segmentation_probs *const segp = &ec_ctx->seg;
+
+#if CONFIG_EXT_SEG
+  aom_cdf_prob *pred_cdf = NULL;
+  uint8_t seg_id_ext_flag = 0;
+
+  if (seg->enable_ext_seg == 1) {
+    aom_cdf_prob *seg_id_ext_flag_cdf = segp->seg_id_ext_flag_cdf[cdf_num];
+    seg_id_ext_flag = aom_read_symbol(r, seg_id_ext_flag_cdf, 2,
+                                      ACCT_INFO("seg_id_ext_flag"));
+
+    if (seg_id_ext_flag == 0) {
+      pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+    } else {
+      pred_cdf = segp->spatial_pred_seg_cdf1[cdf_num];
+    }
+  } else {
+    pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+  }
+
+  int coded_id =
+      aom_read_symbol(r, pred_cdf, MAX_SEGMENTS_8, ACCT_INFO("coded_id"));
+  coded_id += seg_id_ext_flag ? MAX_SEGMENTS_8 : 0;
+#else
   aom_cdf_prob *pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+
   const int coded_id =
       aom_read_symbol(r, pred_cdf, MAX_SEGMENTS, ACCT_INFO("coded_id"));
+#endif  // CONFIG_EXT_SEG
+
   const int segment_id =
       av1_neg_deinterleave(coded_id, pred, seg->last_active_segid + 1);
 

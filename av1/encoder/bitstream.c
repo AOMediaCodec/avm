@@ -1005,8 +1005,36 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
 
   const int coded_id =
       av1_neg_interleave(mbmi->segment_id, pred, seg->last_active_segid + 1);
+
+#if CONFIG_EXT_SEG
+  aom_cdf_prob *pred_cdf = NULL;
+  aom_cdf_prob *seg_id_ext_flag_cdf = segp->seg_id_ext_flag_cdf[cdf_num];
+
+  if (seg->enable_ext_seg == 1) {
+    if (coded_id < MAX_SEGMENTS_8) {
+      aom_write_symbol(w, 0, seg_id_ext_flag_cdf, 2);
+      // use cdf0
+      pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+    } else {
+      aom_write_symbol(w, 1, seg_id_ext_flag_cdf, 2);
+      // use cdf1
+      pred_cdf = segp->spatial_pred_seg_cdf1[cdf_num];
+    }
+  } else {
+    pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+  }
+#else
   aom_cdf_prob *pred_cdf = segp->spatial_pred_seg_cdf[cdf_num];
+#endif  // CONFIG_EXT_SEG
+
+#if CONFIG_EXT_SEG
+  aom_write_symbol(
+      w, (coded_id < MAX_SEGMENTS_8) ? coded_id : (coded_id - MAX_SEGMENTS_8),
+      pred_cdf, MAX_SEGMENTS_8);
+#else
   aom_write_symbol(w, coded_id, pred_cdf, MAX_SEGMENTS);
+#endif  // CONFIG_EXT_SEG
+
   set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                          mbmi->sb_type[xd->tree_type == CHROMA_PART], mi_row,
                          mi_col, mbmi->segment_id);
