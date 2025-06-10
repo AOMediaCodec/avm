@@ -25,6 +25,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                const uint8_t *data_end,
                                const uint8_t **p_data_end);
 
+#if CONFIG_F024_KEYOBU
+int is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
+#endif
+
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers);

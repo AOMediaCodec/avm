@@ -56,6 +56,23 @@ bool ValidObuType(int obu_type) {
     case OBU_MULTI_FRAME_HEADER:
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F024_KEYOBU
+    case OBU_CLK:
+    case OBU_OLK:
+    case OBU_LEADING_TILE_GROUP:
+    case OBU_REGULAR_TILE_GROUP:
+#if CONFIG_F106_OBU_SWITCH
+    case OBU_SWITCH:
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
+    case OBU_LEADING_SEF:
+    case OBU_REGULAR_SEF:
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
+    case OBU_LEADING_TIP:
+    case OBU_REGULAR_TIP:
+#endif  // CONFIG_F106_OBU_TIP
+#else   // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
 #endif  // CONFIG_F106_OBU_SWITCH
@@ -66,7 +83,8 @@ bool ValidObuType(int obu_type) {
     case OBU_TIP:
 #endif  // CONFIG_F106_OBU_TIP
     case OBU_TILE_GROUP:
-#else
+#endif  // CONFIG_F024_KEYOBU
+#else   // CONFIG_F106_OBU_TILEGROUP
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
 #endif  // CONFIG_F106_OBU_TILEGROUP
@@ -210,7 +228,14 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
     }
 
 #if CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F024_KEYOBU
+    bool is_tile_group = obu_header.type == OBU_LEADING_TILE_GROUP ||
+                         obu_header.type == OBU_REGULAR_TILE_GROUP ||
+                         obu_header.type == OBU_CLK ||
+                         obu_header.type == OBU_OLK;
+#else
     bool is_tile_group = obu_header.type == OBU_TILE_GROUP;
+#endif
 #if CONFIG_F106_OBU_SWITCH
     is_tile_group = is_tile_group || obu_header.type == OBU_SWITCH;
 #endif  // CONFIG_F106_OBU_SWITCH

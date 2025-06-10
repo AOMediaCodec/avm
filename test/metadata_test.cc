@@ -25,7 +25,7 @@
 
 namespace {
 const size_t kMetadataPayloadSizeT35 = 24;
-#if CONFIG_METADATA
+#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 // itu_t_t35_country_code = 0xB5 (USA)
 // itu_t_t35_terminal_provider_code = 0x5890 (AOM)
 // itu_t_t35_terminal_provider_oriented_code = 0xFE (not specified, for testing
@@ -40,10 +40,10 @@ const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
-#endif  // CONFIG_METADATA
+#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 const size_t kMetadataPayloadSizeCll = 4;
-#if CONFIG_METADATA
+#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xDE, 0xAD, 0xBE,
                                                                0xEF };
 const size_t kMetadataPayloadSizeMdcv = 24;
@@ -62,10 +62,10 @@ const uint8_t kMetadataPayloadMdcv[kMetadataPayloadSizeMdcv] = {
 #else
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
                                                                0x03 };
-#endif  // CONFIG_METADATA
+#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 #if CONFIG_AV1_ENCODER
-#if CONFIG_METADATA
+#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 const size_t kMetadataObuSizeT35 = 29;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
   0x04,        // muh_metadata_type(leb128) = 4 (ITU-T T.35 metadata unit)
@@ -94,7 +94,7 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
   0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
   0xDE, 0xAD, 0xBE, 0xEF
 };
-#else  // CONFIG_METADATA
+#else  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 const size_t kMetadataObuSizeT35 =
 #if CONFIG_SHORT_METADATA
     29;
@@ -143,7 +143,7 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
 const size_t kMetadataObuSizeCll = 8;
 const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x07, 0x14, 0x01, 0xB5,
                                                        0x01, 0x02, 0x03, 0x80 };
-#endif  // CONFIG_METADATA
+#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 class MetadataEncodeTest
     : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
@@ -214,10 +214,28 @@ class MetadataEncodeTest
 
       // look for valid metadatas in bitstream
       bool itut_t35_metadata_found = false;
+#if CONFIG_F024_KEYOBU
+      // skip first 5 bytes (muh_metadata_type, muh_header_size,
+      // muh_payload_size, layer_idc+persistence_idc+priority+reserved
+      const size_t kMetadataObuSizeT35_payload_only = kMetadataObuSizeT35 - 5;
+      const uint8_t *kMetadataObuT35_payload_pointer = &kMetadataObuT35[5];
+#endif
       if (bitstream_size >= kMetadataObuSizeT35) {
-        for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeT35; ++i) {
-          if (memcmp(bitstream + i, kMetadataObuT35, kMetadataObuSizeT35) ==
-              0) {
+        for (size_t i = 0;
+#if CONFIG_F024_KEYOBU
+             i <= bitstream_size - kMetadataObuSizeT35_payload_only;
+#else
+             i <= bitstream_size - kMetadataObuSizeT35;
+#endif
+             ++i) {
+          if (memcmp(bitstream + i,
+#if CONFIG_F024_KEYOBU
+                     kMetadataObuT35_payload_pointer,
+                     kMetadataObuSizeT35_payload_only
+#else
+                     kMetadataObuT35, kMetadataObuSizeT35
+#endif
+                     ) == 0) {
             itut_t35_metadata_found = true;
           }
         }
@@ -227,10 +245,29 @@ class MetadataEncodeTest
       if (is_keyframe) {
         // Testing for HDR MDCV metadata
         bool hdr_mdcv_metadata_found = false;
+#if CONFIG_F024_KEYOBU
+        // skip first 5 bytes (muh_metadata_type, muh_header_size,
+        // muh_payload_size, layer_idc+persistence_idc+priority+reserved
+        const size_t kMetadataObuSizeMdcv_payload_only =
+            kMetadataObuSizeMdcv - 5;
+        const uint8_t *kMetadataObuMdcv_payload_pointer = &kMetadataObuMdcv[5];
+#endif  // CONFIG_F024_KEYOBU
         if (bitstream_size >= kMetadataObuSizeMdcv) {
-          for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeMdcv; ++i) {
-            if (memcmp(bitstream + i, kMetadataObuMdcv, kMetadataObuSizeMdcv) ==
-                0) {
+          for (size_t i = 0;
+#if CONFIG_F024_KEYOBU
+               i <= bitstream_size - kMetadataObuSizeMdcv_payload_only;
+#else
+               i <= bitstream_size - kMetadataObuSizeMdcv;
+#endif
+               ++i) {
+            if (memcmp(bitstream + i,
+#if CONFIG_F024_KEYOBU
+                       kMetadataObuMdcv_payload_pointer,
+                       kMetadataObuSizeMdcv_payload_only
+#else
+                       kMetadataObuMdcv, kMetadataObuSizeMdcv
+#endif  // CONFIG_F024_KEYOBU
+                       ) == 0) {
               hdr_mdcv_metadata_found = true;
             }
           }
@@ -239,10 +276,28 @@ class MetadataEncodeTest
 
         // Testing for HDR CLL metadata
         bool hdr_cll_metadata_found = false;
+#if CONFIG_F024_KEYOBU
+        // skip first 5 bytes (muh_metadata_type, muh_header_size,
+        // muh_payload_size, layer_idc+persistence_idc+priority+reserved
+        const size_t kMetadataObuSizeCll_payload_only = kMetadataObuSizeCll - 5;
+        const uint8_t *kMetadataObuCll_payload_pointer = &kMetadataObuCll[5];
+#endif  // CONFIG_F024_KEYOBU
         if (bitstream_size >= kMetadataObuSizeCll) {
-          for (size_t i = 0; i <= bitstream_size - kMetadataObuSizeCll; ++i) {
-            if (memcmp(bitstream + i, kMetadataObuCll, kMetadataObuSizeCll) ==
-                0) {
+          for (size_t i = 0;
+#if CONFIG_F024_KEYOBU
+               i <= bitstream_size - kMetadataObuSizeCll_payload_only;
+#else
+               i <= bitstream_size - kMetadataObuSizeCll;
+#endif
+               ++i) {
+            if (memcmp(bitstream + i,
+#if CONFIG_F024_KEYOBU
+                       kMetadataObuCll_payload_pointer,
+                       kMetadataObuSizeCll_payload_only
+#else
+                       kMetadataObuCll, kMetadataObuSizeCll
+#endif
+                       ) == 0) {
               hdr_cll_metadata_found = true;
             }
           }

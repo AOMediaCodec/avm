@@ -135,17 +135,36 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
 #endif  // CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_F024_KEYOBU
+    case OBU_CLK:
+    case OBU_OLK:
+#endif
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_SEF
+#if CONFIG_F024_KEYOBU
+    case OBU_LEADING_SEF:
+    case OBU_REGULAR_SEF:
+#else
     case OBU_SEF:
+#endif
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+    case OBU_LEADING_TIP:
+    case OBU_REGULAR_TIP:
+#else
     case OBU_TIP:
+#endif
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+    case OBU_LEADING_TILE_GROUP:
+    case OBU_REGULAR_TILE_GROUP:
+#else
     case OBU_TILE_GROUP:
+#endif
 #else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:

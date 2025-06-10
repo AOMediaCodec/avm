@@ -3604,7 +3604,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 }
 
 static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
-  if (!frame_is_intra_only(cm) && !encode_show_existing_frame(cm) &&
+  if (!frame_is_intra_only(cm) &&
+#if !CONFIG_F024_KEYOBU
+      !encode_show_existing_frame(cm) &&
+#endif
       cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode &&
       !cm->bru.enabled) {
     return true;
@@ -4300,9 +4303,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;
   }
+#if CONFIG_F024_KEYOBU
+  // TODO(jkei): check the necessity of cm_obu_type and frame_params_obu_type
+  const bool compute_ds_filter =
+      cpi->common.current_frame.cm_obu_type == OBU_CLK;
+#else
   const bool compute_ds_filter =
       av1_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
       !cpi->common.show_existing_frame;
+#endif  // CONFIG_F024_KEYOBU
   if (compute_ds_filter) {
     av1_set_downsample_filter_options(cpi);
   }
@@ -4331,9 +4340,51 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // an overlay frame
     gf_group->update_type[gf_group->size] = GF_UPDATE;
   }
+
 #if CONFIG_F255_QMOBU
   cpi->new_qmobu_added = 0;
 #endif
+
+#if CONFIG_F024_KEYOBU
+  if (cm->update_type_was_overlay) {
+    assign_frame_buffer_p(&cm->cur_frame,
+                          cm->ref_frame_map[cpi->fb_idx_for_overlay]);
+    // Note: currently olk_fb_idx is decided in uncompressed_header to balance
+    // with the decoder. but it may be able to be decided where
+    // existing_fb_idx_to_show is decided
+    if (cpi->olk_encountered &&
+        cm->enc_olk_fb_idx[cm->mlayer_id] != INVALID_IDX &&
+        cm->enc_olk_fb_idx[cm->mlayer_id] == cpi->fb_idx_for_overlay) {
+      int ref_flags_to_keep = 0;
+      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+        assert(cm->olk_refresh_frame_flags[layer] != -1);
+        ref_flags_to_keep |= (1 << cm->enc_olk_fb_idx[layer]);
+      }
+      for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+           ref_index++) {
+        if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+          if (cm->ref_frame_map[ref_index] != NULL) {
+            --cm->ref_frame_map[ref_index]->ref_count;
+            cm->ref_frame_map[ref_index] = NULL;
+          }
+        }
+      }
+      cm->is_olk_overlay = 1;
+    }  // cpi->olk_encountered
+    else {
+      cm->is_olk_overlay = 0;
+    }
+    cpi->seq_params_locked = 1;
+    if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
+
+    // current_frame->frame_number is incremented already for
+    // keyframe overlays.
+    if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
+                                    cpi->rc.frames_since_key))
+      ++current_frame->frame_number;
+    return AOM_CODEC_OK;
+  }  // if(cm->update_type_was_overlay)
+#else
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
     av1_finalize_encoded_frame(cpi);
@@ -4369,6 +4420,28 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
     return AOM_CODEC_OK;
   }
+#endif
+
+#if CONFIG_F024_KEYOBU
+  if (current_frame->frame_type == KEY_FRAME) {
+    cm->is_leading_picture = -1;
+    if (cpi->no_show_fwd_kf) {
+      cpi->olk_encountered = 1;
+      cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;
+      cm->last_olk_disp_order_hint[cm->mlayer_id] =
+          cm->current_frame.display_order_hint;
+    } else {
+      cpi->olk_encountered = 0;
+    }
+  } else {
+    if (cm->last_olk_disp_order_hint[cm->mlayer_id] >
+        cm->current_frame.display_order_hint)
+      cm->is_leading_picture = 1;
+    else {
+      cm->is_leading_picture = 0;
+    }  // !leading_picture
+  }  // !KEYFRAME
+#endif  // CONFIG_F024_KEYOBU
 
   // Work out whether to force_integer_mv this frame
   if (!is_stat_generation_stage(cpi) &&
@@ -4575,17 +4648,26 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
+#if CONFIG_F024_KEYOBU
+  cm->update_type_was_overlay =
+      frame_params->frame_params_update_type_was_overlay;
+  cpi->fb_idx_for_overlay = frame_params->fb_idx_for_overlay;
+#else
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
-
+#endif
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          INTER_REFS_PER_FRAME * sizeof(*cm->remapped_ref_idx));
 
+#if !CONFIG_F024_KEYOBU
   if (av1_is_shown_keyframe(cpi, current_frame->frame_type)) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
-
+#endif
+#if CONFIG_F024_KEYOBU
+  cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
+#endif
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
@@ -4686,7 +4768,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.absolute_poc = 0;
         cm->show_frame = 0;
         cm->showable_frame = 0;
+#if !CONFIG_F024_KEYOBU
         cm->show_existing_frame = 0;
+#endif  // !CONFIG_F024_KEYOBU
         cm->current_frame.order_hint = 0;
         cm->current_frame.frame_number = 0;
         cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
@@ -5005,7 +5089,12 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
   if (cpi->b_calculate_psnr) {
-    if (cm->show_existing_frame ||
+    if (
+#if CONFIG_F024_KEYOBU
+        cm->update_type_was_overlay ||
+#else
+        cm->show_existing_frame ||
+#endif
         (*size > 0 && !is_stat_generation_stage(cpi) && cm->show_frame)) {
       generate_psnr_packet(cpi);
     }

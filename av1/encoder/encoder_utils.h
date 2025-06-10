@@ -923,20 +923,28 @@ static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-
+#if !CONFIG_F024_KEYOBU
   // Reset display order hint for forward keyframe
   // TODO(sarahparker): Find a way to also reset order_hint without causing
   // a crash.
   if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
     cm->cur_frame->display_order_hint = 0;
   }
+#endif  // ! CONFIG_F024_KEYOBU
+
   if (!cm->bru.enabled) {
     // All buffers are refreshed for shown keyframes and S-frames.
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
         if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_frame == 1 &&
+#if CONFIG_F024_KEYOBU
+            cm->seq_params.max_mlayer_id == 0 &&
+#endif
             ref_frame > 0) {
+          // NOTE: if a keyframe has refresh_idx!=0, this process doesnot add
+          // the keyframe to the reference list. for example, mlayer_id=1,
+          // refresh_frame_flags=64
           if (cm->ref_frame_map[ref_frame] != NULL) {
             --cm->ref_frame_map[ref_frame]->ref_count;
             cm->ref_frame_map[ref_frame] = NULL;
@@ -944,9 +952,9 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
         } else {
           assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
         }
-      }
-    }
-  }
+      }  // i(refresh_frame_flags)
+    }  // for(ref_frame)
+  }  // if (!cm->bru.enabled)
 }
 
 static AOM_INLINE void update_subgop_stats(

@@ -2439,7 +2439,14 @@ typedef struct AV1_COMP {
    * When set, this flag indicates that the current frame is a forward keyframe.
    */
   int no_show_fwd_kf;
-
+#if CONFIG_F024_KEYOBU
+  /*!
+   * Indicates an OLK obu is encountered in any layer
+   * It is initialized as 0 and set 1 when the first olk is decoded and set 0
+   * when the first regular frame or the first CLK after the olk is decoded.
+   */
+  int olk_encountered;
+#endif
   /*!
    * Stores the trellis optimization type at segment level.
    * optimize_seg_arr[i] stores the trellis opt type for ith segment.
@@ -2798,14 +2805,21 @@ typedef struct AV1_COMP {
    * Multi-threading parameters.
    */
   MultiThreadInfo mt_info;
-
+#if CONFIG_F024_KEYOBU
+  /*!
+   * Specifies the frame to be output. It is valid only if show_existing_frame
+   * is 1. When show_existing_frame is 0, existing_fb_idx_to_show is set to
+   * INVALID_IDX.
+   */
+  int fb_idx_for_overlay;
+#else
   /*!
    * Specifies the frame to be output. It is valid only if show_existing_frame
    * is 1. When show_existing_frame is 0, existing_fb_idx_to_show is set to
    * INVALID_IDX.
    */
   int existing_fb_idx_to_show;
-
+#endif
   /*!
    * When set, indicates that internal ARFs are enabled.
    */
@@ -3112,10 +3126,17 @@ typedef struct EncodeFrameParams {
 
   /*!\cond */
   int refresh_frame_flags;
-
+#if CONFIG_F024_KEYOBU
+  bool frame_params_update_type_was_overlay;
+  int fb_idx_for_overlay;
+#else
   int show_existing_frame;
   int existing_fb_idx_to_show;
-
+#endif
+#if CONFIG_F024_KEYOBU
+  // TODO(jkei): if possible remove cm_obu_type
+  OBU_TYPE frame_params_obu_type;
+#endif
   /*!\endcond */
   /*!
    *  Bitmask of which reference buffers may be referenced by this frame.
@@ -3445,7 +3466,7 @@ static INLINE int av1_resize_scaled(const AV1_COMMON *cm) {
 static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
   return av1_resize_scaled(cm);
 }
-
+#if !CONFIG_F024_KEYOBU
 // Don't allow a show_existing_frame to coincide with an error resilient
 // frame. An exception can be made for a forward keyframe since it has no
 // previous dependencies.
@@ -3461,6 +3482,7 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
 #endif  // CONFIG_F322_OBUER_ERM
       cm->current_frame.frame_type == KEY_FRAME);
 }
+#endif
 
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given
 // 'mi_row' and 'mi_col'.

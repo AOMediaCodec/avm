@@ -150,8 +150,12 @@ static void av1_validate_conformance_window(
 //   Within a particular coded video sequence, the contents of
 //   sequence_header_obu must be bit-identical each time the sequence header
 //   appears except for the contents of operating_parameters_info.
-static int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
-                                      const SequenceHeader *seq_params_new) {
+#if !CONFIG_F024_KEYOBU
+static
+#endif  // !CONFIG_F024_KEYOBU
+    int
+    are_seq_headers_consistent(const SequenceHeader *seq_params_old,
+                               const SequenceHeader *seq_params_new) {
   return !memcmp(seq_params_old, seq_params_new,
                  offsetof(SequenceHeader, op_params));
 }
@@ -505,7 +509,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
-
+#if CONFIG_F024_KEYOBU
+  pbi->is_first_layer_decoded = true;
+  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++)
+    cm->olk_refresh_frame_flags[layer] = -1;
+#endif
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
@@ -550,12 +558,22 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
 
   bool skip_payload = false;
 #if CONFIG_F106_OBU_SEF
+#if CONFIG_F024_KEYOBU
+  skip_payload |= (obu_type == OBU_LEADING_SEF);
+  skip_payload |= (obu_type == OBU_REGULAR_SEF);
+#else
   skip_payload |= (obu_type == OBU_SEF);
+#endif  // CONFIG_F024_KEYOBU
 #else
   skip_payload |= cm->show_existing_frame;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+  skip_payload |= (obu_type == OBU_LEADING_TIP);
+  skip_payload |= (obu_type == OBU_REGULAR_TIP);
+#else
   skip_payload |= (obu_type == OBU_TIP);
+#endif  // CONFIG_F024_KEYOBU
 #else
   skip_payload |= (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
@@ -584,7 +602,7 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   }
   return header_size + tg_payload_size;
 }
-#else
+#else  // CONFIG_F106_OBU_TILEGROUP
 // On success, returns the frame header size. On failure, calls
 // aom_internal_error and does not return.
 static uint32_t read_frame_header_obu(AV1Decoder *pbi,
@@ -1375,10 +1393,11 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   }
 
 #if CONFIG_BAND_METADATA
-  if (metadata_type == 0 || metadata_type >= 8) {
+  if (metadata_type == 0 || metadata_type >= 8)
 #else
-  if (metadata_type == 0 || metadata_type >= 7) {
+  if (metadata_type == 0 || metadata_type >= 7)
 #endif  // CONFIG_BAND_METADATA
+  {
     // If metadata_type is reserved for future use or a user private value,
     // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
@@ -1511,9 +1530,18 @@ static size_t read_padding(AV1_COMMON *const cm, const uint8_t *data,
 
 // Check the obu type is a kind of coded frame
 static int is_coded_frame(OBU_TYPE obu_type) {
+#if CONFIG_F024_KEYOBU
+  return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
+         obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
+         obu_type == OBU_BRIDGE_FRAME || obu_type == OBU_REGULAR_TILE_GROUP ||
+         obu_type == OBU_LEADING_SEF || obu_type == OBU_LEADING_TIP ||
+         obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_CLK ||
+         obu_type == OBU_OLK;
+#else
   return obu_type == OBU_SEF || obu_type == OBU_TIP || obu_type == OBU_SWITCH ||
          obu_type == OBU_RAS_FRAME || obu_type == OBU_BRIDGE_FRAME ||
          obu_type == OBU_TILE_GROUP;
+#endif
 }
 
 // Check the obu type ordering within a temporal unit
@@ -1631,6 +1659,31 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 }
 #endif  // OBU_ORDER_IN_TU
 
+#if CONFIG_F024_KEYOBU
+int is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
+  const uint8_t *data_read = data;
+
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    aom_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
+      return 1;
+    }
+    data_read += bytes_read + payload_size;
+    data_sz -= bytes_read + payload_size;
+  }
+  return 0;
+}
+
+static int is_leading_vcl_obu(OBU_TYPE obu_type) {
+  return (obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_LEADING_SEF ||
+          obu_type == OBU_LEADING_TIP);
+}
+#endif  // CONFIG_F024_KEYOBU
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1684,6 +1737,31 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     aom_codec_err_t status = aom_read_obu_header_and_size(
         data, bytes_available, &obu_header, &payload_size, &bytes_read);
+
+#if CONFIG_F024_KEYOBU
+    // Skip all obus till the random_accessed-th random access point
+    // Remove all leading_vcl obus
+    if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK)
+      pbi->random_access_point_count++;
+    if (pbi->random_access_point_count < pbi->random_access_point_index) {
+      pbi->random_accessed = 0;
+      data += (bytes_read + payload_size);
+      continue;
+    } else {
+      if (obu_header.type == OBU_OLK || obu_header.type == OBU_CLK)
+        pbi->random_accessed = 1;
+      if ((obu_header.type == OBU_OLK || obu_header.type == OBU_CLK) &&
+          pbi->random_access_point_count != pbi->random_access_point_index)
+        pbi->random_accessed = 0;
+      if (pbi->random_accessed) {
+        // drop all leading vcl obus
+        if (is_leading_vcl_obu(obu_header.type)) {
+          data += (bytes_read + payload_size);
+          continue;
+        }
+      }
+    }
+#endif
 
     if (status != AOM_CODEC_OK) {
       cm->error.error_code = status;
@@ -1837,15 +1915,32 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         break;
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F024_KEYOBU
+      case OBU_CLK:
+      case OBU_OLK:
+      case OBU_LEADING_TILE_GROUP:
+      case OBU_REGULAR_TILE_GROUP:
+#else
       case OBU_TILE_GROUP:
+#endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_SWITCH
       case OBU_SWITCH:
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_SEF
+#if CONFIG_F024_KEYOBU
+      case OBU_LEADING_SEF:
+      case OBU_REGULAR_SEF:
+#else
       case OBU_SEF:
+#endif  // CONFIG_F024_KEYOBU
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
+#if CONFIG_F024_KEYOBU
+      case OBU_LEADING_TIP:
+      case OBU_REGULAR_TIP:
+#else
       case OBU_TIP:
+#endif  // CONFIG_F024_KEYOBU
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       case OBU_RAS_FRAME:

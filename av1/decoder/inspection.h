@@ -112,7 +112,9 @@ struct insp_frame_data {
   // TODO(negge): add per frame CDEF data
   int delta_q_present_flag;
   int delta_q_res;
+#if !CONFIG_F024_KEYOBU
   int show_existing_frame;
+#endif
   int superblock_size;
   // Points to the same underlying allocations as the decoder
   YV12_BUFFER_CONFIG recon_frame_buffer;
