@@ -1696,10 +1696,20 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_MORPH_PRED
   AVERAGE_CDF(ctx_left->morph_pred_cdf, ctx_tr->morph_pred_cdf, 2);
 #endif  // CONFIG_MORPH_PRED
-  AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
+#if CONFIG_EXT_SEG
+  AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS_8);
+  AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
+              ctx_tr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS_8);
+  AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf1,
+              ctx_tr->seg.spatial_pred_seg_cdf1, MAX_SEGMENTS_8);
+  AVERAGE_CDF(ctx_left->seg.seg_cdf_split_flag_cdf,
+              ctx_tr->seg.seg_cdf_split_flag_cdf, MAX_SEGMENTS_8);
+#else
+  AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
               ctx_tr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
+#endif  // CONFIG_EXT_SEG
   AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs, 2);
   AVERAGE_CDF(ctx_left->filter_intra_mode_cdf, ctx_tr->filter_intra_mode_cdf,
               FILTER_INTRA_MODES);
