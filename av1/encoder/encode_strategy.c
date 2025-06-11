@@ -887,12 +887,11 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         has_enough_frames_for_key_filtering(cpi->rc.frames_to_key,
                                             oxcf->algo_cfg.arnr_max_frames,
                                             oxcf->gf_cfg.lag_in_frames) &&
-        (!is_lossless_requested(&oxcf->rc_cfg) ||
+        (!is_lossless_requested(oxcf) ||
          oxcf->kf_cfg.enable_keyframe_filtering > 1);
 #else
         cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
-        !is_lossless_requested(&oxcf->rc_cfg) &&
-        oxcf->algo_cfg.arnr_max_frames > 0;
+        !is_lossless_requested(oxcf) && oxcf->algo_cfg.arnr_max_frames > 0;
 #endif  // CONFIG_KEY_OVERLAY
 
     if (allow_kf_filtering) {
@@ -940,7 +939,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
              get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
-    if (is_lossless_requested(&oxcf->rc_cfg)) {
+    if (is_lossless_requested(oxcf)) {
       // Turn off temporal filtering if overlay is off.
       // Also, turn off temporal filtering for internal ARF if overlay is on,
       // since overlay is not supported for this frame, and without overlay,
@@ -1196,7 +1195,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (has_no_stats_stage(cpi) && oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
     av1_cyclic_refresh_update_parameters(cpi);
   } else if (is_stat_generation_stage(cpi)) {
-    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&oxcf->rc_cfg);
+    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(oxcf);
     const int kf_requested = (cm->current_frame.frame_number == 0 ||
                               (*frame_flags & FRAMEFLAGS_KEY));
     if (kf_requested && frame_update_type != OVERLAY_UPDATE &&

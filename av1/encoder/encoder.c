@@ -590,18 +590,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_tiles_cdfs_avg = tool_cfg->enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_TCQ
-  seq->enable_tcq =
-      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
+  seq->enable_tcq = is_lossless_requested(oxcf) ? 0 : tool_cfg->enable_tcq;
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
-    seq->enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
-                                    ? 0
-                                    : tool_cfg->enable_parity_hiding;
+    seq->enable_parity_hiding =
+        is_lossless_requested(oxcf) ? 0 : tool_cfg->enable_parity_hiding;
   } else {
     seq->enable_parity_hiding = 0;
   }
 #else
   seq->enable_parity_hiding =
-      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_parity_hiding;
+      is_lossless_requested(oxcf) ? 0 : tool_cfg->enable_parity_hiding;
 #endif  // CONFIG_TCQ
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
@@ -1698,7 +1696,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
                        bit_depth, in_bit_depth,
-                       is_lossless_requested(&cpi->oxcf.rc_cfg));
+                       is_lossless_requested(&cpi->oxcf));
 
   for (i = 0; i < 4; ++i) {
     pkt.data.psnr.samples[i] = psnr.samples[i];
@@ -2885,7 +2883,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
 
-  assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
+  assert(IMPLIES(is_lossless_requested(&cpi->oxcf),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
   const int use_loopfilter = !cm->features.coded_lossless &&
@@ -4734,7 +4732,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
 #if CONFIG_TCQ
-  if (is_lossless_requested(&oxcf->rc_cfg)) {
+  if (is_lossless_requested(oxcf)) {
     // Disable TCQ for lossless since TCQ may not be reversible
     features->tcq_mode = 0;
   } else {
@@ -5135,7 +5133,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       double frame_ssim2 = 0.0, weight = 0.0;
       aom_clear_system_state();
       aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth,
-                           is_lossless_requested(&cpi->oxcf.rc_cfg));
+                           is_lossless_requested(&cpi->oxcf));
       adjust_image_stat(psnr.psnr[1], psnr.psnr[2], psnr.psnr[3], psnr.psnr[0],
                         &(cpi->psnr[0]));
       cpi->total_sq_error[0] += psnr.sse[0];

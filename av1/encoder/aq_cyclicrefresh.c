@@ -348,7 +348,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   int qp_thresh = AOMMIN(20, rc->best_quality << 1);
   int qp_max_thresh = 118 * MAXQ >> 7;
   cr->apply_cyclic_refresh = 1;
-  if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
+  if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf) ||
       rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (rc->frames_since_key > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||

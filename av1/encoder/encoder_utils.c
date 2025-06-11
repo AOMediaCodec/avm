@@ -1002,7 +1002,7 @@ static void screen_content_tools_determination(
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass],
                        bit_depth, in_bit_depth,
-                       is_lossless_requested(&cpi->oxcf.rc_cfg));
+                       is_lossless_requested(&cpi->oxcf));
 
   if (pass != 1) return;
 
@@ -1124,9 +1124,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // Use a high q and a fixed partition to do quick encoding.
   const int q_for_screen_content_quick_run =
 #if CONFIG_SCC_DETERMINATION
-      is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 200);
+      is_lossless_requested(oxcf) ? q_orig : AOMMAX(q_orig, 200);
 #else
-      is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
+      is_lossless_requested(oxcf) ? q_orig : AOMMAX(q_orig, 244);
 #endif  // CONFIG_SCC_DETERMINATION
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
   const BLOCK_SIZE fixed_partition_block_size_orig =

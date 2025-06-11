@@ -1481,7 +1481,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
     if (!is_second_arf) {
       *show_existing_arf = 0;
-      if (!is_lossless_requested(&cpi->oxcf.rc_cfg) && mean < threshold &&
+      if (!is_lossless_requested(&cpi->oxcf) && mean < threshold &&
           std < mean * 1.2) {
         *show_existing_arf = 1;
       }

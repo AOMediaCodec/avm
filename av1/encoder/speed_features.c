@@ -840,15 +840,14 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
                                   const AV1EncoderConfig *oxcf) {
   const int enable_trellis_quant = oxcf->algo_cfg.enable_trellis_quant;
   if (enable_trellis_quant == 3) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&oxcf->rc_cfg)
+    rd_sf->optimize_coefficients = !is_lossless_requested(oxcf)
                                        ? NO_ESTIMATE_YRD_TRELLIS_OPT
                                        : NO_TRELLIS_OPT;
   } else if (enable_trellis_quant == 2) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&oxcf->rc_cfg)
-                                       ? FINAL_PASS_TRELLIS_OPT
-                                       : NO_TRELLIS_OPT;
+    rd_sf->optimize_coefficients =
+        !is_lossless_requested(oxcf) ? FINAL_PASS_TRELLIS_OPT : NO_TRELLIS_OPT;
   } else if (enable_trellis_quant == 1) {
-    if (is_lossless_requested(&oxcf->rc_cfg)) {
+    if (is_lossless_requested(oxcf)) {
       rd_sf->optimize_coefficients = NO_TRELLIS_OPT;
     } else {
       rd_sf->optimize_coefficients = FULL_TRELLIS_OPT;

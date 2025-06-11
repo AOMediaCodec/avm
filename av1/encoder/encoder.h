@@ -1253,8 +1253,10 @@ typedef struct AV1EncoderConfig {
 } AV1EncoderConfig;
 
 /*!\cond */
-static INLINE int is_lossless_requested(const RateControlCfg *const rc_cfg) {
-  return rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0;
+static INLINE int is_lossless_requested(const AV1EncoderConfig *const oxcf) {
+  return oxcf->rc_cfg.best_allowed_q == 0 &&
+         oxcf->rc_cfg.worst_allowed_q == 0 && oxcf->tool_cfg.enable_tcq == 0 &&
+         oxcf->tool_cfg.enable_parity_hiding == 0;
 }
 /*!\endcond */
 

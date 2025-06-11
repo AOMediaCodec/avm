@@ -455,7 +455,7 @@ void av1_superres_post_encode(AV1_COMP *cpi) {
   if (!av1_superres_scaled(cm)) return;
 
   assert(cpi->oxcf.superres_cfg.enable_superres);
-  assert(!is_lossless_requested(&cpi->oxcf.rc_cfg));
+  assert(!is_lossless_requested(&cpi->oxcf));
   assert(!cm->features.all_lossless);
 
   av1_superres_upscale(cm, NULL, cpi->alloc_pyramid);

@@ -1777,7 +1777,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
        !cpi->internal_altref_allowed) &&
       !av1_find_subgop_config_exact(&cpi->subgop_config_set, i - 1,
                                     SUBGOP_IN_GOP_LAST) &&
-      !is_lossless_requested(rc_cfg);
+      !is_lossless_requested(oxcf);
 
   if (allow_gf_length_reduction && use_alt_ref) {
     // adjust length of this gf group if one of the following condition met
@@ -1862,7 +1862,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
   rc->arf_boost_factor = 1.0;
-  if (use_alt_ref && !is_lossless_requested(rc_cfg)) {
+  if (use_alt_ref && !is_lossless_requested(oxcf)) {
     // Reduce the boost of altref in the last gf group
     if (rc->frames_to_key - i + 1 == REDUCE_GF_LENGTH_BY ||
         rc->frames_to_key - i + 1 == 0) {

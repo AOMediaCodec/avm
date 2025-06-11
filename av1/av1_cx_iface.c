@@ -1449,7 +1449,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->lossless ? 0 : cfg->rc_min_quantizer + offset_qp;
   rc_cfg->worst_allowed_q =
       extra_cfg->lossless ? 0 : cfg->rc_max_quantizer + offset_qp;
-  if (rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0)
+  if (rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0 &&
+      extra_cfg->enable_parity_hiding == 0 && cfg->enable_tcq == 0)
     extra_cfg->lossless = 1;
 
   rc_cfg->qp = extra_cfg->lossless ? 0 : extra_cfg->qp + offset_qp;
@@ -1536,7 +1537,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
 #if CONFIG_TCQ
-  tool_cfg->enable_tcq = cfg->enable_tcq;
+  tool_cfg->enable_tcq = extra_cfg->lossless ? 0 : cfg->enable_tcq;
 #endif  // CONFIG_TCQ
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->ref_frame_mvs_present =
@@ -1630,7 +1631,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_affine_refine =
       extra_cfg->enable_opfl_refine ? extra_cfg->enable_affine_refine : 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
-  tool_cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
+  tool_cfg->enable_parity_hiding =
+      extra_cfg->lossless ? 0 : extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   tool_cfg->enable_mrsse = extra_cfg->enable_mrsse;
 #endif  // CONFIG_MRSSE
@@ -1898,6 +1900,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
   txfm_cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
+  // TODO(any): check if the not lossless conditions are needed below
   txfm_cfg->enable_ist = extra_cfg->enable_ist && !extra_cfg->lossless;
   txfm_cfg->enable_inter_ist =
       extra_cfg->enable_inter_ist && !extra_cfg->lossless;
@@ -3105,11 +3108,11 @@ static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
   aom_calc_highbd_psnr(source, &cpi->common.cur_frame->buf, psnr, bit_depth,
-                       in_bit_depth, is_lossless_requested(&cpi->oxcf.rc_cfg));
+                       in_bit_depth, is_lossless_requested(&cpi->oxcf));
 #else
   aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
                        psnr, bit_depth, in_bit_depth,
-                       is_lossless_requested(&cpi->oxcf.rc_cfg));
+                       is_lossless_requested(&cpi->oxcf));
 #endif  // CONFIG_FIX_RESIZE_PSNR
 }
 
