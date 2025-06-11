@@ -665,9 +665,13 @@ static AOM_INLINE void check_sub_pu_edge(
                                         : tx_size_high[temp_ts] - 1;
       const uint32_t pu_starting_coord = get_pu_starting_cooord(
           mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
-      assert(coord >= pu_starting_coord);
-      const uint32_t relative_coord = coord - pu_starting_coord;
-      *sub_pu_edge = (relative_coord & sub_pu_masks) ? (0) : (1);
+      if (coord) {
+        assert(coord >= pu_starting_coord);
+        const uint32_t relative_coord = coord - pu_starting_coord;
+        *sub_pu_edge = (relative_coord & sub_pu_masks) ? (0) : (1);
+      } else {
+        *sub_pu_edge = 1;
+      }
       if (*is_tx_m_partition) {
         *ts = TX_4X4;
       } else if (*sub_pu_edge) {
@@ -797,7 +801,6 @@ static TX_SIZE set_lpf_parameters(
   TX_SIZE ts =
       get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane, tree_type,
                          plane_ptr, &tu_edge, &is_tx_m_partition);
-  const TX_SIZE ts_ori = ts;
 #else
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
                                         plane, tree_type, plane_ptr, &tu_edge);
@@ -854,15 +857,25 @@ static TX_SIZE set_lpf_parameters(
             prev_tree_type = (plane == AOM_PLANE_Y) ? LUMA_PART : CHROMA_PART;
           }
           bool prev_tu_edge;
+#if CONFIG_LF_SUB_PU
+          bool pv_is_tx_m_partition = false;
+          TX_SIZE pv_ts =
+#else
           const TX_SIZE pv_ts =
+#endif  // CONFIG_LF_SUB_PU
               get_transform_size(xd, mi_prev, edge_dir, pv_row, pv_col, plane,
                                  prev_tree_type, plane_ptr, &prev_tu_edge
 #if CONFIG_LF_SUB_PU
                                  ,
-                                 NULL
+                                 &pv_is_tx_m_partition
 #endif  // CONFIG_LF_SUB_PU
               );
-
+#if CONFIG_LF_SUB_PU
+          int32_t pv_sub_pu_edge = 0;
+          check_sub_pu_edge(cm, xd, mi_prev, plane, prev_tree_type, scale_horz,
+                            scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
+                            &pv_is_tx_m_partition);
+#endif  // CONFIG_LF_SUB_PU
           const uint32_t pv_q =
               av1_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev);
           const uint32_t pv_side =
@@ -971,14 +984,7 @@ static TX_SIZE set_lpf_parameters(
 #endif  // CONFIG_LF_SUB_PU
                || pu_edge)) {
 #endif
-#if CONFIG_LF_SUB_PU
-            int is_sub_pu_edge =
-                sub_pu_edge ? (((none_skip_txfm && tu_edge) || pu_edge) ? 0 : 1)
-                            : 0;
-            TX_SIZE clipped_ts = is_sub_pu_edge ? ts : ts_ori;
-#else
             TX_SIZE clipped_ts = ts;
-#endif  // CONFIG_LF_SUB_PU
             if (!plane) {
               if (((VERT_EDGE == edge_dir) && (width < x + 16)) ||
                   ((HORZ_EDGE == edge_dir) && (height < y + 16))) {
@@ -1106,7 +1112,7 @@ static TX_SIZE set_lpf_parameters(
             params->q_threshold = (curr_q) ? (curr_q) : (pv_q);
             params->side_threshold = (curr_side) ? (curr_side) : (pv_side);
 #if CONFIG_LF_SUB_PU
-            if (is_sub_pu_edge) {
+            if (sub_pu_edge && !tu_edge) {
               params->q_threshold >>= SUB_PU_THR_SHIFT;
               params->side_threshold >>= SUB_PU_THR_SHIFT;
             }

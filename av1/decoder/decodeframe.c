@@ -9409,11 +9409,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_BRU
       !tiles->single_tile_decoding) {
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
-      if (pbi->num_workers > 1
-#if CONFIG_LF_SUB_PU
-          && !cm->features.allow_lf_sub_pu
-#endif  // CONFIG_LF_SUB_PU
-      ) {
+      if (pbi->num_workers > 1) {
         av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,
                                  num_planes, 0, pbi->tile_workers,
                                  pbi->num_workers, &pbi->lf_row_sync);
