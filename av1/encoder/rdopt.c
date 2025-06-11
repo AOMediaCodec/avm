@@ -3697,7 +3697,7 @@ static int64_t motion_mode_rd(
               }
             }
 #endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-
+#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             if (continue_motion_mode_signaling &&
                 allowed_motion_modes & (1 << WARP_CAUSAL)) {
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
@@ -3705,18 +3705,19 @@ static int64_t motion_mode_rd(
               rd_stats->rate +=
                   mode_costs->warp_causal_cost[ctx][motion_mode == WARP_CAUSAL];
 #else
-          rd_stats->rate +=
+              rd_stats->rate +=
 #if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-              mode_costs->warp_causal_cost[motion_mode == WARP_CAUSAL];
+                  mode_costs->warp_causal_cost[motion_mode == WARP_CAUSAL];
 #else
-              mode_costs->warp_causal_cost[bsize][motion_mode == WARP_CAUSAL];
+                  mode_costs
+                      ->warp_causal_cost[bsize][motion_mode == WARP_CAUSAL];
 #endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-          if (motion_mode == WARP_CAUSAL) {
-            continue_motion_mode_signaling = false;
-          }
+              if (motion_mode == WARP_CAUSAL) {
+                continue_motion_mode_signaling = false;
+              }
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             }
-
+#endif
 #if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             if (continue_motion_mode_signaling &&
                 allowed_motion_modes & (1 << WARP_DELTA)) {
