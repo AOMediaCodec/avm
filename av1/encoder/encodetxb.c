@@ -4742,7 +4742,7 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
-  if (cm->quant_params.base_qindex > 0 &&
+  if (!xd->lossless[mbmi->segment_id] &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     const CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
@@ -4828,11 +4828,11 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
       update_cdf(xd->tile_ctx->lossless_inter_tx_type_cdf,
                  get_primary_tx_type(tx_type) == IDTX, 2);
     }
+    return;
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   if (get_ext_tx_types(tx_size, is_inter, reduced_tx_set_used) > 1 &&
-      cm->quant_params.base_qindex > 0 &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     const int eset = get_ext_tx_set(tx_size, is_inter, reduced_tx_set_used);
@@ -4996,8 +4996,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
   }
 }
 // CDF update for txsize_sqr_up_map[tx_size] >= TX_32X32
-else if (cm->quant_params.base_qindex > 0 &&
-         !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+else if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
          !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) &&
          (is_inter ? cm->seq_params.enable_inter_ist
                    : cm->seq_params.enable_ist) &&

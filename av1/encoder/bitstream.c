@@ -1846,9 +1846,11 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   MB_MODE_INFO *mbmi = xd->mi[0];
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
+
+  // IST disabled for lossless
+  if (xd->lossless[mbmi->segment_id]) return;
+
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
-      ((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
-       (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1868,7 +1870,7 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
     }
-  } else if (!xd->lossless[mbmi->segment_id]) {
+  } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
