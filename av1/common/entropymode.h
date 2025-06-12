@@ -465,6 +465,9 @@ typedef struct frame_contexts {
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
 
+#if MHCCP_RUNTIME_FLAG
+  aom_cdf_prob cfl_mhccp_cdf[CDF_SIZE(CFL_MHCCP_SWITCH_NUM)];
+#endif  // MHCCP_RUNTIME_FLAG
   aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT - 1)];
 
   aom_cdf_prob filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]

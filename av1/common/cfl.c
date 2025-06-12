@@ -629,7 +629,11 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
+#if MHCCP_RUNTIME_FLAG
+  if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+#else
   if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#endif
     mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
                              (uint16_t)above_lines * CFL_BUF_LINE * 2,
                          dst, have_top, have_left, dst_stride,

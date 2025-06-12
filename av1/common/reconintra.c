@@ -1694,6 +1694,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
               ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
             } else {
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
               // For the 2 padding lines above, we need to offset the reference
               // region
               if (h == 0) {
@@ -1701,13 +1702,16 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                 ref_h_c_off = 2;
                 ref_h_b_off = 2;
               }
+#endif  // CONFIG_MHCCP_BUFFER_IMPROVE
             }
           }
           // For the 2 padding lines left, we need to offset the reference
           // region
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
           if (*left_lines == ((LINE_NUM + 1) << sub_x) && (w == 0)) {
             ref_w_off = 2;
           }
+#endif  // CONFIG_MHCCP_BUFFER_IMPROVE
           if (cm->seq_params.cfl_ds_filter_index == 1) {
             output_q3[w >> 1] =
                 input[AOMMAX(0, w - 1) + ref_w_off +
@@ -1752,18 +1756,22 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
               // reference region
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
             } else {
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
               if (h == 0) {
                 // For the 1 padding lines above, we need to offset the
                 // reference region
                 ref_h_c_off = 1;
               }
+#endif  // CONFIG_MHCCP_BUFFER_IMPROVE
             }
           }
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
           // For the 2 padding lines left, we need to offset the reference
           // region
           if (*left_lines == ((LINE_NUM + 1) << sub_x) && (i == 0)) {
             ref_w_off = 2;
           }
+#endif  // !CONFIG_MHCCP_BUFFER_IMPROVE
           if (filter_type == 1) {
             output_q3[i >> 1] =
                 (input[AOMMAX(0, i - 1) + ref_w_off +
@@ -1798,19 +1806,23 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
               ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
               ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
             } else {
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
               // For the 2 padding lines above, we need to offset the reference
               // region
               if (h == 0) {
                 ref_h_c_off = 2;
                 ref_h_b_off = 2;
               }
+#endif  // CONFIG_MHCCP_BUFFER_IMPROVE
             }
           }
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
           // For the 1 padding lines left, we need to offset the reference
           // region
           if (*left_lines == (LINE_NUM + 1) && (i == 0)) {
             ref_w_off = 1;
           }
+#endif  // !CONFIG_MHCCP_BUFFER_IMPROVE
           output_q3[i] = (input[i + ref_w_off + ref_h_c_off * input_stride] +
                           input[bot + ref_w_off + ref_h_b_off * input_stride])
                          << 2;
@@ -1829,18 +1841,22 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
             if (is_top_sb_boundary && (h < *above_lines)) {
               ref_h_c_off = (LINE_NUM + 1) - (h + 1);
             } else {
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
               if (h == 0) {
                 // For the 1 padding lines above, we need to offset the
                 // reference region
                 ref_h_c_off = 1;
               }
+#endif  // CONFIG_MHCCP_BUFFER_IMPROVE
             }
           }
+#if !CONFIG_MHCCP_BUFFER_IMPROVE
           // For the 1 padding lines left, we need to offset the reference
           // region
           if (*left_lines == (LINE_NUM + 1) && (i == 0)) {
             ref_w_off = 1;
           }
+#endif  // !CONFIG_MHCCP_BUFFER_IMPROVE
           output_q3[i] = input[i + ref_w_off + ref_h_c_off * input_stride] << 3;
         }
         output_q3 += output_stride;
@@ -1974,7 +1990,11 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       const int is_top_sb_boundary = !(row_start % sb_height);
 #endif  // CONFIG_CFL_SIMPLIFICATION
 
+#if MHCCP_RUNTIME_FLAG
+      if (mbmi->cfl_idx < CFL_MULTI_PARAM) {
+#else
       if (mbmi->cfl_idx < CFL_MULTI_PARAM_V) {
+#endif  // MHCCP_RUNTIME_FLAG
         cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
                                          blk_col << cfl->subsampling_x,
 #if CONFIG_CFL_SIMPLIFICATION
@@ -1988,7 +2008,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                            tx_size);
         cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
                                            tx_size);
-      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+      }
+#if MHCCP_RUNTIME_FLAG
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+#else
+      else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#endif  // MHCCP_RUNTIME_FLAG
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,

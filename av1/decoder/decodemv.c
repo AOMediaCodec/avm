@@ -408,6 +408,14 @@ static uint8_t read_fsc_mode(aom_reader *r, aom_cdf_prob *fsc_cdf) {
   return fsc_mode;
 }
 
+#if MHCCP_RUNTIME_FLAG
+static uint8_t read_cfl_mhccp_switch(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+  uint8_t cfl_mhccp_index = aom_read_symbol(r, ec_ctx->cfl_mhccp_cdf,
+                                            CFL_MHCCP_SWITCH_NUM, ACCT_INFO());
+  return cfl_mhccp_index;
+}
+#endif
+
 static uint8_t read_cfl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
   uint8_t cfl_index = aom_read_symbol(r, ec_ctx->cfl_index_cdf,
                                       CFL_TYPE_COUNT - 1, ACCT_INFO());
@@ -2217,8 +2225,25 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
       if (mbmi->uv_mode == UV_CFL_PRED) {
         {
+#if MHCCP_RUNTIME_FLAG
+          if (cm->seq_params.enable_mhccp) {
+            int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
+            if (cfl_mhccp_switch) {
+              mbmi->cfl_idx = CFL_MULTI_PARAM;
+            } else {
+              mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+            }
+          } else {
+            mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+          }
+#else
           mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+#endif  // MHCCP_RUNTIME_FLAG
+#if MHCCP_RUNTIME_FLAG
+          if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+#else
           if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#endif  // MHCCP_RUNTIME_FLAG
             const uint8_t mh_size_group = size_group_lookup[bsize];
 #if CONFIG_CFL_64x64
             assert(mh_size_group < MHCCP_CONTEXT_GROUP_SIZE);
@@ -2997,8 +3022,25 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 
     if (mbmi->uv_mode == UV_CFL_PRED) {
       {
+#if MHCCP_RUNTIME_FLAG
+        if (cm->seq_params.enable_mhccp) {
+          int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
+          if (cfl_mhccp_switch) {
+            mbmi->cfl_idx = CFL_MULTI_PARAM;
+          } else {
+            mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+          }
+        } else {
+          mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+        }
+#else
         mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+#endif  // MHCCP_RUNTIME_FLAG
+#if MHCCP_RUNTIME_FLAG
+        if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+#else
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+#endif  // MHCCP_RUNTIME_FLAG
           const uint8_t mh_size_group = size_group_lookup[bsize];
           aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
           mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);

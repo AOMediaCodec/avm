@@ -603,6 +603,9 @@ typedef struct SequenceHeader {
   uint8_t enable_ist;             // enables/disables intra secondary transform
   uint8_t enable_inter_ist;       // enables/disables inter secondary transform
   uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
+#if MHCCP_RUNTIME_FLAG
+  uint8_t enable_mhccp;      // enables/disables MHCCP
+#endif                       // MHCCP_RUNTIME_FLAG
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)

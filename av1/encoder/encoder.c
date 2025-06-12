@@ -463,6 +463,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
   seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
+#if MHCCP_RUNTIME_FLAG
+  seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
+#endif  // MHCCP_RUNTIME_FLAG
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;

@@ -351,6 +351,14 @@ set_aom_config_var(
   MHCCP_DIVISION_TAYLOR 1
   "Change the multipler calcucation function in MHCCP division handling")
 
+set_aom_config_var(CONFIG_MHCCP_BUFFER_IMPROVE 1
+                   "Fix the buffer issue772 for MHCCP")
+
+set_aom_config_var(CONFIG_MHCCP_BUFFER_1LINES 1
+                   "Using 1 lines for the chroma reference region in MHCCP")
+
+set_aom_config_var(MHCCP_RUNTIME_FLAG 1 "Using runtime flag to control MHCCP")
+
 set_aom_config_var(CONFIG_C076_INTER_MOD_CTX 1
                    "AV2 experiment flag to simplify inter mode contexts")
 

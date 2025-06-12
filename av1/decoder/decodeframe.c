@@ -6609,6 +6609,9 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
+#if MHCCP_RUNTIME_FLAG
+  seq_params->enable_mhccp = aom_rb_read_bit(rb);
+#endif
   uint8_t enable_tip = aom_rb_read_bit(rb);
   if (enable_tip) {
     seq_params->enable_tip = 1 + aom_rb_read_bit(rb);
