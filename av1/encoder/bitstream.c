@@ -628,6 +628,7 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
     return;
   }
 #endif
+  if (xd->mi[0]->region_type == INTRA_REGION) return;
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(is_inter);
     return;
@@ -2578,8 +2579,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_DISABLE_4X4_INTER
   assert(IMPLIES(bsize == BLOCK_4X4, !is_inter && !mbmi->skip_mode));
 #endif
-
-  write_inter_segment_id(cpi, w, seg, segp, 0, 1);
+  if (xd->tree_type != CHROMA_PART)
+    write_inter_segment_id(cpi, w, seg, segp, 0, 1);
 
   write_skip_mode(cm, xd, mbmi, w);
 
@@ -2632,15 +2633,17 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
 #endif  // CONFIG_SKIP_TXFM_OPT
-  write_inter_segment_id(cpi, w, seg, segp, skip, 0);
+  if (xd->tree_type != CHROMA_PART)
+    write_inter_segment_id(cpi, w, seg, segp, skip, 0);
 
 #if CONFIG_GDF
-  write_gdf(cm, xd, w);
+  if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
 #endif  // CONFIG_GDF
 
-  write_cdef(cm, xd, w, skip);
+  if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
-  if (cm->seq_params.enable_ccso) write_ccso(cm, xd, w);
+  if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
+    write_ccso(cm, xd, w);
 
   write_delta_q_params(cpi, skip, w);
 
@@ -3445,7 +3448,7 @@ static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   MB_MODE_INFO *m = xd->mi[0];
 
-  if (frame_is_intra_only(cm) || m->region_type == INTRA_REGION) {
+  if (frame_is_intra_only(cm)) {
     write_mb_modes_kf(cpi, xd, cpi->td.mb.mbmi_ext_frame, w);
   } else {
     // has_subpel_mv_component needs the ref frame buffers set up to look
@@ -3618,11 +3621,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // but only inactive need to return.
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
     if (!cm->bru.frame_inactive_flag) {
-      if (cm->seq_params.enable_ccso) {
+      if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         write_ccso(cm, xd, w);
       }
 #if CONFIG_GDF
-      write_gdf(cm, xd, w);
+      if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
 #endif
     }
     return;
