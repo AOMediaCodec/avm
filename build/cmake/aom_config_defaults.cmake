@@ -414,9 +414,6 @@ set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
 set_aom_config_var(CONFIG_TIP_MV_SIMPLIFICATION 1
                    "Enable to address the motion field range issue in TIP")
 
-set_aom_config_var(CONFIG_ENABLE_AV1_WIENER 0
-                   "Enable AV1 separable Wiener filter")
-
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

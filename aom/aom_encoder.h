@@ -415,12 +415,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_restoration;
-#if CONFIG_ENABLE_AV1_WIENER
-  /*!\brief enable Wiener Filter in Loop Restoration
-   *
-   */
-  unsigned int enable_wiener;
-#endif  // CONFIG_ENABLE_AV1_WIENER
   /*!\brief enable Self-Guided Filter in Loop Restoration
    *
    */

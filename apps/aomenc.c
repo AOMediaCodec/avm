@@ -443,9 +443,6 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_sdp,
   &g_av1_codec_arg_defs.enable_extended_sdp,
   &g_av1_codec_arg_defs.enable_mrls,
-#if CONFIG_ENABLE_AV1_WIENER
-  &g_av1_codec_arg_defs.enable_wiener,
-#endif  // CONFIG_ENABLE_AV1_WIENER
   &g_av1_codec_arg_defs.enable_sgrproj,
   &g_av1_codec_arg_defs.enable_pc_wiener,
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
@@ -705,9 +702,6 @@ static void init_config(cfg_options_t *config) {
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
   config->enable_restoration = 1;
-#if CONFIG_ENABLE_AV1_WIENER
-  config->enable_wiener = 0;
-#endif  // CONFIG_ENABLE_AV1_WIENER
   config->enable_sgrproj = 1;
   config->enable_pc_wiener = 1;
   config->enable_wiener_nonsep = 1;
@@ -1713,19 +1707,12 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
           "CDEF on skip_txfm = 1(%d), CCSO (%d), "
-#if CONFIG_ENABLE_AV1_WIENER
-          "LoopRestoration (%d: [%d/%d/%d/%d])\n",
-#else
           "LoopRestoration (%d: [%d/%d/%d])\n",
-#endif  // CONFIG_ENABLE_AV1_WIENER
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
 #if CONFIG_CDEF_ENHANCEMENTS
           encoder_cfg->enable_cdef_on_skip_txfm,
 #endif  // CONFIG_CDEF_ENHANCEMENTS
           encoder_cfg->enable_ccso, encoder_cfg->enable_restoration,
-#if CONFIG_ENABLE_AV1_WIENER
-          encoder_cfg->enable_wiener,
-#endif  // CONFIG_ENABLE_AV1_WIENER
           encoder_cfg->enable_sgrproj, encoder_cfg->enable_pc_wiener,
           encoder_cfg->enable_wiener_nonsep);
 

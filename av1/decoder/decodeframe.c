@@ -3165,90 +3165,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_ENABLE_AV1_WIENER
-static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
-                                          WienerInfo *wiener_info,
-                                          WienerInfoBank *bank,
-                                          aom_reader *rb) {
-  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
-                                          ACCT_INFO("exact_match"));
-  int k;
-  for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_INFO("bank_size"))) break;
-  }
-  const int ref = k;
-  if (exact_match) {
-    memcpy(wiener_info, av1_constref_from_wiener_bank(bank, ref),
-           sizeof(*wiener_info));
-    wiener_info->bank_ref = ref;
-    if (bank->bank_size == 0) av1_add_to_wiener_bank(bank, wiener_info);
-    return;
-  }
-  WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
-  memset(wiener_info->vfilter, 0, sizeof(wiener_info->vfilter));
-  memset(wiener_info->hfilter, 0, sizeof(wiener_info->hfilter));
-
-  if (wiener_win == WIENER_WIN)
-    wiener_info->vfilter[0] = wiener_info->vfilter[WIENER_WIN - 1] =
-        aom_read_primitive_refsubexpfin(
-            rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-            WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
-            ACCT_INFO("vfilter[0]")) +
-        WIENER_FILT_TAP0_MINV;
-  else
-    wiener_info->vfilter[0] = wiener_info->vfilter[WIENER_WIN - 1] = 0;
-  wiener_info->vfilter[1] = wiener_info->vfilter[WIENER_WIN - 2] =
-      aom_read_primitive_refsubexpfin(
-          rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-          WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
-          ACCT_INFO("vfilter[1]")) +
-      WIENER_FILT_TAP1_MINV;
-  wiener_info->vfilter[2] = wiener_info->vfilter[WIENER_WIN - 3] =
-      aom_read_primitive_refsubexpfin(
-          rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-          WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
-          ACCT_INFO("vfilter[2]")) +
-      WIENER_FILT_TAP2_MINV;
-  // The central element has an implicit +WIENER_FILT_STEP
-  wiener_info->vfilter[WIENER_HALFWIN] =
-      -2 * (wiener_info->vfilter[0] + wiener_info->vfilter[1] +
-            wiener_info->vfilter[2]);
-
-  if (wiener_win == WIENER_WIN)
-    wiener_info->hfilter[0] = wiener_info->hfilter[WIENER_WIN - 1] =
-        aom_read_primitive_refsubexpfin(
-            rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-            WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
-            ACCT_INFO("hfilter[0]")) +
-        WIENER_FILT_TAP0_MINV;
-  else
-    wiener_info->hfilter[0] = wiener_info->hfilter[WIENER_WIN - 1] = 0;
-  wiener_info->hfilter[1] = wiener_info->hfilter[WIENER_WIN - 2] =
-      aom_read_primitive_refsubexpfin(
-          rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-          WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
-          ACCT_INFO("hfilter[1]")) +
-      WIENER_FILT_TAP1_MINV;
-  wiener_info->hfilter[2] = wiener_info->hfilter[WIENER_WIN - 3] =
-      aom_read_primitive_refsubexpfin(
-          rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-          WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
-          ACCT_INFO("hfilter[2]")) +
-      WIENER_FILT_TAP2_MINV;
-  // The central element has an implicit +WIENER_FILT_STEP
-  wiener_info->hfilter[WIENER_HALFWIN] =
-      -2 * (wiener_info->hfilter[0] + wiener_info->hfilter[1] +
-            wiener_info->hfilter[2]);
-  av1_add_to_wiener_bank(bank, wiener_info);
-}
-#endif  // CONFIG_ENABLE_AV1_WIENER
-
 static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfo *sgrproj_info,
                                            SgrprojInfoBank *bank,
@@ -3606,9 +3522,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
 
   assert(!cm->features.all_lossless);
 
-#if CONFIG_ENABLE_AV1_WIENER
-  const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-#endif  // CONFIG_ENABLE_AV1_WIENER
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -3624,12 +3537,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
       }
     }
     switch (rui->restoration_type) {
-#if CONFIG_ENABLE_AV1_WIENER
-      case RESTORE_WIENER:
-        read_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                           &xd->wiener_info[plane], r);
-        break;
-#endif  // CONFIG_ENABLE_AV1_WIENER
       case RESTORE_SGRPROJ:
         read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                             r);
@@ -3643,17 +3550,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
         break;
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
-#if CONFIG_ENABLE_AV1_WIENER
-  } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
-    if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2,
-                        ACCT_INFO("wiener_restore_cdf"))) {
-      rui->restoration_type = RESTORE_WIENER;
-      read_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                         &xd->wiener_info[plane], r);
-    } else {
-      rui->restoration_type = RESTORE_NONE;
-    }
-#endif  // CONFIG_ENABLE_AV1_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
     if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2,
                         ACCT_INFO("sgrproj_restore_cdf"))) {

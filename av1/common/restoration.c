@@ -2490,41 +2490,6 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
   return aug_luma;
 }
 
-#if CONFIG_ENABLE_AV1_WIENER
-static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
-                                        int stripe_width, int stripe_height,
-                                        int procunit_width, const uint16_t *src,
-                                        int src_stride, uint16_t *dst,
-                                        int dst_stride, int32_t *tmpbuf,
-                                        int bit_depth) {
-  (void)tmpbuf;
-  const WienerConvolveParams conv_params = get_conv_params_wiener(bit_depth);
-
-  for (int j = 0; j < stripe_width; j += procunit_width) {
-    int w = AOMMIN(procunit_width, (stripe_width - j + 15) & ~15);
-    const uint16_t *src_p = src + j;
-    uint16_t *dst_p = dst + j;
-#if CONFIG_BRU
-    const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    if (rui->mbmi_ptr[mi_offset_x]->local_rest_type == RESTORE_NONE) {
-      copy_tile(w, stripe_height, src_p, src_stride, dst_p, dst_stride);
-      continue;
-    }
-    if (rui->mbmi_ptr[mi_offset_x]->sb_active_mode != BRU_ACTIVE_SB) {
-      aom_internal_error(
-          rui->error, AOM_CODEC_ERROR,
-          "Invalid BRU activity in LR: only active SB can be filtered");
-      return;
-    }
-#endif  // CONFIG_BRU
-    av1_highbd_wiener_convolve_add_src(src_p, src_stride, dst_p, dst_stride,
-                                       rui->wiener_info.hfilter, 16,
-                                       rui->wiener_info.vfilter, 16, w,
-                                       stripe_height, &conv_params, bit_depth);
-  }
-}
-#endif  // CONFIG_ENABLE_AV1_WIENER
-
 static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                          int stripe_width, int stripe_height,
                                          int procunit_width,
@@ -2557,18 +2522,10 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int procunit_width, const uint16_t *src,
                                   int src_stride, uint16_t *dst, int dst_stride,
                                   int32_t *tmpbuf, int bit_depth);
-#if CONFIG_ENABLE_AV1_WIENER
-#define NUM_STRIPE_FILTERS 4
-#else
 #define NUM_STRIPE_FILTERS 3
-#endif  // CONFIG_ENABLE_AV1_WIENER
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
-#if CONFIG_ENABLE_AV1_WIENER
-  wiener_filter_stripe_highbd,
-#endif  // CONFIG_ENABLE_AV1_WIENER
-  sgrproj_filter_stripe_highbd,
-  pc_wiener_stripe_highbd,
+  sgrproj_filter_stripe_highbd, pc_wiener_stripe_highbd,
   wiener_nsfilter_stripe_highbd
 };
 

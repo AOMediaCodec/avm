@@ -1366,10 +1366,7 @@ typedef int8_t MV_REFERENCE_FRAME;
  * \brief This enumeration defines various restoration types supported
  */
 typedef enum {
-  RESTORE_NONE, /**< No restoration */
-#if CONFIG_ENABLE_AV1_WIENER
-  RESTORE_WIENER,        /**< Separable Wiener restoration */
-#endif                   // CONFIG_ENABLE_AV1_WIENER
+  RESTORE_NONE,          /**< No restoration */
   RESTORE_SGRPROJ,       /**< Selfguided restoration */
   RESTORE_PC_WIENER,     /**< Pixel-classified Wiener restoration */
   RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */

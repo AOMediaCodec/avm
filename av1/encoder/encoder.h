@@ -862,10 +862,6 @@ typedef struct {
   bool enable_cdef;
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
-#if CONFIG_ENABLE_AV1_WIENER
-  // Indicates if wiener in loop restoration filter should be enabled.
-  bool enable_wiener;
-#endif  // CONFIG_ENABLE_AV1_WIENER
   // Indicates if sgrproj in loop restoration filter should be enabled.
   bool enable_sgrproj;
   // Indicates if pc_wiener in loop restoration filter should be enabled.

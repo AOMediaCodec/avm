@@ -4519,72 +4519,6 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
-#if CONFIG_ENABLE_AV1_WIENER
-static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
-                                           const WienerInfo *wiener_info,
-                                           WienerInfoBank *bank,
-                                           aom_writer *wb) {
-  const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
-  const int exact_match = (equal_ref >= 0);
-  aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-  const int ref = wiener_info->bank_ref;
-  assert(IMPLIES(exact_match, ref == equal_ref));
-  assert(ref < AOMMAX(1, bank->bank_size));
-  int match = 0;
-  for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
-    match = (k == ref);
-    aom_write_literal(wb, match, 1);
-    if (match) break;
-  }
-  assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
-  if (exact_match) {
-    if (bank->bank_size == 0) av1_add_to_wiener_bank(bank, wiener_info);
-    return;
-  }
-  const WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
-  if (wiener_win == WIENER_WIN)
-    aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-        WIENER_FILT_TAP0_SUBEXP_K,
-        ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
-        wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV);
-  else
-    assert(wiener_info->vfilter[0] == 0 &&
-           wiener_info->vfilter[WIENER_WIN - 1] == 0);
-  aom_write_primitive_refsubexpfin(
-      wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-      WIENER_FILT_TAP1_SUBEXP_K,
-      ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
-      wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV);
-  aom_write_primitive_refsubexpfin(
-      wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-      WIENER_FILT_TAP2_SUBEXP_K,
-      ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
-      wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV);
-  if (wiener_win == WIENER_WIN)
-    aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-        WIENER_FILT_TAP0_SUBEXP_K,
-        ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
-        wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV);
-  else
-    assert(wiener_info->hfilter[0] == 0 &&
-           wiener_info->hfilter[WIENER_WIN - 1] == 0);
-  aom_write_primitive_refsubexpfin(
-      wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-      WIENER_FILT_TAP1_SUBEXP_K,
-      ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
-      wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV);
-  aom_write_primitive_refsubexpfin(
-      wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-      WIENER_FILT_TAP2_SUBEXP_K,
-      ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
-      wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
-  av1_add_to_wiener_bank(bank, wiener_info);
-  return;
-}
-#endif  // CONFIG_ENABLE_AV1_WIENER
-
 static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
                                             const SgrprojInfo *sgrproj_info,
                                             SgrprojInfoBank *bank,
@@ -4996,10 +4930,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   (void)counts;
   assert(!cm->features.all_lossless);
 
-#if CONFIG_ENABLE_AV1_WIENER
-  const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-#endif  // CONFIG_ENABLE_AV1_WIENER
-
   RestorationType unit_rtype = rui->restoration_type;
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -5016,12 +4946,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         !found,
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
     switch (unit_rtype) {
-#if CONFIG_ENABLE_AV1_WIENER
-      case RESTORE_WIENER:
-        write_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                            &xd->wiener_info[plane], w);
-        break;
-#endif  // CONFIG_ENABLE_AV1_WIENER
       case RESTORE_SGRPROJ:
         write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                              w);
@@ -5035,18 +4959,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         break;
       default: assert(unit_rtype == RESTORE_NONE); break;
     }
-#if CONFIG_ENABLE_AV1_WIENER
-  } else if (frame_rtype == RESTORE_WIENER) {
-    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->wiener_restore_cdf, 2);
-#if CONFIG_ENTROPY_STATS
-    ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
-#endif
-    if (unit_rtype != RESTORE_NONE) {
-      write_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                          &xd->wiener_info[plane], w);
-    }
-#endif  // CONFIG_ENABLE_AV1_WIENER
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
                      xd->tile_ctx->sgrproj_restore_cdf, 2);
