@@ -48,14 +48,6 @@ Linux All Unit Test:
   script:
     - cd aom_nightly_build
     - ./test_libaom
-    - |
-      # Create empty files for source files with no activity. Keeps files
-      # with no called functions from being hidden, and also avoids
-      # warnings from gcovr.
-      for file in $(find . -name "*.gcno"); do
-        gcda=$(echo ${file} | sed 's/\.gcno$/.gcda/')
-        [ -f ${gcda} ] || touch ${gcda}
-      done
     - >-
       gcovr
       --gcov-executable gcov-12
@@ -67,7 +59,7 @@ Linux All Unit Test:
       pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK
       --exclude gemmlowp  --exclude googletest
       --json -o "coverage_${CI_NODE_INDEX}.json"
-      -r ../ .
+      -r ../ . >  "coverage_${CI_NODE_INDEX}.log" 2>&1
   needs:
     - 'Test Data'
     - 'Linux Nightly Build'
@@ -77,6 +69,7 @@ Linux All Unit Test:
       junit: ./aom_nightly_build/report.xml
     paths:
       - aom_nightly_build/coverage_*.json
+      - aom_nightly_build/coverage_*.log
 
 # Produce actual coverage report from the
 # "Linux All Unit Test" job that ran in the
