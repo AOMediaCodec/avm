@@ -2408,6 +2408,11 @@ static int is_this_param_already_in_list(
     const uint8_t curr_num_of_candidates,
     WARP_CANDIDATE warp_candidates[MAX_WARP_REF_CANDIDATES],
     WarpedMotionParams neigh_params) {
+#if CONFIG_WRL_NO_PRUNING
+  (void)curr_num_of_candidates;
+  (void)warp_candidates;
+  (void)neigh_params;
+#else
   for (int i = 0; i < curr_num_of_candidates; i++) {
     int same_param =
         (neigh_params.wmmat[2] == warp_candidates[i].wm_params.wmmat[2]);
@@ -2426,6 +2431,7 @@ static int is_this_param_already_in_list(
 #endif  // !CONFIG_WRL_PRUNE_FOUR_PARAMETERS
     if (same_param) return 1;
   }
+#endif  // CONFIG_WRL_NO_PRUNING
 
   return 0;
 }

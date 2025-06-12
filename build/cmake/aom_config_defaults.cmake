@@ -487,6 +487,8 @@ set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
 set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
                    "Derive palette context using three neighbors")
 
+set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
+
 # This is an encode-only change.
 
 set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
