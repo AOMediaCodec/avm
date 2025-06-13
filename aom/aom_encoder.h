@@ -626,6 +626,18 @@ typedef struct cfg_options {
    */
   unsigned int enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+
+#if CONFIG_TCQ
+  /*!\brief enable_tcq
+   *
+   * If this is nonzero, the encoder will use trellis quantization.
+   * 0 = disable, use scalar quantization.
+   * 1 = use 8-state trellis
+   * 2 = use 8-state trellis (frame adaptive (key/altref))
+   */
+  unsigned int enable_tcq;
+#endif  // CONFIG_TCQ
+
   /*!\brief enable parity hiding for coefficients coding
    *
    */
@@ -1110,17 +1122,6 @@ typedef struct aom_codec_enc_cfg {
    * a single frame is encoded.
    */
   unsigned int full_still_picture_hdr;
-
-#if CONFIG_TCQ
-  /*!\brief enable_tcq
-   *
-   * If this is nonzero, the encoder will use trellis quantization.
-   * 0 = disable, use scalar quantization.
-   * 1 = use 8-state trellis
-   * 2 = use 8-state trellis (frame adaptive (key/altref))
-   */
-  unsigned int enable_tcq;
-#endif  // CONFIG_TCQ
 
   /*!\brief Bitstream syntax mode
    *

@@ -253,7 +253,6 @@ struct av1_extracfg {
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   int enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  int enable_parity_hiding;
 #if CONFIG_MRSSE
   unsigned int enable_mrsse;
 #endif  // CONFIG_MRSSE
@@ -617,7 +616,6 @@ static struct av1_extracfg default_extra_cfg = {
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   1,  // enable_tiles_cdfs_avg
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  1,    // enable_parity_hiding
 #if CONFIG_MRSSE
   0,
 #endif  // CONFIG_MRSSE
@@ -1119,7 +1117,6 @@ static void update_encoder_config(cfg_options_t *cfg,
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   cfg->enable_tiles_cdfs_avg = extra_cfg->enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   cfg->enable_mrsse = extra_cfg->enable_mrsse;
 #endif  // CONFIG_MRSSE
@@ -1269,7 +1266,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   extra_cfg->enable_tiles_cdfs_avg = cfg->enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   extra_cfg->enable_mrsse = cfg->enable_mrsse;
 #endif  // CONFIG_MRSSE
@@ -1449,8 +1445,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->lossless ? 0 : cfg->rc_min_quantizer + offset_qp;
   rc_cfg->worst_allowed_q =
       extra_cfg->lossless ? 0 : cfg->rc_max_quantizer + offset_qp;
-  if (rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0 &&
-      extra_cfg->enable_parity_hiding == 0 && cfg->enable_tcq == 0)
+  if (!extra_cfg->lossless && rc_cfg->best_allowed_q == 0 &&
+      rc_cfg->worst_allowed_q == 0 &&
+      cfg->encoder_cfg.enable_parity_hiding == 0 &&
+      cfg->encoder_cfg.enable_tcq == 0)
     extra_cfg->lossless = 1;
 
   rc_cfg->qp = extra_cfg->lossless ? 0 : extra_cfg->qp + offset_qp;
@@ -1537,7 +1535,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
 #if CONFIG_TCQ
-  tool_cfg->enable_tcq = extra_cfg->lossless ? 0 : cfg->enable_tcq;
+  tool_cfg->enable_tcq = extra_cfg->lossless ? 0 : cfg->encoder_cfg.enable_tcq;
 #endif  // CONFIG_TCQ
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->ref_frame_mvs_present =
@@ -1632,7 +1630,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_opfl_refine ? extra_cfg->enable_affine_refine : 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
   tool_cfg->enable_parity_hiding =
-      extra_cfg->lossless ? 0 : extra_cfg->enable_parity_hiding;
+      extra_cfg->lossless ? 0 : cfg->encoder_cfg.enable_parity_hiding;
 #if CONFIG_MRSSE
   tool_cfg->enable_mrsse = extra_cfg->enable_mrsse;
 #endif  // CONFIG_MRSSE
@@ -4432,9 +4430,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_tiles_cdfs_avg = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_parity_hiding,
-                              argv, err_string)) {
-    extra_cfg.enable_parity_hiding = arg_parse_uint_helper(&arg, err_string);
 #if CONFIG_MRSSE
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mrsse, argv,
                               err_string)) {
@@ -4699,8 +4694,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // large_scale_tile
     0,            // monochrome
     0,            // full_still_picture_hdr
+#if 0
 #if CONFIG_TCQ
     2,  // enable_tcq
+#endif
+    1,  // enable_parity_hiding
 #endif
     0,                           // save_as_annexb
     0,                           // tile_width_count
@@ -4797,7 +4795,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
         1,  // enable_tiles_cdfs_avg
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-        1,
+#if CONFIG_TCQ
+        2,  // enable_tcq
+#endif      // CONFIG_TCQ
+        1,  // enable_parity_hiding
 #if CONFIG_MRSSE
         0,
 #endif  // CONFIG_MRSSE

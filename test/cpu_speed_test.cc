@@ -73,6 +73,8 @@ void CpuSpeedTest::TestQ0() {
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
+  cfg_.encoder_cfg.enable_tcq = 0;
+  cfg_.encoder_cfg.enable_parity_hiding = 0;
   const unsigned int width = 208;
   const unsigned int height = 144;
   const unsigned int bit_depth = 8;
@@ -94,6 +96,8 @@ void CpuSpeedTest::TestScreencastQ0() {
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
+  cfg_.encoder_cfg.enable_tcq = 0;
+  cfg_.encoder_cfg.enable_parity_hiding = 0;
   const unsigned int width = 640;
   const unsigned int height = 480;
   const unsigned int bit_depth = 8;

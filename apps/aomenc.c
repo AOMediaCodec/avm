@@ -285,6 +285,7 @@ const arg_def_t *global_args[] = {
 #if CONFIG_TCQ
   &g_av1_codec_arg_defs.enable_tcq,
 #endif  // CONFIG_TCQ
+  &g_av1_codec_arg_defs.enable_parity_hiding,
   &g_av1_codec_arg_defs.save_as_annexb,
   NULL
 };
@@ -511,7 +512,6 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_mvd_sign_derive,
 #endif  // CONFIG_DERIVED_MVD_SIGN
-  &g_av1_codec_arg_defs.enable_parity_hiding,
   &g_av1_codec_arg_defs.enable_warp_causal,
   &g_av1_codec_arg_defs.enable_warp_delta,
 #if CONFIG_SIX_PARAM_WARP_DELTA
@@ -766,7 +766,6 @@ static void init_config(cfg_options_t *config) {
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   config->enable_tiles_cdfs_avg = 1;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  config->enable_parity_hiding = 1;
 #if CONFIG_MRSSE
   config->enable_mrsse = 0;
 #endif  // CONFIG_MRSSE
@@ -1240,8 +1239,11 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.full_still_picture_hdr = 1;
 #if CONFIG_TCQ
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_tcq, argi)) {
-      config->cfg.enable_tcq = arg_parse_uint(&arg);
+      config->cfg.encoder_cfg.enable_tcq = arg_parse_uint(&arg);
 #endif  // CONFIG_TCQ
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_parity_hiding,
+                         argi)) {
+      config->cfg.encoder_cfg.enable_parity_hiding = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_metadata,
                          argi)) {
       config->cfg.frame_hash_metadata = arg_parse_enum_or_int(&arg);
@@ -1718,6 +1720,9 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "
+#if CONFIG_TCQ
+          "TCQ (%d), "
+#endif  // CONFIG_TCQ
           "ParityHiding (%d), "
 #if CONFIG_IBC_SR_EXT
           "IntraBCExt (%d), "
@@ -1732,7 +1737,11 @@ static void show_stream_config(struct stream_state *stream,
           "TilesCDFsAvg (%d), "
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
           "IntraBC (%d)\n",
-          encoder_cfg->enable_palette, encoder_cfg->enable_parity_hiding,
+          encoder_cfg->enable_palette,
+#if CONFIG_TCQ
+          encoder_cfg->enable_tcq,
+#endif  // CONFIG_TCQ
+          encoder_cfg->enable_parity_hiding,
 #if CONFIG_IBC_SR_EXT
           encoder_cfg->enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
