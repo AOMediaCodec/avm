@@ -165,6 +165,7 @@ set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 1 "bypass coding FG8-Test25")
 set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
                    "by-pass merge para coding. FG8-Test26")
 set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
+set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 0 "bypass coding FG8-Test8")
 
 # AV2 experiment flags.
 set_aom_config_var(

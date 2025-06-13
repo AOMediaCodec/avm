@@ -1162,10 +1162,15 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_CTX_BYPASS_DC_SIGN
+          sign = aom_read_literal(
+              r, 1, ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
+#else
           sign = aom_read_symbol(
               r,
               ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
               2, ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
+#endif
         } else {
 #if CONFIG_BY_PASS_V_SIGN
           sign = aom_read_literal(
