@@ -11265,7 +11265,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           continue;
 #endif  // CONFIG_COMPOUND_4XN
 
-#if CONFIG_AFFINE_REFINEMENT
 #if CONFIG_INTER_MODE_CONSOLIDATION
         int num_amvd_modes = 1 + allow_amvd_mode(mbmi->mode);
         for (int use_amvd_mode = 0; use_amvd_mode < num_amvd_modes;
@@ -11283,7 +11282,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             }
           }
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-        //  Search compound refine type
+#if CONFIG_AFFINE_REFINEMENT
+          //  Search compound refine type. cwp_idx has not been searched here,
+          //  and it needs to be reset here to obtain the correct mask.
+          mbmi->cwp_idx = CWP_EQUAL;
           const int allowed_comp_refine_mask =
               get_allowed_comp_refine_type_mask(cm, xd, mbmi);
           for (CompoundRefineType comp_refine_type = COMP_REFINE_START;

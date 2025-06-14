@@ -4915,6 +4915,12 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
 
+#if CONFIG_AFFINE_REFINEMENT
+  if (cm->seq_params.enable_opfl_refine != AOM_OPFL_REFINE_ALL &&
+      mi->comp_refine_type == COMP_REFINE_NONE)
+    return 0;
+#endif  // CONFIG_AFFINE_REFINEMENT
+
   if (tip_ref_frame) {
 #if CONFIG_TIP_ENHANCEMENT
     const int tip_wtd_index = cm->tip_global_wtd_index;
