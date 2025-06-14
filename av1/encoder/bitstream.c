@@ -1702,12 +1702,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     assert(eset > 0);
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
-      const int mode_info = av1_md_class[intra_dir];
-      (void)mode_info;
-      assert(tx_set_type == EXT_NEW_TX_SET
-                 ? av1_mdtx_used_flag[av1_size_class[tx_size]][mode_info]
-                                     [get_primary_tx_type(tx_type)]
-                 : av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
+      assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
     }
 
     if (is_inter) {
