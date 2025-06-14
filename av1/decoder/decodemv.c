@@ -3275,7 +3275,8 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_LOSSLESS_DPCM
                       bsize, mbmi) &&
       xd->tree_type != CHROMA_PART) {
-    aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 0);
+    aom_cdf_prob *fsc_cdf =
+        get_fsc_mode_cdf(xd, bsize, mbmi->region_type == INTRA_REGION);
     mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
   } else {
     mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;

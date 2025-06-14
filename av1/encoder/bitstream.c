@@ -2717,7 +2717,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   if (mbmi->skip_mode) return;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   if (!is_inter) {
-    write_intra_prediction_modes(cpi, 0, w);
+    write_intra_prediction_modes(cpi, mbmi->region_type == INTRA_REGION, w);
   } else {
     int16_t mode_ctx;
 
