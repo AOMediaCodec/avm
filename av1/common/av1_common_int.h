@@ -1378,12 +1378,6 @@ struct CommonQuantParams {
   int qmatrix_level_u; /*!< Level index for U plane */
   int qmatrix_level_v; /*!< Level index for V plane */
   /**@}*/
-#if CONFIG_TCQ
-  /*!
-   * Frame tcq_mode: 0 = disabled, 1 = enabled (8-state)
-   */
-  int tcq_mode;
-#endif  // CONFIG_TCQ
 };
 
 typedef struct CommonContexts CommonContexts;

@@ -1398,8 +1398,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
    * called later when needed. This will avoid unnecessary calls of
    * av1_init_quantizer() for every frame.
    */
-  av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                     &cm->quant_params);
+  av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
 
 #if CONFIG_DF_PAR_BITS
@@ -3145,8 +3144,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-  av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                     &cm->quant_params);
+
   av1_setup_frame(cpi);
 
   if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
@@ -3184,6 +3182,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
     // will cause an unwanted STATS_CHANGED. Fix this upstream instead.
     // av1_set_high_precision_mv(cpi, MV_PRECISION_ONE_PEL);
   }
+
+#if CONFIG_TCQ
+  av1_set_frame_tcq_mode(cpi);
+#endif  // CONFIG_TCQ
+  av1_set_lossless(cpi);
+  av1_enc_setup_ph_frame(cpi);
+  av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
   // transform / motion compensation build reconstruction frame
   av1_encode_frame(cpi);
@@ -3337,6 +3342,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       q = av1_get_vmaf_base_qindex(cpi, q);
     }
 #endif
+
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
 
@@ -3345,8 +3351,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
-    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                       &cm->quant_params);
 
     // printf("Frame %d/%d: q = %d, frame_type = %d superres_denom = %d\n",
     //        cm->current_frame.frame_number, cm->show_frame, q,
@@ -3409,6 +3413,13 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       // instead.
       // av1_set_high_precision_mv(cpi, MV_PRECISION_ONE_PEL);
     }
+
+#if CONFIG_TCQ
+    av1_set_frame_tcq_mode(cpi);
+#endif  // CONFIG_TCQ
+    av1_set_lossless(cpi);
+    av1_enc_setup_ph_frame(cpi);
+    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
@@ -3940,6 +3951,8 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #endif
   int err;
 
+  AV1_COMMON *const cm = &cpi->common;
+
   if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
   else
@@ -3959,7 +3972,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     return err;
   }
 
-  AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
@@ -4738,20 +4750,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     aom_invalidate_pyramid(cpi->source->y_pyramid);
     av1_invalidate_corner_list(cpi->source->corners);
   }
-
-#if CONFIG_TCQ
-  if (is_lossless_requested(&oxcf->rc_cfg)) {
-    // Disable TCQ for lossless since TCQ may not be reversible
-    features->tcq_mode = 0;
-  } else {
-    if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
-      features->tcq_mode =
-          frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
-    } else {
-      features->tcq_mode = cm->seq_params.enable_tcq;
-    }
-  }
-#endif  // CONFIG_TCQ
 
   int largest_tile_id = 0;
 #if CONFIG_ENABLE_SR

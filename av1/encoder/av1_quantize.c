@@ -437,7 +437,8 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
 
 void av1_init_quantizer(SequenceHeader *seq_params,
                         EncQuantDequantParams *const enc_quant_dequant_params,
-                        const CommonQuantParams *quant_params) {
+                        const AV1_COMMON *const cm) {
+  const CommonQuantParams *quant_params = &cm->quant_params;
   QUANTS *const quants = &enc_quant_dequant_params->quants;
   Dequants *const dequants = &enc_quant_dequant_params->dequants;
   av1_build_quantizer(seq_params->bit_depth, quant_params->y_dc_delta_q,
@@ -453,7 +454,7 @@ void av1_init_quantizer(SequenceHeader *seq_params,
                       quants, dequants
 #if CONFIG_TCQ
                       ,
-                      quant_params->tcq_mode
+                      cm->features.tcq_mode
 #endif  // CONFIG_TCQ
   );
 }
@@ -596,9 +597,6 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
-#if CONFIG_TCQ
-  quant_params->tcq_mode = cm->features.tcq_mode;
-#endif  // CONFIG_TCQ
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q, enable_chroma_deltaq,

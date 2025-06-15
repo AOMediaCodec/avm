@@ -1179,10 +1179,13 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
-    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                       &cm->quant_params);
-
     av1_setup_frame(cpi);
+#if CONFIG_TCQ
+    cm->features.tcq_mode = 0;
+#endif  // CONFIG_TCQ
+    av1_set_lossless(cpi);
+    av1_enc_setup_ph_frame(cpi);
+    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);

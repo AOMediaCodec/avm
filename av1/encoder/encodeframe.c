@@ -1548,7 +1548,75 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #endif  // CONFIG_TIP_LD
 }
 
-static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
+/*!\brief Set the lossless flags for a frame before encoding it
+ *
+ * \ingroup high_level_algo
+ */
+void av1_set_lossless(AV1_COMP *cpi) {
+  // NOTE lossless flags needs to be set before tcq_mode and parity_hiding are
+  // set for a frame
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonQuantParams *quant_params = &cm->quant_params;
+  for (int i = 0; i < MAX_SEGMENTS; ++i) {
+    const int qindex =
+        cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
+                                         cm->seq_params.bit_depth)
+                        : quant_params->base_qindex;
+    xd->lossless[i] =
+        qindex == 0 && cm->features.tcq_mode == 0 &&
+        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
+#if CONFIG_EXT_QUANT_UPD
+        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
+        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+#else
+        (quant_params->u_ac_delta_q <= 0) && (quant_params->v_ac_delta_q <= 0);
+#endif  // CONFIG_EXT_QUANT_UPD
+
+    if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
+    xd->qindex[i] = qindex;
+    if (xd->lossless[i]) {
+      cpi->optimize_seg_arr[i] = NO_TRELLIS_OPT;
+    } else {
+      cpi->optimize_seg_arr[i] = cpi->sf.rd_sf.optimize_coefficients;
+    }
+  }
+  cm->features.coded_lossless = is_coded_lossless(cm, xd);
+  cm->features.all_lossless = cm->features.coded_lossless
+#if CONFIG_ENABLE_SR
+                              && !av1_superres_scaled(cm)
+#endif  // CONFIG_ENABLE_SR
+      ;
+}
+
+#if CONFIG_TCQ
+/*!\brief Set the tcq_mode for a frame before encoding it
+ *
+ * \ingroup high_level_algo
+ */
+void av1_set_frame_tcq_mode(AV1_COMP *cpi) {
+  // NOTE tcq_mode needs to be set after lossless flags are set and before
+  // parity_hiding is set for a frame
+  AV1_COMMON *const cm = &cpi->common;
+  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+    // Disable TCQ for lossless since TCQ may not be reversible
+    cm->features.tcq_mode = 0;
+  } else {
+    if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
+      cm->features.tcq_mode =
+          frame_is_intra_only(cm) || cm->current_frame.pyramid_level <= 1;
+    } else {
+      cm->features.tcq_mode = cm->seq_params.enable_tcq;
+    }
+  }
+}
+#endif  // CONFIG_TCQ
+
+void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
+  // Note parity_hiding is to be set for a frame after lossless and tcq_mode
+  // are set
   AV1_COMMON *const cm = &cpi->common;
   if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
 #if CONFIG_TCQ
@@ -1695,37 +1763,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 
   const CommonQuantParams *quant_params = &cm->quant_params;
-  for (i = 0; i < MAX_SEGMENTS; ++i) {
-    const int qindex =
-        cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                                         cm->seq_params.bit_depth)
-                        : quant_params->base_qindex;
-    xd->lossless[i] =
-        qindex == 0 && cm->features.tcq_mode == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-#if CONFIG_EXT_QUANT_UPD
-        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-        (quant_params->u_ac_delta_q <= 0) && (quant_params->v_ac_delta_q <= 0);
-#endif  // CONFIG_EXT_QUANT_UPD
-
-    if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
-    xd->qindex[i] = qindex;
-    if (xd->lossless[i]) {
-      cpi->optimize_seg_arr[i] = NO_TRELLIS_OPT;
-    } else {
-      cpi->optimize_seg_arr[i] = cpi->sf.rd_sf.optimize_coefficients;
-    }
-  }
-  features->coded_lossless = is_coded_lossless(cm, xd);
-  features->all_lossless = features->coded_lossless
-#if CONFIG_ENABLE_SR
-                           && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-      ;
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
@@ -1847,8 +1884,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   av1_enc_setup_tip_frame(cpi);
 
-  av1_enc_setup_ph_frame(cpi);
-
   cm->current_frame.skip_mode_info.skip_mode_flag =
       check_skip_mode_enabled(cpi) && cpi->oxcf.tool_cfg.enable_skip_mode;
 
@@ -1969,6 +2004,8 @@ void av1_encode_frame(AV1_COMP *cpi) {
       map += mi_cols;
     }
   }
+  // av1_set_lossless(cpi, xd);
+  // av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
   av1_setup_frame_buf_refs(cm);
   enforce_max_ref_frames(cpi, &cm->ref_frame_flags);
