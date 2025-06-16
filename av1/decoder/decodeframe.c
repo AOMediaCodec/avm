@@ -8143,14 +8143,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
-      int n_ranked = av1_get_ref_frames(cm, current_frame->display_order_hint,
-                                        cm->ref_frame_map_pairs);
+      av1_get_ref_frames(cm, current_frame->display_order_hint,
+                         cm->ref_frame_map_pairs);
 #else
         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
         init_ref_map_pair(cm, ref_frame_map_pairs,
                           current_frame->frame_type == KEY_FRAME);
-        int n_ranked = av1_get_ref_frames(cm, current_frame->display_order_hint,
-                                          ref_frame_map_pairs);
+        av1_get_ref_frames(cm, current_frame->display_order_hint,
+                           ref_frame_map_pairs);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
       // Reference rankings have been implicitly derived in av1_get_ref_frames.
