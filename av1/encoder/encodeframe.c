@@ -458,7 +458,7 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
   SimpleMotionData *sms_data = av1_get_sms_data_entry(data_buf, mi_row, mi_col,
                                                       bsize, sb_size, sdp_flag);
   sms_data->old_sms = sms_node;
-  if (bsize >= BLOCK_8X8) {
+  if (bsize >= BLOCK_8X8 && bsize != BLOCK_INVALID) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
       assert(bsize < BLOCK_SIZES_ALL);
