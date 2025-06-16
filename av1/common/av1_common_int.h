@@ -2940,11 +2940,7 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
 /*!\brief Returns the context used by \ref PARTITION_SPLIT. */
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
-#if CONFIG_NEW_PART_CTX
-  const int plane = 0;
-#else
   const int plane = xd->tree_type == CHROMA_PART;
-#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
@@ -3103,11 +3099,7 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int ctx_mode
 #endif  // CONFIG_PARTITION_CONTEXT_REDUCE
 ) {
-#if CONFIG_NEW_PART_CTX
-  const int plane = 0;
-#else
   const int plane = xd->tree_type == CHROMA_PART;
-#endif  // CONFIG_NEW_PART_CTX
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
