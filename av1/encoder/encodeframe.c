@@ -1564,7 +1564,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
                                          cm->seq_params.bit_depth)
                         : quant_params->base_qindex;
     xd->lossless[i] =
-        qindex == 0 && cm->features.tcq_mode == 0 &&
+        qindex == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
@@ -1600,7 +1600,7 @@ void av1_set_frame_tcq_mode(AV1_COMP *cpi) {
   // NOTE tcq_mode needs to be set after lossless flags are set and before
   // parity_hiding is set for a frame
   AV1_COMMON *const cm = &cpi->common;
-  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+  if (cm->features.coded_lossless) {
     // Disable TCQ for lossless since TCQ may not be reversible
     cm->features.tcq_mode = 0;
   } else {

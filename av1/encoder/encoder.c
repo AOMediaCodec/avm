@@ -3183,10 +3183,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
     // av1_set_high_precision_mv(cpi, MV_PRECISION_ONE_PEL);
   }
 
+  av1_set_lossless(cpi);
 #if CONFIG_TCQ
   av1_set_frame_tcq_mode(cpi);
 #endif  // CONFIG_TCQ
-  av1_set_lossless(cpi);
   av1_enc_setup_ph_frame(cpi);
   av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
@@ -3414,10 +3414,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       // av1_set_high_precision_mv(cpi, MV_PRECISION_ONE_PEL);
     }
 
+    av1_set_lossless(cpi);
 #if CONFIG_TCQ
     av1_set_frame_tcq_mode(cpi);
 #endif  // CONFIG_TCQ
-    av1_set_lossless(cpi);
     av1_enc_setup_ph_frame(cpi);
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
