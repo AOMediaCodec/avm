@@ -126,9 +126,9 @@ void av1_highbd_iwht4x4_16_vert_add_c(const tran_low_t *input, uint16_t *dest,
     d1 += c1;
 
     range_check_value(a1, bd + 1);
-    range_check_value(b1, bd + 1);
-    range_check_value(c1, bd + 1);
-    range_check_value(d1, bd + 1);
+    range_check_value(a1 + b1, bd + 1);
+    range_check_value(a1 + b1 + c1, bd + 1);
+    range_check_value(a1 + b1 + c1 + d1, bd + 1);
 
     dest[stride * 0] = highbd_clip_pixel_add(dest[stride * 0], a1, bd);
     dest[stride * 1] = highbd_clip_pixel_add(dest[stride * 1], a1 + b1, bd);
@@ -193,12 +193,11 @@ void av1_highbd_iwht4x4_16_horz_add_c(const tran_low_t *input, uint16_t *dest,
     a1 -= b1;
     d1 += c1;
 
-    range_check_value(a1, bd + 1);
-    range_check_value(b1, bd + 1);
-    range_check_value(c1, bd + 1);
-    range_check_value(d1, bd + 1);
-
     if (i == 0) {
+      range_check_value(a1, bd + 1);
+      range_check_value(b1, bd + 1);
+      range_check_value(c1, bd + 1);
+      range_check_value(d1, bd + 1);
       dest[stride * 0] = highbd_clip_pixel_add(dest[stride * 0], a1, bd);
       dest[stride * 1] = highbd_clip_pixel_add(dest[stride * 1], b1, bd);
       dest[stride * 2] = highbd_clip_pixel_add(dest[stride * 2], c1, bd);
@@ -208,6 +207,10 @@ void av1_highbd_iwht4x4_16_horz_add_c(const tran_low_t *input, uint16_t *dest,
       c1_delay = c1;
       d1_delay = d1;
     } else {
+      range_check_value(a1 + a1_delay, bd + 1);
+      range_check_value(b1 + b1_delay, bd + 1);
+      range_check_value(c1 + c1_delay, bd + 1);
+      range_check_value(d1 + d1_delay, bd + 1);
       dest[stride * 0] =
           highbd_clip_pixel_add(dest[stride * 0], a1 + a1_delay, bd);
       dest[stride * 1] =
@@ -281,6 +284,10 @@ void av1_highbd_iwht4x4_1_vert_add_c(const tran_low_t *in, uint16_t *dest,
   for (i = 0; i < 4; i++) {
     e1 = ip[0] >> 1;
     a1 = ip[0] - e1;
+    range_check_value(a1, bd + 1);
+    range_check_value(a1 + e1, bd + 1);
+    range_check_value(a1 + e1 + e1, bd + 1);
+    range_check_value(a1 + e1 + e1 + e1, bd + 1);
     dest[dest_stride * 0] =
         highbd_clip_pixel_add(dest[dest_stride * 0], a1, bd);
     dest[dest_stride * 1] =
@@ -319,6 +326,8 @@ void av1_highbd_iwht4x4_1_horz_add_c(const tran_low_t *in, uint16_t *dest,
     e1 = ip[0] >> 1;
     a1 = ip[0] - e1;
     if (i == 0) {
+      range_check_value(a1, bd + 1);
+      range_check_value(e1, bd + 1);
       dest[dest_stride * 0] =
           highbd_clip_pixel_add(dest[dest_stride * 0], a1, bd);
       dest[dest_stride * 1] =
@@ -330,6 +339,8 @@ void av1_highbd_iwht4x4_1_horz_add_c(const tran_low_t *in, uint16_t *dest,
       a1_delay = a1;
       e1_delay = e1;
     } else {
+      range_check_value(a1 + a1_delay, bd + 1);
+      range_check_value(e1 + e1_delay, bd + 1);
       dest[dest_stride * 0] =
           highbd_clip_pixel_add(dest[dest_stride * 0], a1 + a1_delay, bd);
       dest[dest_stride * 1] =
@@ -675,6 +686,7 @@ static INLINE void inv_idfm2d_add_vert_c(const int32_t *input, uint16_t *output,
     }
 
     for (r = 0; r < txfm_size_row; ++r) {
+      range_check_value(dpcm_buf[r], bd + 1);
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], dpcm_buf[r], bd);
     }
@@ -757,6 +769,7 @@ static INLINE void inv_idfm2d_add_horz_c(const int32_t *input, uint16_t *output,
     }
 
     for (r = 0; r < txfm_size_row; ++r) {
+      range_check_value(dpcm_buf[r * 8 + c], bd + 1);
       output[r * stride + c] = highbd_clip_pixel_add(output[r * stride + c],
                                                      dpcm_buf[r * 8 + c], bd);
     }
