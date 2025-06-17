@@ -640,6 +640,8 @@ set_aom_config_var(CONFIG_DAMR_CLEAN_UP 1
                    "Clean up DAMR memory bandwith issue.")
 set_aom_config_var(CONFIG_ADJ_Q_OFFSET 1
                    "Encoder-only config to adjust qp offsets.")
+set_aom_config_var(CONFIG_FG8_CDF_COUNTER_CLIP 1
+                   "Limits CDF counter to 5 bits.")
 #
 # Variables in this section control optional features of the build system.
 #

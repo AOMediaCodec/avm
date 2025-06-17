@@ -746,7 +746,11 @@ static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
   static const int nsymbs2speed[17] = { 0, 0, 1, 1, 2, 2, 2, 2, 2,
                                         2, 2, 2, 2, 2, 2, 2, 2 };
   assert(nsymbs < 17);
+#if CONFIG_FG8_CDF_COUNTER_CLIP
+  const int time_interval = cdf[nsymbs] > 30 ? 2 : cdf[nsymbs] > 15 ? 1 : 0;
+#else
   const int time_interval = cdf[nsymbs] > 31 ? 2 : cdf[nsymbs] > 15 ? 1 : 0;
+#endif // CONFIG_FG8_CDF_COUNTER_CLIP
   rate = 3 + time_interval + nsymbs2speed[nsymbs] +
          para_adjustment_list[cdf[nsymbs + 1]][time_interval];
   tmp = AOM_ICDF(0);
@@ -760,7 +764,11 @@ static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
       cdf[i] += ((tmp - cdf[i]) >> rate);
     }
   }
+#if CONFIG_FG8_CDF_COUNTER_CLIP
+  cdf[nsymbs] += (cdf[nsymbs] < 31);
+#else
   cdf[nsymbs] += (cdf[nsymbs] < 32);
+#endif // CONFIG_FG8_CDF_COUNTER_CLIP
 }
 
 // Scale the CDF to match the range value stored in the entropy decoder.
