@@ -128,6 +128,13 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
   int n;
   int *p0;
 
+  // Init sign costs
+  n = sizeof(txb_costs->dc_sign_cost) / sizeof(txb_costs->dc_sign_cost[0][0]);
+  p0 = txb_costs->dc_sign_cost[0][0];
+  for (int i = 0; i < n; i++) {
+    *p0++ = rng->Rand16() & max;
+  }
+
   // Init base costs
   n = sizeof(txb_costs->base_cost) / sizeof(txb_costs->base_cost[0][0][0]);
   p0 = &txb_costs->base_cost[0][0][0];
