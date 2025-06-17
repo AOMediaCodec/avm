@@ -1355,49 +1355,31 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
 #else
   const int cur_offset = (int)cm->current_frame.order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-  if (cm->current_frame.skip_mode_info.ref_frame_idx_0 != INVALID_IDX &&
-      cm->current_frame.skip_mode_info.ref_frame_idx_1 != INVALID_IDX) {
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    int ref_offset[2];
-    get_skip_mode_ref_offsets(cm, ref_offset);
+  int ref_offset[2];
+  get_skip_mode_ref_offsets(cm, ref_offset);
 #if CONFIG_D072_SKIP_MODE_IMPROVE
-    const int cur_to_ref0 = abs(get_relative_dist(
-        &cm->seq_params.order_hint_info, cur_offset, ref_offset[0]));
+  const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                                cur_offset, ref_offset[0]));
 #else
   const int cur_to_ref0 = get_relative_dist(&cm->seq_params.order_hint_info,
                                             cur_offset, ref_offset[0]);
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-    const int cur_to_ref1 = abs(get_relative_dist(
-        &cm->seq_params.order_hint_info, cur_offset, ref_offset[1]));
-    if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-  }
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+  const int cur_to_ref1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                                cur_offset, ref_offset[1]));
+  if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
 
   // High Latency: Turn off skip mode if all refs are fwd.
   if (cpi->all_one_sided_refs && cpi->oxcf.gf_cfg.lag_in_frames > 0) return 0;
 
   const int ref_frame[2] = { cm->current_frame.skip_mode_info.ref_frame_idx_0,
                              cm->current_frame.skip_mode_info.ref_frame_idx_1 };
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-  if (ref_frame[0] != INVALID_IDX && ref_frame[1] != INVALID_IDX) {
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_SAME_REF_COMPOUND
-    assert(ref_frame[0] <= INTER_REFS_PER_FRAME &&
-           ref_frame[1] <= INTER_REFS_PER_FRAME);
+  assert(ref_frame[0] <= INTER_REFS_PER_FRAME &&
+         ref_frame[1] <= INTER_REFS_PER_FRAME);
 #endif  // CONFIG_SAME_REF_COMPOUND
-    if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0])) ||
-        !(cpi->common.ref_frame_flags & (1 << ref_frame[1])))
-      return 0;
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-  } else {
-#if CONFIG_SAME_REF_COMPOUND
-    assert(ref_frame[0] <= INTER_REFS_PER_FRAME);
-#endif  // CONFIG_SAME_REF_COMPOUND
-    if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0]))) return 0;
-  }
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+  if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0])) ||
+      !(cpi->common.ref_frame_flags & (1 << ref_frame[1])))
+    return 0;
 
   return 1;
 }

@@ -1640,9 +1640,6 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
   if (!is_inter_block(candidate, SHARED_PART)) return;
   const TIP *tip_ref = &cm->tip_ref;
   if (mbmi->skip_mode) return;
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-  if (candidate->skip_mode) return;
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
   if (rf[1] == NONE_FRAME) {
     // single reference frame
     if (candidate->ref_frame[0] == rf[0]) {
@@ -8405,19 +8402,16 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       }
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (above_mbmi->skip_mode == 0)
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_COMPOUND_WARP_SAMPLES
-        for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
-          if (above_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX)
-              return LEAST_SQUARES_SAMPLES_MAX;
-          }
+      for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
+        if (above_mbmi->ref_frame[ref] == ref_frame) {
+          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
+          pts += 2;
+          pts_inref += 2;
+          if (++np >= LEAST_SQUARES_SAMPLES_MAX)
+            return LEAST_SQUARES_SAMPLES_MAX;
         }
+      }
 #else
       if (above_mbmi->ref_frame[0] == ref_frame &&
           above_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -8448,19 +8442,16 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       mi_step = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (left_mbmi->skip_mode == 0)
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
-          if (left_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(left_mbmi, ref, pts, pts_inref, i, 1, 0, -1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-              return LEAST_SQUARES_SAMPLES_MAX;
-            }
+      for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
+        if (left_mbmi->ref_frame[ref] == ref_frame) {
+          record_samples(left_mbmi, ref, pts, pts_inref, i, 1, 0, -1);
+          pts += 2;
+          pts_inref += 2;
+          if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+            return LEAST_SQUARES_SAMPLES_MAX;
           }
         }
+      }
 #else
       if (left_mbmi->ref_frame[0] == ref_frame &&
           left_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -8509,18 +8500,15 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-      if (top_left_mbmi->skip_mode == 0)
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
-          if (top_left_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(top_left_mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
-            pts += 2;
-            pts_inref += 2;
-            if (++np >= LEAST_SQUARES_SAMPLES_MAX)
-              return LEAST_SQUARES_SAMPLES_MAX;
-          }
+      for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
+        if (top_left_mbmi->ref_frame[ref] == ref_frame) {
+          record_samples(top_left_mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
+          pts += 2;
+          pts_inref += 2;
+          if (++np >= LEAST_SQUARES_SAMPLES_MAX)
+            return LEAST_SQUARES_SAMPLES_MAX;
         }
+      }
 #else
     if (top_left_mbmi->ref_frame[0] == ref_frame &&
         top_left_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -8577,20 +8565,17 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
 #if CONFIG_COMPOUND_WARP_SAMPLES
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        if (top_right_mbmi->skip_mode == 0)
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-          for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
-            if (top_right_mbmi->ref_frame[ref] == ref_frame) {
-              record_samples(top_right_mbmi, ref, pts, pts_inref, 0, -1,
-                             xd->width, 1);
-              pts += 2;
-              pts_inref += 2;
-              if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
-                return LEAST_SQUARES_SAMPLES_MAX;
-              }
+        for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
+          if (top_right_mbmi->ref_frame[ref] == ref_frame) {
+            record_samples(top_right_mbmi, ref, pts, pts_inref, 0, -1,
+                           xd->width, 1);
+            pts += 2;
+            pts_inref += 2;
+            if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
+              return LEAST_SQUARES_SAMPLES_MAX;
             }
           }
+        }
 #else
       if (top_right_mbmi->ref_frame[0] == ref_frame &&
           top_right_mbmi->ref_frame[1] == NONE_FRAME) {
@@ -9180,11 +9165,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9205,11 +9186,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9223,11 +9200,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9248,11 +9221,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9265,11 +9234,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_bl) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9289,11 +9254,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9314,11 +9275,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9332,11 +9289,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9349,12 +9302,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        neighbor_mi->skip_mode == 0 &&
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-
-        is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
       if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
@@ -9540,11 +9488,7 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
       get_cand_from_pos_idx(cm, xd, pos_idx)) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_same_ref_frame(neighbor_mi, mbmi)
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        && neighbor_mi->skip_mode == 0
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-    ) {
+    if (is_same_ref_frame(neighbor_mi, mbmi)) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
 #if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           mbmi->mode == WARP_NEWMV ||

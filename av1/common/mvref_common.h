@@ -734,11 +734,7 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     const MB_MODE_INFO *const neighbor = xd->neighbors[i];
     if (neighbor != NULL && !is_tip_ref_frame(neighbor->ref_frame[0]) &&
-        is_inter_ref_frame(neighbor->ref_frame[0])
-#if CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-        && neighbor->skip_mode == 0
-#endif  // CONFIG_SKIP_MODE_PARSING_DEPENDENCY_REMOVAL
-    ) {
+        is_inter_ref_frame(neighbor->ref_frame[0])) {
       ref_counts[neighbor->ref_frame[0]]++;
       if (has_second_ref(neighbor)) {
         ref_counts[neighbor->ref_frame[1]]++;
