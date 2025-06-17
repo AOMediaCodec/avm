@@ -862,6 +862,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // When enable_frame_output_order == 1, output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
@@ -872,6 +873,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       res = flush_showable_frames(ctx, user_priv);
       return res;
     }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   }
 
   /* Sanity checks */
