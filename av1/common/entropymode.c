@@ -4994,7 +4994,7 @@ static const aom_cdf_prob
     };
 
 static const aom_cdf_prob default_is_warpmv_or_warp_newmv_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(16384),
+  AOM_CDF2(11941),
 };
 
 static const aom_cdf_prob
@@ -5530,10 +5530,10 @@ static const aom_cdf_prob default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
 
 static const aom_cdf_prob default_warp_causal_cdf[WARP_CAUSAL_MODE_CTX]
                                                  [CDF_SIZE(2)] = {
-                                                   { AOM_CDF2(16384) },
-                                                   { AOM_CDF2(16384) },
-                                                   { AOM_CDF2(16384) },
-                                                   { AOM_CDF2(16384) }
+                                                   { AOM_CDF2(17055) },
+                                                   { AOM_CDF2(20889) },
+                                                   { AOM_CDF2(17980) },
+                                                   { AOM_CDF2(17863) }
                                                  };
 
 #if CONFIG_WARP_PRECISION
@@ -5556,7 +5556,7 @@ static const aom_cdf_prob
 
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_warp_causal_warpmv_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(7108), 76
+  AOM_CDF2(20285)
 };
 #else
 static const aom_cdf_prob
@@ -5590,7 +5590,7 @@ static const aom_cdf_prob default_warp_ref_idx2_cdf[WARP_REF_CONTEXTS]
 
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_warpmv_with_mvd_flag_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(15615), 1
+  AOM_CDF2(16283),
 };
 #else
 static const aom_cdf_prob
@@ -5612,13 +5612,13 @@ static const aom_cdf_prob
 #if CONFIG_WARP_PRECISION
 static const aom_cdf_prob
     default_warp_delta_param_cdf[2][CDF_SIZE(WARP_DELTA_NUMSYMBOLS_LOW)] = {
-      { AOM_CDF8(9299, 17448, 21838, 26151, 27798, 30186, 30701), 0 },
-      { AOM_CDF8(9299, 17448, 21838, 26151, 27798, 30186, 30701), 0 },
+      { AOM_CDF8(9210, 20919, 23883, 28837, 29680, 31427, 31670) },
+      { AOM_CDF8(12722, 22620, 25595, 29576, 30362, 31750, 31968) }
     };
 static const aom_cdf_prob default_warp_delta_param_high_cdf[2][CDF_SIZE(
     WARP_DELTA_NUMSYMBOLS_HIGH)] = {
-  { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672), 0 },
-  { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672), 0 },
+  { AOM_CDF8(7419, 12373, 17584, 20281, 23728, 27184, 29430) },
+  { AOM_CDF8(7417, 12119, 17352, 20027, 23490, 26882, 29213) }
 };
 
 static const aom_cdf_prob default_warp_param_sign_cdf[CDF_SIZE(2)] = { AOM_CDF2(
@@ -5636,7 +5636,7 @@ static const aom_cdf_prob
 #endif  // CONFIG_WARP_PRECISION
 
 static const aom_cdf_prob default_warp_extend_cdf[WARP_EXTEND_CTX][CDF_SIZE(
-    2)] = { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) } };
+    2)] = { { AOM_CDF2(20856) }, { AOM_CDF2(18023) }, { AOM_CDF2(16560) } };
 
 #if CONFIG_REFINEMV
 static const aom_cdf_prob

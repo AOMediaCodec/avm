@@ -1073,6 +1073,10 @@ static INLINE int use_border_aware_compound(const AV1_COMMON *cm,
       mbmi->mode == GLOBAL_GLOBALMV)
     return 0;
 
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  if (mbmi->mode == NEW_NEWMV && mbmi->motion_mode == WARP_CAUSAL) return 0;
+#endif
+
   (void)cm;
   const struct scale_factors *const sf0 = xd->block_ref_scale_factors[0];
   const struct scale_factors *const sf1 = xd->block_ref_scale_factors[1];

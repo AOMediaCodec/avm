@@ -1414,7 +1414,7 @@ static INLINE uint8_t is_valid_warp_parameters(
     const AV1_COMMON *cm, const MB_MODE_INFO *neighbor_mbmi,
     const int ref_frame, WarpedMotionParams *neighbor_params) {
   (void)cm;
-#if CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
   if (is_warp_mode(neighbor_mbmi->motion_mode)) {
     for (int ref_idx = 0;
          ref_idx < 1 + is_inter_compound_mode(neighbor_mbmi->mode); ref_idx++) {
@@ -5459,10 +5459,18 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 //  rearranged If the warp parameters are not in the bank, insert it to the
 //  bank.
 static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                          int cand_from_sb_above,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                           WARP_PARAM_BANK *warp_param_bank) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
-  for (int ref_idx = 0; ref_idx < 1 + is_inter_compound_mode(mbmi->mode);
-       ref_idx++) {
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
+  const int can_use_second_model =
+      is_inter_compound_mode(mbmi->mode) && !cand_from_sb_above;
+#else
+  const int can_use_second_model = is_inter_compound_mode(mbmi->mode);
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
+  for (int ref_idx = 0; ref_idx < 1 + can_use_second_model; ref_idx++) {
     if (!mbmi->wm_params[ref_idx].invalid) {
       const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
 #else
@@ -5558,10 +5566,17 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
 }
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                int cand_from_sb_above,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                 const MB_MODE_INFO *const mbmi) {
   (void)cm;
   if (is_warp_mode(mbmi->motion_mode)) {
-    update_warp_param_bank(mbmi, &xd->warp_param_bank);
+    update_warp_param_bank(mbmi,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                           cand_from_sb_above,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                           &xd->warp_param_bank);
   }
 }
 

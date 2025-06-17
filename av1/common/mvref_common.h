@@ -1452,6 +1452,9 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 #if !CONFIG_BANK_IMPROVE
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                int cand_from_sb_above,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                 const MB_MODE_INFO *const mbmi);
 #endif  // !CONFIG_BANK_IMPROVE
 
@@ -1519,7 +1522,7 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
       &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
-#if CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
     if (neighbor_mi->wm_params[neighbor_ref].invalid)
       *wm_params = default_warp_params;
     else
@@ -1529,7 +1532,7 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
       *wm_params = default_warp_params;
     else
       *wm_params = neighbor_mi->wm_params[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {

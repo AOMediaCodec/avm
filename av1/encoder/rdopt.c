@@ -3137,7 +3137,7 @@ static int64_t motion_mode_rd(
 
               if (mbmi->mode == NEARMV) {
                 assert(is_warp_mode(neighbor_mi->motion_mode));
-#if CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
                 if (neighbor_mi->wm_params[0].invalid &&
                     neighbor_mi->wm_params[1].invalid) {
                   // Skip invalid models
@@ -3156,7 +3156,7 @@ static int64_t motion_mode_rd(
               continue;
             }
             mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
               } else {
                 assert(mbmi->mode == WARP_NEWMV);
 

@@ -310,7 +310,7 @@ set_aom_config_var(CONFIG_REFRESH_FLAG 0
 set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
                    "Enable to optimize block size dependent context modeling")
 set_aom_config_var(
-  CONFIG_COMPOUND_WARP_CAUSAL 0
+  CONFIG_COMPOUND_WARP_CAUSAL 1
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
 set_aom_config_var(CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL 1
                    "Removes threshold based selection stratergy in warp causal")

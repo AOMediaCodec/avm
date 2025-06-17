@@ -3213,6 +3213,9 @@ void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
 
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                int cand_from_sb_above,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                 const MB_MODE_INFO *const mbmi);
 
 static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
@@ -3247,7 +3250,11 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
       if (is_inter_ref_frame(candidate->ref_frame[0]) ||
           candidate->use_intrabc[0]) {
         av1_update_ref_mv_bank(cm, xd, 0, candidate);
-        av1_update_warp_param_bank(cm, xd, candidate);
+        av1_update_warp_param_bank(cm, xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                   1,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                   candidate);
         row_hits++;
       }
       mi_col += cand_mi_wide;

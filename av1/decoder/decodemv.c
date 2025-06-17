@@ -4240,7 +4240,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (mbmi->mode == NEARMV) {
       assert(is_warp_mode(neighbor_mi->motion_mode));
-#if CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
       if (mbmi->ref_frame[0] == neighbor_mi->ref_frame[1] &&
           !neighbor_mi->wm_params[1].invalid)
         mbmi->wm_params[0] = neighbor_mi->wm_params[1];
@@ -4250,7 +4250,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->wm_params[0] = neighbor_mi->wm_params[1];
 #else
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
     } else {
       assert(mbmi->mode == WARP_NEWMV);
 
@@ -4548,7 +4548,11 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
     if (is_inter_block(mbmi_tmp, xd->tree_type))
-      av1_update_warp_param_bank(cm, xd, mbmi_tmp);
+      av1_update_warp_param_bank(cm, xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 0,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 mbmi_tmp);
 
 #if !CONFIG_TMVP_MVS_WRITING_FLOW_OPT
     if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)

@@ -358,7 +358,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
 
 #if !WARP_CU_BANK
-    if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
+    if (is_inter)
+      av1_update_warp_param_bank(cm, xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 0,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 mbmi);
 #endif  // !WARP_CU_BANK
 #if CONFIG_IMPROVE_LOSSLESS_TXM
     if (xd->lossless[mbmi->segment_id]) {
@@ -612,7 +617,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
     }
 #endif  // CONFIG_BANK_IMPROVE
 #if WARP_CU_BANK
-    if (is_inter) av1_update_warp_param_bank(cm, xd, &ctx->mic);
+    if (is_inter)
+      av1_update_warp_param_bank(cm, xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 0,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                 &ctx->mic);
 #endif  // WARP_CU_BANK
     return;
   }
@@ -725,7 +735,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_BANK_IMPROVE
 
 #if WARP_CU_BANK
-  if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
+  if (is_inter)
+    av1_update_warp_param_bank(cm, xd,
+#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                               0,
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                               mbmi);
 #endif  // WARP_CU_BANK
 
   // Examine the resulting rate and for AQ mode 2 make a segment choice.
