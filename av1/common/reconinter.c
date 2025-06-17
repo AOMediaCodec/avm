@@ -3136,7 +3136,7 @@ void make_inter_pred_of_nxn(
                       -WARPEDMODEL_TRANS_CLAMP,
                       WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
           }
-          subblock_mv = &mv_refined[ref].as_mv;
+          subblock_mv = &mv_refined[n_blocks * 2 + ref].as_mv;
         }
       } else {
         if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
