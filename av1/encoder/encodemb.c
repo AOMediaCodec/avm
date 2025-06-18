@@ -848,7 +848,8 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
     for (int c = 0; c < x->plane[AOM_PLANE_U].eobs[block]; ++c) {
       const int pos = scan[c];
       int sign = (qcoeff_u[pos] < 0) ? 1 : 0;
-      if (abs(qcoeff_u[pos])) xd->tmp_sign[pos] = (sign ? 2 : 1);
+      if (abs(qcoeff_u[pos]) && !xd->lossless[xd->mi[0]->segment_id])
+        xd->tmp_sign[pos] = (sign ? 2 : 1);
     }
   }
 #endif  // CONFIG_CONTEXT_DERIVATION

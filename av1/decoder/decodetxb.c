@@ -1107,7 +1107,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
               aom_read_symbol(r, ec_ctx->v_dc_sign_cdf[tmp_sign][dc_sign_ctx],
                               2, ACCT_INFO("sign", "v_dc_sign_cdf", "plane_v"));
         }
-        if (plane == AOM_PLANE_U) xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
+        if (plane == AOM_PLANE_U && !xd->lossless[mbmi->segment_id])
+          xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
 #else
         sign = aom_read_symbol(r, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx],
                                2, ACCT_INFO("sign", "dc_sign_cdf"));

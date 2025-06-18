@@ -1384,7 +1384,8 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                 : 0;
         const int tmp_sign_idx = pos;
 #if CONFIG_CONTEXT_DERIVATION
-        if (plane == AOM_PLANE_U) xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
+        if (plane == AOM_PLANE_U && !xd->lossless[xd->mi[0]->segment_id])
+          xd->tmp_sign[tmp_sign_idx] = (sign ? 2 : 1);
         if (plane == AOM_PLANE_V) {
           aom_write_symbol(
               w, sign,
