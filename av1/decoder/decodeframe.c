@@ -8784,6 +8784,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
 
+  cm->features.has_lossless_segment = 0;
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
                                       cm->seq_params.bit_depth);
@@ -8798,6 +8799,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
           quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
 #endif  // CONFIG_EXT_QUANT_UPD
+    if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
   }
   features->coded_lossless = is_coded_lossless(cm, xd);

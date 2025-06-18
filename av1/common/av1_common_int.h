@@ -852,6 +852,10 @@ typedef struct {
    * */
   bool coded_lossless;
   /*!
+   * If true, frame has at least one lossless segment at coded resolution.
+   * */
+  bool has_lossless_segment;
+  /*!
    * If true, frame is fully lossless at upscaled resolution.
    */
   bool all_lossless;

@@ -450,7 +450,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     // block to be 0, in order to avoid the segment_id to be changed by in
     // write_segment_id().
     if (!cpi->common.seg.segid_preskip && cpi->common.seg.update_map &&
-        cpi->enc_seg.has_lossless_segment)
+        cpi->common.features.has_lossless_segment)
       mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
 
     xd->cfl.store_y = 0;

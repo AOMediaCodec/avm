@@ -1264,7 +1264,7 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
     // true. Changing segment_id may make the tx size become invalid, e.g
     // changing from lossless to lossy.
     assert(is_inter_block(mbmi, xd->tree_type) ||
-           !cpi->enc_seg.has_lossless_segment);
+           !cm->features.has_lossless_segment);
     set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                            mbmi->sb_type[xd->tree_type == CHROMA_PART], mi_row,
                            mi_col, pred);

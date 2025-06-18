@@ -1558,6 +1558,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   AV1_COMMON *const cm = &cpi->common;
   const CommonQuantParams *quant_params = &cm->quant_params;
+  cm->features.has_lossless_segment = 0;
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex =
         cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
@@ -1575,7 +1576,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
         (quant_params->u_ac_delta_q <= 0) && (quant_params->v_ac_delta_q <= 0);
 #endif  // CONFIG_EXT_QUANT_UPD
 
-    if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
+    if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {
       cpi->optimize_seg_arr[i] = NO_TRELLIS_OPT;
