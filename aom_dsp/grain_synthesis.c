@@ -1036,22 +1036,12 @@ void generate_shuffled_stamp_positions(int template_size, int block_size,
     }
   }
 
-  random_register = seed;
-
+  srand(seed);
   for (int i = total - 1; i > 0; --i) {
-    int bits = 0;
-    for (int max = i; max > 0; max >>= 1) {
-      bits++;
-    }
-
-    int j;
-    do {
-      j = get_random_number(bits);
-    } while (j > i);
-
-    Position tmp = out_list[i];
-    out_list[i] = out_list[j];
-    out_list[j] = tmp;
+      int      j   = rand() % (i + 1);
+      Position tmp = out_list[i];
+      out_list[i]  = out_list[j];
+      out_list[j]  = tmp;
   }
 }
 #endif
@@ -1163,8 +1153,8 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
   generate_shuffled_stamp_positions(template_size, stamp_size,
                                     params->random_seed, stamp_positions);
 
-  for (int y = 0; y < height; y += luma_subblock_size_y) {
-    for (int x = 0; x < width; x += luma_subblock_size_x) {
+  for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
+    for (int x = 0; x < width / 2; x += (luma_subblock_size_x >> 1)) {
       Position p = stamp_positions[index++ % total_coords];
       int luma_offset_y = left_pad + 2 * ar_padding + (p.y);
       int luma_offset_x = top_pad + 2 * ar_padding + (p.x);
