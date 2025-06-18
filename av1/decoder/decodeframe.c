@@ -8784,30 +8784,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
 
-  cm->features.has_lossless_segment = 0;
-  for (int i = 0; i < MAX_SEGMENTS; ++i) {
-    const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                                      cm->seq_params.bit_depth);
-    xd->lossless[i] =
-        qindex == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-#if CONFIG_EXT_QUANT_UPD
-        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-          quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
-#endif  // CONFIG_EXT_QUANT_UPD
-    if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
-    xd->qindex[i] = qindex;
-  }
-  features->coded_lossless = is_coded_lossless(cm, xd);
-  features->all_lossless = features->coded_lossless
-#if CONFIG_ENABLE_SR
-                           && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-      ;
+  av1_set_lossless(cm, xd);
 
 #if CONFIG_TCQ
   // Decode frame-level TCQ flag, if applicable.

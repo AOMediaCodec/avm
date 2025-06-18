@@ -1552,44 +1552,19 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
  *
  * \ingroup high_level_algo
  */
-void av1_set_lossless(AV1_COMP *cpi) {
+void av1_enc_set_lossless(AV1_COMP *cpi) {
   // NOTE lossless flags needs to be set before tcq_mode and parity_hiding are
   // set for a frame
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   AV1_COMMON *const cm = &cpi->common;
-  const CommonQuantParams *quant_params = &cm->quant_params;
-  cm->features.has_lossless_segment = 0;
+  av1_set_lossless(cm, xd);
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
-    const int qindex =
-        cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                                         cm->seq_params.bit_depth)
-                        : quant_params->base_qindex;
-    xd->lossless[i] =
-        qindex == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-#if CONFIG_EXT_QUANT_UPD
-        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-        (quant_params->u_ac_delta_q <= 0) && (quant_params->v_ac_delta_q <= 0);
-#endif  // CONFIG_EXT_QUANT_UPD
-
-    if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
-    xd->qindex[i] = qindex;
     if (xd->lossless[i]) {
       cpi->optimize_seg_arr[i] = NO_TRELLIS_OPT;
     } else {
       cpi->optimize_seg_arr[i] = cpi->sf.rd_sf.optimize_coefficients;
     }
   }
-  cm->features.coded_lossless = is_coded_lossless(cm, xd);
-  cm->features.all_lossless = cm->features.coded_lossless
-#if CONFIG_ENABLE_SR
-                              && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-      ;
 }
 
 #if CONFIG_TCQ
@@ -1597,7 +1572,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
  *
  * \ingroup high_level_algo
  */
-void av1_set_frame_tcq_mode(AV1_COMP *cpi) {
+void av1_enc_set_tcq_mode(AV1_COMP *cpi) {
   // NOTE tcq_mode needs to be set after lossless flags are set and before
   // parity_hiding is set for a frame
   AV1_COMMON *const cm = &cpi->common;
@@ -1615,7 +1590,7 @@ void av1_set_frame_tcq_mode(AV1_COMP *cpi) {
 }
 #endif  // CONFIG_TCQ
 
-void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
+void av1_enc_set_parity_hiding(AV1_COMP *cpi) {
   // Note parity_hiding is to be set for a frame after lossless and tcq_mode
   // are set
   AV1_COMMON *const cm = &cpi->common;
