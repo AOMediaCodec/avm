@@ -1021,6 +1021,41 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
       use_high_bit_depth, chroma_subsamp_y, chroma_subsamp_x, mc_identity);
 }
 
+#if FG_SHUFFLE
+// Generate all valid top-left (x, y) stamp positions and shuffle them using a
+// seed
+void generate_shuffled_stamp_positions(int template_size, int block_size,
+                                       uint16_t seed, Position *out_list) {
+  int W = template_size - block_size + 1;
+  int total = W * W;
+
+  for (int y = 0, idx = 0; y < W; ++y) {
+    for (int x = 0; x < W; ++x, ++idx) {
+      out_list[idx].x = x;
+      out_list[idx].y = y;
+    }
+  }
+
+  random_register = seed;
+
+  for (int i = total - 1; i > 0; --i) {
+    int bits = 0;
+    for (int max = i; max > 0; max >>= 1) {
+      bits++;
+    }
+
+    int j;
+    do {
+      j = get_random_number(bits);
+    } while (j > i);
+
+    Position tmp = out_list[i];
+    out_list[i] = out_list[j];
+    out_list[j] = tmp;
+  }
+}
+#endif
+
 int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
                            uint8_t *cb, uint8_t *cr, int height, int width,
                            int luma_stride, int chroma_stride,
@@ -1116,6 +1151,30 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
     init_scaling_function(params->scaling_points_cr, params->num_cr_points,
                           scaling_lut_cr);
   }
+#if FG_SHUFFLE
+  int template_size = luma_subblock_size_y * 2;
+  int stamp_size = luma_subblock_size_y;
+  int total_coords =
+      (template_size - stamp_size + 1) * (template_size - stamp_size + 1);
+  int index = 0;
+  Position *stamp_positions =
+      (Position *)malloc(total_coords * sizeof(Position));
+
+  generate_shuffled_stamp_positions(template_size, stamp_size,
+                                    params->random_seed, stamp_positions);
+
+  for (int y = 0; y < height; y += luma_subblock_size_y) {
+    for (int x = 0; x < width; x += luma_subblock_size_x) {
+      Position p = stamp_positions[index++ % total_coords];
+      int luma_offset_y = left_pad + 2 * ar_padding + (p.y);
+      int luma_offset_x = top_pad + 2 * ar_padding + (p.x);
+
+      int chroma_offset_y =
+          top_pad + (2 >> chroma_subsamp_y) * ar_padding + (p.y >> 1);
+      int chroma_offset_x =
+          left_pad + (2 >> chroma_subsamp_x) * ar_padding + (p.x >> 1);
+
+#else
   for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
     init_random_generator(y * 2, params->random_seed);
 
@@ -1131,7 +1190,7 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
                             offset_y * (2 >> chroma_subsamp_y);
       int chroma_offset_x = left_pad + (2 >> chroma_subsamp_x) * ar_padding +
                             offset_x * (2 >> chroma_subsamp_x);
-
+#endif
       if (overlap && x) {
         ver_boundary_overlap(
             y_col_buf, 2,
@@ -1402,6 +1461,9 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
     }
   }
 
+#if FG_SHUFFLE
+  free(stamp_positions);
+#endif
   dealloc_arrays(params, &pred_pos_luma, &pred_pos_chroma, &luma_grain_block,
                  &cb_grain_block, &cr_grain_block, &y_line_buf, &cb_line_buf,
                  &cr_line_buf, &y_col_buf, &cb_col_buf, &cr_col_buf);

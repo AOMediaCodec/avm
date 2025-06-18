@@ -21,10 +21,33 @@
 extern "C" {
 #endif
 
+#define FG_SHUFFLE 1
+
 #include <string.h>
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom/aom_image.h"
+
+#if FG_SHUFFLE
+/*!\brief Structure representing a 2D position */
+typedef struct {
+  int x;  ///< Horizontal coordinate
+  int y;  ///< Vertical coordinate
+} Position;
+
+/*!\brief Generate shuffled stamp positions for film grain synthesis
+ *
+ * Generates all valid positions within a template and shuffles them using
+ * a deterministic seed.
+ *
+ * \param[in]  template_size    Size of the template region
+ * \param[in]  block_size       Size of the blocks/stamps
+ * \param[in]  seed             Seed for deterministic shuffling
+ * \param[out] out_list         Output array of positions
+ */
+void generate_shuffled_stamp_positions(int template_size, int block_size,
+                                       uint16_t seed, Position *out_list);
+#endif
 
 /*!\brief Structure containing film grain synthesis parameters for a frame
  *
