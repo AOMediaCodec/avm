@@ -8788,7 +8788,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_TCQ
   // Decode frame-level TCQ flag, if applicable.
-  if (features->coded_lossless) {
+  if (features->has_lossless_segment) {
     features->tcq_mode = 0;
   } else if (seq_params->enable_tcq >= TCQ_8ST_FR) {
     features->tcq_mode = aom_rb_read_bit(rb);
@@ -8797,7 +8797,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_TCQ
 
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
+  if (features->has_lossless_segment || !cm->seq_params.enable_parity_hiding
 #if CONFIG_TCQ
       || features->tcq_mode
 #endif  // CONFIG_TCQ

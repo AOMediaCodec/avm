@@ -1576,7 +1576,7 @@ void av1_enc_set_tcq_mode(AV1_COMP *cpi) {
   // NOTE tcq_mode needs to be set after lossless flags are set and before
   // parity_hiding is set for a frame
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless) {
+  if (cm->features.has_lossless_segment) {
     // Disable TCQ for lossless since TCQ may not be reversible
     cm->features.tcq_mode = 0;
   } else {
@@ -1594,7 +1594,7 @@ void av1_enc_set_parity_hiding(AV1_COMP *cpi) {
   // Note parity_hiding is to be set for a frame after lossless and tcq_mode
   // are set
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
+  if (cm->features.has_lossless_segment || !cm->seq_params.enable_parity_hiding
 #if CONFIG_TCQ
       || cm->features.tcq_mode
 #endif  // CONFIG_TCQ

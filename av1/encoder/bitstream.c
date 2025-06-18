@@ -7047,7 +7047,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   // Encode adaptive frame-level TCQ flag, if applicable.
   // Basic frame-level strategy: enable for keyframes only.
   // This can be extended in other ways (e.g., include alt-ref).
-  if (features->coded_lossless) {
+  if (features->has_lossless_segment) {
     assert(features->tcq_mode == 0);
   } else if (seq_params->enable_tcq >= TCQ_8ST_FR) {
     aom_wb_write_bit(wb, features->tcq_mode != 0);
@@ -7056,7 +7056,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 #endif  // CONFIG_TCQ
 
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
+  if (features->has_lossless_segment || !cm->seq_params.enable_parity_hiding
 #if CONFIG_TCQ
       || features->tcq_mode
 #endif  // CONFIG_TCQ
