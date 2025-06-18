@@ -301,7 +301,7 @@ typedef struct InterPredParams {
 // Delta to use for computing gradients in bits, with 0 referring to
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
-#define SUBPEL_GRAD_DELTA_BITS 2
+#define SUBPEL_GRAD_DELTA_BITS 1
 
 // Bilinear and bicubic coefficients. Note that, at boundary, we apply
 // coefficients that are doubled because spatial distance between the two
@@ -321,12 +321,12 @@ static const int32_t coeffs_bilinear[4][2] = {
 #endif
 
 #if OPFL_BICUBIC_GRAD
-static const int bicubic_bits = 7;
+static const int bicubic_bits = 4;
 static const int32_t coeffs_bicubic[4][2][2] = {
-  { { 128, 256 }, { 0, 0 } },    // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
-  { { 80, 160 }, { -8, -16 } },  // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
-  { { 42, 84 }, { -5, -10 } },   // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
-  { { 21, 42 }, { -3, -6 } },    // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
+  { { 128, 256 }, { 0, 0 } },   // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
+  { { 11, 22 }, { -1, -2 } },   // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
+  { { 42, 84 }, { -5, -10 } },  // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
+  { { 21, 42 }, { -3, -6 } },   // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
 };
 #endif
 
@@ -636,7 +636,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 // Number of bits allowed for all intermediate results of covariance matrix
 // filling
-#define MAX_OPFL_AUTOCORR_BITS 28
+#define MAX_OPFL_AUTOCORR_BITS 24
 // Clamp range for u/v/w. If it uses h unsigned bits, then u2/v2 uses 2h
 // unsigned bits. Every sum of 8 u2/v2 use at most 2h+3 unsigned bits, and
 // must not exceed max bd of su2/sv2 minus 2. Thus, 2h+3 <= H-2
@@ -707,7 +707,7 @@ void av1_opfl_rebuild_inter_predictor(
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.
-#define MAX_LS_BITS 32
+#define MAX_LS_BITS 26
 
 // Divide all elements of a vector by a common factor, and apply shifts.
 // The integer division is based on lookup table.
