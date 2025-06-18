@@ -94,4 +94,28 @@ TEST(EncodeAPI, EncodeOddWidthHeight420) {
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/746.
+TEST(EncodeAPI, DISABLED_GdfOptimizer8x8) {
+  constexpr unsigned int kWidth = 8;
+  constexpr unsigned kHeight = 8;
+  uint8_t buf[3 * kWidth * kHeight] = { 0 };
+  aom_image_t img;
+  EXPECT_EQ(&img,
+            aom_img_wrap(&img, AOM_IMG_FMT_I444, kWidth, kHeight, 1, buf));
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.g_profile = 1;
+  cfg.g_bit_depth = AOM_BITS_8;
+  cfg.g_input_bit_depth = 8;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 }  // namespace
