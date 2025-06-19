@@ -1202,18 +1202,31 @@ static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
 }
 
 static double get_modeled_qp_offset(int qp, int level, int bit_depth,
-                                    int q_based_qp_offsets) {
+                                    int q_based_qp_offsets, int low_delay) {
   // 76% for keyframe was derived empirically.
   // 60% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
   // Rest derived similar to rc_pick_q_and_bounds_two_pass()
+  static const int percents_ld[FIXED_QP_OFFSET_COUNT] = {
+    76, 60, 30, 15, 8, 4
+  };
+#if CONFIG_ADJ_PYR_Q_OFFSET
+  static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 62, 38, 20, 10, 4 };
+#else
   static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 60, 30, 15, 8, 4 };
+#endif  // CONFIG_ADJ_PYR_Q_OFFSET
   const double q_val = av1_convert_qindex_to_q(qp, bit_depth);
 
-  double factor = percents[level];
+  double factor = low_delay ? percents_ld[level] : percents[level];
   if (q_based_qp_offsets) {
+#if CONFIG_ADJ_PYR_Q_OFFSET
+    if (!low_delay && level > 0) {
+      double adj = tanh(0.25 * (log(q_val) / log(2.0) - 7)) * 0.025;
+      factor += factor * adj;
+      // printf("q_val = %f, adj = %f, factor = %f\n", q_val, adj, factor);
+    }
+#else
     // At higher end of QP the slope of quant step-size grows exponentially,
     // captured by qp_threshold.
-
     const int max_q = (bit_depth == AOM_BITS_8)    ? MAXQ_8_BITS
                       : (bit_depth == AOM_BITS_10) ? MAXQ_10_BITS
                                                    : MAXQ;
@@ -1231,6 +1244,7 @@ static double get_modeled_qp_offset(int qp, int level, int bit_depth,
         factor = factor / 8;
       }
     }
+#endif  // CONFIG_ADJ_PYR_Q_OFFSET
   }
   return q_val * factor / 100;
 }
@@ -1556,7 +1570,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
             rc_cfg->qp, cfg->fixed_qp_offsets[i], tool_cfg->bit_depth);
       } else {  // auto-selected qp offset
         q_cfg->fixed_qp_offsets[i] = get_modeled_qp_offset(
-            rc_cfg->qp, i, tool_cfg->bit_depth, q_cfg->q_based_qp_offsets);
+            rc_cfg->qp, i, tool_cfg->bit_depth, q_cfg->q_based_qp_offsets,
+            cfg->g_lag_in_frames == 0);
       }
     } else {
       q_cfg->fixed_qp_offsets[i] = -1.0;

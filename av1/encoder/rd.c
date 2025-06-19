@@ -51,9 +51,15 @@
 
 #define RD_THRESH_MUL 4.40
 #if CONFIG_ADJ_Q_OFFSET
+#if CONFIG_ADJ_PYR_Q_OFFSET
+#define RDMULT_FROM_Q2_NUM 84
+#else
 #define RDMULT_FROM_Q2_NUM 80
+#endif  // CONFIG_ADJ_PYR_Q_OFFSET
+#define RDMULT_FROM_Q2_NUM_LD 80
 #else
 #define RDMULT_FROM_Q2_NUM 96
+#define RDMULT_FROM_Q2_NUM_LD 96
 #endif  // CONFIG_ADJ_Q_OFFSET
 #define RDMULT_FROM_Q2_DEN 32
 
@@ -780,6 +786,9 @@ static const int rd_layer_depth_factor[6] = {
 };
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
+  const int rdmult_from_q2_num =
+      (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
+                                           : RDMULT_FROM_Q2_NUM);
 #if !CONFIG_TCQ_FOR_ALL_FRAMES
   const int tcq_mode = cpi->common.features.tcq_mode;
   const int q =
@@ -792,7 +801,7 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 #endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
 
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
-      (int64_t)((int64_t)q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN),
+      (int64_t)((int64_t)q * q * rdmult_from_q2_num / RDMULT_FROM_Q2_DEN),
       2 * QUANT_TABLE_BITS);
 
   switch (cpi->common.seq_params.bit_depth) {
@@ -848,6 +857,9 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
 
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
+  const int rdmult_from_q2_num =
+      (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
+                                           : RDMULT_FROM_Q2_NUM);
   const AV1_COMMON *cm = &cpi->common;
   int64_t q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
                                cm->seq_params.base_y_dc_delta_q,
@@ -857,14 +869,14 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   switch (cm->seq_params.bit_depth) {
     case AOM_BITS_8:
       rdmult = ROUND_POWER_OF_TWO_64(
-          (int64_t)((RDMULT_FROM_Q2_NUM * (double)q * q / beta) /
+          (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
                     RDMULT_FROM_Q2_DEN),
           2 * QUANT_TABLE_BITS);
 
       break;
     case AOM_BITS_10:
       rdmult = ROUND_POWER_OF_TWO_64(
-          (int64_t)((RDMULT_FROM_Q2_NUM * (double)q * q / beta) /
+          (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
                     RDMULT_FROM_Q2_DEN),
           4 + 2 * QUANT_TABLE_BITS);
       break;
@@ -872,7 +884,7 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
     default:
       assert(cm->seq_params.bit_depth == AOM_BITS_12);
       rdmult = ROUND_POWER_OF_TWO_64(
-          (int64_t)((RDMULT_FROM_Q2_NUM * (double)q * q / beta) /
+          (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
                     RDMULT_FROM_Q2_DEN),
           8 + 2 * QUANT_TABLE_BITS);
       break;
