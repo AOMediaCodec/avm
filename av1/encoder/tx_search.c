@@ -2439,7 +2439,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_CHROMA_IDTX
     if (!is_inter && plane) {
-      if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+      if (mbmi->fsc_mode[PLANE_TYPE_Y]) {
         txk_allowed = IDTX;
         allowed_tx_mask = 1 << txk_allowed;
       }
@@ -2914,10 +2914,16 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         primary_tx_type != IDTX && plane == PLANE_TYPE_Y) {
       continue;
     }
-    if (!mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        primary_tx_type == IDTX && !is_inter) {
-      continue;
+#if CONFIG_LOSSLESS_CHROMA_IDTX
+    if (!xd->lossless[mbmi->segment_id]) {
+#endif  // CONFIG_LOSSLESS_CHROMA_IDTX
+      if (!mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+          primary_tx_type == IDTX && !is_inter) {
+        continue;
+      }
+#if CONFIG_LOSSLESS_CHROMA_IDTX
     }
+#endif  // CONFIG_LOSSLESS_CHROMA_IDTX
     if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
         (tx_size_wide[tx_size] > FSC_MAXWIDTH ||
          tx_size_high[tx_size] > FSC_MAXHEIGHT) &&

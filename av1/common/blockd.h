@@ -3675,7 +3675,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_CHROMA_IDTX
-    const bool fsc_flag = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
+    const bool fsc_flag = xd->mi[0]->fsc_mode[PLANE_TYPE_Y];
     if (!is_inter && plane_type == PLANE_TYPE_Y) {
       return DCT_DCT;
     } else if (!is_inter && plane_type == PLANE_TYPE_UV) {
