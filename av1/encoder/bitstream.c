@@ -3731,7 +3731,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       !cm->features.coded_lossless) {
 
     // Assert only when LR is enabled.
-    assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
+    assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                                 &xd->mi[0]->chroma_ref_info, 0, 0, 0));
   }
 
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);

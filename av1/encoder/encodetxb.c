@@ -1044,7 +1044,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
       !cm->features.coded_lossless) {
     // Assert only when LR is enabled.
-    assert((eob == 0) == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane,
+    assert((eob == 0) == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col,
+                                          xd->tree_type,
+                                          &xd->mi[0]->chroma_ref_info, plane,
                                           blk_row, blk_col));
   }
   if (eob == 0) return;

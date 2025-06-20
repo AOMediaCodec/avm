@@ -811,9 +811,17 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
 }
 
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
-                         int plane, int blk_row, int blk_col) {
+                         TREE_TYPE tree_type,
+                         const CHROMA_REF_INFO *chroma_ref_info, int plane,
+                         int blk_row, int blk_col) {
   blk_row *= 4;
   blk_col *= 4;
+  mi_row = (tree_type == SHARED_PART && plane)
+               ? chroma_ref_info->mi_row_chroma_base
+               : mi_row;
+  mi_col = (tree_type == SHARED_PART && plane)
+               ? chroma_ref_info->mi_col_chroma_base
+               : mi_col;
   int stride = cm->mi_params.tx_skip_stride[plane];
   int x = (mi_col << MI_SIZE_LOG2) >>
           ((plane == 0) ? 0 : cm->seq_params.subsampling_x);

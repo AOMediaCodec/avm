@@ -2204,7 +2204,9 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                                int plane, int blk_row, int blk_col,
                                TX_SIZE tx_size);
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
-                         int plane, int blk_row, int blk_col);
+                         TREE_TYPE tree_type,
+                         const CHROMA_REF_INFO *chroma_ref_info, int plane,
+                         int blk_row, int blk_col);
 void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
 #if !CONFIG_ENABLE_SR
                               ,
