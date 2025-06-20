@@ -711,7 +711,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
-        cm->current_frame.refresh_frame_flags == 0xff)
+        cm->current_frame.refresh_frame_flags == ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
