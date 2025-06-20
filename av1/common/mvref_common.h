@@ -1396,10 +1396,10 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   const int active_sb64_row = (mi_row * MI_SIZE) >> 6;
   const int is_bottom_left =
       ((active_sb64_col & 0x01) == 0 && (active_sb64_row & 0x01) == 1);
-  const int sb_64_residual =
-      (sb_size == 128 && xd->mi[0]->sb_root_partition_info == 2)
-          ? (-1) * is_bottom_left
-          : 0;
+  const int sb_64_residual = (sb_size == 128 && xd->mi && xd->mi[0] &&
+                              xd->mi[0]->sb_root_partition_info == 2)
+                                 ? (-1) * is_bottom_left
+                                 : 0;
 #endif  // CONFIG_GLOBAL_INTRABC_DELAY_OPT
   const int total_sb64_per_row =
       (((tile->mi_col_end - tile->mi_col_start - 1) >> 4) + 1);

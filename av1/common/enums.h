@@ -441,7 +441,6 @@ typedef char PARTITION_CONTEXT;
 // group is 5 in total.
 #define INTER_SDP_BSIZE_GROUP 4
 #define INTER_SDP_MAX_BLOCK_SIZE 64
-
 // block transform size
 enum {
   TX_4X4,             // 4x4 transform

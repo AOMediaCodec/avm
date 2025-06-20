@@ -308,6 +308,8 @@ set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1
                    "CWG F177 align inter/intra local intraBC search range")
 set_aom_config_var(CONFIG_GLOBAL_INTRABC_DELAY_OPT 1
                    "Enable alignment of global intraBC boundary")
+set_aom_config_var(CONFIG_LOCAL_INTRABC_BAWP 1
+                   "CWG-F165 Enable intraBAWP in local intraBC")
 
 set_aom_config_var(
   CONFIG_QM_DEBUG 0

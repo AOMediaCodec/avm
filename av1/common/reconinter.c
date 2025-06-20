@@ -4289,6 +4289,7 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_F054_PIC_BOUNDARY
     return false;
   }
+#if !CONFIG_LOCAL_INTRABC_BAWP
   // Restriction: the reference block's template can't be outside the local
   // 64x64 block for local intra block copy.
   // If local intra block copy extends to 128x128, one has to change the
@@ -4299,6 +4300,7 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
     if (ref_x > 0 && (ref_x % 64 == 0)) return false;
     if (ref_y > 0 && (ref_y % 64 == 0)) return false;
   }
+#endif  // !CONFIG_LOCAL_INTRABC_BAWP
   // Restriction: the reference block's template can't be outside the current
   // tile.
   const TileInfo *const tile = &xd->tile;
