@@ -324,6 +324,9 @@ set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
 set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
                    "Enable optimization of the CDFs for use optflow flag")
 
+set_aom_config_var(CONFIG_LOCAL_INTRABC_BAWP 1
+                   "Enable intraBAWP in local intraBC and encoder optimization for intraBC")
+
 set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
                    "Enable reduction of the CDFs for MVD related sybmols")
 set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1
