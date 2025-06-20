@@ -1029,6 +1029,22 @@ static inline int floorLog2Uint64(uint64_t x) {
 
 void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
                               int *shift) {
+#if MHCCP_DIVISION_TAYLOR
+  // This array stores the coefficients for the quadratic
+  // (squared) term in the polynomial for each of the 8 regions.
+  static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
+                                                 67,  53,  43,  35 };
+  static const int pow2Q[DIV_PREC_BITS_POW2] = { 227, 181, 148, 124,
+                                                 104, 89,  77,  68 };
+  // This array contains the offset values used to adjust
+  //  the normalized denominator for each region.
+  static const int pow2O[DIV_PREC_BITS_POW2] = { 1024, 3072,  5120,  7168,
+                                                 9216, 11264, 13312, 15360 };
+
+  // This array holds the constant bias term for each region's polynomial.
+  static const int pow2B[DIV_PREC_BITS_POW2] = { 15420, 13797, 12483, 11397,
+                                                 10485, 9709,  9039,  8456 };
+#else
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
   static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
@@ -1037,9 +1053,11 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   //  the normalized denominator for each region.
   static const int pow2O[DIV_PREC_BITS_POW2] = { 4822, 5952, 6624, 6792,
                                                  6408, 5424, 3792, 1466 };
+
   // This array holds the constant bias term for each region's polynomial.
   static const int pow2B[DIV_PREC_BITS_POW2] = { 12784, 12054, 11670, 11583,
                                                  11764, 12195, 12870, 13782 };
+#endif
 
   *shift = floorLog2Uint64(denom);
   if (*shift == 0)
@@ -1076,9 +1094,15 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   int index = normDiff >> DIV_INTR_BITS;
   int normDiff2 = normDiff - pow2O[index];
 
+#if MHCCP_DIVISION_TAYLOR
+  *scale = ((pow2W[index] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
+            DIV_PREC_BITS_POW2) -
+           ((pow2Q[index] * normDiff2) >> DIV_PREC_BITS_POW2) + pow2B[index];
+#else
   *scale = ((pow2W[index] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
             DIV_PREC_BITS_POW2) -
            (normDiff2 >> 1) + pow2B[index];
+#endif
   *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
 }
 
