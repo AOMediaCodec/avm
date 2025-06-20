@@ -8382,9 +8382,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // signaled, which happens in error resilient mode or when order hint
       // is unavailable.
       const int explicit_ref_frame_map =
-          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map ||
+          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
+      if (cm->features.error_resilient_mode && !explicit_ref_frame_map) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Error resilient mode must be coded with "
+                           "explicit_Ref_frame_map=1.");
+      }
+      if ((cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1) &&
+          !explicit_ref_frame_map) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Multilayer coding must be coded with "
+                           "explicit_Ref_frame_map=1.");
+      }
 #if CONFIG_BRU
       if (cm->seq_params.enable_bru && !explicit_ref_frame_map) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,

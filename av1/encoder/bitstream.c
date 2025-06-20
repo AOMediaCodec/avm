@@ -6929,9 +6929,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
       const int explicit_ref_frame_map =
-          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map ||
+          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
+      assert(
+          IMPLIES(cm->features.error_resilient_mode, explicit_ref_frame_map));
+      assert(IMPLIES(
+          cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1,
+          explicit_ref_frame_map));
       if (explicit_ref_frame_map) {
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >

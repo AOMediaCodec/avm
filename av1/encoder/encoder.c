@@ -391,11 +391,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           : -1;
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
-  if (seq->enable_bru)
-    seq->explicit_ref_frame_map = 1;
-  else
+  if (seq->enable_bru || tool_cfg->error_resilient_mode ||
+      cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1) {
+#else
+  if (tool_cfg->error_resilient_mode || cm->number_temporal_layers > 1 ||
+      cm->number_spatial_layers > 1) {
 #endif  // CONFIG_BRU
+    seq->explicit_ref_frame_map = 1;
+  } else {
     seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+  }
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
       oxcf->ref_frm_cfg.enable_frame_output_order &&
