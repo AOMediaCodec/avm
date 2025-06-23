@@ -1897,12 +1897,6 @@ int main(int argc, const char **argv) {
 
   /* restoration type */
   cts_each_dim[0] = 2;
-  optimize_cdf_table(&fc.wiener_restore[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob default_wiener_restore_cdf"
-                     "[CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Filters");
-
-  cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.sgrproj_restore[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob default_sgrproj_restore_cdf"
                      "[CDF_SIZE(2)]",

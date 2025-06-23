@@ -100,8 +100,7 @@ static int64_t sse_restoration_unit(const RestorationTileLimits *limits,
 }
 
 typedef struct {
-  // The best coefficients for Wiener or Sgrproj restoration
-  WienerInfo wiener_info;
+  // The best coefficients for Sgrproj and Non-sep Wiener restoration.
   SgrprojInfo sgrproj_info;
   WienerNonsepInfo wienerns_info;
 
@@ -155,9 +154,8 @@ typedef struct {
   // Number of RUs in tile
   int num_rus_in_tile;
 
-  // sgrproj and wiener are initialised by rsc_on_tile when starting the first
-  // tile in the frame.
-  WienerInfoBank wiener_bank;
+  // sgrproj is initialised by rsc_on_tile when starting the first tile in the
+  // frame.
   SgrprojInfoBank sgrproj_bank;
   WienerNonsepInfoBank wienerns_bank;
 
@@ -233,19 +231,16 @@ typedef struct RstUnitSnapshot {
   // Wiener filter info
   int64_t M[WIENER_WIN2];
   int64_t H[WIENER_WIN2 * WIENER_WIN2];
-  // Wiener filter info
-  WienerInfoBank ref_wiener_bank;
   // Sgrproj filter info
   SgrprojInfoBank ref_sgrproj_bank;
-  // Nonseparable Wiener filter info.
   // Pointers to respective stats in RstUnitStats.
   const double *A;
   const double *b;
+  // Nonseparable Wiener filter info.
   WienerNonsepInfoBank ref_wienerns_bank;
 } RstUnitSnapshot;
 
 static AOM_INLINE void reset_all_banks(RestSearchCtxt *rsc) {
-  av1_reset_wiener_bank(&rsc->wiener_bank, rsc->plane != AOM_PLANE_Y);
   av1_reset_sgrproj_bank(&rsc->sgrproj_bank);
   av1_reset_wienerns_bank(&rsc->wienerns_bank,
                           rsc->cm->quant_params.base_qindex,
@@ -4011,10 +4006,6 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   RestorationType best_rtype = RESTORE_NONE;
 
   for (RestorationType r = 0; r < RESTORE_SWITCHABLE_TYPES; ++r) {
-    // Check for the condition that wiener or sgrproj search could not
-    // find a solution or the solution was worse than RESTORE_NONE.
-    // In either case the best_rtype will be set as RESTORE_NONE. These
-    // should be skipped from the test below.
 #if CONFIG_BRU
     if (rusi->bru_unit_skipped) {
       assert(r == 0);
@@ -4022,6 +4013,10 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
       break;
     }
 #endif  // CONFIG_BRU
+    // Check for the condition that sgrproj or non-sep wiener search could not
+    // find a solution or the solution was worse than RESTORE_NONE.
+    // In either case the best_rtype will be set as RESTORE_NONE. These
+    // should be skipped from the test below.
     if (r > RESTORE_NONE) {
       if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
     }

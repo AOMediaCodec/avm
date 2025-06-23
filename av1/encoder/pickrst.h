@@ -56,14 +56,6 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
   return (uint16_t)avg;
 }
 
-// Checks if the filters in info and ref are identical
-static INLINE int check_wiener_eq(const WienerInfo *info,
-                                  const WienerInfo *ref) {
-  return !memcmp(info->vfilter, ref->vfilter,
-                 WIENER_HALFWIN * sizeof(info->vfilter[0])) &&
-         !memcmp(info->hfilter, ref->hfilter,
-                 WIENER_HALFWIN * sizeof(info->hfilter[0]));
-}
 static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
                                    const SgrprojInfo *ref) {
   if (info->ep == ref->ep && !memcmp(info->xqd, ref->xqd, sizeof(info->xqd)))
@@ -71,15 +63,6 @@ static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
   return 0;
 }
 
-// Checks if the filter in info matches any in the bank. If it does, the
-// index of the matching filter is returned, else -1 is returned.
-static INLINE int check_wiener_bank_eq(const WienerInfoBank *bank,
-                                       const WienerInfo *info) {
-  for (int k = 0; k < AOMMAX(1, bank->bank_size); ++k) {
-    if (check_wiener_eq(info, av1_constref_from_wiener_bank(bank, k))) return k;
-  }
-  return -1;
-}
 static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
                                         const SgrprojInfo *info) {
   for (int k = 0; k < AOMMAX(1, bank->bank_size); ++k) {

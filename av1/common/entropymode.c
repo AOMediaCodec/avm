@@ -6906,11 +6906,6 @@ static const aom_cdf_prob
                                              { AOM_CDF2(13677), 37 },
                                          },
                                          {
-                                             { AOM_CDF2(16384), 0 },
-                                             { AOM_CDF2(16384), 0 },
-                                             { AOM_CDF2(16384), 0 },
-                                         },
-                                         {
                                              { AOM_CDF2(20429), 37 },
                                              { AOM_CDF2(22496), 37 },
                                              { AOM_CDF2(18867), 37 },
@@ -6921,10 +6916,6 @@ static const aom_cdf_prob
                                              { AOM_CDF2(16384), 0 },
                                          },
                                        };
-
-static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(16384), 0
-};
 
 static const aom_cdf_prob default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)] = {
   { { AOM_CDF2(24690), 37 },
@@ -7674,7 +7665,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->filter_intra_mode_cdf, default_filter_intra_mode_cdf);
   av1_copy(fc->switchable_flex_restore_cdf,
            default_switchable_flex_restore_cdf);
-  av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     av1_copy(fc->ccso_cdf[plane], default_ccso_cdf[plane]);
   }
@@ -8216,8 +8206,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
                          ctx_tr->switchable_flex_restore_cdf, 2);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->wiener_restore_cdf,
-                         ctx_tr->wiener_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
 #if CONFIG_CDEF_ENHANCEMENTS
   CUMULATIVE_AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
@@ -8661,7 +8649,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->filter_intra_cdfs, 2);
   SHIFT_CDF(ctx_ptr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   SHIFT_CDF(ctx_ptr->switchable_flex_restore_cdf, 2);
-  SHIFT_CDF(ctx_ptr->wiener_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->ccso_cdf, 2);
 #if CONFIG_CDEF_ENHANCEMENTS
   SHIFT_CDF(ctx_ptr->cdef_strength_index0_cdf, 2);
@@ -9133,7 +9120,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               FILTER_INTRA_MODES);
   AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
               ctx_tr->switchable_flex_restore_cdf, 2);
-  AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
 #if CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,

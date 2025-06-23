@@ -1358,7 +1358,7 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.
 typedef int8_t MV_REFERENCE_FRAME;
 
-#define MAX_LR_FLEX_SWITCHABLE_BITS 4
+#define MAX_LR_FLEX_SWITCHABLE_BITS 3
 
 /*!\endcond */
 

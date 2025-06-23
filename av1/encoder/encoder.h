@@ -1734,7 +1734,6 @@ typedef struct FRAME_COUNTS {
   unsigned int intra_dip_mode_n6[6];
 #endif  // CONFIG_DIP
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
-  unsigned int wiener_restore[2];
   unsigned int sgrproj_restore[2];
   unsigned int wienerns_4part_cnts[WIENERNS_4PART_CTX_MAX]
                                   [CDF_SIZE(4)];  // placeholder

@@ -531,7 +531,6 @@ typedef struct frame_contexts {
   // For disallowed tools, the corresponding bit is skipped.
   aom_cdf_prob switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
                                           [MAX_LR_FLEX_MB_PLANE][CDF_SIZE(2)];
-  aom_cdf_prob wiener_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)];
 #if CONFIG_CDEF_ENHANCEMENTS
   // CDF for CDEF strength index 0

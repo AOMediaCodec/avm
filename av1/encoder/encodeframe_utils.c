@@ -1705,7 +1705,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               FILTER_INTRA_MODES);
   AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
               ctx_tr->switchable_flex_restore_cdf, 2);
-  AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     for (int ctx = 0; ctx < CCSO_CONTEXT; ctx++) {
       AVERAGE_CDF(ctx_left->ccso_cdf[plane][ctx], ctx_tr->ccso_cdf[plane][ctx],

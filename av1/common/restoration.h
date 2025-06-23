@@ -369,11 +369,6 @@ typedef struct {
   RestorationType restoration_type;
 
   /*!
-   * Wiener filter parameters if restoration_type indicates Wiener
-   */
-  WienerInfo wiener_info;
-
-  /*!
    * Sgrproj filter parameters if restoration_type indicates Sgrproj
    */
   SgrprojInfo sgrproj_info;
@@ -609,19 +604,6 @@ static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
   sgrproj_info->ep = SGRPROJ_PARAMS_DEFAULT;
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
   sgrproj_info->xqd[1] = (SGRPROJ_PRJ_MIN1 + SGRPROJ_PRJ_MAX1) / 2;
-}
-
-static INLINE void set_default_wiener(WienerInfo *wiener_info, int chroma) {
-  const int wiener_filt_tap0_midv = chroma ? 0 : WIENER_FILT_TAP0_MIDV;
-  wiener_info->vfilter[0] = wiener_info->hfilter[0] = wiener_filt_tap0_midv;
-  wiener_info->vfilter[1] = wiener_info->hfilter[1] = WIENER_FILT_TAP1_MIDV;
-  wiener_info->vfilter[2] = wiener_info->hfilter[2] = WIENER_FILT_TAP2_MIDV;
-  wiener_info->vfilter[WIENER_HALFWIN] = wiener_info->hfilter[WIENER_HALFWIN] =
-      -2 *
-      (WIENER_FILT_TAP2_MIDV + WIENER_FILT_TAP1_MIDV + wiener_filt_tap0_midv);
-  wiener_info->vfilter[4] = wiener_info->hfilter[4] = WIENER_FILT_TAP2_MIDV;
-  wiener_info->vfilter[5] = wiener_info->hfilter[5] = WIENER_FILT_TAP1_MIDV;
-  wiener_info->vfilter[6] = wiener_info->hfilter[6] = wiener_filt_tap0_midv;
 }
 
 // Clips scale_x to allowed range of Wienerns filter taps.

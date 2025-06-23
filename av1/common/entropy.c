@@ -402,7 +402,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->intra_dip_mode_n6_cdf, 6);
 #endif  // CONFIG_DIP
   RESET_CDF_COUNTER(fc->switchable_flex_restore_cdf, 2);
-  RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     for (int ctx = 0; ctx < CCSO_CONTEXT; ctx++) {
       RESET_CDF_COUNTER(fc->ccso_cdf[plane][ctx], 2);

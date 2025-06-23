@@ -1409,8 +1409,6 @@ typedef struct {
   //! switchable_flex_restore_cost
   int switchable_flex_restore_cost[MAX_LR_FLEX_SWITCHABLE_BITS][MAX_MB_PLANE]
                                   [2];
-  //! wiener_restore_cost
-  int wiener_restore_cost[2];
   //! sgrproj_restore_cost
   int sgrproj_restore_cost[2];
   /*!
