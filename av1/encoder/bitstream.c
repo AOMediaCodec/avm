@@ -6730,13 +6730,24 @@ static AOM_INLINE void write_uncompressed_header_obu(
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
-#if CONFIG_PRIMARY_REF_FRAME_OPT
-      aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
-      if (cpi->signal_primary_ref_frame)
+      // Always signal primary ref frame for scalable case
+      if (seq_params->explicit_ref_frame_map) {
+        assert(cpi->signal_primary_ref_frame);
+        assert(features->primary_ref_frame ==
+               features->derived_primary_ref_frame);
         aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+        aom_wb_write_literal(wb, features->derived_secondary_ref_frame,
+                             PRIMARY_REF_BITS);
+      } else {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+        aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
+        if (cpi->signal_primary_ref_frame)
+          aom_wb_write_literal(wb, features->primary_ref_frame,
+                               PRIMARY_REF_BITS);
 #else
         aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+      }
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE)
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,

@@ -4188,8 +4188,20 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         best_frame_size < cur_frame_size) {
       cm->features.primary_ref_frame = best_ref_idx;
     }
-    cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
-                                    cm->features.primary_ref_frame;
+
+    // Force primary_ref_frame and derived_primary_ref_frame to be the same in
+    // explicit_ref_frame_map mode
+    if (cm->seq_params.explicit_ref_frame_map) {
+      if (cm->features.primary_ref_frame !=
+          cm->features.derived_primary_ref_frame) {
+        cm->features.derived_secondary_ref_frame =
+            cm->features.derived_primary_ref_frame;
+        cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
+      }
+    } else {
+      cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
+                                      cm->features.primary_ref_frame;
+    }
 
     const int map_idx =
         get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);

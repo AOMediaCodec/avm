@@ -7684,7 +7684,8 @@ static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->reduced_still_picture_hdr &&
+      !seq_params->explicit_ref_frame_map) {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     int tmp_ref_frame[2] = { 0 };
     choose_primary_secondary_ref_frame(cm, tmp_ref_frame);
@@ -8053,14 +8054,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
+      // Always signal primary and secondary ref frame in explicit_ref_frame_map
+      if (seq_params->explicit_ref_frame_map) {
+        pbi->signal_primary_ref_frame = signal_primary_ref_frame = 1;
+        features->primary_ref_frame = features->derived_primary_ref_frame =
+            aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+        features->derived_secondary_ref_frame =
+            aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+      } else {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-      signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
-      pbi->signal_primary_ref_frame = signal_primary_ref_frame;
-      if (signal_primary_ref_frame)
-        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+        signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
+        pbi->signal_primary_ref_frame = signal_primary_ref_frame;
+        if (signal_primary_ref_frame)
+          features->primary_ref_frame =
+              aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #else
         features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+      }
     }
   }
 

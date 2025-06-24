@@ -740,8 +740,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(default), 1: on)"),
   .explicit_ref_frame_map =
       ARG_DEF(NULL, "explicit-ref-frame-map", 1,
-              "Explicitly signal the reference frame mapping (0: off "
-              "(default), 1: on)"),
+              "Explicitly signal the reference frame mapping and the "
+              "primary/secondary reference frames (0: off (default), 1: on)"),
   .enable_frame_output_order =
       ARG_DEF(NULL, "enable-frame-output-order", 1,
               "Enable frame output order derivation based on order hint"
