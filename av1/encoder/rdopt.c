@@ -5888,7 +5888,6 @@ static int64_t handle_inter_mode(
   for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
     for (int prec = MV_PRECISION_8_PEL; prec <= mbmi->max_mv_precision;
          ++prec) {
-      if (!is_pb_mv_prec_active && prec != mbmi->max_mv_precision) continue;
 #if CONFIG_SEP_COMP_DRL
       for (int ref_mv_id_1 = 0; ref_mv_id_1 < ref_set[1]; ++ref_mv_id_1) {
         for (int ref_mv_id_0 = 0; ref_mv_id_0 < ref_set[0]; ++ref_mv_id_0) {
