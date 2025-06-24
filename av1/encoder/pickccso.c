@@ -1683,8 +1683,14 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             ctx->training_dist_block, ctx->filter_control,
                             &cur_total_dist, &cur_total_rate, &ccso_enable,
                             rdmult);
-                        cur_total_rate =
-                            av1_cost_literal(reuse_ccso_idx ? 0 : 3);
+                        cur_total_rate = av1_cost_literal(
+                            reuse_ccso_idx ? 0 :
+#if CONFIG_CCSO_SIGNALING_IMPROV
+                                           aom_ceil_log2(num_ref_frames)
+#else
+                                           3
+#endif  // CONFIG_CCSO_SIGNALING_IMPROV
+                        );
                       } else {
                         derive_blk_md(cm, xd, plane, ctx->unfiltered_dist_block,
                                       ctx->training_dist_block,
@@ -1701,7 +1707,14 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             (ccso_bo_only ? frame_bits_bo_only : frame_bits);
 
                         cur_total_rate +=
-                            (reuse_ccso_idx ? av1_cost_literal(2 + 3)
+                            (reuse_ccso_idx ? av1_cost_literal(
+                                                  2 +
+#if CONFIG_CCSO_SIGNALING_IMPROV
+                                                  aom_ceil_log2(num_ref_frames)
+#else
+                                                  3
+#endif  // CONFIG_CCSO_SIGNALING_IMPROV
+                                                      )
                                             : av1_cost_literal(cur_total_bits));
                         const uint64_t cur_total_cost =
                             RDCOST(rdmult, cur_total_rate, cur_total_dist * 16);

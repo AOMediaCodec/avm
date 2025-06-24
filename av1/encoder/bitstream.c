@@ -5212,12 +5212,18 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
+#if CONFIG_CCSO_SIGNALING_IMPROV
+  const int num_ref_frames =
+      (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
+          ? 0
+          : cm->ref_frames_info.num_total_refs;
+#endif  // CONFIG_CCSO_SIGNALING_IMPROV
   aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
   if (cm->ccso_info.ccso_frame_flag) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
       if (cm->ccso_info.ccso_enable[plane]) {
-        if (!frame_is_intra_only(cm)) {
+        if (!frame_is_intra_only(cm) && !cm->features.error_resilient_mode) {
           aom_wb_write_literal(wb, cm->ccso_info.reuse_ccso[plane], 1);
           aom_wb_write_literal(wb, cm->ccso_info.sb_reuse_ccso[plane], 1);
         } else {
@@ -5226,11 +5232,19 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         }
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
+#if CONFIG_CCSO_SIGNALING_IMPROV
+          if (num_ref_frames > 1) {
+            aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane],
+                                 aom_ceil_log2(num_ref_frames));
+          } else {
+            assert(cm->ccso_info.ccso_ref_idx[plane] == 0);
+          }
+#else
           aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3);
+#endif  // CONFIG_CCSO_SIGNALING_IMPROV
           assert(cm->ccso_info.ccso_ref_idx[plane] <
                  cm->ref_frames_info.num_total_refs);
         }
-
         if (!cm->ccso_info.reuse_ccso[plane]) {
           aom_wb_write_literal(wb, cm->ccso_info.ccso_bo_only[plane], 1);
           aom_wb_write_literal(wb, cm->ccso_info.scale_idx[plane], 2);

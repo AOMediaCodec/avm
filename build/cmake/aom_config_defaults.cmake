@@ -372,7 +372,8 @@ set_aom_config_var(CONFIG_BANK_IMPROVE 1
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
 set_aom_config_var(CONFIG_CCSO_FU_BUGFIX 1 "Bugfix to CCSO FU size")
-
+set_aom_config_var(CONFIG_CCSO_SIGNALING_IMPROV 1
+                   "CCSO reuse reference frame index signaling improvement")
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
                    "Improvement of all inter mode related contexts")
 
