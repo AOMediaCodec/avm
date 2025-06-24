@@ -4082,8 +4082,10 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
                 cm, &end_row, &end_col, traj_row, traj_col,
                 cm->id_offset_map[end_frame][traj_id].as_mv, 0);
           }
-          end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-          end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          end_row = (end_row >> cm->tmvp_sample_stepl2)
+                    << cm->tmvp_sample_stepl2;
+          end_col = (end_col >> cm->tmvp_sample_stepl2)
+                    << cm->tmvp_sample_stepl2;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
           assert(IMPLIES(pos_valid, end_col >= 0 && end_col < mvs_cols));
@@ -4109,8 +4111,8 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
       pos_valid = get_block_position_no_constraint(
           cm, &end_row, &end_col, start_row, start_col, *mv, 0);
     }
-    end_row = (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-    end_col = (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+    end_row = (end_row >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
+    end_col = (end_col >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     assert(IMPLIES(pos_valid, end_col >= 0 && end_col < mvs_cols));
@@ -4154,10 +4156,10 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
                 cm->id_offset_map[start_frame][traj_id].as_mv, 0);
           }
 
-          new_start_row =
-              (new_start_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-          new_start_col =
-              (new_start_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+          new_start_row = (new_start_row >> cm->tmvp_sample_stepl2)
+                          << cm->tmvp_sample_stepl2;
+          new_start_col = (new_start_col >> cm->tmvp_sample_stepl2)
+                          << cm->tmvp_sample_stepl2;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
           assert(IMPLIES(new_pos_valid,
@@ -4360,10 +4362,10 @@ static int motion_field_projection_start_target(
                       cm, &target_row, &target_col, scaled_blk_row,
                       scaled_blk_col, ref_mv, 0);
                 }
-                target_row =
-                    (target_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-                target_col =
-                    (target_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+                target_row = (target_row >> cm->tmvp_sample_stepl2)
+                             << cm->tmvp_sample_stepl2;
+                target_col = (target_col >> cm->tmvp_sample_stepl2)
+                             << cm->tmvp_sample_stepl2;
 
                 if (target_pos_valid)
                   target_pos_valid = check_block_position(
@@ -4610,10 +4612,10 @@ static int motion_field_projection_side(AV1_COMMON *cm,
                         cm, &end_row, &end_col, scaled_blk_row, scaled_blk_col,
                         ref_mv, 0);
                   }
-                  end_row =
-                      (end_row / cm->tmvp_sample_step) * cm->tmvp_sample_step;
-                  end_col =
-                      (end_col / cm->tmvp_sample_step) * cm->tmvp_sample_step;
+                  end_row = (end_row >> cm->tmvp_sample_stepl2)
+                            << cm->tmvp_sample_stepl2;
+                  end_col = (end_col >> cm->tmvp_sample_stepl2)
+                            << cm->tmvp_sample_stepl2;
 
                   if (end_pos_valid)
                     end_pos_valid =
