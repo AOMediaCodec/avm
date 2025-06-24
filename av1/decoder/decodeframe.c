@@ -7964,8 +7964,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->order_hint_info.enable_order_hint) {
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
+        cm->tmvp_sample_stepl2 = cm->tmvp_sample_step == 1 ? 0 : 1;
       } else {
         cm->tmvp_sample_step = 1;
+        cm->tmvp_sample_stepl2 = 0;
       }
 
 #if CONFIG_LF_SUB_PU
