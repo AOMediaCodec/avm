@@ -171,6 +171,8 @@ set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")
 set_aom_config_var(CONFIG_TCQ_IMP 1 "AV2 TCQ improvement")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
+set_aom_config_var(CONFIG_WARP_PARAM_CLIP 1
+                   "AV2 warp parameter range clamp unification")
 set_aom_config_var(CONFIG_RELAX_AFFINE_CONSTRAINTS 1
                    "AV2 relax affine constraints")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1

@@ -73,9 +73,11 @@ static INLINE int64_t clamp64(int64_t value, int64_t low, int64_t high) {
   return value < low ? low : (value > high ? high : value);
 }
 
+#if CONFIG_WARP_PARAM_CLIP
 static INLINE int32_t clamp64_to_32(int64_t value) {
   return (int32_t)(clamp64(value, INT32_MIN, INT32_MAX));
 }
+#endif  // CONFIG_WARP_PARAM_CLIP
 
 static INLINE double fclamp(double value, double low, double high) {
   return value < low ? low : (value > high ? high : value);
