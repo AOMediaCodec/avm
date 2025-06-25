@@ -459,9 +459,9 @@ set_aom_config_var(CONFIG_SCC_DETERMINATION 1
 
 set_aom_config_var(CONFIG_IST_ANY_SET 1
                    "Enable R-D Optimized IST set selection from CWG-D159.")
-set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
+set_aom_config_var(CONFIG_AFFINE_REFINEMENT 0
                    "Decoder side affine motion refinement.")
-set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
+set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 0
                    "Subblock based affine refinement")
 set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
                    "Use smaller OPFL gradient units and remove bit checks.")
