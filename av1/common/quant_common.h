@@ -49,6 +49,9 @@ extern "C" {
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
 #define NUM_QM_LEVELS (1 << QM_LEVEL_BITS)
+#if CONFIG_QM_EXTENSION
+#define NUM_CUSTOM_QMS (NUM_QM_LEVELS - 1)
+#endif  // CONFIG_QM_EXTENSION
 #define QM_TOTAL_SIZE                  \
   (4 * 4 + 8 * 8 + 16 * 16 + 32 * 32 + \
    2 * (4 * 8 + 8 * 16 + 16 * 32 + 4 * 16 + 8 * 32 + 4 * 32))
@@ -157,8 +160,27 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
                                                  : QINDEX_RANGE);
 }
 
+#if CONFIG_QM_EXTENSION
+void av1_alloc_qm(qm_val_t ****mat, int width, int height);
+
+void av1_free_qm(qm_val_t ****mat);
+
+void av1_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,
+                      qm_val_t ***qm_4x8, int num_planes);
+#endif  // CONFIG_QM_EXTENSION
+
 // Initialize all global quant/dequant matrices.
+#if CONFIG_QM_EXTENSION
+void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes,
+                 qm_val_t ****fund_matrices);
+#else
 void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
+#endif  // CONFIG_QM_EXTENSION
+
+#if CONFIG_QM_EXTENSION
+void av1_qm_replace_level(struct CommonQuantParams *quant_params, int level,
+                          int num_planes, qm_val_t ****fund_matrices);
+#endif  // CONFIG_QM_EXTENSION
 
 // Get global dequant matrix.
 const qm_val_t *av1_iqmatrix(const struct CommonQuantParams *quant_params,

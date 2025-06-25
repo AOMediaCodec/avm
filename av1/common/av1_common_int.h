@@ -13,6 +13,8 @@
 #ifndef AOM_AV1_COMMON_AV1_COMMON_INT_H_
 #define AOM_AV1_COMMON_AV1_COMMON_INT_H_
 
+#include <stdbool.h>
+
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
@@ -78,6 +80,11 @@ extern "C" {
 
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
+
+#if CONFIG_QM_EXTENSION
+#define NUM_QM_VALS 256
+#endif
+
 /* clang-format off */
 // clang-format seems to think this is a pointer dereference and not a
 // multiplication.
@@ -713,6 +720,18 @@ typedef struct SequenceHeader {
 #if CONFIG_EXT_SEG
   uint8_t enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
+#if CONFIG_QM_EXTENSION
+  bool user_defined_qmatrix;             // User defined quantizer matrix
+  bool qm_data_present[NUM_CUSTOM_QMS];  // User defined QM data present
+  // Note: qm_copy_from_previous_plane and qm_4x8_is_transpose_of_8x4 flags
+  // are automatically derived from stored QM coefficient data
+  // First index: level (0 <= level < NUM_CUSTOM_QMS)
+  // Second index: 0:Y, 1:U, 2:V
+  // Third index: (flattened) index to matrix entry
+  qm_val_t ***quantizer_matrix_8x8;
+  qm_val_t ***quantizer_matrix_8x4;
+  qm_val_t ***quantizer_matrix_4x8;
+#endif  // CONFIG_QM_EXTENSION
 
   BITSTREAM_PROFILE profile;
 
@@ -1322,11 +1341,23 @@ struct CommonQuantParams {
   /*!
    * Raw quantization matrix table (accessed via gqmatrix).
    */
+#if CONFIG_QM_EXTENSION
+  // Second index: 0:Y, 1:U, 2:V
+  qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][3][QM_TOTAL_SIZE];
+#else
+  // Second index: 0:luma, 1:chroma
   qm_val_t wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
+#endif  // CONFIG_QM_EXTENSION
   /*!
    * Raw dquantization matrix table (accessed via giqmatrix).
    */
+#if CONFIG_QM_EXTENSION
+  // Second index: 0:Y, 1:U, 2:V
+  qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][3][QM_TOTAL_SIZE];
+#else
+  // Second index: 0:luma, 1:chroma
   qm_val_t iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
+#endif  // CONFIG_QM_EXTENSION
   /**@}*/
 
   /**
@@ -1373,11 +1404,31 @@ struct CommonQuantParams {
    * Indicate the level indices to be used to access appropriate global quant
    * matrix tables.
    */
+
+#if CONFIG_QM_EXTENSION
+  /**@{*/
+  /*!
+   * Number of QM levels available for use by the segments in the frame.
+   * Range is 1..4.
+   */
+  uint8_t pic_qm_num;
+  uint8_t qm_index_bits; /*!< Equal to CeilLog2(pic_qm_num) */
+  uint8_t qm_y[4];       /*!< QM levels for Y plane */
+  uint8_t qm_u[4];       /*!< QM levels for U plane */
+  uint8_t qm_v[4];       /*!< QM levels for V plane */
+  /*!
+   * qm_index[segmentId] selects a QM level for segmentID
+   * Range is 0..pic_qm_num - 1.
+   */
+  uint8_t qm_index[MAX_SEGMENTS];
+  /**@}*/
+#else
   /**@{*/
   int qmatrix_level_y; /*!< Level index for Y plane */
   int qmatrix_level_u; /*!< Level index for U plane */
   int qmatrix_level_v; /*!< Level index for V plane */
   /**@}*/
+#endif  // CONFIG_QM_EXTENSION
 };
 
 typedef struct CommonContexts CommonContexts;

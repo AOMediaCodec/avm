@@ -124,7 +124,7 @@ void av1_init_quantizer(SequenceHeader *seq_params,
                         EncQuantDequantParams *const enc_quant_dequant_params,
                         const AV1_COMMON *const cm);
 
-void av1_set_quantizer(struct AV1Common *const cm, int min_qmlevel,
+void av1_set_quantizer(struct AV1_COMP *const cpi, int min_qmlevel,
                        int max_qmlevel, int q, int enable_chroma_deltaq);
 
 int av1_quantizer_to_qindex(int quantizer, aom_bit_depth_t bit_depth);
