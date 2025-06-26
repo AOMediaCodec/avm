@@ -271,12 +271,14 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                               seq_params->quantizer_matrix_4x8 };
   av1_qm_init_dequant_only(&cm->quant_params, num_planes, fund_mat);
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
       seq_params->enable_frame_output_order) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "enable_frame_output_order cannot be enabled"
                        "when enable_order_hint is disabled.");
   }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 #endif
 
   if (av1_check_trailing_bits(pbi, rb) != 0) {

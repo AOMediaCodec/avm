@@ -310,6 +310,8 @@ set_aom_config_var(CONFIG_LOCAL_INTRABC_BAWP 1
 set_aom_config_var(CONFIG_REDUCED_REF_FRAME_MVS_MODE 1
                    "Use reduced reference frame mvs for temporal mv prediction")
 
+set_aom_config_var(CONFIG_REMOVE_ENABLE_ORDER_HINT 1 "Remove enable_order_hint")
+
 set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
