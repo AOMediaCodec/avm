@@ -14,6 +14,7 @@
 
 #include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
+#include "config/aom_config.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/tip.h"
 #include "av1/common/warped_motion.h"
@@ -1227,8 +1228,11 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_IBC_SR_EXT
                  rf[0] != INTRA_FRAME &&
 #endif  // CONFIG_IBC_SR_EXT
-                 !is_tip_ref_frame(rf[0]) &&
-                 cm->seq_params.order_hint_info.enable_order_hint) {
+                 !is_tip_ref_frame(rf[0])
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+                 && cm->seq_params.order_hint_info.enable_order_hint
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+      ) {
         int_mv cand_refmv;
         MV_REFERENCE_FRAME cand_ref_frame;
         if (is_tip_ref_frame(candidate->ref_frame[0])) {
@@ -1452,7 +1456,9 @@ static AOM_INLINE void add_ref_mv_candidate(
       } else if (add_more_mvs) {
 #if CONFIG_MV_TRAJECTORY
         if (cm->seq_params.enable_mv_traj &&
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
             cm->seq_params.order_hint_info.enable_order_hint &&
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
             cm->features.allow_ref_frame_mvs && rf[0] != rf[1] &&
             is_inter_ref_frame(rf[0]) && is_inter_ref_frame(rf[1])) {
           const int frame_mvs_stride =
@@ -2457,9 +2463,13 @@ static AOM_INLINE void add_tmvp_candidate(
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+  if (cm->features.allow_ref_frame_mvs == 0) return 0;
+#else
   if (cm->features.allow_ref_frame_mvs == 0 ||
       cm->seq_params.order_hint_info.enable_order_hint == 0)
     return 0;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
 
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
@@ -3853,7 +3863,9 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 // order_hint as the current frame).
 static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (!order_hint_info->enable_order_hint) return -1;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
@@ -5033,7 +5045,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (!order_hint_info->enable_order_hint) return;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const int mvs_rows =
@@ -5358,7 +5372,9 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (!order_hint_info->enable_order_hint) return;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;
@@ -5646,7 +5662,11 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   skip_mode_info->ref_frame_idx_0 = INVALID_IDX;
   skip_mode_info->ref_frame_idx_1 = INVALID_IDX;
 
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+  if (frame_is_intra_only(cm)
+#else
   if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm)
+#endif  //  CONFIG_REMOVE_ENABLE_ORDER_HINT
 // This line should be added, however it will have stats change, can be enabled
 // as bug fix if confirmed.
 #if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL

@@ -23,6 +23,7 @@
 #endif  // CONFIG_BRU
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+#include "config/aom_config.h"
 
 #if CONFIG_DENOISE
 #include "aom_dsp/grain_table.h"
@@ -371,27 +372,39 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     seq->order_hint_info.enable_order_hint = 0;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
   seq->order_hint_info.order_hint_bits_minus_1 =
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+      DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
+#else
       seq->order_hint_info.enable_order_hint
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+      oxcf->ref_frm_cfg.enable_frame_output_order;
+#else
       oxcf->ref_frm_cfg.enable_frame_output_order &&
       seq->order_hint_info.enable_order_hint;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 
@@ -412,8 +425,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   seq->order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
@@ -5090,9 +5105,13 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
             scores[replaced_bru_ref_idx].index;
         cm->ref_frames_info
             .ref_frame_distance[cm->ref_frames_info.num_total_refs - 1] =
-            cm->seq_params.order_hint_info.enable_order_hint
-                ? scores[replaced_bru_ref_idx].distance
-                : 1;
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+            scores[replaced_bru_ref_idx].distance;
+#else
+              cm->seq_params.order_hint_info.enable_order_hint
+                  ? scores[replaced_bru_ref_idx].distance
+                  : 1;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
         RefScoreData tmp_score = scores[cm->ref_frames_info.num_total_refs - 1];
         scores[cm->ref_frames_info.num_total_refs - 1] =
             scores[replaced_bru_ref_idx];

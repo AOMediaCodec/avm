@@ -187,7 +187,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t max_partition_size;
   arg_def_t enable_chroma_deltaq;
   arg_def_t enable_intra_edge_filter;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   arg_def_t enable_order_hint;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   arg_def_t enable_tx64;
   arg_def_t enable_flip_idtx;
   arg_def_t enable_masked_comp;

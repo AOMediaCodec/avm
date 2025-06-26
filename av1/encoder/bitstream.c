@@ -5586,9 +5586,11 @@ static AOM_INLINE void write_sequence_header(
     aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
 
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 
     if (seq_params->order_hint_info.enable_order_hint) {
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
       aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
       if (seq_params->order_hint_info.enable_ref_frame_mvs) {
@@ -5598,7 +5600,9 @@ static AOM_INLINE void write_sequence_header(
             wb, seq_params->order_hint_info.reduced_ref_frame_mvs_mode);
       }
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->force_screen_content_tools == 2) {
       aom_wb_write_bit(wb, 1);
     } else {
@@ -5615,7 +5619,9 @@ static AOM_INLINE void write_sequence_header(
     } else {
       assert(seq_params->force_integer_mv == 2);
     }
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint)
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
       aom_wb_write_literal(
           wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
   }
@@ -5751,9 +5757,13 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
   aom_wb_write_bit(wb, seq_params->enable_orip);
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (seq_params->order_hint_info.enable_order_hint) {
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   aom_wb_write_bit(wb, seq_params->enable_ibp);
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
@@ -5945,20 +5955,24 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
   for (frame = 0; frame < num_total_refs; ++frame) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
     int temporal_distance;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint) {
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int ref_order_hint = ref_buf->display_order_hint;
       const int cur_order_hint = cm->cur_frame->display_order_hint;
 #else
-      const int ref_order_hint = ref_buf->order_hint;
-      const int cur_order_hint = cm->cur_frame->order_hint;
+    const int ref_order_hint = ref_buf->order_hint;
+    const int cur_order_hint = cm->cur_frame->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                             cur_order_hint, ref_order_hint);
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     } else {
       temporal_distance = 1;
     }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 
     if (temporal_distance == 0) {
       // Don't code global motion for frames at the same temporal instant
@@ -6121,7 +6135,17 @@ static AOM_INLINE void write_uncompressed_header_obu(
                                cm->height != seq_params->max_frame_height);
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
+#if CONFIG_BRU
+    if (cm->bru.frame_inactive_flag) {
+      cm->features.disable_cdf_update = 1;
+    }
+    if (current_frame->frame_type == INTER_FRAME) {
+      encode_bru_active_info(cpi, wb);
+    }
+#endif  // CONFIG_BRU
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint)
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
       aom_wb_write_literal(
           wb, current_frame->order_hint,
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -6209,8 +6233,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
 #endif  // CONFIG_EXTRA_DPB
     // Write all ref frame order hints if error_resilient_mode == 1
-    if (features->error_resilient_mode &&
-        seq_params->order_hint_info.enable_order_hint) {
+    if (features->error_resilient_mode
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+        && seq_params->order_hint_info.enable_order_hint
+#endif  //  !CONFIG_REMOVE_ENABLE_ORDER_HINT
+    ) {
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
@@ -6310,10 +6337,16 @@ static AOM_INLINE void write_uncompressed_header_obu(
       // decoder can derive them unless order_hint is not available. Explicit
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+      const int explicit_ref_frame_map = cm->features.error_resilient_mode ||
+                                         frame_is_sframe(cm) ||
+                                         seq_params->explicit_ref_frame_map;
+#else
       const int explicit_ref_frame_map =
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
       if (explicit_ref_frame_map) {
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >
@@ -6372,8 +6405,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
 
       if (features->allow_ref_frame_mvs &&
-          cm->ref_frames_info.num_total_refs > 1 &&
-          seq_params->order_hint_info.enable_order_hint) {
+          cm->ref_frames_info.num_total_refs > 1
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+          && seq_params->order_hint_info.enable_order_hint
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+      ) {
         // Write TMVP sampling mode
         assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
         aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
@@ -7626,8 +7662,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
-        (!cm->seq_params.order_hint_info.enable_order_hint ||
-         !cm->seq_params.enable_frame_output_order)) ||
+        (
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+            !cm->seq_params.order_hint_info.enable_order_hint ||
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+            !cm->seq_params.enable_frame_output_order)) ||
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
@@ -7658,11 +7697,17 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
   // is not signaled for non-error-resilient mode.
   // For error-resilienet mode, still an OBU is signaled.
-  if ((cm->seq_params.order_hint_info.enable_order_hint &&
-       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-       !cm->features.error_resilient_mode) ||
-      ((!cm->seq_params.order_hint_info.enable_order_hint ||
-        !cm->seq_params.enable_frame_output_order) &&
+  if ((
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+          cm->seq_params.order_hint_info.enable_order_hint &&
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+          cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+          !cm->features.error_resilient_mode) ||
+      ((
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+           !cm->seq_params.order_hint_info.enable_order_hint ||
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+           !cm->seq_params.enable_frame_output_order) &&
        encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||

@@ -802,7 +802,9 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
     if (data == NULL && data_sz == 0 &&
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
         pbi->common.seq_params.order_hint_info.enable_order_hint &&
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
         pbi->common.seq_params.enable_frame_output_order) {
       output_trailing_frames(pbi);
       for (size_t j = 0; j < pbi->num_output_frames; j++) {

@@ -517,7 +517,9 @@ typedef struct {
 } DeltaQInfo;
 
 typedef struct {
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   int enable_order_hint;        // 0 - disable order hint, and related tools
+#endif                          // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   int order_hint_bits_minus_1;  // dist_wtd_comp, ref_frame_mvs,
                                 // frame_sign_bias
                                 // if 0, enable_dist_wtd_comp and
@@ -2350,7 +2352,9 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
   return !cm->features.error_resilient_mode &&
          cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
          cm->seq_params.order_hint_info.enable_order_hint &&
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
          !frame_is_intra_only(cm);
 }
 
@@ -4629,7 +4633,9 @@ static INLINE void init_ibp_info(
 #define RELATIVE_DIST_BITS 8
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (!oh->enable_order_hint) return 0;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   assert(a >= 0);

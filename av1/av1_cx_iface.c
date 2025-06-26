@@ -165,10 +165,12 @@ struct av1_extracfg {
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
-  int enable_order_hint;         // enable order hint for sequence
-  int enable_tx64;               // enable 64-pt transform usage for sequence
-  int enable_flip_idtx;          // enable flip and identity transform types
-  int max_reference_frames;      // maximum number of references per frame
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
+  int enable_order_hint;     // enable order hint for sequence
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
+  int enable_tx64;           // enable 64-pt transform usage for sequence
+  int enable_flip_idtx;      // enable flip and identity transform types
+  int max_reference_frames;  // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int explicit_ref_frame_map;     // explicitly signal reference frame mapping
   int enable_frame_output_order;  // enable frame output order derivation based
@@ -512,7 +514,9 @@ static struct av1_extracfg default_extra_cfg = {
   4,    // min_partition_size
   256,  // max_partition_size
   1,    // enable intra edge filter
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   1,    // frame order hint
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   1,    // enable 64-pt transform usage
   1,    // enable flip and identity transform
 
@@ -1485,9 +1489,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
   tool_cfg->enable_tcq = cfg->enable_tcq;
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   tool_cfg->ref_frame_mvs_present =
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+      extra_cfg->enable_ref_frame_mvs;
+#else
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
   tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
   tool_cfg->error_resilient_mode =
@@ -1521,7 +1531,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   } else {
     tool_cfg->avg_cdf_type = 0;
   }
-  if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs) {
+
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+  if (extra_cfg->enable_ref_frame_mvs)
+#else
+  if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs)
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
+  {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
     tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
     if (tool_cfg->enable_tip) {
@@ -1545,7 +1561,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_MV_RANGE_EXTENSION
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   if (extra_cfg->enable_order_hint) {
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
     tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
     if (tool_cfg->enable_opfl_refine) {
       if (cfg->g_lag_in_frames == 0) {
@@ -1556,9 +1574,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
         tool_cfg->enable_opfl_refine = 0;
       }
     }
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   } else {
     tool_cfg->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
   }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 #else
   tool_cfg->enable_opfl_refine = extra_cfg->enable_order_hint
                                      ? extra_cfg->enable_opfl_refine
@@ -1760,7 +1780,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // when order_hint is not available, S-frame is used or error resilience mode
   // is used.
   oxcf->ref_frm_cfg.enable_frame_output_order =
+#if CONFIG_REMOVE_ENABLE_ORDER_HINT
+      (kf_cfg->enable_sframe ||
+#else
       (!tool_cfg->enable_order_hint || kf_cfg->enable_sframe ||
+#endif  // CONFIG_REMOVE_ENABLE_ORDER_HINT
        tool_cfg->error_resilient_mode)
           ? 0
           : extra_cfg->enable_frame_output_order;
@@ -2396,12 +2420,14 @@ static aom_codec_err_t ctrl_set_enable_intra_edge_filter(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
 static aom_codec_err_t ctrl_set_enable_order_hint(aom_codec_alg_priv_t *ctx,
                                                   va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_order_hint = CAST(AV1E_SET_ENABLE_ORDER_HINT, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
 
 static aom_codec_err_t ctrl_set_enable_tx64(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
@@ -4154,9 +4180,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_intra_edge_filter =
         arg_parse_uint_helper(&arg, err_string);
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_order_hint,
                               argv, err_string)) {
     extra_cfg.enable_order_hint = arg_parse_int_helper(&arg, err_string);
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT`
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tx64, argv,
                               err_string)) {
     extra_cfg.enable_tx64 = arg_parse_int_helper(&arg, err_string);
@@ -4479,7 +4507,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV1E_SET_ENABLE_CHROMA_DELTAQ, ctrl_set_enable_chroma_deltaq },
   { AV1E_SET_ENABLE_INTRA_EDGE_FILTER, ctrl_set_enable_intra_edge_filter },
+#if !CONFIG_REMOVE_ENABLE_ORDER_HINT
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
+#endif  // !CONFIG_REMOVE_ENABLE_ORDER_HINT
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
