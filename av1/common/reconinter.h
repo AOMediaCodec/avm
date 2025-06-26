@@ -897,7 +897,7 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
                                                     const MACROBLOCKD *xd,
                                                     const MB_MODE_INFO *mbmi) {
   if (cm->features.opfl_refine_type == REFINE_ALL &&
-      opfl_allowed_for_cur_block(cm,
+      opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -1489,7 +1489,7 @@ static INLINE void set_default_interp_filters(
     return;
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-  mbmi->interp_fltr = (opfl_allowed_for_cur_block(cm,
+  mbmi->interp_fltr = (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -1510,7 +1510,7 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
   if (mbmi->mode == WARPMV) return 0;
   // No interpolation filter search when optical flow MV refinement is used.
-  if (opfl_allowed_for_cur_block(cm,
+  if (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN

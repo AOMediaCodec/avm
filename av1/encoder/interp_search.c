@@ -194,7 +194,7 @@ static INLINE int64_t interpolation_filter_rd(
   const InterpFilter last_best = mbmi->interp_fltr;
   mbmi->interp_fltr = filter_idx;
   const int tmp_rs =
-      (opfl_allowed_for_cur_block(cm,
+      (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -446,7 +446,7 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[0] = av1_get_pred_context_switchable_interp(xd, 0);
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
   *switchable_rate =
-      (opfl_allowed_for_cur_block(cm,
+      (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -489,19 +489,19 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_REFINEMV
 #if CONFIG_COMPOUND_4XN
     assert(mbmi->interp_fltr ==
-           ((opfl_allowed_for_cur_block(cm, xd, mbmi) || mbmi->refinemv_flag ||
+           ((opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
              is_tip_ref_frame(mbmi->ref_frame[0]))
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #else
     assert(mbmi->interp_fltr ==
-           ((opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag ||
+           ((opfl_allowed_cur_pred_mode(cm, mbmi) || mbmi->refinemv_flag ||
              is_tip_ref_frame(mbmi->ref_frame[0]))
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #endif  // CONFIG_COMPOUND_4XN
 #else
-    assert(mbmi->interp_fltr == (opfl_allowed_for_cur_block(cm,
+    assert(mbmi->interp_fltr == (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                                             xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -515,7 +515,7 @@ int64_t av1_interpolation_filter_search(
   if (args->modelled_rd != NULL) {
 #if CONFIG_REFINEMV
     int use_default_filter = mbmi->refinemv_flag ||
-                             opfl_allowed_for_cur_block(cm,
+                             opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                                         xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -523,7 +523,7 @@ int64_t av1_interpolation_filter_search(
                              is_tip_ref_frame(mbmi->ref_frame[0]);
     if (has_second_ref(mbmi) && !use_default_filter) {
 #else
-    if (has_second_ref(mbmi) && !opfl_allowed_for_cur_block(cm,
+    if (has_second_ref(mbmi) && !opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                                             xd,
 #endif  // CONFIG_COMPOUND_4XN

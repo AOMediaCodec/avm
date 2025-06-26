@@ -4819,12 +4819,12 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 #define OPFL_DIST_RATIO_THR 0
 
 // Check whether optical flow refinement is applicable based on the sequence
-// level flag and the signaled reference frames
-static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
+// level flag and the signaled reference frames & block size
+static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
-                                            const MACROBLOCKD *xd,
+                                              const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                            const MB_MODE_INFO *mbmi) {
+                                              const MB_MODE_INFO *mbmi) {
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
@@ -4868,12 +4868,12 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
           OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
 }
 
-// Check whether optical flow refinement is applicable based on the block and
-// mode info (mode, cwp_idx, compound average type). In REFINE_SWITCHABLE,
-// optical flow is always used in *MV_OPTFLOW modes, but in REFINE_ALL
-// (--enable-opfl-refine=2) the on/off switch for optical flow is based on these
-// block level flags.
-static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
+// Check whether optical flow refinement is applicable based on the prediction
+// mode info (mode, cwp_idx, motion mode, and compound average type). For the
+// REFINE_SWITCHABLE case, optical flow is always used in *MV_OPTFLOW modes,
+// but for the REFINE_ALL (--enable-opfl-refine=2) case, the on/off switch for
+// optical flow is completely determined by these block level mode info.
+static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
                                              const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
@@ -4882,11 +4882,11 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   if (mbmi->skip_mode) return 0;
 #endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 
-  if (!opfl_allowed_for_cur_refs(cm,
+  if (!opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                 xd,
+                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                 mbmi))
+                                   mbmi))
     return 0;
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE)
@@ -4927,14 +4927,14 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     if (tip_weight != TIP_EQUAL_WTD) return 0;
 #endif  // CONFIG_TIP_ENHANCEMENT
-    return (opfl_allowed_for_cur_refs(cm,
+    return (opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                      xd,
+                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                      mi) &&
+                                        mi) &&
             plane == 0);
   } else {
-    return (opfl_allowed_for_cur_block(cm,
+    return (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                        xd,
 #endif  // CONFIG_COMPOUND_4XN

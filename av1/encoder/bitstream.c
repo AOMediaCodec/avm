@@ -338,11 +338,11 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      opfl_allowed_for_cur_refs(cm,
+      opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                xd,
+                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                mbmi)) {
+                                  mbmi)) {
     const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
 #if CONFIG_AFFINE_REFINEMENT
     const int allow_translational = is_translational_refinement_allowed(
@@ -1463,7 +1463,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_DEBUG
     // Sharp filter is always used whenever optical flow refinement is applied.
     int mb_interp_filter =
-        (opfl_allowed_for_cur_block(cm,
+        (opfl_allowed_cur_pred_mode(cm,
 
 #if CONFIG_COMPOUND_4XN
                                     xd,
@@ -1485,7 +1485,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
     return;
   }
   if (cm->features.interp_filter == SWITCHABLE) {
-    if (opfl_allowed_for_cur_block(cm,
+    if (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
 #endif  // CONFIG_COMPOUND_4XN

@@ -1038,11 +1038,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   dst0 = cm->dst0_16_tip;
   dst1 = cm->dst1_16_tip;
 
-  int do_opfl = (opfl_allowed_for_cur_refs(cm,
+  int do_opfl = (opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                           xd,
+                                             xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                           mbmi) &&
+                                             mbmi) &&
                  plane == 0);
 
   const unsigned int sad_thres =

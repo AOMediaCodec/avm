@@ -1596,7 +1596,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 #if CONFIG_IMPROVE_REFINED_MV
     if (enable_refined_mvs_in_tmvp(cm, xd, mbmi)) {
 #else
-    if (opfl_allowed_for_cur_block(cm,
+    if (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
 #endif  // CONFIG_COMPOUND_4XN

@@ -1152,11 +1152,11 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      opfl_allowed_for_cur_refs(cm,
+      opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                xd,
+                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                mbmi)) {
+                                  mbmi)) {
 #if CONFIG_AFFINE_REFINEMENT
     const int allow_translational = is_translational_refinement_allowed(
         cm,
@@ -4102,11 +4102,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           NEAR_NEARMV;
 #else
         (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                 opfl_allowed_for_cur_refs(cm,
+                 opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                           xd,
+                                             xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                           mbmi) &&
+                                             mbmi) &&
                  !cm->features.enable_cwp
              ? NEAR_NEARMV_OPTFLOW
              : NEAR_NEARMV);
@@ -4353,11 +4353,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
            (!is_compound
                 ? NEARMV
                 : (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                           opfl_allowed_for_cur_refs(cm,
+                           opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                                     xd,
+                                                       xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                                     mbmi) &&
+                                                       mbmi) &&
                            !cm->features.enable_cwp
                        ? NEAR_NEARMV_OPTFLOW
                        : NEAR_NEARMV)));
@@ -4367,7 +4367,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     assert(mbmi->mode == NEAR_NEARMV);
 #else
     assert(mbmi->mode == ((cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                                   opfl_allowed_for_cur_refs(cm, mbmi)
+                                   opfl_allowed_cur_refs_bsize(cm, mbmi)
                                ? NEAR_NEARMV_OPTFLOW
                                : NEAR_NEARMV)));
 #endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS

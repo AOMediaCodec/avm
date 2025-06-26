@@ -2159,11 +2159,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
     if (has_second_ref(mbmi)) {
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-          opfl_allowed_for_cur_refs(cm,
+          opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN
-                                    xd,
+                                      xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                    mbmi)) {
+                                      mbmi)) {
 #if CONFIG_AFFINE_REFINEMENT
         const int allow_translational = is_translational_refinement_allowed(
             cm,
@@ -2557,7 +2557,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_IMPROVE_REFINED_MV
     if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
 #else
-    if (opfl_allowed_for_cur_block(cm,
+    if (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
 #endif  // CONFIG_COMPOUND_4XN

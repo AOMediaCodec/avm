@@ -755,7 +755,7 @@ static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
 #endif  // CONFIG_COMPOUND_4XN
                                              const MB_MODE_INFO *mbmi) {
   return (
-      opfl_allowed_for_cur_block(cm,
+      opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN

@@ -578,7 +578,7 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const MB_MODE_INFO *const mbmi,
                                        const int scale, TX_SIZE *ts,
                                        int32_t *opfl_edge) {
-  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
+  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
