@@ -878,7 +878,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                            : oxcf->superres_cfg.superres_mode;  // default
 #endif  // CONFIG_ENABLE_SR
 
-  if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 
@@ -1062,6 +1061,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
             : 0;
     av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf);
+    if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
   // restore the value of lag_in_frame for LAP stage.
