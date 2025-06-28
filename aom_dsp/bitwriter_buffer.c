@@ -91,7 +91,12 @@ void aom_wb_write_uvlc(struct aom_write_bit_buffer *wb, uint32_t v) {
 
 void aom_wb_write_svlc(struct aom_write_bit_buffer *wb, int32_t v) {
   if (v == INT32_MIN) {
-    aom_wb_write_uvlc(wb, UINT32_MAX);
+    // INT32_MIN is the only negative int32_t value that cannot be negated.
+    // Handle it as a special case. It is encoded as thirty-two 0 bits, one 1
+    // bit, thirty-one 0 bits, and one 1 bit.
+    aom_wb_write_unsigned_literal(wb, 0, 32);
+    aom_wb_write_bit(wb, 1);
+    aom_wb_write_unsigned_literal(wb, 1, 32);
   } else if (v <= 0) {
     const uint32_t abs_val = (uint32_t)(-v);
     aom_wb_write_uvlc(wb, 2 * abs_val);

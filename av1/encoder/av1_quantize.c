@@ -612,6 +612,9 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
 }
 
 #if CONFIG_QM_EXTENSION
+// A version of set_qm_params() used when the
+// AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST codec control is set to a nonzero
+// value. Only used in quantization matrix unit test.
 static void set_qm_test_params(AV1_COMMON *const cm,
                                CommonQuantParams *const quant_params,
                                int min_qmlevel, int max_qmlevel,
@@ -671,6 +674,11 @@ static void set_qm_test_params(AV1_COMMON *const cm,
   }
 }
 
+// Sets qm_y[i], qm_u[i], and qm_v[i] in quant_params.
+// Note: This function is not fully implemented if quant_params->pic_qm_num > 1.
+// In that case, this function simply sets qm_y[i] to the same value for all i.
+// Similarly for qm_u[i], and qm_v[i].
+// TODO(wtc): No need to set qm_u[i], and qm_v[i] if monochrome.
 static void set_qm_params(AV1_COMMON *const cm,
                           CommonQuantParams *const quant_params,
                           int min_qmlevel, int max_qmlevel) {

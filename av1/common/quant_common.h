@@ -161,10 +161,18 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
 }
 
 #if CONFIG_QM_EXTENSION
+// Allocates all the width x height quantization matrices as a three-dimensional
+// array. The first dimension is the number of levels (NUM_CUSTOM_QMS = 15). The
+// second dimension is the number of planes (3). The third dimension is
+// width * height and represents a flattened quantization matrix. Stores a
+// pointer to the allocated three-dimensional array in *mat.
 void av1_alloc_qm(qm_val_t ****mat, int width, int height);
 
+// Frees the three-dimensional array *mat. The three-dimensinal array must have
+// been allocated by av1_alloc_qm(). Does not set *mat to NULL after freeing it.
 void av1_free_qm(qm_val_t ****mat);
 
+// Initializes the fundamental quantization matrices to the default ones.
 void av1_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,
                       qm_val_t ***qm_4x8, int num_planes);
 #endif  // CONFIG_QM_EXTENSION
@@ -178,6 +186,8 @@ void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
 #endif  // CONFIG_QM_EXTENSION
 
 #if CONFIG_QM_EXTENSION
+// Replaces a level of quantization matrices based on the fundamental matrices
+// for that level. Assumes av1_qm_init() has been called.
 void av1_qm_replace_level(struct CommonQuantParams *quant_params, int level,
                           int num_planes, qm_val_t ****fund_matrices);
 #endif  // CONFIG_QM_EXTENSION

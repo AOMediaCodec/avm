@@ -511,8 +511,6 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes) {
 }
 
 #if CONFIG_QM_EXTENSION
-// Replace a level of quantization matrices based on the fundamental matrices
-// for that level. Assumes av1_qm_init() has been called.
 void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
                           int num_planes, qm_val_t ****fund_matrices) {
   const int q = level;

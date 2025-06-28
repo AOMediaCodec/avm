@@ -6979,6 +6979,8 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 }
 
 #if CONFIG_QM_EXTENSION
+// Decodes the user-defined quantization matrices for the given level and stores
+// them in seq_params.
 static AOM_INLINE void decode_qm_data(SequenceHeader *const seq_params,
                                       struct aom_read_bit_buffer *rb, int level,
                                       int num_planes) {
@@ -7034,6 +7036,7 @@ static AOM_INLINE void decode_qm_data(SequenceHeader *const seq_params,
   }
 }
 
+// Decodes all user-defined quantization matrices and stores them in seq_params.
 static AOM_INLINE void decode_user_defined_qm(SequenceHeader *const seq_params,
                                               struct aom_read_bit_buffer *rb,
                                               int num_planes) {

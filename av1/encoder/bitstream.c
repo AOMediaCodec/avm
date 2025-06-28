@@ -6005,6 +6005,8 @@ static bool qm_candidate_is_transpose_of_current_matrix(
   return true;
 }
 
+// Encodes the user-defined quantization matrices for the given level in
+// seq_params.
 static AOM_INLINE void code_qm_data(const SequenceHeader *const seq_params,
                                     struct aom_write_bit_buffer *wb, int level,
                                     int num_planes) {
@@ -6056,6 +6058,7 @@ static AOM_INLINE void code_qm_data(const SequenceHeader *const seq_params,
   }
 }
 
+// Encodes all user-defined quantization matrices in seq_params.
 static AOM_INLINE void code_user_defined_qm(
     struct aom_write_bit_buffer *wb, const SequenceHeader *const seq_params,
     int num_planes) {
