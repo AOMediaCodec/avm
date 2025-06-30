@@ -54,7 +54,7 @@
 
 // Should be positive numbers.
 static const int32_t feature_normalizers_luma[NUM_PC_WIENER_FEATURES] = {
-  SCALE_LUMA(13), SCALE_LUMA(5384), SCALE_LUMA(4713), SCALE_LUMA(4426)
+  SCALE_LUMA(0), SCALE_LUMA(5384), SCALE_LUMA(4713), SCALE_LUMA(4426)
 };
 static const int32_t tskip_normalizer =
     (int)(256 / NUM_PC_WIENER_TSKIP_TAPS_LUMA);
