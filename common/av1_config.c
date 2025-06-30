@@ -98,6 +98,11 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
               num_ticks_per_picture_minus_1);
       return result;
     }
+    if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
+      fprintf(stderr,
+              "av1c: num_ticks_per_picture_minus_1 cannot be (1 << 32) − 1.\n");
+      return -1;
+    }
   }
 
   AV1C_POP_ERROR_HANDLER_DATA();

@@ -42,10 +42,12 @@ uint32_t aom_rb_read_unsigned_literal(struct aom_read_bit_buffer *rb, int bits);
 
 int aom_rb_read_inv_signed_literal(struct aom_read_bit_buffer *rb, int bits);
 
-// Reads a variable length unsigned number.
+// Reads a variable length unsigned integer. Valid range is 0..UINT32_MAX - 1.
+// Returns UINT32_MAX on error.
 uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
 
-// Reads a variable length signed number.
+// Reads a variable length signed integer. Valid range is
+// INT32_MIN + 1..INT32_MAX. Returns INT32_MIN on error.
 int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb);
 
 int16_t aom_rb_read_signed_primitive_refsubexpfin(

@@ -7034,6 +7034,10 @@ static AOM_INLINE void decode_qm_data(SequenceHeader *const seq_params,
       int16_t prev = 32;
       for (int i = 0; i < tx_size_2d[tsize]; i++) {
         const int32_t delta = aom_rb_read_svlc(rb);
+        if (delta == INT32_MIN) {
+          // TODO(wtc): Report error!
+          rb->error_handler(rb->error_handler_data);
+        }
         prev = (prev + delta + NUM_QM_VALS) % NUM_QM_VALS;
         mat[s->scan[i]] = prev;
       }

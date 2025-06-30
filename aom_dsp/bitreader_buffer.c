@@ -63,7 +63,7 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
   int leading_zeros = 0;
   while (leading_zeros < 32 && !aom_rb_read_bit(rb)) ++leading_zeros;
   // Maximum 32 bits.
-  if (leading_zeros == 32) return UINT32_MAX;
+  if (leading_zeros == 32) return UINT32_MAX;  // Error.
   const uint32_t base = (1u << leading_zeros) - 1;
   const uint32_t value = aom_rb_read_literal(rb, leading_zeros);
   return base + value;
@@ -71,10 +71,7 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
 
 int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb) {
   const uint32_t value = aom_rb_read_uvlc(rb);
-  // UINT32_MAX = 2^32 - 1 is converted to 2^31, which cannot be represented as
-  // int32_t.
-  // TODO(wtc): Replace with proper error handling.
-  assert(value != UINT32_MAX);
+  if (value == UINT32_MAX) return INT32_MIN;  // Error.
   const int32_t ceil_half = (int32_t)((value + 1) / 2);
   return (value % 2) ? ceil_half : -ceil_half;
 }
