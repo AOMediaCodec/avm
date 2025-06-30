@@ -180,6 +180,9 @@ static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
 }
 
 static void update_rc_counts(AV1_COMP *cpi) {
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("*** update_counters \n");
+#endif
   update_keyframe_counters(cpi);
   update_frames_till_gf_update(cpi);
   update_gf_group_index(cpi);
@@ -275,8 +278,14 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   GF_GROUP gf_group = cpi->gf_group;
   // The current display index stored has not yet been updated. We must add
   // The order offset to get the correct value here.
+#if CONFIG_MULTILAYER_CORE
+  const int cur_frame_disp =
+      (cpi->common.current_frame.frame_number + order_offset) /
+      cpi->common.number_layers;
+#else
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+#endif
 
   const SubGOPStepCfg *step_gop_cfg =
       get_subgop_step(&gf_group, gf_group.index);
@@ -404,7 +413,11 @@ static void update_fb_of_context_type(
   const int altref_frame = get_furthest_future_ref_index(cm);
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
       cpi->ext_flags.use_primary_ref_none) {
+#if CONFIG_EXTRA_DPB
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
       fb_of_context_type[i] = -1;
     }
     fb_of_context_type[current_frame_ref_type] =
@@ -420,7 +433,11 @@ static void update_fb_of_context_type(
     } else {
       // If more than one frame is refreshed, it doesn't matter which one we
       // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
+#if CONFIG_EXTRA_DPB
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+      for (int i = 0; i < REF_FRAMES; i++) {
+#endif
         if (cm->current_frame.refresh_frame_flags & (1 << i)) {
           fb_of_context_type[current_frame_ref_type] = i;
           break;
@@ -664,9 +681,16 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 #endif  // DUMP_REF_FRAME_IMAGES == 1
 
 int av1_get_refresh_ref_frame_map(AV1_COMMON *cm, int refresh_frame_flags) {
+#if !CONFIG_EXTRA_DPB
+  (void)cm;
+#endif
   int ref_map_index = INVALID_IDX;
+#if CONFIG_EXTRA_DPB
   for (ref_map_index = 0; ref_map_index < cm->seq_params.ref_frames;
        ++ref_map_index) {
+#else
+  for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index) {
+#endif
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
   }
 
@@ -679,17 +703,99 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   if (gf_index == 1) return !gf_group->has_overlay_for_key_frame;
   return 1;
 }
-static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
-                                  const int ref_frames) {
+
+static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES]
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                  ,
+                                  int cur_temporal_layer_id
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                  ,
+                                  int current_view_id, int num_views
+#endif
+#if CONFIG_EXTRA_DPB
+                                  ,
+                                  const int ref_frames
+#endif
+) {
+#if !CONFIG_EXTRA_DPB
+  const int ref_frames = REF_FRAMES;
+#endif
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY || \
+    CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  int start_idx = 0;
+  int end_idx = ref_frames - 1;
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+  // Allocate ref map slot(s) to each temporal layer
+  // to avoid the case that a higher layer frame
+  // flushes out a lower layer frame from a ref map slot
+
+  if (cur_temporal_layer_id == 1) {
+    start_idx = 0;
+    end_idx = 1;
+  } else if (cur_temporal_layer_id == 2) {
+    start_idx = 2;
+    end_idx = 2;
+  } else if (cur_temporal_layer_id == 3) {
+    start_idx = 3;
+    end_idx = 4;
+  } else if (cur_temporal_layer_id == 4) {
+    start_idx = 5;
+    end_idx = 6;
+  } else if (cur_temporal_layer_id == 5) {
+    start_idx = 7;
+    end_idx = 7;
+  }
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  int idx_offset = ref_frames / num_views;
+  if (current_view_id == 0) {
+    start_idx = 0;
+    end_idx = idx_offset;
+  } else if (current_view_id > 0) {
+    start_idx = idx_offset + 1;
+    end_idx = ref_frames - 1;
+  } else  // current_view_id == -1
+  {
+    start_idx = 0;
+    end_idx = ref_frames - 1;
+  }
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY || \
+    CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  for (int idx = start_idx; idx <= end_idx; idx++)
+#else
+#if CONFIG_EXTRA_DPB
   for (int idx = 0; idx < ref_frames; ++idx)
+#else
+  for (int idx = 0; idx < REF_FRAMES; ++idx)
+#endif
+#endif
     if (ref_map_pairs[idx].ref_frame_for_inference == -1) return idx;
   return INVALID_IDX;
 }
 
 static int get_refresh_idx(int update_arf, int refresh_level,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                           int cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+                           int current_view_id, int num_views,
+#endif
                            int cur_frame_disp,
-                           RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
-                           const int ref_frames) {
+                           RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]
+#if CONFIG_EXTRA_DPB
+                           ,
+                           const int ref_frames
+#endif
+) {
+#if !CONFIG_EXTRA_DPB
+  const int ref_frames = REF_FRAMES;
+#endif
   int arf_count = 0;
   int oldest_arf_order = INT32_MAX;
   int oldest_arf_idx = -1;
@@ -699,7 +805,61 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 
   int oldest_ref_level_order = INT32_MAX;
   int oldest_ref_level_idx = -1;
+
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY || \
+    CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  int start_idx = 0;
+  int end_idx = ref_frames - 1;
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+  // Allocate ref map slot(s) to each temporal layer
+  // to avoid the case that a higher layer frame
+  // flushes out a lower layer frame from a ref map slot
+
+  if (cur_temporal_layer_id == 1) {
+    start_idx = 0;
+    end_idx = 1;
+  } else if (cur_temporal_layer_id == 2) {
+    start_idx = 2;
+    end_idx = 2;
+  } else if (cur_temporal_layer_id == 3) {
+    start_idx = 3;
+    end_idx = 4;
+  } else if (cur_temporal_layer_id == 4) {
+    start_idx = 5;
+    end_idx = 6;
+  } else if (cur_temporal_layer_id == 5) {
+    start_idx = 7;
+    end_idx = 7;
+  }
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  int idx_offset = ref_frames / num_views;
+  if (current_view_id == 0) {
+    start_idx = 0;
+    end_idx = idx_offset;
+  } else if (current_view_id > 0) {
+    start_idx = idx_offset + 1;
+    end_idx = ref_frames - 1;
+  } else  // current_view_id == -1
+  {
+    start_idx = 0;
+    end_idx = ref_frames - 1;
+  }
+#endif
+
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY || \
+    CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  for (int map_idx = start_idx; map_idx <= end_idx; map_idx++) {
+#else
+#if CONFIG_EXTRA_DPB
   for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
+#else
+  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+#endif
+#endif
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
     const int frame_order = ref_pair.disp_order;
@@ -739,14 +899,48 @@ static int get_refresh_idx(int update_arf, int refresh_level,
   if (update_arf && arf_count > 2) return oldest_arf_idx;
   if (oldest_idx >= 0) return oldest_idx;
   if (oldest_arf_idx >= 0) return oldest_arf_idx;
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+  // Allocate ref map slot(s) to each temporal layer
+  // to avoid the case that a higher layer frame
+  // flushes out a lower layer frame from a ref map slot
+  if (cur_temporal_layer_id == 1) {
+    return 1;
+  } else if (cur_temporal_layer_id == 2) {
+    return 2;
+  } else if (cur_temporal_layer_id == 3) {
+    return 4;
+  } else if (cur_temporal_layer_id == 4) {
+    return 5;
+  } else if (cur_temporal_layer_id == 5) {
+    return 7;
+  }
+#endif
+#if CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB
+  int idx_refresh = 1;
+  if (current_view_id == 0) {
+    return idx_refresh;
+  } else if (current_view_id > 0) {
+    idx_refresh += idx_offset;
+    return idx_refresh;
+  } else  // current_view_id == -1
+  {
+    // do nothing
+  }
+#endif
   assert(0 && "No valid refresh index found");
   return -1;
 }
 
 static int get_refresh_frame_flags_subgop_cfg(
-    const AV1_COMP *const cpi, int gf_index, int cur_disp_order,
-    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES], int refresh_mask,
-    int free_fb_index) {
+    const AV1_COMP *const cpi, int gf_index,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+    int cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+    int current_view_id, int num_views,
+#endif
+    int cur_disp_order, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+    int refresh_mask, int free_fb_index) {
   const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&cpi->gf_group, gf_index);
   assert(step_gop_cfg != NULL);
   const int pyr_level = step_gop_cfg->pyr_level;
@@ -765,20 +959,53 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx = get_refresh_idx(update_arf, refresh_level,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                          cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                          current_view_id, num_views,
+#endif
+                                          cur_disp_order, ref_frame_map_pairs
+#if CONFIG_EXTRA_DPB
+                                          ,
+                                          cpi->common.seq_params.ref_frames
+#endif
+  );
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  const CurrentFrame *const cf = &cpi->common.current_frame;  // cm->cur_frame;
+  printf("In (subgop)  - get_refresh_idx: (View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+         cf->view_id, cf->pyramid_level, cf->order_hint,
+         cf->display_order_hint);
+  printf("Out (subgop) - get_refresh_idx: %d \n", refresh_idx);
+#endif
   return 1 << refresh_idx;
 }
 
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
-    FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
-    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+    FRAME_UPDATE_TYPE frame_update_type, int gf_index,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+    int cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+    int current_view_id, int num_views,
+#endif
+    int cur_disp_order, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  const AV1_COMMON *const cm = &cpi->common;
+  const CurrentFrame *const cf = &cm->current_frame;
+#endif
+
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME) {
+#if CONFIG_EXTRA_DPB
+    return (1 << cpi->common.seq_params.ref_frames) - 1;
+#else
     return REFRESH_FRAME_ALL;
+#endif
   }
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
@@ -811,18 +1038,55 @@ int av1_get_refresh_frame_flags(
       }
     }
   } else {
-    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                           cpi->common.seq_params.ref_frames);
+    // Search for the open slot to store the current frame.
+    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                           ,
+                                           cur_temporal_layer_id
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                           ,
+                                           current_view_id, num_views
+#endif
+#if CONFIG_EXTRA_DPB
+                                           ,
+                                           cpi->common.seq_params.ref_frames
+#endif
+    );
   }
 #else
   // Search for the open slot to store the current frame.
-  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                             cpi->common.seq_params.ref_frames);
+  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                             ,
+                                             cur_temporal_layer_id
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                             ,
+                                             current_view_id, num_views
+#endif
+#if CONFIG_EXTRA_DPB
+                                             ,
+                                             cpi->common.seq_params.ref_frames
+#endif
+  );
 #endif  // CONFIG_BRU
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf(
+      "In (getrff:1) - get_refresh_idx: (View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+      cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+  printf("Out (getrff:1) - free_fb_index: %d \n", free_fb_index);
+#endif
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
-        cpi, gf_index, cur_disp_order, ref_frame_map_pairs, refresh_mask,
-        free_fb_index);
+        cpi, gf_index,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+        cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+        current_view_id, num_views,
+#endif
+        cur_disp_order, ref_frame_map_pairs, refresh_mask, free_fb_index);
     return mask;
   }
 
@@ -839,9 +1103,25 @@ int av1_get_refresh_frame_flags(
   }
 
   const int update_arf = frame_update_type == ARF_UPDATE;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs,
-                      cpi->common.seq_params.ref_frames);
+  const int refresh_idx = get_refresh_idx(update_arf, -1,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                          cur_temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                          current_view_id, num_views,
+#endif
+                                          cur_disp_order, ref_frame_map_pairs
+#if CONFIG_EXTRA_DPB
+                                          ,
+                                          cpi->common.seq_params.ref_frames
+#endif
+  );
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf(
+      "In (getrff:2) - get_refresh_idx: (View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+      cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+  printf("Out (getrff:2) get_refresh_idx: %d \n", refresh_idx);
+#endif
   return 1 << refresh_idx;
 }
 
@@ -1203,7 +1483,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         frame_update_type != KFFLT_OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {
       frame_params.frame_type = KEY_FRAME;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+      printf("--- set1 frame type to KEY_FRAME: ");
+      debug_print_multiview_curr_frame(cm);
+#endif
     } else {
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+      printf("--- set1 frame type to INTER_FRAME: ");
+      debug_print_multiview_curr_frame(cm);
+#endif
       frame_params.frame_type = INTER_FRAME;
     }
   } else if (is_stat_consumption_stage(cpi)) {
@@ -1239,8 +1527,34 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   av1_configure_buffer_updates(cpi, frame_update_type);
 
   const int order_offset = gf_group->arf_src_offset[gf_group->index];
+
+#if CONFIG_MULTILAYER_CORE
+  int cur_frame_disp = cpi->common.current_frame.frame_number + order_offset;
+#else
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+#endif
+
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("encode_startegy: cur_frame_disp=%2d, order_offset[%d]=%2d\n",
+         cur_frame_disp, gf_group->index, order_offset);
+#endif
+
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  const CurrentFrame *const cf = &cm->current_frame;
+  printf(
+      "Encode startegy before init: "
+      "(View,Level,OH,DOH,order_offset):(%d,%d,%d,%d,%d) \n",
+      cf->view_id, cf->pyramid_level, cf->order_hint, cf->display_order_hint,
+      order_offset);
+  printf("Encoder side ref-buffer before init =");
+  debug_print_buffer_state(cm);
+#endif
+
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("--- encode_strategy: ");
+  debug_print_multiview_curr_frame(cm);
+#endif
 
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   // Here, if temporal_layer_id is set to a non-zero value (pry_level),
@@ -1248,8 +1562,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // and affect reference list construction in both encoder and decoder.
   // Otherwise (if temporal_layer_id is set to 0), temporal_layer_id is
   // not signaled and does not change the reference frame list construction.
+#if CONFIG_MULTILAYER_CORE
+  cm->current_frame.view_id = cur_frame_disp % cm->number_layers;
+  cm->current_frame.order_hint = cur_frame_disp / cm->number_layers;
+  cm->current_frame.display_order_hint = cur_frame_disp / cm->number_layers;
+  cur_frame_disp = cur_frame_disp / cm->number_layers;
+#else
   cm->current_frame.order_hint = cur_frame_disp;
   cm->current_frame.display_order_hint = cur_frame_disp;
+#endif
   cm->current_frame.pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
 #if CONFIG_KEY_OVERLAY
@@ -1383,6 +1704,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+        cm->seq_params.explicit_ref_frame_map
+            ? 0
+            : cm->current_frame.temporal_layer_id,
+#endif
+#if CONFIG_MULTILAYER_CORE
+        cm->current_frame.view_id, cm->number_layers,
+#endif
 #if CONFIG_PRIMARY_REF_FRAME_OPT
         cur_frame_disp, cm->ref_frame_map_pairs);
 #else
@@ -1392,13 +1721,32 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
+#if CONFIG_EXTRA_DPB
       for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+#else
+      for (int frame = 0; frame < REF_FRAMES; frame++) {
+#endif
         const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
         const int frame_order = (int)buf->display_order_hint;
         if (frame_order == cur_frame_disp)
           frame_params.existing_fb_idx_to_show = frame;
       }
+#if CONFIG_MULTILAYER_CORE
+      if (frame_params.existing_fb_idx_to_show < 0) {
+        frame_params.show_existing_frame = 0;
+      }
+#endif
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+      if (frame_params.existing_fb_idx_to_show < 0) {
+        printf(
+            "Warning (show_existing_frame): existing_fb_idx_to_show=%d -- "
+            "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+            frame_params.existing_fb_idx_to_show, cf->view_id,
+            cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+        frame_params.show_existing_frame = 0;
+      }
+#endif
     }
   }
 

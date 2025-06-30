@@ -378,8 +378,14 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   }
 
   if (aom_get_num_layers_from_operating_point_idc(
+#if CONFIG_F159_OBU_HEADER
+          operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
+      AOM_CODEC_OK)
+#else
           operating_point_idc0, &si->number_spatial_layers,
-          &si->number_temporal_layers) != AOM_CODEC_OK) {
+          &si->number_temporal_layers) != AOM_CODEC_OK)
+#endif
+  {
     return AOM_CODEC_ERROR;
   }
 
@@ -399,6 +405,9 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   si->w = 0;
   si->h = 0;
   si->is_kf = 0;  // is_kf indicates whether the current packet contains a RAP
+#if CONFIG_MULTILAYER_CORE
+  si->number_views = 0;
+#endif
 
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
@@ -452,6 +461,9 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
 
       status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
+#if CONFIG_MULTILAYER_CORE && CONFIG_F159_OBU_HEADER
+      si->number_views = si->number_mlayers;
+#endif
       if (status != AOM_CODEC_OK) return status;
 
       got_sequence_header = 1;
@@ -746,8 +758,11 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   }
 
   data2->idx = -1;
-
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames; ++i)
+#else
+  for (int i = 0; i < REF_FRAMES; ++i)
+#endif
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
   data2->show_existing = cm->show_existing_frame;
@@ -758,21 +773,36 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // This function writes (a proxy) show_existing_frame OBU header.
 static void av1_write_show_existing_frame_obu(uint8_t *const dst,
-                                              int existing_fb_idx_to_show,
-                                              int ref_frames_log2) {
+                                              int existing_fb_idx_to_show
+#if CONFIG_EXTRA_DPB
+                                              ,
+                                              int ref_frames_log2
+#endif
+) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   int obu_type = OBU_FRAME_HEADER;
 
+#if CONFIG_MULTILAYER_CORE && CONFIG_F159_OBU_HEADER
+  aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
+  aom_wb_write_literal(&wb, 0, 1);              // reserved bit
+  aom_wb_write_literal(&wb, 0, 3);              // obu_temporal
+  aom_wb_write_literal(&wb, 0, 8);              // obu_layer
+#else
   aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
   aom_wb_write_literal(&wb, obu_type, 4);  // obu type
   aom_wb_write_literal(&wb, 0, 1);         // extention flag
   aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
   aom_wb_write_literal(&wb, 0, 1);         // reserved
-  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
-  aom_wb_write_bit(&wb, 1);                // show_existing_frame
+#endif
+  aom_wb_write_literal(&wb, 0x01, 8);  // obu_size 1
+  aom_wb_write_bit(&wb, 1);            // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
+#if CONFIG_EXTRA_DPB
                        ref_frames_log2);  // signal frame to be output
-  aom_wb_write_bit(&wb, 1);               // trailing one
+#else
+                       3);                 // signal frame to be output
+#endif
+  aom_wb_write_bit(&wb, 1);                           // trailing one
   aom_wb_write_literal(&wb, 0, 6 - ref_frames_log2);  // trailing zeros
 }
 
@@ -784,14 +814,30 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   AVxWorker *const worker = ctx->frame_worker;
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
   struct AV1Decoder *pbi = frame_worker_data->pbi;
+#if CONFIG_MULTILAYER_CORE
+  AV1_COMMON *const cm = &pbi->common;
+  const int num_layers = (int)cm->number_layers;
+#endif
+
   int display_order = -1;
   int target_idx = -1;
+#if CONFIG_EXTRA_DPB
   for (int idx = 0; idx < frame_worker_data->pbi->common.seq_params.ref_frames;
        idx++) {
+#else
+  for (int idx = 0; idx < REF_FRAMES; idx++) {
+#endif
     if (is_frame_eligible_for_output(pbi->common.ref_frame_map[idx]) &&
+#if CONFIG_MULTILAYER_CORE
+        ((int)cm->ref_frame_map[idx]->display_order_hint * num_layers +
+         cm->ref_frame_map[idx]->view_id) > display_order) {
+      display_order = cm->ref_frame_map[idx]->display_order_hint * num_layers +
+                      cm->ref_frame_map[idx]->view_id;
+#else
         ((int)pbi->common.ref_frame_map[idx]->display_order_hint >
          display_order)) {
       display_order = pbi->common.ref_frame_map[idx]->display_order_hint;
+#endif
       target_idx = idx;
     }
   }
@@ -806,9 +852,12 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
     uint8_t generated_data[3];
     const uint8_t *data_start = (const uint8_t *)generated_data;
     av1_write_show_existing_frame_obu(
-        (uint8_t *const)data_start, target_idx,
-        frame_worker_data->pbi->common.seq_params.ref_frames_log2);
-
+        (uint8_t *const)data_start, target_idx
+#if CONFIG_EXTRA_DPB
+        ,
+        frame_worker_data->pbi->common.seq_params.ref_frames_log2
+#endif
+    );
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
     ctx->is_annexb = 0;
@@ -845,15 +894,27 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // show_existing_frame
     if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
         pbi->common.seq_params.enable_frame_output_order) {
+#if !CONFIG_REF_COUNT_FIX
       if (!pbi->common.show_existing_frame ||
           pbi->common.current_frame.frame_type == KEY_FRAME)
         decrease_ref_count(pbi->output_frames[0], pool);
+#endif  // CONFIG_REF_COUNT_FIX
     } else {
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
     }
     pbi->num_output_frames = 0;
+#if CONFIG_MULTILAYER_CORE
+    for (size_t j = 0; j < REF_FRAMES; j++) {
+      pbi->output_view_ids[j] = -1;
+    }
+#endif
+#if CONFIG_MULTILAYER_CORE
+    for (size_t j = 0; j < REF_FRAMES; j++) {
+      pbi->display_order_hint_ids[j] = -1;
+    }
+#endif
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {
       pool->release_fb_cb(pool->cb_priv, &ctx->grain_image_frame_buffers[j]);
@@ -903,6 +964,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
+#if !CONFIG_F159_OBUSIZE_ANNEXB
   if (ctx->is_annexb) {
     // read the size of this temporal unit
     size_t length_of_size;
@@ -916,9 +978,13 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       return AOM_CODEC_CORRUPT_FRAME;
     data_end = data_start + temporal_unit_size;
   }
+#endif
 
   // Decode in serial mode.
   while (data_start < data_end) {
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    uint64_t frame_size = (uint64_t)(data_end - data_start);
+#else
     uint64_t frame_size;
     if (ctx->is_annexb) {
       // read the size of this frame unit
@@ -933,16 +999,19 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     } else {
       frame_size = (uint64_t)(data_end - data_start);
     }
+#endif
 
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
 
+#if !CONFIG_F159_OBU_HEADER
     // Allow extra zero bytes after the frame end
     while (data_start < data_end) {
       const uint8_t marker = data_start[0];
       if (marker) break;
       ++data_start;
     }
+#endif  // CONFIG_F159_OBU_HEADER
   }
 
   return res;
@@ -1058,6 +1127,11 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
       if (av1_get_raw_frame(frame_worker_data->pbi, *index, &sd,
                             &grain_params) == 0) {
         RefCntBuffer *const output_frame_buf = pbi->output_frames[*index];
+#if CONFIG_MULTILAYER_CORE
+        int view_id_ctx = pbi->output_view_ids[*index];
+        ctx->img.view_id = view_id_ctx;
+        ctx->img.display_order_hint = pbi->display_order_hint_ids[*index];
+#endif
         ctx->last_show_frame = output_frame_buf;
         if (ctx->need_resync) return NULL;
         aom_img_remove_metadata(&ctx->img);
@@ -1114,8 +1188,13 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
+#if CONFIG_F159_OBU_HEADER
+        img->tlayer_id = cm->tlayer_id;
+        img->mlayer_id = cm->mlayer_id;
+#else
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);
@@ -1525,9 +1604,13 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
     step_data->qindex = subgop_stats->qindex[step_idx];
     step_data->refresh_frame_flags =
         subgop_stats->refresh_frame_flags[step_idx];
+#if CONFIG_EXTRA_DPB
     for (MV_REFERENCE_FRAME ref_frame = 0;
          ref_frame < frame_worker_data->pbi->common.seq_params.ref_frames;
          ++ref_frame)
+#else
+    for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+#endif
       step_data->ref_frame_map[ref_frame] =
           subgop_stats->ref_frame_map[step_idx][ref_frame];
     subgop_data->step_idx_dec++;

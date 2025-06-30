@@ -2895,7 +2895,12 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
     cm->bru.enabled = aom_rb_read_bit(rb);
     if (cm->bru.enabled) {
       memset(cm->bru.active_mode_map, 0, sizeof(uint8_t) * cm->bru.total_units);
+#if CONFIG_EXTRA_DPB_FIX_BRU
+      cm->bru.explicit_ref_idx =
+          aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
+#else
       cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+#endif
       cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
     }
   }
@@ -4027,7 +4032,13 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
+#if CONFIG_EXTRA_DPB_FIX_F158
+          cm->ccso_info.ccso_ref_idx[plane] =
+              aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
+#else
           cm->ccso_info.ccso_ref_idx[plane] = aom_rb_read_literal(rb, 3);
+#endif  // CONFIG_EXTRA_DPB_FIX_F158
+
           if (cm->ccso_info.ccso_ref_idx[plane] >=
               cm->ref_frames_info.num_total_refs) {
             aom_internal_error(
@@ -7035,14 +7046,35 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
-  // A bit is sent here to indicate if the max number of references is 7. If
-  // this bit is 0, then two more bits are sent to indicate the exact number
-  // of references allowed (range: 3 to 6).
+
+#if CONFIG_CWG_F168_DPB_HLS
   if (aom_rb_read_bit(rb)) {
-    seq_params->max_reference_frames = 3 + aom_rb_read_literal(rb, 2);
+    seq_params->ref_frames =
+        aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
   } else {
-    seq_params->max_reference_frames = 7;
+    seq_params->ref_frames = 8;  // default DPB size: 8
   }
+  seq_params->ref_frames_log2 = seq_params->ref_frames > 8   ? 4
+                                : seq_params->ref_frames > 4 ? 3
+                                : seq_params->ref_frames > 2 ? 2
+                                                             : 1;
+#endif  // CONFIG_CWG_F168_DPB_HLS
+
+#if CONFIG_CWG_F168_DPB_HLS
+  seq_params->max_reference_frames =
+      AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME);
+#else
+    // A bit is sent here to indicate if the max number of references is 7. If
+    // this bit is 0, then two more bits are sent to indicate the exact number
+    // of references allowed (range: 3 to 6).
+    if (aom_rb_read_bit(rb)) {
+      seq_params->max_reference_frames = 3 + aom_rb_read_literal(rb, 2);
+    } else {
+      seq_params->max_reference_frames = 7;
+    }
+#endif  // CONFIG_CWG_F168_DPB_HLS
+
+#if !CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_EXTRA_DPB
   const bool use_extra_dpb = aom_rb_read_literal(rb, 1);
 
@@ -7059,10 +7091,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->ref_frames_log2 =
       seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
 #else
-    seq_params->ref_frames = REF_FRAMES;
-    seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
+  seq_params->ref_frames = REF_FRAMES;
+  seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
-
+#endif  // !#if CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_SAME_REF_COMPOUND
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -7401,7 +7433,12 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 // all elements of cm->ref_frame_map to NULL.
 static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
   BufferPool *const pool = cm->buffer_pool;
+
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     decrease_ref_count(cm->ref_frame_map[i], pool);
     cm->ref_frame_map[i] = NULL;
   }
@@ -7412,7 +7449,11 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
 static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     if ((refresh_frame_flags >> i) & 1) {
       cm->ref_frame_id[i] = cm->current_frame_id;
       pbi->valid_for_referencing[i] = 1;
@@ -7427,7 +7468,11 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
   assert(cm->show_existing_frame);
 
   cm->current_frame.frame_type = KEY_FRAME;
-  cm->current_frame.refresh_frame_flags = REFRESH_FRAME_ALL;
+#if CONFIG_EXTRA_DPB
+  cm->current_frame.refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
+#else
+    cm->current_frame.refresh_frame_flags = REFRESH_FRAME_ALL;
+#endif
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->remapped_ref_idx[i] = INVALID_IDX;
@@ -7490,20 +7535,50 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
+#if CONFIG_MULTILAYER_CORE
+  int max_layer_id = 0;
+  int ref_order_hint = 0;
+#endif
+#if CONFIG_EXTRA_DPB
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+#else
+    for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+#endif
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
         || buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_MULTILAYER_CORE
+        || buf->view_id > current_frame->mlayer_id
+#endif
     )
       continue;
-    if ((int)buf->display_order_hint > max_disp_order_hint)
+#if CONFIG_MULTILAYER_CORE
+    // the equality in the following comparisons is needed to properly update
+    // max_layer_id and ref_order_hint
+    if ((int)buf->display_order_hint >= max_disp_order_hint) {
       max_disp_order_hint = buf->display_order_hint;
+      if (buf->view_id >= max_layer_id) {
+        max_layer_id = buf->view_id;
+        ref_order_hint = (int)buf->order_hint;
+      }
+    }
+#else
+      if ((int)buf->display_order_hint > max_disp_order_hint)
+        max_disp_order_hint = buf->display_order_hint;
+#endif
   }
 
   int cur_disp_order_hint = current_frame->order_hint;
+#if CONFIG_MULTILAYER_CORE
+  if (max_layer_id < current_frame->mlayer_id &&
+      cur_disp_order_hint == ref_order_hint) {
+    return max_disp_order_hint;
+  }
+#endif
+
   int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -7520,17 +7595,40 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
                                                 const RefCntBuffer *const buf) {
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
+#if CONFIG_MULTILAYER_CORE
+  int max_layer_id = 0;
+  int ref_order_hint = 0;
+#endif
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_MULTILAYER_CORE
+    if (buf->view_id > cm->current_frame.mlayer_id) continue;
+    // the equality in the following comparisons is needed to properly update
+    // max_layer_id and ref_order_hint
+    if ((int)buf->ref_display_order_hint[map_idx] >= max_disp_order_hint) {
+      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+      if (buf->ref_view_ids[map_idx] >= max_layer_id) {
+        max_layer_id = buf->ref_view_ids[map_idx];
+        ref_order_hint = (int)buf->ref_order_hints[map_idx];
+      }
+    }
+#else
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+#endif
   }
 
   const int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
   int disp_order_hint = buf->order_hint;
+#if CONFIG_MULTILAYER_CORE
+  if (max_layer_id < buf->view_id && disp_order_hint == ref_order_hint) {
+    return max_disp_order_hint;
+  }
+#endif
+
   while (abs(max_disp_order_hint - disp_order_hint) >=
          (display_order_hint_factor >> 1)) {
     if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
@@ -7692,8 +7790,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             "New sequence header starts with a show_existing_frame.");
       }
       // Show an existing frame directly.
+#if CONFIG_EXTRA_DPB
       const int existing_frame_idx =
           aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#else
+        const int existing_frame_idx = aom_rb_read_literal(rb, 3);
+#endif
       RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
       if (frame_to_show == NULL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7909,7 +8011,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
       /* Check if some frames need to be marked as not valid for referencing */
+#if CONFIG_EXTRA_DPB
       for (int i = 0; i < seq_params->ref_frames; i++) {
+#else
+        for (int i = 0; i < REF_FRAMES; i++) {
+#endif
         if (cm->current_frame_id - (1 << diff_len) > 0) {
           if (cm->ref_frame_id[i] > cm->current_frame_id ||
               cm->ref_frame_id[i] < cm->current_frame_id - (1 << diff_len))
@@ -7935,17 +8041,49 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
+#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+    current_frame->temporal_layer_id = cm->temporal_layer_id;
+#endif
+
+#if CONFIG_MULTILAYER_CORE
+#if CONFIG_F159_OBU_HEADER
+    current_frame->view_id = cm->mlayer_id;
+    current_frame->mlayer_id = cm->mlayer_id;
+    cm->layer_id = cm->mlayer_id;
+#else
+    cm->layer_id = current_frame->view_id;
+    cm->layer_id = cm->mlayer_id;
+#endif
+#endif
+
     current_frame->display_order_hint = get_disp_order_hint(cm);
     current_frame->frame_number = current_frame->order_hint;
+
+#if CONFIG_MULTILAYER_CORE
+    current_frame->frame_number =
+        current_frame->display_order_hint * cm->number_layers +
+        current_frame->view_id;
+#endif
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
       pbi->signal_primary_ref_frame = signal_primary_ref_frame;
+#if CONFIG_EXTRA_DPB
+      if (signal_primary_ref_frame)
+        features->primary_ref_frame =
+            aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#else
       if (signal_primary_ref_frame)
         features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#endif
+#else
+#if CONFIG_EXTRA_DPB
+        features->primary_ref_frame =
+            aom_rb_read_literal(rb, seq_params->ref_frames_log2);
 #else
         features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#endif
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     }
   }
@@ -7956,11 +8094,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-          if ((((seq_params->operating_point_idc[op_num] >>
-                 cm->temporal_layer_id) &
+#if CONFIG_F159_OBU_HEADER
+          if ((((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
                 0x1) &&
                ((seq_params->operating_point_idc[op_num] >>
-                 (cm->spatial_layer_id + 8)) &
+                 (cm->mlayer_id + 8)) &
+#else
+            if ((((seq_params->operating_point_idc[op_num] >>
+                   cm->temporal_layer_id) &
+                  0x1) &&
+                 ((seq_params->operating_point_idc[op_num] >>
+                   (cm->spatial_layer_id + 8)) &
+#endif  // CONFIG_F159_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
             cm->buffer_removal_times[op_num] = aom_rb_read_unsigned_literal(
@@ -7979,8 +8124,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->seq_params.enable_short_refresh_frame_flags &&
       !cm->features.error_resilient_mode;
   const int refresh_frame_flags_bits =
+#if CONFIG_EXTRA_DPB
       short_refresh_frame_flags ? 3 : seq_params->ref_frames;
-
+#else
+      short_refresh_frame_flags ? 3 : REF_FRAMES;
+#endif
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
@@ -7999,11 +8147,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
       }
 #else
+#if CONFIG_EXTRA_DPB
         current_frame->refresh_frame_flags =
             aom_rb_read_literal(rb, seq_params->ref_frames);
+#else
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, REF_FRAMES);
+#endif
 #endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
-      current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+#if CONFIG_EXTRA_DPB
+      current_frame->refresh_frame_flags = (1 << seq_params->ref_frames) - 1;
+#else
+        current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+#endif
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -8030,11 +8187,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
       }
 #else
+#if CONFIG_EXTRA_DPB
         current_frame->refresh_frame_flags =
             aom_rb_read_literal(rb, seq_params->ref_frames);
-
+#else
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, REF_FRAMES);
+#endif
 #endif  // CONFIG_REFRESH_FLAG
-      if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
+#if CONFIG_EXTRA_DPB
+      if (current_frame->refresh_frame_flags ==
+          ((1 << seq_params->ref_frames) - 1)) {
+#else
+        if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
+#endif
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Intra only frames cannot have refresh flags 0xFF");
       }
@@ -8063,20 +8229,35 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
 #else
+#if CONFIG_EXTRA_DPB
         current_frame->refresh_frame_flags =
             frame_is_sframe(cm)
-                ? REFRESH_FRAME_ALL
+                ? ((1 << seq_params->ref_frames) - 1)
                 : aom_rb_read_literal(rb, seq_params->ref_frames);
+#else
+        current_frame->refresh_frame_flags =
+            frame_is_sframe(cm) ? REFRESH_FRAME_ALL
+                                : aom_rb_read_literal(rb, REF_FRAMES);
+#endif
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
 
   if (!frame_is_intra_only(cm) ||
-      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#if CONFIG_EXTRA_DPB
+      current_frame->refresh_frame_flags !=
+          ((1 << seq_params->ref_frames) - 1)) {
+#else
+        current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#endif
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
+#if CONFIG_EXTRA_DPB
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+#else
+        for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+#endif
         // Read order hint from bit stream
         unsigned int order_hint = aom_rb_read_literal(
             rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -8085,7 +8266,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (buf == NULL || order_hint != buf->order_hint) {
           if (buf != NULL) {
             lock_buffer_pool(pool);
-            decrease_ref_count(buf, pool);
+#if CONFIG_REF_COUNT_FIX
+            set_ref_count_zero(buf, pool);
+#else   // CONFIG_REF_COUNT_FIX
+              decrease_ref_count(buf, pool);
+#endif  // CONFIG_REF_COUNT_FIX
             unlock_buffer_pool(pool);
             cm->ref_frame_map[ref_idx] = NULL;
           }
@@ -8104,7 +8289,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
                   features->byte_alignment, &buf->raw_frame_buffer,
                   pool->get_fb_cb, pool->cb_priv, false)) {
-            decrease_ref_count(buf, pool);
+#if CONFIG_REF_COUNT_FIX
+            set_ref_count_zero(buf, pool);
+#else   // CONFIG_REF_COUNT_FIX
+              decrease_ref_count(buf, pool);
+#endif  // CONFIG_REF_COUNT_FIX
             unlock_buffer_pool(pool);
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
@@ -8139,7 +8328,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     if (features->error_resilient_mode) {
       // Read all ref frame base_qindex
+#if CONFIG_EXTRA_DPB
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+#else
+        for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+#endif
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
         buf->base_qindex = aom_rb_read_literal(
             rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
@@ -8147,6 +8340,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
+
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("--- decode bitstream: show_frame=%d, frame_number=%d -- ",
+         cm->show_existing_frame, current_frame->frame_number);
+  debug_print_multiview_curr_frame(cm);
+  // printf("num_cur_refs=%2d\n", cm->ref_frames_info.num_cur_refs);
+  // printf("num_total_refs=%2d\n", cm->ref_frames_info.num_total_refs);
+#endif
 
 #if CONFIG_LF_SUB_PU
   features->allow_lf_sub_pu = 0;
@@ -8199,6 +8400,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_IMPROVED_GLOBAL_MOTION
     cm->cur_frame->num_ref_frames = 0;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#if CONFIG_MULTILAYER_CORE
+    cm->ref_frames_info.num_total_refs = 0;
+    cm->ref_frames_info.num_past_refs = 0;
+    cm->ref_frames_info.num_future_refs = 0;
+    cm->ref_frames_info.num_cur_refs = 0;
+#endif  // CONFIG_MULTILAYER_CORE
   } else {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
@@ -8280,14 +8487,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
       if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
-            aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+#if CONFIG_EXTRA_DPB
+            aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#else
+              aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+#endif
         // Check whether num_total_refs read is valid and not greater than
         // n_ranked (using a reference frame more than once is not allowed).
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             (seq_params->order_hint_info.enable_order_hint &&
              cm->ref_frames_info.num_total_refs > n_ranked) ||
             cm->ref_frames_info.num_total_refs >
-                seq_params->max_reference_frames)
+#if CONFIG_CWG_F168_DPB_HLS
+                AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME))
+#else
+                  seq_params->max_reference_frames)
+#endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }
@@ -8311,7 +8526,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
         } else {
+#if CONFIG_EXTRA_DPB
           ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#else
+            ref = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+#endif
 
           // Most of the time, streams start with a keyframe. In that case,
           // ref_frame_map will have been filled in at that point and will not
@@ -8369,6 +8588,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        (int)ref_frame_map_pairs[ref].disp_order)
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
                   : 1;
+#if CONFIG_MULTILAYER_CORE
+          if (scores[i].distance == 0 &&
+              current_frame->view_id != cm->ref_frame_map_pairs[ref].view_id) {
+            scores[i].distance = 1;
+          }
+#endif
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);

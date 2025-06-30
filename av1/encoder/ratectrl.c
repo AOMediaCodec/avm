@@ -1052,10 +1052,12 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
 
   int offset_idx = -1;
   if (update_type == KF_UPDATE) {
+#if !CONFIG_MULTILAYER_ENCODER_QUANTIZATION_ALIGNMENT
     if (rc->frames_to_key <= 1) {
       // Image / intra-only coding: ignore offsets.
       return qp;
     }
+#endif  // !CONFIG_MULTILAYER_ENCODER_QUANTIZATION_ALIGNMENT
     offset_idx = 0;
   } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
              update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE ||

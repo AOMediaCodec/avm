@@ -5309,7 +5309,12 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         }
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
+#if CONFIG_EXTRA_DPB
+          aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane],
+                               cm->seq_params.ref_frames_log2);
+#else
           aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3);
+#endif
           assert(cm->ccso_info.ccso_ref_idx[plane] <
                  cm->ref_frames_info.num_total_refs);
         }
@@ -5458,7 +5463,12 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   if (cm->seq_params.enable_bru) {
     aom_wb_write_bit(wb, cm->bru.enabled);
     if (cm->bru.enabled) {
+#if CONFIG_EXTRA_DPB_FIX_BRU
+      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx,
+                           cm->seq_params.ref_frames_log2);
+#else
       aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
+#endif
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }
@@ -5922,7 +5932,7 @@ static AOM_INLINE void write_film_grain_params(
         break;
       }
     }
-    assert(ref_frame < REGULAR_REF_FRAMES);
+    assert(ref_frame < REF_FRAMES);
     assert(ref_idx != INVALID_IDX);
     aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
     return;
@@ -6183,6 +6193,17 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+
+#if CONFIG_CWG_F168_DPB_HLS
+  const int signal_dpb_explicit =
+      seq_params->max_dpb_size != 8;  // DPB size 8 is the default value
+  aom_wb_write_bit(wb, signal_dpb_explicit);
+  if (signal_dpb_explicit) {
+    aom_wb_write_literal(wb, seq_params->max_dpb_size - 1, 4);
+  }
+#endif  // CONFIG_CWG_F168_DPB_HLS
+
+#if !CONFIG_CWG_F168_DPB_HLS
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -6197,6 +6218,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_literal(wb, 0, 1);
   }
 #endif  // CONFIG_EXTRA_DPB
+#endif  // !CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_SAME_REF_COMPOUND
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
 #endif  // CONFIG_SAME_REF_COMPOUND
@@ -6528,8 +6550,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!seq_params->reduced_still_picture_hdr) {
     if (encode_show_existing_frame(cm)) {
       aom_wb_write_bit(wb, 1);  // show_existing_frame
+#if CONFIG_EXTRA_DPB
       aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
                            cm->seq_params.ref_frames_log2);
+#else
+        aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show, 3);
+#endif
 
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0) {
@@ -6632,13 +6658,35 @@ static AOM_INLINE void write_uncompressed_header_obu(
           wb, current_frame->order_hint,
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
+#if CONFIG_MULTILAYER_CORE
+#if !CONFIG_F159_OBU_HEADER
+    aom_wb_write_literal(wb, current_frame->view_id, 8);
+#endif
+#endif
+
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf("--- write bitstream: view_id=%d --- ", current_frame->view_id);
+    debug_print_multiview_curr_frame(cm);
+#endif
+
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
       aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
+#if CONFIG_EXTRA_DPB
+      if (cpi->signal_primary_ref_frame)
+        aom_wb_write_literal(wb, features->primary_ref_frame,
+                             seq_params->ref_frames_log2);
+#else
       if (cpi->signal_primary_ref_frame)
         aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+#endif
+#else
+#if CONFIG_EXTRA_DPB
+        aom_wb_write_literal(wb, features->primary_ref_frame,
+                             seq_params->ref_frames_log2);
 #else
         aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+#endif
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE)
@@ -6654,10 +6702,17 @@ static AOM_INLINE void write_uncompressed_header_obu(
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
           if (((seq_params->operating_point_idc[op_num] >>
-                cm->temporal_layer_id) &
+#if CONFIG_F159_OBU_HEADER
+                cm->tlayer_id) &
                    0x1 &&
                (seq_params->operating_point_idc[op_num] >>
-                (cm->spatial_layer_id + 8)) &
+                (cm->mlayer_id + 8)) &
+#else
+                  cm->temporal_layer_id) &
+                     0x1 &&
+                 (seq_params->operating_point_idc[op_num] >>
+                  (cm->spatial_layer_id + 8)) &
+#endif  // CONFIG_F159_OBU_HEADER
                    0x1) ||
               seq_params->operating_point_idc[op_num] == 0) {
             aom_wb_write_unsigned_literal(
@@ -6686,7 +6741,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
           current_frame->refresh_frame_flags != 0;
       if (has_refresh_frame_flags) {
         int refresh_idx = 0;
+#if CONFIG_EXTRA_DPB
         for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+#else
+        for (int i = 0; i < REF_FRAMES; ++i) {
+#endif
           if ((current_frame->refresh_frame_flags >> i) & 1) {
             refresh_idx = i;
             break;
@@ -6701,22 +6760,38 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_literal(wb, 0, 1);
       }
     } else {
+#if CONFIG_EXTRA_DPB
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
                            cm->seq_params.ref_frames);
+#else
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+#endif
     }
 #else
+#if CONFIG_EXTRA_DPB
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
                            cm->seq_params.ref_frames);
-
+#else
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+#endif
 #endif  // CONFIG_REFRESH_FLAG
   }
 
   if (!frame_is_intra_only(cm) ||
-      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#if CONFIG_EXTRA_DPB
+      current_frame->refresh_frame_flags !=
+          ((1 << cm->seq_params.ref_frames) - 1)) {
+#else
+        current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#endif
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
+#if CONFIG_EXTRA_DPB
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+#else
+        for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+#endif
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
             seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -6725,7 +6800,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
     // required by reference mapping.
     if (features->error_resilient_mode) {
+#if CONFIG_EXTRA_DPB
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+#else
+        for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+#endif
         aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->base_qindex,
                              cm->seq_params.bit_depth == AOM_BITS_8
                                  ? QINDEX_BITS_UNEXT
@@ -6842,14 +6921,22 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
-                             REF_FRAMES_LOG2);
+#if CONFIG_EXTRA_DPB
+                             cm->seq_params.ref_frames_log2);
+#else
+                               REF_FRAMES_LOG2);
+#endif
       }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if (explicit_ref_frame_map)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
+#if CONFIG_EXTRA_DPB
                                cm->seq_params.ref_frames_log2);
+#else
+                                 REF_FRAMES_LOG2);
+#endif
         if (seq_params->frame_id_numbers_present_flag) {
           int i = get_ref_frame_map_idx(cm, ref_frame);
           int frame_id_len = seq_params->frame_id_length;
@@ -7345,7 +7432,12 @@ static int remux_tiles(const CommonTileParams *const tiles, uint8_t *dst,
 }
 
 uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
-                              OBU_TYPE obu_type, int obu_extension,
+                              OBU_TYPE obu_type,
+#if CONFIG_F159_OBU_HEADER
+                              int obu_temporal, int obu_layer,
+#else
+                                int obu_extension,
+#endif  // CONFIG_F159_OBU_HEADER
                               uint8_t *const dst) {
   if (level_params->keep_level_stats &&
       (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER))
@@ -7354,15 +7446,23 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-  aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
-  aom_wb_write_literal(&wb, (int)obu_type, 4);
-  aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
-  aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
-  aom_wb_write_literal(&wb, 0, 1);  // reserved
+#if CONFIG_F159_OBU_HEADER
+  aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
+  aom_wb_write_literal(&wb, 0, 1);  // reserved bit (will be potentially used
+                                    // for OBU type extension to 5 bits)
+  aom_wb_write_literal(&wb, obu_temporal, 3);  // obu_temporal
+  aom_wb_write_literal(&wb, obu_layer, 8);     // obu_layer
+#else
+    aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
+    aom_wb_write_literal(&wb, (int)obu_type, 4);
+    aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
+    aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
+    aom_wb_write_literal(&wb, 0, 1);  // reserved
 
-  if (obu_extension) {
-    aom_wb_write_literal(&wb, obu_extension & 0xFF, 8);
-  }
+    if (obu_extension) {
+      aom_wb_write_literal(&wb, obu_extension & 0xFF, 8);
+    }
+#endif  // CONFIG_F159_OBU_HEADER
 
   size = aom_wb_bytes_written(&wb);
   return size;
@@ -7533,7 +7633,11 @@ extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
 
 static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
                                        struct aom_write_bit_buffer *saved_wb,
-                                       uint8_t obu_extension_header,
+#if CONFIG_F159_OBU_HEADER
+                                       int obu_temporal, int obu_layer,
+#else
+                                         uint8_t obu_extension_header,
+#endif  // CONFIG_F159_OBU_HEADER
                                        const FrameHeaderInfo *fh_info,
                                        int *const largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
@@ -7569,8 +7673,13 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
     // For large_scale_tile case, we always have only one tile group, so it can
     // be written as an OBU_FRAME.
     const OBU_TYPE obu_type = OBU_FRAME;
-    const uint32_t tg_hdr_size =
-        av1_write_obu_header(level_params, obu_type, 0, data);
+    const uint32_t tg_hdr_size = av1_write_obu_header(level_params, obu_type,
+#if CONFIG_F159_OBU_HEADER
+                                                      obu_temporal, obu_layer,
+#else
+                                                        0,
+#endif  // CONFIG_F159_OBU_HEADER
+                                                      data);
     data += tg_hdr_size;
 
     const uint32_t frame_header_size =
@@ -7722,7 +7831,12 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         const OBU_TYPE obu_type =
             (num_tg_hdrs == 1) ? OBU_FRAME : OBU_TILE_GROUP;
         curr_tg_data_size = av1_write_obu_header(level_params, obu_type,
-                                                 obu_extension_header, data);
+#if CONFIG_F159_OBU_HEADER
+                                                 obu_temporal, obu_layer,
+#else
+                                                   obu_extension_header,
+#endif  // CONFIG_F159_OBU_HEADER
+                                                 data);
         obu_header_size = curr_tg_data_size;
 
         if (num_tg_hdrs == 1) {
@@ -7822,7 +7936,11 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           // Rewrite the OBU header to change the OBU type to Redundant Frame
           // Header.
           av1_write_obu_header(level_params, OBU_REDUNDANT_FRAME_HEADER,
-                               obu_extension_header,
+#if CONFIG_F159_OBU_HEADER
+                               obu_temporal, obu_layer,
+#else
+                                 obu_extension_header,
+#endif  // CONFIG_F159_OBU_HEADER
                                &data[fh_info->obu_header_byte_offset]);
 
           data += fh_info->total_length;
@@ -7926,8 +8044,13 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
           (cm->current_frame.frame_type != KEY_FRAME &&
            current_metadata->insert_flag == AOM_MIF_NON_KEY_FRAME) ||
           current_metadata->insert_flag == AOM_MIF_ANY_FRAME) {
-        obu_header_size =
-            av1_write_obu_header(&cpi->level_params, OBU_METADATA, 0, dst);
+        obu_header_size = av1_write_obu_header(&cpi->level_params, OBU_METADATA,
+#if CONFIG_F159_OBU_HEADER
+                                               0, 0,
+#else
+                                                   0,
+#endif  // CONFIG_F159_OBU_HEADER
+                                               dst);
         obu_payload_size =
             av1_write_metadata_obu(current_metadata, dst + obu_header_size);
         length_field_size = obu_memmove(obu_header_size, obu_payload_size, dst);
@@ -8014,7 +8137,13 @@ static size_t av1_write_frame_hash_metadata(
 
   size_t total_bytes_written = 0;
   size_t obu_header_size =
-      av1_write_obu_header(&cpi->level_params, OBU_METADATA, 0, dst);
+      av1_write_obu_header(&cpi->level_params, OBU_METADATA,
+#if CONFIG_F159_OBU_HEADER
+                           0, 0,
+#else
+                               0,
+#endif  // CONFIG_F159_OBU_HEADER
+                           dst);
   size_t obu_payload_size =
       av1_write_metadata_obu(metadata, dst + obu_header_size);
   size_t length_field_size =
@@ -8041,8 +8170,18 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   uint32_t obu_header_size = 0;
   uint32_t obu_payload_size = 0;
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
-  const uint8_t obu_extension_header =
-      cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;
+#if CONFIG_F159_OBU_HEADER
+  const int obu_temporal =
+      0;  //@hegilmez TODO: hook values for the temoporal_id
+  const int obu_mlayer = cm->current_frame.view_id;
+  const int obu_xlayer = 0;
+  const int obu_layer =
+      obu_mlayer << 5 |
+      obu_xlayer;  // obu_layer byte ( mlayer (3-bit) | xlayer (5-bit))
+#else
+      const uint8_t obu_extension_header =
+          cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;
+#endif  // CONFIG_F159_OBU_HEADER
 
   // If no non-zero delta_q has been used, reset delta_q_present_flag
   if (cm->delta_q_info.delta_q_present_flag && cpi->deltaq_used == 0) {
@@ -8059,8 +8198,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
-    obu_header_size =
-        av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, data);
+    obu_header_size = av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER,
+#if CONFIG_F159_OBU_HEADER
+                                           obu_temporal, obu_layer,
+#else
+                                               0,
+#endif  // CONFIG_F159_OBU_HEADER
+                                           data);
 
     obu_payload_size =
         av1_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);
@@ -8116,7 +8260,12 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     // Write Frame Header OBU.
     fh_info.frame_header = data;
     obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
-                                           obu_extension_header, data);
+#if CONFIG_F159_OBU_HEADER
+                                           obu_temporal, obu_layer,
+#else
+                                               obu_extension_header,
+#endif  // CONFIG_F159_OBU_HEADER
+                                           data);
     obu_payload_size =
         write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
 
@@ -8152,8 +8301,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     //  Each tile group obu will be preceded by 4-byte size of the tile group
     //  obu
-    data_size = write_tiles_in_tg_obus(
-        cpi, data, &saved_wb, obu_extension_header, &fh_info, largest_tile_id);
+    data_size = write_tiles_in_tg_obus(cpi, data, &saved_wb,
+#if CONFIG_F159_OBU_HEADER
+                                       obu_temporal, obu_layer,
+#else
+                                           obu_extension_header,
+#endif  // CONFIG_F159_OBU_HEADER
+                                       &fh_info, largest_tile_id);
   }
   data += data_size;
   *size = data - dst;

@@ -763,6 +763,10 @@ typedef struct {
   unsigned int chroma_subsampling_x;
   // Indicates the chrome subsampling y value.
   unsigned int chroma_subsampling_y;
+#if CONFIG_MULTILAYER_CORE
+  // Indicates number of input views.
+  unsigned int num_views;
+#endif
 } InputCfg;
 
 typedef struct {
@@ -980,7 +984,11 @@ typedef struct {
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  int max_dpb_size;
+#else
   int num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;

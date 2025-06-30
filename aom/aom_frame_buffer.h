@@ -23,14 +23,18 @@ extern "C" {
 
 #include "config/aom_config.h"
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 /*!\brief The maximum number of work buffers used by libaom.
  *  Support maximum 4 threads to decode video in parallel.
  *  Each thread will use one work buffer.
  * TODO(hkuang): Add support to set number of worker threads dynamically.
  */
+#if CONFIG_EXTRA_DPB
+#define AOM_MAXIMUM_WORK_BUFFERS 16
+#else
 #define AOM_MAXIMUM_WORK_BUFFERS 8
-
+#endif
 /*!\brief The maximum number of reference buffers that a AV1 encoder may use.
  */
 #if CONFIG_EXTRA_DPB

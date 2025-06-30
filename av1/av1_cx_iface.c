@@ -36,6 +36,10 @@
 #include "aom_dsp/psnr.h"
 #include "aom_ports/aom_timer.h"
 
+#if CONFIG_MULTILAYER_CORE
+#include "common/tools_common.h"
+#endif
+
 #define MAG_SIZE (4)
 
 struct av1_extracfg {
@@ -264,7 +268,11 @@ struct av1_extracfg {
   int enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  int max_dpb_size;
+#else
   int num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   unsigned int enable_bru;
@@ -591,6 +599,15 @@ static struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+#if CONFIG_MULTILAYER_CORE && CONFIG_F159_OBU_HEADER
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+#endif
   },            // target_seq_level_idx
   0,            // tier_mask
   0,            // min_cr
@@ -628,7 +645,11 @@ static struct av1_extracfg default_extra_cfg = {
   0,    // enable_ext_seg
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
-  0,    // num_extra_dpb
+#if CONFIG_CWG_F168_DPB_HLS
+  8,  // max_dpb_size
+#else
+  0,  // num_extra_dpb
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   0,    // enable_bru
@@ -724,7 +745,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.den, 1, 1000000000);
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
-
+#if CONFIG_MULTILAYER_CORE
+  RANGE_CHECK(cfg, g_num_views, 1, NUM_LAYERS_MAX);
+#endif
   RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AOM_BITS_8, AOM_BITS_12);
 
@@ -837,7 +860,11 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(cfg, frame_hash_per_plane, 1);
 
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  RANGE_CHECK(extra_cfg, max_dpb_size, 1, 16);
+#else
   RANGE_CHECK(extra_cfg, num_extra_dpb, 0, 8);
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 
   RANGE_CHECK(extra_cfg, color_primaries, AOM_CICP_CP_BT_709,
@@ -1131,7 +1158,11 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  cfg->max_dpb_size = extra_cfg->max_dpb_size;
+#else
   cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif
 #endif  // CONFIG_EXTRA_DPB
 }
 
@@ -1281,7 +1312,11 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  extra_cfg->max_dpb_size = cfg->max_dpb_size;
+#else
   extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
+#endif
 #endif  // CONFIG_EXTRA_DPB
 }
 
@@ -1388,6 +1423,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   frm_dim_cfg->forced_max_frame_height = cfg->g_forced_max_frame_height;
   frm_dim_cfg->render_width = extra_cfg->render_width;
   frm_dim_cfg->render_height = extra_cfg->render_height;
+
+#if CONFIG_MULTILAYER_CORE
+  // Set number of views
+  input_cfg->num_views = cfg->g_num_views;
+#endif
 
   // Set input video related configuration.
   input_cfg->input_bit_depth = cfg->g_input_bit_depth;
@@ -1643,7 +1683,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  tool_cfg->max_dpb_size = extra_cfg->max_dpb_size;
+#else
   tool_cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 
   // Set Quantization related configuration.
@@ -1666,6 +1710,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       } else {  // auto-selected qp offset
         q_cfg->fixed_qp_offsets[i] = get_modeled_qp_offset(
             rc_cfg->qp, i, tool_cfg->bit_depth, q_cfg->q_based_qp_offsets);
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+        printf(" qp-offset[%d]=%2.2f\n", i, q_cfg->fixed_qp_offsets[i]);
+#endif
       }
     } else {
       q_cfg->fixed_qp_offsets[i] = -1.0;
@@ -3135,10 +3182,18 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   if (!cm->show_existing_frame) {
     // Get reference frame information
     int ref_poc[INTER_REFS_PER_FRAME];
+#if CONFIG_MULTILAYER_CORE
+    int ref_view[INTER_REFS_PER_FRAME];
+#endif
     for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+#if CONFIG_MULTILAYER_CORE
+      ref_view[ref_idx] = buf ? (int)buf->view_id : -1;
+      ref_poc[ref_idx] = buf ? (int)buf->display_order_hint : -1;
+#else
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
+#endif
 
 #if CONFIG_KEY_OVERLAY
       // Currently, "enable_keyframe_filtering > 1" is the only exception case
@@ -3161,16 +3216,29 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
       fprintf(stdout,
+#if CONFIG_MULTILAYER_CORE
+#if CONFIG_BRU
+              "POC:%6d, DOH:%3d, View:%2d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: "
+              "%10" PRIu64
+#else
+
+              "POC:%6d, DOH:%3d, View:%2d [%s][Level:%d][Q:%3d]: %10" PRIu64
+#endif
+#else
 #if CONFIG_BRU
               "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
 #else
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
 #endif  // CONFIG_BRU
+#endif
               " Bytes, "
               "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
               "%2.4f dB(V), "
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
+#if CONFIG_MULTILAYER_CORE
+              cm->cur_frame->display_order_hint, cm->cur_frame->view_id,
+#endif
               frameType[cm->current_frame.frame_type],
 #if CONFIG_BRU
               cm->bru.enabled, cm->bru.update_ref_idx,
@@ -3200,7 +3268,11 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 
     fprintf(stdout, "    [");
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
+#if CONFIG_MULTILAYER_CORE
+      fprintf(stdout, "(%d,%d)", ref_poc[ref_idx], ref_view[ref_idx]);
+#else
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
+#endif
     }
 #if CONFIG_BRU
     if (cpi->oxcf.tool_cfg.enable_bru)
@@ -3297,7 +3369,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (is_stat_generation_stage(cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&
         ctx->cfg.kf_min_dist == ctx->cfg.kf_max_dist) {
+#if CONFIG_F159_OBU_HEADER
+      if (cpi->common.mlayer_id == 0 &&
+#else
       if (cpi->common.spatial_layer_id == 0 &&
+#endif  // CONFIG_F159_OBU_HEADER
           ++ctx->fixed_kf_cntr > ctx->cfg.kf_min_dist) {
         flags |= AOM_EFLAG_FORCE_KF;
         ctx->fixed_kf_cntr = 1;
@@ -3477,23 +3553,46 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
+#if CONFIG_F159_OBU_HEADER
+#if CONFIG_MULTILAYER_CORE
+        const int write_temporal_delimiter =
+            !cpi->common.current_frame.view_id && !ctx->pending_frame_count;
+#else
+        const int write_temporal_delimiter =
+            !cpi->common.mlayer_id && !ctx->pending_frame_count;
+#endif
+#else
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_frame_count;
+#endif  // CONFIG_F159_OBU_HEADER
 
         if (write_temporal_delimiter) {
+#if CONFIG_F159_OBU_HEADER
+          uint32_t obu_header_size = 0;
+#else
           uint32_t obu_header_size = 1;
+#endif  //  CONFIG_F159_OBU_HEADER
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               aom_uleb_size_in_bytes(obu_payload_size);
 
           if (ctx->pending_cx_data) {
+#if CONFIG_F159_OBU_HEADER
+            const size_t move_offset = length_field_size + 2;
+#else
             const size_t move_offset = length_field_size + 1;
+#endif  // CONFIG_F159_OBU_HEADER
             memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
                     frame_size);
           }
           const uint32_t obu_header_offset = 0;
           obu_header_size = av1_write_obu_header(
-              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0,
+              &cpi->level_params, OBU_TEMPORAL_DELIMITER,
+#if CONFIG_F159_OBU_HEADER
+              0, 0,
+#else
+              0,
+#endif  // CONFIG_F159_OBU_HEADER
               (uint8_t *)(ctx->pending_cx_data + obu_header_offset));
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
@@ -3513,6 +3612,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           frame_size = curr_frame_size;
 
+#if !CONFIG_F159_OBUSIZE_ANNEXB
           // B_PRIME (add frame size)
           const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
           if (ctx->pending_cx_data) {
@@ -3524,6 +3624,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
           frame_size += length_field_size;
+#endif
         }
 
         ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
@@ -3550,6 +3651,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
       if (!is_frame_visible_null) {
+#if !CONFIG_F159_OBUSIZE_ANNEXB
         if (ctx->oxcf.save_as_annexb) {
           //  B_PRIME (add TU size)
           size_t tu_size = ctx->pending_cx_data_sz;
@@ -3565,6 +3667,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           ctx->pending_cx_data_sz += length_field_size;
         }
+#endif
       }
 
       pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
@@ -3779,15 +3882,35 @@ static aom_codec_err_t ctrl_set_scale_mode(aom_codec_alg_priv_t *ctx,
   }
 }
 
+#if CONFIG_F159_OBU_HEADER
+static aom_codec_err_t ctrl_set_mlayer_id(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  const int mlayer_id = va_arg(args, int);
+  if (mlayer_id >= MAX_NUM_MLAYERS)
+#else
 static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   const int spatial_layer_id = va_arg(args, int);
   if (spatial_layer_id >= MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_F159_OBU_HEADER
     return AOM_CODEC_INVALID_PARAM;
+#if CONFIG_F159_OBU_HEADER
+  ctx->cpi->common.mlayer_id = mlayer_id;
+#else
   ctx->cpi->common.spatial_layer_id = spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_F159_OBU_HEADER
+static aom_codec_err_t ctrl_set_number_mlayers(aom_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  const int number_mlayers = va_arg(args, int);
+  if (number_mlayers > MAX_NUM_MLAYERS) return AOM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.number_spatial_layers = number_mlayers;
+  return AOM_CODEC_OK;
+}
+#else
 static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
                                                       va_list args) {
   const int number_spatial_layers = va_arg(args, int);
@@ -3796,6 +3919,7 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   ctx->cpi->common.number_spatial_layers = number_spatial_layers;
   return AOM_CODEC_OK;
 }
+#endif  // CONFIG_F159_OBU_HEADER
 
 static aom_codec_err_t ctrl_set_tune_content(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -4451,9 +4575,15 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.enable_ext_seg = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_dpb_size, argv,
+                              err_string)) {
+    extra_cfg.max_dpb_size = arg_parse_int_helper(&arg, err_string);
+#else
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.num_extra_dpb, argv,
                               err_string)) {
     extra_cfg.num_extra_dpb = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bru, argv,
@@ -4498,7 +4628,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_ROI_MAP, ctrl_set_roi_map },
   { AOME_SET_ACTIVEMAP, ctrl_set_active_map },
   { AOME_SET_SCALEMODE, ctrl_set_scale_mode },
+#if CONFIG_F159_OBU_HEADER
+  { AOME_SET_MLAYER_ID, ctrl_set_mlayer_id },
+#else
   { AOME_SET_SPATIAL_LAYER_ID, ctrl_set_spatial_layer_id },
+#endif  // CONFIG_F159_OBU_HEADER
   { AOME_SET_CPUUSED, ctrl_set_cpuused },
   { AOME_SET_ENABLEAUTOALTREF, ctrl_set_enable_auto_alt_ref },
   { AOME_SET_ENABLEAUTOBWDREF, ctrl_set_enable_auto_bwd_ref },
@@ -4514,7 +4648,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_TUNING, ctrl_set_tuning },
   { AOME_SET_QP, ctrl_set_qp },
   { AOME_SET_MAX_INTRA_BITRATE_PCT, ctrl_set_rc_max_intra_bitrate_pct },
+#if CONFIG_F159_OBU_HEADER
+  { AOME_SET_NUMBER_MLAYERS, ctrl_set_number_mlayers },
+#else
   { AOME_SET_NUMBER_SPATIAL_LAYERS, ctrl_set_number_spatial_layers },
+#endif  // CONFIG_F159_OBU_HEADER
   { AV1E_SET_MAX_INTER_BITRATE_PCT, ctrl_set_rc_max_inter_bitrate_pct },
   { AV1E_SET_GF_CBR_BOOST_PCT, ctrl_set_rc_gf_cbr_boost_pct },
   { AV1E_SET_LOSSLESS, ctrl_set_lossless },
@@ -4643,11 +4781,14 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                       // g_threads
     0,                       // g_profile
 
-    320,         // g_w
-    240,         // g_h
-    0,           // g_limit
-    0,           // g_forced_max_frame_width
-    0,           // g_forced_max_frame_height
+    320,  // g_w
+    240,  // g_h
+    0,    // g_limit
+    0,    // g_forced_max_frame_width
+    0,    // g_forced_max_frame_height
+#if CONFIG_MULTILAYER_CORE
+    1,  // g_num_views
+#endif
     AOM_BITS_8,  // g_bit_depth
     8,           // g_input_bit_depth
 
@@ -4700,7 +4841,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_TCQ
     2,  // enable_tcq
 #endif
-    0,                           // save_as_annexb
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    1,  // save_as_annexb (0. external mean)
+#else
+    0,      // save_as_annexb
+#endif
     0,                           // tile_width_count
     0,                           // tile_height_count
     { 0 },                       // tile_widths
@@ -4806,8 +4951,12 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // enable_ext_seg
 #endif      // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+        8,  // max_dpb_size
+#else
         0,  // num_extra_dpb
-#endif      // CONFIG_EXTRA_DPB
+#endif  // CONFIG_CWG_F168_DPB_HLS
+#endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
         0,  // enable_bru
 #endif      // CONFIG_BRU

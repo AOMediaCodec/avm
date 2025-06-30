@@ -2036,3 +2036,31 @@ void av1_encode_frame(AV1_COMP *cpi) {
     encode_frame_internal(cpi);
   }
 }
+
+#if CONFIG_MULTILAYER_DEBUG
+void debug_print_buf_refs_enc(const AV1_COMMON *const cm) {
+  const RefCntBuffer *const cf = cm->cur_frame;
+  MV_REFERENCE_FRAME ref_frame;
+#if CONFIG_MULTILAYER_CORE
+  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+         cf->display_order_hint);
+#else
+  printf("(OH,DOH):(%2d,%2d) ", cf->order_hint, cf->display_order_hint);
+#endif
+  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+         cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  printf("[");
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+    printf("%2d:", map_idx);
+#if CONFIG_MULTILAYER_CORE
+    printf("(%2d,", cf->ref_view_ids[ref_frame]);
+#else
+    printf("(");
+#endif
+    printf("%2d,", cf->ref_order_hints[ref_frame]);
+    printf("%2d) ", cf->ref_display_order_hint[ref_frame]);
+  }
+  printf("]\n");
+}
+#endif

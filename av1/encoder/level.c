@@ -305,12 +305,20 @@ static void release_buffer(DECODER_MODEL *const decoder_model, int idx) {
   this_buffer->presentation_time = INVALID_TIME;
 }
 
-static void initialize_buffer_pool(DECODER_MODEL *const decoder_model,
-                                   const int ref_frames) {
+static void initialize_buffer_pool(DECODER_MODEL *const decoder_model
+#if CONFIG_EXTRA_DPB
+                                   ,
+                                   const int ref_frames
+#endif
+) {
   for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     release_buffer(decoder_model, i);
   }
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < ref_frames; ++i) {
+#else
+  for (int i = 0; i < REF_FRAMES; ++i) {
+#endif
     decoder_model->vbi[i] = -1;
   }
 }
@@ -329,8 +337,16 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 static void update_ref_buffers(const AV1_COMMON *const cm,
                                DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
+#if !CONFIG_EXTRA_DPB
+  (void)cm;
+#endif
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
+
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+#else
+  for (int i = 0; i < REF_FRAMES; ++i) {
+#endif
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
@@ -506,8 +522,12 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
 
-  initialize_buffer_pool(decoder_model, cm->seq_params.ref_frames);
-
+  initialize_buffer_pool(decoder_model
+#if CONFIG_EXTRA_DPB
+                         ,
+                         cm->seq_params.ref_frames
+#endif
+  );
   DFG_INTERVAL_QUEUE *const dfg_interval_queue =
       &decoder_model->dfg_interval_queue;
   dfg_interval_queue->total_interval = 0.0;
@@ -1100,8 +1120,13 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   aom_clear_system_state();
   const double compression_ratio = av1_get_compression_ratio(cm, size);
 
+#if CONFIG_F159_OBU_HEADER
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+#else
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->profile;
   const int is_still_picture = seq_params->still_picture;
@@ -1109,7 +1134,11 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   // TODO(kyslov@) fix the implementation according to buffer model
   for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
     if (!is_in_operating_point(seq_params->operating_point_idc[i],
+#if CONFIG_F159_OBU_HEADER
+                               tlayer_id, mlayer_id) ||
+#else
                                temporal_layer_id, spatial_layer_id) ||
+#endif  // CONFIG_F159_OBU_HEADER
         !((level_params->keep_level_stats >> i) & 1)) {
       continue;
     }

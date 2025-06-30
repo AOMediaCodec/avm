@@ -658,7 +658,11 @@ typedef struct cfg_options {
   /*!\brief number of extra decoded picture buffers
    *
    */
+#if CONFIG_CWG_F168_DPB_HLS
+  int max_dpb_size;
+#else
   int num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   /*!\brief enable bru
@@ -753,7 +757,13 @@ typedef struct aom_codec_enc_cfg {
    * height written in write_sequence_header().
    */
   unsigned int g_forced_max_frame_height;
-
+#if CONFIG_MULTILAYER_CORE
+  /*!\brief Number of views
+   *
+   *
+   */
+  unsigned int g_num_views;
+#endif
   /*!\brief Bit-depth of the codec
    *
    * This value identifies the bit_depth of the codec,

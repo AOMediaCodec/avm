@@ -13,21 +13,31 @@
 #define AOM_AV1_COMMON_OBU_UTIL_H_
 
 #include "aom/aom_codec.h"
+#include "config/aom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct {
+#if !CONFIG_F159_OBUSIZE_ANNEXB
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional OBU extension header) in the bitstream.
+#endif
   OBU_TYPE type;
+#if CONFIG_F159_OBU_HEADER
+  int obu_reserved_bit;
+  int obu_tlayer_id;
+  int obu_mlayer_id;  // same as spatial_layer_id in the old design
+  int obu_xlayer_id;
+#else
   int has_size_field;
   int has_extension;
   // The following fields come from the OBU extension header and therefore are
   // only used if has_extension is true.
   int temporal_layer_id;
   int spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
 } ObuHeader;
 
 aom_codec_err_t aom_read_obu_header(uint8_t *buffer, size_t buffer_length,

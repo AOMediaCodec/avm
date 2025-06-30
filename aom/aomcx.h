@@ -168,12 +168,14 @@ enum aome_enc_control_id {
    * aom_scaling_mode_t* parameter.
    */
   AOME_SET_SCALEMODE = 11,
-
+#if CONFIG_F159_OBU_HEADER
+  AOME_SET_MLAYER_ID = 12,
+#else
   /*!\brief Codec control function to set encoder spatial layer id, unsigned int
    * parameter.
    */
   AOME_SET_SPATIAL_LAYER_ID = 12,
-
+#endif  // CONFIG_F159_OBU_HEADER
   /*!\brief Codec control function to set encoder internal speed settings,
    * int parameter
    *
@@ -257,11 +259,17 @@ enum aome_enc_control_id {
    * to a keyframe, set this to 450.
    */
   AOME_SET_MAX_INTRA_BITRATE_PCT = 26,
-
+#if CONFIG_F159_OBU_HEADER
+  /*!\brief Codec control function to set number of layers, int
+   * parameter
+   */
+  AOME_SET_NUMBER_MLAYERS = 27,
+#else
   /*!\brief Codec control function to set number of spatial layers, int
    * parameter
    */
   AOME_SET_NUMBER_SPATIAL_LAYERS = 27,
+#endif  // CONFIG_F159_OBU_HEADER
 
   /*!\brief Codec control function to set max data rate for inter frames,
    * unsigned int parameter
@@ -1377,8 +1385,13 @@ AOM_CTRL_USE_TYPE(AOME_SET_ACTIVEMAP, aom_active_map_t *)
 AOM_CTRL_USE_TYPE(AOME_SET_SCALEMODE, aom_scaling_mode_t *)
 #define AOM_CTRL_AOME_SET_SCALEMODE
 
+#if CONFIG_F159_OBU_HEADER
+AOM_CTRL_USE_TYPE(AOME_SET_MLAYER_ID, unsigned int)
+#define AOM_CTRL_AOME_SET_MLAYER_ID
+#else
 AOM_CTRL_USE_TYPE(AOME_SET_SPATIAL_LAYER_ID, unsigned int)
 #define AOM_CTRL_AOME_SET_SPATIAL_LAYER_ID
+#endif  // CONFIG_F159_OBU_HEADER
 
 AOM_CTRL_USE_TYPE(AOME_SET_CPUUSED, int)
 #define AOM_CTRL_AOME_SET_CPUUSED

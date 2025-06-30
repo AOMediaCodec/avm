@@ -780,12 +780,22 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
                                               int frame_type) {
   const AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_F159_OBU_HEADER
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+#else
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
   for (int index = 0; index < seq_params->operating_points_cnt_minus_1 + 1;
        ++index) {
     if (!is_in_operating_point(seq_params->operating_point_idc[index],
-                               temporal_layer_id, spatial_layer_id)) {
+#if CONFIG_F159_OBU_HEADER
+                               tlayer_id, mlayer_id))
+#else
+                               temporal_layer_id, spatial_layer_id))
+#endif  // CONFIG_F159_OBU_HEADER
+    {
       continue;
     }
 
@@ -2248,6 +2258,10 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         break;
       }
 
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+      printf("     frames_to_key=%d, frames_since_key=%d \n", frames_to_key,
+             frames_since_key);
+#endif
       // Step on to the next frame.
       ++frames_to_key;
       ++frames_since_key;
@@ -2808,8 +2822,16 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+        printf("--- set2 frame type to KEY_FRAME: ");
+        debug_print_multiview_curr_frame(&cpi->common);
+#endif
       } else {
         frame_params->frame_type = INTER_FRAME;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+        printf("--- set2 frame type to INTER_FRAME: ");
+        debug_print_multiview_curr_frame(&cpi->common);
+#endif
       }
 
       if (frame_params->frame_type != KEY_FRAME)
@@ -2847,12 +2869,20 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     rc->active_worst_quality = oxcf->rc_cfg.qp;
   }
 
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf(" frames_to_key= %d, current_frame.view_id=%d\n", rc->frames_to_key,
+         cpi->common.current_frame.view_id);
+#endif
   // Keyframe and section processing.
   if (rc->frames_to_key <= 0) {
     assert(rc->frames_to_key >= -1);
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
     frame_params->frame_type = KEY_FRAME;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf("--- set3 frame type to KEY_FRAME: ");
+    debug_print_multiview_curr_frame(&cpi->common);
+#endif
     // Define next KF group and assign bits to it.
     find_next_key_frame(cpi, &this_frame);
     this_frame = this_frame_copy;
@@ -2947,6 +2977,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+        printf("--- set4 frame type to KEY_FRAME: ");
+        debug_print_multiview_curr_frame(&cpi->common);
+#endif
       } else {
         frame_params->frame_type =
             rc->frames_since_key == 0 ? KEY_FRAME : INTER_FRAME;
@@ -3054,6 +3088,9 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   // Update the active best quality pyramid.
   if (!rc->is_src_frame_alt_ref) {
     const int pyramid_level = cpi->gf_group.layer_depth[cpi->gf_group.index];
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf("     pyramid level = %d \n", pyramid_level);
+#endif
     int i;
     for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i) {
       rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;

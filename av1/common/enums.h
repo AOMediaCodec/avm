@@ -351,10 +351,13 @@ enum {
   PROFILE_2,
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
-
+#if CONFIG_MULTILAYER_CORE && CONFIG_F159_OBU_HEADER
+#define OP_POINTS_CNT_MINUS_1_BITS 6
+#define OP_POINTS_IDC_BITS 16
+#else
 #define OP_POINTS_CNT_MINUS_1_BITS 5
 #define OP_POINTS_IDC_BITS 12
-
+#endif
 // Note: Some enums use the attribute 'packed' to use smallest possible integer
 // type, so that we can save memory when they are used in structs/arrays.
 
@@ -1071,10 +1074,19 @@ enum {
   SEQ_LEVEL_7_2,
   SEQ_LEVEL_7_3,
   SEQ_LEVELS,
+#if CONFIG_MULTILAYER_CORE && CONFIG_F159_OBU_HEADER
+  SEQ_LEVEL_MAX = 63  // @hegilmez TODO: pending leveling design
+#else
   SEQ_LEVEL_MAX = 31
+#endif
 } UENUM1BYTE(AV1_LEVEL);
 
+#if CONFIG_MULTILAYER_CORE && \
+    CONFIG_F159_OBU_HEADER  // @hegilmez TODO: pending leveling design
+#define LEVEL_BITS 6
+#else
 #define LEVEL_BITS 5
+#endif
 
 #define DIRECTIONAL_MODES 8
 #define MAX_ANGLE_DELTA 3
@@ -1287,18 +1299,26 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #define WARP_EXTEND_CTX 3
 
+#if CONFIG_CWG_F158_FLEXIBLE_SIGNALING
+#define EXTENDED_INTER_REFS_PER_FRAME 8
+#define INTER_REFS_PER_FRAME (EXTENDED_INTER_REFS_PER_FRAME + 7)
+#if CONFIG_CWG_F158_SIGNALING_IMPROVEMENT
+#define EXTENDED_INTER_REFS_CONTEXT (INTER_REFS_PER_FRAME - 1)
+#else
+#define EXTENDED_INTER_REFS_CONTEXT 6
+#endif  // CONFIG_CWG_F158_SIGNALING_IMPROVEMENT
+#else
 #define INTER_REFS_PER_FRAME 7
-
-#define REGULAR_REF_FRAMES \
-  (INTER_REFS_PER_FRAME +  \
-   1)  //  the original size of the decoded picture buffers
+#endif  // CONFIG_CWG_F158_FLEXIBLE_SIGNALING
 #if CONFIG_EXTRA_DPB
-#define MAX_EXTRA_REF_FRAMES \
-  8  //  the maximum number of extra decoded picture buffers that can be added
-#define REF_FRAMES ((INTER_REFS_PER_FRAME + 1) + MAX_EXTRA_REF_FRAMES)
+#define REF_FRAMES 16
 #else
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
-#endif  // CONFIG_EXTRA_DPB
+#endif
+
+#if CONFIG_EXTRA_DPB
+#define MAX_DBP_SIGNALING 15
+#endif
 
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
@@ -1329,7 +1349,9 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define NONE_FRAME INVALID_IDX
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
+#if !CONFIG_EXTRA_DPB_FIX_BRU
 #define REF_FRAMES_LOG2 3
+#endif
 #define REFRESH_FRAME_ALL ((1 << REF_FRAMES) - 1)
 
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
@@ -1347,12 +1369,12 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
 #define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
 #if CONFIG_EXTRA_DPB
-#define EXTREF_FRAMES (REGULAR_REF_FRAMES + 1)
+#define SINGLE_REF_FRAMES (INTER_REFS_PER_FRAME + 2)
+#define MAX_COMPOUND_REF_INDEX (SINGLE_REF_FRAMES - 1)
 #else
 #define EXTREF_FRAMES (REF_FRAMES + 1)
-#endif  // CONFIG_EXTRA_DPB
-
 #define SINGLE_REF_FRAMES EXTREF_FRAMES
+#endif  // CONFIG_EXTRA_DPB
 
 // Note: It includes single and compound references. So, it can take values from
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.

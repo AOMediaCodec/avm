@@ -110,8 +110,13 @@ int main(int argc, char **argv) {
 
   if (!(inputfile = fopen(argv[1], "rb")))
     die("Failed to open %s for read.", argv[1]);
+#if CONFIG_MULTILAYER_CORE
+  obu_ctx.avx_ctx->file[0] = inputfile;
+  obu_ctx.avx_ctx->filename[0] = argv[1];
+#else
   obu_ctx.avx_ctx->file = inputfile;
   obu_ctx.avx_ctx->filename = argv[1];
+#endif
 
   aom_codec_iface_t *decoder = get_aom_decoder_by_index(0);
   printf("Using %s\n", aom_codec_iface_name(decoder));
@@ -141,8 +146,13 @@ int main(int argc, char **argv) {
   if (!(outfile[0] = fopen(filename, "wb")))
     die("Failed top open output for writing.");
 
-  // open any enhancement layer output yuv files
-  for (i = 1; i < si.number_spatial_layers; i++) {
+    // open any enhancement layer output yuv files
+#if CONFIG_F159_OBU_HEADER
+  for (i = 1; i < si.number_mlayers; i++)
+#else
+  for (i = 1; i < si.number_spatial_layers; i++)
+#endif  // CONFIG_F159_OBU_HEADER
+  {
     snprintf(filename, sizeof(filename), "out_lyr%u.yuv", i);
     if (!(outfile[i] = fopen(filename, "wb")))
       die("Failed to open output for writing.");
@@ -162,6 +172,18 @@ int main(int argc, char **argv) {
       aom_img_downshift(img_shifted, img,
                         img->bit_depth - img_shifted->bit_depth,
                         img_shifted->bit_depth);
+#if CONFIG_F159_OBU_HEADER
+      if (img->mlayer_id == 0) {
+        printf("Writing        base layer 0 %d\n", frame_cnt);
+        aom_img_write(img_shifted, outfile[0]);
+      } else if (img->mlayer_id <= (int)(si.number_mlayers - 1)) {
+        printf("Writing enhancement layer %d %d\n", img->mlayer_id, frame_cnt);
+        aom_img_write(img_shifted, outfile[img->mlayer_id]);
+      } else {
+        die_codec(&codec, "Invalid bitstream. Layer id exceeds layer count");
+      }
+      if (img->mlayer_id == (int)(si.number_mlayers - 1)) ++frame_cnt;
+#else
       if (img->spatial_id == 0) {
         printf("Writing        base layer 0 %d\n", frame_cnt);
         aom_img_write(img_shifted, outfile[0]);
@@ -172,13 +194,18 @@ int main(int argc, char **argv) {
         die_codec(&codec, "Invalid bitstream. Layer id exceeds layer count");
       }
       if (img->spatial_id == (int)(si.number_spatial_layers - 1)) ++frame_cnt;
+#endif  // CONFIG_F159_OBU_HEADER
     }
   }
 
   printf("Processed %d frames.\n", frame_cnt);
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
 
+#if CONFIG_F159_OBU_HEADER
+  for (i = 0; i < si.number_mlayers; i++) fclose(outfile[i]);
+#else
   for (i = 0; i < si.number_spatial_layers; i++) fclose(outfile[i]);
+#endif  // CONFIG_F159_OBU_HEADER
 
   fclose(inputfile);
 

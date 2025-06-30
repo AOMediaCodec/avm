@@ -1029,7 +1029,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
   int ref_picture_map[REF_FRAMES];
   assert(cm->seq_params.ref_frames > 0);
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+#else
+  for (int i = 0; i < REF_FRAMES; ++i) {
+#endif
     if (frame_params.frame_type == KEY_FRAME || gop_eval
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
         || cm->ref_frame_map[i] == NULL
@@ -1115,13 +1119,23 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
     else
       av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
-    int refresh_mask =
-        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
-                                    gf_index, true_disp, ref_frame_map_pairs);
+    int refresh_mask = av1_get_refresh_frame_flags(
+        cpi, &frame_params, frame_update_type, gf_index,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+        0,
+#endif
+#if CONFIG_MULTILAYER_CORE
+        -1, cm->number_layers,
+#endif
+        true_disp, ref_frame_map_pairs);
 
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
+#if CONFIG_EXTRA_DPB
     if (refresh_frame_map_index < cm->seq_params.ref_frames) {
+#else
+    if (refresh_frame_map_index < REF_FRAMES) {
+#endif
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1203,6 +1217,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     gf_group->update_type[gf_index] = LF_UPDATE;
     gf_group->q_val[gf_index] = *pframe_qindex;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf(" init_gop_frames_for_tpl: pframe_qindex=%2d\n", *pframe_qindex);
+#endif
 
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
@@ -1217,10 +1234,20 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     // frame_update_type.
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type, -1,
+#if CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY
+                                    0,
+#endif
+#if CONFIG_MULTILAYER_CORE
+                                    -1, cm->number_layers,
+#endif
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index =
         av1_get_refresh_ref_frame_map(cm, refresh_mask);
+#if CONFIG_EXTRA_DPB
     if (refresh_frame_map_index < cm->seq_params.ref_frames) {
+#else
+    if (refresh_frame_map_index < REF_FRAMES) {
+#endif
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1302,7 +1329,10 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     gf_group->q_val[gf_index] =
         av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
                                  &bottom_index, &top_index);
-
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf(" av1_tpl_setup_stats: q_val[%d]=%2d\n", gf_index,
+           gf_group->q_val[gf_index]);
+#endif
     cm->current_frame.frame_type = INTER_FRAME;
   }
 #if CONFIG_BRU

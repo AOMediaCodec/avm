@@ -144,6 +144,39 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
+# Multilayer coding
+set_aom_config_var(
+  CONFIG_MULTILAYER_CORE 1
+  "Core changes in the codebase for multilayer coding support.")
+set_aom_config_var(CONFIG_MULTILAYER_ENCODER_SEPARATE_DPB 1
+                   "Separate dpb for multilayer encoding.")
+set_aom_config_var(
+  CONFIG_MULTILAYER_ENCODER_QUANTIZATION_ALIGNMENT 1
+  "Encoder only alignment of quantization parameters for layered coding.")
+set_aom_config_var(CONFIG_MULTILAYER_ENCODER_TEMPORAL_SCALABILITY 0
+                   "Sample encoder for temporal scalability")
+# Extended signaling based on CWG-F158
+set_aom_config_var(CONFIG_CWG_F158_FLEXIBLE_SIGNALING 0
+                   "extended dpb support with flexible signaling.")
+set_aom_config_var(CONFIG_CWG_F158_SIGNALING_IMPROVEMENT 0
+                   "CWG-F158 context extension")
+
+# CWG-F159: OBU Header design and obu size signaling changes
+set_aom_config_var(CONFIG_F159_OBU_HEADER 1
+                   "Enable 2 byte OBU header with layer ids")
+set_aom_config_var(CONFIG_F159_OBUSIZE_ANNEXB 1
+                   "Enable annexb, disable size signaling")
+
+# Output-order related fixes
+set_aom_config_var(CONFIG_REF_COUNT_FIX 1 "Fix on memory leak")
+
+set_aom_config_var(CONFIG_MULTILAYER_DEBUG 0
+                   "Debug functionality macro for multiview coding.")
+set_aom_config_var(CONFIG_MULTILAYER_DEBUG_PROMPT 0
+                   "Debug macro for prompting on display.")
+set_aom_config_var(CONFIG_MULTILAYER_DEBUG_LOGFILES 0
+                   "Debug create logfiles for encode and decode.")
+
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
@@ -332,6 +365,11 @@ set_aom_config_var(CONFIG_ADST_TUNED 1
 
 # CWG-F082: Extended DPB mode for AV2 in RTC
 set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
+# Configurable DPB extension
+set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
+                   "signaling changes for DPB extension")
+set_aom_config_var(CONFIG_EXTRA_DPB_FIX_F158 1 "ccso related bugfix for DPB")
+set_aom_config_var(CONFIG_EXTRA_DPB_FIX_BRU 1 "bru related bugfix for DPB")
 
 # CWG-E230: On core transform for AV2
 set_aom_config_var(CONFIG_CORE_TX 1 "AV2 core transform")

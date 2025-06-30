@@ -41,10 +41,19 @@ static void bubble_sort_ref_scores(RefScoreData *scores, int n_ranked) {
 
 // Checks to see if a particular reference frame is already in the reference
 // frame map
-static int is_in_ref_score(RefScoreData *map, int disp_order, int score,
-                           int n_frames) {
+static int is_in_ref_score(RefScoreData *map, int disp_order,
+#if CONFIG_MULTILAYER_CORE
+                           int view_id,
+#endif
+                           int score, int n_frames) {
   for (int i = 0; i < n_frames; i++) {
+#if CONFIG_MULTILAYER_CORE
+    if (disp_order == map[i].disp_order && view_id == map[i].view_id &&
+        score == map[i].score)
+      return 1;
+#else
     if (disp_order == map[i].disp_order && score == map[i].score) return 1;
+#endif
   }
   return 0;
 }
@@ -141,29 +150,54 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     max_disp = AOMMAX(max_disp, cur_ref.disp_order);
   }
 
   // Compute a score for each reference buffer
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     const int ref_disp = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+    const int ref_view_id = cur_ref.view_id;
+    const int cur_view_id = cm->current_frame.view_id;
+    if (ref_view_id > cur_view_id) {
+      continue;
+    }
+#endif
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
+#if CONFIG_MULTILAYER_CORE
+    const int layer_diff = cur_view_id - ref_view_id;
+    const int disp_diff = cur_frame_disp - ref_disp + layer_diff;
+#else
     const int disp_diff = cur_frame_disp - ref_disp;
+#endif
     int tdist = abs(disp_diff);
     const int score =
         max_disp > cur_frame_disp
             ? ((tdist << DIST_WEIGHT_BITS) + ref_base_qindex)
             : temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
                   AOMMAX(tdist - DECAY_DIST_CAP, 0) + ref_base_qindex;
-    if (is_in_ref_score(scores, ref_disp, score, n_ranked)) continue;
+    if (is_in_ref_score(scores, ref_disp,
+#if CONFIG_MULTILAYER_CORE
+                        ref_view_id,
+#endif
+                        score, n_ranked))
+      continue;
 
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;
@@ -181,7 +215,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   bubble_sort_ref_scores(scores, n_ranked);
 
   cm->ref_frames_info.num_total_refs =
+#if CONFIG_CWG_F168_DPB_HLS
+      AOMMIN(n_ranked,
+             AOMMIN(cm->seq_params.ref_frames - 1, INTER_REFS_PER_FRAME));
+#else
       AOMMIN(n_ranked, cm->seq_params.max_reference_frames);
+#endif
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     cm->remapped_ref_idx[i] = scores[i].index;
     // The distance is not available to the decoder when order_hint is disabled.
@@ -203,8 +242,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     memcpy(cm->bru.ref_scores, scores, REF_FRAMES * sizeof(*scores));
 #endif  // CONFIG_BRU
 
-  // Fill any slots that are empty (should only happen for the first 7 frames)
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+  // Fill any slots that are empty (should only happen for the first 7 frames)
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     // Instead of filling empty slots (remapped_ref_idx[i]) with zero,
     // the empty slots are filled with the first index (scores[0].index),
@@ -232,6 +275,9 @@ typedef struct {
   int idx;
   int disp_order;
   int base_qindex;
+#if CONFIG_MULTILAYER_CORE
+  int view_id;
+#endif
 } PrimaryRefCand;
 #endif  // CONFIG_PRIMARY_QP_FIRST
 // Check if one reference frame is better based on its distance to the current
@@ -338,13 +384,27 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
 
   const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
   const int cur_frame_disp = cm->current_frame.display_order_hint;
+#if CONFIG_MULTILAYER_CORE
+  const int curr_view_id = cm->current_frame.view_id;
+#endif
+
   int i;
 
+#if CONFIG_MULTILAYER_CORE
+  PrimaryRefCand cand_lower_qp = { -1, -1, -1, -1 };
+  PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX, -1 };
+#else
   PrimaryRefCand cand_lower_qp = { -1, -1, -1 };
   PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX };
+#endif
 
+#if CONFIG_MULTILAYER_CORE
+  PrimaryRefCand secondary_cand_lower_qp = { -1, -1, -1, -1 };
+  PrimaryRefCand secondary_cand_higher_qp = { -1, -1, INT32_MAX, -1 };
+#else
   PrimaryRefCand secondary_cand_lower_qp = { -1, -1, -1 };
   PrimaryRefCand secondary_cand_higher_qp = { -1, -1, INT32_MAX };
+#endif
 
   const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
   for (i = 0; i < n_refs; i++) {
@@ -352,6 +412,20 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
     RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     if (cur_ref.frame_type != INTER_FRAME) continue;
+#if CONFIG_MULTILAYER_CORE
+    const int ref_view_id = cur_ref.view_id;
+    if (ref_view_id > curr_view_id) continue;
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+    const CurrentFrame *const cf = &cm->current_frame;
+    if (ref_view_id > curr_view_id) {
+      printf("Breaking view dependency: \n");
+      printf("(index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", i, cf->view_id,
+             cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      printf("Current reference-buffer =");
+      debug_print_buffer_state(cm);
+    }
+#endif
+#endif
 
     const int ref_base_qindex = cur_ref.base_qindex;
 
@@ -367,6 +441,9 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
         cand_higher_qp.idx = i;
         cand_higher_qp.base_qindex = ref_base_qindex;
         cand_higher_qp.disp_order = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+        cand_higher_qp.view_id = cur_ref.view_id;
+#endif
       }
     } else {
       if ((ref_base_qindex > cand_lower_qp.base_qindex) ||
@@ -380,6 +457,9 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
         cand_lower_qp.idx = i;
         cand_lower_qp.base_qindex = ref_base_qindex;
         cand_lower_qp.disp_order = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+        cand_lower_qp.view_id = cur_ref.view_id;
+#endif
       }
     }
   }
@@ -431,10 +511,18 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
 
   const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
   const int cur_frame_disp = cm->current_frame.display_order_hint;
+#if CONFIG_MULTILAYER_CORE
+  const int curr_view_id = cm->current_frame.view_id;
+#endif
   int i;
 
+#if CONFIG_MULTILAYER_CORE
+  PrimaryRefCand cand_lower_qp = { -1, -1, -1, -1 };
+  PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX, -1 };
+#else
   PrimaryRefCand cand_lower_qp = { -1, -1, -1 };
   PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX };
+#endif
 
   const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
   for (i = 0; i < n_refs; i++) {
@@ -442,7 +530,20 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     if (cur_ref.frame_type != INTER_FRAME) continue;
-
+#if CONFIG_MULTILAYER_CORE
+    const int ref_view_id = cur_ref.view_id;
+    if (ref_view_id > curr_view_id) continue;
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    const CurrentFrame *const cf = &cm->current_frame;
+    if (ref_view_id > curr_view_id) {
+      printf("Breaking view dependency: \n");
+      printf("(index=%d): (View,Level,OH,DOH):(%d,%d,%d,%d) \n", i, cf->view_id,
+             cf->pyramid_level, cf->order_hint, cf->display_order_hint);
+      printf("Current reference-buffer =");
+      debug_print_buffer_state(cm);
+    }
+#endif
+#endif
     const int ref_base_qindex = cur_ref.base_qindex;
 
     if (ref_base_qindex > cm->quant_params.base_qindex) {
@@ -453,6 +554,9 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
         cand_higher_qp.idx = i;
         cand_higher_qp.base_qindex = ref_base_qindex;
         cand_higher_qp.disp_order = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+        cand_higher_qp.view_id = cur_ref.view_id;
+#endif
       }
     } else {
       if ((ref_base_qindex > cand_lower_qp.base_qindex) ||
@@ -462,6 +566,9 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
         cand_lower_qp.idx = i;
         cand_lower_qp.base_qindex = ref_base_qindex;
         cand_lower_qp.disp_order = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+        cand_lower_qp.view_id = cur_ref.view_id;
+#endif
       }
     }
   }

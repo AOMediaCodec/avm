@@ -13,7 +13,7 @@
 #define AOM_COMMON_OBUDEC_H_
 
 #include "common/tools_common.h"
-
+#include "config/aom_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,6 +24,9 @@ struct ObuDecInputContext {
   size_t buffer_capacity;
   size_t bytes_buffered;
   int is_annexb;
+#if CONFIG_F159_OBUSIZE_ANNEXB
+  int has_temporal_delimiter;
+#endif
 };
 
 // Returns 1 when file data starts (if Annex B stream, after reading the

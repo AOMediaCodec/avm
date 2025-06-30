@@ -371,6 +371,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
+#if CONFIG_MULTILAYER_CORE
+  assert(oxcf->input_cfg.num_views > 0);
+  seq->still_picture &= oxcf->input_cfg.num_views == 1;
+#endif
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
@@ -403,6 +407,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_SAME_REF_COMPOUND
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 #endif  // CONFIG_SAME_REF_COMPOUND
+
+#if CONFIG_MULTILAYER_CORE
+  seq->num_views = oxcf->input_cfg.num_views;
+#endif
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
@@ -502,6 +510,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     // operarting points (i > 0) are lower quality corresponding to
     // skip decoding enhancement  layers (temporal first).
     int i = 0;
+#if CONFIG_F159_OBU_HEADER
+    assert(seq->operating_points_cnt_minus_1 ==
+           (int)(cm->number_mlayers * cm->number_tlayers - 1));
+    for (unsigned int sl = 0; sl < cm->number_mlayers; sl++) {
+      for (unsigned int tl = 0; tl < cm->number_tlayers; tl++) {
+        seq->operating_point_idc[i] =
+            (~(~0u << (cm->number_mlayers - sl)) << 8) |
+            ~(~0u << (cm->number_tlayers - tl));
+#else
     assert(seq->operating_points_cnt_minus_1 ==
            (int)(cm->number_spatial_layers * cm->number_temporal_layers - 1));
     for (unsigned int sl = 0; sl < cm->number_spatial_layers; sl++) {
@@ -509,6 +526,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
         seq->operating_point_idc[i] =
             (~(~0u << (cm->number_spatial_layers - sl)) << 8) |
             ~(~0u << (cm->number_temporal_layers - tl));
+#endif  // CONFIG_F159_OBU_HEADER
         i++;
       }
     }
@@ -614,11 +632,20 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  seq->max_dpb_size = tool_cfg->max_dpb_size;
+  seq->ref_frames = seq->max_dpb_size;
+  seq->ref_frames_log2 = seq->max_dpb_size > 8   ? 4
+                         : seq->max_dpb_size > 4 ? 3
+                         : seq->max_dpb_size > 2 ? 2
+                                                 : 1;
+#else
   seq->num_extra_dpb = tool_cfg->num_extra_dpb;
   seq->ref_frames = seq->num_extra_dpb ? REGULAR_REF_FRAMES + seq->num_extra_dpb
                                        : REGULAR_REF_FRAMES;
   seq->ref_frames_log2 =
       seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #else
   seq->ref_frames = REF_FRAMES;
   seq->ref_frames_log2 = REF_FRAMES_LOG2;
@@ -714,11 +741,23 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
+#if CONFIG_F159_OBU_HEADER
+  // Set init SVC parameters.
+  cm->number_mlayers = oxcf->input_cfg.num_views;
+  cm->number_tlayers = 1;
+  cm->mlayer_id = 0;
+  cm->tlayer_id = 0;
+#else
   // Set init SVC parameters.
   cm->number_spatial_layers = 1;
   cm->number_temporal_layers = 1;
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
+#endif  // CONFIG_F159_OBU_HEADER
+
+#if CONFIG_MULTILAYER_CORE
+  cm->number_layers = oxcf->input_cfg.num_views;
+#endif
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
@@ -1059,8 +1098,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     seq_params->operating_points_cnt_minus_1 =
+#if CONFIG_F159_OBU_HEADER
+        (cm->number_mlayers > 1 || cm->number_tlayers > 1)
+            ? cm->number_mlayers * cm->number_tlayers - 1
+#else
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
+#endif  // CONFIG_F159_OBU_HEADER
             : 0;
     av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf);
   }
@@ -1181,6 +1225,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 #if DEBUG_EXTQUANT
   cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
 #endif
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  cm->fEncMultiviewLog = fopen("/tmp/EncMultilayerLog.txt", "wt");
+#endif
 
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
@@ -1217,6 +1264,10 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
+#if CONFIG_MULTILAYER_CORE
+  cpi->frames_left *= cm->number_layers;
+  assert(cm->number_layers > 0);
+#endif
 
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
@@ -1679,6 +1730,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if DEBUG_EXTQUANT
   if (cpi->common.fEncCoeffLog != NULL) {
     fclose(cpi->common.fEncCoeffLog);
+  }
+#endif
+
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  if (cpi->common.fEncMultiviewLog != NULL) {
+    fclose(cpi->common.fEncMultiviewLog);
   }
 #endif
 
@@ -2184,7 +2241,11 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   int i;
   BufferPool *const pool = cm->buffer_pool;
   cm->cur_frame = NULL;
+#if CONFIG_EXTRA_DPB
   for (i = 0; i < cm->seq_params.ref_frames; ++i) {
+#else
+  for (i = 0; i < REF_FRAMES; ++i) {
+#endif
     cm->ref_frame_map[i] = NULL;
   }
   for (i = 0; i < FRAME_BUFFERS; ++i) {
@@ -4217,6 +4278,20 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cpi->last_encoded_frame_order_hint = cm->current_frame.display_order_hint;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
+#if CONFIG_MULTILAYER_DEBUG
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("Encoder - ");
+  debug_print_multiview_buf_refs(cm);
+  debug_print_multiview_curr_frame(cm);
+#endif
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  FILE *const logfile = cm->fEncMultiviewLog;
+  logfile_multiview_curr_frame(cm, logfile);
+  logfile_multiview_buf_refs(cm, logfile);
+  logfile_buffer_state(cm, logfile);
+#endif
+#endif
+
   return AOM_CODEC_OK;
 }
 
@@ -4566,7 +4641,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         current_frame->frame_type == KEY_FRAME) {
       // Displaying a forward key-frame, so reset the ref buffer IDs
       int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
+#if CONFIG_EXTRA_DPB
       for (int i = 0; i < seq_params->ref_frames; i++)
+#else
+      for (int i = 0; i < REF_FRAMES; i++)
+#endif
         cm->ref_frame_id[i] = display_frame_id;
     }
 
@@ -4599,6 +4678,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // !CONFIG_KEY_OVERLAY
       ++current_frame->frame_number;
 
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+    printf("Frame number increment 1 : %d --> %d \n",
+           current_frame->frame_number - 1, current_frame->frame_number);
+#endif
     return AOM_CODEC_OK;
   }
 
@@ -4758,7 +4841,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
+#if CONFIG_EXTRA_DPB
     for (int i = 0; i < seq_params->ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
       if ((current_frame->refresh_frame_flags >> i) & 1) {
         cm->ref_frame_id[i] = cm->current_frame_id;
       }
@@ -4876,6 +4963,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     ++current_frame->frame_number;
   }
 
+#if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_DEBUG_PROMPT
+  printf("Frame number increment 2 : %d --> %d \n",
+         current_frame->frame_number - 1, current_frame->frame_number);
+#endif
+
   return AOM_CODEC_OK;
 }
 
@@ -4913,6 +5005,15 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
+#if CONFIG_MULTILAYER_CORE
+  current_frame->absolute_poc =
+      current_frame->key_frame_number + current_frame->display_order_hint;
+  current_frame->view_id =
+      current_frame->display_order_hint % cm->number_layers;
+  current_frame->order_hint = current_frame->order_hint / cm->number_layers;
+  current_frame->display_order_hint =
+      current_frame->display_order_hint / cm->number_layers;
+#endif
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
 #if CONFIG_KEY_OVERLAY
@@ -4927,8 +5028,14 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->temporal_layer_id = cm->temporal_layer_id;
 
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+#if CONFIG_MULTILAYER_CORE
+  const int cur_frame_disp =
+      (cpi->common.current_frame.frame_number + order_offset) /
+      cm->number_layers;
+#else
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+#endif
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT
   init_ref_map_pair(
@@ -4953,8 +5060,10 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
+#if !CONFIG_MULTILAYER_CORE
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
+#endif  // !CONFIG_MULTILAYER_CORE
 
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
@@ -4969,6 +5078,23 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
                                         cm->show_frame);
 #endif  // CONFIG_BITSTREAM_DEBUG
+
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+    cm->show_existing_frame = frame_params->show_existing_frame;
+    cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
+    if (cm->show_existing_frame != 0 && cpi->existing_fb_idx_to_show < 0) {
+      FILE *const logfile = cm->fEncMultiviewLog;
+      fprintf(logfile,
+              " -- Encoder show existing frame may fail (flag=%d, "
+              "fb_idx_to_show=%d): \n ",
+              cm->show_existing_frame, cpi->existing_fb_idx_to_show);
+      logfile_multiview_curr_frame(cm, logfile);
+      logfile_multiview_buf_refs(cm, logfile);
+      logfile_buffer_state(cm, logfile);
+      logfile_primary_ref_info(cm, logfile);
+      fprintf(logfile, " -- End show existing frame --- \n ");
+    }
+#endif  // CONFIG_MULTILAYER_DEBUG_LOGFILES
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -5319,13 +5445,19 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
     uint64_t obu_payload_size;
     size_t length_of_payload_size;
     size_t length_of_obu_size;
-    uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    uint32_t obu_header_size = OBU_HEADER_SIZE;
+#else
+      uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+#endif
     size_t obu_bytes_read = obu_header_size;  // bytes read for current obu
 
     // save the obu header (1 or 2 bytes)
     memmove(saved_obu_header, buff_ptr, obu_header_size);
+#if !CONFIG_F159_OBUSIZE_ANNEXB
     // clear the obu_has_size_field
     saved_obu_header[0] = saved_obu_header[0] & (~0x2);
+#endif
 
     // get the payload_size and length of payload_size
     if (aom_uleb_decode(buff_ptr + obu_header_size, remaining_size,
@@ -5408,14 +5540,23 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
-  const size_t obu_header_size = 1;
+#if CONFIG_F159_OBU_HEADER
+  const size_t obu_header_size = 2;
+#else
+    const size_t obu_header_size = 1;
+#endif  // CONFIG_F159_OBU_HEADER
   const size_t size_field_size = aom_uleb_size_in_bytes(sequence_header_size);
   const size_t payload_offset = obu_header_size + size_field_size;
 
   if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
-  if (av1_write_obu_header(&cpi->level_params, OBU_SEQUENCE_HEADER, 0,
+  if (av1_write_obu_header(&cpi->level_params, OBU_SEQUENCE_HEADER,
+#if CONFIG_F159_OBU_HEADER
+                           0, 0,
+#else
+                             0,
+#endif  // CONFIG_F159_OBU_HEADER
                            &header_buf[0]) != obu_header_size) {
     return NULL;
   }

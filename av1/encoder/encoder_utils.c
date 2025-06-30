@@ -1229,6 +1229,34 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
+#if CONFIG_MULTILAYER_DEBUG
+    const CurrentFrame *const cf = &cpi->common.current_frame;
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+    FILE *const logfile = cm->fEncMultiviewLog;
+#endif
+    if (frame_to_show == NULL || cpi->existing_fb_idx_to_show < 0) {
+#if CONFIG_MULTILAYER_DEBUG_PROMPT
+      printf(
+          "Frame to show - does not exist (index=%d): "
+          "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+          cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+          cf->order_hint, cf->display_order_hint);
+      fflush(stdout);
+#endif
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+      fprintf(logfile,
+              "Frame to show - does not exist (index=%d): "
+#if CONFIG_MULTILAYER_CORE
+              "(View,Level,OH,DOH):(%d,%d,%d,%d) \n",
+              cpi->existing_fb_idx_to_show, cf->view_id, cf->pyramid_level,
+#else
+              "(Level,OH,DOH):(%d,%d,%d) \n",
+              cpi->existing_fb_idx_to_show, cf->pyramid_level,
+#endif
+              cf->order_hint, cf->display_order_hint);
+#endif
+    }
+#endif
 
     if (frame_to_show == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,

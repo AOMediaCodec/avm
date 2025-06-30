@@ -72,8 +72,12 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
+#if CONFIG_EXTRA_DPB
   for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
        ++ref_frame)
+#else
+  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+#endif
     subgop_stats->ref_frame_map[subgop_stats->stat_count][ref_frame] =
         cm->ref_frame_map[ref_frame]->order_hint;
 
@@ -250,6 +254,10 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
 #if DEBUG_EXTQUANT
   cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");
+#endif
+
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  cm->fDecMultiviewLog = fopen("/tmp/DecMultilayerLog.txt", "wt");
 #endif
 
 #if CONFIG_PARAKIT_COLLECT_DATA
@@ -441,6 +449,12 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   }
 #endif
 
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  if (pbi->common.fDecMultiviewLog != NULL) {
+    fclose(pbi->common.fDecMultiviewLog);
+  }
+#endif
+
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int f = 0; f < MAX_NUM_CTX_GROUPS; f++) {
     if (pbi->common.prob_models[f].fDataCollect != NULL) {
@@ -582,6 +596,9 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   AV1_COMMON *const cm = &pbi->common;
   RefCntBuffer *trigger_frame = NULL;
   RefCntBuffer *output_candidate = NULL;
+#if CONFIG_MULTILAYER_CORE
+  const unsigned int num_layers = cm->number_layers;
+#endif
 
   // Determine if the triggering frame is the current frame or a frame
   // already stored in the refrence buffer.
@@ -591,14 +608,30 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   // Add the previous frames into the output queue.
   do {
     output_candidate = trigger_frame;
+#if CONFIG_EXTRA_DPB
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+#if CONFIG_MULTILAYER_CORE
+          (cm->ref_frame_map[i]->display_order_hint * num_layers +
+           cm->ref_frame_map[i]->view_id) <
+              (output_candidate->display_order_hint * num_layers +
+               output_candidate->view_id)) {
+#else
           cm->ref_frame_map[i]->display_order_hint <
               output_candidate->display_order_hint) {
+#endif
         output_candidate = cm->ref_frame_map[i];
       }
     }
     if (output_candidate != trigger_frame) {
+#if CONFIG_MULTILAYER_CORE
+      pbi->output_view_ids[pbi->num_output_frames] = output_candidate->view_id;
+      pbi->display_order_hint_ids[pbi->num_output_frames] =
+          output_candidate->display_order_hint;
+#endif
       pbi->output_frames[pbi->num_output_frames++] = output_candidate;
       output_candidate->frame_output_done = 1;
 #if CONFIG_BITSTREAM_DEBUG
@@ -612,6 +645,11 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
   // Add the output triggering frame into the output queue.
+#if CONFIG_MULTILAYER_CORE
+  pbi->output_view_ids[pbi->num_output_frames] = trigger_frame->view_id;
+  pbi->display_order_hint_ids[pbi->num_output_frames] =
+      trigger_frame->display_order_hint;
+#endif
   pbi->output_frames[pbi->num_output_frames++] = trigger_frame;
   trigger_frame->frame_output_done = 1;
 #if CONFIG_BITSTREAM_DEBUG
@@ -626,13 +664,39 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 
   // Add the next frames (showable_frame == 1) into the output queue.
   int successive_output = 1;
+#if CONFIG_EXTRA_DPB
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
+#else
+  for (int k = 1; k <= REF_FRAMES && successive_output > 0; k++) {
+#endif
+#if CONFIG_MULTILAYER_CORE
+    unsigned int next_disp_order =
+        (trigger_frame->display_order_hint * num_layers +
+         trigger_frame->view_id) +
+        k;
+#else
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
+#endif
     successive_output = 0;
+#if CONFIG_EXTRA_DPB
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+    for (int i = 0; i < REF_FRAMES; i++) {
+#endif
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+#if CONFIG_MULTILAYER_CORE
+          (cm->ref_frame_map[i]->display_order_hint * num_layers +
+           cm->ref_frame_map[i]->view_id) == next_disp_order) {
+#else
           cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
+#endif
+#if CONFIG_MULTILAYER_CORE
+        pbi->output_view_ids[pbi->num_output_frames] =
+            cm->ref_frame_map[i]->view_id;
+        pbi->display_order_hint_ids[pbi->num_output_frames] =
+            cm->ref_frame_map[i]->display_order_hint;
+#endif
         pbi->output_frames[pbi->num_output_frames++] = cm->ref_frame_map[i];
         cm->ref_frame_map[i]->frame_output_done = 1;
         successive_output++;
@@ -662,7 +726,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     lock_buffer_pool(pool);
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if !CONFIG_REF_COUNT_FIX && CONFIG_MULTILAYER_CORE
     if (cm->seq_params.enable_frame_output_order) pbi->num_output_frames = 0;
+#endif  // !CONFIG_REF_COUNT_FIX && CONFIG_MULTILAYER_CORE
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // In ext-tile decoding, the camera frame header is only decoded once. So,
     // we don't update the references here.
@@ -681,9 +747,21 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
                 is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
               output_frame_buffers(pbi, ref_index);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-            decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-            cm->ref_frame_map[ref_index] = cm->cur_frame;
-            ++cm->cur_frame->ref_count;
+#if CONFIG_REF_COUNT_FIX
+            set_ref_count_zero(cm->ref_frame_map[ref_index], pool);
+#else   // CONFIG_REF_COUNT_FIX
+          decrease_ref_count(cm->ref_frame_map[ref_index], pool);
+#endif  // CONFIG_REF_COUNT_FIX
+#if CONFIG_REF_COUNT_FIX
+            if (cm->current_frame.frame_type == KEY_FRAME && ref_index > 0) {
+              cm->ref_frame_map[ref_index] = NULL;
+            } else {
+              cm->ref_frame_map[ref_index] = cm->cur_frame;
+            }
+#else   // CONFIG_REF_COUNT_FIX
+          cm->ref_frame_map[ref_index] = cm->cur_frame;
+          ++cm->cur_frame->ref_count;
+#endif  // CONFIG_REF_COUNT_FIX
           }
           ++ref_index;
         }
@@ -703,35 +781,65 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
                (cm->show_existing_frame || cm->show_frame)) {
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
-        if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS) {
+#if CONFIG_F159_OBU_HEADER
+        if (pbi->num_output_frames >= MAX_NUM_MLAYERS)
+#else
+        if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_F159_OBU_HEADER
+        {
           // We can't store the new frame anywhere, so drop it and return an
           // error
           cm->cur_frame->buf.corrupted = 1;
+#if CONFIG_REF_COUNT_FIX
+          set_ref_count_zero(cm->cur_frame, pool);
+#else   // CONFIG_REF_COUNT_FIX
           decrease_ref_count(cm->cur_frame, pool);
+#endif  // CONFIG_REF_COUNT_FIX
           cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         } else {
+#if CONFIG_MULTILAYER_CORE
+          pbi->output_view_ids[pbi->num_output_frames] = cm->cur_frame->view_id;
+          pbi->display_order_hint_ids[pbi->num_output_frames] =
+              cm->cur_frame->display_order_hint;
+#endif
           pbi->output_frames[pbi->num_output_frames] = cm->cur_frame;
           pbi->num_output_frames++;
         }
       } else {
         // Replace any existing output frame
+#if !CONFIG_REF_COUNT_FIX
         assert(pbi->num_output_frames == 0 || pbi->num_output_frames == 1);
         if (pbi->num_output_frames > 0) {
           decrease_ref_count(pbi->output_frames[0], pool);
         }
+#endif  // !CONFIG_REF_COUNT_FIX
+#if CONFIG_MULTILAYER_CORE
+        pbi->output_view_ids[pbi->num_output_frames] = cm->cur_frame->view_id;
+        pbi->display_order_hint_ids[pbi->num_output_frames] =
+            cm->cur_frame->display_order_hint;
+#endif
+#if CONFIG_REF_COUNT_FIX
+        pbi->output_frames[pbi->num_output_frames] = cm->cur_frame;
+        pbi->num_output_frames++;
+#else   // CONFIG_REF_COUNT_FIX
         pbi->output_frames[0] = cm->cur_frame;
         pbi->num_output_frames = 1;
+#endif  // CONFIG_REF_COUNT_FIX
       }
-    } else {
+    }
+#if !CONFIG_REF_COUNT_FIX
+    else {
       decrease_ref_count(cm->cur_frame, pool);
     }
-
+#endif  // !CONFIG_REF_COUNT_FIX
     unlock_buffer_pool(pool);
   } else {
+#if !CONFIG_REF_COUNT_FIX
     // Nothing was decoded, so just drop this frame buffer
     lock_buffer_pool(pool);
     decrease_ref_count(cm->cur_frame, pool);
     unlock_buffer_pool(pool);
+#endif  // !CONFIG_REF_COUNT_FIX
   }
   cm->cur_frame = NULL;
 
@@ -761,9 +869,17 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     // thing to do here.
     const int last_frame = get_closest_pastcur_ref_or_ref0(cm);
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
+#if CONFIG_REF_COUNT_FIX
+    if (ref_buf != NULL) printf("\nref_buf->buf.corrupted = 1\n");
+#else   // CONFIG_REF_COUNT_FIX
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
+#endif  // CONFIG_REF_COUNT_FIX
   }
-
+#if CONFIG_REF_COUNT_FIX
+  if (cm->cur_frame != NULL) {
+    release_current_frame(pbi);
+  }
+#endif  // CONFIG_REF_COUNT_FIX
   if (assign_cur_frame_new_fb(cm) == NULL) {
     cm->error.error_code = AOM_CODEC_MEM_ERROR;
     return 1;
@@ -794,6 +910,11 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
 
   int frame_decoded =
       aom_decode_frame_from_obus(pbi, source, source + size, psource);
+#if CONFIG_REF_COUNT_FIX
+  if (frame_decoded == 0) {
+    release_current_frame(pbi);
+  }
+#endif  // CONFIG_REF_COUNT_FIX
 #if CONFIG_INSPECTION
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     if (pbi->inspect_tip_cb != NULL) {
@@ -820,6 +941,19 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   // Note: At this point, this function holds a reference to cm->cur_frame
   // in the buffer pool. This reference is consumed by update_frame_buffers().
   update_frame_buffers(pbi, frame_decoded);
+#if CONFIG_MULTILAYER_DEBUG && 0
+  printf("Frame Decoded Signal = %d\n", frame_decoded);
+  printf(" pbi->num_output_frames=%d\n", (int)pbi->num_output_frames);
+  printf(" pbi->output_frames_offset=%d\n", (int)pbi->output_frames_offset);
+  for (int i = 0; i < (REF_FRAMES + 1); i++) {
+    RefCntBuffer *const of = pbi->output_frames[i];
+    if (of != NULL)
+      printf(" pbi->output_frames[%d]=(%d,%d,%d)\n", i, of->view_id,
+             of->order_hint, of->num_ref_frames);
+  }
+
+  // printf(" cm->cur_frame->ref_count=%d\n", cm->cur_frame->ref_count);
+#endif
 
   if (frame_decoded) {
     pbi->decoding_first_frame = 0;

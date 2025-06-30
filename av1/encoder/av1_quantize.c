@@ -581,6 +581,7 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   *v_dc_delta_q = 0;
   *u_ac_delta_q = 0;
   *v_ac_delta_q = 0;
+#if !CONFIG_MULTILAYER_ENCODER_QUANTIZATION_ALIGNMENT
 #if !CONFIG_ADJ_Q_OFFSET
   if (frame_is_intra_only(cm)) {
 #if CONFIG_EXT_QUANT_UPD
@@ -589,6 +590,7 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
       *u_dc_delta_q = *v_dc_delta_q = -4;
   }
 #endif  // !CONFIG_ADJ_Q_OFFSET
+#endif  // !CONFIG_MULTILAYER_CORE
 }
 
 void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,

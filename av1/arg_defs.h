@@ -77,6 +77,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_WEBM_IO
   arg_def_t stereo_mode;
 #endif
+#if CONFIG_MULTILAYER_CORE
+  arg_def_t num_views;
+#endif
   arg_def_t timebase;
   arg_def_t global_error_resilient;
   arg_def_t lag_in_frames;
@@ -316,7 +319,11 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  arg_def_t max_dpb_size;
+#else
   arg_def_t num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   arg_def_t enable_bru;

@@ -16,6 +16,7 @@
  */
 #include <string.h>
 #include "aom/internal/aom_codec_internal.h"
+#include "config/aom_config.h"
 
 #define SAVE_STATUS(ctx, var) (ctx ? (ctx->err = var) : var)
 
@@ -66,7 +67,9 @@ aom_codec_err_t aom_codec_peek_stream_info(aom_codec_iface_t *iface,
     /* Set default/unknown values */
     si->w = 0;
     si->h = 0;
-
+#if CONFIG_MULTILAYER_CORE
+    si->number_views = 1;
+#endif
     res = iface->dec.peek_si(data, data_sz, si);
   }
 
@@ -85,7 +88,9 @@ aom_codec_err_t aom_codec_get_stream_info(aom_codec_ctx_t *ctx,
     /* Set default/unknown values */
     si->w = 0;
     si->h = 0;
-
+#if CONFIG_MULTILAYER_CORE
+    si->number_views = 0;
+#endif
     res = ctx->iface->dec.get_si(get_alg_priv(ctx), si);
   }
 

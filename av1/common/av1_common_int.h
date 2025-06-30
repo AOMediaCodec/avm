@@ -71,11 +71,25 @@ extern "C" {
 #define FRAME_CONTEXTS (FRAME_BUFFERS + 1)
 // Extra frame context which is always kept at default values
 #define FRAME_CONTEXT_DEFAULTS (FRAME_CONTEXTS - 1)
+#if !CONFIG_EXTRA_DPB
 #define PRIMARY_REF_BITS REF_FRAMES_LOG2
+#endif
 #define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
 
 #define NUM_PING_PONG_BUFFERS 2
 
+#if CONFIG_F159_OBU_HEADER
+#define MAX_NUM_TLAYERS 8
+#define MAX_NUM_MLAYERS 8
+#define MAX_NUM_XLAYERS \
+  32  // @hegilmez: TODO: pending xlayer design to be included in operating
+      // points
+/* clang-format off */
+// clang-format seems to think this is a pointer dereference and not a
+// multiplication.
+#define MAX_NUM_OPERATING_POINTS \
+  (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
 /* clang-format off */
@@ -83,6 +97,7 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_F159_OBU_HEADER
 /* clang-format on */
 
 // TODO(jingning): Turning this on to set up transform coefficient
@@ -339,6 +354,10 @@ typedef struct RefCntBuffer {
   unsigned int order_hint;
   int ref_order_hints[INTER_REFS_PER_FRAME];
   int ref_display_order_hint[INTER_REFS_PER_FRAME];
+#if CONFIG_MULTILAYER_CORE
+  int view_id;
+  int ref_view_ids[INTER_REFS_PER_FRAME];
+#endif
 
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
@@ -424,6 +443,9 @@ typedef struct {
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
+#if CONFIG_MULTILAYER_CORE
+  int view_id;
+#endif
 } RefFrameMapPair;
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
@@ -579,12 +601,14 @@ typedef struct SequenceHeader {
                               // the compound mode
 #endif                        // CONFIG_SAME_REF_COMPOUND
 #if CONFIG_EXTRA_DPB
-  int num_extra_dpb;    // number of extra decoded picture buffers
-#endif                  // CONFIG_EXTRA_DPB
-  int ref_frames;       // number of all decoded picture buffers
-  int ref_frames_log2;  // the log value of the number of all decoded picture
-                        // buffers
-
+#if CONFIG_CWG_F168_DPB_HLS
+  int max_dpb_size;
+#else
+  int num_extra_dpb;  // number of extra decoded picture buffers
+#endif  // CONFIG_CWG_F168_DPB_HLS
+  int ref_frames;
+  int ref_frames_log2;
+#endif
   OrderHintInfo order_hint_info;
 
   uint8_t force_screen_content_tools;  // 0 - force off
@@ -744,6 +768,9 @@ typedef struct SequenceHeader {
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
+#if CONFIG_MULTILAYER_CORE
+  int num_views;  // for multiview support
+#endif
   int timing_info_present;
   aom_timing_info_t timing_info;
   uint8_t decoder_model_info_present_flag;
@@ -783,6 +810,10 @@ typedef struct {
   unsigned int absolute_poc;
   unsigned int key_frame_number;
   unsigned int frame_number;
+#if CONFIG_MULTILAYER_CORE
+  int view_id;
+  int mlayer_id;
+#endif
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
 } CurrentFrame;
@@ -2048,16 +2079,36 @@ typedef struct AV1Common {
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
+
+#if CONFIG_F159_OBU_HEADER
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
-  unsigned int number_temporal_layers;
+  unsigned int number_tlayers;
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_tlayers - 1)).
+   */
+  int tlayer_id;
+
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_temporal_layers;  //@hegilmez TODO: change
   /*!
    * Temporal layer ID of this frame
    * (in the range 0 ... (number_temporal_layers - 1)).
    */
-  int temporal_layer_id;
-
+  int temporal_layer_id;  //@hegilmez TODO: change
+  /*!
+   * Number of mlayers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_mlayers;
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_mlayers - 1)).
+   */
+  int mlayer_id;
   /*!
    * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -2067,7 +2118,47 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
+#else
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_temporal_layers;
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_temporal_layers - 1)).
+   */
+  int temporal_layer_id;
+  /*!
+   * Number of mlayers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_mlayers;
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_mlayers - 1)).
+   */
+  int mlayer_id;
+  /*!
+   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_spatial_layers;
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_spatial_layers - 1)).
+   */
+  int spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
 
+#if CONFIG_MULTILAYER_CORE
+  /*!
+   * Number of multiple layers
+   */
+  unsigned int number_layers;
+  /*!
+   * Multi-layer ID of this frame
+   * (in the range 0 ... (number_layers - 1)).
+   */
+  int layer_id;
+#endif
 /*!
  * Weights for IBP of directional modes.
  */
@@ -2093,6 +2184,11 @@ typedef struct AV1Common {
 #if DEBUG_EXTQUANT
   FILE *fEncCoeffLog;
   FILE *fDecCoeffLog;
+#endif
+
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+  FILE *fEncMultiviewLog;
+  FILE *fDecMultiviewLog;
 #endif
 
 #if CONFIG_PARAKIT_COLLECT_DATA
@@ -2230,7 +2326,11 @@ static void unlock_buffer_pool(BufferPool *const pool) {
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame(AV1_COMMON *cm, int index) {
   if (is_tip_ref_frame(index)) return &cm->tip_ref.tip_frame->buf;
+#if CONFIG_EXTRA_DPB
   if (index < 0 || index >= cm->seq_params.ref_frames) return NULL;
+#else
+  if (index < 0 || index >= REF_FRAMES) return NULL;
+#endif
   if (cm->ref_frame_map[index] == NULL) return NULL;
   return &cm->ref_frame_map[index]->buf;
 }
@@ -2306,6 +2406,19 @@ static INLINE void assign_frame_buffer_p(RefCntBuffer **lhs_ptr,
   ++rhs_ptr->ref_count;
 }
 
+#if CONFIG_REF_COUNT_FIX
+static INLINE void set_frame_buffer_invalid(RefCntBuffer **lhs_ptr) {
+  RefCntBuffer *const old_ptr = *lhs_ptr;
+  if (old_ptr != NULL) {
+    assert(old_ptr->ref_count > 0);
+    // One less reference to the buffer at 'old_ptr', so decrease ref count.
+    --old_ptr->ref_count;
+  }
+
+  *lhs_ptr = NULL;
+}
+#endif  // CONFIG_REF_COUNT_FIX
+
 static INLINE int frame_is_intra_only(const AV1_COMMON *const cm) {
   return cm->current_frame.frame_type == KEY_FRAME ||
          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
@@ -2325,7 +2438,11 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame) {
+#if CONFIG_EXTRA_DPB
   return (ref_frame >= 0 && ref_frame < cm->seq_params.ref_frames)
+#else
+  return (ref_frame >= 0 && ref_frame < REF_FRAMES)
+#endif
              ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }
@@ -2384,6 +2501,179 @@ static INLINE RefCntBuffer *get_ref_frame_buf(
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
+
+#if CONFIG_MULTILAYER_DEBUG
+static INLINE void debug_print_multiview_curr_frame(
+    const AV1_COMMON *const cm) {
+  const CurrentFrame *const cf = &cm->current_frame;
+  const char frame_type_str[4][25] = { "KEY_FRAME", "INTER_FRAME",
+                                       "INTRA_ONLY_FRAME", "S_FRAME" };
+  // const char ref_mode_str[4][50] = { "SINGLE_REFERENCE",
+  // "COMPOUND_REFERENCE",
+  //                                    "REFERENCE_MODE_SELECT",
+  //                                    "REFERENCE_MODES" };
+  printf("frame_type=%s,", frame_type_str[cf->frame_type]);
+  // printf("reference_mode=%s,", ref_mode_str[cf->reference_mode]);
+  printf("order_hint=%2d, ", cf->order_hint);
+  printf("display_order_hint=%2d, ", cf->display_order_hint);
+  // printf("pyramid_level=%2d, ", cf->pyramid_level); // encoder only
+  // printf("absolute_poc=%2d, ", cf->absolute_poc); // encoder only
+  // printf("key_frame_number=%2d, ", cf->key_frame_number);
+  // printf("frame_number=%2d, ", cf->frame_number);
+#if CONFIG_MULTILAYER_CORE
+  printf("view_id=%2d, ", cf->view_id);
+#endif
+  printf("refresh_frame_flags=%2d,", cf->refresh_frame_flags);
+  printf("num_total_refs=%2d,", cm->ref_frames_info.num_total_refs);
+  printf("num_cur_refs=%2d,", cm->ref_frames_info.num_cur_refs);
+  printf("num_past_refs=%2d,", cm->ref_frames_info.num_past_refs);
+  printf("num_future_refs=%2d", cm->ref_frames_info.num_future_refs);
+
+  printf("\n");
+}
+
+static INLINE void debug_print_buffer_state(const AV1_COMMON *const cm) {
+  printf(" [ ");
+  for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+    RefCntBuffer *const buf = cm->ref_frame_map[ref_idx];
+    if (buf == NULL)
+      printf("%d:(**,**,**) ", ref_idx);
+    else
+#if CONFIG_MULTILAYER_CORE
+      printf("%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->pyramid_level,
+             buf->display_order_hint);
+#else
+      printf("%d:(%d,%d) ", ref_idx, buf->pyramid_level,
+             buf->display_order_hint);
+#endif
+  }
+  printf("]\n");
+}
+
+static INLINE void debug_print_multiview_buf_refs(const AV1_COMMON *const cm) {
+  const RefCntBuffer *const cf = cm->cur_frame;
+  MV_REFERENCE_FRAME ref_frame;
+#if CONFIG_MULTILAYER_CORE
+  printf("(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+         cf->display_order_hint);
+#else
+  printf("(OH,DOH):(%2d,%2d) ", cf->order_hint, cf->display_order_hint);
+#endif
+  printf("  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+         cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  printf("[");
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+    printf("%2d:", map_idx);
+#if CONFIG_MULTILAYER_CORE
+    printf("(%2d,", cf->ref_view_ids[ref_frame]);
+#endif
+    printf("%2d,", cf->ref_order_hints[ref_frame]);
+    printf("%2d) ", cf->ref_display_order_hint[ref_frame]);
+  }
+  printf("]\n");
+}
+
+#if CONFIG_MULTILAYER_DEBUG_LOGFILES
+static INLINE void logfile_multiview_curr_frame(const AV1_COMMON *const cm,
+                                                FILE *const file) {
+  const CurrentFrame *const cf = &cm->current_frame;
+  const char frame_type_str[4][25] = { "KEY_FRAME", "INTER_FRAME",
+                                       "INTRA_ONLY_FRAME", "S_FRAME" };
+  // const char ref_mode_str[4][50] = { "SINGLE_REFERENCE",
+  // "COMPOUND_REFERENCE",
+  //                                   "REFERENCE_MODE_SELECT",
+  //                                   "REFERENCE_MODES" };
+  fprintf(file, "frame_type=%s,", frame_type_str[cf->frame_type]);
+  // fprintf(file,"reference_mode=%s,", ref_mode_str[cf->reference_mode]);
+  fprintf(file, "order_hint=%2d, ", cf->order_hint);
+  fprintf(file, "display_order_hint=%2d, ", cf->display_order_hint);
+  // fprintf(file,"pyramid_level=%2d, ", cf->pyramid_level); // encoder only
+  // fprintf(file,"absolute_poc=%2d, ", cf->absolute_poc); // encoder only
+  // fprintf(file,"key_frame_number=%2d, ", cf->key_frame_number);
+  // fprintf(file,"frame_number=%2d, ", cf->frame_number);
+#if CONFIG_MULTILAYER_CORE
+  fprintf(file, "view_id=%2d, ", cf->view_id);
+#endif
+  fprintf(file, "refresh_frame_flags=%2d,", cf->refresh_frame_flags);
+  fprintf(file, "num_total_refs=%2d,", cm->ref_frames_info.num_total_refs);
+  fprintf(file, "num_cur_refs=%2d,", cm->ref_frames_info.num_cur_refs);
+  fprintf(file, "num_past_refs=%2d,", cm->ref_frames_info.num_past_refs);
+  fprintf(file, "num_future_refs=%2d", cm->ref_frames_info.num_future_refs);
+  fprintf(file, "\n");
+}
+
+static INLINE void logfile_multiview_buf_refs(const AV1_COMMON *const cm,
+                                              FILE *const file) {
+  const RefCntBuffer *const cf = cm->cur_frame;
+  MV_REFERENCE_FRAME ref_frame;
+#if CONFIG_MULTILAYER_CORE
+  fprintf(file, "(View,OH,DOH):(%2d,%2d,%2d) ", cf->view_id, cf->order_hint,
+          cf->display_order_hint);
+#else
+  fprintf(file, "(OH,DOH):(%2d,%2d) ", cf->order_hint, cf->display_order_hint);
+#endif
+  fprintf(file, "  num_ref_frames/ref_frames_info.num_total_refs=%d/%d ",
+          cf->num_ref_frames, cm->ref_frames_info.num_total_refs);
+  fprintf(file, "[");
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+    fprintf(file, "%2d:", map_idx);
+#if CONFIG_MULTILAYER_CORE
+    fprintf(file, "(%2d,", cf->ref_view_ids[ref_frame]);
+#else
+    fprintf(file, "(");
+#endif
+    fprintf(file, "%2d,", cf->ref_order_hints[ref_frame]);
+    fprintf(file, "%2d) ", cf->ref_display_order_hint[ref_frame]);
+  }
+  fprintf(file, "]\n");
+}
+
+static INLINE void logfile_buffer_state(const AV1_COMMON *const cm,
+                                        FILE *const file) {
+  fprintf(file, " [ ");
+  for (int ref_idx = 0; ref_idx < REF_FRAMES; ref_idx++) {
+    RefCntBuffer *const buf = cm->ref_frame_map[ref_idx];
+    if (buf == NULL)
+      fprintf(file, "%d:(**,**,**) ", ref_idx);
+    else
+#if CONFIG_MULTILAYER_CORE
+      fprintf(file, "%d:(%d,%d,%d) ", ref_idx, buf->view_id, buf->order_hint,
+              buf->display_order_hint);
+#else
+      fprintf(file, "%d:(%d,%d) ", ref_idx, buf->order_hint,
+              buf->display_order_hint);
+#endif
+  }
+  fprintf(file, "]\n");
+}
+
+static INLINE void logfile_primary_ref_info(const AV1_COMMON *const cm,
+                                            FILE *const file) {
+  const int idx = cm->features.primary_ref_frame;
+  const int map_idx = get_ref_frame_map_idx(cm, idx);
+  const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
+  if (ref_buf == NULL)
+    fprintf(file,
+            " Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> "
+            "(N/A,N/A,N/A) \n ",
+            idx, map_idx);
+  else
+    fprintf(file,
+            " Primary Reference Info. : [idx,map_idx]:[%2d,%2d] --> "
+#if CONFIG_MULTILAYER_CORE
+            "(%2d,%2d,%3d) \n ",
+            idx, map_idx, ref_buf->view_id, ref_buf->order_hint,
+#else
+            "(%2d,%3d) \n ",
+            idx, map_idx, ref_buf->order_hint,
+#endif
+            ref_buf->display_order_hint);
+}
+#endif
+
+#endif
 
 // Both const and non-const versions of this function are provided so that it
 // can be used with a const AV1_COMMON if needed.

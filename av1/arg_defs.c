@@ -220,6 +220,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .stereo_mode = ARG_DEF_ENUM(NULL, "stereo-mode", 1, "Stereo 3D video format",
                               stereo_mode_enum),
 #endif
+#if CONFIG_MULTILAYER_CORE
+  .num_views =
+      ARG_DEF(NULL, "num-views", 1, "Number of views for multi-layered coding"),
+#endif
   .timebase = ARG_DEF(NULL, "timebase", 1,
                       "Output timestamp precision (fractional seconds)"),
   .global_error_resilient = ARG_DEF(NULL, "global-error-resilient", 1,
@@ -886,8 +890,13 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                             "(0: false (default), 1: true)"),
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  .max_dpb_size = ARG_DEF(NULL, "max-dpb-size", 1,
+                          "numbe of dpb slots (1-16), default is 8"),
+#else
   .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
                            "extra dpb number (0..8), default is 0"),
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
