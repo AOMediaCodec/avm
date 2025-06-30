@@ -164,13 +164,14 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
 // Allocates all the width-by-height quantization matrices as a
 // three-dimensional array. The first dimension is the number of levels
 // (NUM_CUSTOM_QMS = 15). The second dimension is the number of planes (3). The
-// third dimension is width * height and represents a flattened quantization
-// matrix. Stores a pointer to the allocated three-dimensional array in *mat.
-void av1_alloc_qm(qm_val_t ****mat, int width, int height);
+// third dimension is width * height and represents a flattened width-by-height
+// quantization matrix. Returns a pointer to the allocated three-dimensional
+// array.
+qm_val_t ***av1_alloc_qm(int width, int height);
 
-// Frees the three-dimensional array *mat. The three-dimensional array must have
-// been allocated by av1_alloc_qm(). Does not set *mat to NULL after freeing it.
-void av1_free_qm(qm_val_t ****mat);
+// Frees the three-dimensional array mat. The three-dimensional array must have
+// been allocated by av1_alloc_qm().
+void av1_free_qm(qm_val_t ***mat);
 
 // Initializes the fundamental quantization matrices to the default ones.
 void av1_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,

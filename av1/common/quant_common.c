@@ -415,26 +415,28 @@ static void calc_wt_matrix(const int txsize, const qm_val_t *iwt_matrix,
 }
 
 #if CONFIG_QM_EXTENSION
-void av1_alloc_qm(qm_val_t ****mat, int width, int height) {
+qm_val_t ***av1_alloc_qm(int width, int height) {
   const int num_planes = 3;  // Y, U, V planes
-  *mat = (qm_val_t ***)aom_malloc(NUM_CUSTOM_QMS * sizeof(qm_val_t **));
+  qm_val_t ***mat =
+      (qm_val_t ***)aom_malloc(NUM_CUSTOM_QMS * sizeof(qm_val_t **));
   for (int q = 0; q < NUM_CUSTOM_QMS; q++) {
-    (*mat)[q] = (qm_val_t **)aom_malloc(num_planes * sizeof(qm_val_t *));
+    mat[q] = (qm_val_t **)aom_malloc(num_planes * sizeof(qm_val_t *));
     for (int c = 0; c < num_planes; c++) {
-      (*mat)[q][c] = (qm_val_t *)aom_malloc(width * height * sizeof(qm_val_t));
+      mat[q][c] = (qm_val_t *)aom_malloc(width * height * sizeof(qm_val_t));
     }
   }
+  return mat;
 }
 
-void av1_free_qm(qm_val_t ****mat) {
+void av1_free_qm(qm_val_t ***mat) {
   const int num_planes = 3;  // Y, U, V planes
   for (int q = 0; q < NUM_CUSTOM_QMS; q++) {
     for (int c = 0; c < num_planes; c++) {
-      aom_free((*mat)[q][c]);
+      aom_free(mat[q][c]);
     }
-    aom_free((*mat)[q]);
+    aom_free(mat[q]);
   }
-  aom_free(*mat);
+  aom_free(mat);
 }
 
 // Copy default matrix arrays to custom matrix arrays.
