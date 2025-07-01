@@ -1148,7 +1148,8 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
 
   int normDiff = 0;
 #if CONFIG_MHCCP_GAUSSIAN
-  normDiff = (int)((((denom << DIV_PREC_BITS) + *round) >> (*shift)) &
+  normDiff = (int)(CLIP(((denom << DIV_PREC_BITS) + *round) >> (*shift), 1,
+                        (1 << DIV_PREC_BITS) - 1) &
                    ((1 << DIV_PREC_BITS) - 1));
 #else
   if (*shift > DIV_PREC_BITS)
