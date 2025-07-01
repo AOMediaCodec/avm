@@ -3516,7 +3516,7 @@ static AOM_INLINE bool is_sdp_share_partition(PARTITION_TYPE luma_partition,
   }
 }
 
-#endif
+#endif  // CONFIG_INTRA_SDP_SIMPLIFICATION
 
 static AOM_INLINE bool is_luma_chroma_share_same_partition(
     TREE_TYPE tree_type, const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
@@ -3554,7 +3554,7 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
     if (sub_tree && sub_tree->partition != PARTITION_INVALID) {
       if (!tree_has_bsize_smaller_than(sub_tree, width_threshold,
                                        height_threshold)) {
-#endif
+#endif  // CONFIG_INTRA_SDP_SIMPLIFICATION
         return false;
       }
     }
