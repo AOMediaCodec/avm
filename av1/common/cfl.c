@@ -1146,11 +1146,31 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   else
     *round = (int64_t)(1ULL << (*shift) >> 1);
 
-  int normDiff = 0;
 #if CONFIG_MHCCP_GAUSSIAN
-  normDiff = (int)(CLIP(((denom << DIV_PREC_BITS) + *round) >> (*shift), 1,
-                        (1 << DIV_PREC_BITS) - 1) &
-                   ((1 << DIV_PREC_BITS) - 1));
+  // Consider the division approximation: y = (x + D/2) / D,
+  // where x is the numerator and D is the denominator.
+  // We want to approximate it as: y ≈ (x / d) >> s,
+  // where d is in the range [1, 2) and s = floor(log2(D)).
+  //
+  // Step 1: Normalize D into fixed-point format with DIV_PREC_BITS fractional
+  // bits.
+  //         The expression below computes a scaled version of D:
+  //         normDiff_tmp = ((D << DIV_PREC_BITS) + round) >> shift
+  //         This ensures fixed-point precision and rounding.
+  const int normDiff_tmp =
+      (int)(((denom << DIV_PREC_BITS) + *round) >> (*shift));
+
+  // Step 2: Clip the scaled value to make sure it's within the valid range.
+  //         The valid range is [1, 2), represented as：
+  //         [1 << (DIV_PREC_BITS), (1 << (DIV_PREC_BITS + 1)) - 1].
+  //         The rounding in Step 1 may push the value out of range, so clipping
+  //         is needed.
+  const int normDiff_clip =
+      CLIP(normDiff_tmp, 1, (1 << (DIV_PREC_BITS + 1)) - 1);
+
+  // Step 3: Extract the fractional part of the normalized denominator `d`.
+  //         This is done by masking out the lower DIV_PREC_BITS bits.
+  int normDiff = normDiff_clip & ((1 << DIV_PREC_BITS) - 1);
 #else
   if (*shift > DIV_PREC_BITS)
     normDiff = (int)((denom >> ((*shift) - DIV_PREC_BITS)) &
