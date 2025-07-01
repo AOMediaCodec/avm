@@ -52,13 +52,6 @@ void inv_txfm_dct2_size4_c(const int *src, int *dst, int shift, int line,
     src += 4;
     dst++;
   }
-
-  if (skip_line) {
-    for (j = 0; j < 4; j++) {
-      memset(dst, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_dct2_size8_c(const int *src, int *dst, int shift, int line,
@@ -96,12 +89,6 @@ void inv_txfm_dct2_size8_c(const int *src, int *dst, int shift, int line,
     }
     src += 8;
     dst++;
-  }
-  if (skip_line) {
-    for (j = 0; j < 8; j++) {
-      memset(dst, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
   }
 }
 
@@ -149,12 +136,6 @@ void inv_txfm_dct2_size16_c(const int *src, int *dst, int shift, int line,
     }
     src += 16;
     dst++;
-  }
-  if (skip_line) {
-    for (j = 0; j < 16; j++) {
-      memset(dst, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
   }
 }
 
@@ -219,13 +200,6 @@ void inv_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
     }
     src += 32;
     dst++;
-  }
-
-  if (skip_line) {
-    for (j = 0; j < 32; j++) {
-      memset(dst, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
   }
 }
 
@@ -298,13 +272,6 @@ void inv_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
     src += tx1d_size;
     dst++;
   }
-
-  if (skip_line) {
-    for (j = 0; j < tx1d_size; j++) {
-      memset(dst, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 #endif  // !CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG
 
@@ -325,13 +292,6 @@ void inv_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
                 coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_idtx_size8_c(const int *src, int *dst, int shift, int line,
@@ -348,13 +308,6 @@ void inv_txfm_idtx_size8_c(const int *src, int *dst, int shift, int line,
       dst[j * line + i] =
           clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
                 coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -375,13 +328,6 @@ void inv_txfm_idtx_size16_c(const int *src, int *dst, int shift, int line,
                 coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_idtx_size32_c(const int *src, int *dst, int shift, int line,
@@ -398,13 +344,6 @@ void inv_txfm_idtx_size32_c(const int *src, int *dst, int shift, int line,
       dst[j * line + i] =
           clamp((int)(src[i * tx1d_size + j] * scale + offset) >> shift,
                 coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -428,13 +367,6 @@ void inv_txfm_adst_size4_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_fdst_size4_c(const int *src, int *dst, int shift, int line,
@@ -454,13 +386,6 @@ void inv_txfm_fdst_size4_c(const int *src, int *dst, int shift, int line,
       }
       dst[j * line + i] =
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -484,13 +409,6 @@ void inv_txfm_adst_size8_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_fdst_size8_c(const int *src, int *dst, int shift, int line,
@@ -510,13 +428,6 @@ void inv_txfm_fdst_size8_c(const int *src, int *dst, int shift, int line,
       }
       dst[j * line + i] =
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -540,13 +451,6 @@ void inv_txfm_adst_size16_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_fdst_size16_c(const int *src, int *dst, int shift, int line,
@@ -566,13 +470,6 @@ void inv_txfm_fdst_size16_c(const int *src, int *dst, int shift, int line,
       }
       dst[j * line + i] =
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -596,13 +493,6 @@ void inv_txfm_ddtx_size4_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_ddtx_size8_c(const int *src, int *dst, int shift, int line,
@@ -624,13 +514,6 @@ void inv_txfm_ddtx_size8_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_ddtx_size16_c(const int *src, int *dst, int shift, int line,
@@ -650,13 +533,6 @@ void inv_txfm_ddtx_size16_c(const int *src, int *dst, int shift, int line,
       }
       dst[j * line + i] =
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -681,13 +557,6 @@ void inv_txfm_fddt_size4_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_fddt_size8_c(const int *src, int *dst, int shift, int line,
@@ -710,13 +579,6 @@ void inv_txfm_fddt_size8_c(const int *src, int *dst, int shift, int line,
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
     }
   }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
-    }
-  }
 }
 
 void inv_txfm_fddt_size16_c(const int *src, int *dst, int shift, int line,
@@ -737,13 +599,6 @@ void inv_txfm_fddt_size16_c(const int *src, int *dst, int shift, int line,
       }
       dst[j * line + i] =
           clamp((int)(sum + offset) >> shift, coef_min, coef_max);
-    }
-  }
-
-  if (skip_line) {
-    for (int j = 0; j < tx1d_size; j++) {
-      memset(dst + nz_line, 0, sizeof(*dst) * skip_line);
-      dst += line;
     }
   }
 }
@@ -946,8 +801,8 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;
 
-  int block[MAX_TX_SQUARE] = { 0 };
-  int tmp[MAX_TX_SQUARE] = { 0 };
+  int block[MAX_TX_SQUARE];
+  int tmp[MAX_TX_SQUARE];
 
   const int log2width = tx_size_wide_log2[tx_size];
   const int log2height = tx_size_high_log2[tx_size];
@@ -968,13 +823,6 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   if (skipWidth) {
     for (int y = 0; y < height; y++) {
       memcpy(block + y * width, tmp + y * 32, 32 * sizeof(*tmp));
-      memset(block + y * width + 32, 0, 32 * sizeof(*tmp));
-    }
-  }
-
-  if (skipHeight) {
-    for (int y = 32; y < height; y++) {
-      memset(block + y * width, 0, width * sizeof(*tmp));
     }
   }
 
