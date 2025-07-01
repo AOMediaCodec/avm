@@ -800,10 +800,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
           mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)], pc_root
-#if CONFIG_SDP_CFL_LATENCY
+#if CONFIG_SDP_CFL_LATENCY_FIX
           ,
           (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL
-#endif
+#endif  // CONFIG_SDP_CFL_LATENCY_FIX
       );
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;
@@ -836,10 +836,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
           mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)], pc_root
-#if CONFIG_SDP_CFL_LATENCY
+#if CONFIG_SDP_CFL_LATENCY_FIX
           ,
           (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL
-#endif
+#endif  // CONFIG_SDP_CFL_LATENCY_FIX
       );
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;

@@ -32,10 +32,10 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           int mi_col, BLOCK_SIZE bsize, int *rate,
                           int64_t *dist, int do_recon, PARTITION_TREE *ptree,
                           PC_TREE *pc_tree
-#if CONFIG_SDP_CFL_LATENCY
+#if CONFIG_SDP_CFL_LATENCY_FIX
                           ,
                           PARTITION_TREE *ptree_luma
-#endif
+#endif  // CONFIG_SDP_CFL_LATENCY_FIX
 );
 bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            TileDataEnc *tile_data, TokenExtra **tp, int mi_row,

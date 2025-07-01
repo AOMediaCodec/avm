@@ -955,10 +955,10 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
         if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
-#if CONFIG_SDP_CFL_LATENCY
-        if (xd->tree_type == CHROMA_PART)
-          assert(xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA);
-#endif
+#if CONFIG_SDP_CFL_LATENCY_FIX
+        assert(IMPLIES(xd->tree_type == CHROMA_PART,
+                       xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
+#endif  // CONFIG_SDP_CFL_LATENCY_FIX
 #if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && !intra_mode_cfg->enable_mhccp)
           continue;
@@ -1053,13 +1053,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   *mbmi = best_mbmi;
-#if CONFIG_SDP_CFL_LATENCY
-  if (xd->tree_type == CHROMA_PART) {
-    if (mbmi->uv_mode == UV_CFL_PRED)
-      assert(is_cfl_allowed(xd) &&
-             (xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
-  }
-#endif
+#if CONFIG_SDP_CFL_LATENCY_FIX
+  assert(IMPLIES(xd->tree_type == CHROMA_PART && mbmi->uv_mode == UV_CFL_PRED,
+                 is_cfl_allowed(xd) &&
+                     xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
+#endif  // CONFIG_SDP_CFL_LATENCY_FIX
   // Copy back the best cross-chroma txfm type (tmp_cctx_type_map)
   // to xd->cctx_type_map.
   av1_copy_array(xd->cctx_type_map, tmp_cctx_type_map, ctx->num_4x4_blk_chroma);
