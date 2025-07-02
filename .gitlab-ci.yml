@@ -32,7 +32,7 @@ Style Check:
   script:
     - 'echo "Diff ref is: $DIFF_REF"'
     - git fetch --unshallow
-    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - clang-format --version
     - cmake-format --version
     - |
@@ -192,7 +192,7 @@ Test Data Check:
           - no-examples
           - debug
   script:
-    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - |
       case $AOM_BUILD_CONFIG in
         internal-stats)
@@ -500,7 +500,7 @@ Linux Sanitizers (x86_64-clang):
           # CFI Sanitizer commented for now, as lto build does not work
           #- cfi
   script:
-    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - |
       SANITIZER_BLACKLIST_FLAG="-fsanitize-blacklist=${PWD}/${SANITIZER_IGNORES_FILE}"
 
@@ -565,7 +565,7 @@ Example Test (x86_64):
      :fast_unwind_on_fatal=1\
      :allocator_may_return_null=1"
   before_script:
-    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
@@ -941,7 +941,7 @@ Static Analyzer:
           - shallow
           - deep
   script:
-    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - mkdir output-${ANALYZER_MODE}
     - |
       scan_build() {
