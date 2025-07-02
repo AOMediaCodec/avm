@@ -265,7 +265,8 @@ static void update_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 
-  // We need to reallocate the context buffers here in case we need more mis.
+  // We need to reallocate the context buffers here in case we need more mis or
+  // if we need more superblocks.
   if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");

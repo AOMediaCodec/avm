@@ -351,6 +351,12 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
   return 0;
 }
 
+int av1_alloc_superblock_info_buffers(AV1_COMMON *cm) {
+  CommonSBInfoParams *const sbi_params = &cm->sbi_params;
+  set_sb_si(cm);
+  return alloc_sbi(sbi_params);
+}
+
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->set_mb_mi(mi_params, width, height);
@@ -361,9 +367,8 @@ int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
 #endif  // !CONFIG_ENABLE_SR
                ))
     goto fail;
-  CommonSBInfoParams *const sbi_params = &cm->sbi_params;
-  set_sb_si(cm);
-  if (alloc_sbi(sbi_params)) goto fail;
+
+  if (av1_alloc_superblock_info_buffers(cm)) goto fail;
 
   return 0;
 
