@@ -14,8 +14,11 @@ default:
 Linux Nightly Build:
   stage: build
   interruptible: true
+  # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+  # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
   variables:
     CMAKE_FLAGS: >-
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       -DCMAKE_BUILD_TYPE=RelWithDebInfo
       -DAOM_EXTRA_C_FLAGS="--coverage"
       -DAOM_EXTRA_CXX_FLAGS="--coverage"

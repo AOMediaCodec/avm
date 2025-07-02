@@ -123,7 +123,9 @@ Test Data:
   variables:
     LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
   script:
-    - cmake -B aom_testdata -GNinja
+    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+    - cmake -B aom_testdata -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     - cmake --build aom_testdata --target testdata
   artifacts:
     expire_in: 1 day
@@ -175,7 +177,9 @@ Test Data Check:
   interruptible: true
   extends: .ccache-common
   variables:
-    CMAKE_FLAGS: -DENABLE_CCACHE=1 -DENABLE_WERROR=1 -DENABLE_DOCS=0
+    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+    CMAKE_FLAGS: -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DENABLE_CCACHE=1 -DENABLE_WERROR=1 -DENABLE_DOCS=0
     INSTALLROOT_FOLDER: installroot
   parallel:
     matrix:
@@ -251,6 +255,7 @@ Test Data Check:
           exit 1
           ;;
       esac
+      cmake --version
       echo "CMake Flags:       $CMAKE_FLAGS"
       echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
       echo "Configuration:     $AOM_BUILD_CONFIG"
@@ -436,7 +441,11 @@ Build Documentation:
   script:
     # Force doxygen warnings to be treated as errors.
     - sed -i 's/WARN_AS_ERROR\s\+= NO/WARN_AS_ERROR        = YES/g'  libs.doxy_template
+    - cmake --version
+    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
     - cmake -B aom_docs_build -GNinja
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DENABLE_DOCS=1
         -DENABLE_EXAMPLES=0
         -DBUILD_SHARED_LIBS=0
@@ -465,7 +474,11 @@ Example Build (x86_64-gcc):
     GIT_FETCH_EXTRA_FLAGS: --tags
   script:
     - git fetch --unshallow
+    - cmake --version
+    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
     - cmake -B aom_example_build
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DENABLE_ASSERTS=1
         -DENABLE_EXAMPLES=1
         -DBUILD_SHARED_LIBS=0
@@ -485,7 +498,10 @@ Linux Sanitizers (x86_64-clang):
   interruptible: true
   variables:
     SANITIZER_IGNORES_FILE: .gitlab/SanitizerIgnores.txt
+    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
     CMAKE_FLAGS: >-
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       -DENABLE_CCACHE=1
       -DCMAKE_C_COMPILER=clang
       -DCMAKE_CXX_COMPILER=clang++
