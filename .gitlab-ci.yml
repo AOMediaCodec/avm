@@ -10,7 +10,7 @@ stages:
   - test
   - report
 
-image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2204:20231216164605
+image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2404:20250702215355
 
 default:
   tags:
@@ -330,7 +330,7 @@ Build (bawp-across-scales-fix):
 
 Build (x86-linux-gcc):
   extends: .build-common
-  image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2204-multilib:20231215235031
+  image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2404-multilib:20250702215355
   variables:
     EXTRA_CMAKE_FLAGS: >-
       -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-linux.cmake
