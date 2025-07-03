@@ -252,8 +252,7 @@ TEST(EncodeAPI, DISABLED_AvmIssue717Width4) {
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
-// A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/746.
-TEST(EncodeAPI, DISABLED_GdfOptimizer8x8) {
+TEST(EncodeAPI, GdfOptimizer8x8) {
   constexpr unsigned int kWidth = 8;
   constexpr unsigned kHeight = 8;
   uint8_t buf[3 * kWidth * kHeight] = { 0 };

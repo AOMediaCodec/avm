@@ -247,9 +247,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
           int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
           int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                              rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+          int use_gdf_local = 1;
 #if CONFIG_BRU
           // FU level skip
-          int use_gdf_local = 1;
           if (cm->bru.enabled) {
             const int mbmi_idx = get_mi_grid_idx(
                 &cm->mi_params, i_min >> MI_SIZE_LOG2, j_min >> MI_SIZE_LOG2);
@@ -257,12 +257,11 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                 cm->mi_params.mi_grid_base[mbmi_idx]->local_gdf_mode;
           }
 #endif
+          use_gdf_local &=
+              gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
           if ((cm->gdf_info.gdf_mode == 1 ||
                cm->gdf_info.gdf_block_flags[blk_idx]) &&
-#if CONFIG_BRU
-              use_gdf_local &&
-#endif
-              (i_max > i_min) && (j_max > j_min)) {
+              use_gdf_local) {
 #if CONFIG_BRU
             const int bru_blk_skip = !bru_is_sb_active(
                 cm, j_min >> MI_SIZE_LOG2, i_min >> MI_SIZE_LOG2);

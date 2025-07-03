@@ -105,6 +105,23 @@ static inline int is_gdf_enabled(const AV1_COMMON *cm) {
   return is_allow_gdf(cm) && cm->gdf_info.gdf_mode > 0;
 }
 
+/*!\brief Function to adjust the GDF block boundary to ensure even alignment.
+ * Because the minimum required pixel size in GDF block is 2x2.
+ * \param[in]  i_min                The pos of the block's top boundary
+ * \param[in]  i_max                The pos of the block's bottom boundary
+ * \param[in]  j_min                The pos of the block's left boundary
+ * \param[in]  j_max                The pos of the block's right boundary
+ * * \return Returns a value indicating whether the block size is valid
+ */
+static inline int gdf_block_adjust_and_validate(int *i_min, int *i_max,
+                                                int *j_min, int *j_max) {
+  *i_min = (*i_min + 1) & ~0x1;
+  *i_max = *i_max & ~0x1;
+  *j_min = (*j_min + 1) & ~0x1;
+  *j_max = *j_max & ~0x1;
+  return (*i_max > *i_min) && (*j_max > *j_min);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

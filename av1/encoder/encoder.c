@@ -2527,20 +2527,26 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             continue;
           }
 #endif
-          gdf_set_lap_and_cls_unit(
-              i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-              cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-              bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-              cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
-          for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            gdf_inference_unit(
+          int use_gdf_local =
+              gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
+          if (use_gdf_local) {
+            gdf_set_lap_and_cls_unit(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                qp_idx + qp_idx_base,
                 cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-                cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
-                cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
-                ref_dst_idx);
+                bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
+          }
+          for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+            if (use_gdf_local) {
+              gdf_inference_unit(
+                  i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                  qp_idx + qp_idx_base,
+                  cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
+                  cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                  cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
+                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
+                  ref_dst_idx);
+            }
 
             for (int i = i_min; i < i_max; i++) {
               for (int j = j_min; j < j_max; j++) {
@@ -2556,6 +2562,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
                 for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
                      scale_idx++) {
+                  if (!use_gdf_local) {
+                    flg_pic_error[scale_idx][qp_idx][blk_idx] +=
+                        rec_pic_error[blk_idx];
+                    continue;
+                  }
                   int32_t tmp_val =
                       (scale_idx + 1) * cm->gdf_info.err_ptr[err_loc];
                   if (tmp_val > 0) {
