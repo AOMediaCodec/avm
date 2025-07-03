@@ -1316,10 +1316,6 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
 #endif
 
-#if CONFIG_EXTRA_DPB
-#define MAX_DBP_SIGNALING 15
-#endif
-
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
 //       possible to have a reference pair not listed for explicit signaling.

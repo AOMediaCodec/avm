@@ -5309,12 +5309,12 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         }
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
-#if CONFIG_EXTRA_DPB
+#if CONFIG_EXTRA_DPB_FIX_F158
           aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane],
                                cm->seq_params.ref_frames_log2);
 #else
           aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3);
-#endif
+#endif  // CONFIG_EXTRA_DPB_FIX_F158
           assert(cm->ccso_info.ccso_ref_idx[plane] <
                  cm->ref_frames_info.num_total_refs);
         }
@@ -5468,7 +5468,7 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
                            cm->seq_params.ref_frames_log2);
 #else
       aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
-#endif
+#endif  // CONFIG_EXTRA_DPB_FIX_BRU
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }

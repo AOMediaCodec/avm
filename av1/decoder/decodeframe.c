@@ -2900,7 +2900,7 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
           aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
 #else
       cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
-#endif
+#endif  // CONFIG_EXTRA_DPB_FIX_BRU
       cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
     }
   }
