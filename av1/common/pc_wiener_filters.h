@@ -50,7 +50,7 @@
   (RESTORATION_PROC_UNIT_SIZE + PC_WIENER_FEATURE_LENGTH_LUMA) / \
       PC_WIENER_BLOCK_SIZE
 #define SCALE_LUMA(x) \
-  (((x)*25 + PC_WIENER_FEATURE_AREA_LUMA / 2) / PC_WIENER_FEATURE_AREA_LUMA)
+  (((x) * 25 + PC_WIENER_FEATURE_AREA_LUMA / 2) / PC_WIENER_FEATURE_AREA_LUMA)
 
 // Should be positive numbers.
 static const int32_t feature_normalizers_luma[NUM_PC_WIENER_FEATURES] = {

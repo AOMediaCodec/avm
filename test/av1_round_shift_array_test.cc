@@ -71,8 +71,8 @@ void AV1CompRoundShiftTest::RunCheckOutput(
   av1_round_shift_array_c(ref_buffer_, w, bit);
   test_impl(pred_, w, bit);
   for (int x = 0; x < w; ++x) {
-    ASSERT_EQ(ref_buffer_[x], pred_[x]) << w << "x" << h << "mismatch @"
-                                        << "(" << x << ")";
+    ASSERT_EQ(ref_buffer_[x], pred_[x])
+        << w << "x" << h << "mismatch @" << "(" << x << ")";
   }
 }
 

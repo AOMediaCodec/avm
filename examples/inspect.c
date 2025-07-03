@@ -155,9 +155,7 @@ static const arg_def_t *main_args[] = { &limit_arg,
                                         &combined_arg,
                                         NULL };
 #define ENUM(name) \
-  {                \
-#name, name    \
-  }
+  { #name, name }
 #define LAST_ENUM \
   { NULL, 0 }
 typedef struct map_entry {

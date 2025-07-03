@@ -124,10 +124,10 @@ class AV1FilterIntraPredTest : public ::testing::TestWithParam<PredParams> {
   void DiffPred(int testNum) const {
     int i = 0;
     while (i < tx_size_wide[txSize_] * tx_size_high[txSize_]) {
-      EXPECT_EQ(predRef_[i], pred_[i]) << "Error at position: " << i << " "
-                                       << "Tx size: " << tx_size_wide[txSize_]
-                                       << "x" << tx_size_high[txSize_] << " "
-                                       << "Test number: " << testNum;
+      EXPECT_EQ(predRef_[i], pred_[i])
+          << "Error at position: " << i << " "
+          << "Tx size: " << tx_size_wide[txSize_] << "x"
+          << tx_size_high[txSize_] << " " << "Test number: " << testNum;
       i++;
     }
   }

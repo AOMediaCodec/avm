@@ -30,7 +30,7 @@
 #include "aom_ports/mem.h"
 
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
-  { (b) + (p)-6, (m) * (1 << ((p)-6)), k }
+  { (b) + (p) - 6, (m) * (1 << ((p) - 6)), k }
 
 #define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)          \
   {                                                                              \

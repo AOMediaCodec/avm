@@ -1222,15 +1222,12 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
   ) {
     if (args->new_nearmv_stats_idx < MAX_COMP_MV_STATS) {
-      NEW_NEARMV_STATS stat = {
-        av1_ref_frame_type(mbmi->ref_frame),
-        av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
+      NEW_NEARMV_STATS stat = { av1_ref_frame_type(mbmi->ref_frame),
+                                av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
 #if CONFIG_INTER_MODE_CONSOLIDATION
-        mbmi->pb_mv_precision,
-        mbmi->use_amvd,
+                                mbmi->pb_mv_precision, mbmi->use_amvd,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-        cur_mv[0]
-      };
+                                cur_mv[0] };
       args->new_nearmv_stats[args->new_nearmv_stats_idx] = stat;
       args->new_nearmv_stats_idx++;
     }
@@ -1251,17 +1248,15 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
   ) {
     if (args->joint_newmv_stats_idx < MAX_COMP_MV_STATS) {
-      JOINT_NEWMV_STATS stat = {
-        av1_ref_frame_type(mbmi->ref_frame),
-        av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
-        mbmi->pb_mv_precision,
-        mbmi->jmvd_scale_mode,
-        mbmi->cwp_idx,
+      JOINT_NEWMV_STATS stat = { av1_ref_frame_type(mbmi->ref_frame),
+                                 av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
+                                 mbmi->pb_mv_precision,
+                                 mbmi->jmvd_scale_mode,
+                                 mbmi->cwp_idx,
 #if CONFIG_INTER_MODE_CONSOLIDATION
-        mbmi->use_amvd,
+                                 mbmi->use_amvd,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-        { cur_mv[0], cur_mv[1] }
-      };
+                                 { cur_mv[0], cur_mv[1] } };
       args->joint_newmv_stats[args->joint_newmv_stats_idx] = stat;
       args->joint_newmv_stats_idx++;
     }
@@ -1272,16 +1267,15 @@ static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 
     if (args->joint_amvdnewmv_stats_idx < MAX_COMP_MV_STATS) {
-      JOINT_AMVDNEWMV_STATS stat = {
-        av1_ref_frame_type(mbmi->ref_frame),
-        av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx),
-        mbmi->jmvd_scale_mode,
-        mbmi->cwp_idx,
+      JOINT_AMVDNEWMV_STATS stat = { av1_ref_frame_type(mbmi->ref_frame),
+                                     av1_ref_mv_idx_type(mbmi,
+                                                         mbmi->ref_mv_idx),
+                                     mbmi->jmvd_scale_mode,
+                                     mbmi->cwp_idx,
 #if CONFIG_INTER_MODE_CONSOLIDATION
-        mbmi->use_amvd,
+                                     mbmi->use_amvd,
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
-        { cur_mv[0], cur_mv[1] }
-      };
+                                     { cur_mv[0], cur_mv[1] } };
       args->joint_amvdnewmv_stats[args->joint_amvdnewmv_stats_idx] = stat;
       args->joint_amvdnewmv_stats_idx++;
     }
@@ -6924,9 +6918,9 @@ static int64_t handle_inter_mode(
                   restore_dst_buf(xd, orig_dst, num_planes);
 #if CONFIG_REFINEMV
                 }
-#endif           // CONFIG_REFINEMV
+#endif  // CONFIG_REFINEMV
               }  // bawp_chroma loop
-            }    // bawp loop
+            }  // bawp loop
           }
         }
       }
@@ -8128,8 +8122,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_IBC_SUBPEL_PRECISION
-    }   //(int index = av1_intraBc_precision_sets.num_precisions - 1; index > 0;
-        // index--)
+    }  //(int index = av1_intraBc_precision_sets.num_precisions - 1; index > 0;
+       // index--)
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
   }
   *mbmi = best_mbmi;
@@ -11550,13 +11544,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                  compmode_cost);
 #if CONFIG_AFFINE_REFINEMENT
           }  // end of comp_refine_type loop
-#endif       // CONFIG_AFFINE_REFINEMENT
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_INTER_MODE_CONSOLIDATION
         }  // end of use_amvd mode loop
-#endif     // CONFIG_INTER_MODE_CONSOLIDATION
-      }    // end of ref1 loop
-    }      // end of ref0 loop
-  }        // end of mode loop
+#endif  // CONFIG_INTER_MODE_CONSOLIDATION
+      }  // end of ref1 loop
+    }  // end of ref0 loop
+  }  // end of mode loop
 
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
     // For the single ref winner candidates, evaluate other motion modes (non
@@ -12253,20 +12247,20 @@ struct calc_target_weighted_pred_ctxt {
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
    low bit-depth arrays. */
-#define SOBEL_X(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] -                 \
-   (src)[((i) + 1) + (stride) * ((j)-1)] +  /* NOLINT */ \
-   2 * (src)[((i)-1) + (stride) * (j)] -    /* NOLINT */ \
-   2 * (src)[((i) + 1) + (stride) * (j)] +  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
-#define SOBEL_Y(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] +                 \
-   2 * (src)[(i) + (stride) * ((j)-1)] +    /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j)-1)] -  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   2 * (src)[(i) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
+#define SOBEL_X(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] -              \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] + /* NOLINT */ \
+   2 * (src)[((i) - 1) + (stride) * (j)] -   /* NOLINT */ \
+   2 * (src)[((i) + 1) + (stride) * (j)] +   /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
+#define SOBEL_Y(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] +              \
+   2 * (src)[(i) + (stride) * ((j) - 1)] +   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] - /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   2 * (src)[(i) + (stride) * ((j) + 1)] -   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
 
 sobel_xy av1_sobel(const uint16_t *src, int stride, int i, int j) {
   int16_t s_x;

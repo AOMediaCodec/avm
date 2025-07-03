@@ -982,8 +982,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
 #endif
           for (int r = 0; r < check_rows; ++r) {
             ASSERT_EQ(ref_output[r], output[r])
-                << "[" << r << "] "
-                << " ref_output: " << ref_output[r]
+                << "[" << r << "] " << " ref_output: " << ref_output[r]
                 << " mod_output: " << output[r];
           }
         }

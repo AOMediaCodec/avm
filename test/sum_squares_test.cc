@@ -474,9 +474,8 @@ void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
       if (!failed) {
         failed = res_ref != res_tst;
         EXPECT_EQ(res_ref, res_tst)
-            << "Error:"
-            << "hbd " << k << " SSE Test [" << width << "x" << height
-            << "] C output does not match optimized output.";
+            << "Error:" << "hbd " << k << " SSE Test [" << width << "x"
+            << height << "] C output does not match optimized output.";
       }
     }
   }

@@ -383,9 +383,8 @@ TEST_P(ConvolveTest, MatchesReferenceSubpixelFilter) {
             for (int x = 0; x < Width(); ++x)
               ASSERT_EQ(lookup(ref, y * kOutputStride + x),
                         lookup(out, y * kOutputStride + x))
-                  << "mismatch at (" << x << "," << y << "), "
-                  << "filters (" << filter_bank << "," << filter_x << ","
-                  << filter_y << ")";
+                  << "mismatch at (" << x << "," << y << "), " << "filters ("
+                  << filter_bank << "," << filter_x << "," << filter_y << ")";
         }
       }
     }

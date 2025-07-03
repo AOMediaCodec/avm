@@ -86,9 +86,8 @@ static void printSpeed(int ref_elapsed_time, int elapsed_time, int width,
   std::cout.precision(2);
   std::cout << "[          ] " << width << "x" << height
             << ": C time = " << ref_elapsed_time
-            << " us, SIMD time = " << elapsed_time << " us"
-            << " (~" << ref_elapsed_time / (double)elapsed_time << "x) "
-            << std::endl;
+            << " us, SIMD time = " << elapsed_time << " us" << " (~"
+            << ref_elapsed_time / (double)elapsed_time << "x) " << std::endl;
 }
 
 class CFLTest {

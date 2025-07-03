@@ -114,8 +114,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
         EXPECT_EQ(ref_dqcoeff_ptr[j], dqcoeff_ptr[j])
             << "dqcoeff error: i = " << i << " j = " << j << "\n";
       }
-      EXPECT_EQ(ref_eob, eob) << "eob error: "
-                              << "i = " << i << "\n";
+      EXPECT_EQ(ref_eob, eob) << "eob error: " << "i = " << i << "\n";
       err_count += (ref_eob != eob);
       if (err_count && !err_count_total) {
         first_failure = i;
@@ -184,8 +183,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
           quanFunc(coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
                    quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr, &eob,
                    scanOrder.scan, scanOrder.iscan, log_scale));
-      EXPECT_EQ(ref_eob, eob) << "eob error: "
-                              << "i = " << i << "\n";
+      EXPECT_EQ(ref_eob, eob) << "eob error: " << "i = " << i << "\n";
     }
   }
 

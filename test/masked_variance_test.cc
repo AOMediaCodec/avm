@@ -113,9 +113,9 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, OperationCheck) {
 
   EXPECT_EQ(0, err_count)
       << "Error: Masked Sub Pixel Variance Test OperationCheck,"
-      << "C output doesn't match SSSE3 output. "
-      << "First failed at test case " << first_failure
-      << " x_offset = " << first_failure_x << " y_offset = " << first_failure_y;
+      << "C output doesn't match SSSE3 output. " << "First failed at test case "
+      << first_failure << " x_offset = " << first_failure_x
+      << " y_offset = " << first_failure_y;
 }
 
 TEST_P(HighbdMaskedSubPixelVarianceTest, ExtremeValues) {

@@ -36,8 +36,7 @@ static const struct SEFTestParam {
 // provide our own function to print the struct.
 // This also makes '--gtest_list_tests' output more understandable.
 std::ostream &operator<<(std::ostream &os, const SEFTestParam &p) {
-  os << "SEFTestParam { "
-     << "frame_output_order_derivation = "
+  os << "SEFTestParam { " << "frame_output_order_derivation = "
      << p.enable_frame_output_order_derivation << ", "
      << "psnr_thresh = " << p.psnr_thresh << " }";
   return os;

@@ -94,8 +94,7 @@ void BuildCompDiffwtdMaskD16Test::RunCheckOutput(
       for (int c = 0; c < width; ++c) {
         ASSERT_EQ(mask_ref[c + r * width], mask_test[c + r * width])
             << "Mismatch at unit tests for BuildCompDiffwtdMaskD16Test\n"
-            << " Pixel mismatch at index "
-            << "[" << r << "," << c << "] "
+            << " Pixel mismatch at index " << "[" << r << "," << c << "] "
             << " @ " << width << "x" << height << " inv " << mask_type;
       }
     }

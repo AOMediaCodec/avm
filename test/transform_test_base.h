@@ -178,8 +178,8 @@ class TransformTestBase {
       // The minimum quant value is 4.
       for (int j = 0; j < num_coeffs_; ++j) {
         ASSERT_EQ(output_block[j], output_ref_block[j])
-            << "Not bit-exact at test index: " << i << ", "
-            << "j = " << j << std::endl;
+            << "Not bit-exact at test index: " << i << ", " << "j = " << j
+            << std::endl;
         EXPECT_GE(row_length * kDctMaxValue << (bit_depth_ - 8),
                   abs(output_block[j]))
             << "Error: NxN FDCT has coefficient larger than N*DCT_MAX_VALUE";

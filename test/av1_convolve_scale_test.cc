@@ -237,8 +237,8 @@ void TestImage<SrcPixel>::Check() const {
       const int32_t tst_value = tst_16_dst[r * stride + c];
 
       EXPECT_EQ(tst_value, ref_value)
-          << "Error in 16 bit buffer "
-          << "Error at row: " << (r - kVPad) << ", col: " << (c - kHPad);
+          << "Error in 16 bit buffer " << "Error at row: " << (r - kVPad)
+          << ", col: " << (c - kHPad);
     }
   }
 }

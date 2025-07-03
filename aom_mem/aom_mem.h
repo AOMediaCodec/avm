@@ -44,7 +44,7 @@ void *aom_memset_int16(void *dest, int16_t val, size_t length);
 
 /*returns an addr aligned to the byte boundary specified by align*/
 #define aom_align_addr(addr, align) \
-  (void *)(((uintptr_t)(addr) + ((align)-1)) & ~(uintptr_t)((align)-1))
+  (void *)(((uintptr_t)(addr) + ((align) - 1)) & ~(uintptr_t)((align) - 1))
 
 #include <string.h>
 
