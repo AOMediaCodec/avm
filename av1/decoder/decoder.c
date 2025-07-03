@@ -214,7 +214,11 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   aom_once(initialize_dec);
 
   // Initialize the references to not point to any frame buffers.
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     cm->ref_frame_map[i] = NULL;
   }
 

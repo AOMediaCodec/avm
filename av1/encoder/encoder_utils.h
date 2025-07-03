@@ -930,7 +930,7 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
 #else
-  for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames; ref_frame++) {
+  for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
 #endif
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
 #if CONFIG_REF_COUNT_FIX

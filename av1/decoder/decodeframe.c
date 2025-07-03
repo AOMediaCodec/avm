@@ -6567,8 +6567,12 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   if (!pars->update_parameters) {
     // inherit parameters from a previous reference frame
+#if CONFIG_EXTRA_DPB
     int film_grain_params_ref_idx =
         aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
+#else
+      int film_grain_params_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+#endif
     // Section 6.8.20: It is a requirement of bitstream conformance that
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
@@ -7090,9 +7094,6 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 
   seq_params->ref_frames_log2 =
       seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
-#else
-  seq_params->ref_frames = REF_FRAMES;
-  seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
 #endif  // !#if CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_SAME_REF_COMPOUND
@@ -7958,7 +7959,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
     /* All frames need to be marked as not valid for referencing */
+#if CONFIG_EXTRA_DPB
     for (int i = 0; i < seq_params->ref_frames; i++) {
+#else
+      for (int i = 0; i < REF_FRAMES; i++) {
+#endif
       pbi->valid_for_referencing[i] = 0;
     }
   }
@@ -8574,7 +8579,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // overwritten. The reference lists also needs to be reset.
       if (explicit_ref_frame_map) {
         RefScoreData scores[REF_FRAMES];
+#if CONFIG_EXTRA_DPB
         for (int i = 0; i < seq_params->ref_frames; i++)
+#else
+          for (int i = 0; i < REF_FRAMES; i++)
+#endif
           scores[i].score = INT_MAX;
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
           scores[i].score = i;

@@ -1028,8 +1028,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   TplParams *const tpl_data = &cpi->tpl_data;
 
   int ref_picture_map[REF_FRAMES];
-  assert(cm->seq_params.ref_frames > 0);
 #if CONFIG_EXTRA_DPB
+  assert(cm->seq_params.ref_frames > 0);
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
 #else
   for (int i = 0; i < REF_FRAMES; ++i) {

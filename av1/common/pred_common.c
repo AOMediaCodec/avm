@@ -142,7 +142,11 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     scores[i].score = INT_MAX;
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }

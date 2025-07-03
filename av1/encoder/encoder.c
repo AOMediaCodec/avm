@@ -646,9 +646,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->ref_frames_log2 =
       seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#else
-  seq->ref_frames = REF_FRAMES;
-  seq->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
 }
 

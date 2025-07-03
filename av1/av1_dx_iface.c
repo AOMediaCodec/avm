@@ -658,8 +658,12 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
   }
+#if CONFIG_EXTRA_DPB
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames;
        i++) {
+#else
+  for (int i = 0; i < REF_FRAMES; i++) {
+#endif
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -802,8 +806,12 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
 #else
                        3);                 // signal frame to be output
 #endif
-  aom_wb_write_bit(&wb, 1);                           // trailing one
+  aom_wb_write_bit(&wb, 1);  // trailing one
+#if CONFIG_EXTRA_DPB
   aom_wb_write_literal(&wb, 0, 6 - ref_frames_log2);  // trailing zeros
+#else
+  aom_wb_write_literal(&wb, 0, 6 - REF_FRAMES_LOG2);  // trailing zeros
+#endif
 }
 
 // This function outputs all frames from the frame buffers that are showable but
