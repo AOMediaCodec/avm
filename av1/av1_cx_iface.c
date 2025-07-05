@@ -163,6 +163,9 @@ struct av1_extracfg {
   int enable_order_hint;         // enable order hint for sequence
   int enable_tx64;               // enable 64-pt transform usage for sequence
   int enable_flip_idtx;          // enable flip and identity transform types
+#if CLI_OPTION
+  int enable_cropping_window;    // enable cropping window
+#endif  //  CLI_OPTION
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int explicit_ref_frame_map;     // explicitly signal reference frame mapping
@@ -521,6 +524,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // frame order hint
   1,    // enable 64-pt transform usage
   1,    // enable flip and identity transform
+#if CLI_OPTION
+  0,     // enable_cropping_window
+#endif  // CLI_OPTION
 
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
@@ -797,6 +803,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
 
   RANGE_CHECK_HI(cfg, monochrome, 1);
+#if CLI_OPTION
+  RANGE_CHECK(extra_cfg, enable_cropping_window, 0, 1);
+#endif  // CLI_OPTION
 
   if (cfg->large_scale_tile && extra_cfg->aq_mode)
     ERROR(
@@ -1555,6 +1564,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
+#if CLI_OPTION
+  tool_cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
+#endif  // CLI_OPTION
 
 #if CONFIG_DRL_REORDER_CONTROL
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
@@ -2459,6 +2471,15 @@ static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
   extra_cfg.enable_flip_idtx = CAST(AV1E_SET_ENABLE_FLIP_IDTX, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+
+#if CLI_OPTION
+static aom_codec_err_t ctrl_set_enable_cropping_window(aom_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_cropping_window = CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CLI_OPTION
 
 static aom_codec_err_t ctrl_set_max_reference_frames(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -4220,6 +4241,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.enable_flip_idtx = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_reference_frames,
                               argv, err_string)) {
+#if CLI_OPTION
+    extra_cfg.enable_cropping_window = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cropping_window,
+                              argv, err_string)) {
+#endif  // CLI_OPTION
     extra_cfg.max_reference_frames = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.reduced_reference_set,
                               argv, err_string)) {
@@ -4547,6 +4573,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
+#if CLI_OPTION
+  { AV1E_SET_ENABLE_CROPPING_WINDOW, ctrl_set_enable_cropping_window },
+#endif  // CLI_OPTION
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
   { AV1E_SET_REDUCED_REFERENCE_SET, ctrl_set_enable_reduced_reference_set },
   { AV1E_SET_ENABLE_REF_FRAME_MVS, ctrl_set_enable_ref_frame_mvs },
@@ -4811,6 +4840,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_BRU
         0,  // enable_bru
 #endif      // CONFIG_BRU
+#if CLI_OPTION
+  0, // enable cropping window
+#endif  // CLI_OPTION
     },      // cfg
 } };
 

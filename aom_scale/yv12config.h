@@ -126,6 +126,18 @@ typedef struct yv12_buffer_config {
   int corrupted;
   int flags;
   aom_metadata_array_t *metadata;
+
+#if CONFIG_CROP_WIN
+  /* Cropping dimensions */
+  int w_conf_win_enabled_flag;
+  int w_win_left_offset;
+  int w_win_right_offset;
+  int w_win_top_offset;
+  int w_win_bottom_offset;
+  int max_width;
+  int max_height;
+  //struct Window *w_conf;
+#endif  // CONFIG_CROP_WIN
   /*!\endcond */
 } YV12_BUFFER_CONFIG;
 

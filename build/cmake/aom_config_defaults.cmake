@@ -237,6 +237,13 @@ set_aom_config_var(
   "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
 )
 
+# Cropping Window
+set_aom_config_var(CONFIG_CROP_WIN 1
+                   "Cropping Window")
+
+set_aom_config_var(CLI_OPTION 1
+                   "Adding cli fo enable cropping")
+
 # CWG-D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
                    "AV2 enable DPCM and FSC for lossless coding mode")

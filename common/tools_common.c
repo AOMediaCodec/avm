@@ -439,6 +439,24 @@ void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,
       img_shifted->monochrome = img->monochrome;
       img_shifted->csp = img->csp;
     }
+#if CONFIG_CROP_WIN
+    img_shifted->w_conf_win_enabled_flag = img->w_conf_win_enabled_flag;
+    if (img_shifted->w_conf_win_enabled_flag) {
+      img_shifted->w_conf_win_left_offset = img->w_conf_win_left_offset;
+      img_shifted->w_conf_win_right_offset = img->w_conf_win_right_offset;
+      img_shifted->w_conf_win_top_offset = img->w_conf_win_top_offset;
+      img_shifted->w_conf_win_bottom_offset = img->w_conf_win_bottom_offset;
+    } else {
+      img_shifted->w_conf_win_left_offset = 0;
+      img_shifted->w_conf_win_right_offset = 0;
+      img_shifted->w_conf_win_top_offset = 0;
+      img_shifted->w_conf_win_bottom_offset = 0;
+    }
+    img_shifted->max_width = img->d_w;
+    img_shifted->max_height = img->d_h; // does this change during rpr
+    img_shifted->x_chroma_shift = img->x_chroma_shift;
+    img_shifted->y_chroma_shift = img->y_chroma_shift;
+#endif  // CONFIG_CROP_WIN
     if (output_bit_depth > img->bit_depth) {
       aom_img_upshift(img_shifted, img, output_bit_depth - img->bit_depth);
     } else {

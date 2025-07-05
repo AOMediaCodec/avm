@@ -549,6 +549,17 @@ typedef struct {
                                 // 1 - enable it
 } OrderHintInfo;
 
+
+#if CONFIG_CROP_WIN
+struct Window {
+  bool conf_win_enabled_flag;
+  int conf_win_left_offset;
+  int conf_win_right_offset;
+  int conf_win_top_offset;
+  int conf_win_bottom_offset;
+};
+#endif  // CONFIG_CROP_WIN
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -760,6 +771,9 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   aom_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+#if CONFIG_CROP_WIN
+  struct Window conf;
+#endif  // CONFIG_CROP_WIN
 } SequenceHeader;
 
 typedef struct {

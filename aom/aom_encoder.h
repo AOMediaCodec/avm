@@ -666,6 +666,9 @@ typedef struct cfg_options {
    */
   unsigned int enable_bru;
 #endif  // CONFIG_BRU
+#if CLI_OPTION
+  int enable_cropping_window;
+#endif  // CLI_OPTION
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

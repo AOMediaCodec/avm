@@ -149,6 +149,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_ORDER_HINT,
                                         AV1E_SET_ENABLE_TX64,
                                         AV1E_SET_ENABLE_FLIP_IDTX,
+#if CLI_OPTION
+                                        AV1E_SET_ENABLE_CROPPING_WINDOW,
+#endif  // CLI_OPTION
                                         AV1E_SET_ENABLE_MASKED_COMP,
                                         AV1E_SET_ENABLE_ONESIDED_COMP,
                                         AV1E_SET_ENABLE_INTERINTRA_COMP,
@@ -355,6 +358,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_order_hint,
   &g_av1_codec_arg_defs.enable_tx64,
   &g_av1_codec_arg_defs.enable_flip_idtx,
+#if CLI_OPTION
+  &g_av1_codec_arg_defs.enable_cropping_window,
+#endif  // CLI_OPTION
   &g_av1_codec_arg_defs.enable_masked_comp,
   &g_av1_codec_arg_defs.enable_onesided_comp,
   &g_av1_codec_arg_defs.enable_interintra_comp,
@@ -754,6 +760,10 @@ static void init_config(cfg_options_t *config) {
   config->enable_reduced_reference_set = 0;
   config->reduced_tx_type_set = 0;
   config->enable_refmvbank = 1;
+#if CLI_OPTION
+  config->enable_cropping_window = 0;
+#endif  // CLI_OPTION
+  
 #if CONFIG_DRL_REORDER_CONTROL
   config->enable_drl_reorder = 1;
 #endif  // CONFIG_DRL_REORDER_CONTROL

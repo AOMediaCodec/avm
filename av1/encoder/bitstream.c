@@ -5787,6 +5787,22 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
   }
 }
 
+#if CONFIG_CROP_WIN
+void write_conformance_window(const SequenceHeader* seq_params,
+                              struct aom_write_bit_buffer *wb) {
+
+  const struct Window *conf = &seq_params->conf;
+
+  aom_wb_write_bit(wb, conf->conf_win_enabled_flag);
+  if (conf->conf_win_enabled_flag) {
+    aom_wb_write_uvlc(wb, conf->conf_win_left_offset);
+    aom_wb_write_uvlc(wb, conf->conf_win_top_offset);
+    aom_wb_write_uvlc(wb, conf->conf_win_right_offset);
+    aom_wb_write_uvlc(wb, conf->conf_win_bottom_offset);
+  }
+}
+#endif
+
 static AOM_INLINE void write_color_config(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   write_bitdepth(seq_params, wb);
@@ -7421,6 +7437,10 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                        seq_params->num_bits_width);
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
                        seq_params->num_bits_height);
+
+#if CONFIG_CROP_WIN
+  write_conformance_window(seq_params, &wb);
+#endif  //  CONFIG_CROP_WIN
 
   write_color_config(seq_params, &wb);
 

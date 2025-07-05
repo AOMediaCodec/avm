@@ -198,6 +198,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_order_hint;
   arg_def_t enable_tx64;
   arg_def_t enable_flip_idtx;
+#if CLI_OPTION
+  arg_def_t enable_cropping_window;
+#endif  // CLI_OPTION
   arg_def_t enable_masked_comp;
   arg_def_t enable_onesided_comp;
   arg_def_t enable_interintra_comp;

@@ -939,6 +939,9 @@ typedef struct {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
+#if CLI_OPTION
+  int enable_cropping_window;
+#endif  // CLI_OPTION
 #if CONFIG_DRL_REORDER_CONTROL
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;

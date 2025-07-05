@@ -130,6 +130,10 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
 
+#if CONFIG_CROP_WIN
+  read_conformance_window(rb, seq_params);
+#endif  // CONFIG_CROP_WIN
+
   av1_read_color_config(rb, seq_params, &cm->error);
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&

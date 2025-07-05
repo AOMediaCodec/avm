@@ -21,6 +21,11 @@ extern "C" {
 
 struct aom_write_bit_buffer;
 
+#if CONFIG_CROP_WIN
+void write_conformance_window(const SequenceHeader* seq_params,
+                              struct aom_write_bit_buffer *wb);
+#endif  // CONFIG_CROP_WIN
+
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the
 // optional extension, or the OBU size to 'dst'.

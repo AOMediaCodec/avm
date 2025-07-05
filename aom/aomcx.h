@@ -821,7 +821,20 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_FLIP_IDTX = 81,
 
+#if CLI_OPTION
+  /*!\brief Codec control function to turn on / off ref frame mvs (mfmv) usage
+   * at sequence level, int parameter
+   *
+   * \attention If AV1E_SET_CROPPING_WINDOW is 0, then this flag is forced
+   * to 0.
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_CROPPING_WINDOW = 82,
+#else
   /* Note: enum value 82 unused */
+#endif  // CLI_OPTION
 
   /* Note: enum value 83 unused */
 
@@ -1508,6 +1521,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX64, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FLIP_IDTX, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_FLIP_IDTX
+
+#if CLI_OPTION
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW
+#endif  // CLI_OPTION
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_REF_FRAME_MVS, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_REF_FRAME_MVS

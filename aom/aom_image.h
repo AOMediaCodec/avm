@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 /*!\brief Current ABI version number
  *
@@ -184,6 +185,17 @@ typedef struct aom_image {
   unsigned int w;         /**< Stored image width */
   unsigned int h;         /**< Stored image height */
   unsigned int bit_depth; /**< Stored image bit-depth */
+
+#if CONFIG_CROP_WIN
+  /* Cropping dimensions */
+  int w_conf_win_enabled_flag;
+  int w_conf_win_left_offset;
+  int w_conf_win_right_offset;
+  int w_conf_win_top_offset;
+  int w_conf_win_bottom_offset;
+  int max_width;
+  int max_height;
+#endif  // CONFIG_CROP_WIN
 
   /* Image display dimensions */
   unsigned int d_w; /**< Displayed image width */

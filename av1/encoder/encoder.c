@@ -420,6 +420,21 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->frame_id_length = FRAME_ID_LENGTH;
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
+#if CONFIG_CROP_WIN
+  seq->conf.conf_win_enabled_flag = tool_cfg->enable_cropping_window;
+  if (seq->conf.conf_win_enabled_flag) {
+    seq->conf.conf_win_left_offset = 0;
+    seq->conf.conf_win_top_offset = 0;
+    seq->conf.conf_win_right_offset = 0;
+    seq->conf.conf_win_bottom_offset = 16;
+  } else {
+    seq->conf.conf_win_left_offset = 0;
+    seq->conf.conf_win_top_offset = 0;
+    seq->conf.conf_win_right_offset = 0;
+    seq->conf.conf_win_bottom_offset = 0;
+  }
+#endif  // CONFIG_CROP_WIN
+
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;

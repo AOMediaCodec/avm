@@ -97,6 +97,22 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
   img->sz = yv12->frame_size;
   assert(!yv12->metadata);
   img->metadata = NULL;
+#if CONFIG_CROP_WIN
+  img->w_conf_win_enabled_flag = yv12->w_conf_win_enabled_flag;
+  if (img->w_conf_win_enabled_flag) {
+    img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
+    img->w_conf_win_left_offset = yv12->w_win_left_offset;
+    img->w_conf_win_right_offset = yv12->w_win_right_offset;
+    img->w_conf_win_top_offset = yv12->w_win_top_offset;
+  } else {
+    img->w_conf_win_bottom_offset = 0;
+    img->w_conf_win_left_offset = 0;
+    img->w_conf_win_right_offset = 0;
+    img->w_conf_win_top_offset = 0;
+  }
+  img->max_width = yv12->max_width;
+  img->max_height = yv12->max_height;
+#endif  // CONFIG_CROP_WIN
 }
 
 static aom_codec_err_t image2yuvconfig(const aom_image_t *img,

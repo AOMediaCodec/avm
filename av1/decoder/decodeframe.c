@@ -6847,6 +6847,26 @@ static AOM_INLINE void read_temporal_point_info(
       rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
 
+#if CONFIG_CROP_WIN
+void read_conformance_window(struct aom_read_bit_buffer *rb, struct SequenceHeader
+                            *seq_params) {
+  struct Window *conf = &seq_params->conf;
+  conf->conf_win_enabled_flag = aom_rb_read_bit(rb);
+
+  if (conf->conf_win_enabled_flag) {
+    conf->conf_win_left_offset  = aom_rb_read_uvlc(rb);
+    conf->conf_win_top_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_right_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_bottom_offset = aom_rb_read_uvlc(rb);
+  } else {
+    conf->conf_win_left_offset  = 0;
+    conf->conf_win_top_offset = 0;
+    conf->conf_win_right_offset = 0;
+    conf->conf_win_bottom_offset = 0;
+  }
+}
+#endif  // CONFIG_CROP_WIN
+
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params) {
   if (seq_params->reduced_still_picture_hdr) {
