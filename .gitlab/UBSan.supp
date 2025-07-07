@@ -63,3 +63,9 @@ unsigned-integer-overflow:*/tensorflow/*
 unsigned-integer-overflow:*/XNNPACK/*
 unsigned-integer-overflow:*/cpuinfo/*
 shift-base:*/tensorflow/*
+function:*/XNNPACK/*
+function:*/cpuinfo/*
+function:*/pthreadpool/*
+
+# Others
+unsigned-integer-overflow:*/basic_string.h
