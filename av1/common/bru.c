@@ -34,10 +34,7 @@ static void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row,
   blk_w = blk_w >> ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
   blk_h = blk_h >> ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
 
-  int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
-          << MAX_SB_SIZE_LOG2;
-  w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-  const uint32_t stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  const uint32_t stride = cm->mi_params.tx_skip_stride[plane];
   const int cols = (blk_w << MI_SIZE_LOG2) >> MIN_TX_SIZE_LOG2;
   const int rows = (blk_h << MI_SIZE_LOG2) >> MIN_TX_SIZE_LOG2;
   int x = (mi_col << MI_SIZE_LOG2) >>
@@ -50,7 +47,6 @@ static void bru_update_txk_skip_array(const AV1_COMMON *cm, int mi_row,
     for (int c = 0; c < cols; c++) {
       const uint32_t idx = (y + r) * stride + x + c;
       assert(idx < cm->mi_params.tx_skip_buf_size[plane]);
-      assert(stride == cm->mi_params.tx_skip_stride[plane]);
       cm->mi_params.tx_skip[plane][idx] = 1;
     }
   }
