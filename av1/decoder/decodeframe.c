@@ -4348,20 +4348,21 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
       }
     } else {
       cm->mi_params.set_mb_mi(&cm->mi_params, width, height);
-      // We also need to handle the case when `sb_rows` / `sb_cols` has
-      // increased due to a change in superblock size. Note that total number of
-      // superblocks can *increase* even if frame size has decreased, if
-      // superblock size is reduced.
-      // We call this function unconditionally, because it already has the logic
-      // to reallocte only when necessary.
-      if (av1_alloc_superblock_info_buffers(cm)) {
-        aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                           "Failed to allocate superblock info buffers");
-      }
     }
     av1_init_mi_buffers(&cm->mi_params);
     cm->width = width;
     cm->height = height;
+  }
+
+  // We also need to handle the case when `sb_rows` / `sb_cols` has
+  // increased due to a change in superblock size. Note that total number of
+  // superblocks can *increase* even if frame size has decreased, if
+  // superblock size is reduced.
+  // We call this function unconditionally, because it already has the logic
+  // to reallocte only when necessary.
+  if (av1_alloc_superblock_info_buffers(cm)) {
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate superblock info buffers");
   }
 
   ensure_mv_buffer(cm->cur_frame, cm);
