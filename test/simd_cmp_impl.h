@@ -1504,6 +1504,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
   assert(sizeof(CArg) <= 32 && sizeof(CRet) <= 32);
   memset(ref_d, 0, sizeof(ref_d));
   memset(d, 0, sizeof(d));
+  memset(s, 0, sizeof(s));
 
   Map(name, &ref_simd, &simd);
   if (simd == NULL || ref_simd == NULL) {
