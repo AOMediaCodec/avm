@@ -61,6 +61,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
 void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
                cdef_filter_block_func ref_cdef, int boundary, int depth) {
+  assert(depth >= 8);
   const int size = 8;
   const int ysize = size + 2 * CDEF_VBORDER;
   ACMRandom rnd(ACMRandom::DeterministicSeed());

@@ -1503,8 +1503,14 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
                      : ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], -abits);
     }
     int bbits = shifts[i] + a_extra_shift + b_extra_shift;
-    sol[i] = bbits >= 0 ? (sol[i] * (1 << bbits))
-                        : ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -bbits);
+    if (bbits >= 0) {
+      assert(bbits < 64);
+      sol[i] = sol[i] * (1 << bbits);
+    } else {
+      assert((-bbits) > 0);
+      assert((-bbits) < 64);
+      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], -bbits);
+    }
     precbits[i] = precbits[i] - b_extra_shift + shifts[i];
   }
 

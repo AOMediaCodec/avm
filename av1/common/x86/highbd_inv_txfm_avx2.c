@@ -439,6 +439,7 @@ static INLINE void idct32_stage9_avx2(__m256i *bf1, __m256i *out,
   addsub_avx2(bf1[15], bf1[16], out + 15, out + 16, clamp_lo, clamp_hi);
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m256i clamp_lo_out = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
     const __m256i clamp_hi_out =
         _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
@@ -473,6 +474,7 @@ static void idct32_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   // stage 9
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     __m256i offset = _mm256_set1_epi32((1 << out_shift) >> 1);
     clamp_lo = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
     clamp_hi = _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
@@ -1150,6 +1152,7 @@ static void idct32_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
     addsub_avx2(bf0[15], bf0[16], out + 15, out + 16, &clamp_lo, &clamp_hi);
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       const __m256i clamp_lo_out =
           _mm256_set1_epi32(-(1 << (log_range_out - 1)));
       const __m256i clamp_hi_out =
@@ -1184,6 +1187,7 @@ static void idct16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     // stage 7
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       clamp_lo = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
       clamp_hi = _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
       __m256i offset = _mm256_set1_epi32((1 << out_shift) >> 1);
@@ -1348,6 +1352,7 @@ static void idct16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
 
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       const __m256i clamp_lo_out =
           _mm256_set1_epi32(-(1 << (log_range_out - 1)));
       const __m256i clamp_hi_out =
@@ -1531,6 +1536,7 @@ static void idct16_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
 
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       const __m256i clamp_lo_out =
           _mm256_set1_epi32(-(1 << (log_range_out - 1)));
       const __m256i clamp_hi_out =
@@ -2512,6 +2518,7 @@ static void idct8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   // stage 5
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     __m256i offset = _mm256_set1_epi32((1 << out_shift) >> 1);
     clamp_lo = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
     clamp_hi = _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
@@ -2631,6 +2638,7 @@ static void idct8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   // stage 5
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m256i clamp_lo_out = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
     const __m256i clamp_hi_out =
         _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
@@ -2669,6 +2677,7 @@ void iadst_matrix_mult_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
 
   if (!do_cols) {
     log_range = AOMMAX(16, bd + 6);
+    assert(log_range - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm256_set1_epi32(-(1 << (log_range - 1)));
     clamp_hi = _mm256_set1_epi32((1 << (log_range - 1)) - 1);
     if (out_shift != 0) {
@@ -3157,6 +3166,7 @@ static void idct64_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     // stage 11
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       clamp_lo = _mm256_set1_epi32(-(1 << (log_range_out - 1)));
       clamp_hi = _mm256_set1_epi32((1 << (log_range_out - 1)) - 1);
       if (out_shift != 0) {

@@ -12292,6 +12292,7 @@ void av1_gaussian_blur(const uint16_t *src, int src_stride, int w, int h,
 }
 
 static EdgeInfo edge_probability(const uint16_t *input, int w, int h, int bd) {
+  assert(bd == 8 || bd == 10 || bd == 12);
   // The probability of an edge in the whole image is the same as the highest
   // probability of an edge for any individual pixel. Use Sobel as the metric
   // for finding an edge.

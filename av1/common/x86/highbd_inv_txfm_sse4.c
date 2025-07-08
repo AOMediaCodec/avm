@@ -356,6 +356,7 @@ static INLINE void idct32_stage9_sse4_1(__m128i *bf1, __m128i *out,
 
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     const __m128i clamp_hi_out = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
     for (int i = 0; i < 32; i += 8) {
@@ -443,6 +444,7 @@ static void idct4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     log_range = AOMMAX(16, bd + 6);
+    assert(log_range - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
 
@@ -527,6 +529,7 @@ static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     log_range = AOMMAX(16, bd + 6);
+    assert(log_range - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
     round_shift_4x4(out, out_shift);
@@ -1104,6 +1107,7 @@ static void idct8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     const __m128i clamp_hi_out = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
     round_shift_8x8(out, out_shift);
@@ -1739,6 +1743,7 @@ static void idct8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
   // stage 5
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
 
@@ -1862,6 +1867,7 @@ static void idct8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     const __m128i clamp_hi_out = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
 
@@ -2200,6 +2206,7 @@ static void idct16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
   // stage 7
   if (!do_cols) {
     log_range = AOMMAX(16, bd + 6);
+    assert(log_range - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
     if (out_shift != 0) {
@@ -2364,6 +2371,7 @@ static void idct16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
 
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     const __m128i clamp_hi_out = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
     round_shift_8x8(out, out_shift);
@@ -2399,6 +2407,7 @@ void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     log_range = AOMMAX(16, bd + 6);
+    assert(log_range - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
     if (out_shift != 0) {
@@ -3127,6 +3136,7 @@ static void idct16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
       const __m128i clamp_hi_out =
           _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
@@ -3733,6 +3743,7 @@ static void idct64x64_low1_sse4_1(__m128i *in, __m128i *out, int bit,
     // stage 11
     if (!do_cols) {
       const int log_range_out = AOMMAX(16, bd + 6);
+      assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
       clamp_lo = _mm_set1_epi32(-(1 << (log_range_out - 1)));
       clamp_hi = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
       if (out_shift != 0) {
@@ -4858,6 +4869,7 @@ static void idct32x32_low1_sse4_1(__m128i *in, __m128i *out, int bit,
     bf1 = _mm_min_epi32(bf1, clamp_hi);
   } else {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     clamp_lo = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     clamp_hi = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
     if (out_shift != 0) {
@@ -5533,6 +5545,7 @@ static void idct32x32_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   if (!do_cols) {
     const int log_range_out = AOMMAX(16, bd + 6);
+    assert(log_range_out - 1 < 32);  // Ensure left-shift doesn't overflow.
     const __m128i clamp_lo_out = _mm_set1_epi32(-(1 << (log_range_out - 1)));
     const __m128i clamp_hi_out = _mm_set1_epi32((1 << (log_range_out - 1)) - 1);
     round_shift_8x8(out, out_shift);
