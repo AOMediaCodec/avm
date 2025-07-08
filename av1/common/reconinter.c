@@ -1739,7 +1739,7 @@ void av1_bicubic_grad_interpolation_highbd_c(const int16_t *pred_src,
                  (int32_t)(pred_src[i * bw + id_next2] -
                            pred_src[i * bw + id_prev2]);
       x_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
-                                 INT16_MIN, INT16_MAX);
+                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
 
       // Subtract interpolated pixel at (i+delta, j) by the one at (i-delta, j)
       id_prev = AOMMAX(i - 1, 0);
@@ -1754,7 +1754,7 @@ void av1_bicubic_grad_interpolation_highbd_c(const int16_t *pred_src,
                  (int32_t)(pred_src[id_next2 * bw + j] -
                            pred_src[id_prev2 * bw + j]);
       y_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
-                                 INT16_MIN, INT16_MAX);
+                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
     }
   }
 #else
@@ -1784,7 +1784,7 @@ void av1_bilinear_grad_interpolation_c(const int16_t *pred_src, int16_t *x_grad,
       temp = coeffs_bilinear[SUBPEL_GRAD_DELTA_BITS][is_boundary] *
              (int32_t)(pred_src[i * bw + id_next] - pred_src[i * bw + id_prev]);
       x_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bilinear_bits),
-                                 INT16_MIN, INT16_MAX);
+                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
       // Subtract interpolated pixel at (i+delta, j) by the one at (i-delta, j)
       id_next = AOMMIN(i + 1, bh - 1);
       id_prev = AOMMAX(i - 1, 0);
@@ -1792,7 +1792,7 @@ void av1_bilinear_grad_interpolation_c(const int16_t *pred_src, int16_t *x_grad,
       temp = coeffs_bilinear[SUBPEL_GRAD_DELTA_BITS][is_boundary] *
              (int32_t)(pred_src[id_next * bw + j] - pred_src[id_prev * bw + j]);
       y_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bilinear_bits),
-                                 INT16_MIN, INT16_MAX);
+                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
     }
   }
 }
@@ -2241,11 +2241,11 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
       if ((i + j) % 2 == 1) continue;
 #endif
       const int u =
-          clamp(gx[i * gstride + j], -OPFL_SAMP_CLAMP_VAL, OPFL_SAMP_CLAMP_VAL);
+          clamp(gx[i * gstride + j], -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
       const int v =
-          clamp(gy[i * gstride + j], -OPFL_SAMP_CLAMP_VAL, OPFL_SAMP_CLAMP_VAL);
-      const int w = clamp(pdiff[i * pstride + j], -OPFL_SAMP_CLAMP_VAL,
-                          OPFL_SAMP_CLAMP_VAL);
+          clamp(gy[i * gstride + j], -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
+      const int w = clamp(pdiff[i * pstride + j], -OPFL_GRAD_CLAMP_VAL,
+                          OPFL_GRAD_CLAMP_VAL);
       su2 += ROUND_POWER_OF_TWO_SIGNED(u * u, grad_bits);
       suv += ROUND_POWER_OF_TWO_SIGNED(u * v, grad_bits);
       sv2 += ROUND_POWER_OF_TWO_SIGNED(v * v, grad_bits);

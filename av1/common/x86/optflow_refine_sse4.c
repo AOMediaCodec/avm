@@ -50,6 +50,13 @@ static INLINE __m128i pack_and_round_epi32(__m128i temp1, __m128i temp2,
   return (_mm_packs_epi32(temp1, temp2));
 }
 
+static INLINE __m128i clamp_epi16(__m128i val, const int min_val,
+                                  const int max_val) {
+  const __m128i min = _mm_set1_epi16(min_val);
+  const __m128i max = _mm_set1_epi16(max_val);
+  return _mm_min_epi16(_mm_max_epi16(val, min), max);
+}
+
 void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
                                                   int16_t *x_grad,
                                                   int16_t *y_grad, const int bw,
@@ -128,7 +135,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
-
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         const int idx = col * bw + row;
         xx_storeu_128(x_grad + idx, temp1);
 
@@ -162,6 +169,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx, temp1);
       }
     }
@@ -235,7 +243,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
-
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         const int idx = col * bw + row;
         xx_storeu_128(x_grad + idx, temp1);
 
@@ -262,6 +270,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(x_grad + idx + 8, temp1);
 
         src = pred_src + row;
@@ -299,6 +308,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx, temp1);
 
         sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_2),
@@ -323,6 +333,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx + 8, temp1);
       }
     }
@@ -414,8 +425,8 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
+  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
+  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
@@ -554,8 +565,8 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int32_t suw = 0;
   int32_t svw = 0;
   int grad_bits = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
+  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
+  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);

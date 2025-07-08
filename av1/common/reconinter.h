@@ -640,7 +640,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 // Clamp range for u/v/w. If it uses h unsigned bits, then u2/v2 uses 2h
 // unsigned bits. Every sum of 8 u2/v2 use at most 2h+3 unsigned bits, and
 // must not exceed max bd of su2/sv2 minus 2. Thus, 2h+3 <= H-2
-#define OPFL_SAMP_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
+#define OPFL_GRAD_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,

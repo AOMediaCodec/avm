@@ -1743,6 +1743,13 @@ static AOM_INLINE void sub_mul_add(
   *temp_reg = round_power_of_two_signed_epi32(temp, bicubic_bits);
 }
 
+static AOM_INLINE __m256i clamp_epi16(__m256i val, const int min_val,
+                                      const int max_val) {
+  const __m256i min = _mm256_set1_epi16(min_val);
+  const __m256i max = _mm256_set1_epi16(max_val);
+  return _mm256_min_epi16(_mm256_max_epi16(val, min), max);
+}
+
 void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
                                                 int16_t *x_grad,
                                                 int16_t *y_grad, const int bw,
@@ -1824,8 +1831,10 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif
                     &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
-        _mm256_storeu_si256((__m256i *)(&x_grad[bw * col]),
-                            _mm256_packs_epi32(temp_0, temp_1));
+        _mm256_storeu_si256(
+            (__m256i *)(&x_grad[bw * col]),
+            clamp_epi16(_mm256_packs_epi32(temp_0, temp_1),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL));
       }
     }
     // Calculation of y_grad.
@@ -1872,7 +1881,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
       const __m256i temp =
           _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_0, temp_1), 0xd8);
-      _mm256_storeu_si256((__m256i *)y_grad, temp);
+      _mm256_storeu_si256(
+          (__m256i *)y_grad,
+          clamp_epi16(temp, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL));
       for (int col = 2; col < bh - 2; col += 2) {
         // s00 s01 s02 s03 s04 s05 s06 s07
         src_prev2 = src_prev;
@@ -1911,7 +1922,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
         const __m256i temp0 =
             _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_2, temp_3), 0xd8);
-        _mm256_storeu_si256((__m256i *)(&y_grad[col * bw]), temp0);
+        _mm256_storeu_si256(
+            (__m256i *)(&y_grad[col * bw]),
+            clamp_epi16(temp0, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL));
       }
       // s40 s41 s42 s43 s44 s45 s46 s47
       src_prev2 = src_prev;
@@ -1943,7 +1956,10 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       // t60 t61 t62 t63 t64 t65 t67 | t70 t71 t72 t73 t74 t75 t77
       const __m256i temp0 =
           _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_4, temp_5), 0xd8);
-      _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * bw]), temp0);
+
+      _mm256_storeu_si256(
+          (__m256i *)(&y_grad[(bh - 2) * bw]),
+          clamp_epi16(temp0, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL));
     }
   } else {
     // Calculation of x_grad.
@@ -2022,7 +2038,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif
                     &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
-        const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
+        const __m256i x_reg_0 =
+            clamp_epi16(_mm256_packs_epi32(temp_0, temp_1),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
 
         // t00 t01 t02 t03 t04 t05 t06 t07
         _mm_storeu_si128((__m128i *)(&x_grad[bw * col]),
@@ -2096,7 +2114,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif
                     &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
-        const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
+        const __m256i x_reg_0 =
+            clamp_epi16(_mm256_packs_epi32(temp_0, temp_1),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
 
         // t00 t01 t02 t03 t04 t05 t06 t07
         _mm_storeu_si128((__m128i *)(&x_grad[bw * col + (counter + 1) * 8]),
@@ -2176,7 +2196,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
                     &temp_1);
         // t024 t025 t026 t027 t028 t029 t030 t031 | t124 t125 t126 t127 t128
         // t129 t130 t131
-        const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
+        __m256i x_reg_0 =
+            clamp_epi16(_mm256_packs_epi32(temp_0, temp_1),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
 
         // t024 t025 t026 t027 t028 t029 t030 t031
         _mm_storeu_si128((__m128i *)(&x_grad[bw * (col + 1) - 8]),
@@ -2265,12 +2287,16 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif
                     &temp_3);
         // t00 t01 t02 t03 t08 t09 t010 t011 | t04 t05 t06 t07 t14 t15 t16 t17
-        const __m256i y_reg_0 =
-            _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_0, temp_1), 0xd8);
+        const __m256i y_reg_0 = _mm256_permute4x64_epi64(
+            clamp_epi16(_mm256_packs_epi32(temp_0, temp_1),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+            0xd8);
         // t08 t09 t010 t011 t18 t19 t110 t111 | t012 t013 t014 t015 t112 t113
         // t114 t115
-        const __m256i y_reg_1 =
-            _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_2, temp_3), 0xd8);
+        const __m256i y_reg_1 = _mm256_permute4x64_epi64(
+            clamp_epi16(_mm256_packs_epi32(temp_2, temp_3),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+            0xd8);
         _mm256_storeu_si256((__m256i *)&y_grad[0 + inc], y_reg_0);
         _mm256_storeu_si256((__m256i *)&y_grad[bw + inc], y_reg_1);
         for (int col = 2; col < bh - 2; col += 2) {
@@ -2349,11 +2375,15 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
                       &temp_8);
           // t20 t21 t22 t23 t24 t25 t26 t27 | t30 t31 t32 t33 t34 t35 t36 t37
           const __m256i y_reg_2 = _mm256_permute4x64_epi64(
-              _mm256_packs_epi32(temp_5, temp_6), 0xd8);
+              clamp_epi16(_mm256_packs_epi32(temp_5, temp_6),
+                          -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+              0xd8);
           // t28 t29 t210 t211 t212 t213 t214 t215 | t38 t39 t310 t311 t312 t313
           // t314 t315
           const __m256i y_reg_3 = _mm256_permute4x64_epi64(
-              _mm256_packs_epi32(temp_7, temp_8), 0xd8);
+              clamp_epi16(_mm256_packs_epi32(temp_7, temp_8),
+                          -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+              0xd8);
           _mm256_storeu_si256((__m256i *)(&y_grad[col * bw + inc]), y_reg_2);
           _mm256_storeu_si256((__m256i *)(&y_grad[(col + 1) * bw + inc]),
                               y_reg_3);
@@ -2411,10 +2441,14 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif
                     &temp_11);
         // t60 t61 t62 t63 t64 t65 t67 | t70 t71 t72 t73 t74 t75 t77
-        const __m256i y_reg_4 =
-            _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_9, temp_09), 0xd8);
+        const __m256i y_reg_4 = _mm256_permute4x64_epi64(
+            clamp_epi16(_mm256_packs_epi32(temp_9, temp_09),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+            0xd8);
         const __m256i y_reg_5 = _mm256_permute4x64_epi64(
-            _mm256_packs_epi32(temp_10, temp_11), 0xd8);
+            clamp_epi16(_mm256_packs_epi32(temp_10, temp_11),
+                        -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL),
+            0xd8);
         _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * bw + inc]), y_reg_4);
         _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 1) * bw + inc]), y_reg_5);
       }
@@ -2506,8 +2540,8 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
   int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
-  const __m256i opfl_samp_min = _mm256_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
-  const __m256i opfl_samp_max = _mm256_set1_epi16(OPFL_SAMP_CLAMP_VAL);
+  const __m256i opfl_samp_min = _mm256_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
+  const __m256i opfl_samp_max = _mm256_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   step_size = 2;
   const __m256i even_row =
