@@ -3700,9 +3700,9 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         TX_TYPE tx_type = xd->tx_type_map[0];
         const bool is_sdp_eligible = mbmi->region_type == INTRA_REGION;
         if (!(is_sdp_eligible ||
-            (xd->is_chroma_ref &&
-             (xd->mi_row != mbmi->chroma_ref_info.mi_row_chroma_base ||
-              xd->mi_col != mbmi->chroma_ref_info.mi_col_chroma_base)))) {
+              (xd->is_chroma_ref &&
+               (xd->mi_row != mbmi->chroma_ref_info.mi_row_chroma_base ||
+                xd->mi_col != mbmi->chroma_ref_info.mi_col_chroma_base)))) {
           tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
         }
         // Secondary transforms are disabled for chroma
