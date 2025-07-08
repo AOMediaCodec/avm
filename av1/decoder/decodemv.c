@@ -1224,7 +1224,7 @@ static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                            aom_reader *r, int skip) {
   int cdf_num;
   const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
-  if (skip) return pred;
+  if (skip && !xd->lossless[pred]) return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   struct segmentation *const seg = &cm->seg;

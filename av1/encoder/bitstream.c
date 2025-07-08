@@ -1260,7 +1260,7 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-  if (skip_txfm) {
+  if (skip_txfm && !xd->lossless[pred]) {
     // Still need to transmit tx size for intra blocks even if skip_txfm is
     // true. Changing segment_id may make the tx size become invalid, e.g
     // changing from lossless to lossy.
