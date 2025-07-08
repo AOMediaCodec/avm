@@ -178,6 +178,8 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
         RefCntBuffer *buf = get_ref_frame_buf(cm, mbmi->ref_frame[mv]);
         if (buf != NULL) {
           mi->ref_frame_order_hint[mv] = buf->order_hint;
+        } else {
+          mi->ref_frame_order_hint[mv] = -1;
         }
       }
       mi->mv_precision = mbmi->pb_mv_precision;
