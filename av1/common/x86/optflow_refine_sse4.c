@@ -425,8 +425,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
@@ -452,9 +450,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64-bit precision
     // to avoid overflow issues.
-    gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
-    gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
-    pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);
@@ -565,8 +560,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int32_t suw = 0;
   int32_t svw = 0;
   int grad_bits = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   const __m128i even_row =
       _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
@@ -592,9 +585,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64bit to avoid
     // overflow issues.
-    gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
-    gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
-    pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);

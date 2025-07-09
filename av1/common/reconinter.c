@@ -2240,12 +2240,9 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
 #if OPFL_DOWNSAMP_QUINCUNX
       if ((i + j) % 2 == 1) continue;
 #endif
-      const int u =
-          clamp(gx[i * gstride + j], -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
-      const int v =
-          clamp(gy[i * gstride + j], -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
-      const int w = clamp(pdiff[i * pstride + j], -OPFL_GRAD_CLAMP_VAL,
-                          OPFL_GRAD_CLAMP_VAL);
+      const int u = gx[i * gstride + j];
+      const int v = gy[i * gstride + j];
+      const int w = pdiff[i * pstride + j];
       su2 += ROUND_POWER_OF_TWO_SIGNED(u * u, grad_bits);
       suv += ROUND_POWER_OF_TWO_SIGNED(u * v, grad_bits);
       sv2 += ROUND_POWER_OF_TWO_SIGNED(v * v, grad_bits);

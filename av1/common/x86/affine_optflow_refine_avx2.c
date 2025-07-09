@@ -2540,8 +2540,6 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
   int32_t svw_lo = 0;
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
-  const __m256i opfl_samp_min = _mm256_set1_epi16(-OPFL_GRAD_CLAMP_VAL);
-  const __m256i opfl_samp_max = _mm256_set1_epi16(OPFL_GRAD_CLAMP_VAL);
 #if OPFL_DOWNSAMP_QUINCUNX
   step_size = 2;
   const __m256i even_row =
@@ -2567,12 +2565,6 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
     pred = _mm256_or_si256(_mm256_and_si256(pred, even_row),
                            _mm256_and_si256(pred1, odd_row));
 #endif
-    gradX =
-        _mm256_max_epi16(_mm256_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
-    gradY =
-        _mm256_max_epi16(_mm256_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
-    pred =
-        _mm256_max_epi16(_mm256_min_epi16(pred, opfl_samp_max), opfl_samp_min);
 
     // Avoid the rounding operation for the cases where both 'grad_bits_lo' and
     // 'grad_bits_hi' are zeros.
