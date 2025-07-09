@@ -2904,11 +2904,10 @@ void av1_foreach_rest_unit_in_row(
     sync_read_fn_t on_sync_read, sync_write_fn_t on_sync_write,
     struct AV1LrSyncData *const lr_sync, int *processed) {
   const int tile_w = tile_rect->right - tile_rect->left;
-  const int ext_size = unit_size * 3 / 2;
   int x0 = 0, j = 0;
   while (x0 < tile_w) {
     int remaining_w = tile_w - x0;
-    int w = (remaining_w < ext_size) ? remaining_w : unit_size;
+    int w = (j == hunits_per_tile - 1) ? remaining_w : unit_size;
 
     limits->h_start = tile_rect->left + x0;
     limits->h_end = tile_rect->left + x0 + w;
@@ -2978,12 +2977,11 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    RestorationLineBuffers *rlbs,
                                    int *processed) {
   const int tile_h = tile_rect->bottom - tile_rect->top;
-  const int ext_size = unit_size * 3 / 2;
 
   int y0 = 0, i = 0;
   while (y0 < tile_h) {
     int remaining_h = tile_h - y0;
-    int h = (remaining_h < ext_size) ? remaining_h : unit_size;
+    int h = (i == vunits_per_tile - 1) ? remaining_h : unit_size;
 
     RestorationTileLimits limits;
     limits.v_start = tile_rect->top + y0;
@@ -3018,12 +3016,11 @@ void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
                                  void *priv, int32_t *tmpbuf,
                                  RestorationLineBuffers *rlbs, int *processed) {
   const int tile_h = tile_rect->bottom - tile_rect->top;
-  const int ext_size = unit_size * 3 / 2;
 
   int y0 = 0, i = 0;
   while (y0 < tile_h) {
     int remaining_h = tile_h - y0;
-    int h = (remaining_h < ext_size) ? remaining_h : unit_size;
+    int h = (i == vunits_per_tile - 1) ? remaining_h : unit_size;
 
     RestorationTileLimits limits;
     limits.v_start = tile_rect->top + y0;
