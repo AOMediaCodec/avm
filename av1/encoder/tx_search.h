@@ -89,7 +89,13 @@ static AOM_INLINE int inter_tx_partition_cost(const MACROBLOCK *const x,
       if (txsize_group) {
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-        cost += x->mode_costs.txfm_2or3_way_partition_type_cost
+        cost +=
+#if CONFIG_REDUCED_TX_PART
+            xd->reduced_tx_part_set
+                ? 0
+                :
+#endif  // CONFIG_REDUCED_TX_PART
+                x->mode_costs.txfm_2or3_way_partition_type_cost
                     [is_fsc][1][txsize_group_h_or_v - 1][has_first_split];
 #else
         cost += x->mode_costs
@@ -158,7 +164,13 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
       if (txsize_group) {
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-        cost += x->mode_costs.txfm_2or3_way_partition_type_cost
+        cost +=
+#if CONFIG_REDUCED_TX_PART
+            xd->reduced_tx_part_set
+                ? 0
+                :
+#endif  // CONFIG_REDUCED_TX_PART
+                x->mode_costs.txfm_2or3_way_partition_type_cost
                     [is_fsc][0][txsize_group_h_or_v - 1][has_first_split];
 #else
         cost += x->mode_costs

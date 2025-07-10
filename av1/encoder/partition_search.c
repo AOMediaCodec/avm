@@ -603,6 +603,10 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
   xd->mi[0]->sb_root_partition_info = sb_root_partition_info;
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
+#if CONFIG_REDUCED_TX_PART
+  xd->reduced_tx_part_set = cm->seq_params.reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
+
   if (ctx->rd_mode_is_ready) {
     assert(ctx->mic.sb_type[plane_type] == bsize);
     assert(ctx->mic.partition == partition);

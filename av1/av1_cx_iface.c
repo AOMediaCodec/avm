@@ -173,8 +173,11 @@ struct av1_extracfg {
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
   int enable_order_hint;         // enable order hint for sequence
   int enable_tx64;               // enable 64-pt transform usage for sequence
-  int enable_flip_idtx;          // enable flip and identity transform types
-  int max_reference_frames;      // maximum number of references per frame
+#if CONFIG_REDUCED_TX_PART
+  int reduced_tx_part_set;   // enable reduced transform block partition set
+#endif                       // CONFIG_REDUCED_TX_PART
+  int enable_flip_idtx;      // enable flip and identity transform types
+  int max_reference_frames;  // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int explicit_ref_frame_map;  // explicitly signal reference frame mapping
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -538,6 +541,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable intra edge filter
   1,    // frame order hint
   1,    // enable 64-pt transform usage
+#if CONFIG_REDUCED_TX_PART
+  0,    // enable reduced transform block partition set
+#endif  // CONFIG_REDUCED_TX_PART
   1,    // enable flip and identity transform
 
   7,  // max_reference_frames
@@ -1080,6 +1086,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
   cfg->enable_tx64 = extra_cfg->enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  cfg->reduced_tx_part_set = extra_cfg->reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
   cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
@@ -1223,6 +1232,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
   extra_cfg->enable_tx64 = cfg->enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  extra_cfg->reduced_tx_part_set = cfg->reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   extra_cfg->enable_flip_idtx = cfg->enable_flip_idtx;
   extra_cfg->enable_masked_comp = cfg->enable_masked_comp;
   extra_cfg->enable_interintra_comp = cfg->enable_interintra_comp;
@@ -1910,6 +1922,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set transform size/type configuration.
   txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  txfm_cfg->reduced_tx_part_set = extra_cfg->reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   txfm_cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   txfm_cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
@@ -4307,6 +4322,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tx64, argv,
                               err_string)) {
     extra_cfg.enable_tx64 = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_REDUCED_TX_PART
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.reduced_tx_part_set,
+                              argv, err_string)) {
+    extra_cfg.reduced_tx_part_set = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_REDUCED_TX_PART
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_flip_idtx,
                               argv, err_string)) {
     extra_cfg.enable_flip_idtx = arg_parse_int_helper(&arg, err_string);
@@ -4865,6 +4885,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif  // CONFIG_IBC_SR_EXT
         1,   1, 1, 1,
         1,   1, 1, 1,
+#if CONFIG_REDUCED_TX_PART
+        0,  // reduced_tx_part_set
+#endif      // CONFIG_REDUCED_TX_PART
         1,   1, 1, 1,
         3,   1,
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE

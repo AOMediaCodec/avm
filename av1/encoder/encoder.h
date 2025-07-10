@@ -333,6 +333,13 @@ typedef struct {
    * Flag to indicate if 64-pt transform should be enabled.
    */
   bool enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  /*!
+   * Flag to indicate if reduced transform block partition set should be
+   * enabled.
+   */
+  bool reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   /*!
    * Flag to indicate if flip and identity transform types should be enabled.
    */

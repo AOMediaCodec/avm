@@ -534,6 +534,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  /*!\brief enable reduced transform block partition set
+   *
+   */
+  unsigned int reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   /*!\brief enable smooth inter/intra
    *
    */

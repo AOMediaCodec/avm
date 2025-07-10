@@ -520,6 +520,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_tx64 =
       ARG_DEF(NULL, "enable-tx64", 1,
               "Enable 64-pt transform (0: false, 1: true (default))"),
+#if CONFIG_REDUCED_TX_PART
+  .reduced_tx_part_set = ARG_DEF(NULL, "reduced-tx-part-set", 1,
+                                 "Use reduced transform block partition set "
+                                 "(0: false (default), 1: true)"),
+#endif  // CONFIG_REDUCED_TX_PART
   .enable_flip_idtx =
       ARG_DEF(NULL, "enable-flip-idtx", 1,
               "Enable extended transform type (0: false, 1: true (default)) "

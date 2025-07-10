@@ -433,6 +433,8 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
 
+set_aom_config_var(CONFIG_REDUCED_TX_PART 1 "Reduced TX Partition")
+
 set_aom_config_var(CONFIG_ADAPT_OPFL_IN_TIP_DIRECT 1
                    "Enable adaptive OPFL MV refinement in TIP-direct mode")
 

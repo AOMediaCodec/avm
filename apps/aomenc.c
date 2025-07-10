@@ -466,6 +466,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_inter_ist,
   &g_av1_codec_arg_defs.enable_chroma_dctonly,
   &g_av1_codec_arg_defs.enable_inter_ddt,
+#if CONFIG_REDUCED_TX_PART
+  &g_av1_codec_arg_defs.reduced_tx_part_set,
+#endif  // CONFIG_REDUCED_TX_PART
   &g_av1_codec_arg_defs.enable_cctx,
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
@@ -739,6 +742,9 @@ static void init_config(cfg_options_t *config) {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
+#if CONFIG_REDUCED_TX_PART
+  config->reduced_tx_part_set = 0;
+#endif  // CONFIG_REDUCED_TX_PART
   config->enable_smooth_interintra = 1;
   config->enable_interinter_wedge = 1;
   config->enable_interintra_wedge = 1;
@@ -1673,8 +1679,14 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Transform)       : Flip & IDT (%d), "
           "CCTX (%d), "
+#if CONFIG_REDUCED_TX_PART
+          "Reduced TX partition set (%d), "
+#endif  // CONFIG_REDUCED_TX_PART
           "TX_64 (%d)\n",
           encoder_cfg->enable_flip_idtx, encoder_cfg->enable_cctx,
+#if CONFIG_REDUCED_TX_PART
+          encoder_cfg->reduced_tx_part_set,
+#endif  // CONFIG_REDUCED_TX_PART
           encoder_cfg->enable_tx64);
 
   fprintf(stdout,

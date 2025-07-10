@@ -192,6 +192,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_intra_edge_filter;
   arg_def_t enable_order_hint;
   arg_def_t enable_tx64;
+#if CONFIG_REDUCED_TX_PART
+  arg_def_t reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
   arg_def_t enable_flip_idtx;
   arg_def_t enable_masked_comp;
   arg_def_t enable_onesided_comp;

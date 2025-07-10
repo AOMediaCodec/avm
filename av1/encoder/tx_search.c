@@ -3388,6 +3388,12 @@ static void select_tx_partition_type(
         ml_predict_tx_split(x, plane_bsize, blk_row, blk_col, max_tx_size);
   }
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
+#if CONFIG_REDUCED_TX_PART
+    if (cpi->common.seq_params.reduced_tx_part_set &&
+        type > TX_PARTITION_VERT) {
+      break;
+    }
+#endif  // CONFIG_REDUCED_TX_PART
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, plane_bsize, max_tx_size)) continue;
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
@@ -3765,6 +3771,12 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   int64_t cur_rd = INT64_MAX;
   const bool is_rect = is_rect_tx(max_tx_size);
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
+#if CONFIG_REDUCED_TX_PART
+    if (cpi->common.seq_params.reduced_tx_part_set &&
+        type > TX_PARTITION_VERT) {
+      break;
+    }
+#endif  // CONFIG_REDUCED_TX_PART
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, bs, max_tx_size)) continue;
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;

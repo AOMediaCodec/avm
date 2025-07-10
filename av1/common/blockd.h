@@ -2413,6 +2413,10 @@ typedef struct macroblockd {
    * block as passed down from the parent tree */
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
+#if CONFIG_REDUCED_TX_PART
+  /*! \brief Flag to indicate whether reduced transform partition mode is on */
+  int reduced_tx_part_set;
+#endif  // CONFIG_REDUCED_TX_PART
 } MACROBLOCKD;
 
 /*!\cond */
