@@ -159,7 +159,7 @@ set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 1 "bypass coding FG8-Test8")
 set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 1
                    "bypass coding FG8-Test8-chroma-only")
 
-set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 
 set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 0
                    "FG8-Test19, Test20, Test21")
