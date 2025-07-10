@@ -155,11 +155,11 @@ set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1
 set_aom_config_var(CONFIG_COEFF_BR_PH_BYPASS 1
                    "AV2 experiment flag to bypass BR PH syntax. FG8-Test10.")
 set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
+set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 1 "bypass coding FG8-Test8")
+set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 1
+                   "bypass coding FG8-Test8-chroma-only")
 
 set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
-set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 0 "bypass coding FG8-Test8")
-set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 0
-                   "bypass coding FG8-Test8-chroma-only")
 
 set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 0
                    "FG8-Test19, Test20, Test21")
