@@ -149,24 +149,27 @@ set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
 
 # FG8 context simplification tests
 set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
-set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
 set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1
                    "AV2 experiment flag to bypass UV LF syntax. FG8-Test9.")
 set_aom_config_var(CONFIG_COEFF_BR_PH_BYPASS 1
                    "AV2 experiment flag to bypass BR PH syntax. FG8-Test10.")
 set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
-set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 7
-                   "FG8-Test19, Test20, Test21")
-set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_HIGH 1 "bypass coding FG8-Test22")
-set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_SIGN 1 "bypass coding FG8-Test23")
-set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding. FG8-Test24")
-set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 1 "bypass coding FG8-Test25")
-set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
-                   "by-pass merge para coding. FG8-Test26")
-set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
+
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
 set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 0 "bypass coding FG8-Test8")
-set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 0 "bypass coding FG8-Test8")
+set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 0
+                   "bypass coding FG8-Test8-chroma-only")
+
+set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 0
+                   "FG8-Test19, Test20, Test21")
+set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_HIGH 0 "bypass coding FG8-Test22")
+set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_SIGN 0 "bypass coding FG8-Test23")
+set_aom_config_var(CONFIG_PLT_DIR_CTX 0 "by-pass PLT dir coding. FG8-Test24")
+set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 0 "bypass coding FG8-Test25")
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 0
+                   "by-pass merge para coding. FG8-Test26")
+set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 0 "bypass coding FG8-Test27")
 
 # AV2 experiment flags.
 set_aom_config_var(
