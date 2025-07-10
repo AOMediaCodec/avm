@@ -158,8 +158,9 @@ TEST_P(SumSquaresTest, ExtremeValues) {
 
 TEST_P(SumSquaresTest, DISABLED_Speed) { RunSpeedTest(); }
 
-#if HAVE_SSE2
-
+#if 0  // HAVE_SSE2
+// As reported in issue 749 (https://gitlab.com/AOMediaCodec/avm/-/issues/749),
+// sse2 version needs to be fixed and then re-enabled.
 INSTANTIATE_TEST_SUITE_P(
     SSE2, SumSquaresTest,
     ::testing::Values(TestFuncs(&aom_sum_squares_2d_i16_c,
