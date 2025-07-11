@@ -73,7 +73,11 @@ extern "C" {
 #define FRAME_CONTEXTS (FRAME_BUFFERS + 1)
 // Extra frame context which is always kept at default values
 #define FRAME_CONTEXT_DEFAULTS (FRAME_CONTEXTS - 1)
+#if CONFIG_EXTRA_DPB
+#define PRIMARY_REF_BITS MAX_REFS_PER_FRAME_LOG2
+#else
 #define PRIMARY_REF_BITS REF_FRAMES_LOG2
+#endif  // CONFIG_EXTRA_DPB
 #define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
 
 #define NUM_PING_PONG_BUFFERS 2

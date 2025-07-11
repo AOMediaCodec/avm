@@ -5888,7 +5888,11 @@ static AOM_INLINE void write_film_grain_params(
         break;
       }
     }
-    assert(ref_frame < REGULAR_REF_FRAMES);
+#if CONFIG_EXTRA_DPB
+    assert(ref_frame < MAX_COMPOUND_REF_INDEX);
+#else
+      assert(ref_frame < REF_FRAMES);
+#endif  // CONFIG_EXTRA_DPB
     assert(ref_idx != INVALID_IDX);
     aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
     return;
@@ -6806,7 +6810,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
   if (!frame_is_intra_only(cm) ||
-      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#if CONFIG_EXTRA_DPB
+      current_frame->refresh_frame_flags !=
+          ((1 << cm->seq_params.ref_frames) - 1)) {
+#else
+        current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+#endif  // CONFIG_EXTRA_DPB
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
@@ -6936,7 +6945,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
-                             REF_FRAMES_LOG2);
+#if CONFIG_EXTRA_DPB
+                             MAX_REFS_PER_FRAME_LOG2);
+#else
+                               REF_FRAMES_LOG2);
+#endif  // CONFIG_EXTRA_DPB
       }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {

@@ -666,15 +666,27 @@ static INLINE PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
 static AOM_INLINE void estimate_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
     int segment_id, unsigned int *ref_costs_single,
-    unsigned int (*ref_costs_comp)[REGULAR_REF_FRAMES]) {
+#if CONFIG_EXTRA_DPB
+    unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX]) {
+#else
+    unsigned int (*ref_costs_comp)[REF_FRAMES]) {
+#endif  // CONFIG_EXTRA_DPB
   (void)segment_id;
   int seg_ref_active = 0;
   if (seg_ref_active) {
     memset(ref_costs_single, 0, SINGLE_REF_FRAMES * sizeof(*ref_costs_single));
     int ref_frame;
-    for (ref_frame = 0; ref_frame < REGULAR_REF_FRAMES; ++ref_frame)
+#if CONFIG_EXTRA_DPB
+    for (ref_frame = 0; ref_frame < MAX_COMPOUND_REF_INDEX; ++ref_frame)
+#else
+    for (ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+#endif  // CONFIG_EXTRA_DPB
       memset(ref_costs_comp[ref_frame], 0,
-             REGULAR_REF_FRAMES * sizeof((*ref_costs_comp)[0]));
+#if CONFIG_EXTRA_DPB
+             MAX_COMPOUND_REF_INDEX * sizeof((*ref_costs_comp)[0]));
+#else
+             REF_FRAMES * sizeof((*ref_costs_comp)[0]));
+#endif  // CONFIG_EXTRA_DPB
   } else {
     unsigned int base_cost = 0;
 
@@ -730,9 +742,14 @@ static AOM_INLINE void estimate_ref_frame_costs(
       ref_costs_single[i] = INT_MAX;
 
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      for (int i = 0; i < REGULAR_REF_FRAMES; i++) {
-        for (int j = 0; j < REGULAR_REF_FRAMES; j++)
+#if CONFIG_EXTRA_DPB
+      for (int i = 0; i < MAX_COMPOUND_REF_INDEX; i++) {
+        for (int j = 0; j < MAX_COMPOUND_REF_INDEX; j++)
           ref_costs_comp[i][j] = INT_MAX;
+#else
+      for (int i = 0; i < REF_FRAMES; i++) {
+        for (int j = 0; j < REF_FRAMES; j++) ref_costs_comp[i][j] = INT_MAX;
+#endif  // CONFIG_EXTRA_DPB
       }
 
 #if CONFIG_SAME_REF_COMPOUND
@@ -860,8 +877,13 @@ static AOM_INLINE void estimate_ref_frame_costs(
       }
 #endif  // NDEBUG
     } else {
-      for (int ref0 = 0; ref0 < REGULAR_REF_FRAMES; ++ref0) {
-        for (int ref1 = ref0 + 1; ref1 < REGULAR_REF_FRAMES; ++ref1) {
+#if CONFIG_EXTRA_DPB
+      for (int ref0 = 0; ref0 < MAX_COMPOUND_REF_INDEX; ++ref0) {
+        for (int ref1 = ref0 + 1; ref1 < MAX_COMPOUND_REF_INDEX; ++ref1) {
+#else
+      for (int ref0 = 0; ref0 < REF_FRAMES; ++ref0) {
+        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES; ++ref1) {
+#endif  // CONFIG_EXTRA_DPB
           ref_costs_comp[ref0][ref1] = 512;
           ref_costs_comp[ref1][ref0] = 512;
         }
@@ -9207,30 +9229,50 @@ static AOM_INLINE void refine_winner_mode_tx(
 typedef struct {
   // Mask for each reference frame, specifying which prediction modes to NOT
   // try during search.
-  uint32_t pred_modes[REGULAR_REF_FRAMES];
+#if CONFIG_EXTRA_DPB
+  uint32_t pred_modes[MAX_COMPOUND_REF_INDEX];
+#else
+  uint32_t pred_modes[REF_FRAMES];
+#endif  // CONFIG_EXTRA_DPB
   // If ref_combo[i][j + 1] is true, do NOT try prediction using combination
   // of reference frames (i, j). Indexing with 'j + 1' is due to the fact that
   // 2nd reference can be -1 (INVALID_FRAME). NOTE: indexing for the reference
   // has the order the INTER references followed by INTRA
-  bool ref_combo[REGULAR_REF_FRAMES][REGULAR_REF_FRAMES + 1];
+#if CONFIG_EXTRA_DPB
+  bool ref_combo[MAX_COMPOUND_REF_INDEX][MAX_COMPOUND_REF_INDEX + 1];
+#else
+  bool ref_combo[REF_FRAMES][REF_FRAMES + 1];
+#endif  // CONFIG_EXTRA_DPB
 } mode_skip_mask_t;
 /*!\endcond */
 
 // Update 'ref_combo' mask to disable given 'ref' in single and compound
 // modes.
 static AOM_INLINE void disable_reference(
+#if CONFIG_EXTRA_DPB
     MV_REFERENCE_FRAME ref,
-    bool ref_combo[REGULAR_REF_FRAMES][REGULAR_REF_FRAMES + 1]) {
-  for (MV_REFERENCE_FRAME ref2 = NONE_FRAME; ref2 < REGULAR_REF_FRAMES;
+    bool ref_combo[MAX_COMPOUND_REF_INDEX][MAX_COMPOUND_REF_INDEX + 1]) {
+  for (MV_REFERENCE_FRAME ref2 = NONE_FRAME; ref2 < MAX_COMPOUND_REF_INDEX;
        ++ref2) {
+#else
+    MV_REFERENCE_FRAME ref, bool ref_combo[REF_FRAMES][REF_FRAMES + 1]) {
+  for (MV_REFERENCE_FRAME ref2 = NONE_FRAME; ref2 < REF_FRAMES; ++ref2) {
+
+#endif  // CONFIG_EXTRA_DPB
     ref_combo[COMPACT_INDEX0_NRS(ref)][ref2 + 1] = true;
   }
 }
 
 // Disable rank 2 (indexed by 1) to rank 7 references.
+#if CONFIG_EXTRA_DPB
 static AOM_INLINE void disable_inter_references_except_top(
-    bool ref_combo[REGULAR_REF_FRAMES][REGULAR_REF_FRAMES + 1]) {
-  for (MV_REFERENCE_FRAME ref = 1; ref < REGULAR_REF_FRAMES; ++ref)
+    bool ref_combo[MAX_COMPOUND_REF_INDEX][MAX_COMPOUND_REF_INDEX + 1]) {
+  for (MV_REFERENCE_FRAME ref = 1; ref < MAX_COMPOUND_REF_INDEX; ++ref)
+#else
+static AOM_INLINE void disable_inter_references_except_top(
+    bool ref_combo[REF_FRAMES][REF_FRAMES + 1]) {
+  for (MV_REFERENCE_FRAME ref = 1; ref < REF_FRAMES; ++ref)
+#endif  // CONFIG_EXTRA_DPB
     disable_reference(ref, ref_combo);
 }
 
@@ -9257,7 +9299,12 @@ static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
     memset(mask->pred_modes, 0, sizeof(mask->pred_modes));
     // All references disabled first.
     bool *mask_ref_combo = &mask->ref_combo[0][0];
-    for (int k = 0; k < REGULAR_REF_FRAMES * (REGULAR_REF_FRAMES + 1); k++)
+#if CONFIG_EXTRA_DPB
+    for (int k = 0; k < MAX_COMPOUND_REF_INDEX * (MAX_COMPOUND_REF_INDEX + 1);
+         k++)
+#else
+    for (int k = 0; k < REF_FRAMES * (REF_FRAMES + 1); k++)
+#endif  // CONFIG_EXTRA_DPB
       mask_ref_combo[k] = true;
 
     const MV_REFERENCE_FRAME(*ref_set_combos)[2];
@@ -9401,7 +9448,11 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
   if (!mi_cache) {
     return 0;
   }
-  if (ref_frame < REGULAR_REF_FRAMES) {
+#if CONFIG_EXTRA_DPB
+  if (ref_frame < MAX_COMPOUND_REF_INDEX) {
+#else
+  if (ref_frame < REF_FRAMES) {
+#endif  // CONFIG_EXTRA_DPB
     return (ref_frame == mi_cache->ref_frame[0] ||
             ref_frame == mi_cache->ref_frame[1]);
   }
@@ -9421,8 +9472,12 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 #else
     BLOCK_SIZE bsize, mode_skip_mask_t *mode_skip_mask, int skip_ref_frame_mask,
 #endif  // CONFIG_SAME_REF_COMPOUND
+#if CONFIG_EXTRA_DPB
     unsigned int *ref_costs_single,
-    unsigned int (*ref_costs_comp)[REGULAR_REF_FRAMES],
+    unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
+#else
+    unsigned int *ref_costs_single, unsigned int (*ref_costs_comp)[REF_FRAMES],
+#endif  // CONFIG_EXTRA_DPB
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE]) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -10380,11 +10435,20 @@ static INLINE void update_search_state(
 // Find the best RD for a reference frame (among single reference modes)
 // and store +10% of it in the 0-th (or last for NRS) element in ref_frame_rd.
 static AOM_INLINE void find_top_ref(int64_t *ref_frame_rd) {
-  int64_t ref_copy[REGULAR_REF_FRAMES - 1];
+#if CONFIG_EXTRA_DPB
+  int64_t ref_copy[MAX_COMPOUND_REF_INDEX - 1];
+#else
+  int64_t ref_copy[REF_FRAMES - 1];
+#endif  // CONFIG_EXTRA_DPB
   assert(ref_frame_rd[INTRA_FRAME_INDEX] == INT64_MAX);
+#if CONFIG_EXTRA_DPB
   memcpy(ref_copy, ref_frame_rd,
-         sizeof(ref_frame_rd[0]) * (REGULAR_REF_FRAMES - 1));
-  qsort(ref_copy, REGULAR_REF_FRAMES - 1, sizeof(int64_t), compare_int64);
+         sizeof(ref_frame_rd[0]) * (MAX_COMPOUND_REF_INDEX - 1));
+  qsort(ref_copy, MAX_COMPOUND_REF_INDEX - 1, sizeof(int64_t), compare_int64);
+#else
+  memcpy(ref_copy, ref_frame_rd, sizeof(ref_frame_rd[0]) * (REF_FRAMES - 1));
+  qsort(ref_copy, REF_FRAMES - 1, sizeof(int64_t), compare_int64);
+#endif  // CONFIG_EXTRA_DPB
 
   int64_t cutoff = AOMMIN(ref_copy[0], ref_frame_rd[TIP_FRAME_INDEX]);
   // The cut-off is within 10% of the best.
@@ -10889,11 +10953,17 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif  // CONFIG_BRU
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);
-  INTERINTRA_MODE interintra_modes[REGULAR_REF_FRAMES] = {
+#if CONFIG_EXTRA_DPB
+  INTERINTRA_MODE interintra_modes[MAX_COMPOUND_REF_INDEX] = {
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES
   };
-
+#else
+  INTERINTRA_MODE interintra_modes[REF_FRAMES] = {
+    INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES,
+    INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES
+  };
+#endif  // CONFIG_EXTRA_DPB
   HandleInterModeArgs args = {
     NULL,
     NULL,
@@ -11035,7 +11105,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   mode_skip_mask_t mode_skip_mask;
   unsigned int ref_costs_single[SINGLE_REF_FRAMES];
   struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE];
-  unsigned int ref_costs_comp[REGULAR_REF_FRAMES][REGULAR_REF_FRAMES];
+#if CONFIG_EXTRA_DPB
+  unsigned int ref_costs_comp[MAX_COMPOUND_REF_INDEX][MAX_COMPOUND_REF_INDEX];
+#else
+  unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
+#endif  // CONFIG_EXTRA_DPB
+
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   set_default_precision_set(cm, mbmi, bsize);
   set_mv_precision(mbmi, mbmi->max_mv_precision);
@@ -11971,7 +12046,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   int i;
   int64_t best_pred_diff[REFERENCE_MODES];
   unsigned int ref_costs_single[SINGLE_REF_FRAMES];
-  unsigned int ref_costs_comp[REGULAR_REF_FRAMES][REGULAR_REF_FRAMES];
+#if CONFIG_EXTRA_DPB
+  unsigned int ref_costs_comp[MAX_COMPOUND_REF_INDEX][MAX_COMPOUND_REF_INDEX];
+#else
+  unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
+#endif  // CONFIG_EXTRA_DPB
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
       mode_costs->comp_inter_cost[av1_get_reference_mode_context(cm, xd)];
@@ -11987,8 +12066,14 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
-  for (i = 0; i < REGULAR_REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
-  for (i = 0; i < REGULAR_REF_FRAMES; ++i) x->pred_mv_sad[i] = INT_MAX;
+#if CONFIG_EXTRA_DPB
+  for (i = 0; i < MAX_COMPOUND_REF_INDEX; ++i) x->pred_sse[i] = INT_MAX;
+  for (i = 0; i < MAX_COMPOUND_REF_INDEX; ++i) x->pred_mv_sad[i] = INT_MAX;
+#else
+  for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
+  for (i = 0; i < REF_FRAMES; ++i) x->pred_mv_sad[i] = INT_MAX;
+#endif  // CONFIG_EXTRA_DPB
+
   x->pred_sse[TIP_FRAME_INDEX] = INT_MAX;
   x->pred_mv_sad[TIP_FRAME_INDEX] = INT_MAX;
   rd_cost->rate = INT_MAX;
