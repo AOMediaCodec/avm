@@ -276,15 +276,7 @@ TEST(EncodeAPI, GdfOptimizer8x8) {
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/749.
-// On Linux x86-64, set the AOM_SIMD_CAPS_MASK environment variable to the
-// following two values:
-// 1. export AOM_SIMD_CAPS_MASK=0x1ff
-//    This enables AVX2. The PSNR is 41.7479.
-// 2. export AOM_SIMD_CAPS_MASK=0x13f
-//    This disables AVX2. The PSNR drops to 37.5214.
-//
-// On macOS with Apple silicon (Arm), the PSNR is also 37.5214.
-TEST(EncodeAPI, DISABLED_AvmIssue749) {
+TEST(EncodeAPI, AvmIssue749) {
   constexpr unsigned int kWidth = 12;
   constexpr unsigned int kHeight = 34;
   constexpr unsigned int kChromaWidth = kWidth / 2;
