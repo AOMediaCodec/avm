@@ -5424,7 +5424,12 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   if (cm->seq_params.enable_bru) {
     aom_wb_write_bit(wb, cm->bru.enabled);
     if (cm->bru.enabled) {
+#if CONFIG_EXTRA_DPB
+      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx,
+                           cm->seq_params.ref_frames_log2);
+#else
       aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
+#endif  // CONFIG_EXTRA_DPB
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }
