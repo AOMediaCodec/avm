@@ -159,17 +159,17 @@ set_aom_config_var(CONFIG_CTX_BYPASS_DC_SIGN 1 "bypass coding FG8-Test8")
 set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 1
                    "bypass coding FG8-Test8-chroma-only")
 
-set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
-
 set_aom_config_var(CONFIG_CTX_WARP_REFIDX_REDUCTION 7
                    "FG8-Test19, Test20, Test21")
-set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_HIGH 0 "bypass coding FG8-Test22")
-set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_SIGN 0 "bypass coding FG8-Test23")
-set_aom_config_var(CONFIG_PLT_DIR_CTX 0 "by-pass PLT dir coding. FG8-Test24")
-set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 0 "bypass coding FG8-Test25")
-set_aom_config_var(CONFIG_MERGE_PARA_CTX 0
+set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_HIGH 1 "bypass coding FG8-Test22")
+set_aom_config_var(CONFIG_BYPASS_WARP_PARAM_SIGN 1 "bypass coding FG8-Test23")
+set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding. FG8-Test24")
+set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 1 "bypass coding FG8-Test25")
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
                    "by-pass merge para coding. FG8-Test26")
-set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 0 "bypass coding FG8-Test27")
+set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
+
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
 
 # AV2 experiment flags.
 set_aom_config_var(
