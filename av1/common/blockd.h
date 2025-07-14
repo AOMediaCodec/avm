@@ -3685,7 +3685,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         return DCT_DCT;
     } else if (is_inter && plane_type == PLANE_TYPE_Y) {
       if (tx_size == TX_8X8) {
-        assert(plane_type == PLANE_TYPE_Y);
         return IDTX;
       } else {
         return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
