@@ -471,6 +471,7 @@ static INLINE int is_cctx_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   return 1;
 }
 
+#if !CONFIG_REDUCE_CCTX_CTX
 static INLINE void get_above_and_left_cctx_type(const AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
                                                 int *above_cctx,
@@ -489,7 +490,6 @@ static INLINE void get_above_and_left_cctx_type(const AV1_COMMON *cm,
   assert(*left_cctx >= -1 && *left_cctx < CCTX_TYPES);
 }
 
-#if !CONFIG_REDUCE_CCTX_CTX
 // Context of cctx type is determined by comparing the numbers of positive and
 // negative angles in the above and left neighbors of the current tx block.
 // 0: tie, 1: more positive angles, 2: more negative angles.
