@@ -4677,6 +4677,16 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    if (av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) ||
+        av1_is_scaled(cm->tip_ref.ref_scale_factor[1]))
+      return 0;
+  } else {
+    if (av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) ||
+        av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[1])))
+      return 0;
+  }
+
   // Allow for all two-sided refs
   return (d0 <= 0) ^ (d1 <= 0);
 }
