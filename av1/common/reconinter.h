@@ -1580,6 +1580,7 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
                                  const MB_MODE_INFO *mbmi, int mi_row,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
+  if (mbmi->mode == GLOBALMV) return 0;
 #if CONFIG_BAWP_ACROSS_SCALES
   (void)cm;
 #else
