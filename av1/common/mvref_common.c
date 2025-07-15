@@ -3448,7 +3448,7 @@ static AOM_INLINE void add_tmvp_candidate(
       { blk_col_end >= 2 * step_w, blk_row_end - step_h, 0 },
 #endif  // !CONFIG_TMVP_SIMPLIFICATION
       { (blk_row_end >= 3 * step_h) || (blk_col_end >= 3 * step_w),
-        blk_row_end >> 1, blk_col_end >> 1 },
+        (blk_row_end - 1) >> 1, (blk_col_end - 1) >> 1 },
 #if !CONFIG_TMVP_SIMPLIFICATION
       { blk_row_end >= 2 * step_h, 0, blk_col_end - step_w },
       { (blk_row_end >= 2 * step_h) && (blk_col_end >= 2 * step_w), 0, 0 },
