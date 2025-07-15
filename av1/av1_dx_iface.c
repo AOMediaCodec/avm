@@ -316,11 +316,15 @@ static aom_codec_err_t parse_decoder_model_info(
   const uint32_t num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb, 32);
   const uint8_t buffer_removal_time_length_minus_1 = aom_rb_read_literal(rb, 5);
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   const uint8_t frame_presentation_time_length_minus_1 =
       aom_rb_read_literal(rb, 5);
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   (void)num_units_in_decoding_tick;
   (void)buffer_removal_time_length_minus_1;
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   (void)frame_presentation_time_length_minus_1;
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   return AOM_CODEC_OK;
 }
 

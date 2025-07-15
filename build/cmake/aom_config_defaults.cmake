@@ -218,6 +218,10 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
                    "AV2 enable IDTX for chroma blocks in lossless mode")
+# CWG-F215
+set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
+                  "Remove frame_id signalling")
+
 set_aom_config_var(
   CONFIG_LOSSLESS_LARGER_IDTX 1
   "AV2 replace 8x8 IDTX with larger IDTX for luma in lossless mode")

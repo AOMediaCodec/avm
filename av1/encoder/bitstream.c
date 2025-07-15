@@ -5619,6 +5619,7 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (!seq_params->reduced_still_picture_hdr) {
     aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
     if (seq_params->frame_id_numbers_present_flag) {
@@ -5632,6 +5633,7 @@ static AOM_INLINE void write_sequence_header(
           3);
     }
   }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
@@ -6131,11 +6133,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
           seq_params->timing_info.equal_picture_interval == 0) {
         write_tu_pts_info(cm, wb);
       }
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
       if (seq_params->frame_id_numbers_present_flag) {
         int frame_id_len = seq_params->frame_id_length;
         int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
         aom_wb_write_literal(wb, display_frame_id, frame_id_len);
       }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       return;
     } else {
       aom_wb_write_bit(wb, 0);  // show_existing_frame
@@ -6182,10 +6186,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
     assert(cm->width == seq_params->max_frame_width &&
            cm->height == seq_params->max_frame_height);
   } else {
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_len = seq_params->frame_id_length;
       aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
     }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
     if (cm->width > seq_params->max_frame_width ||
         cm->height > seq_params->max_frame_height) {
@@ -6426,6 +6432,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (explicit_ref_frame_map)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                cm->seq_params.ref_frames_log2);
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
         if (seq_params->frame_id_numbers_present_flag) {
           int i = get_ref_frame_map_idx(cm, ref_frame);
           int frame_id_len = seq_params->frame_id_length;
@@ -6442,6 +6449,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           }
           aom_wb_write_literal(wb, delta_frame_id_minus_1, diff_len);
         }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       }
 
       if (!features->error_resilient_mode && frame_size_override_flag) {

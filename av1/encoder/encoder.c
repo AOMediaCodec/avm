@@ -372,9 +372,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
@@ -426,8 +428,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   assert(seq->num_bits_width <= 16);
   assert(seq->num_bits_height <= 16);
 
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   seq->frame_id_length = FRAME_ID_LENGTH;
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
@@ -1204,7 +1208,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cm->current_frame.frame_number = 0;
   cm->current_frame.key_frame_number = 0;
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   cm->current_frame_id = -1;
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   cpi->seq_params_locked = 0;
   cpi->partition_search_skippable_frame = 0;
   cpi->tile_data = NULL;
@@ -4265,6 +4271,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         return AOM_CODEC_ERROR;
     }
 
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
     if (seq_params->frame_id_numbers_present_flag &&
         current_frame->frame_type == KEY_FRAME) {
       // Displaying a forward key-frame, so reset the ref buffer IDs
@@ -4272,6 +4279,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       for (int i = 0; i < seq_params->ref_frames; i++)
         cm->ref_frame_id[i] = display_frame_id;
     }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
     cpi->seq_params_locked = 1;
 
@@ -4367,6 +4375,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   aom_clear_system_state();
 
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq_params->frame_id_numbers_present_flag) {
     /* Non-normative definition of current_frame_id ("frame counter" with
      * wraparound) */
@@ -4390,6 +4399,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           (1 << seq_params->frame_id_length);
     }
   }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   switch (oxcf->algo_cfg.cdf_update_mode) {
     case 0:  // No CDF update for any frames(4~6% compression loss).
@@ -4425,6 +4435,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   cpi->seq_params_locked = 1;
 
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
     for (int i = 0; i < seq_params->ref_frames; i++) {
@@ -4433,6 +4444,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       }
     }
   }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {
