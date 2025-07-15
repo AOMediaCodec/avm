@@ -2638,13 +2638,21 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return 0;
 
   POSITION mi_pos;
-  mi_pos.row = (mi_row & 0x01) ? blk_row : blk_row + 1;
-  mi_pos.col = (mi_col & 0x01) ? blk_col : blk_col + 1;
+  mi_pos.row = blk_row;
+  mi_pos.col = blk_col;
 
   if (!is_inside(&xd->tile, mi_col, mi_row, &mi_pos)) return 0;
 
   const int tpl_row = ((mi_row + mi_pos.row) >> TMVP_SHIFT_BITS);
   const int tpl_col = ((mi_col + mi_pos.col) >> TMVP_SHIFT_BITS);
+
+  assert((((tpl_row << TMVP_SHIFT_BITS) + 1) >= mi_row) &&
+         (mi_row + mi_size_high[xd->mi[0]->sb_type[PLANE_TYPE_Y]] >
+          tpl_row << TMVP_SHIFT_BITS));
+  assert((((tpl_col << TMVP_SHIFT_BITS) + 1) >= mi_col) &&
+         (mi_col + mi_size_wide[xd->mi[0]->sb_type[PLANE_TYPE_Y]] >
+          tpl_col << TMVP_SHIFT_BITS));
+
   const int tpl_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const TPL_MV_REF *prev_frame_mvs =
