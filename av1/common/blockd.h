@@ -388,6 +388,7 @@ typedef struct TXB_POS_INFO {
 
 #define INTER_TX_SIZE_BUF_LEN 64
 #define TXK_TYPE_BUF_LEN 64
+#define TX_PARTITION_BUF 16
 /*!\endcond */
 
 #define WAIP_WH_RATIO_2_THRES 61
@@ -442,7 +443,7 @@ typedef struct MB_MODE_INFO {
   /*! \brief The reference frames for the MV */
   MV_REFERENCE_FRAME ref_frame[2];
   /*! \brief Transform partition type. */
-  TX_PARTITION_TYPE tx_partition_type[INTER_TX_SIZE_BUF_LEN];
+  TX_PARTITION_TYPE tx_partition_type[TX_PARTITION_BUF];
   /*! \brief Filter used in subpel interpolation. */
   int interp_fltr;
   /*! The maximum mv_precision allowed for the given partition block. */
@@ -560,8 +561,6 @@ typedef struct MB_MODE_INFO {
   int8_t skip_txfm[PARTITION_STRUCTURE_NUM];
   /*! \brief Transform size when fixed size txfm is used (e.g. intra modes). */
   TX_SIZE tx_size;
-  /*! \brief Transform size when recursive txfm tree is on. */
-  uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   /*! \brief Transform block relative position information. */
   struct TXB_POS_INFO txb_pos;
   /*! \brief Transform size stored for each txfm partition sub-block. */
@@ -2975,6 +2974,19 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   (void)bsize;
+  int txhl = tx_size_high_log2[TX_64X64];
+  int txwl = tx_size_wide_log2[TX_64X64];
+  int stride = 4;
+
+  int index = (blk_row >> txhl) * stride + (blk_col >> txwl);
+
+  assert(index < TX_PARTITION_BUF);
+  return index;
+}
+
+static INLINE int av1_get_inter_tx_index(BLOCK_SIZE bsize, int blk_row,
+                                         int blk_col) {
+  (void)bsize;
   int txhl = tx_size_high_log2[TX_64X64] - 2;
   int txwl = tx_size_wide_log2[TX_64X64] - 2;
   int stride = 4;
@@ -2982,15 +2994,6 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
   int index = (blk_row >> txhl) * stride + (blk_col >> txwl);
 
   assert(index < INTER_TX_SIZE_BUF_LEN);
-  return index;
-}
-
-static INLINE int av1_get_inter_tx_index(BLOCK_SIZE bsize, int blk_row,
-                                         int blk_col) {
-  int blk_width = mi_size_wide[bsize];
-  int index = blk_row * blk_width + blk_col;
-
-  assert(index < 1024);
   return index;
 }
 

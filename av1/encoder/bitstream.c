@@ -819,15 +819,9 @@ static AOM_INLINE void pack_txb_tokens(
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
 
-  const struct macroblockd_plane *const pd = &xd->plane[plane];
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
-  const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
-                                    pd->subsampling_y)
-            : mbmi->inter_tx_size[index];
 
-  if (tx_size == plane_tx_size || plane) {
+  if (mbmi->tx_partition_type[index] == TX_PARTITION_NONE || plane) {
     av1_write_coeffs_txb_facade(w, cm, x, xd, mbmi, plane, block, blk_row,
                                 blk_col, tx_size);
 #if CONFIG_RD_DEBUG

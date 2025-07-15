@@ -157,7 +157,6 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
     TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
     mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
   }
-  memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
          sizeof(mbmi->tx_partition_type));
   const int stride = xd->tx_type_map_stride;

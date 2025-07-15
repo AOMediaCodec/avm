@@ -7018,9 +7018,6 @@ static AOM_INLINE void rd_pick_skip_mode(
             block_signals_txsize(bsize)
                 ? tx_size_from_tx_mode(bsize, txfm_params->tx_mode_search_type)
                 : max_txsize_rect_lookup[bsize];
-        memset(search_state->best_mbmode.inter_tx_size,
-               search_state->best_mbmode.tx_size,
-               sizeof(search_state->best_mbmode.inter_tx_size));
 
         x->txfm_search_info.skip_txfm = 1;
         search_state->best_mode_skippable = 1;
@@ -7179,8 +7176,6 @@ static AOM_INLINE void refine_winner_mode_tx(
         } else {
           av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,
                                             INT64_MAX);
-          memset(mbmi->inter_tx_size, mbmi->tx_size,
-                 sizeof(mbmi->inter_tx_size));
           for (int i = 0; i < xd->height * xd->width; ++i)
             set_blk_skip(txfm_info->blk_skip[0], i, rd_stats_y.skip_txfm);
         }

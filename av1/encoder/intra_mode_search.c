@@ -1516,7 +1516,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
   uint8_t best_fsc_mode = 0;
   PREDICTION_MODE best_intra_mode = best_mbmi->mode;
   TX_SIZE best_tx_size = best_mbmi->tx_size;
-  TX_PARTITION_TYPE best_tx_partition_type[INTER_TX_SIZE_BUF_LEN];
+  TX_PARTITION_TYPE best_tx_partition_type[TX_PARTITION_BUF];
   av1_copy(best_tx_partition_type, best_mbmi->tx_partition_type);
   TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   int8_t best_angle_delta = best_mbmi->angle_delta[PLANE_TYPE_Y];

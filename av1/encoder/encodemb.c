@@ -1178,24 +1178,13 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   MACROBLOCK *const x = args->x;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  const struct macroblockd_plane *const pd = &xd->plane[plane];
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
-  const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
-                                    pd->subsampling_y)
-            : mbmi->inter_tx_size[index];
 
-  if (!plane) {
-    assert(tx_size_wide[tx_size] >= tx_size_wide[plane_tx_size] &&
-           tx_size_high[tx_size] >= tx_size_high[plane_tx_size]);
-  }
-
-  if (tx_size == plane_tx_size || plane) {
+  if (mbmi->tx_partition_type[index] == TX_PARTITION_NONE || plane) {
     encode_block(plane, block, blk_row, blk_col, plane_bsize, tx_size, arg,
                  dry_run);
   } else {

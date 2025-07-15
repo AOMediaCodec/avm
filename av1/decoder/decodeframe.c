@@ -482,20 +482,14 @@ static AOM_INLINE void decode_reconstruct_tx(
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) return;
-  const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
-  const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
-                                    pd->subsampling_y)
-            : mbmi->inter_tx_size[index];
+  int txp_index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   // Scale to match transform block unit.
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
 
-  if (tx_size == plane_tx_size || plane) {
+  if (mbmi->tx_partition_type[txp_index] == TX_PARTITION_NONE || plane) {
     if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
       td->read_coeffs_tx_inter_block_visit(cm, dcb, r, AOM_PLANE_U, blk_row,
                                            blk_col, tx_size);
@@ -525,7 +519,7 @@ static AOM_INLINE void decode_reconstruct_tx(
       set_cb_buffer_offsets(dcb, tx_size, plane);
     }
   } else {
-    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size,
+    get_tx_partition_sizes(mbmi->tx_partition_type[txp_index], tx_size,
                            &mbmi->txb_pos, mbmi->sub_txs);
 
     for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
@@ -1484,10 +1478,6 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   mbmi->tx_size = sub_txs[num_txfm_blocks - 1];
   int index = is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
   mbmi->tx_partition_type[index] = partition;
-  if (is_inter) {
-    mbmi->inter_tx_size[index] = mbmi->tx_size;
-  }
-
   return sub_txs[num_txfm_blocks - 1];
 }
 
@@ -1605,8 +1595,6 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       mbmi->tx_size =
           read_tx_size(xd, cm->features.tx_mode, inter_block_tx,
                        !mbmi->skip_txfm[xd->tree_type == CHROMA_PART], r);
-      if (inter_block_tx)
-        memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
     }
   }
 
@@ -2924,7 +2912,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   WienerNonsepInfoBank bank = { 0 };
   bank.filter[0].num_classes = num_classes;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
@@ -3024,7 +3012,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   }
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) {
       copy_nsfilter_taps_for_class(

@@ -281,13 +281,8 @@ static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
-  const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
-                                    pd->subsampling_y)
-            : mbmi->inter_tx_size[index];
 
-  if (tx_size == plane_tx_size || plane) {
+  if (mbmi->tx_partition_type[index] == TX_PARTITION_NONE || plane) {
     plane_bsize = get_mb_plane_block_size(xd, mbmi, plane, pd->subsampling_x,
                                           pd->subsampling_y);
     av1_update_and_record_txb_context(plane, block, blk_row, blk_col,

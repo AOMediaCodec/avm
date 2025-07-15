@@ -183,7 +183,6 @@ static AOM_INLINE void fetch_tx_rd_info(int n4,
   mbmi->tx_size = tx_rd_info->tx_size;
   memcpy(x->txfm_search_info.blk_skip[AOM_PLANE_Y], tx_rd_info->blk_skip,
          sizeof(*tx_rd_info->blk_skip) * n4);
-  av1_copy(mbmi->inter_tx_size, tx_rd_info->inter_tx_size);
   av1_copy(mbmi->tx_partition_type, tx_rd_info->tx_partition_type);
   av1_copy_array(xd->tx_type_map, tx_rd_info->tx_type_map, n4);
   *rd_stats = tx_rd_info->rd_stats;
@@ -347,7 +346,6 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
       (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2);
   memset(xd->cctx_type_map, CCTX_NONE,
          sizeof(xd->cctx_type_map[0]) * num_4x4_blk_chroma);
-  memset(mbmi->inter_tx_size, tx_size, sizeof(mbmi->inter_tx_size));
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
          sizeof(mbmi->tx_partition_type));
   mbmi->tx_size = tx_size;
@@ -412,7 +410,6 @@ static AOM_INLINE void save_tx_rd_info(int n4, uint32_t hash,
   tx_rd_info->tx_size = mbmi->tx_size;
   memcpy(tx_rd_info->blk_skip, x->txfm_search_info.blk_skip[AOM_PLANE_Y],
          sizeof(*tx_rd_info->blk_skip) * n4);
-  av1_copy(tx_rd_info->inter_tx_size, mbmi->inter_tx_size);
   av1_copy(tx_rd_info->tx_partition_type, mbmi->tx_partition_type);
   av1_copy_array(tx_rd_info->tx_type_map, xd->tx_type_map, n4);
   tx_rd_info->rd_stats = *rd_stats;
@@ -3301,9 +3298,7 @@ static AOM_INLINE void try_tx_block_no_split(
       x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
           .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
   rd_stats->zero_rate = zero_blk_rate;
-  const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
-  mbmi->inter_tx_size[index] = tx_size;
-  tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
+    tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
              rd_stats, ftxs_mode, ref_best_rd,
              rd_info_node ? rd_info_node->rd_info_array : NULL);
   assert(rd_stats->rate < INT_MAX);
@@ -3630,7 +3625,6 @@ static void select_tx_partition_type(
     txfm_partition_update(tx_above + offsetc, tx_left + offsetr, sub_tx,
                           sub_tx);
     mbmi->tx_size = tx_size_selected;
-    mbmi->inter_tx_size[index] = tx_size_selected;
     update_txk_array(xd, offsetr, offsetc, sub_tx,
                      best_partition_tx_types[txb_idx]);
     set_blk_skip(x->txfm_search_info.blk_skip[0], offsetr * bw + offsetc,
@@ -3722,9 +3716,6 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
       (is_inter || (!is_inter && is_fsc))) {
     mbmi->tx_size = TX_8X8;
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
-    if (is_inter) {
-      memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
-    }
     memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
            sizeof(mbmi->tx_partition_type));
     // TODO(any) : Pass this_rd based on skip/non-skip cost
@@ -3768,9 +3759,6 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
 #else
       mbmi->tx_size = TX_8X8;
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
-      if (is_inter) {
-        memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
-      }
       memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
              sizeof(mbmi->tx_partition_type));
       // TODO(any) : Pass this_rd based on skip/non-skip cost
@@ -4699,7 +4687,6 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 #endif  // CONFIG_COLLECT_RD_STATS == 2
   } else {
     av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, rd_thresh);
-    memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
     memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
            sizeof(mbmi->tx_partition_type));
     for (int i = 0; i < xd->height * xd->width; ++i)
