@@ -2373,6 +2373,17 @@ static INLINE void assign_frame_buffer_p(RefCntBuffer **lhs_ptr,
   ++rhs_ptr->ref_count;
 }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+// Modify 'lhs_ptr' to reference the buffer at 'rhs_ptr', and update the ref
+// counts accordingly.
+static INLINE void assign_output_frame_buffer_p(RefCntBuffer **lhs_ptr,
+                                                RefCntBuffer *rhs_ptr) {
+  *lhs_ptr = rhs_ptr;
+  // One more reference to the buffer at 'rhs_ptr', so increase ref count.
+  ++rhs_ptr->ref_count;
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
 static INLINE int frame_is_intra_only(const AV1_COMMON *const cm) {
   return cm->current_frame.frame_type == KEY_FRAME ||
          cm->current_frame.frame_type == INTRA_ONLY_FRAME;

@@ -747,6 +747,9 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
         int force_scaling = 0;
         RefCntBuffer *new_fb = cpi->scaled_ref_buf[ref_frame];
         if (new_fb == NULL) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+          check_ref_count_status_enc(cpi);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           const int new_fb_idx = get_free_fb(cm);
           if (new_fb_idx == INVALID_IDX) {
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,

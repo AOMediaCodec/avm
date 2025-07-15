@@ -3977,6 +3977,32 @@ void enc_bru_swap_stage(AV1_COMP *cpi);
 void enc_bru_swap_ref(AV1_COMMON *const cm);
 #endif  // CONFIG_BRU
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+static INLINE void check_ref_count_status_enc(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
+
+  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+    int ref_frame_map_cnt = 0, cur_frame_cnt = 0, scaled_ref_cnt = 0;
+    int calculated_ref_count = 0;
+    for (int j = 0; j < REF_FRAMES; ++j) {
+      if (cm->ref_frame_map[j] && cm->ref_frame_map[j] == &frame_bufs[i])
+        ref_frame_map_cnt++;
+    }
+    if (cm->cur_frame && cm->cur_frame == &frame_bufs[i]) cur_frame_cnt++;
+    for (int j = 0; j < INTER_REFS_PER_FRAME; ++j) {
+      if (cpi->scaled_ref_buf[j] && cpi->scaled_ref_buf[j] == &frame_bufs[i])
+        scaled_ref_cnt++;
+    }
+    calculated_ref_count = ref_frame_map_cnt + cur_frame_cnt + scaled_ref_cnt;
+
+    if (frame_bufs[i].ref_count != calculated_ref_count) {
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "The ref_count value is not matched on the encoder");
+    }
+  }
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 /*!\endcond */
 
 #ifdef __cplusplus

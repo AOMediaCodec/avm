@@ -755,71 +755,6 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 }
 #endif
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-// This function writes (a proxy) show_existing_frame OBU header.
-static void av1_write_show_existing_frame_obu(uint8_t *const dst,
-                                              int existing_fb_idx_to_show,
-                                              int ref_frames_log2) {
-  struct aom_write_bit_buffer wb = { dst, 0 };
-  int obu_type = OBU_FRAME_HEADER;
-
-  aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
-  aom_wb_write_literal(&wb, obu_type, 4);  // obu type
-  aom_wb_write_literal(&wb, 0, 1);         // extention flag
-  aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
-  aom_wb_write_literal(&wb, 0, 1);         // reserved
-  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
-  aom_wb_write_bit(&wb, 1);                // show_existing_frame
-  aom_wb_write_literal(&wb, existing_fb_idx_to_show,
-                       ref_frames_log2);  // signal frame to be output
-  aom_wb_write_bit(&wb, 1);               // trailing one
-  aom_wb_write_literal(&wb, 0, 6 - ref_frames_log2);  // trailing zeros
-}
-
-// This function outputs all frames from the frame buffers that are showable but
-// have not yet been output.
-static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
-                                             void *user_priv) {
-  aom_codec_err_t res = AOM_CODEC_OK;
-  AVxWorker *const worker = ctx->frame_worker;
-  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
-  struct AV1Decoder *pbi = frame_worker_data->pbi;
-  int display_order = -1;
-  int target_idx = -1;
-  for (int idx = 0; idx < frame_worker_data->pbi->common.seq_params.ref_frames;
-       idx++) {
-    if (is_frame_eligible_for_output(pbi->common.ref_frame_map[idx]) &&
-        ((int)pbi->common.ref_frame_map[idx]->display_order_hint >
-         display_order)) {
-      display_order = pbi->common.ref_frame_map[idx]->display_order_hint;
-      target_idx = idx;
-    }
-  }
-
-  // Here, we generate a virtual OBU with show existing frame == 1 to trigger
-  // the output of frames that are showable but have not yet been output.
-  // The OBU instructs the decoder to show the frame with the highest display
-  // order that is present in the buffer (and has not been output).  This
-  // triggers the output of the other frames when enable_frame_output_order is
-  // true. Of course, other implementations are possible.
-  if (target_idx >= 0) {
-    uint8_t generated_data[3];
-    const uint8_t *data_start = (const uint8_t *)generated_data;
-    av1_write_show_existing_frame_obu(
-        (uint8_t *const)data_start, target_idx,
-        frame_worker_data->pbi->common.seq_params.ref_frames_log2);
-
-    data_start = (const uint8_t *)generated_data;
-    ctx->flushed = 0;
-    ctx->is_annexb = 0;
-    pbi->common.seq_params.decoder_model_info_present_flag = 0;
-    pbi->common.seq_params.frame_id_numbers_present_flag = 0;
-    res = decode_one(ctx, &data_start, 3, user_priv);
-  }
-  return res;
-}
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-
 static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
                                       const uint8_t *data, size_t data_sz,
                                       void *user_priv) {
@@ -841,17 +776,8 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     struct AV1Decoder *pbi = frame_worker_data->pbi;
     if (ctx->enable_subgop_stats)
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
-    // When multiple layers are enabled, use the mechanism of
-    // show_existing_frame
-    if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
-        pbi->common.seq_params.enable_frame_output_order) {
-      if (!pbi->common.show_existing_frame ||
-          pbi->common.current_frame.frame_type == KEY_FRAME)
-        decrease_ref_count(pbi->output_frames[0], pool);
-    } else {
-      for (size_t j = 0; j < pbi->num_output_frames; j++) {
-        decrease_ref_count(pbi->output_frames[j], pool);
-      }
+    for (size_t j = 0; j < pbi->num_output_frames; j++) {
+      decrease_ref_count(pbi->output_frames[j], pool);
     }
     pbi->num_output_frames = 0;
     unlock_buffer_pool(pool);
@@ -862,6 +788,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // When enable_frame_output_order == 1, output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
@@ -869,9 +796,13 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     if (data == NULL && data_sz == 0 &&
         pbi->common.seq_params.order_hint_info.enable_order_hint &&
         pbi->common.seq_params.enable_frame_output_order) {
-      res = flush_showable_frames(ctx, user_priv);
-      return res;
+      output_trailing_frames(pbi);
+      for (size_t j = 0; j < pbi->num_output_frames; j++) {
+        decrease_ref_count(pbi->output_frames[j], pool);
+      }
+      return AOM_CODEC_OK;
     }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   }
 
   /* Sanity checks */

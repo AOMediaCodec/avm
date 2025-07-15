@@ -449,6 +449,34 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
 static INLINE bool is_frame_eligible_for_output(RefCntBuffer *const buf) {
   return ((buf != NULL) && !buf->frame_output_done && buf->showable_frame);
 }
+
+static INLINE void check_ref_count_status_dec(struct AV1Decoder *pbi) {
+  AV1_COMMON *volatile const cm = &pbi->common;
+  RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
+
+  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+    int ref_frame_map_cnt = 0, cur_frame_cnt = 0, output_frames_cnt = 0;
+    int calculated_ref_count = 0;
+    for (int j = 0; j < REF_FRAMES; ++j) {
+      if (cm->ref_frame_map[j] && cm->ref_frame_map[j] == &frame_bufs[i])
+        ref_frame_map_cnt++;
+    }
+    if (cm->cur_frame && cm->cur_frame == &frame_bufs[i]) cur_frame_cnt++;
+    for (int j = 0; j < (int)pbi->num_output_frames; ++j) {
+      if (pbi->output_frames[j] && pbi->output_frames[j] == &frame_bufs[i])
+        output_frames_cnt++;
+    }
+    calculated_ref_count =
+        ref_frame_map_cnt + cur_frame_cnt + output_frames_cnt;
+
+    if (frame_bufs[i].ref_count != calculated_ref_count) {
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "The ref_count value is not matched on the decoder");
+    }
+  }
+}
+
+void output_trailing_frames(AV1Decoder *pbi);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
 static INLINE int av1_read_uniform(aom_reader *r, int n) {

@@ -8279,6 +8279,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
           // If no corresponding buffer exists, allocate a new buffer with all
           // pixels set to neutral grey.
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+          check_ref_count_status_dec(pbi);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           int buf_idx = get_free_fb(cm);
           if (buf_idx == INVALID_IDX) {
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
