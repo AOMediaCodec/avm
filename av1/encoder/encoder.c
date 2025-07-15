@@ -4192,6 +4192,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     // Force primary_ref_frame and derived_primary_ref_frame to be the same in
     // explicit_ref_frame_map mode
     if (cm->seq_params.explicit_ref_frame_map) {
+      cpi->signal_primary_ref_frame = 1;
       if (cm->features.primary_ref_frame !=
           cm->features.derived_primary_ref_frame) {
         cm->features.derived_secondary_ref_frame =
@@ -4977,7 +4978,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->unscaled_last_source = frame_input->last_source;
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
-  cm->features.error_resilient_mode = frame_params->error_resilient_mode;
+  cm->features.error_resilient_mode =
+      frame_is_sframe(cm) || (frame_params->frame_type == KEY_FRAME &&
+                              frame_params->show_frame)
+          ? 1
+          : frame_params->error_resilient_mode;
 #if !CONFIG_PRIMARY_REF_FRAME_OPT
   cm->features.primary_ref_frame = frame_params->primary_ref_frame;
 #endif  // !CONFIG_PRIMARY_REF_FRAME_OPT

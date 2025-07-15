@@ -7623,38 +7623,6 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   return cur_disp_order_hint;
 }
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
-                                                const RefCntBuffer *const buf) {
-  // Find the reference frame with the largest order_hint
-  int max_disp_order_hint = 0;
-  for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-    if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-    if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
-      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
-  }
-
-  const int display_order_hint_factor =
-      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
-  int disp_order_hint = buf->order_hint;
-  while (abs(max_disp_order_hint - disp_order_hint) >=
-         (display_order_hint_factor >> 1)) {
-    if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
-
-    disp_order_hint += display_order_hint_factor;
-  }
-  // We restrict the derived display order hint to a range, to avoid 32 bit
-  // integer overflow and some corner cases when display order hint operations
-  // are performed in DISPLAY_ORDER_HINT_BITS bit range
-  if (disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                       "Derived display order hint is invalid");
-  return disp_order_hint;
-}
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-
 static INLINE void read_screen_content_params(AV1_COMMON *const cm,
                                               struct aom_read_bit_buffer *rb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -8047,10 +8015,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->features.disable_cdf_update = 1;
     }
 #endif  // CONFIG_BRU
-    current_frame->order_hint = aom_rb_read_literal(
-        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-
-    current_frame->display_order_hint = get_disp_order_hint(cm);
+    const int order_hint_bits =
+        seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+    current_frame->order_hint = aom_rb_read_literal(rb, order_hint_bits);
+    if (features->error_resilient_mode || cm->number_temporal_layers > 1 ||
+        cm->number_spatial_layers > 1) {
+      const int display_order_hint_high_bits = (int)aom_rb_read_uvlc(rb);
+      if (display_order_hint_high_bits < 0 ||
+          display_order_hint_high_bits >=
+              (1 << (DISPLAY_ORDER_HINT_BITS - order_hint_bits))) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Invalid value of display_order_hint_high_bits");
+      }
+      current_frame->display_order_hint =
+          (display_order_hint_high_bits << order_hint_bits) +
+          current_frame->order_hint;
+    } else {
+      current_frame->display_order_hint = get_disp_order_hint(cm);
+    }
     current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
@@ -8069,7 +8051,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           features->primary_ref_frame =
               aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #else
-        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+          features->primary_ref_frame =
+              aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
       }
     }
@@ -8203,8 +8186,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         seq_params->order_hint_info.enable_order_hint) {
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         // Read order hint from bit stream
-        unsigned int order_hint = aom_rb_read_literal(
-            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        const int order_hint_bits =
+            seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+        unsigned int order_hint = aom_rb_read_literal(rb, order_hint_bits);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        const int display_order_hint_high_bits = (int)aom_rb_read_uvlc(rb);
+        if (display_order_hint_high_bits < 0 ||
+            display_order_hint_high_bits >=
+                (1 << (DISPLAY_ORDER_HINT_BITS - order_hint_bits))) {
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Invalid value of display_order_hint_high_bits");
+        }
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         // Get buffer
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
         if (buf == NULL || order_hint != buf->order_hint) {
@@ -8255,7 +8248,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->ref_frame_map[ref_idx] = buf;
           buf->order_hint = order_hint;
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-          buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+          buf->display_order_hint =
+              (display_order_hint_high_bits << order_hint_bits) +
+              buf->order_hint;
 #else
             buf->display_order_hint = order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC

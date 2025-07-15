@@ -6724,10 +6724,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
       encode_bru_active_info(cpi, wb);
     }
 #endif  // CONFIG_BRU
-    if (seq_params->order_hint_info.enable_order_hint)
-      aom_wb_write_literal(
-          wb, current_frame->order_hint,
-          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+    if (seq_params->order_hint_info.enable_order_hint) {
+      const int order_hint_bits =
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+      aom_wb_write_literal(wb, current_frame->order_hint, order_hint_bits);
+      if (features->error_resilient_mode || cm->number_temporal_layers > 1 ||
+          cm->number_spatial_layers > 1)
+        aom_wb_write_uvlc(wb,
+                          current_frame->display_order_hint >> order_hint_bits);
+    }
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
       // Always signal primary ref frame for scalable case
@@ -6745,7 +6750,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_wb_write_literal(wb, features->primary_ref_frame,
                                PRIMARY_REF_BITS);
 #else
-        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+          aom_wb_write_literal(wb, features->primary_ref_frame,
+                               PRIMARY_REF_BITS);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
       }
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
@@ -6824,10 +6830,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
+      const int order_hint_bits =
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
-        aom_wb_write_literal(
-            wb, cm->ref_frame_map[ref_idx]->order_hint,
-            seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->order_hint,
+                             order_hint_bits);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        aom_wb_write_uvlc(wb, cm->ref_frame_map[ref_idx]->display_order_hint >>
+                                  order_hint_bits);
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       }
     }
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
