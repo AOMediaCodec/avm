@@ -1260,9 +1260,12 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-  // Avoid change of segment_id to a lossless segment as this could lead to
-  // invalid tx_size
-  if (skip_txfm && !xd->lossless[pred]) {
+  // Avoid change of segment_id for a lossless segment, as well as change
+  // to a lossless segment as this could lead to invalid tx_size.
+  // In other words, lossless segments remain pure. No lossless
+  // segment can be switched, and no non-lossless segment can be changed
+  // to a lossless one.
+  if (skip_txfm && !xd->lossless[pred] && !xd->lossless[mbmi->segment_id]) {
     set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                            mbmi->sb_type[xd->tree_type == CHROMA_PART], mi_row,
                            mi_col, pred);
