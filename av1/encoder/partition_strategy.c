@@ -1874,10 +1874,8 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   int old2 = xd->mb_to_left_edge;
   int old3 = mbmi->sb_type[0];
   int old4 = mbmi->mrl_index;
-#if CONFIG_MRLS_IMPROVE
   int old5 = mbmi->multi_line_mrl;
   mbmi->multi_line_mrl = 0;
-#endif
   mbmi->mrl_index = 0;
 
   av1_ml_part_split_features_square(cpi, x, mi_row, mi_col, bsize,
@@ -1888,9 +1886,7 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   xd->mb_to_left_edge = old2;
   mbmi->sb_type[0] = old3;
   mbmi->mrl_index = old4;
-#if CONFIG_MRLS_IMPROVE
   mbmi->multi_line_mrl = old5;
-#endif
   aom_clear_system_state();
 }
 

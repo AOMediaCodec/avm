@@ -11650,11 +11650,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       }
       for (int mrl_index = 0;
            mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
-#if CONFIG_MRLS_IMPROVE
         for (int multi_line_mrl = 0; multi_line_mrl < (mrl_index ? 2 : 1);
              multi_line_mrl++) {
           mbmi->multi_line_mrl = multi_line_mrl;
-#endif  // CONFIG_MRLS_IMPROVE
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = fsc_mode;
           mbmi->mrl_index = mrl_index;
           for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
@@ -11688,7 +11686,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             if (mbmi->mrl_index > 0 && mbmi->fsc_mode[PLANE_TYPE_Y]) {
               continue;
             }
-#if CONFIG_MRLS_IMPROVE
             if (((search_state.intra_search_state.best_mrl_index == 0 &&
                   av1_is_directional_mode(
                       search_state.intra_search_state.best_intra_mode) == 0) ||
@@ -11697,7 +11694,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                 mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
               continue;
             }
-#endif  // CONFIG_MRLS_IMPROVE
             const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
             if (cached_mi) {
               const PREDICTION_MODE cached_mode = cached_mi->mode;
@@ -11732,7 +11728,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_IBC_SR_EXT
             init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
 #else
-        init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
+          init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
 #endif  // CONFIG_IBC_SR_EXT
             txfm_info->skip_txfm = 0;
 
@@ -11773,9 +11769,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
           set_mv_precision(mbmi, mbmi->max_mv_precision);
         }
-#if CONFIG_MRLS_IMPROVE
       }
-#endif
     }
 #if CONFIG_LOSSLESS_DPCM
   }

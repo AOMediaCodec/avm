@@ -2923,7 +2923,6 @@ static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
 }
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
-#if CONFIG_MRLS_IMPROVE
 static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
                                                const MB_MODE_INFO *neighbor1) {
   int ctx0 = neighbor0 && !is_inter_block(neighbor0, SHARED_PART) &&
@@ -2934,7 +2933,6 @@ static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
              neighbor1->multi_line_mrl != 0;
   return ctx0 + ctx1;
 }
-#endif  // CONFIG_MRLS_IMPROVE
 
 #if CONFIG_NEW_PART_CTX
 enum {

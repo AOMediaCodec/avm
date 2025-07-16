@@ -1903,7 +1903,6 @@ static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 }
 
-#if CONFIG_MRLS_IMPROVE
 static AOM_INLINE void write_multi_line_mrl(FRAME_CONTEXT *ec_ctx,
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
                                             const MB_MODE_INFO *neighbor0,
@@ -1916,7 +1915,6 @@ static AOM_INLINE void write_multi_line_mrl(FRAME_CONTEXT *ec_ctx,
       ec_ctx->multi_line_mrl_cdf[multi_line_mrl_ctx];
   aom_write_symbol(w, multi_line_mrl, multi_line_mrl_cdf, 2);
 }
-#endif  // CONFIG_MRLS_IMPROVE
 
 #if CONFIG_LOSSLESS_DPCM
 static AOM_INLINE void write_dpcm_index(FRAME_CONTEXT *ec_ctx,
@@ -2307,7 +2305,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
                           xd->neighbors[0], xd->neighbors[1],
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                           mbmi->mrl_index, w);
-#if CONFIG_MRLS_IMPROVE
           if (mbmi->mrl_index) {
             write_multi_line_mrl(ec_ctx,
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -2315,7 +2312,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                                  mbmi->multi_line_mrl, w);
           }
-#endif  // CONFIG_MRLS_IMPROVE
         }
       } else {
         write_mrl_index(ec_ctx,
@@ -2323,7 +2319,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
                         xd->neighbors[0], xd->neighbors[1],
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                         mbmi->mrl_index, w);
-#if CONFIG_MRLS_IMPROVE
         if (mbmi->mrl_index) {
           write_multi_line_mrl(ec_ctx,
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -2331,7 +2326,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                                mbmi->multi_line_mrl, w);
         }
-#endif  // CONFIG_MRLS_IMPROVE
       }
     }
 #else  // CONFIG_LOSSLESS_DPCM

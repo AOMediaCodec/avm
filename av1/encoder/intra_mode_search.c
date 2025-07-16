@@ -53,9 +53,7 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->mrl_index = 0;
-#if CONFIG_MRLS_IMPROVE
   mbmi->multi_line_mrl = 0;
-#endif
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = 0;
@@ -258,9 +256,7 @@ static int rd_pick_intra_dip_sby(const AV1_COMP *const cpi, ThreadData *td,
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->mrl_index = 0;
-#if CONFIG_MRLS_IMPROVE
   mbmi->multi_line_mrl = 0;
-#endif
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = 0;
@@ -1494,7 +1490,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
        cpi->common.seq_params.enable_mrls)
           ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
           : 0;
-#if CONFIG_MRLS_IMPROVE
   if (av1_is_directional_mode(mbmi->mode) &&
       cpi->common.seq_params.enable_mrls && mbmi->mrl_index) {
     int multi_line_mrl_ctx =
@@ -1503,7 +1498,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
         x->mode_costs
             .multi_line_mrl_cost[multi_line_mrl_ctx][mbmi->multi_line_mrl];
   }
-#endif
 #else
   int mrl_idx_cost = (av1_is_directional_mode(mbmi->mode) &&
                       cpi->common.seq_params.enable_mrls)
@@ -1778,9 +1772,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     intra_search_state->best_intra_mode = mode;
     intra_search_state->best_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
     intra_search_state->best_mrl_index = mbmi->mrl_index;
-#if CONFIG_MRLS_IMPROVE
     intra_search_state->best_multi_line_mrl = mbmi->multi_line_mrl;
-#endif  // CONFIG_MRLS_IMPROVE
 #if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       intra_search_state->best_dpcm_index = mbmi->use_dpcm_y;
@@ -1826,10 +1818,8 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
   uint8_t best_mrl = best_mbmi->mrl_index;
   uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;
   uint8_t mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
-#if CONFIG_MRLS_IMPROVE
   uint8_t best_multi_line_mrl = best_mbmi->multi_line_mrl;
   uint8_t multi_line_mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
-#endif  // CONFIG_MRLS_IMPROVE
 
 #if CONFIG_LOSSLESS_DPCM
   int dpcm_fsc_loop = 1;
@@ -1854,13 +1844,11 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
 #endif  // CONFIG_LOSSLESS_DPCM
     for (int mrl_idx = 0; mrl_idx < mrl_loop; ++mrl_idx) {
       mbmi->mrl_index = mrl_idx ? best_mbmi->mrl_index : mrl_idx;
-#if CONFIG_MRLS_IMPROVE
       for (int multi_line_mrl = 0;
            multi_line_mrl < (mrl_idx ? multi_line_mrl_loop : 1);
            ++multi_line_mrl) {
         mbmi->multi_line_mrl =
             multi_line_mrl ? best_mbmi->multi_line_mrl : multi_line_mrl;
-#endif
         for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
              ++mode_idx) {
           mbmi->y_mode_idx = mode_idx;
@@ -1917,7 +1905,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
           }
 #else
-      mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
+        mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
 #endif
 #if CONFIG_DIP
           mbmi->use_intra_dip = 0;
@@ -1948,21 +1936,19 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             continue;
           }
 #endif  // !CONFIG_IMPROVED_INTRA_DIR_PRED
-#if CONFIG_MRLS_IMPROVE
           if (((best_mbmi->mrl_index == 0 &&
                 av1_is_directional_mode(best_mbmi->mode) == 0) ||
                (best_mbmi->mrl_index && mbmi->multi_line_mrl == 0)) &&
               mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
             continue;
           }
-#endif
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
           int mrl_idx_cost =
               (is_directional_mode && enable_mrls_flag)
                   ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
                   : 0;
-#if CONFIG_MRLS_IMPROVE
+
           if (is_directional_mode && enable_mrls_flag && mbmi->mrl_index) {
             int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
                 xd->neighbors[0], xd->neighbors[1]);
@@ -1970,11 +1956,10 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                 x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
                                                  [mbmi->multi_line_mrl];
           }
-#endif  // CONFIG_MRLS_IMPROVE
 #else
-      int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
-                             ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
-                             : 0;
+        int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
+                               ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
+                               : 0;
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
           mode_costs += mrl_idx_cost;
           int64_t this_model_rd;
@@ -2013,9 +1998,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             best_y_mode_idx = mbmi->y_mode_idx;
             best_joint_ymode = mbmi->joint_y_mode_delta_angle;
             best_mrl = mbmi->mrl_index;
-#if CONFIG_MRLS_IMPROVE
             best_multi_line_mrl = mbmi->multi_line_mrl;
-#endif
 #if CONFIG_LOSSLESS_DPCM
             if (xd->lossless[mbmi->segment_id]) {
               best_dpcm_fsc = mbmi->use_dpcm_y;
@@ -2036,9 +2019,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             best_fsc_mode = 1;
           }
         }
-#if CONFIG_MRLS_IMPROVE
       }
-#endif
     }
 #if CONFIG_LOSSLESS_DPCM
   }
@@ -2059,9 +2040,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
     av1_copy(mbmi->tx_partition_type, best_tx_partition_type);
 #endif  // CONFIG_NEW_TX_PARTITION
     mbmi->mrl_index = best_mrl;
-#if CONFIG_MRLS_IMPROVE
     mbmi->multi_line_mrl = best_multi_line_mrl;
-#endif
     mbmi->filter_intra_mode_info.use_filter_intra = best_filt;
     mbmi->angle_delta[PLANE_TYPE_Y] = best_angle_delta;
     av1_copy_array(ctx->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
@@ -2162,11 +2141,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
     for (int mrl_idx = 0; mrl_idx < (enable_mrls_flag ? MRL_LINE_NUMBER : 1);
          ++mrl_idx) {
       mbmi->mrl_index = mrl_idx;
-#if CONFIG_MRLS_IMPROVE
       for (int multi_line_mrl = 0; multi_line_mrl < (mrl_idx ? 2 : 1);
            multi_line_mrl++) {
         mbmi->multi_line_mrl = multi_line_mrl;
-#endif
         for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
              ++mode_idx) {
           mbmi->y_mode_idx = mode_idx;
@@ -2230,14 +2207,13 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
             continue;
 
           if (!is_directional_mode && mrl_idx) continue;
-#if CONFIG_MRLS_IMPROVE
+
           if (((best_mbmi.mrl_index == 0 &&
                 av1_is_directional_mode(best_mbmi.mode) == 0) ||
                (best_mbmi.mrl_index && mbmi->multi_line_mrl == 0)) &&
               mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
             continue;
           }
-#endif  // CONFIG_MRLS_IMPROVE
 #if !CONFIG_IMPROVED_INTRA_DIR_PRED
           if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
               av1_is_directional_mode(best_mbmi.mode) == 0) {
@@ -2250,7 +2226,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
               (is_directional_mode && enable_mrls_flag)
                   ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
                   : 0;
-#if CONFIG_MRLS_IMPROVE
+
           if (is_directional_mode && enable_mrls_flag && mbmi->mrl_index) {
             int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
                 xd->neighbors[0], xd->neighbors[1]);
@@ -2258,11 +2234,10 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
                 x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
                                                  [mbmi->multi_line_mrl];
           }
-#endif  // CONFIG_MRLS_IMPROVE
 #else
-      int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
-                             ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
-                             : 0;
+        int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
+                               ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
+                               : 0;
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_LOSSLESS_DPCM
           if (dpcm_index == 0)
@@ -2329,9 +2304,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
             av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
           }
         }
-#if CONFIG_MRLS_IMPROVE
       }
-#endif
     }
 #if CONFIG_LOSSLESS_DPCM
   }

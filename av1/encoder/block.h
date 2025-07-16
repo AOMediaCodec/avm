@@ -980,10 +980,8 @@ typedef struct {
 #else
   int mrl_index_cost[MRL_LINE_NUMBER];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-#if CONFIG_MRLS_IMPROVE
   //! multi_line_mrl_cost
   int multi_line_mrl_cost[MRL_INDEX_CONTEXTS][2];
-#endif
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
 #if CONFIG_ENABLE_MHCCP
