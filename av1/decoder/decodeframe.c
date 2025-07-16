@@ -7204,7 +7204,8 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_ist = aom_rb_read_bit(rb);
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
 #if CONFIG_CHROMA_TX
-  seq_params->enable_chroma_dctonly = aom_rb_read_bit(rb);
+  seq_params->enable_chroma_dctonly =
+      seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
 #endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
@@ -7267,7 +7268,8 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
 #endif  // CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
-  seq_params->cfl_ds_filter_index = aom_rb_read_literal(rb, 2);
+  seq_params->cfl_ds_filter_index =
+      seq_params->monochrome ? 0 : aom_rb_read_literal(rb, 2);
 
 #if CONFIG_TCQ
   seq_params->enable_tcq = 0;

@@ -6306,7 +6306,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_ist);
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
 #if CONFIG_CHROMA_TX
-  aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
+  if (!seq_params->monochrome)
+    aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
 #endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
@@ -6366,7 +6367,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 
-  aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
+  if (!seq_params->monochrome)
+    aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
 
 #if CONFIG_TCQ
   int enable_tcq = seq_params->enable_tcq;
