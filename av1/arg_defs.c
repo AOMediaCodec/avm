@@ -851,7 +851,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       NULL, "enable-cdef-on-skip-txfm", 1,
       "Enable CDEF on skip_txfm = 1 blocks (0: always off, 1: always on "
       "(default), 2: adptive, allow on or off at the frame level"),
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   .enable_avg_cdf = ARG_DEF(NULL, "enable-avg-cdf", 1,
                             "Enable frame/tile cdfs average for initialization "
                             "(0:false), 1:true (default)"),
@@ -859,11 +858,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                           "Type of cdf averaging "
                           "(0 (frame based), 1 (tile based)), default "
                           "(adaptively choosen based on number of tiles)."),
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  .enable_tiles_cdfs_avg = ARG_DEF(NULL, "enable-tiles-cdfs-avg", 1,
-                                   "Enable tiles cdfs average "
-                                   "(0:false), 1:true (default)"),
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   .enable_parity_hiding = ARG_DEF(NULL, "enable-parity-hiding", 1,
                                   "Enable parity hiding "
                                   "(0:false), 1:true (default)"),

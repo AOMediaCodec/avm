@@ -77,12 +77,4 @@ macro(fix_experiment_configs)
   if(CONFIG_TCQ)
     change_config_and_warn(CONFIG_CONTEXT_DERIVATION 1 CONFIG_TCQ)
   endif()
-
-  # CONFIG_IMPROVED_SECONDARY_REFERENCE depends on
-  # CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  if(NOT CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-     AND CONFIG_IMPROVED_SECONDARY_REFERENCE)
-    change_config_and_warn(CONFIG_IMPROVED_SECONDARY_REFERENCE 0
-                           !CONFIG_ENHANCED_FRAME_CONTEXT_INIT)
-  endif()
 endmacro()

@@ -173,12 +173,8 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_refmvbank);
     GET_PARAMS(enable_drl_reorder);
     GET_PARAMS(enable_cdef_on_skip_txfm);
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     GET_PARAMS(enable_avg_cdf);
     GET_PARAMS(avg_cdf_type);
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    GET_PARAMS(enable_tiles_cdfs_avg);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     GET_PARAMS(enable_parity_hiding);
 #if CONFIG_MRSSE
     GET_PARAMS(enable_mrsse);

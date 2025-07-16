@@ -400,7 +400,6 @@ typedef struct RefCntBuffer {
   CcsoInfo ccso_info;
 } RefCntBuffer;
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
 // Store the characteristics related to each reference frame, which can be used
 // in reference frame ranking.
 typedef struct {
@@ -415,7 +414,6 @@ typedef struct {
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
 typedef struct BufferPool {
 // Protect BufferPool from being accessed by several FrameWorkers at
@@ -655,13 +653,9 @@ typedef struct SequenceHeader {
   uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
   // 1 - CDEF on skip_txfm = 1 is always on
   // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t enable_avg_cdf;  // enable CDF averaging
   uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization
                            // 1 - Tile averaging for CDF initialization
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  uint8_t enable_tiles_cdfs_avg;  // To turn on/off tiles cdfs average
-#endif                               // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
                                      // enum where:
@@ -844,18 +838,14 @@ typedef struct {
    * should be loaded at the start of the frame.
    */
   int primary_ref_frame;
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * The derived primary reference frame.
    */
   int derived_primary_ref_frame;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!
    * The derived secondary reference frame.
    */
   int derived_secondary_ref_frame;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * Byte alignment of the planes in the reference buffers.
    */
@@ -1772,12 +1762,10 @@ typedef struct AV1Common {
    */
   RefCntBuffer *ref_frame_map[REF_FRAMES];
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * Ref frame data.
    */
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   /*!
    * If true, this frame is actually shown after decoding.
@@ -2314,7 +2302,6 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
              : INVALID_IDX;
 }
 
-#if CONFIG_IMPROVED_SECONDARY_REFERENCE
 static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
                                                      int *ref_frame_used,
                                                      int *secondary_map_idx) {
@@ -2362,7 +2349,6 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
                         AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
   }
 }
-#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
@@ -2394,12 +2380,7 @@ static INLINE struct scale_factors *get_ref_scale_factors(
 }
 
 static INLINE RefCntBuffer *get_primary_ref_frame_buf(
-#if CONFIG_PRIMARY_REF_FRAME_OPT
     const AV1_COMMON *const cm, int primary_ref_frame) {
-#else
-    const AV1_COMMON *const cm) {
-  const int primary_ref_frame = cm->features.primary_ref_frame;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
   if (is_tip_ref_frame(primary_ref_frame)) {
     return cm->tip_ref.tip_frame;
@@ -5103,7 +5084,6 @@ static INLINE int is_new_nearmv_pred_mode_disallowed(const MB_MODE_INFO *mbmi) {
 }
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME
 #define MAX_NUM_TILES_FOR_CDFS_AVG_LOG2 3
 
 // Compute the log2 value corresponding to the input value
@@ -5126,7 +5106,6 @@ static INLINE unsigned int av1_compute_allowed_tiles_log2(
   const unsigned int total_tiles_log2 = tiles_rows_log2 + tiles_cols_log2;
   return AOMMIN(total_tiles_log2, MAX_NUM_TILES_FOR_CDFS_AVG_LOG2);
 }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
 static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
                                          const PLANE_TYPE plane_type) {

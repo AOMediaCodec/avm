@@ -7424,7 +7424,6 @@ static void set_default_lf_deltas(struct loopfilter *lf) {
   lf->mode_ref_delta_update = 0;
 }
 
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME
 static AOM_INLINE void cumulative_avg_cdf_symbol(
     aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr, int num_cdfs,
     int cdf_stride, int nsymbs, unsigned int total_tiles_log2) {
@@ -8312,9 +8311,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->coeff_br_ph_cdf, 4);
   SHIFT_CDF(ctx_ptr->cctx_type_cdf, CCTX_TYPES);
 }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
                            int num_cdfs, int cdf_stride, int nsymbs,
                            int wt_left, int wt_tr) {
@@ -8776,7 +8773,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
   AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
 }
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
 void av1_setup_frame_contexts(AV1_COMMON *cm) {
   // Store the frame context into a special slot (not associated with any

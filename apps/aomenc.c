@@ -222,9 +222,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_BRU
                                         AV1E_SET_ENABLE_BRU,
 #endif  // CONFIG_BRU
@@ -476,12 +474,8 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_refmvbank,
   &g_av1_codec_arg_defs.enable_drl_reorder,
   &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   &g_av1_codec_arg_defs.enable_avg_cdf,
   &g_av1_codec_arg_defs.avg_cdf_type,
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  &g_av1_codec_arg_defs.enable_tiles_cdfs_avg,
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   &g_av1_codec_arg_defs.enable_opfl_refine,
   &g_av1_codec_arg_defs.enable_ccso,
 #if CONFIG_LF_SUB_PU
@@ -743,12 +737,8 @@ static void init_config(cfg_options_t *config) {
   config->enable_refmvbank = 1;
   config->enable_drl_reorder = 1;
   config->enable_cdef_on_skip_txfm = 1;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   config->enable_avg_cdf = 1;
   config->avg_cdf_type = 1;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  config->enable_tiles_cdfs_avg = 1;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   config->enable_parity_hiding = 1;
 #if CONFIG_MRSSE
   config->enable_mrsse = 0;
@@ -1699,12 +1689,8 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_MRSSE
           "MRSSE (%d), "
 #endif  // CONFIG_MRSSE
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
           "Enable_CDF_Avg (%d), "
           "CDF_Avg_Type (%d), "
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-          "TilesCDFsAvg (%d), "
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
           "IntraBC (%d)\n",
           encoder_cfg->enable_palette, encoder_cfg->enable_parity_hiding,
 #if CONFIG_IBC_SR_EXT
@@ -1713,11 +1699,7 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_MRSSE
           encoder_cfg->enable_mrsse,
 #endif  // CONFIG_MRSSE
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
           encoder_cfg->enable_avg_cdf, encoder_cfg->avg_cdf_type,
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-          encoder_cfg->enable_tiles_cdfs_avg,
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
           encoder_cfg->enable_intrabc);
 
   fprintf(stdout, "\n\n");

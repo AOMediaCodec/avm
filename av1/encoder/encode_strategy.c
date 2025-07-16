@@ -212,62 +212,6 @@ static void set_ext_overrides(AV1_COMMON *const cm,
   frame_params->error_resilient_mode |= frame_params->frame_type == S_FRAME;
 }
 
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-static int get_current_frame_ref_type(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
-  // We choose the reference "type" of this frame from the flags which indicate
-  // which reference frames will be refreshed by it.  More than one  of these
-  // flags may be set, so the order here implies an order of precedence. This is
-  // just used to choose the primary_ref_frame (as the most recent reference
-  // buffer of the same reference-type as the current frame)
-
-  (void)frame_params;
-  // TODO(jingning): This table should be a lot simpler with the new
-  // ARF system in place. Keep frame_params for the time being as we are
-  // still evaluating a few design options.
-  switch (cpi->gf_group.layer_depth[cpi->gf_group.index]) {
-    case 0: return 0;
-    case 1: return 1;
-    case MAX_ARF_LAYERS:
-    case MAX_ARF_LAYERS + 1: return 4;
-    default: return 7;
-  }
-}
-
-static int choose_primary_ref_frame(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
-  const AV1_COMMON *const cm = &cpi->common;
-
-  const int intra_only = frame_params->frame_type == KEY_FRAME ||
-                         frame_params->frame_type == INTRA_ONLY_FRAME;
-  if (intra_only || frame_params->error_resilient_mode ||
-      cpi->ext_flags.use_primary_ref_none) {
-    return PRIMARY_REF_NONE;
-  }
-
-  // In large scale case, always use Last frame's frame contexts.
-  // Note(yunqing): In other cases, primary_ref_frame is chosen based on
-  // cpi->gf_group.layer_depth[cpi->gf_group.index], which also controls
-  // frame bit allocation.
-  if (cm->tiles.large_scale) return 0;
-
-  // Find the most recent reference frame with the same reference type as the
-  // current frame
-  const int current_ref_type = get_current_frame_ref_type(cpi, frame_params);
-  int wanted_fb = cpi->fb_of_context_type[current_ref_type];
-
-  int primary_ref_frame = PRIMARY_REF_NONE;
-  const int n_refs = cm->ref_frames_info.num_total_refs;
-  for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
-    if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
-      primary_ref_frame = ref_frame;
-    }
-  }
-
-  return primary_ref_frame;
-}
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
-
 // Map the subgop cfg reference list to actual reference buffers. Disable
 // any reference frames that are not listed in the sub gop.
 static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
@@ -392,44 +336,6 @@ static void init_bru_frame(AV1_COMMON *const cm) {
   }
 }
 #endif  // CONFIG_BRU
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-static void update_fb_of_context_type(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
-    int *const fb_of_context_type) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const int current_frame_ref_type =
-      get_current_frame_ref_type(cpi, frame_params);
-
-  const int golden_frame = cm->ref_frames_info.past_refs[0];
-  const int altref_frame = get_furthest_future_ref_index(cm);
-  if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
-      cpi->ext_flags.use_primary_ref_none) {
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-      fb_of_context_type[i] = -1;
-    }
-    fb_of_context_type[current_frame_ref_type] =
-        cm->show_frame ? get_ref_frame_map_idx(cm, golden_frame)
-                       : get_ref_frame_map_idx(cm, altref_frame);
-  }
-
-  if (!encode_show_existing_frame(cm)) {
-    // Refresh fb_of_context_type[]: see encoder.h for explanation
-    if (cm->current_frame.frame_type == KEY_FRAME) {
-      // All ref frames are refreshed, pick one that will live long enough
-      fb_of_context_type[current_frame_ref_type] = 0;
-    } else {
-      // If more than one frame is refreshed, it doesn't matter which one we
-      // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
-      for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-        if (cm->current_frame.refresh_frame_flags & (1 << i)) {
-          fb_of_context_type[current_frame_ref_type] = i;
-          break;
-        }
-      }
-    }
-  }
-}
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
 
 static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   TimeStamps *time_stamps = &cpi->time_stamps;
@@ -1266,14 +1172,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);
-#else
-  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  init_ref_map_pair(&cpi->common, ref_frame_map_pairs,
-                    gf_group->update_type[gf_group->index] == KF_UPDATE);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
@@ -1325,17 +1225,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
 #endif  // CONFIG_BRU
-#if CONFIG_PRIMARY_REF_FRAME_OPT
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
     else
       av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-#else
-    if (cm->seq_params.explicit_ref_frame_map)
-      av1_get_ref_frames_enc(cm, cur_frame_disp, ref_frame_map_pairs);
-    else
-      av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #if CONFIG_BRU
     if (cm->bru.frame_inactive_flag) {
       cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
@@ -1365,10 +1258,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.ref_frame_flags =
         (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
 
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-    frame_params.primary_ref_frame =
-        choose_primary_ref_frame(cpi, &frame_params);
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     if (!is_stat_generation_stage(cpi) &&
@@ -1385,11 +1274,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
-#if CONFIG_PRIMARY_REF_FRAME_OPT
         cur_frame_disp, cm->ref_frame_map_pairs);
-#else
-        cur_frame_disp, ref_frame_map_pairs);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
@@ -1458,9 +1343,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
 
   if (!is_stat_generation_stage(cpi)) {
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-    update_fb_of_context_type(cpi, &frame_params, cpi->fb_of_context_type);
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
     set_additional_frame_flags(cm, frame_flags);
     update_rc_counts(cpi);
   }

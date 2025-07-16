@@ -378,9 +378,6 @@ typedef struct AV1Decoder {
   aom_s_frame_info sframe_info;
   unsigned int enable_subgop_stats;
   SubGOPStatsDec subgop_stats;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  int error_resilient_frame_seen;
-#endif
   /*!
    * Indicate if the primary reference frame is signaled.
    */

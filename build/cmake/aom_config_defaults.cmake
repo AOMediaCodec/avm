@@ -290,8 +290,6 @@ set_aom_config_var(CONFIG_REFINEMV 1 "Enable refinemv modes")
 
 set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
                    "Enable to explicit temporal distance calculation")
-set_aom_config_var(CONFIG_PRIMARY_REF_FRAME_OPT 1
-                   "Enable the primary reference frame improvement")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
@@ -419,8 +417,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
 
-set_aom_config_var(CONFIG_TILE_CDFS_AVG_TO_FRAME 1
-                   "Average the CDFs from tiles for frame CDF")
 set_aom_config_var(CONFIG_LC_REF_MV_BANK 1
                    "Enable low complexity refmv bank design")
 
@@ -486,21 +482,6 @@ set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
-set_aom_config_var(CONFIG_ADAPTATION_RATE_IMPROVE 1
-                   "Enables adaptation rate improvement with CDF propagation.")
-set_aom_config_var(
-  CONFIG_ENHANCED_FRAME_CONTEXT_INIT 1
-  "Enables improved frame context initialization with frame averaging.")
-
-set_aom_config_var(
-  CONFIG_PRIMARY_QP_FIRST 1
-  "Improvements to the primary reference frame by selecting the closet QP.")
-
-set_aom_config_var(
-  CONFIG_IMPROVED_SECONDARY_REFERENCE
-  1
-  "Enables improved secondary reference frame derivation for frame context initialization."
-)
 
 set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")

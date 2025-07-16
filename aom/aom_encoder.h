@@ -604,7 +604,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!\brief enable the average of frame or tile cdfs for initialization
    *
    */
@@ -614,12 +613,6 @@ typedef struct cfg_options {
    * If 1, enables cross tile averaging and initialization of CDFs
    */
   unsigned int avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  /*!\brief enable the average of tiles' cdfs
-   *
-   */
-  unsigned int enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!\brief enable parity hiding for coefficients coding
    *
    */

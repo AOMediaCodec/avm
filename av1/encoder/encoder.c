@@ -44,9 +44,7 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
-#if CONFIG_PRIMARY_REF_FRAME_OPT
 #include "av1/common/pred_common.h"
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/cfl.h"
@@ -557,12 +555,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
   seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  seq->enable_tiles_cdfs_avg = tool_cfg->enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_TCQ
   seq->enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
@@ -2934,7 +2928,6 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
 }
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
 /*!\brief If the error resilience mode is turned on in the encoding, for frames
  * following the error resilient frame, use the last encoded frame as the
  * primary reference frame.
@@ -2991,14 +2984,10 @@ static void set_primary_ref_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   cpi->signal_primary_ref_frame = 0;
   // Got the derived_primary_ref_frame.
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int tmp_ref_frame[2] = { 0 };
   choose_primary_secondary_ref_frame(cm, tmp_ref_frame);
   cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
   cm->features.derived_secondary_ref_frame = tmp_ref_frame[1];
-#else
-  cm->features.derived_primary_ref_frame = choose_primary_ref_frame(cm);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // The primary_ref_frame can be set to other refs other than the derived
   // one. If that is needed, disable primary_ref_frame search.
   cm->features.primary_ref_frame = cm->features.derived_primary_ref_frame;
@@ -3015,7 +3004,6 @@ static void set_primary_ref_frame(AV1_COMP *cpi) {
     cpi->signal_primary_ref_frame = 1;
   }
 }
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
  * encoding.
@@ -3136,9 +3124,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   set_primary_ref_frame(cpi);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
 
@@ -3349,9 +3335,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
     set_primary_ref_frame(cpi);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
@@ -3361,12 +3345,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     if (loop_count == 0) {
       av1_setup_frame(cpi);
-    } else if (get_primary_ref_frame_buf(cm
-#if CONFIG_PRIMARY_REF_FRAME_OPT
-                                         ,
-                                         cm->features.primary_ref_frame
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
-                                         ) == NULL) {
+    } else if (get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame) ==
+               NULL) {
       // Base q-index may have changed, so we need to assign proper default coef
       // probs before every iteration.
       av1_default_coef_probs(cm);
@@ -3726,9 +3706,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
 #if CONFIG_TIP_LD
     const int cur_order_hint = cm->current_frame.display_order_hint;
@@ -3767,12 +3745,8 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
-#if CONFIG_PRIMARY_REF_FRAME_OPT
       *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
                     ->frame_context;
-#else
-      *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     }
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -3839,7 +3813,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
 /*!\brief Parameters for representing LR flexible syntax.
  */
 typedef struct {
@@ -3891,7 +3864,6 @@ static void restore_lr_parameters(AV1_COMMON *const cm,
         lr_params->lr_last_switchable_ndx_0_type[i];
   }
 }
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
 /*!\brief Recode loop or a single loop for encoding one frame, followed by
  * in-loop deblocking filters, CDEF filters, and restoration filters.
@@ -4030,7 +4002,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);
 #endif
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   // For primary_ref_frame and derived_primary_ref_frame, if one of them is
   // PRIMARY_REF_NONE, the other one is also PRIMARY_REF_NONE.
   assert(IMPLIES(cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE,
@@ -4108,8 +4079,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
 
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-#if CONFIG_IMPROVED_SECONDARY_REFERENCE
     int ref_frame_used = PRIMARY_REF_NONE;
     int secondary_map_idx = INVALID_IDX;
     get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
@@ -4123,34 +4092,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                           AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
     }
 #endif  // CONFIG_BRU
-#else
-    const int ref_frame_used = (cm->features.primary_ref_frame ==
-                                cm->features.derived_primary_ref_frame)
-                                   ? cm->features.derived_secondary_ref_frame
-                                   : cm->features.derived_primary_ref_frame;
-    const int secondary_map_idx = get_ref_frame_map_idx(cm, ref_frame_used);
-    if ((secondary_map_idx != INVALID_IDX) &&
-        (ref_frame_used != cm->features.primary_ref_frame) &&
-        (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-        !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
-        (ref_frame_used != PRIMARY_REF_NONE)) {
-#if CONFIG_BRU
-      if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
-#endif  // CONFIG_BRU
-        av1_avg_cdf_symbols(
-            cm->fc, &cm->ref_frame_map[secondary_map_idx]->frame_context,
-            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
-#if CONFIG_BRU
-      } else {
-        av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
-                            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
-      }
-#endif  // CONFIG_BRU
-    }
-#endif  // CONFIG_IMPROVED_SECONDARY_REFERENCE
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   }
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_finalize_encoded_frame(cpi);
   // Build the bitstream
@@ -4204,9 +4146,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                       tip_as_output_rate, largest_tile_id);
   }
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   cpi->last_encoded_frame_order_hint = cm->current_frame.display_order_hint;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   return AOM_CODEC_OK;
 }
@@ -4412,7 +4352,6 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME
 // 1) For multiple tiles-based coding, calculate the average CDFs from the
 // allowed tiles, and use the average CDFs of the tiles as the frame's CDFs
 // 2) For one tile coding, directly use that tile's CDFs as the frame's CDFs
@@ -4433,7 +4372,6 @@ void encoder_avg_tiles_cdfs(AV1_COMP *const cpi) {
     }
   }
 }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
@@ -4774,21 +4712,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENTROPY_STATS
 
   if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
     } else {
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    if (cm->seq_params.enable_tiles_cdfs_avg &&
-        cm->tiles.rows * cm->tiles.cols > 1) {
-      encoder_avg_tiles_cdfs(cpi);
-    } else {
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 #if CONFIG_BRU
     if (!cm->bru.frame_inactive_flag)
 #endif  // CONFIG_BRU
@@ -4869,9 +4798,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
   cm->features.error_resilient_mode = frame_params->error_resilient_mode;
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-  cm->features.primary_ref_frame = frame_params->primary_ref_frame;
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
@@ -4896,7 +4822,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 #else
-        current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
+      current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
 #endif  // CONFIG_KEY_OVERLAY
 
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
@@ -4907,27 +4833,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
 
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   init_ref_map_pair(
       &cpi->common, cm->ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
-#else
-  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  init_ref_map_pair(
-      &cpi->common, ref_frame_map_pairs,
-      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   if (cm->seq_params.explicit_ref_frame_map)
     av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
   else
     av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-#else
-  if (cm->seq_params.explicit_ref_frame_map)
-    av1_get_ref_frames_enc(cm, cur_frame_disp, ref_frame_map_pairs);
-  else
-    av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
   current_frame->absolute_poc =
@@ -5025,8 +4937,8 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
                          cm->current_frame.frame_number + order_offset,
                          frame_flags, cpi->alloc_pyramid))
 #else
-    if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
-                           frame_flags, cpi->alloc_pyramid))
+  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
+                         cpi->alloc_pyramid))
 #endif  // CONFIG_BRU
     res = -1;
 #if CONFIG_INTERNAL_STATS

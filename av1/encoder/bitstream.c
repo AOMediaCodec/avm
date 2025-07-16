@@ -5005,11 +5005,7 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 
   // Write update flags
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
-#else
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     assert(seg->update_map == 1);
     seg->temporal_update = 0;
     assert(seg->update_data == 1);
@@ -5115,16 +5111,10 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
 
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    if (!cm->seq_params.enable_tiles_cdfs_avg) {
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       // tile id used for cdf update
       aom_wb_write_literal(wb, 0, cm->tiles.log2_cols + cm->tiles.log2_rows);
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     // Number of bytes in tile size - 1
     aom_wb_write_literal(wb, 3, 2);
   }
@@ -5248,8 +5238,8 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
   const int coded_width = cm->superres_upscaled_width - 1;
   const int coded_height = cm->superres_upscaled_height - 1;
 #else
-    const int coded_width = cm->width - 1;
-    const int coded_height = cm->height - 1;
+  const int coded_width = cm->width - 1;
+  const int coded_height = cm->height - 1;
 #endif  // CONFIG_ENABLE_SR
 
   if (frame_size_override) {
@@ -5279,8 +5269,8 @@ static AOM_INLINE void write_frame_size_with_refs(
       found = cm->superres_upscaled_width == cfg->y_crop_width &&
               cm->superres_upscaled_height == cfg->y_crop_height;
 #else
-        found =
-            cm->width == cfg->y_crop_width && cm->height == cfg->y_crop_height;
+      found =
+          cm->width == cfg->y_crop_width && cm->height == cfg->y_crop_height;
 #endif  // CONFIG_ENABLE_SR
       found &= cm->render_width == cfg->render_width &&
                cm->render_height == cfg->render_height;
@@ -5454,7 +5444,7 @@ static AOM_INLINE void write_film_grain_params(
 #if CONFIG_EXTRA_DPB
     assert(ref_frame < MAX_COMPOUND_REF_INDEX);
 #else
-      assert(ref_frame < REF_FRAMES);
+    assert(ref_frame < REF_FRAMES);
 #endif  // CONFIG_EXTRA_DPB
     assert(ref_idx != INVALID_IDX);
     aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
@@ -5899,14 +5889,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(
         wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
   }
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
   if (seq_params->enable_avg_cdf) {
     aom_wb_write_bit(wb, seq_params->avg_cdf_type);
   }
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    aom_wb_write_bit(wb, seq_params->enable_tiles_cdfs_avg);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
@@ -5997,7 +5983,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
   }
 #else
-    aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
+  aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #endif  // CONFIG_TCQ
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
   if (seq_params->enable_ext_partitions)
@@ -6045,7 +6031,7 @@ static AOM_INLINE void write_global_motion_params(
 #if CONFIG_IMPROVED_GLOBAL_MOTION
       assert(type == AFFINE);
 #else
-        aom_wb_write_bit(wb, type == TRANSLATION);
+      aom_wb_write_bit(wb, type == TRANSLATION);
 #endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
     }
   }
@@ -6079,13 +6065,13 @@ static AOM_INLINE void write_global_motion_params(
     const int trans_prec_diff = GM_TRANS_PREC_DIFF;
     const int trans_max = GM_TRANS_MAX;
 #else
-      const int trans_bits = (type == TRANSLATION)
-                                 ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-                                 : GM_ABS_TRANS_BITS;
-      const int trans_prec_diff = (type == TRANSLATION)
-                                      ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-                                      : GM_TRANS_PREC_DIFF;
-      const int trans_max = (1 << trans_bits);
+    const int trans_bits = (type == TRANSLATION)
+                               ? GM_ABS_TRANS_ONLY_BITS - precision_loss
+                               : GM_ABS_TRANS_BITS;
+    const int trans_prec_diff = (type == TRANSLATION)
+                                    ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
+                                    : GM_TRANS_PREC_DIFF;
+    const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     aom_wb_write_signed_primitive_refsubexpfin(
@@ -6179,9 +6165,9 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                          temporal_distance);
     WarpedMotionParams *ref_params = &ref_params_;
 #else
-      const WarpedMotionParams *ref_params =
-          cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                         : &default_warp_params;
+    const WarpedMotionParams *ref_params =
+        cm->prev_frame ? &cm->prev_frame->global_motion[frame]
+                       : &default_warp_params;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
@@ -6281,7 +6267,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
 #else
-      aom_wb_write_literal(wb, current_frame->frame_type, 2);
+    aom_wb_write_literal(wb, current_frame->frame_type, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
     aom_wb_write_bit(wb, cm->show_frame);
@@ -6312,8 +6298,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
     assert(cm->superres_upscaled_width == seq_params->max_frame_width &&
            cm->superres_upscaled_height == seq_params->max_frame_height);
 #else
-      assert(cm->width == seq_params->max_frame_width &&
-             cm->height == seq_params->max_frame_height);
+    assert(cm->width == seq_params->max_frame_width &&
+           cm->height == seq_params->max_frame_height);
 #endif  // CONFIG_ENABLE_SR
   } else {
     if (seq_params->frame_id_numbers_present_flag) {
@@ -6325,8 +6311,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (cm->superres_upscaled_width > seq_params->max_frame_width ||
         cm->superres_upscaled_height > seq_params->max_frame_height) {
 #else
-      if (cm->width > seq_params->max_frame_width ||
-          cm->height > seq_params->max_frame_height) {
+    if (cm->width > seq_params->max_frame_width ||
+        cm->height > seq_params->max_frame_height) {
 #endif  // CONFIG_ENABLE_SR
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Frame dimensions are larger than the maximum values");
@@ -6339,8 +6325,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
             : (cm->superres_upscaled_width != seq_params->max_frame_width ||
                cm->superres_upscaled_height != seq_params->max_frame_height);
 #else
-              : (cm->width != seq_params->max_frame_width ||
-                 cm->height != seq_params->max_frame_height);
+            : (cm->width != seq_params->max_frame_width ||
+               cm->height != seq_params->max_frame_height);
 #endif  // CONFIG_ENABLE_SR
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
@@ -6358,13 +6344,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
-#if CONFIG_PRIMARY_REF_FRAME_OPT
       aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
       if (cpi->signal_primary_ref_frame)
         aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
-#else
-        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE)
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
@@ -6430,8 +6412,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
                            cm->seq_params.ref_frames);
     }
 #else
-      aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                           cm->seq_params.ref_frames);
+    aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                         cm->seq_params.ref_frames);
 
 #endif  // CONFIG_REFRESH_FLAG
   }
@@ -6441,7 +6423,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       current_frame->refresh_frame_flags !=
           ((1 << cm->seq_params.ref_frames) - 1)) {
 #else
-        current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
+      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
 #endif  // CONFIG_EXTRA_DPB
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
@@ -6479,7 +6461,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_ENABLE_SR
         !av1_superres_scaled(cm)
 #else
-          1
+        1
 #endif  // CONFIG_ENABLE_SR
     )
       aom_wb_write_bit(wb, features->allow_intrabc);
@@ -6520,7 +6502,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_ENABLE_SR
           !av1_superres_scaled(cm)
 #else
-            1
+          1
 #endif  // CONFIG_ENABLE_SR
       )
         aom_wb_write_bit(wb, features->allow_intrabc);
@@ -6575,7 +6557,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_EXTRA_DPB
                              MAX_REFS_PER_FRAME_LOG2);
 #else
-                               REF_FRAMES_LOG2);
+                             REF_FRAMES_LOG2);
 #endif  // CONFIG_EXTRA_DPB
       }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
@@ -6652,7 +6634,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
         }
 #else
-          aom_wb_write_literal(wb, features->tip_frame_mode, 2);
+        aom_wb_write_literal(wb, features->tip_frame_mode, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           aom_wb_write_bit(wb, features->allow_tip_hole_fill);
@@ -6692,8 +6674,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
           (!cm->seq_params.enable_tip ||
            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)
 #else
-        if (!cm->seq_params.enable_tip ||
-            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT
+      if (!cm->seq_params.enable_tip ||
+          features->tip_frame_mode != TIP_FRAME_AS_OUTPUT
 #endif  // CONFIG_BRU
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -6762,7 +6744,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
             aom_wb_write_bit(wb, features->opfl_refine_type == REFINE_ALL);
           }
 #else
-            aom_wb_write_literal(wb, features->opfl_refine_type, 2);
+          aom_wb_write_literal(wb, features->opfl_refine_type, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         }
       }
@@ -6804,7 +6786,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         (cm->seq_params.enable_frame_output_order || cm->show_frame ||
          cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-          (cm->show_frame || cm->showable_frame))
+        (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       write_film_grain_params(cpi, wb);
     return;
@@ -6956,7 +6938,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
        cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-        (cm->show_frame || cm->showable_frame))
+      (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     write_film_grain_params(cpi, wb);
 
@@ -7592,19 +7574,13 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   }
 
   if (have_tiles) {
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-      if (!cm->seq_params.enable_tiles_cdfs_avg) {
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       // Fill in context_update_tile_id indicating the tile to use for the
       // cdf update. The encoder currently sets it to the largest tile
       // (but is up to the encoder)
       aom_wb_overwrite_literal(saved_wb, *largest_tile_id,
                                tiles->log2_cols + tiles->log2_rows);
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     // If more than one tile group. tile_size_bytes takes the default value 4
     // and does not need to be set. For a single tile group it is set in the
     // section below.

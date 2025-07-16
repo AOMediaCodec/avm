@@ -83,9 +83,7 @@ class ErrorResilienceTestLarge
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       encoder->Control(AV1E_SET_ENABLE_CDF_AVERAGING, 0);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
     frame_flags_ &= ~(AOM_EFLAG_NO_REF_FRAME_MVS | AOM_EFLAG_ERROR_RESILIENT |
                       AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_SET_S_FRAME |
@@ -514,9 +512,7 @@ class SFramePresenceTestLarge
         encoder->Control(AOME_SET_QP, 210);
       }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       encoder->Control(AV1E_SET_ENABLE_CDF_AVERAGING, 0);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
   }
 

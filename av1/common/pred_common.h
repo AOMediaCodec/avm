@@ -22,20 +22,6 @@
 extern "C" {
 #endif
 
-#if !CONFIG_PRIMARY_REF_FRAME_OPT
-typedef struct {
-  // 1 if this reference frame can be considered in the inference process (not
-  // a repeated reference frame)
-  int ref_frame_for_inference;
-  int pyr_level;
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-  int temporal_layer_id;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-  int disp_order;
-  int base_qindex;
-} RefFrameMapPair;
-#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
-
 static INLINE void init_ref_map_pair(AV1_COMMON *cm,
                                      RefFrameMapPair *ref_frame_map_pairs,
                                      int is_key) {
@@ -54,9 +40,7 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
       ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
-#if CONFIG_PRIMARY_REF_FRAME_OPT
       ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     }
     if (ref_frame_map_pairs[map_idx].ref_frame_for_inference == -1) continue;
     ref_frame_map_pairs[map_idx].ref_frame_for_inference = 1;
@@ -106,18 +90,11 @@ typedef struct {
 void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores);
 int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs);
-#if CONFIG_PRIMARY_REF_FRAME_OPT
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
 void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
                                         int *ref_frame);
-#else
-// Derive the primary reference frame from the reference list based on qindex
-// and frame distances.
-int choose_primary_ref_frame(const AV1_COMMON *const cm);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {

@@ -394,10 +394,6 @@ void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
 void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
                                        BLOCK_SIZE bsize, int mib_size,
                                        int mi_row, int mi_col);
-#if !CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
-                         int wt_left, int wt_tr);
-#endif  // !CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
                     BLOCK_SIZE sb_size, int mi_row, int mi_col);
 

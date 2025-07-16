@@ -951,7 +951,6 @@ typedef struct {
   int enable_drl_reorder;
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
   int enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if cdf average (frame or tile) should be enabled for
   // initialization.
   // 0 : disabled
@@ -961,10 +960,6 @@ typedef struct {
   // 0 : frame averaging
   // 1 : tile averaging
   bool avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  // Indicates if tiles cdfs average should be enabled.
-  bool enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
 #if CONFIG_BRU
@@ -3258,8 +3253,6 @@ typedef struct AV1_COMP {
    */
   int palette_pixel_num;
 #endif  // CONFIG_SCC_DETERMINATION
-
-#if CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * Indicate if the primary reference frame is signaled.
    */
@@ -3273,7 +3266,6 @@ typedef struct AV1_COMP {
    * Record last encoded frame's display order hint.
    */
   int last_encoded_frame_order_hint;
-#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * allocation width
    */

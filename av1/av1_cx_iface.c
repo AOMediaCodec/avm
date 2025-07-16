@@ -242,12 +242,8 @@ struct av1_extracfg {
   int enable_refmvbank;
   int enable_drl_reorder;
   int enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int enable_avg_cdf;
   int avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  int enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int enable_parity_hiding;
 #if CONFIG_MRSSE
   unsigned int enable_mrsse;
@@ -601,12 +597,8 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable_refmvbank
   1,    // enable_drl_reorder;
   1,    // enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   1,  // enable_avg_cdf
   1,  // avg_cdf_type
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  1,  // enable_tiles_cdfs_avg
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   1,    // enable_parity_hiding
 #if CONFIG_MRSSE
   0,
@@ -1096,12 +1088,8 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
   cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
   cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  cfg->enable_tiles_cdfs_avg = extra_cfg->enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   cfg->enable_mrsse = extra_cfg->enable_mrsse;
@@ -1237,12 +1225,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_refmvbank = cfg->enable_refmvbank;
   extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
   extra_cfg->enable_cdef_on_skip_txfm = cfg->enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   extra_cfg->enable_avg_cdf = cfg->enable_avg_cdf;
   extra_cfg->avg_cdf_type = cfg->avg_cdf_type;
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  extra_cfg->enable_tiles_cdfs_avg = cfg->enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   extra_cfg->enable_mrsse = cfg->enable_mrsse;
@@ -1538,7 +1522,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   }
   tool_cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   tool_cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   if (tool_cfg->enable_avg_cdf) {
     if (extra_cfg->tile_columns == 0 && extra_cfg->tile_rows == 0) {
@@ -1549,10 +1532,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   } else {
     tool_cfg->avg_cdf_type = 0;
   }
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  tool_cfg->enable_tiles_cdfs_avg = extra_cfg->enable_tiles_cdfs_avg;
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-
   if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs) {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
     tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
@@ -2685,14 +2664,12 @@ static aom_codec_err_t ctrl_set_error_resilient_mode(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 static aom_codec_err_t ctrl_set_enable_cdf_averaging(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_avg_cdf = CAST(AV1E_SET_ENABLE_CDF_AVERAGING, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
 static aom_codec_err_t ctrl_set_s_frame_mode(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -4459,18 +4436,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
                               argv, err_string)) {
     extra_cfg.enable_cdef_on_skip_txfm = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_avg_cdf, argv,
                               err_string)) {
     extra_cfg.enable_avg_cdf = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.avg_cdf_type, argv,
                               err_string)) {
     extra_cfg.avg_cdf_type = arg_parse_int_helper(&arg, err_string);
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tiles_cdfs_avg,
-                              argv, err_string)) {
-    extra_cfg.enable_tiles_cdfs_avg = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_parity_hiding,
                               argv, err_string)) {
     extra_cfg.enable_parity_hiding = arg_parse_uint_helper(&arg, err_string);
@@ -4578,9 +4549,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   { AV1E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_uneven_4way_partitions },
@@ -4818,12 +4787,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         1,   1, 1,
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
-#elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-        1,  // enable_tiles_cdfs_avg
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
         1,
 #if CONFIG_MRSSE
         0,

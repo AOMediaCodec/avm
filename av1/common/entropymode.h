@@ -805,7 +805,6 @@ static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
 #endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
-#if CONFIG_TILE_CDFS_AVG_TO_FRAME
 // For the tiles whose CDFs will be used in calculating the average CDFs:
 // For each tile's CDF, divide (or shift) by the total number of allowed tiles.
 // Then, cumulatively add the divided values to obtain the final CDFs.
@@ -816,12 +815,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 // Divide (or shift) certain tile's CDFs by the total number of allowed tiles.
 void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
                            unsigned int total_tiles_log2);
-#endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME
 
-#if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr);
-#endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
 
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
   NEAR_NEARMV_OPTFLOW, NEAR_NEWMV_OPTFLOW,  NEW_NEARMV_OPTFLOW, -1,
