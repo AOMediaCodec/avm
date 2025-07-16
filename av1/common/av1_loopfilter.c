@@ -156,25 +156,17 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
   q_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
              cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
              cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                 cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                 cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
              cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
              cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                 cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                 cm->lf.delta_side_v * DF_DELTA_SCALE;
 #if DF_DUAL
   q_ind_r[0] =
@@ -188,25 +180,17 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
   q_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                   cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                   cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                   cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                   cm->lf.delta_side_v * DF_DELTA_SCALE;
 
   assert(plane_start >= AOM_PLANE_Y);
@@ -1546,15 +1530,11 @@ void init_tip_lf_parameter(struct AV1Common *cm, int plane_start,
   q_ind[0] = side_ind[0] = base_qindex + tip_delta_luma * tip_delta_scale;
 
   q_ind[1] = side_ind[1] = base_qindex + u_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                            cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                            tip_delta_chroma * tip_delta_scale;
 
   q_ind[2] = side_ind[2] = base_qindex + v_ac_delta_q +
-#if CONFIG_EXT_QUANT_UPD
                            cm->seq_params.base_uv_ac_delta_q +
-#endif  // CONFIG_EXT_QUANT_UPD
                            tip_delta_chroma * tip_delta_scale;
 
   assert(plane_start >= AOM_PLANE_Y);

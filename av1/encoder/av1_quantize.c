@@ -447,12 +447,7 @@ void av1_init_quantizer(SequenceHeader *seq_params,
                       quant_params->v_dc_delta_q, quant_params->v_ac_delta_q,
                       seq_params->base_y_dc_delta_q,
                       seq_params->base_uv_dc_delta_q,
-#if CONFIG_EXT_QUANT_UPD
-                      seq_params->base_uv_ac_delta_q,
-#else
-                      0,
-#endif  // CONFIG_EXT_QUANT_UPD
-                      quants, dequants
+                      seq_params->base_uv_ac_delta_q, quants, dequants
 #if CONFIG_TCQ
                       ,
                       cm->features.tcq_mode
@@ -587,11 +582,8 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   *u_ac_delta_q = 0;
   *v_ac_delta_q = 0;
 #if !CONFIG_ADJ_Q_OFFSET
-  if (frame_is_intra_only(cm)) {
-#if CONFIG_EXT_QUANT_UPD
-    if (cm->seq_params.uv_dc_delta_q_enabled)
-#endif  // CONFIG_EXT_QUANT_UPD
-      *u_dc_delta_q = *v_dc_delta_q = -4;
+  if (frame_is_intra_only(cm) && cm->seq_params.uv_dc_delta_q_enabled) {
+    *u_dc_delta_q = *v_dc_delta_q = -4;
   }
 #endif  // !CONFIG_ADJ_Q_OFFSET
 }
@@ -701,10 +693,8 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
                        &quant_params->u_dc_delta_q, &quant_params->v_dc_delta_q,
                        &quant_params->u_ac_delta_q,
                        &quant_params->v_ac_delta_q);
-#if CONFIG_TIP_IMPLICIT_QUANT
   cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
   cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
 
   if (cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test == 0) {
     set_qm_params(cm, quant_params, min_qmlevel, max_qmlevel);

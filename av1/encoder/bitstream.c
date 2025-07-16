@@ -5282,25 +5282,16 @@ static AOM_INLINE void encode_quantization(
       wb, quant_params->base_qindex,
       bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
 
-#if CONFIG_EXT_QUANT_UPD
   if (seq_params->y_dc_delta_q_enabled)
     write_delta_q(wb, quant_params->y_dc_delta_q);
   else
     assert(quant_params->y_dc_delta_q == 0);
-#else
-  write_delta_q(wb, quant_params->y_dc_delta_q);
-#endif  // CONFIG_EXT_QUANT_UPD
-  if (num_planes > 1
-#if CONFIG_EXT_QUANT_UPD
-      &&
-      (seq_params->uv_dc_delta_q_enabled || seq_params->uv_ac_delta_q_enabled)
-#endif  // CONFIG_EXT_QUANT_UPD
-  ) {
+  if (num_planes > 1 && (seq_params->uv_dc_delta_q_enabled ||
+                         seq_params->uv_ac_delta_q_enabled)) {
     int diff_uv_delta =
         (quant_params->u_dc_delta_q != quant_params->v_dc_delta_q) ||
         (quant_params->u_ac_delta_q != quant_params->v_ac_delta_q);
     if (separate_uv_delta_q) aom_wb_write_bit(wb, diff_uv_delta);
-#if CONFIG_EXT_QUANT_UPD
     if (!seq_params->equal_ac_dc_q) {
       if (seq_params->uv_dc_delta_q_enabled)
         write_delta_q(wb, quant_params->u_dc_delta_q);
@@ -5309,21 +5300,13 @@ static AOM_INLINE void encode_quantization(
     } else {
       assert(quant_params->u_dc_delta_q == quant_params->u_ac_delta_q);
     }
-#else
-    write_delta_q(wb, quant_params->u_dc_delta_q);
-#endif  // CONFIG_EXT_QUANT_UPD
-#if CONFIG_EXT_QUANT_UPD
     if (seq_params->uv_ac_delta_q_enabled)
       write_delta_q(wb, quant_params->u_ac_delta_q);
     else
       assert(quant_params->u_ac_delta_q == 0);
     if (seq_params->equal_ac_dc_q)
       assert(quant_params->u_dc_delta_q == quant_params->u_ac_delta_q);
-#else
-    write_delta_q(wb, quant_params->u_ac_delta_q);
-#endif  // CONFIG_EXT_QUANT_UPD
     if (diff_uv_delta) {
-#if CONFIG_EXT_QUANT_UPD
       if (!seq_params->equal_ac_dc_q) {
         if (seq_params->uv_dc_delta_q_enabled)
           write_delta_q(wb, quant_params->v_dc_delta_q);
@@ -5332,19 +5315,12 @@ static AOM_INLINE void encode_quantization(
       } else {
         assert(quant_params->v_dc_delta_q == quant_params->v_ac_delta_q);
       }
-#else
-      write_delta_q(wb, quant_params->v_dc_delta_q);
-#endif  // CONFIG_EXT_QUANT_UPD
-#if CONFIG_EXT_QUANT_UPD
       if (seq_params->uv_ac_delta_q_enabled)
         write_delta_q(wb, quant_params->v_ac_delta_q);
       else
         assert(quant_params->v_ac_delta_q == 0);
       if (seq_params->equal_ac_dc_q)
         assert(quant_params->v_dc_delta_q == quant_params->v_ac_delta_q);
-#else
-      write_delta_q(wb, quant_params->v_ac_delta_q);
-#endif  // CONFIG_EXT_QUANT_UPD
     }
   } else {
     assert(quant_params->u_dc_delta_q == 0);
@@ -6175,30 +6151,23 @@ static AOM_INLINE void write_sequence_header(
     aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
   }
 
-#if CONFIG_EXT_QUANT_UPD
   aom_wb_write_bit(wb, seq_params->equal_ac_dc_q);
   if (!seq_params->equal_ac_dc_q) {
-#endif  // CONFIG_EXT_QUANT_UPD
     assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
     aom_wb_write_unsigned_literal(
         wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
         DELTA_DCQUANT_BITS);
-#if CONFIG_EXT_QUANT_UPD
     aom_wb_write_bit(wb, seq_params->y_dc_delta_q_enabled);
   } else {
     assert(seq_params->base_y_dc_delta_q == 0 &&
            seq_params->y_dc_delta_q_enabled == 0);
   }
-#endif  // CONFIG_EXT_QUANT_UPD
   if (!is_monochrome) {
-#if CONFIG_EXT_QUANT_UPD
     if (!seq_params->equal_ac_dc_q) {
-#endif  // CONFIG_EXT_QUANT_UPD
       assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
       aom_wb_write_unsigned_literal(
           wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
           DELTA_DCQUANT_BITS);
-#if CONFIG_EXT_QUANT_UPD
       aom_wb_write_bit(wb, seq_params->uv_dc_delta_q_enabled);
     } else {
       assert(seq_params->base_uv_dc_delta_q == seq_params->base_uv_ac_delta_q &&
@@ -6209,7 +6178,6 @@ static AOM_INLINE void write_sequence_header(
         wb, seq_params->base_uv_ac_delta_q - DELTA_DCQUANT_MIN,
         DELTA_DCQUANT_BITS);
     aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
-#endif  // CONFIG_EXT_QUANT_UPD
   }
 }
 
@@ -6296,7 +6264,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_LF_SUB_PU
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
 #endif  // CONFIG_LF_SUB_PU
-#if CONFIG_TIP_IMPLICIT_QUANT
   if (seq_params->enable_tip == 1 &&
 #if CONFIG_LF_SUB_PU
       seq_params->enable_lf_sub_pu
@@ -6304,7 +6271,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   ) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
   aom_wb_write_bit(wb, seq_params->enable_orip);
   if (seq_params->order_hint_info.enable_order_hint) {
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
@@ -7133,17 +7099,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_BRU
 
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-#if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp) {
       aom_wb_write_literal(wb, quant_params->base_qindex,
                            cm->seq_params.bit_depth == AOM_BITS_8
                                ? QINDEX_BITS_UNEXT
                                : QINDEX_BITS);
-      if (av1_num_planes(cm) > 1
-#if CONFIG_EXT_QUANT_UPD
-          && cm->seq_params.uv_ac_delta_q_enabled
-#endif  // CONFIG_EXT_QUANT_UPD
-      ) {
+      if (av1_num_planes(cm) > 1 && cm->seq_params.uv_ac_delta_q_enabled) {
         const int diff_uv_delta =
             (quant_params->u_ac_delta_q != quant_params->v_ac_delta_q);
         if (cm->seq_params.separate_uv_delta_q) {
@@ -7155,12 +7116,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
         }
       }
     }
-#else
-      aom_wb_write_literal(wb, quant_params->base_qindex,
-                           cm->seq_params.bit_depth == AOM_BITS_8
-                               ? QINDEX_BITS_UNEXT
-                               : QINDEX_BITS);
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
     if (seq_params->film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         (cm->seq_params.enable_frame_output_order || cm->show_frame ||
@@ -7226,13 +7181,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
            0) &&
           (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
            0) &&
-#if CONFIG_EXT_QUANT_UPD
           (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <=
            0) &&
           (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-            quant_params->u_ac_delta_q <= 0 && quant_params->v_ac_delta_q <= 0;
-#endif  // CONFIG_EXT_QUANT_UPD
 
       if (!lossless && (quant_params->qm_index_bits > 0)) {
 #if CONFIG_QM_DEBUG

@@ -439,9 +439,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_AFFINE_REFINEMENT
   seq->enable_tip = tool_cfg->enable_tip;
   seq->enable_tip_hole_fill = seq->enable_tip != 0;
-#if CONFIG_TIP_IMPLICIT_QUANT
   seq->enable_tip_explicit_qp = 0;
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
@@ -517,7 +515,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->base_y_dc_delta_q = 0;
   seq->base_uv_dc_delta_q = 0;
-#if CONFIG_EXT_QUANT_UPD
   // Note if equal_ac_dc_q is on, then:
   // seq->y_dc_delta_q_enabled == 0
   // seq->uv_dc_delta_q_enabled == 0
@@ -528,7 +525,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->y_dc_delta_q_enabled = 0;
   seq->uv_dc_delta_q_enabled = !CONFIG_ADJ_Q_OFFSET;
   seq->uv_ac_delta_q_enabled = 0;
-#endif  // CONFIG_EXT_QUANT_UPD
 #if CONFIG_ADJ_Q_OFFSET
   const int is_360p_or_larger =
       AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
@@ -537,21 +533,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   if (!is_360p_or_larger) {
     seq->base_y_dc_delta_q = 0;
     seq->base_uv_dc_delta_q = 0;
-#if CONFIG_EXT_QUANT_UPD
     seq->base_uv_ac_delta_q = 0;
-#endif  // CONFIG_EXT_QUANT_UPD
   } else if (!is_720p_or_larger) {
     seq->base_y_dc_delta_q = 0;
     seq->base_uv_dc_delta_q = 0;
-#if CONFIG_EXT_QUANT_UPD
     seq->base_uv_ac_delta_q = 0;
-#endif  // CONFIG_EXT_QUANT_UPD
   } else {
     seq->base_y_dc_delta_q = 0;
     seq->base_uv_dc_delta_q = 0;
-#if CONFIG_EXT_QUANT_UPD
     seq->base_uv_ac_delta_q = 0;
-#endif  // CONFIG_EXT_QUANT_UPD
   }
 #else
   const int is_360p_or_larger =
@@ -569,13 +559,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->base_uv_dc_delta_q = -3;
   }
 #endif  // !CONFIG_ADJ_Q_OFFSET
-#if CONFIG_EXT_QUANT_UPD
   assert(IMPLIES(seq->equal_ac_dc_q, seq->y_dc_delta_q_enabled == 0 &&
                                          seq->base_y_dc_delta_q == 0));
   assert(IMPLIES(seq->equal_ac_dc_q,
                  seq->uv_dc_delta_q_enabled == 0 &&
                      seq->base_uv_dc_delta_q == seq->base_uv_ac_delta_q));
-#endif  // CONFIG_EXT_QUANT_UPD
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
 #if CONFIG_DRL_REORDER_CONTROL
@@ -3577,7 +3565,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
 #if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-#if CONFIG_TIP_IMPLICIT_QUANT
       const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
       const int v_ac_delta_q_backup = cm->quant_params.v_ac_delta_q;
       const int base_qindex_backup = cm->quant_params.base_qindex;
@@ -3601,11 +3588,9 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
             avg_base_qindex;
       }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
       search_tip_filter_level(cpi, cm);
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
       loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
-#if CONFIG_TIP_IMPLICIT_QUANT
       if (cm->seq_params.enable_tip_explicit_qp == 0) {
         cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
             u_ac_delta_q_backup;
@@ -3614,7 +3599,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
             base_qindex_backup;
       }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
     }
 #endif  // CONFIG_LF_SUB_PU
@@ -3796,7 +3780,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     }
 #endif  // CONFIG_TIP_LD
 
-#if CONFIG_TIP_IMPLICIT_QUANT
     if (cm->seq_params.enable_tip_explicit_qp == 0) {
       const int avg_u_ac_delta_q =
           (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
@@ -3817,7 +3800,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
           avg_base_qindex;
     }
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
 
 #if CONFIG_TIP_LD
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;

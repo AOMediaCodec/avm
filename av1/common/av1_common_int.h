@@ -409,10 +409,8 @@ typedef struct RefCntBuffer {
 #endif  // CONFIG_TEMP_LR
 
   int base_qindex;
-#if CONFIG_TIP_IMPLICIT_QUANT
   int u_ac_delta_q;
   int v_ac_delta_q;
-#endif  // CONFIG_TIP_IMPLICIT_QUANT
 
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
@@ -612,10 +610,8 @@ typedef struct SequenceHeader {
                                 // partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
   uint8_t enable_tip;   // enables/disables temporal interpolated prediction
-  uint8_t enable_tip_hole_fill;  // enables/disables hole fill for TIP
-#if CONFIG_TIP_IMPLICIT_QUANT
+  uint8_t enable_tip_hole_fill;    // enables/disables hole fill for TIP
   uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
-#endif                             // CONFIG_TIP_IMPLICIT_QUANT
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
   uint8_t enable_mv_traj;  // enables/disables mv trajectory tracking
 #endif                     // CONFIG_TMVP_SIMPLIFICATIONS_F085
@@ -746,18 +742,14 @@ typedef struct SequenceHeader {
   int subsampling_x;  // Chroma subsampling for x
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
-#if CONFIG_EXT_QUANT_UPD
   uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
-#endif                    // CONFIG_EXT_QUANT_UPD
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;
   int8_t base_uv_dc_delta_q;
-#if CONFIG_EXT_QUANT_UPD
   int8_t base_uv_ac_delta_q;
   uint8_t y_dc_delta_q_enabled;
   uint8_t uv_dc_delta_q_enabled;
   uint8_t uv_ac_delta_q_enabled;
-#endif  // CONFIG_EXT_QUANT_UPD
   uint8_t film_grain_params_present;
 
   // Operating point info.

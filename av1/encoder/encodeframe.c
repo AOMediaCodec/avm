@@ -1578,12 +1578,8 @@ void av1_set_lossless(AV1_COMP *cpi) {
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-#if CONFIG_EXT_QUANT_UPD
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-#else
-        (quant_params->u_ac_delta_q <= 0) && (quant_params->v_ac_delta_q <= 0);
-#endif  // CONFIG_EXT_QUANT_UPD
 
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {

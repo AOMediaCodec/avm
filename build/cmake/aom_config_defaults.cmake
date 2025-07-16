@@ -154,7 +154,6 @@ set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
-set_aom_config_var(CONFIG_EXT_QUANT_UPD 1 "AV2 updated ext-quant.")
 set_aom_config_var(CONFIG_COEFF_HR_LR1 1
                    "AV2 enable coding 1 LR in coefficient coding.")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
@@ -537,9 +536,6 @@ set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
   "CWG-D086: Context modeling for transform block zero flag signaling")
 
-set_aom_config_var(
-  CONFIG_TIP_IMPLICIT_QUANT 1
-  "Enable implicit quantization derivation for TIP direct mode")
 set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
 set_aom_config_var(CONFIG_IMPROVE_REFINED_MV 1
@@ -625,8 +621,6 @@ set_aom_config_var(CONFIG_NEW_PART_CTX 1 "New partition context models")
 set_aom_config_var(CONFIG_EXT_SEG 1
                    "Extend the maximum number of segments to 16, CWG-F069.")
 
-set_aom_config_var(CONFIG_DELTAQ_OPT 1
-                   "Enable delta-q entropy coding optimization.")
 set_aom_config_var(CONFIG_TX_PARTITION_RESTRICT 1
                    "Disallow transform partition for large coding blocks.")
 set_aom_config_var(CONFIG_INTER_MODE_CONSOLIDATION 1
