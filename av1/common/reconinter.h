@@ -629,6 +629,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 // 1/16-pel can be used.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
 
+#define OPFL_RED1 1
+
 // Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
 // where b = OPFL_RLS_PARAM.
 #define OPFL_REGULARIZED_LS 1

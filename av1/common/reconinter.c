@@ -1606,6 +1606,27 @@ int solver_4d(const int32_t *mat_a, const int32_t *vec_b, int *precbits,
 #define OPFL_CLAMP_MV_DELTA 1
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
+#if OPFL_RED1
+void reduce_temporal_dist(int *d0, int *d1) {
+  if (*d0 == 0 || *d1 == 0) return;
+  int sign0 = *d0 < 0;
+  int sign1 = *d1 < 0;
+  int mag0 = sign0 ? -(*d0) : (*d0);
+  int mag1 = sign1 ? -(*d1) : (*d1);
+  // Only do simple checks for the case |d0|=|d1| and for factor 2
+  if (mag0 == mag1) {
+    mag0 = mag1 = 1;
+  } else if (mag0 > mag1) {
+    mag0 = 2;
+    mag1 = 1;
+  } else {
+    mag0 = 1;
+    mag1 = 2;
+  }
+  *d0 = sign0 ? -mag0 : mag0;
+  *d1 = sign1 ? -mag1 : mag1;
+}
+#else
 // Divide d0 and d1 by their common factors (no divisions)
 void reduce_temporal_dist(int *d0, int *d1) {
   if (*d0 == 0 || *d1 == 0) return;
@@ -1625,8 +1646,8 @@ void reduce_temporal_dist(int *d0, int *d1) {
   }
   *d0 = sign0 ? -mag0 : mag0;
   *d1 = sign1 ? -mag1 : mag1;
-  return;
 }
+#endif
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
