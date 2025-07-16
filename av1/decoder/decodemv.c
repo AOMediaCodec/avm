@@ -1722,13 +1722,10 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     assert(eset != 0);
 
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
     const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         int tx_type_idx = aom_read_symbol(
@@ -1748,17 +1745,12 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
         *tx_type = get_txtype_from_idx_for_large_txfm(
             tx_size, tx_set_type, short_side_idx, is_long_side_dct);
       }
-#else
-      *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
-          r, ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
-          av1_num_ext_tx_set[tx_set_type], ACCT_INFO("tx_type"))];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         *tx_type = IDTX;
         return;
       }
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
+
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         const PREDICTION_MODE intra_mode =
@@ -1789,24 +1781,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
         *tx_type = get_txtype_from_idx_for_large_txfm(
             tx_size, tx_set_type, short_side_idx, is_long_side_dct);
       }
-#else
-      const PREDICTION_MODE intra_mode =
-          mbmi->filter_intra_mode_info.use_filter_intra
-              ? fimode_to_intradir[mbmi->filter_intra_mode_info
-                                       .filter_intra_mode]
-              : get_intra_mode(mbmi, PLANE_TYPE_Y);
-      const int size_info = av1_size_class[tx_size];
-      *tx_type = av1_tx_idx_to_type(
-          aom_read_symbol(
-              r,
-              ec_ctx->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
-                                      [square_tx_size],
-              cm->features.reduced_tx_set_used
-                  ? av1_num_reduced_tx_set
-                  : av1_num_ext_tx_set_intra[tx_set_type],
-              ACCT_INFO("tx_type")),
-          tx_set_type, intra_mode, size_info);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     }
   }
 }

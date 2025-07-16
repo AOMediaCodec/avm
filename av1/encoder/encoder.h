@@ -1707,11 +1707,9 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   unsigned int tx_ext_32[2][2];
   unsigned int intra_ext_tx_short_side[EXT_TX_SIZES][4];
   unsigned int inter_ext_tx_short_side[EOB_TX_CTXS][EXT_TX_SIZES][4];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   unsigned int cctx_type[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];
   unsigned int filter_intra_mode[FILTER_INTRA_MODES];
 #if CONFIG_D149_CTX_MODELING_OPT

@@ -2718,34 +2718,21 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
 }
 
 // Number of transform types in each set type for intra blocks
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1,  1,  7,
                                                                 12, 4,  6,
                                                                 11, 15, 7 };
-#else
-static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1,  1,  4, 6,
-                                                                11, 15, 7 };
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 static const int av1_num_reduced_tx_set = 2;
 
 // Number of transform types in each set type
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
   1, 2, 7, 12, 5, 7, 12, 16,
 };
-#else
-static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
-  1, 2, 5, 7, 12, 16, 7,
-};
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   { 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
@@ -2835,10 +2822,8 @@ static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
 static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0001,  // 0000 0000 0000 0001
   0x0201,  // 0000 0010 0000 0001
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   0x0C37,  // 0000 1100 0011 0111
   0xFE37,  // 1111 1110 0011 0111
-#endif     // CONFIG_TX_TYPE_FLEX_IMPROVE
   0x020F,  // 0000 0010 0000 1111
   0x0E0F,  // 0000 1110 0000 1111
   0x0FFF,  // 0000 1111 1111 1111
@@ -2892,7 +2877,6 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
       0x01AF,
       0x1C0F,
   },  // size_class: 2
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   {
       0xFFFF,
       0xFFFF,
@@ -2908,23 +2892,6 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
       0xFFFF,
       0xFFFF,
   },  // size_class: 3
-#else
-  {
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-      0x0000,
-  },  // size_class: 3
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 };
 
 static const TxSetType av1_ext_tx_set_lookup[2][2] = {
@@ -2932,7 +2899,6 @@ static const TxSetType av1_ext_tx_set_lookup[2][2] = {
   { EXT_TX_SET_ALL16, EXT_TX_SET_DTT9_IDTX_1DDCT },
 };
 
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
@@ -2961,29 +2927,6 @@ static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Inter
     0, 3, 4, 5, -1, -1, 2, 1 },
 };
-#else
-static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
-                                                int use_reduced_set) {
-  const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-  if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
-  if (tx_size_sqr_up == TX_32X32) return EXT_TX_SET_DCT_IDTX;
-  if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
-  if (is_inter) {
-    const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
-    return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
-  } else {
-    return EXT_NEW_TX_SET;
-  }
-}
-
-// Maps tx set types to the indices.
-static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
-  { // Intra
-    0, -1, -1, -1, -1, -1, 1 },
-  { // Inter
-    0, 3, -1, -1, 2, 1, -1 },
-};
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
 static INLINE int get_ext_tx_set(TX_SIZE tx_size, int is_inter,
                                  int use_reduced_set) {
@@ -3419,7 +3362,6 @@ static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
 #endif
 }
 
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 // Maps tx type to the indices.
 //[0: EXT_TX_SET_LONG_SIDE_32, 1: EXT_TX_SET_LONG_SIDE_64][0:
 // is_long_side_dct==true, 1:is_long_side_dct==false][tx_type]
@@ -3514,7 +3456,7 @@ get_txtype_from_idx_for_large_txfm(TX_SIZE tx_size, const TxSetType tx_set_type,
                                         [!is_long_side_dct][!is_rect_horz]
                                         [short_side_idx];
 }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
 /*
  * This function returns secondary transform type used by the transform block
  */
@@ -3620,7 +3562,6 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #endif  // CONFIG_IST_NON_ZERO_DEPTH
 }
 
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 static INLINE void adjust_ext_tx_used_flag(TX_SIZE tx_size,
                                            const TxSetType tx_set_type,
                                            uint16_t *ext_tx_used_flag) {
@@ -3786,82 +3727,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
 #endif  // CONFIG_IST_SET_FLAG
   return tx_type;
 }
-#else
-/*
- * This function returns the tx_type used by the transform block
- *
- * If secondary transform is enabled (IST) :
- * Bits 6~9 of tx_type stores secondary tx_set
- * Bits 4~5 of tx_type stores secondary tx_type
- * Bits 0~3 of tx_type stores primary tx_type
- */
-static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
-                                      PLANE_TYPE plane_type, int blk_row,
-                                      int blk_col, TX_SIZE tx_size,
-                                      int reduced_tx_set) {
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
-  const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                      !is_inter_block(mbmi, xd->tree_type) &&
-                      plane_type == PLANE_TYPE_Y;
-#if CONFIG_LOSSLESS_DPCM
-  if (is_fsc) {
-    return IDTX;
-  }
-  if (xd->lossless[mbmi->segment_id]) {
-    return DCT_DCT;
-  }
-#else   // CONFIG_LOSSLESS_DPCM
-  if (xd->lossless[mbmi->segment_id]) {
-    return DCT_DCT;
-  }
-  if (is_fsc) {
-    return IDTX;
-  }
-#endif  // CONFIG_LOSSLESS_DPCM
-  TX_TYPE tx_type;
-  if (plane_type == PLANE_TYPE_Y) {
-    tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-  } else {
-#if CONFIG_CHROMA_TX
-    if (reduced_tx_set) {
-      tx_type = DCT_DCT;
-    } else {
-#endif  // CONFIG_CHROMA_TX
-      if (is_inter_block(mbmi, xd->tree_type)) {
-        // scale back to y plane's coordinate
-        const struct macroblockd_plane *const pd = &xd->plane[plane_type];
-        blk_row <<= pd->subsampling_y;
-        blk_col <<= pd->subsampling_x;
-        tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-        // Secondary transforms are disabled for chroma
-        disable_secondary_tx_type(&tx_type);
-      } else {
-        // In intra mode, uv planes don't share the same prediction mode as y
-        // plane, so the tx_type should not be shared
-        tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
-      }
-      const TxSetType tx_set_type = av1_get_ext_tx_set_type(
-          tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
-      if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
-#if CONFIG_CHROMA_TX
-    }
-#endif  // CONFIG_CHROMA_TX
-  }
-  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
-      tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
-                        [get_primary_tx_type(tx_type)]);
-  if (txsize_sqr_up_map[tx_size] > TX_32X32) {
-    // secondary transforms are enabled for txsize_sqr_up_map[tx_size] >
-    // TX_32X32 while tx_type is by default DCT_DCT.
-    disable_primary_tx_type(&tx_type);
-  }
-#if CONFIG_IST_SET_FLAG
-  assert(tx_type <
-         (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS + SECONDARY_TX_SET_BITS)));
-#endif  // CONFIG_IST_SET_FLAG
-  return tx_type;
-}
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
 void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
                             const int num_planes);

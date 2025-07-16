@@ -1742,9 +1742,7 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
     return 0;
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     if (is_inter && tx_size == TX_4X4) {
@@ -1762,12 +1760,9 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
         const int esc_eob = is_fsc ? bob_code : eob;
         const int eob_tx_ctx =
             get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), esc_eob);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
         const TxSetType tx_set_type =
             av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         int tx_type_cost = 0;
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
           tx_type_cost =
@@ -1791,12 +1786,7 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
                   .inter_ext_tx_short_side_costs[eob_tx_ctx][square_tx_size]
                                                 [tx_idx_for_large_txfm];
         }
-#else
-        tx_type_cost =
-            x->mode_costs
-                .inter_tx_type_costs[ext_tx_set][eob_tx_ctx][square_tx_size]
-                                    [get_primary_tx_type(tx_type)];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
         if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
             xd->enable_ist) {
           tx_type_cost +=
@@ -1815,7 +1805,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
           intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
         int tx_type_cost = 0;
         if (eob != 1) {
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
           const TxSetType tx_set_type =
               av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
           const int size_info = av1_size_class[tx_size];
@@ -1843,16 +1832,6 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
                     .intra_ext_tx_short_side_costs[square_tx_size]
                                                   [tx_idx_for_large_txfm];
           }
-#else
-          const TxSetType tx_set_type =
-              av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
-          const int size_info = av1_size_class[tx_size];
-          const int tx_type_idx = av1_tx_type_to_idx(
-              get_primary_tx_type(tx_type), tx_set_type, intra_dir, size_info);
-          tx_type_cost +=
-              x->mode_costs
-                  .intra_tx_type_costs[ext_tx_set][square_tx_size][tx_type_idx];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         } else {
           return tx_type_cost;
         }
@@ -4843,37 +4822,24 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     if (eset > 0) {
       const TxSetType tx_set_type =
           av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
       const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
       if (is_inter) {
         const int esc_eob = is_fsc ? bob_code : eob;
         const int eob_tx_ctx =
             get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), esc_eob);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
           if (allow_update_cdf) {
             update_cdf(
                 fc->inter_ext_tx_cdf[eset][eob_tx_ctx][txsize_sqr_map[tx_size]],
                 av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
                 av1_num_ext_tx_set[tx_set_type]);
-#if !CONFIG_TX_TYPE_FLEX_IMPROVE
-            // Modified condition for CDF update
-            if (cm->seq_params.enable_inter_ist &&
-                block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
-              update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
-                         (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
-            }
-#endif  //! CONFIG_TX_TYPE_FLEX_IMPROVE
           }
 #if CONFIG_ENTROPY_STATS
           ++counts->inter_ext_tx[eset][eob_tx_ctx][txsize_sqr_map[tx_size]]
                                 [av1_ext_tx_ind[tx_set_type]
                                                [get_primary_tx_type(tx_type)]];
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
         } else {
           bool is_long_side_dct =
               is_dct_type(tx_size, get_primary_tx_type(tx_type));
@@ -4906,7 +4872,6 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
           update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
                      (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
         }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
       } else {
         if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && allow_update_cdf) {
           return;
@@ -4927,10 +4892,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif  // CONFIG_WAIP
         else
           intra_dir = mbmi->mode;
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_ENTROPY_STATS
           const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
           ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]]
@@ -4947,7 +4910,6 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                 cm->features.reduced_tx_set_used
                     ? av1_num_reduced_tx_set
                     : av1_num_ext_tx_set_intra[tx_set_type]);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
           }
         } else {
           bool is_long_side_dct =
@@ -4973,13 +4935,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                 ->intra_ext_tx_short_side[txsize_sqr_map[tx_size]][tx_type_idx];
 #endif  // CONFIG_ENTROPY_STATS
         }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         //  Modified condition for CDF update
-        if (
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
-            allow_update_cdf &&
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
-            cm->seq_params.enable_ist &&
+        if (allow_update_cdf && cm->seq_params.enable_ist &&
             block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
           update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
                      (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
@@ -4992,34 +4949,31 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
             update_sec_tx_set_cdf(fc, mbmi, tx_type);
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
-#if !CONFIG_TX_TYPE_FLEX_IMPROVE
         }
-#endif  //! CONFIG_TX_TYPE_FLEX_IMPROVE
       }
     }
   }
-}
-// CDF update for txsize_sqr_up_map[tx_size] >= TX_32X32
-else if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
-         !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) &&
-         (is_inter ? cm->seq_params.enable_inter_ist
-                   : cm->seq_params.enable_ist) &&
-         block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
-  if (eob == 1 && !is_inter && allow_update_cdf) return;
-  if (allow_update_cdf) {
-    update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
-               (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
+  // CDF update for txsize_sqr_up_map[tx_size] >= TX_32X32
+  else if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+           !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) &&
+           (is_inter ? cm->seq_params.enable_inter_ist
+                     : cm->seq_params.enable_ist) &&
+           block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
+    if (eob == 1 && !is_inter && allow_update_cdf) return;
+    if (allow_update_cdf) {
+      update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
+                 (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
 #if CONFIG_IST_SET_FLAG
 #if CONFIG_F105_IST_MEM_REDUCE
-    if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
-      update_sec_tx_set_cdf(xd, fc, mbmi, tx_size, tx_type);
+      if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
+        update_sec_tx_set_cdf(xd, fc, mbmi, tx_size, tx_type);
 #else
-    if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
-      update_sec_tx_set_cdf(fc, mbmi, tx_type);
+      if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
+        update_sec_tx_set_cdf(fc, mbmi, tx_type);
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #endif  // CONFIG_IST_SET_FLAG
+    }
   }
-}
 }
 
 void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
@@ -5075,8 +5029,8 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
           ec_ctx->txb_skip_cdf[pred_mode_ctx][txsize_ctx][txb_ctx.txb_skip_ctx],
           eob == 0, 2);
 #else
-        update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_ctx.txb_skip_ctx],
-                   eob == 0, 2);
+      update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_ctx.txb_skip_ctx],
+                 eob == 0, 2);
 #endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     }
     CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
@@ -5121,11 +5075,11 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
 #endif  // CONFIG_EOB_POS_LUMA
                            plane_type, ec_ctx, td->counts, allow_update_cdf);
 #else
-      av1_update_eob_context(bob_code, tx_size,
+    av1_update_eob_context(bob_code, tx_size,
 #if CONFIG_EOB_POS_LUMA
-                             is_inter,
+                           is_inter,
 #endif  // CONFIG_EOB_POS_LUMA
-                             plane_type, ec_ctx, allow_update_cdf);
+                           plane_type, ec_ctx, allow_update_cdf);
 #endif
     DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
     av1_get_nz_map_contexts_skip_c(levels, scan, bob, eob, tx_size,
@@ -5338,8 +5292,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         update_cdf(ec_ctx->v_txb_skip_cdf[txb_skip_ctx], eob == 0, 2);
       }
 #else
-        update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_ctx.txb_skip_ctx],
-                   eob == 0, 2);
+      update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_ctx.txb_skip_ctx],
+                 eob == 0, 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
     }
 
@@ -5389,11 +5343,11 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif  // CONFIG_EOB_POS_LUMA
                            plane_type, ec_ctx, td->counts, allow_update_cdf);
 #else
-      av1_update_eob_context(eob, tx_size,
+    av1_update_eob_context(eob, tx_size,
 #if CONFIG_EOB_POS_LUMA
-                             is_inter,
+                           is_inter,
 #endif  // CONFIG_EOB_POS_LUMA
-                             plane_type, ec_ctx, allow_update_cdf);
+                           plane_type, ec_ctx, allow_update_cdf);
 #endif
 
     DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
@@ -6040,33 +5994,33 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
   }
 }
 #else
-  void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
-                                       RUN_TYPE dry_run, BLOCK_SIZE bsize,
-                                       uint8_t allow_update_cdf) {
-    const AV1_COMMON *const cm = &cpi->common;
-    const int num_planes = av1_num_planes(cm);
-    MACROBLOCK *const x = &td->mb;
-    MACROBLOCKD *const xd = &x->e_mbd;
-    MB_MODE_INFO *const mbmi = xd->mi[0];
-    struct tokenize_b_args arg = { cpi, td, 0, allow_update_cdf, dry_run };
-    if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
-      assert(bsize == mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)]);
-      av1_reset_entropy_context(xd, bsize, num_planes);
-      return;
-    }
-    const int plane_start = get_partition_plane_start(xd->tree_type);
-    const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
-    for (int plane = plane_start; plane < plane_end; ++plane) {
-      if (plane && !xd->is_chroma_ref) break;
-      const struct macroblockd_plane *const pd = &xd->plane[plane];
-      const int ss_x = pd->subsampling_x;
-      const int ss_y = pd->subsampling_y;
-      const BLOCK_SIZE plane_bsize =
-          get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
-      av1_foreach_transformed_block_in_plane(
-          xd, plane_bsize, plane, av1_update_and_record_txb_context, &arg);
-    }
+void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
+                                     RUN_TYPE dry_run, BLOCK_SIZE bsize,
+                                     uint8_t allow_update_cdf) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  struct tokenize_b_args arg = { cpi, td, 0, allow_update_cdf, dry_run };
+  if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
+    assert(bsize == mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)]);
+    av1_reset_entropy_context(xd, bsize, num_planes);
+    return;
   }
+  const int plane_start = get_partition_plane_start(xd->tree_type);
+  const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
+  for (int plane = plane_start; plane < plane_end; ++plane) {
+    if (plane && !xd->is_chroma_ref) break;
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int ss_x = pd->subsampling_x;
+    const int ss_y = pd->subsampling_y;
+    const BLOCK_SIZE plane_bsize =
+        get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
+    av1_foreach_transformed_block_in_plane(
+        xd, plane_bsize, plane, av1_update_and_record_txb_context, &arg);
+  }
+}
 #endif  // CONFIG_NEW_TX_PARTITION
 
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,

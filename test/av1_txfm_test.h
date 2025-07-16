@@ -98,28 +98,17 @@ static const int input_base = (1 << bd);
 
 static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   TxSetType tx_set_type;
   if (tx_size_sqr_up > TX_32X32) {
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
     tx_set_type = (tx_size_sqr >= TX_32X32) ? EXT_TX_SET_DCTONLY
                                             : EXT_TX_SET_LONG_SIDE_64;
-#else
-    tx_set_type = EXT_TX_SET_DCTONLY;
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   } else if (tx_size_sqr_up == TX_32X32) {
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
     tx_set_type = (tx_size_sqr == TX_32X32) ? EXT_TX_SET_DCT_IDTX
                                             : EXT_TX_SET_LONG_SIDE_32;
-#else
-    tx_set_type = EXT_TX_SET_DCT_IDTX;
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   } else {
     tx_set_type = EXT_TX_SET_ALL16;
   }
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
       tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
     uint16_t ext_tx_used_flag = av1_ext_tx_used_flag[tx_set_type];
@@ -131,7 +120,6 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
       return 1;
     }
   }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   return av1_ext_tx_used[tx_set_type][tx_type] != 0;
 }
 

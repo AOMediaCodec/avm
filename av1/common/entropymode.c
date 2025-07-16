@@ -4772,7 +4772,6 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
   #endif  // !CONFIG_NEW_PART_CTX
 
 // clang-format on
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
 static const aom_cdf_prob
     default_inter_ext_tx_short_side_cdf[EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(
         4)] = { { { AOM_CDF4(7821, 18687, 24236) },
@@ -4799,7 +4798,7 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_tx_ext_32_cdf[2][CDF_SIZE(2)] = {
   { AOM_CDF2(67) }, { AOM_CDF2(129) }
 };
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
 static const aom_cdf_prob
     default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][CDF_SIZE(
         TX_TYPES)] = {
@@ -7710,13 +7709,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->uneven_4way_partition_type_cdf,
            default_uneven_4way_partition_type_cdf);
 #endif  // !CONFIG_NEW_PART_CTX
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   av1_copy(fc->intra_ext_tx_short_side_cdf,
            default_intra_ext_tx_short_side_cdf);
   av1_copy(fc->inter_ext_tx_short_side_cdf,
            default_inter_ext_tx_short_side_cdf);
   av1_copy(fc->tx_ext_32_cdf, default_tx_ext_32_cdf);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   av1_copy(fc->lossless_tx_size_cdf, default_lossless_tx_size_cdf);
   av1_copy(fc->lossless_inter_tx_type_cdf, default_lossless_inter_tx_type_cdf);
@@ -8304,13 +8301,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          DELTA_LF_PROBS + 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_multi_cdf,
                          ctx_tr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
                          ctx_tr->inter_ext_tx_short_side_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
                          ctx_tr->intra_ext_tx_short_side_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->tx_ext_32_cdf, ctx_tr->tx_ext_32_cdf, 2);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   CUMULATIVE_AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1],
                             ctx_tr->intra_ext_tx_cdf[1], INTRA_TX_SET1,
                             CDF_SIZE(TX_TYPES));
@@ -8708,11 +8703,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->delta_q_cdf, DELTA_Q_PROBS + 1);
   SHIFT_CDF(ctx_ptr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   SHIFT_CDF(ctx_ptr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   SHIFT_CDF(ctx_ptr->inter_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->intra_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->tx_ext_32_cdf, 2);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   SHIFT_CDF_STRIDE(ctx_ptr->intra_ext_tx_cdf[1], INTRA_TX_SET1,
                    CDF_SIZE(TX_TYPES));
   SHIFT_CDF_STRIDE(ctx_ptr->intra_ext_tx_cdf[2], INTRA_TX_SET2,
@@ -9194,13 +9187,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_multi_cdf, ctx_tr->delta_lf_multi_cdf,
               DELTA_LF_PROBS + 1);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
               ctx_tr->inter_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
               ctx_tr->intra_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->tx_ext_32_cdf, ctx_tr->tx_ext_32_cdf, 2);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1], ctx_tr->intra_ext_tx_cdf[1],
                  INTRA_TX_SET1, CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2],

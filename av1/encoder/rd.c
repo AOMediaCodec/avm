@@ -378,7 +378,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                            fc->lossless_inter_tx_type_cdf, NULL);
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   for (i = 0; i < 2; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->tx_ext_32_costs[i],
                              fc->tx_ext_32_cdf[i], NULL);
@@ -395,7 +394,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->intra_ext_tx_short_side_costs[i],
                              fc->intra_ext_tx_short_side_cdf[i], NULL);
   }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;

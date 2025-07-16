@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -2282,20 +2282,14 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
               tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT
           ? av1_reduced_intra_tx_used_flag[intra_dir]
           : av1_ext_tx_used_flag[tx_set_type];
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
       tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
     adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
   }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
   if (xd->lossless[mbmi->segment_id] ||
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
       (txsize_sqr_up_map[tx_size] > TX_32X32 &&
        txsize_sqr_map[tx_size] == TX_32X32) ||
-#else
-      txsize_sqr_up_map[tx_size] > TX_32X32 ||
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
       ext_tx_used_flag == 0x0001 ||
       (is_inter && cpi->oxcf.txfm_cfg.use_inter_dct_only) ||
       (!is_inter && cpi->oxcf.txfm_cfg.use_intra_dct_only)) {
@@ -2388,11 +2382,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
                            plane_bsize, txk_map, allowed_tx_mask, pf, txb_ctx,
                            cm->features.reduced_tx_set_used);
         allowed_tx_mask &= (~prune);
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
       } else if (tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-#else
-      } else {
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         const int num_sel = (num_allowed * mf + 50) / 100;
         const uint16_t prune = prune_txk_type_separ(
             cpi, x, plane, block, tx_size, blk_row, blk_col, plane_bsize,
@@ -2414,14 +2404,12 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     }
   }
 
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
       tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
     if (txsize_sqr_map[tx_size] >= TX_8X8) {
       allowed_tx_mask &= 0xF1FF;
     }
   }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
   if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
       txsize_sqr_up_map[tx_size] <= TX_32X32 && plane == PLANE_TYPE_Y) {
@@ -2859,7 +2847,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
   int eob_found = 0;
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   const TxSetType tx_set_type = av1_get_ext_tx_set_type(
       tx_size, is_inter, cm->features.reduced_tx_set_used);
 
@@ -2876,7 +2863,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     { 0x0813 & allowed_tx_mask, 0x5600 & allowed_tx_mask }
   };
   TX_TYPE best_long_side_tx_type = DCT_DCT;
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
   const int is_border_block = get_visible_dimensions(
@@ -2886,7 +2872,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int max_eob = av1_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
     TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
     if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == PLANE_TYPE_Y &&
         !mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
@@ -2902,9 +2887,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         continue;
       }
     }
-#else
-    const TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     if (!(allowed_tx_mask & (1 << primary_tx_type))) continue;
     int skip_trellis_in = skip_trellis;
     av1_update_trellisq(!skip_trellis_in,
@@ -2930,7 +2912,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         plane == PLANE_TYPE_Y) {
       continue;
     }
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
     if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
         tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
       if (primary_tx_type == DCT_FLIPADST &&
@@ -2942,7 +2923,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         continue;
       }
     }
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     if (is_border_block)
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,

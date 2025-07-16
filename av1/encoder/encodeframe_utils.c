@@ -1819,13 +1819,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->delta_lf_multi_cdf[i], ctx_tr->delta_lf_multi_cdf[i],
                 DELTA_LF_PROBS + 1);
   }
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
               ctx_tr->inter_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
               ctx_tr->intra_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->tx_ext_32_cdf, ctx_tr->tx_ext_32_cdf, 2);
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1], ctx_tr->intra_ext_tx_cdf[1],
                  INTRA_TX_SET1, CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2],

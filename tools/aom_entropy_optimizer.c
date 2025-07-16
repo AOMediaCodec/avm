@@ -900,7 +900,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_spatial_pred_seg_tree_cdf"
                      "[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
+
   cts_each_dim[0] = EOB_TX_CTXS;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = 4;
@@ -927,7 +927,7 @@ int main(int argc, const char **argv) {
                      "default_tx_ext_32_cdf[2]"
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Transforms");
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
   /* tx type */
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;

@@ -619,12 +619,10 @@ typedef struct frame_contexts {
                                [CDF_SIZE(TX_TYPES)];
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   aom_cdf_prob tx_ext_32_cdf[2][CDF_SIZE(2)];
   aom_cdf_prob intra_ext_tx_short_side_cdf[EXT_TX_SIZES][CDF_SIZE(4)];
   aom_cdf_prob inter_ext_tx_short_side_cdf[EOB_TX_CTXS][EXT_TX_SIZES]
                                           [CDF_SIZE(4)];
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)];
@@ -647,10 +645,8 @@ typedef struct frame_contexts {
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   { 0, 1, 2, 0, 3, 4, 0, 0, 0, 0, 5, 6, 0, 0, 0, 0 },
   { 1, 2, 3, 0, 4, 5, 0, 0, 0, 0, 6, 7, 8, 9, 10, 11 },
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   { 1, 3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 5, 6, 4, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0 },
   { 3, 4, 5, 8, 6, 7, 9, 10, 11, 0, 1, 2, 0, 0, 0, 0 },
@@ -661,10 +657,8 @@ static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
 static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-#if CONFIG_TX_TYPE_FLEX_IMPROVE
   { 0, 1, 2, 4, 5, 10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 9, 0, 1, 2, 4, 5, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0 },
-#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   { 9, 0, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 9, 0, 10, 11, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 9, 10, 11, 0, 1, 2, 4, 5, 3, 6, 7, 8, 0, 0, 0, 0 },
