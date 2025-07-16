@@ -507,9 +507,10 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
 
         oh_info.order_hint_bits_minus_1 = oh_bits - 1;
-        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
-        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         // Here, the input corresponds to 'd0*p0 - d1*p1' (where P0 and P1 can
         // be 12 bits, d0 and d1 can be >=5 bits) and gx, gy are gradients of
@@ -530,9 +531,10 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits;
          oh_bits += kMaxOrderHintBits - 1) {
       for (int count = 0; count < numIter;) {
-        const int d0 = RelativeDistExtreme(oh_bits);
-        const int d1 = RelativeDistExtreme(oh_bits);
+        int d0 = RelativeDistExtreme(oh_bits);
+        int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 1));
         RandomInput16Extreme(gx_, GetParam(), AOMMIN(16, bd + 6));
@@ -738,9 +740,10 @@ class AV1OptFlowCopyPredHighbdTest
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
 
         oh_info.order_hint_bits_minus_1 = oh_bits - 1;
-        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
-        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16(src_buf1_, GetParam(), bd);
         RandomInput16(src_buf2_, GetParam(), bd);
@@ -755,9 +758,10 @@ class AV1OptFlowCopyPredHighbdTest
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits;
          oh_bits += kMaxOrderHintBits - 1) {
       for (int count = 0; count < numIter;) {
-        const int d0 = RelativeDistExtreme(oh_bits);
-        const int d1 = RelativeDistExtreme(oh_bits);
+        int d0 = RelativeDistExtreme(oh_bits);
+        int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16Extreme(src_buf1_, GetParam(), bd);
         RandomInput16Extreme(src_buf2_, GetParam(), bd);
