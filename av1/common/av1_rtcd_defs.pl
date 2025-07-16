@@ -131,7 +131,7 @@ if (aom_config("CONFIG_E191_OFS_PRED_RES_HANDLE") eq "yes") {
 }
 specialize qw/av1_opfl_mv_refinement_nxn sse4_1 avx2/;
 
-add_proto qw/void av1_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1, int centered";
+add_proto qw/void av1_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered";
 specialize qw/av1_copy_pred_array_highbd sse4_1/;
 
 # High bitdepth functions

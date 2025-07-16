@@ -2516,7 +2516,7 @@ void update_pred_grad_with_affine_model(
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
   }
   av1_copy_pred_array_highbd(&dst_warped[0], &dst_warped[bw * bh], tmp0, tmp1,
-                             bw, bh, d0, d1, 0);
+                             bw, bh, d0, d1, xd->bd, 0);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, grad_prec_bits, gx0, gy0);
   aom_free(dst_warped);
@@ -2525,17 +2525,30 @@ void update_pred_grad_with_affine_model(
 
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh, int d0, int d1, int centered) {
+    int bw, int bh, int d0, int d1, int bd, int centered) {
+#if !OPFL_RED2
+  (void)bd;
+#endif
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       // To avoid overflow, we clamp d0*P0-d1*P1 and P0-P1.
       int32_t tmp_dst =
           d0 * (int32_t)src1[i * bw + j] - d1 * (int32_t)src2[i * bw + j];
       if (centered) tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, 1);
+#if OPFL_RED2
+      tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, bd - 8);
+      dst1[i * bw + j] = clamp(tmp_dst, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+#else
       dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+#endif
       if (dst2) {
         tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
+#if OPFL_RED2
+        tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, bd - 8);
+        dst2[i * bw + j] = clamp(tmp_dst, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+#else
         dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+#endif
       }
     }
   }
@@ -2543,9 +2556,9 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
 
 void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
                                   int16_t *dst1, int16_t *dst2, int bw, int bh,
-                                  int d0, int d1, int centered) {
+                                  int d0, int d1, int bd, int centered) {
   compute_pred_using_interp_grad_highbd(src1, src2, dst1, dst2, bw, bh, d0, d1,
-                                        centered);
+                                        bd, centered);
 }
 
 void av1_get_optflow_based_mv(
@@ -2660,7 +2673,7 @@ void av1_get_optflow_based_mv(
   const int tmp_h = (mbmi->ref_frame[0] == TIP_FRAME) ? bh : MAX_SB_SIZE;
   int16_t *tmp0 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
   int16_t *tmp1 = (int16_t *)aom_memalign(16, tmp_w * tmp_h * sizeof(int16_t));
-  av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1, 0);
+  av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1, xd->bd, 0);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
 

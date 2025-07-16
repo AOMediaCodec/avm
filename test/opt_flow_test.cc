@@ -687,7 +687,7 @@ INSTANTIATE_TEST_SUITE_P(
 typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
                                         const uint16_t *src2, int16_t *dst1,
                                         int16_t *dst2, int bw, int bh, int d0,
-                                        int d1, int centered);
+                                        int d1, int bd, int centered);
 
 class AV1OptFlowCopyPredHighbdTest
     : public AV1OptFlowTest<pred_buffer_copy_highbd> {
@@ -794,9 +794,10 @@ class AV1OptFlowCopyPredHighbdTest
                      int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
                      int16_t *dst_buf1_test, int16_t *dst_buf2_test,
                      const int d0, const int d1, const int bw, const int bh) {
-    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1, 0);
+    const int bd = GetParam().BitDepth();
+    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1, bd, 0);
     test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0, d1,
-              0);
+              bd, 0);
 
     AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh, bw);
     AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh, bw);
@@ -813,19 +814,20 @@ class AV1OptFlowCopyPredHighbdTest
     const int bh_log2 = bh >> MI_SIZE_LOG2;
     printf("bw=%d, bh=%d\n", bw, bh);
     const int numIter = 2097152 / (bw_log2 * bh_log2);
+    const int bd = GetParam().BitDepth();
     aom_usec_timer timer_ref;
     aom_usec_timer timer_test;
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++)
       ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1,
-               0);
+               bd, 0);
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++)
       test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0,
-                d1, 0);
+                d1, bd, 0);
     aom_usec_timer_mark(&timer_test);
 
     const int total_time_ref =

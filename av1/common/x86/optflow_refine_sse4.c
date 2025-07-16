@@ -733,7 +733,7 @@ static INLINE __m128i round_power_of_two_signed_epi16(__m128i temp1,
 
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh, int d0, int d1, int centered) {
+    int bw, int bh, int d0, int d1, int bd, int centered) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i mul_one = _mm_set1_epi16(1);
   const __m128i mul1 = _mm_set1_epi16(d0);
@@ -741,6 +741,9 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
   const __m128i mul_val1 = _mm_unpacklo_epi16(mul1, mul2);
   const __m128i mul_val2 =
       _mm_unpacklo_epi16(mul_one, _mm_sub_epi16(zero, mul_one));
+#if !OPFL_RED2
+  (void)bd;
+#endif
 
   for (int i = 0; i < bh; i++) {
     const uint16_t *inp1 = src1 + i * bw;
@@ -759,13 +762,22 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       temp2 = _mm_madd_epi16(reg2, mul_val1);
       temp1 = _mm_packs_epi32(temp1, temp2);
       if (centered) temp1 = round_power_of_two_signed_epi16(temp1, 1);
-
-      reg1 = _mm_madd_epi16(reg1, mul_val2);
-      reg2 = _mm_madd_epi16(reg2, mul_val2);
-      temp2 = _mm_packs_epi32(reg1, reg2);
-
+#if OPFL_RED2
+      temp1 = round_power_of_two_signed_epi16(temp1, bd - 8);
+      temp1 = clamp_epi16(temp1, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+#endif
       xx_store_128(out1 + j, temp1);
-      if (dst2) xx_store_128(out2 + j, temp2);
+
+      if (dst2) {
+        reg1 = _mm_madd_epi16(reg1, mul_val2);
+        reg2 = _mm_madd_epi16(reg2, mul_val2);
+        temp2 = _mm_packs_epi32(reg1, reg2);
+#if OPFL_RED2
+        temp2 = round_power_of_two_signed_epi16(temp2, bd - 8);
+        temp2 = clamp_epi16(temp2, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+#endif
+        xx_store_128(out2 + j, temp2);
+      }
     }
   }
 }
@@ -773,7 +785,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
 void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
                                        const uint16_t *src2, int16_t *dst1,
                                        int16_t *dst2, int bw, int bh, int d0,
-                                       int d1, int centered) {
+                                       int d1, int bd, int centered) {
   compute_pred_using_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw, bh,
-                                               d0, d1, centered);
+                                               d0, d1, bd, centered);
 }
