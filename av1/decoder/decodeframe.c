@@ -83,9 +83,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -5005,7 +5005,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }
@@ -8202,7 +8202,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         if (buf == NULL || ref_display_order_hint != buf->display_order_hint) {
 #else
-        if (buf == NULL || order_hint != buf->order_hint) {
+          if (buf == NULL || order_hint != buf->order_hint) {
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
           if (buf != NULL) {
             lock_buffer_pool(pool);
