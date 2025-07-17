@@ -8199,7 +8199,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         // Get buffer
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+        if (buf == NULL || ref_display_order_hint != buf->display_order_hint) {
+#else
         if (buf == NULL || order_hint != buf->order_hint) {
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
           if (buf != NULL) {
             lock_buffer_pool(pool);
             decrease_ref_count(buf, pool);
