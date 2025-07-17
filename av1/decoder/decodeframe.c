@@ -7956,11 +7956,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-          if ((((seq_params->operating_point_idc[op_num] >>
-                 cm->temporal_layer_id) &
+#if CONFIG_F159_OBU_HEADER
+          if ((((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
                 0x1) &&
                ((seq_params->operating_point_idc[op_num] >>
-                 (cm->spatial_layer_id + 8)) &
+                 (cm->mlayer_id + 8)) &
+#else
+            if ((((seq_params->operating_point_idc[op_num] >>
+                   cm->temporal_layer_id) &
+                  0x1) &&
+                 ((seq_params->operating_point_idc[op_num] >>
+                   (cm->spatial_layer_id + 8)) &
+#endif  // CONFIG_F159_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
             cm->buffer_removal_times[op_num] = aom_rb_read_unsigned_literal(

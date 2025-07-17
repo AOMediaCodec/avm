@@ -114,8 +114,14 @@ static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
     ARG_DEF(NULL, "output-bit-depth", 1, "Output bit-depth for decoded frames");
+#if CONFIG_F159_OBUSIZE_ANNEXB
+static const arg_def_t isannexb =
+    ARG_DEF(NULL, "annexb", 1,
+            "0. external mean 1. Bitstream is in Annex-B format(default)");
+#else
 static const arg_def_t isannexb =
     ARG_DEF(NULL, "annexb", 0, "Bitstream is in Annex-B format");
+#endif
 static const arg_def_t oppointarg = ARG_DEF(
     NULL, "oppoint", 1, "Select an operating point of a scalable bitstream");
 static const arg_def_t outallarg = ARG_DEF(
@@ -637,7 +643,11 @@ static int main_loop(int argc, const char **argv_) {
   int opt_raw = 0;
   aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
   unsigned int fixed_output_bit_depth = 0;
+#if CONFIG_F159_OBUSIZE_ANNEXB
+  unsigned int is_annexb = 1;
+#else
   unsigned int is_annexb = 0;
+#endif
   int frames_corrupted = 0;
   int dec_flags = 0;
   int do_scale = 0;
@@ -774,8 +784,12 @@ static int main_loop(int argc, const char **argv_) {
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
       fixed_output_bit_depth = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &isannexb, argi)) {
+#if CONFIG_F159_OBUSIZE_ANNEXB
+      is_annexb = input.obu_ctx->is_annexb = arg_parse_int(&arg);
+#else
       is_annexb = 1;
       input.obu_ctx->is_annexb = 1;
+#endif
     } else if (arg_match(&arg, &oppointarg, argi)) {
       operating_point = arg_parse_int(&arg);
     } else if (arg_match(&arg, &outallarg, argi)) {
@@ -790,6 +804,9 @@ static int main_loop(int argc, const char **argv_) {
       argj++;
     }
   }
+#if CONFIG_F159_OBUSIZE_ANNEXB
+  input.obu_ctx->is_annexb = is_annexb;
+#endif
 
   /* Check for unrecognized options */
   for (argi = argv; *argi; argi++)

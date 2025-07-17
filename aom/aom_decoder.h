@@ -71,11 +71,16 @@ extern "C" {
  * stream.
  */
 typedef struct aom_codec_stream_info {
-  unsigned int w;                      /**< Width (or 0 for unknown/default) */
-  unsigned int h;                      /**< Height (or 0 for unknown/default) */
-  unsigned int is_kf;                  /**< Current frame is a keyframe */
+  unsigned int w;     /**< Width (or 0 for unknown/default) */
+  unsigned int h;     /**< Height (or 0 for unknown/default) */
+  unsigned int is_kf; /**< Current frame is a keyframe */
+#if CONFIG_F159_OBU_HEADER
+  unsigned int number_mlayers; /**< Number of spatial layers */
+  unsigned int number_tlayers; /**< Number of temporal layers */
+#else
   unsigned int number_spatial_layers;  /**< Number of spatial layers */
   unsigned int number_temporal_layers; /**< Number of temporal layers */
+#endif  // CONFIG_F159_OBU_HEADER
   unsigned int is_annexb;              /**< Is Bitstream in Annex-B format */
 } aom_codec_stream_info_t;
 

@@ -76,6 +76,16 @@ extern "C" {
 
 #define NUM_PING_PONG_BUFFERS 2
 
+#if CONFIG_F159_OBU_HEADER
+#define MAX_NUM_TLAYERS 8
+#define MAX_NUM_MLAYERS 8
+#define MAX_NUM_XLAYERS 32
+/* clang-format off */
+// clang-format seems to think this is a pointer dereference and not a
+// multiplication.
+#define MAX_NUM_OPERATING_POINTS \
+  (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
 /* clang-format off */
@@ -83,6 +93,7 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_F159_OBU_HEADER
 /* clang-format on */
 
 // TODO(jingning): Turning this on to set up transform coefficient
@@ -2048,6 +2059,46 @@ typedef struct AV1Common {
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
+
+#if CONFIG_F159_OBU_HEADER
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_tlayers;
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_tlayers - 1)).
+   */
+  int tlayer_id;
+
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_temporal_layers;  //@hegilmez TODO: change
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_temporal_layers - 1)).
+   */
+  int temporal_layer_id;  //@hegilmez TODO: change
+  /*!
+   * Number of mlayers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_mlayers;
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_mlayers - 1)).
+   */
+  int mlayer_id;
+  /*!
+   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_spatial_layers;
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_spatial_layers - 1)).
+   */
+  int spatial_layer_id;
+#else
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -2067,6 +2118,7 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
 
 /*!
  * Weights for IBP of directional modes.

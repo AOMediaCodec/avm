@@ -378,8 +378,14 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   }
 
   if (aom_get_num_layers_from_operating_point_idc(
+#if CONFIG_F159_OBU_HEADER
+          operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
+      AOM_CODEC_OK)
+#else
           operating_point_idc0, &si->number_spatial_layers,
-          &si->number_temporal_layers) != AOM_CODEC_OK) {
+          &si->number_temporal_layers) != AOM_CODEC_OK)
+#endif
+  {
     return AOM_CODEC_ERROR;
   }
 
@@ -763,13 +769,20 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   struct aom_write_bit_buffer wb = { dst, 0 };
   int obu_type = OBU_FRAME_HEADER;
 
+#if CONFIG_F159_OBU_HEADER
+  aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
+  aom_wb_write_literal(&wb, 0, 1);              // reserved bit
+  aom_wb_write_literal(&wb, 0, 3);              // obu_temporal
+  aom_wb_write_literal(&wb, 0, 8);              // obu_layer
+#else
   aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
   aom_wb_write_literal(&wb, obu_type, 4);  // obu type
   aom_wb_write_literal(&wb, 0, 1);         // extention flag
   aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
   aom_wb_write_literal(&wb, 0, 1);         // reserved
-  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
-  aom_wb_write_bit(&wb, 1);                // show_existing_frame
+#endif
+  aom_wb_write_literal(&wb, 0x01, 8);  // obu_size 1
+  aom_wb_write_bit(&wb, 1);            // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
                        ref_frames_log2);  // signal frame to be output
   aom_wb_write_bit(&wb, 1);               // trailing one
@@ -903,6 +916,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
+#if !CONFIG_F159_OBUSIZE_ANNEXB
   if (ctx->is_annexb) {
     // read the size of this temporal unit
     size_t length_of_size;
@@ -916,9 +930,13 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       return AOM_CODEC_CORRUPT_FRAME;
     data_end = data_start + temporal_unit_size;
   }
+#endif
 
   // Decode in serial mode.
   while (data_start < data_end) {
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    uint64_t frame_size = (uint64_t)(data_end - data_start);
+#else
     uint64_t frame_size;
     if (ctx->is_annexb) {
       // read the size of this frame unit
@@ -933,16 +951,19 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     } else {
       frame_size = (uint64_t)(data_end - data_start);
     }
+#endif
 
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
 
+#if !CONFIG_F159_OBU_HEADER
     // Allow extra zero bytes after the frame end
     while (data_start < data_end) {
       const uint8_t marker = data_start[0];
       if (marker) break;
       ++data_start;
     }
+#endif  // CONFIG_F159_OBU_HEADER
   }
 
   return res;
@@ -1114,8 +1135,13 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
+#if CONFIG_F159_OBU_HEADER
+        img->tlayer_id = cm->tlayer_id;
+        img->mlayer_id = cm->mlayer_id;
+#else
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);

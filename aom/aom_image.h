@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
 #include "aom/aom_integer.h"
 
 /*!\brief Current ABI version number
@@ -208,8 +209,13 @@ typedef struct aom_image {
 
   int bps; /**< bits per sample (for packed formats) */
 
+#if CONFIG_F159_OBU_HEADER
+  int tlayer_id; /**< Temporal layer Id of image */
+  int mlayer_id; /**< Layer Id of image */
+#else
   int temporal_id; /**< Temporal layer Id of image */
   int spatial_id;  /**< Spatial layer Id of image */
+#endif  // CONFIG_F159_OBU_HEADER
 
   /*!\brief The following member may be set by the application to associate
    * data with this image.

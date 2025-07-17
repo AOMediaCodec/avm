@@ -502,6 +502,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     // operarting points (i > 0) are lower quality corresponding to
     // skip decoding enhancement  layers (temporal first).
     int i = 0;
+#if CONFIG_F159_OBU_HEADER
+    assert(seq->operating_points_cnt_minus_1 ==
+           (int)(cm->number_mlayers * cm->number_tlayers - 1));
+    for (unsigned int sl = 0; sl < cm->number_mlayers; sl++) {
+      for (unsigned int tl = 0; tl < cm->number_tlayers; tl++) {
+        seq->operating_point_idc[i] =
+            (~(~0u << (cm->number_mlayers - sl)) << 8) |
+            ~(~0u << (cm->number_tlayers - tl));
+#else
     assert(seq->operating_points_cnt_minus_1 ==
            (int)(cm->number_spatial_layers * cm->number_temporal_layers - 1));
     for (unsigned int sl = 0; sl < cm->number_spatial_layers; sl++) {
@@ -509,6 +518,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
         seq->operating_point_idc[i] =
             (~(~0u << (cm->number_spatial_layers - sl)) << 8) |
             ~(~0u << (cm->number_temporal_layers - tl));
+#endif  // CONFIG_F159_OBU_HEADER
         i++;
       }
     }
@@ -714,11 +724,19 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
+#if CONFIG_F159_OBU_HEADER
+  // Set init SVC parameters.
+  cm->number_mlayers = 1;
+  cm->number_tlayers = 1;
+  cm->mlayer_id = 0;
+  cm->tlayer_id = 0;
+#else
   // Set init SVC parameters.
   cm->number_spatial_layers = 1;
   cm->number_temporal_layers = 1;
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
+#endif  // CONFIG_F159_OBU_HEADER
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
@@ -1059,8 +1077,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     seq_params->operating_points_cnt_minus_1 =
+#if CONFIG_F159_OBU_HEADER
+        (cm->number_mlayers > 1 || cm->number_tlayers > 1)
+            ? cm->number_mlayers * cm->number_tlayers - 1
+#else
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
+#endif  // CONFIG_F159_OBU_HEADER
             : 0;
     av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf);
   }
@@ -5319,13 +5342,19 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
     uint64_t obu_payload_size;
     size_t length_of_payload_size;
     size_t length_of_obu_size;
-    uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    uint32_t obu_header_size = OBU_HEADER_SIZE;
+#else
+      uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+#endif
     size_t obu_bytes_read = obu_header_size;  // bytes read for current obu
 
     // save the obu header (1 or 2 bytes)
     memmove(saved_obu_header, buff_ptr, obu_header_size);
+#if !CONFIG_F159_OBUSIZE_ANNEXB
     // clear the obu_has_size_field
     saved_obu_header[0] = saved_obu_header[0] & (~0x2);
+#endif
 
     // get the payload_size and length of payload_size
     if (aom_uleb_decode(buff_ptr + obu_header_size, remaining_size,
@@ -5408,14 +5437,23 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
-  const size_t obu_header_size = 1;
+#if CONFIG_F159_OBU_HEADER
+  const size_t obu_header_size = 2;
+#else
+    const size_t obu_header_size = 1;
+#endif  // CONFIG_F159_OBU_HEADER
   const size_t size_field_size = aom_uleb_size_in_bytes(sequence_header_size);
   const size_t payload_offset = obu_header_size + size_field_size;
 
   if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
-  if (av1_write_obu_header(&cpi->level_params, OBU_SEQUENCE_HEADER, 0,
+  if (av1_write_obu_header(&cpi->level_params, OBU_SEQUENCE_HEADER,
+#if CONFIG_F159_OBU_HEADER
+                           0, 0,
+#else
+                             0,
+#endif  // CONFIG_F159_OBU_HEADER
                            &header_buf[0]) != obu_header_size) {
     return NULL;
   }

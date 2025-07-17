@@ -352,9 +352,14 @@ enum {
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
 
+// TODO (@hegilmez): subject to change, pending level design
+#if CONFIG_F159_OBU_HEADER
+#define OP_POINTS_CNT_MINUS_1_BITS 6
+#define OP_POINTS_IDC_BITS 16
+#else
 #define OP_POINTS_CNT_MINUS_1_BITS 5
 #define OP_POINTS_IDC_BITS 12
-
+#endif
 // Note: Some enums use the attribute 'packed' to use smallest possible integer
 // type, so that we can save memory when they are used in structs/arrays.
 
@@ -1071,10 +1076,20 @@ enum {
   SEQ_LEVEL_7_2,
   SEQ_LEVEL_7_3,
   SEQ_LEVELS,
+// TODO (@hegilmez): subject to change, pending level design
+#if CONFIG_F159_OBU_HEADER
+  SEQ_LEVEL_MAX = 63
+#else
   SEQ_LEVEL_MAX = 31
+#endif
 } UENUM1BYTE(AV1_LEVEL);
 
+// TODO (@hegilmez): subject to change, pending level design
+#if CONFIG_F159_OBU_HEADER
+#define LEVEL_BITS 6
+#else
 #define LEVEL_BITS 5
+#endif
 
 #define DIRECTIONAL_MODES 8
 #define MAX_ANGLE_DELTA 3
