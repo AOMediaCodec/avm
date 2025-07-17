@@ -2677,7 +2677,6 @@ static const int ph_allowed_tx_types[TX_TYPES] = {
   1,  // Identity in vertical, FLIPADST in horizontal
 };
 
-#if CONFIG_INTER_DDT
 // Determine whether to replace ADST by DDT or not
 static INLINE int replace_adst_by_ddt(const int enable_inter_ddt,
                                       const int allow_scc_tools,
@@ -2687,7 +2686,6 @@ static INLINE int replace_adst_by_ddt(const int enable_inter_ddt,
   if (is_intrabc_block(xd->mi[0], xd->tree_type)) return 0;
   return is_inter_block(xd->mi[0], xd->tree_type);
 }
-#endif  // CONFIG_INTER_DDT
 
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {

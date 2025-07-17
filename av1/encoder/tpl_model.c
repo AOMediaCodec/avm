@@ -126,9 +126,7 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   txfm_param.tx_size = tx_size;
   txfm_param.lossless = 0;
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;
-#if CONFIG_INTER_DDT
   txfm_param.use_ddt = 0;
-#endif  // CONFIG_INTER_DDT
 
   txfm_param.bd = bit_depth;
   av1_fwd_txfm(src_diff, coeff, bw, &txfm_param);
@@ -203,9 +201,7 @@ static AOM_INLINE void txfm_quant_rdcost(
 
   av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst, dst_stride,
                               eob,
-#if CONFIG_INTER_DDT
                               0,
-#endif  // CONFIG_INTER_DDT
                               0);
 }
 

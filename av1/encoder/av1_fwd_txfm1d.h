@@ -43,14 +43,12 @@ void av1_fidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_fidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
-#if CONFIG_INTER_DDT
 void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range);
 void av1_fddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range);
 void av1_fddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
-#endif  // CONFIG_INTER_DDT
 #ifdef __cplusplus
 }
 #endif

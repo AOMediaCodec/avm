@@ -38,11 +38,9 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 #define TXFM_KERNEL_SIZE4 16
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
-#if CONFIG_INTER_DDT
 extern const int32_t ddt4_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE4];
 extern const int32_t ddt8_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 extern const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
-#endif  // CONFIG_INTER_DDT
 #if USE_TUNED_ADST8
 // 8 point kernel: Graph Fourier Transform with self-loop of 1.5 using matrix
 // multiplication
@@ -53,11 +51,9 @@ extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // USE_TUNED_ADST16
 
-#if CONFIG_INTER_DDT
 #define REPLACE_ADST4 0
 #define REPLACE_ADST8 1
 #define REPLACE_ADST16 1
-#endif  // CONFIG_INTER_DDT
 
 #define CCTX_PREC_BITS 8
 extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
@@ -70,9 +66,7 @@ static const int cos_bit_max = 16;
 // Round shift bits for the ADST forward and inverse transforms
 #define FWD_ADST_BIT 12
 #define INV_ADST_BIT 7
-#if CONFIG_FIX_INTER_DDT_PRECISION
 #define INV_DDT_BIT 6
-#endif  // CONFIG_FIX_INTER_DDT_PRECISION
 
 #define NewSqrt2Bits ((int32_t)12)
 // 2^12 * sqrt(2)
@@ -153,9 +147,7 @@ typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
 
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type,
-#if CONFIG_INTER_DDT
                               int use_ddt,
-#endif  // CONFIG_INTER_DDT
                               int bd);
 
 enum {

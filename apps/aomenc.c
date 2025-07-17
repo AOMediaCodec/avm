@@ -466,9 +466,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_CHROMA_TX
   &g_av1_codec_arg_defs.enable_chroma_dctonly,
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   &g_av1_codec_arg_defs.enable_inter_ddt,
-#endif  // CONFIG_INTER_DDT
   &g_av1_codec_arg_defs.enable_cctx,
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
@@ -681,9 +679,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_CHROMA_TX
   config->enable_chroma_dctonly = 0;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   config->enable_inter_ddt = 1;
-#endif  // CONFIG_INTER_DDT
   config->enable_cctx = 1;
   config->enable_ibp = 1;
   config->enable_adaptive_mvd = 1;
@@ -1572,10 +1568,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_ist);
   fprintf(stdout, "                               : Inter IST (%d)\n",
           encoder_cfg->enable_inter_ist);
-#if CONFIG_INTER_DDT
   fprintf(stdout, "                               : Inter DDT (%d)\n",
           encoder_cfg->enable_inter_ddt);
-#endif  // CONFIG_INTER_DDT
 #if CONFIG_CHROMA_TX
   fprintf(stdout, "                               : Chroma DCT only (%d)\n",
           encoder_cfg->enable_chroma_dctonly);

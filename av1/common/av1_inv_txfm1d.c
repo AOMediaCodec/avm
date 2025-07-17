@@ -654,19 +654,13 @@ void av1_idct32(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[31] = clamp_value(bf0[0] - bf0[31], stage_range[stage]);
 }
 
-#if CONFIG_INTER_DDT
 // Inverse length 4 data-driven transform
 void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
-#if CONFIG_FIX_INTER_DDT_PRECISION
   av2_txfm_matrix_mult(input, output, ddt4_kernel[INV_TXFM], 4, INV_DDT_BIT,
                        stage_range[0]);
-#else
-  av2_txfm_matrix_mult(input, output, ddt4_kernel[INV_TXFM], 4, INV_ADST_BIT,
-                       stage_range[0]);
-#endif  // CONFIG_FIX_INTER_DDT_PRECISION
 }
 
 // Inverse length 8 data-driven transform
@@ -674,13 +668,8 @@ void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
-#if CONFIG_FIX_INTER_DDT_PRECISION
   av2_txfm_matrix_mult(input, output, ddt8_kernel[INV_TXFM], 8, INV_DDT_BIT,
                        stage_range[0]);
-#else
-  av2_txfm_matrix_mult(input, output, ddt8_kernel[INV_TXFM], 8, INV_ADST_BIT,
-                       stage_range[0]);
-#endif  // CONFIG_FIX_INTER_DDT_PRECISION
 }
 
 // Inverse length 16 data-driven transform
@@ -688,15 +677,9 @@ void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
-#if CONFIG_FIX_INTER_DDT_PRECISION
   av2_txfm_matrix_mult(input, output, ddt16_kernel[INV_TXFM], 16, INV_DDT_BIT,
                        stage_range[0]);
-#else
-  av2_txfm_matrix_mult(input, output, ddt16_kernel[INV_TXFM], 16, INV_ADST_BIT,
-                       stage_range[0]);
-#endif  // CONFIG_FIX_INTER_DDT_PRECISION
 }
-#endif  // CONFIG_INTER_DDT
 
 #if USE_TUNED_ADST4
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,

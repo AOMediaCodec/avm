@@ -43,9 +43,7 @@ typedef struct txfm_param {
   // intra prediction mode used for the current tx block
   PREDICTION_MODE intra_mode;
   int is_inter;
-#if CONFIG_INTER_DDT
   int use_ddt;
-#endif  // CONFIG_INTER_DDT
   CctxType cctx_type;
   TX_SIZE tx_size;
   int lossless;

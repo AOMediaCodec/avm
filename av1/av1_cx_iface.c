@@ -143,9 +143,7 @@ struct av1_extracfg {
 #if CONFIG_CHROMA_TX
   int enable_chroma_dctonly;  // enable dct only for chroma
 #endif
-#if CONFIG_INTER_DDT
   int enable_inter_ddt;     // enable inter data-driven transform
-#endif                      // CONFIG_INTER_DDT
   int enable_cctx;          // enable cross-chroma component transform
   int enable_ibp;           // enable intra bi-prediction
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
@@ -505,9 +503,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_CHROMA_TX
   0,    // enable DCT only for chroma
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   1,    // enable inter data-driven transform
-#endif  // CONFIG_INTER_DDT
   1,    // enable cross-chroma component transform
   1,    // enable intra bi-prediction
   1,    // enable adaptive mvd resolution
@@ -1043,9 +1039,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_CHROMA_TX
   cfg->enable_chroma_dctonly = extra_cfg->enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   cfg->enable_inter_ddt = extra_cfg->enable_inter_ddt;
-#endif  // CONFIG_INTER_DDT
   cfg->enable_cctx = extra_cfg->enable_cctx;
   cfg->enable_ibp = extra_cfg->enable_ibp;
   cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
@@ -1191,9 +1185,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_CHROMA_TX
   extra_cfg->enable_chroma_dctonly = cfg->enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   extra_cfg->enable_inter_ddt = cfg->enable_inter_ddt;
-#endif  // CONFIG_INTER_DDT
   extra_cfg->enable_cctx = cfg->enable_cctx;
   extra_cfg->enable_ibp = cfg->enable_ibp;
   extra_cfg->enable_adaptive_mvd = cfg->enable_adaptive_mvd;
@@ -1909,10 +1901,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->enable_chroma_dctonly =
       extra_cfg->enable_chroma_dctonly && !extra_cfg->lossless;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   txfm_cfg->enable_inter_ddt =
       extra_cfg->enable_inter_ddt && !extra_cfg->lossless;
-#endif  // CONFIG_INTER_DDT
   txfm_cfg->enable_cctx =
       tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_cctx;
 
@@ -4247,11 +4237,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_chroma_dctonly = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ddt,
                               argv, err_string)) {
     extra_cfg.enable_inter_ddt = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_INTER_DDT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cctx, argv,
                               err_string)) {
     extra_cfg.enable_cctx = arg_parse_int_helper(&arg, err_string);
@@ -4823,9 +4811,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_CHROMA_TX
         0,  // chroma DCT only
 #endif
-#if CONFIG_INTER_DDT
         1,  // inter DDT
-#endif      // CONFIG_INTER_DDT
         1,  // enable_cctx
         1,   1, 1,
         3,  // select_cfl_ds

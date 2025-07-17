@@ -47,14 +47,12 @@ void av1_iidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_iidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
-#if CONFIG_INTER_DDT
 void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range);
 void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range);
 void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
-#endif  // CONFIG_INTER_DDT
 #ifdef __cplusplus
 }
 #endif

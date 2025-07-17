@@ -2054,7 +2054,6 @@ const int tx_kernel_fdst_size16[TXFM_DIRECTIONS][16][16] = {
 #endif
 };
 
-#if CONFIG_INTER_DDT
 const int tx_kernel_ddtx_size4[TXFM_DIRECTIONS][4][4] = {
   { { 2, 20, 72, 104 },
     { 14, 68, 81, -69 },
@@ -2118,4 +2117,3 @@ const int tx_kernel_ddtx_size16[TXFM_DIRECTIONS][16][16] = {
     { 44, -95, 124, -126, 108, -81, 54, -30, 16, -6, 1, 3, -4, 5, -3, 2 } },
 };
 #endif
-#endif  // CONFIG_CORE_TX

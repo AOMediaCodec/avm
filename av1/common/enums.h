@@ -664,9 +664,7 @@ enum {
   ADST_1D,
   FLIPADST_1D,
   IDTX_1D,
-#if CONFIG_INTER_DDT
   DDT_1D,
-#endif  // CONFIG_INTER_DDT
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
 
@@ -697,10 +695,8 @@ enum {
   IDT,
   DST7,
   DCT8,
-#if CONFIG_INTER_DDT
   DDTX,
   FDDT,
-#endif
 } UENUM2BYTE(TX1D_TYPE);
 #endif  // CONFIG_CORE_TX
 

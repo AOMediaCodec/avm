@@ -44,11 +44,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
     tx_size_ = GET_PARAM(1);
     max_error_ = GET_PARAM(2);
     max_avg_error_ = GET_PARAM(3);
-#if CONFIG_INTER_DDT
     count_ = 1000;
-#else
-    count_ = 500;
-#endif  // CONFIG_INTER_DDT
     TXFM_2D_FLIP_CFG fwd_txfm_flip_cfg;
     av1_get_fwd_txfm_cfg(tx_type_, tx_size_, &fwd_txfm_flip_cfg);
     amplify_factor_ = libaom_test::get_amplification_factor(tx_type_, tx_size_);
@@ -81,9 +77,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
       }
 
       fwd_txfm_(input_, output_, tx_width_, tx_type_,
-#if CONFIG_INTER_DDT
                 ci % 2,
-#endif  // CONFIG_INTER_DDT
                 bd);
 
       if (lr_flip_ && ud_flip_) {
@@ -95,9 +89,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
       }
 
       libaom_test::reference_hybrid_2d(ref_input_, ref_output_, tx_type_,
-#if CONFIG_INTER_DDT
                                        ci % 2,
-#endif  // CONFIG_INTER_DDT
                                        tx_size_);
 
       double actual_max_error = 0;
@@ -279,11 +271,7 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
       DECLARE_ALIGNED(32, int32_t, ref_output[64 * 64]);
       int input_stride = 64;
       ACMRandom rnd(ACMRandom::DeterministicSeed());
-#if CONFIG_INTER_DDT
       for (int cnt = 0; cnt < 1000; ++cnt) {
-#else
-      for (int cnt = 0; cnt < 500; ++cnt) {
-#endif  // CONFIG_INTER_DDT
         if (cnt == 0) {
           for (int r = 0; r < rows; ++r) {
             for (int c = 0; c < cols; ++c) {
@@ -301,13 +289,9 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         param.tx_size = (TX_SIZE)tx_size;
         param.tx_set_type = EXT_TX_SET_ALL16;
         param.bd = bd;
-#if CONFIG_INTER_DDT
         param.use_ddt = cnt % 2;
-#endif  // CONFIG_INTER_DDT
         ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_DDT
                  cnt % 2,
-#endif  // CONFIG_INTER_DDT
                  bd);
         target_func(input, output, input_stride, &param);
         const int check_rows = AOMMIN(32, rows);
@@ -330,11 +314,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
   memset(&param, 0, sizeof(param));
   const int rows = tx_size_high[tx_size];
   const int cols = tx_size_wide[tx_size];
-#if CONFIG_INTER_DDT
   const int num_loops = 2000000 / (rows * cols);
-#else
-  const int num_loops = 1000000 / (rows * cols);
-#endif  // CONFIG_INTER_DDT
 
   for (int i = 0; i < 2; ++i) {
     const int bd = 8;
@@ -368,9 +348,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_DDT
                    i % 2,
-#endif  // CONFIG_INTER_DDT
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);
@@ -379,9 +357,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 
         aom_usec_timer_start(&test_timer);
         for (int i = 0; i < num_loops; ++i) {
-#if CONFIG_INTER_DDT
           param.use_ddt = i % 2;
-#endif  // CONFIG_INTER_DDT
           target_func(input, output, input_stride, &param);
         }
         aom_usec_timer_mark(&test_timer);
@@ -481,11 +457,7 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
         DECLARE_ALIGNED(32, int32_t, ref_output[64 * 64]);
         int input_stride = 64;
         ACMRandom rnd(ACMRandom::DeterministicSeed());
-#if CONFIG_INTER_DDT
         for (int cnt = 0; cnt < 1000; ++cnt) {
-#else
-        for (int cnt = 0; cnt < 500; ++cnt) {
-#endif  // CONFIG_INTER_DDT
           if (cnt == 0) {
             for (int r = 0; r < rows; ++r) {
               for (int c = 0; c < cols; ++c) {
@@ -503,14 +475,10 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           param.tx_size = (TX_SIZE)tx_size;
           param.tx_set_type = EXT_TX_SET_ALL16;
           param.bd = bd;
-#if CONFIG_INTER_DDT
           param.use_ddt = cnt % 2;
-#endif  // CONFIG_INTER_DDT
 
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_DDT
                    cnt % 2,
-#endif  // CONFIG_INTER_DDT
                    bd);
           target_func(input, output, input_stride, &param);
           const int check_rows = AOMMIN(32, rows);
@@ -536,11 +504,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
   memset(&param, 0, sizeof(param));
   const int rows = tx_size_high[tx_size];
   const int cols = tx_size_wide[tx_size];
-#if CONFIG_INTER_DDT
   const int num_loops = 2000000 / (rows * cols);
-#else
-  const int num_loops = 1000000 / (rows * cols);
-#endif  // CONFIG_INTER_DDT
 
   for (int i = 0; i < 2; ++i) {
     const int bd = bd_ar[i];
@@ -574,9 +538,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-#if CONFIG_INTER_DDT
                    i % 2,
-#endif  // CONFIG_INTER_DDT
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);
@@ -585,9 +547,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         aom_usec_timer_start(&test_timer);
         for (int i = 0; i < num_loops; ++i) {
-#if CONFIG_INTER_DDT
           param.use_ddt = i % 2;
-#endif  // CONFIG_INTER_DDT
           target_func(input, output, input_stride, &param);
         }
         aom_usec_timer_mark(&test_timer);

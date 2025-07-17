@@ -475,9 +475,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_CHROMA_TX
   seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
-#endif  // CONFIG_INTER_DDT
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;

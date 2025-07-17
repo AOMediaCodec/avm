@@ -625,9 +625,7 @@ typedef struct SequenceHeader {
 #if CONFIG_CHROMA_TX
   uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
 #endif                            // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
-#endif                       // CONFIG_INTER_DDT
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution

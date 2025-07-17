@@ -369,12 +369,10 @@ typedef struct {
    */
   bool enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   /*!
    * Flag to indicate if inter data-driven transform should be enabled.
    */
   bool enable_inter_ddt;
-#endif  // CONFIG_INTER_DDT
   /*!
    * Flag to indicate if cross chroma component transform is enabled.
    */

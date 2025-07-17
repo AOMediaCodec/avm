@@ -33,16 +33,12 @@ using std::tuple;
 
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type,
-#if CONFIG_INTER_DDT
                           int use_ddt,
-#endif  // CONFIG_INTER_DDT
                           int bd);
 
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
                            TX_TYPE tx_type,
-#if CONFIG_INTER_DDT
                            int use_ddt,
-#endif  // CONFIG_INTER_DDT
                            int bd);
 static const char *tx_type_name[] = {
   "DCT_DCT",
@@ -143,11 +139,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdInvHTNxN);
 void AV1HighbdInvHTNxN::RunBitexactCheck() {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   const int stride = GetStride();
-#if CONFIG_INTER_DDT
   const int num_tests = 40000;
-#else
-  const int num_tests = 20000;
-#endif  // CONFIG_INTER_DDT
   const uint16_t mask = (1 << bit_depth_) - 1;
 
   for (int i = 0; i < num_tests; ++i) {
@@ -158,22 +150,13 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
     }
 
     txfm_ref_(input_, coeffs_, stride, tx_type_,
-#if CONFIG_INTER_DDT
               i % 2,
-#endif  // CONFIG_INTER_DDT
               bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_,
-#if CONFIG_INTER_DDT
                   i % 2,
-#endif  // CONFIG_INTER_DDT
                   bit_depth_);
-#if CONFIG_INTER_DDT
     ASM_REGISTER_STATE_CHECK(
         inv_txfm_(coeffs_, output_, stride, tx_type_, i % 2, bit_depth_));
-#else
-    ASM_REGISTER_STATE_CHECK(
-        inv_txfm_(coeffs_, output_, stride, tx_type_, bit_depth_));
-#endif  // CONFIG_INTER_DDT
 
     for (int j = 0; j < num_coeffs_; ++j) {
       EXPECT_EQ(output_ref_[j], output_[j])
@@ -256,11 +239,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   const int16_t *scan = scan_order->scan;
   const int16_t eobmax = rows_nonezero * cols_nonezero;
   ACMRandom rnd(ACMRandom::DeterministicSeed());
-#if CONFIG_INTER_DDT
   int randTimes = run_times == 1 ? (2 * eobmax) : 2;
-#else
-  int randTimes = run_times == 1 ? (eobmax) : 1;
-#endif  // CONFIG_INTER_DDT
 
   txfm_param.tx_type = tx_type_;
   txfm_param.tx_size = tx_size_;
@@ -278,13 +257,9 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
       }
     }
     fwd_func_(input, inv_input, stride, tx_type_,
-#if CONFIG_INTER_DDT
               cnt % 2,
-#endif  // CONFIG_INTER_DDT
               bit_depth_);
-#if CONFIG_INTER_DDT
     txfm_param.use_ddt = cnt % 2;
-#endif  // CONFIG_INTER_DDT
 
     // produce eob input by setting high freq coeffs to zero
     const int eob = AOMMIN(cnt + 1, eobmax);

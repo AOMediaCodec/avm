@@ -203,10 +203,8 @@ static AOM_INLINE void inverse_transform_block(DecoderCodingBlock *dcb,
   }
   av1_inverse_transform_block(
       &dcb->xd, dqcoeff, plane, tx_type, tx_size, dst, stride, eob,
-#if CONFIG_INTER_DDT
       replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                           cm->features.allow_screen_content_tools, &dcb->xd),
-#endif  // CONFIG_INTER_DDT
       reduced_tx_set);
   const int width = tx_size_wide[tx_size] <= 32 ? tx_size_wide[tx_size] : 32;
   const int height = tx_size_high[tx_size] <= 32 ? tx_size_high[tx_size] : 32;
@@ -7069,9 +7067,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_chroma_dctonly =
       seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
-#endif  // CONFIG_INTER_DDT
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
   uint8_t enable_tip = aom_rb_read_bit(rb);

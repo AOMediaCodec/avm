@@ -456,9 +456,6 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
 set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 
-set_aom_config_var(CONFIG_INTER_DDT 1
-                   "Use data driven transform to replace ADST for inter.")
-
 set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
                    "Enable to improve temporal motion projection")
 
@@ -580,9 +577,6 @@ set_aom_config_var(
   1
   "Enables improved secondary reference frame derivation for frame context initialization."
 )
-
-set_aom_config_var(CONFIG_FIX_INTER_DDT_PRECISION 1
-                   "Fix precision of inter DDT.")
 
 set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_PRECISION 1 "Enable precisions of warp models.")

@@ -353,12 +353,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_chroma_dctonly;
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
   /*!\brief enable Inter data-driven transform
    *
    */
   unsigned int enable_inter_ddt;
-#endif  // CONFIG_INTER_DDT
   /*!\brief enable cross-chroma component transform
    *
    */

@@ -44,12 +44,10 @@ extern const int tx_kernel_fdst_size4[TXFM_DIRECTIONS][4][4];
 extern const int tx_kernel_fdst_size8[TXFM_DIRECTIONS][8][8];
 extern const int tx_kernel_fdst_size16[TXFM_DIRECTIONS][16][16];
 
-#if CONFIG_INTER_DDT
 // DDTX
 extern const int tx_kernel_ddtx_size4[TXFM_DIRECTIONS][4][4];
 extern const int tx_kernel_ddtx_size8[TXFM_DIRECTIONS][8][8];
 extern const int tx_kernel_ddtx_size16[TXFM_DIRECTIONS][16][16];
-#endif
 #endif  // CONFIG_CORE_TX
 
 typedef struct txb_ctx {

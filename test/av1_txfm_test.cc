@@ -18,9 +18,7 @@ namespace libaom_test {
 int get_txfm1d_size(TX_SIZE tx_size) { return tx_size_wide[tx_size]; }
 
 void get_txfm1d_type(TX_TYPE txfm2d_type,
-#if CONFIG_INTER_DDT
                      int use_ddt,
-#endif  // CONFIG_INTER_DDT
                      TYPE_TXFM *type0, TYPE_TXFM *type1) {
   switch (txfm2d_type) {
     case DCT_DCT:
@@ -93,10 +91,8 @@ void get_txfm1d_type(TX_TYPE txfm2d_type,
       assert(0);
       break;
   }
-#if CONFIG_INTER_DDT
   if (use_ddt && *type0 == TYPE_ADST) *type0 = TYPE_DDT;
   if (use_ddt && *type1 == TYPE_ADST) *type1 = TYPE_DDT;
-#endif  // CONFIG_INTER_DDT
 }
 
 double Sqrt2 = pow(2, 0.5);
@@ -218,7 +214,6 @@ void reference_adst_1d(const double *in, double *out, int size) {
   }
 }
 
-#if CONFIG_INTER_DDT
 /* clang-format off */
 void reference_ddt_1d(const double *in, double *out, int size) {
   if (size == 4) {
@@ -325,7 +320,6 @@ void reference_ddt_1d(const double *in, double *out, int size) {
 #endif
 }
 /* clang-format on */
-#endif  // CONFIG_INTER_DDT
 
 void reference_idtx_1d(const double *in, double *out, int size) {
   double scale = 0;
@@ -349,10 +343,8 @@ void reference_hybrid_1d(double *in, double *out, int size, int type) {
     reference_dct_1d(in, out, size);
   else if (type == TYPE_ADST)
     reference_adst_1d(in, out, size);
-#if CONFIG_INTER_DDT
   else if (type == TYPE_DDT)
     reference_ddt_1d(in, out, size);
-#endif  // CONFIG_INTER_DDT
   else
     reference_idtx_1d(in, out, size);
 }
@@ -376,18 +368,12 @@ double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size) {
 }
 
 void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type,
-#if CONFIG_INTER_DDT
                          int use_ddt,
-#endif  // CONFIG_INTER_DDT
                          TX_SIZE tx_size) {
   // Get transform type and size of each dimension.
   TYPE_TXFM type0;
   TYPE_TXFM type1;
-#if CONFIG_INTER_DDT
   get_txfm1d_type(tx_type, use_ddt, &type0, &type1);
-#else
-  get_txfm1d_type(tx_type, &type0, &type1);
-#endif  // CONFIG_INTER_DDT
   const int tx_width = tx_size_wide[tx_size];
   const int tx_height = tx_size_high[tx_size];
 

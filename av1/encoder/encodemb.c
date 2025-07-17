@@ -920,11 +920,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }
   txfm_param->cctx_type = cctx_type;
-#if CONFIG_INTER_DDT
   txfm_param->use_ddt =
       replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                           cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
   txfm_param->tx_size = tx_size;
   txfm_param->lossless = xd->lossless[mbmi->segment_id];
   txfm_param->tx_set_type =
@@ -1171,10 +1169,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       av1_inverse_transform_block(
           xd, dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, dst_c1,
           pd_c1->dst.stride, max_chroma_eob,
-#if CONFIG_INTER_DDT
           replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
           cm->features.reduced_tx_set_used);
     }
   }
@@ -1186,10 +1182,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
         (plane == 0 || !is_cctx_allowed(cm, xd) || !recon_with_cctx)
             ? p->eobs[block]
             : max_chroma_eob,
-#if CONFIG_INTER_DDT
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
         cm->features.reduced_tx_set_used);
   }
 
@@ -1756,10 +1750,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   if (*eob) {
     av1_inverse_transform_block(
         xd, dqcoeff, plane, tx_type, tx_size, dst, dst_stride, *eob,
-#if CONFIG_INTER_DDT
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
         cm->features.reduced_tx_set_used);
   }
 
@@ -2108,18 +2100,14 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     av1_inverse_transform_block(
         xd, dqcoeff_c1, AOM_PLANE_U, tx_type, tx_size, dst_c1, dst_stride,
         AOMMAX(*eob_c1, *eob_c2),
-#if CONFIG_INTER_DDT
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
         cm->features.reduced_tx_set_used);
     av1_inverse_transform_block(
         xd, dqcoeff_c2, AOM_PLANE_V, tx_type, tx_size, dst_c2, dst_stride,
         AOMMAX(*eob_c1, *eob_c2),
-#if CONFIG_INTER_DDT
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-#endif  // CONFIG_INTER_DDT
         cm->features.reduced_tx_set_used);
   }
 

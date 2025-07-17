@@ -101,9 +101,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_CHROMA_TX
     GET_PARAMS(enable_chroma_dctonly);
 #endif  // CONFIG_CHROMA_TX
-#if CONFIG_INTER_DDT
     GET_PARAMS(enable_inter_ddt);
-#endif  // CONFIG_INTER_DDT
     GET_PARAMS(enable_cctx);
     GET_PARAMS(enable_ibp);
     GET_PARAMS(enable_adaptive_mvd);

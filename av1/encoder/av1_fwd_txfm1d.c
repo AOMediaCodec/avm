@@ -674,7 +674,6 @@ void av1_fdct32(const int32_t *input, int32_t *output, int8_t cos_bit,
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
 
-#if CONFIG_INTER_DDT
 // Forward length 4 data-driven transform
 void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range) {
@@ -701,7 +700,6 @@ void av1_fddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
   av2_txfm_matrix_mult(input, output, ddt16_kernel[FWD_TXFM], 16, FWD_ADST_BIT,
                        0);
 }
-#endif  // CONFIG_INTER_DDT
 
 #if USE_TUNED_ADST4
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
