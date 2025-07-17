@@ -1648,9 +1648,8 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
         ++*newmv_count;
       ++*ref_match_count;
     }
-    if (candidate->ref_frame[1] == rf[0]
-        && candidate->ref_frame[0] != candidate->ref_frame[1]
-    ) {
+    if (candidate->ref_frame[1] == rf[0] &&
+        candidate->ref_frame[0] != candidate->ref_frame[1]) {
       if (is_inter_compound_mode(candidate->mode) &&
           compound_ref1_mode(candidate->mode) == NEWMV)
         ++*newmv_count;
@@ -1879,9 +1878,7 @@ static AOM_INLINE void add_ref_mv_candidate(
           ++*ref_match_count;
         }
 
-        if (ref == 1
-            && candidate->ref_frame[0] != candidate->ref_frame[1]
-        ) {
+        if (ref == 1 && candidate->ref_frame[0] != candidate->ref_frame[1]) {
           if (is_inter_compound_mode(candidate->mode) &&
               compound_ref1_mode(candidate->mode) == NEWMV)
             ++*newmv_count;

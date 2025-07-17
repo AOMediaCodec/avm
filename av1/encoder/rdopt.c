@@ -9391,9 +9391,8 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
-    const AV1_COMP *cpi, MACROBLOCK *x,
-    BLOCK_SIZE bsize, mode_skip_mask_t *mode_skip_mask,
-    uint64_t skip_ref_frame_mask,
+    const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    mode_skip_mask_t *mode_skip_mask, uint64_t skip_ref_frame_mask,
 #if CONFIG_EXTRA_DPB
     unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
@@ -9458,9 +9457,9 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame)
-            && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-                 is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))) {
+        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
+            !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))) {
           continue;
         }
       }
