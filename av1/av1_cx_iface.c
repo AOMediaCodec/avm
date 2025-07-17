@@ -4761,9 +4761,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_TX64_SEQ_FLAG
         1,  // inter DDT
         1,  // enable_cctx
-        1,   1, 1,
+        1,    1, 1,
         3,  // select_cfl_ds
-        1,   1,
+        1,    1,
 #if CONFIG_DERIVED_MVD_SIGN
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -4790,7 +4790,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // max_drl_refmvs
 
         0,  // max_drl_refbvs
-        1,   1, 1,
+        1,    1, 1,
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
         1,
@@ -4809,7 +4809,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         0,  // disable_loopfilters_across_tiles
 #endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    },      // cfg
+#if CONFIG_ICC_METADATA
+        NULL, 0,
+#endif  // CONFIG_ICC_METADATA
+    },  // cfg
 } };
 
 // This data structure and function are exported in aom/aomcx.h

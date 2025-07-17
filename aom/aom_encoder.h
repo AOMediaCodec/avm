@@ -657,6 +657,18 @@ typedef struct cfg_options {
    */
   unsigned int disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
+#if CONFIG_ICC_METADATA
+  /*!\brief ICC profile metadata
+   *
+   */
+  uint8_t *icc_data;
+  /*!\brief ICC profile metadata size
+   *
+   */
+  size_t icc_size;
+#endif  // CONFIG_ICC_METADATA
+
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

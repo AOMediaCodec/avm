@@ -568,6 +568,7 @@ static uint32_t read_one_tile_group_obu(
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP
 
+#if !CONFIG_METADATA
 // Returns the last nonzero byte index in 'data'. If there is no nonzero byte in
 // 'data', returns -1.
 static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
@@ -578,7 +579,7 @@ static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
   }
   return i;
 }
-
+#endif  // !CONFIG_METADATA
 // Allocates metadata that was read and adds it to the decoders metadata array.
 static void alloc_read_metadata(AV1Decoder *const pbi,
                                 OBU_METADATA_TYPE metadata_type,
@@ -627,11 +628,16 @@ static void read_metadata_itut_t35(AV1Decoder *const pbi, const uint8_t *data,
     }
     ++country_code_size;
   }
+#if CONFIG_METADATA
+  const int end_index = (int)sz;
+#else
   int end_index = get_last_nonzero_byte_index(data, sz);
+#endif  // CONFIG_METADATA
   if (end_index < country_code_size) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No trailing bits found in ITU-T T.35 metadata OBU");
   }
+#if !CONFIG_METADATA
   // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
   //   itu_t_t35_payload_bytes shall be bytes containing data registered as
   //   specified in Recommendation ITU-T T.35.
@@ -642,6 +648,7 @@ static void read_metadata_itut_t35(AV1Decoder *const pbi, const uint8_t *data,
                        "is 0x%02x, should be 0x80.",
                        data[end_index]);
   }
+#endif  // !CONFIG_METADATA
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_ITUT_T35, data, end_index,
                       AOM_MIF_ANY_FRAME);
 }
@@ -675,6 +682,23 @@ static size_t read_metadata_hdr_mdcv(AV1Decoder *const pbi, const uint8_t *data,
                       AOM_MIF_ANY_FRAME);
   return kMdcvPayloadSize;
 }
+
+#if CONFIG_ICC_METADATA
+// On success, returns the number of bytes read from 'data'. On failure, calls
+// aom_internal_error() and does not return.
+static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
+                                        const uint8_t *data, size_t sz) {
+  const size_t kMinIccProfileHeaderSize = 128;
+  AV1_COMMON *const cm = &pbi->common;
+  if (sz < kMinIccProfileHeaderSize) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Incorrect ICC profile metadata payload size");
+  }
+  alloc_read_metadata(pbi, OBU_METADATA_TYPE_ICC_PROFILE, data, sz,
+                      AOM_MIF_ANY_FRAME);
+  return sz;
+}
+#endif  // CONFIG_ICC_METADATA
 
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
@@ -804,7 +828,14 @@ static uint8_t get_last_nonzero_byte(const uint8_t *data, size_t sz) {
 // On success, returns the number of bytes read from 'data'. On failure, sets
 // pbi->common.error.error_code and returns 0, or calls aom_internal_error()
 // and does not return.
-static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
+#if CONFIG_METADATA
+static size_t read_metadata_unit_payload(AV1Decoder *pbi, const uint8_t *data,
+                                         aom_metadata_t *metadata)
+#else
+static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
+#endif  // CONFIG_METADATA
+{
+#if !CONFIG_METADATA
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
@@ -813,37 +844,80 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
     return 0;
   }
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
+#else
+  size_t type_length = 0;
+  const OBU_METADATA_TYPE metadata_type = metadata->type;
+  const size_t sz = metadata->sz;
+#endif  // !CONFIG_METADATA
+#if 1
+  printf("(%s) SZ: %zu\n", __func__, sz);
+#endif
+#if CONFIG_ICC_METADATA
+  int known_metadata_type =
+      metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
+      metadata_type <= OBU_METADATA_TYPE_DECODED_FRAME_HASH;
+  known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
+  if (!known_metadata_type) {
+#else
   if (metadata_type == 0 || metadata_type >= 7) {
+#endif  // CONFIG_ICC_METADATA
+#if !CONFIG_METADATA
     // If metadata_type is reserved for future use or a user private value,
     // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#endif  // !CONFIG_METADATA
     return sz;
   }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
+#if !CONFIG_METADATA
     // read_metadata_itut_t35() checks trailing bits.
+#endif  // !CONFIG_METADATA
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
+#if !CONFIG_METADATA
     size_t bytes_read =
         type_length +
+#endif  // !CONFIG_METADATA
         read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
+#if !CONFIG_METADATA
     if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#endif  // !CONFIG_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
+#if !CONFIG_METADATA
     size_t bytes_read =
         type_length +
+#endif  // !CONFIG_METADATA
         read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
+#if !CONFIG_METADATA
     if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#endif  // !CONFIG_METADATA
     return sz;
+#if CONFIG_ICC_METADATA
+  } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
+#if !CONFIG_METADATA
+    size_t bytes_read =
+        type_length +
+#endif  // !CONFIG_METADATA
+        read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
+#if !CONFIG_METADATA
+    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+#endif  // !CONFIG_METADATA
+    return sz;
+#endif  // CONFIG_ICC_METADATA
   }
 
   struct aom_read_bit_buffer rb;
@@ -852,25 +926,167 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
     read_metadata_scalability(&rb);
   } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
     if (read_metadata_frame_hash(pbi, &rb)) {
+#if !CONFIG_METADATA
       // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
       // just checking trailing bits
       if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
         cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
         return 0;
       }
+#endif  // !CONFIG_METADATA
       return sz;
     }
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
   }
+#if !CONFIG_METADATA
   if (av1_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
   }
+#endif  // !CONFIG_METADATA
   assert((rb.bit_offset & 7) == 0);
   return type_length + (rb.bit_offset >> 3);
 }
+
+#if CONFIG_METADATA
+static size_t read_metadata_obsp(AV1Decoder *pbi, const uint8_t *data,
+                                 size_t sz,
+                                 aom_metadata_array_t *metadata_array,
+                                 aom_metadata_t *metadata_base) {
+  AV1_COMMON *const cm = &pbi->common;
+
+  struct aom_read_bit_buffer rb;
+  av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
+
+  metadata_base->is_suffix = aom_rb_read_literal(&rb, 1);
+  metadata_base->necessity_idc =
+      (aom_metadata_necessity_t)aom_rb_read_literal(&rb, 2);
+  metadata_base->application_id =
+      (aom_metadata_application_id_t)aom_rb_read_literal(&rb, 5);
+
+  const size_t bytes_read = aom_rb_bytes_read(&rb);
+  assert(bytes_read == 1);
+
+  size_t count_length;
+  uint64_t count_value;
+  if (aom_uleb_decode(data + bytes_read, sz - bytes_read, &count_value,
+                      &count_length) < 0) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+
+  metadata_array->sz = count_value;
+
+  return bytes_read + count_length;
+}
+
+static size_t read_metadata_unit_header(AV1Decoder *pbi, const uint8_t *data,
+                                        size_t sz, aom_metadata_t *metadata,
+                                        const ObuHeader *obu_header) {
+  AV1_COMMON *const cm = &pbi->common;
+  size_t type_length;
+  uint64_t type_value;
+  if (aom_uleb_decode(data, sz, &type_value, &type_length) < 0) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+  metadata->type = (uint32_t)type_value;
+  size_t bytes_read = type_length;
+
+  struct aom_read_bit_buffer rb;
+  av1_init_read_bit_buffer(pbi, &rb, data + bytes_read, data + sz);
+
+  const size_t muh_header_size = aom_rb_read_literal(&rb, 7);
+  metadata->cancel_flag = aom_rb_read_literal(&rb, 1);
+  assert(aom_rb_bytes_read(&rb) == 1);
+  bytes_read += aom_rb_bytes_read(&rb);
+
+  const size_t total_size = bytes_read + muh_header_size;
+  assert(total_size <= sz);
+
+  if (!metadata->cancel_flag) {
+    size_t size_length;
+    uint64_t size_value = 0;
+    if (aom_uleb_decode(data + bytes_read, sz - bytes_read, &size_value,
+                        &size_length) < 0) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    metadata->sz = size_value;
+    bytes_read += size_length;
+
+    av1_init_read_bit_buffer(pbi, &rb, data + bytes_read, data + sz);
+
+    metadata->layer_idc = (aom_metadata_layer_t)aom_rb_read_literal(&rb, 3);
+    metadata->persistence_idc =
+        (aom_metadata_persistence_t)aom_rb_read_literal(&rb, 3);
+    metadata->priority = aom_rb_read_literal(&rb, 8);
+    aom_rb_read_literal(&rb, 2);  // reserved bits
+
+    assert(aom_rb_bytes_read(&rb) == 2);
+
+    if (metadata->layer_idc == AOM_LAYER_VALUES) {
+      if (obu_header->obu_xlayer_id == 31) {
+        metadata->xlayer_map = aom_rb_read_unsigned_literal(&rb, 32);
+        assert((metadata->xlayer_map & (1u << 31)) == 0);
+        for (int n = 0; n < 31; n++) {
+          if (metadata->xlayer_map & (1u << n)) {
+            metadata->mlayer_map[n] = aom_rb_read_unsigned_literal(&rb, 8);
+          }
+        }
+      } else {
+        metadata->mlayer_map[obu_header->obu_xlayer_id] =
+            aom_rb_read_unsigned_literal(&rb, 8);
+      }
+    }
+
+    bytes_read += aom_rb_bytes_read(&rb);
+  }
+
+  assert(bytes_read <= total_size);
+  return total_size;
+}
+
+static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
+                                ObuHeader *obu_header) {
+  AV1_COMMON *const cm = &pbi->common;
+
+  aom_metadata_array_t metadata_array = { 0 };
+  aom_metadata_t metadata_base;
+  memset(&metadata_base, 0, sizeof(metadata_base));
+  size_t bytes_read =
+      read_metadata_obsp(pbi, data, sz, &metadata_array, &metadata_base);
+
+  for (uint32_t i = 0; i < metadata_array.sz; i++) {
+    aom_metadata_t metadata = { 0 };
+    // copy shared fields read in `read_metadata_obsp`
+    memcpy(&metadata, &metadata_base, sizeof(metadata));
+
+    const size_t muh_size = read_metadata_unit_header(
+        pbi, data + bytes_read, sz - bytes_read, &metadata, obu_header);
+    if (muh_size == 0) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    bytes_read += muh_size;
+    if (sz - bytes_read < metadata.sz) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    const size_t mup_size =
+        read_metadata_unit_payload(pbi, data + bytes_read, &metadata);
+    bytes_read += mup_size;
+  }
+
+  if (bytes_read >= sz || data[bytes_read] != 0x80) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+  return bytes_read + 1;
+}
+#endif  // CONFIG_METADATA
 
 // On success, returns 'sz'. On failure, sets pbi->common.error.error_code and
 // returns 0.
@@ -1223,7 +1439,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         break;
 #endif  // CONFIG_F106_OBU_TILEGROUP
       case OBU_METADATA:
+#if CONFIG_METADATA
+        decoded_payload_size =
+            read_metadata_obu(pbi, data, payload_size, &obu_header);
+#else
         decoded_payload_size = read_metadata(pbi, data, payload_size);
+#endif  // CONFIG_METADATA
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_PADDING:
@@ -1258,6 +1479,44 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     data += payload_size;
   }
+
+#if CONFIG_METADATA
+  // check whether suffix metadata OBUs are present
+  while (cm->error.error_code == AOM_CODEC_OK && data < data_end) {
+    size_t payload_size = 0;
+    size_t decoded_payload_size = 0;
+    size_t bytes_read = 0;
+    const size_t bytes_available = data_end - data;
+    aom_codec_err_t status =
+        aom_read_obu_header_and_size(data, bytes_available, pbi->is_annexb,
+                                     &obu_header, &payload_size, &bytes_read);
+
+    if (status != AOM_CODEC_OK) {
+      cm->error.error_code = status;
+      return -1;
+    }
+
+    if (obu_header.type != OBU_METADATA || data + bytes_read >= data_end) break;
+
+    // check whether it is a suffix metadata OBU
+    if (!(data[bytes_read] & 0x80)) break;
+
+    data += bytes_read;
+
+    decoded_payload_size =
+        read_metadata_obu(pbi, data, payload_size, &obu_header);
+
+    if (cm->error.error_code != AOM_CODEC_OK) return -1;
+
+    // Check that the signalled OBU size matches the actual amount of data read
+    if (decoded_payload_size > payload_size) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return -1;
+    }
+
+    data += payload_size;
+  }
+#endif  // CONFIG_METADATA
 
   if (cm->error.error_code != AOM_CODEC_OK) return -1;
 

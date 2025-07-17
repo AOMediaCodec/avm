@@ -297,8 +297,10 @@ aom_metadata_t *aom_img_metadata_alloc(
     uint32_t type, const uint8_t *data, size_t sz,
     aom_metadata_insert_flags_t insert_flag) {
   if (!data || sz == 0) return NULL;
+
   aom_metadata_t *metadata = (aom_metadata_t *)malloc(sizeof(aom_metadata_t));
   if (!metadata) return NULL;
+
   metadata->type = type;
   metadata->payload = (uint8_t *)malloc(sz);
   if (!metadata->payload) {
@@ -308,6 +310,18 @@ aom_metadata_t *aom_img_metadata_alloc(
   memcpy(metadata->payload, data, sz);
   metadata->sz = sz;
   metadata->insert_flag = insert_flag;
+
+#if CONFIG_METADATA
+  metadata->is_suffix = 0;
+  metadata->necessity_idc = AOM_NECESSITY_UNDEFINED;
+  metadata->application_id = AOM_APPID_UNDEFINED;
+  metadata->cancel_flag = 0;
+  metadata->priority = 0;
+  metadata->persistence_idc = AOM_GLOBAL_PERSISTENCE;
+  metadata->layer_idc = AOM_LAYER_UNSPECIFIED;
+  metadata->xlayer_map = 0;
+  memset(metadata->mlayer_map, 0, sizeof(metadata->mlayer_map));
+#endif  // CONFIG_METADATA
   return metadata;
 }
 

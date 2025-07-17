@@ -125,6 +125,10 @@ static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
+#if CONFIG_ICC_METADATA
+static const arg_def_t icc_file =
+    ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
+#endif  // CONFIG_ICC_METADATA
 static const arg_def_t *all_args[] = {
   &help,           &codecarg,      &use_yv12,      &use_i420,       &flipuvarg,
   &rawvideo,       &noblitarg,     &progressarg,   &limitarg,       &skiparg,
@@ -134,7 +138,11 @@ static const arg_def_t *all_args[] = {
 #endif
   &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,         &md5arg,
   &verifyarg,      &framestatsarg, &continuearg,   &outbitdeptharg, &isannexb,
-  &oppointarg,     &outallarg,     &skipfilmgrain, &bruoptmodearg,  NULL
+  &oppointarg,     &outallarg,     &skipfilmgrain, &bruoptmodearg,
+#if CONFIG_ICC_METADATA
+  &icc_file,
+#endif  // CONFIG_ICC_METADATA
+  NULL
 };
 
 #if CONFIG_LANCZOS_RESAMPLE
@@ -633,6 +641,12 @@ static int main_loop(int argc, const char **argv_) {
 
   FILE *framestats_file = NULL;
 
+#if CONFIG_ICC_METADATA
+  FILE *icc_f = NULL;
+  uint8_t *icc_data = NULL;
+  size_t icc_size = 0;
+#endif  // CONFIG_ICC_METADATA
+
   MD5Context md5_ctx;
   unsigned char md5_digest[16];
 
@@ -757,6 +771,10 @@ static int main_loop(int argc, const char **argv_) {
       skip_film_grain = 1;
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
+#if CONFIG_ICC_METADATA
+    } else if (arg_match(&arg, &icc_file, argi)) {
+      icc_f = fopen(arg.val, "wb");
+#endif  // CONFIG_ICC_METADATA
     } else {
       argj++;
     }
@@ -1002,6 +1020,25 @@ static int main_loop(int argc, const char **argv_) {
 
       if (progress) show_progress(frame_in, frame_out, dx_time);
 
+#if CONFIG_ICC_METADATA
+      const int num_metadata = aom_img_num_metadata(img);
+      for (int m = 0; m < num_metadata; m++) {
+        const aom_metadata_t *metadata = aom_img_get_metadata(img, m);
+        switch (metadata->type) {
+          case OBU_METADATA_TYPE_ICC_PROFILE:
+            if (icc_size == 0) {
+              icc_size = metadata->sz;
+              icc_data = (uint8_t *)malloc(icc_size);
+              memcpy(icc_data, metadata->payload, icc_size);
+            }
+            break;
+          default:
+            // do nothing
+            break;
+        }
+      }
+#endif  // CONFIG_ICC_METADATA
+
       if (do_verify) {
         if (check_decoded_frame_hash(&decoder, img, frame_out,
                                      skip_film_grain) &&
@@ -1215,6 +1252,16 @@ fail2:
 
   fclose(infile);
   if (framestats_file) fclose(framestats_file);
+
+#if CONFIG_ICC_METADATA
+  if (icc_f) {
+    if (icc_size > 0) {
+      fwrite(icc_data, 1, icc_size, icc_f);
+    }
+    fclose(icc_f);
+  }
+  if (icc_data != NULL) free(icc_data);
+#endif  // CONFIG_ICC_METADATA
 
   free(argv);
 
