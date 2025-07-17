@@ -4299,8 +4299,7 @@ static const transform_1d_avx2
 static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
                                                    uint16_t *output, int stride,
                                                    TX_TYPE tx_type,
-                                                   TX_SIZE tx_size,
-                                                   int use_ddt,
+                                                   TX_SIZE tx_size, int use_ddt,
                                                    int eob, const int bd) {
   __m256i buf1[64 * 8];
   int eobx, eoby;
@@ -4391,8 +4390,8 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
 void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
                                              uint16_t *output, int stride,
                                              TX_TYPE tx_type, TX_SIZE tx_size,
-                                             int use_ddt,
-                                             int eob, const int bd) {
+                                             int use_ddt, int eob,
+                                             const int bd) {
   switch (tx_type) {
     case DCT_DCT:
     case ADST_DCT:
@@ -4404,9 +4403,7 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     case ADST_FLIPADST:
     case FLIPADST_ADST:
       highbd_inv_txfm2d_add_no_identity_avx2(input, output, stride, tx_type,
-                                             tx_size,
-                                             use_ddt,
-                                             eob, bd);
+                                             tx_size, use_ddt, eob, bd);
       break;
     case IDTX:
     case H_DCT:
@@ -4416,9 +4413,7 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     case V_ADST:
     case V_FLIPADST:
       av1_highbd_inv_txfm2d_add_universe_sse4_1(input, output, stride, tx_type,
-                                                tx_size,
-                                                use_ddt,
-                                                eob, bd);
+                                                tx_size, use_ddt, eob, bd);
       break;
     default: assert(0); break;
   }
@@ -4461,8 +4456,7 @@ void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
     default:
       av1_highbd_inv_txfm2d_add_universe_avx2(
           input, dest, stride, txfm_param->tx_type, txfm_param->tx_size,
-          txfm_param->use_ddt,
-          txfm_param->eob, txfm_param->bd);
+          txfm_param->use_ddt, txfm_param->eob, txfm_param->bd);
       break;
   }
 #endif  // CONFIG_CORE_TX
@@ -9409,8 +9403,7 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
     assert(tx_type == DCT_DCT || tx_type == IDTX);
     if (tx_type == IDTX) {
       av1_inv_txfm2d_add_4x4_c(input, dest, stride, tx_type,
-                               txfm_param->use_ddt,
-                               txfm_param->bd);
+                               txfm_param->use_ddt, txfm_param->bd);
     } else {
       av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
                              txfm_param->bd);

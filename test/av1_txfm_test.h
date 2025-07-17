@@ -53,8 +53,7 @@ void reference_hybrid_1d(double *in, double *out, int size, int type);
 
 double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size);
 
-void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type,
-                         int use_ddt,
+void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type, int use_ddt,
                          TX_SIZE tx_size);
 template <typename Type1, typename Type2>
 static double compute_avg_abs_error(const Type1 *a, const Type2 *b,
@@ -79,8 +78,7 @@ void fliplrud(Type *dest, int width, int height, int stride);
 typedef void (*TxfmFunc)(const int32_t *in, int32_t *out, const int8_t cos_bit,
                          const int8_t *range_bit);
 
-typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE,
-                              int,
+typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE, int,
                               int);
 typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
                                  TX_SIZE, int);

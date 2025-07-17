@@ -200,9 +200,7 @@ static AOM_INLINE void txfm_quant_rdcost(
   *rate_cost = rate_estimator(qcoeff, eob, tx_size);
 
   av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst, dst_stride,
-                              eob,
-                              0,
-                              0);
+                              eob, 0, 0);
 }
 
 static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,

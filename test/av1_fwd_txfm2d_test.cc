@@ -76,9 +76,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
         ref_output_[ni] = 0;
       }
 
-      fwd_txfm_(input_, output_, tx_width_, tx_type_,
-                ci % 2,
-                bd);
+      fwd_txfm_(input_, output_, tx_width_, tx_type_, ci % 2, bd);
 
       if (lr_flip_ && ud_flip_) {
         libaom_test::fliplrud(ref_input_, tx_width_, tx_height_, tx_width_);
@@ -89,8 +87,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
       }
 
       libaom_test::reference_hybrid_2d(ref_input_, ref_output_, tx_type_,
-                                       ci % 2,
-                                       tx_size_);
+                                       ci % 2, tx_size_);
 
       double actual_max_error = 0;
       for (int ni = 0; ni < txfm2d_size_; ++ni) {
@@ -290,8 +287,7 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         param.tx_set_type = EXT_TX_SET_ALL16;
         param.bd = bd;
         param.use_ddt = cnt % 2;
-        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-                 cnt % 2,
+        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, cnt % 2,
                  bd);
         target_func(input, output, input_stride, &param);
         const int check_rows = AOMMIN(32, rows);
@@ -347,8 +343,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-                   i % 2,
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, i % 2,
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);
@@ -477,8 +472,7 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           param.bd = bd;
           param.use_ddt = cnt % 2;
 
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-                   cnt % 2,
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, cnt % 2,
                    bd);
           target_func(input, output, input_stride, &param);
           const int check_rows = AOMMIN(32, rows);
@@ -537,8 +531,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type,
-                   i % 2,
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, i % 2,
                    bd);
         }
         aom_usec_timer_mark(&ref_timer);

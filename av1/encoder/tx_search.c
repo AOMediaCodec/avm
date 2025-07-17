@@ -1203,9 +1203,7 @@ static AOM_INLINE void inverse_transform_block_facade(MACROBLOCK *const x,
   uint16_t *dst =
       &pd->dst.buf[(blk_row * dst_stride + blk_col) << MI_SIZE_LOG2];
   av1_inverse_transform_block(xd, dqcoeff, plane, tx_type, tx_size, dst,
-                              dst_stride, eob,
-                              use_ddt,
-                              reduced_tx_set);
+                              dst_stride, eob, use_ddt, reduced_tx_set);
 }
 
 static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,

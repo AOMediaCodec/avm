@@ -17,9 +17,8 @@ namespace libaom_test {
 
 int get_txfm1d_size(TX_SIZE tx_size) { return tx_size_wide[tx_size]; }
 
-void get_txfm1d_type(TX_TYPE txfm2d_type,
-                     int use_ddt,
-                     TYPE_TXFM *type0, TYPE_TXFM *type1) {
+void get_txfm1d_type(TX_TYPE txfm2d_type, int use_ddt, TYPE_TXFM *type0,
+                     TYPE_TXFM *type1) {
   switch (txfm2d_type) {
     case DCT_DCT:
       *type0 = TYPE_DCT;
@@ -367,8 +366,7 @@ double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size) {
   return amplify_factor;
 }
 
-void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type,
-                         int use_ddt,
+void reference_hybrid_2d(double *in, double *out, TX_TYPE tx_type, int use_ddt,
                          TX_SIZE tx_size) {
   // Get transform type and size of each dimension.
   TYPE_TXFM type0;

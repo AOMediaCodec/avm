@@ -3481,9 +3481,7 @@ void av1_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type,
-                               int use_ddt,
-                               int bd) {
+                               TX_TYPE tx_type, int use_ddt, int bd) {
   (void)use_ddt;
   (void)bd;
 
@@ -3604,9 +3602,7 @@ void av1_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type,
-                               int use_ddt,
-                               int bd) {
+                               TX_TYPE tx_type, int use_ddt, int bd) {
   (void)use_ddt;
   int32x4_t in[128];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
@@ -3637,9 +3633,7 @@ void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
-                              TX_TYPE tx_type,
-                              int use_ddt,
-                              int bd) {
+                              TX_TYPE tx_type, int use_ddt, int bd) {
   (void)use_ddt;
   int32x4_t in[64];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
@@ -3677,9 +3671,7 @@ void av1_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *coeff, int stride,
-                              TX_TYPE tx_type,
-                              int use_ddt,
-                              int bd) {
+                              TX_TYPE tx_type, int use_ddt, int bd) {
   (void)use_ddt;
   int32x4_t in[64];
   int32x4_t *outcoef128 = (int32x4_t *)coeff;
@@ -4022,8 +4014,7 @@ static INLINE void fwd_txfm2d_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
-                               int stride, TX_TYPE tx_type,
-                               int use_ddt,
+                               int stride, TX_TYPE tx_type, int use_ddt,
                                int bd) {
   (void)use_ddt;
   DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);

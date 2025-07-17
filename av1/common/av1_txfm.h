@@ -146,9 +146,7 @@ typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
-                              TX_TYPE tx_type,
-                              int use_ddt,
-                              int bd);
+                              TX_TYPE tx_type, int use_ddt, int bd);
 
 enum {
   TXFM_TYPE_DCT4,

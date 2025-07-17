@@ -2631,8 +2631,7 @@ static const transform_1d_sse2 row_txfm8x32_arr[TX_TYPES] = {
 };
 
 void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
 
@@ -2676,8 +2675,7 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)stride;
   (void)bd;
@@ -2722,8 +2720,7 @@ void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
 
@@ -2771,8 +2768,7 @@ void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
 
@@ -2815,8 +2811,7 @@ void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
 
@@ -2859,8 +2854,7 @@ void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
 
@@ -2908,8 +2902,7 @@ void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   __m128i buf0[32], buf1[32];
@@ -2956,8 +2949,7 @@ void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
 
@@ -3006,8 +2998,7 @@ void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
 
@@ -3056,8 +3047,7 @@ void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
 
@@ -3110,8 +3100,7 @@ void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
 
@@ -3165,15 +3154,12 @@ void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
 
@@ -3230,15 +3216,12 @@ void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
                                      width, height);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
 
@@ -3296,15 +3279,12 @@ void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
 
@@ -3361,15 +3341,12 @@ void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
                                      width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)tx_type;
@@ -3421,8 +3398,7 @@ void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)tx_type;
@@ -3477,8 +3453,7 @@ void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   __m128i buf0[32], buf1[32];
@@ -3525,8 +3500,7 @@ void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   __m128i buf0[32], buf1[32];
@@ -3576,8 +3550,7 @@ void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)tx_type;
@@ -3636,8 +3609,7 @@ void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)tx_type;
@@ -3694,8 +3666,7 @@ void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   __m128i buf0[64], buf1[64];
@@ -3748,8 +3719,7 @@ void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)tx_type;
@@ -3839,6 +3809,5 @@ void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,
     av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
   else
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
-                    txfm_param->use_ddt,
-                    txfm_param->bd);
+                    txfm_param->use_ddt, txfm_param->bd);
 }

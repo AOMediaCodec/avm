@@ -146,8 +146,7 @@ static INLINE void fwd_txfm2d_64x64_sse4_1(const int16_t *input,
 }
 
 void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
-                                 int stride, TX_TYPE tx_type,
-                                 int use_ddt,
+                                 int stride, TX_TYPE tx_type, int use_ddt,
                                  int bd) {
   (void)use_ddt;
   DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);
@@ -158,8 +157,7 @@ void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
 }
 
 void av1_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
-                                 int stride, TX_TYPE tx_type,
-                                 int use_ddt,
+                                 int stride, TX_TYPE tx_type, int use_ddt,
                                  int bd) {
   (void)use_ddt;
 
@@ -195,8 +193,7 @@ static INLINE void transpose_32_4x4x2(int stride, const __m128i *inputA,
 
 static void lowbd_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-                                          int use_ddt,
-                                          int bd) {
+                                          int use_ddt, int bd) {
   (void)bd;
   (void)tx_type;
   (void)use_ddt;
@@ -247,8 +244,7 @@ static void lowbd_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
 
 static void lowbd_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-                                          int use_ddt,
-                                          int bd) {
+                                          int use_ddt, int bd) {
   (void)bd;
   (void)use_ddt;
 
@@ -298,8 +294,7 @@ static void lowbd_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *output,
 
 static void lowbd_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-                                          int use_ddt,
-                                          int bd) {
+                                          int use_ddt, int bd) {
   (void)bd;
   (void)tx_type;
   (void)use_ddt;
@@ -385,7 +380,6 @@ void av1_lowbd_fwd_txfm_sse4_1(const int16_t *src_diff, tran_low_t *coeff,
     av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
   } else {
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
-                    txfm_param->use_ddt,
-                    txfm_param->bd);
+                    txfm_param->use_ddt, txfm_param->bd);
   }
 }

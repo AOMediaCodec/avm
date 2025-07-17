@@ -2284,8 +2284,7 @@ static const transform_1d_lbd_neon col_txfm8x32_arr[TX_TYPES] = {
 };
 
 void av1_lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2331,8 +2330,7 @@ void av1_lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)stride;
   (void)bd;
@@ -2378,8 +2376,7 @@ void av1_lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2428,8 +2425,7 @@ void av1_lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2473,8 +2469,7 @@ void av1_lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
-                                   int stride, TX_TYPE tx_type,
-                                   int use_ddt,
+                                   int stride, TX_TYPE tx_type, int use_ddt,
                                    int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2518,8 +2513,7 @@ void av1_lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2568,8 +2562,7 @@ void av1_lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2620,8 +2613,7 @@ void av1_lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2671,8 +2663,7 @@ void av1_lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2722,8 +2713,7 @@ void av1_lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2778,8 +2768,7 @@ void av1_lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2836,15 +2825,12 @@ void av1_lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    int use_ddt,
+                                    int stride, TX_TYPE tx_type, int use_ddt,
                                     int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2904,15 +2890,12 @@ void av1_lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
                                      width, height);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)use_ddt;
@@ -2973,15 +2956,12 @@ void av1_lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)use_ddt;
@@ -3039,15 +3019,12 @@ void av1_lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
                                      width, 8);
     }
   } else {
-    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type,
-                           use_ddt,
-                           bd);
+    av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type, use_ddt, bd);
   }
 }
 
 void av1_lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)tx_type;
@@ -3092,8 +3069,7 @@ void av1_lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
 }
 
 void av1_lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
-                                     int stride, TX_TYPE tx_type,
-                                     int use_ddt,
+                                     int stride, TX_TYPE tx_type, int use_ddt,
                                      int bd) {
   (void)bd;
   (void)tx_type;
@@ -4297,8 +4273,7 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
 
 static void av1_lowbd_fwd_txfm2d_64x64_neon(const int16_t *input,
                                             int32_t *output, int stride,
-                                            TX_TYPE tx_type,
-                                            int use_ddt,
+                                            TX_TYPE tx_type, int use_ddt,
                                             int bd) {
   (void)bd;
   (void)tx_type;
@@ -4349,8 +4324,7 @@ static void av1_lowbd_fwd_txfm2d_64x64_neon(const int16_t *input,
 }
 static void av1_lowbd_fwd_txfm2d_64x32_neon(const int16_t *input,
                                             int32_t *output, int stride,
-                                            TX_TYPE tx_type,
-                                            int use_ddt,
+                                            TX_TYPE tx_type, int use_ddt,
                                             int bd) {
   (void)bd;
   (void)use_ddt;
@@ -4401,8 +4375,7 @@ static void av1_lowbd_fwd_txfm2d_64x32_neon(const int16_t *input,
 
 static void av1_lowbd_fwd_txfm2d_32x64_neon(const int16_t *input,
                                             int32_t *output, int stride,
-                                            TX_TYPE tx_type,
-                                            int use_ddt,
+                                            TX_TYPE tx_type, int use_ddt,
                                             int bd) {
   (void)bd;
   (void)tx_type;
@@ -4483,7 +4456,6 @@ void av1_lowbd_fwd_txfm_neon(const int16_t *src_diff, tran_low_t *coeff,
     av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
   } else {
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
-                    txfm_param->use_ddt,
-                    txfm_param->bd);
+                    txfm_param->use_ddt, txfm_param->bd);
   }
 }

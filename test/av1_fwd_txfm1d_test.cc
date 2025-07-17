@@ -24,8 +24,7 @@ using libaom_test::TYPE_TXFM;
 
 namespace {
 const int txfm_type_num = 4;
-const TYPE_TXFM txfm_type_ls[txfm_type_num] = { TYPE_DCT, TYPE_ADST,
-                                                TYPE_DDT,
+const TYPE_TXFM txfm_type_ls[txfm_type_num] = { TYPE_DCT, TYPE_ADST, TYPE_DDT,
                                                 TYPE_IDTX };
 
 const int txfm_size_num = 5;

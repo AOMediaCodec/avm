@@ -139,7 +139,7 @@ typedef void (*fwd_transform_1d_sse4_1)(__m128i *in, __m128i *out, int bit,
 void av1_highbd_inv_txfm2d_add_universe_sse4_1(const int32_t *input,
                                                uint16_t *output, int stride,
                                                TX_TYPE tx_type, TX_SIZE tx_size,
-                                               int use_ddt,
-                                               int eob, const int bd);
+                                               int use_ddt, int eob,
+                                               const int bd);
 
 #endif  // AOM_AV1_COMMON_X86_HIGHBD_TXFM_UTILITY_SSE4_H_

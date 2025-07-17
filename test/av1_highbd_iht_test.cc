@@ -32,14 +32,10 @@ using libaom_test::ACMRandom;
 using std::tuple;
 
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
-                          TX_TYPE tx_type,
-                          int use_ddt,
-                          int bd);
+                          TX_TYPE tx_type, int use_ddt, int bd);
 
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
-                           TX_TYPE tx_type,
-                           int use_ddt,
-                           int bd);
+                           TX_TYPE tx_type, int use_ddt, int bd);
 static const char *tx_type_name[] = {
   "DCT_DCT",
   "ADST_DCT",
@@ -149,12 +145,8 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
       output_[j] = output_ref_[j];
     }
 
-    txfm_ref_(input_, coeffs_, stride, tx_type_,
-              i % 2,
-              bit_depth_);
-    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_,
-                  i % 2,
-                  bit_depth_);
+    txfm_ref_(input_, coeffs_, stride, tx_type_, i % 2, bit_depth_);
+    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, i % 2, bit_depth_);
     ASM_REGISTER_STATE_CHECK(
         inv_txfm_(coeffs_, output_, stride, tx_type_, i % 2, bit_depth_));
 
@@ -256,9 +248,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
         ref_output[r * stride + c] = output[r * stride + c];
       }
     }
-    fwd_func_(input, inv_input, stride, tx_type_,
-              cnt % 2,
-              bit_depth_);
+    fwd_func_(input, inv_input, stride, tx_type_, cnt % 2, bit_depth_);
     txfm_param.use_ddt = cnt % 2;
 
     // produce eob input by setting high freq coeffs to zero
