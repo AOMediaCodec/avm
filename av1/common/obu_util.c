@@ -43,6 +43,9 @@ static int valid_obu_type(int obu_type) {
     case OBU_TILE_GROUP:
 #endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA:
+#if CONFIG_SHORT_METADATA
+    case OBU_METADATA_GROUP:
+#endif  // CONFIG_SHORT_METADATA
 #if !CONFIG_F106_OBU_TILEGROUP
     case OBU_FRAME:
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER

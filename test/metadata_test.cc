@@ -25,24 +25,83 @@
 
 namespace {
 const size_t kMetadataPayloadSizeT35 = 24;
+#if CONFIG_METADATA
+// itu_t_t35_country_code = 0xB5 (USA)
+// itu_t_t35_terminal_provider_code = 0x5890 (AOM)
+// itu_t_t35_terminal_provider_oriented_code = 0xFE (not specified, for testing
+// purposes only)
+const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
+  0xB5, 0x58, 0x90, 0xFE, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+  0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+};
+#else
 // 0xB5 stands for the itut t35 metadata country code for the Unites States
 const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
+#endif  // CONFIG_METADATA
 
 const size_t kMetadataPayloadSizeCll = 4;
+#if CONFIG_METADATA
+const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xDE, 0xAD, 0xBE,
+                                                               0xEF };
+const size_t kMetadataPayloadSizeMdcv = 24;
+const uint8_t kMetadataPayloadMdcv[kMetadataPayloadSizeMdcv] = {
+  0x01, 0x00,              // primary_chromaticity_x[0]
+  0x02, 0x00,              // primary_chromaticity_y[0]
+  0x03, 0x00,              // primary_chromaticity_x[1]
+  0x04, 0x00,              // primary_chromaticity_y[1]
+  0x05, 0x00,              // primary_chromaticity_x[2]
+  0x06, 0x00,              // primary_chromaticity_y[2]
+  0x07, 0x00,              // white_point_chromaticity_x
+  0x08, 0x00,              // white_point_chromaticity_y
+  0x00, 0x00, 0x00, 0x09,  // luminance_max
+  0x00, 0x00, 0x00, 0x0A   // luminance_min
+};
+#else
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
                                                                0x03 };
+#endif  // CONFIG_METADATA
 
 #if CONFIG_AV1_ENCODER
+#if CONFIG_METADATA
+const size_t kMetadataObuSizeT35 = 29;
+const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
+  0x04,        // muh_metadata_type(leb128) = 4 (ITU-T T.35 metadata unit)
+  0x06,        // muh_header_size(7) = 3 + muh_cancel_flag(1) = 0
+  0x18,        // muh_payload_size(leb128) = 24
+  0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
+  0xB5, 0x58, 0x90, 0xFE, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+  0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+};
+
+const size_t kMetadataObuSizeMdcv = 29;
+const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
+  0x02,        // muh_metadata_type(leb128) = 2 (Mastering display color volume)
+  0x06,        // muh_header_size(7) = 3 + muh_cancel_flag(1) = 0
+  0x18,        // muh_payload_size(leb128) = 24
+  0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
+  0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x06, 0x00,
+  0x07, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x0A
+};
+
+const size_t kMetadataObuSizeCll = 9;
+const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
+  0x01,        // muh_metadata_type(leb128) = 1 (Content light level)
+  0x06,        // muh_header_size(7) = 3 + muh_cancel_flag(1) = 0
+  0x04,        // muh_payload_size(leb128) = 4
+  0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
+  0xDE, 0xAD, 0xBE, 0xEF
+};
+#else  // CONFIG_METADATA
 const size_t kMetadataObuSizeT35 =
 #if CONFIG_SHORT_METADATA
     29;
 #else
     28;
 #endif  // CONFIG_SHORT_METADATA
-
+const size_t kMetadataObuSizeT35 = 28;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
 #if CONFIG_SHORT_METADATA
   0x1C, 0x14, 0x00,
@@ -81,6 +140,10 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
 #endif  // CONFIG_SHORT_METADATA
   0x01, 0xB5, 0x01, 0x02, 0x03, 0x80
 };
+const size_t kMetadataObuSizeCll = 8;
+const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x07, 0x14, 0x01, 0xB5,
+                                                       0x01, 0x02, 0x03, 0x80 };
+#endif  // CONFIG_METADATA
 
 class MetadataEncodeTest
     : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
@@ -126,7 +189,7 @@ class MetadataEncodeTest
 
       ASSERT_EQ(
           aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_MDCV,
-                               kMetadataPayloadT35, kMetadataPayloadSizeT35,
+                               kMetadataPayloadMdcv, kMetadataPayloadSizeMdcv,
                                AOM_MIF_KEY_FRAME),
           0);
 
@@ -206,8 +269,8 @@ class MetadataEncodeTest
       // Check keyframe-only metadata
       ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[1]->sz);
       EXPECT_EQ(
-          memcmp(kMetadataPayloadT35, img.metadata->metadata_array[1]->payload,
-                 kMetadataPayloadSizeT35),
+          memcmp(kMetadataPayloadMdcv, img.metadata->metadata_array[1]->payload,
+                 kMetadataPayloadSizeMdcv),
           0);
 
       ASSERT_EQ(kMetadataPayloadSizeCll, img.metadata->metadata_array[2]->sz);

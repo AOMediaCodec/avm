@@ -889,4 +889,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_short_refresh_frame_flags =
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
+
+#if CONFIG_METADATA  // ICC
+  .icc_file = ARG_DEF(NULL, "icc", 1, "ICC profile filename"),
+#endif  // CONFIG_METADATA // ICC
 };

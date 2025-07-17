@@ -4682,14 +4682,14 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,    // enable_ext_partitions
         1,    // enable_tx_partition
         8,    // max_partition_aspect_ratio
-        0,   1, 1, /*extended sdp*/ 1,
+        0,    1, 1, /*extended sdp*/ 1,
         1,
         1,  // enable RefineMv and OPFL for TIP
         1,  // MV traj
 #if CONFIG_MV_RANGE_EXTENSION
         0,  // enable_high_motion
 #endif      // CONFIG_MV_RANGE_EXTENSION
-        1,   1, 1, 1,
+        1,    1, 1, 1,
 #if CONFIG_FSC_RES_HLS
         1,  // enable idtx intra for fsc is disabled case
 #endif
@@ -4699,20 +4699,20 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // chroma DCT only
         1,  // inter DDT
         1,  // enable_cctx
-        1,   1, 1,
+        1,    1, 1,
         3,  // select_cfl_ds
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 0, 0,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 0, 0,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1,
         0,  // reduced_tx_part_set
-        1,   1, 1, 1,
-        3,   1,
+        1,    1, 1, 1,
+        3,    1,
         0,  // reduced_ref_frame_mvs_mode
         1,  // enable_reduced_reference_set
         0,  // explicit_ref_frame_map
@@ -4723,7 +4723,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // max_drl_refmvs
 
         0,  // max_drl_refbvs
-        1,   1, 1,
+        1,    1, 1,
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
         1,
@@ -4735,13 +4735,16 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // disable_loopfilters_across_tiles
 #endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
-        0,  // enable cropping window
-        0,  // crop_win_left_offset
-        0,  // crop_win_right_offset
-        0,  // crop_win_top_offset
-        0,  // crop_win_bottom_offset
-#endif      // CONFIG_CROP_WIN_CWG_F220
-    },      // cfg
+        0,           // enable cropping window
+        0,           // crop_win_left_offset
+        0,           // crop_win_right_offset
+        0,           // crop_win_top_offset
+        0,           // crop_win_bottom_offset
+#endif               // CONFIG_CROP_WIN_CWG_F220
+#if CONFIG_METADATA  // ICC
+        NULL, 0,
+#endif  // CONFIG_METADATA // ICC
+    },  // cfg
 #if CONFIG_CROP_WIN_CWG_F220
     0,  // enable cropping window
     0,  // crop_win_left_offset

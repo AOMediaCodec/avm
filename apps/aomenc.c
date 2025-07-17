@@ -287,6 +287,11 @@ const arg_def_t *global_args[] = {
 #if CONFIG_F160_TD
   &g_av1_codec_arg_defs.signal_td,
 #endif  // CONFIG_F160_TD
+
+#if CONFIG_METADATA  // ICC
+  &g_av1_codec_arg_defs.icc_file,
+#endif  // CONFIG_METADATA // ICC
+
   NULL
 };
 
@@ -745,6 +750,22 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
+#if CONFIG_METADATA  // ICC
+int read_icc_profile(struct AvxEncoderConfig *global, const char *file) {
+  FILE *f = fopen(file, "r");
+  fseek(f, 0, SEEK_END);
+  global->encoder_config.icc_size = AOMMIN(ftell(f), 128);
+  fseek(f, 0, SEEK_SET);
+  global->encoder_config.icc_data =
+      (uint8_t *)malloc(global->encoder_config.icc_size);
+  fread(global->encoder_config.icc_data, 1, global->encoder_config.icc_size, f);
+  fclose(f);
+  printf("Read ICC metadata with size=%d\n",
+         (int)global->encoder_config.icc_size);
+  return 0;
+}
+#endif  // CONFIG_METADATA // ICC
+
 /* Parses global config arguments into the AvxEncoderConfig. Note that
  * argv is modified and overwrites all parsed arguments.
  */
@@ -863,6 +884,10 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.disable_warning_prompt,
                          argi)) {
       global->disable_warning_prompt = 1;
+#if CONFIG_METADATA  // ICC
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.icc_file, argi)) {
+      read_icc_profile(global, arg.val);
+#endif  // CONFIG_METADATA // ICC
     } else {
       argj++;
     }
@@ -2461,11 +2486,20 @@ int main(int argc, const char **argv_) {
         frame_to_encode = &raw;
       }
       assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
+#if CONFIG_METADATA  // ICC
+      if (frame_avail && global.encoder_config.icc_data != NULL) {
+        aom_img_add_metadata(frame_to_encode, OBU_METADATA_TYPE_ICC_PROFILE,
+                             global.encoder_config.icc_data,
+                             global.encoder_config.icc_size, AOM_MIF_KEY_FRAME);
+      }
+#endif  // CONFIG_METADATA // ICC
       FOREACH_STREAM(stream, streams) {
         encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
                      seen_frames);
       };
-
+#if CONFIG_METADATA  // ICC
+      aom_img_remove_metadata(frame_to_encode);
+#endif  // CONFIG_METADATA // ICC
       FOREACH_STREAM(stream, streams) { update_quantizer_histogram(stream); }
 
       got_data = 0;
