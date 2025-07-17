@@ -1641,15 +1641,9 @@ typedef struct FRAME_COUNTS {
   unsigned int tip_pred_mode_cnt[TIP_PRED_MODES];
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
   unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
-#if CONFIG_SAME_REF_COMPOUND
   unsigned int comp_ref0[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
   unsigned int comp_ref1[REF_CONTEXTS][COMPREF_BIT_TYPES]
                         [INTER_REFS_PER_FRAME - 1][2];
-#else
-  unsigned int comp_ref0[REF_CONTEXTS][INTER_REFS_PER_FRAME - 2][2];
-  unsigned int comp_ref1[REF_CONTEXTS][COMPREF_BIT_TYPES]
-                        [INTER_REFS_PER_FRAME - 2][2];
-#endif  // CONFIG_SAME_REF_COMPOUND
 #if CONFIG_NEW_CONTEXT_MODELING
   unsigned int intrabc[INTRABC_CONTEXTS][2];
 #else
@@ -3123,11 +3117,7 @@ typedef struct AV1_COMP {
   /*!
    * Mark which ref frames can be skipped for encoding current frame during RDO.
    */
-#if CONFIG_SAME_REF_COMPOUND
   uint64_t prune_ref_frame_mask;
-#else
-  int prune_ref_frame_mask;
-#endif  // CONFIG_SAME_REF_COMPOUND
 
   /*!
    * Loop Restoration context.

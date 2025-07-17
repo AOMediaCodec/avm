@@ -496,22 +496,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 
     for (i = 0; i < REF_CONTEXTS; ++i) {
-#if CONFIG_SAME_REF_COMPOUND
       for (j = 0; j < INTER_REFS_PER_FRAME - 1; ++j) {
-#else
-      for (j = 0; j < INTER_REFS_PER_FRAME - 2; ++j) {
-#endif  // CONFIG_SAME_REF_COMPOUND
         av1_cost_tokens_from_cdf(mode_costs->comp_ref0_cost[i][j],
                                  fc->comp_ref0_cdf[i][j], NULL);
       }
     }
     for (i = 0; i < REF_CONTEXTS; ++i) {
       for (j = 0; j < COMPREF_BIT_TYPES; j++) {
-#if CONFIG_SAME_REF_COMPOUND
         for (int k = 0; k < INTER_REFS_PER_FRAME - 1; ++k) {
-#else
-        for (int k = 0; k < INTER_REFS_PER_FRAME - 2; ++k) {
-#endif  // CONFIG_SAME_REF_COMPOUND
           av1_cost_tokens_from_cdf(mode_costs->comp_ref1_cost[i][j][k],
                                    fc->comp_ref1_cdf[i][j][k], NULL);
         }

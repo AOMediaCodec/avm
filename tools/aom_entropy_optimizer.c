@@ -1515,38 +1515,22 @@ int main(int argc, const char **argv) {
 
   /* ext_refs experiment */
   cts_each_dim[0] = REF_CONTEXTS;
-#if CONFIG_SAME_REF_COMPOUND
   cts_each_dim[1] = INTER_REFS_PER_FRAME - 1;
-#else
-  cts_each_dim[1] = INTER_REFS_PER_FRAME - 2;
-#endif  // CONFIG_SAME_REF_COMPOUND
   cts_each_dim[2] = 2;
   optimize_cdf_table(&fc.comp_ref0[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_comp_ref0_cdf[REF_CONTEXTS]"
-#if CONFIG_SAME_REF_COMPOUND
                      "[INTER_REFS_PER_FRAME - 1]"
-#else
-                     "[INTER_REFS_PER_FRAME - 2]"
-#endif  // CONFIG_SAME_REF_COMPOUND
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
   cts_each_dim[0] = REF_CONTEXTS;
   cts_each_dim[1] = COMPREF_BIT_TYPES;
-#if CONFIG_SAME_REF_COMPOUND
   cts_each_dim[2] = INTER_REFS_PER_FRAME - 1;
-#else
-  cts_each_dim[2] = INTER_REFS_PER_FRAME - 2;
-#endif  // CONFIG_SAME_REF_COMPOUND
   cts_each_dim[3] = 2;
   optimize_cdf_table(&fc.comp_ref1[0][0][0][0], probsfile, 4, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]"
-#if CONFIG_SAME_REF_COMPOUND
                      "[INTER_REFS_PER_FRAME - 1]"
-#else
-                     "[INTER_REFS_PER_FRAME - 2]"
-#endif  // CONFIG_SAME_REF_COMPOUND
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 

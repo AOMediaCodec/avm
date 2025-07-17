@@ -6018,86 +6018,60 @@ static const aom_cdf_prob
                                               { AOM_CDF2(927) } } };
 
 static const aom_cdf_prob
-#if CONFIG_SAME_REF_COMPOUND
     default_comp_ref0_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
-#else
-    default_comp_ref0_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 2]
-#endif  // CONFIG_SAME_REF_COMPOUND
                          [CDF_SIZE(2)] = { { { AOM_CDF2(9565) },
                                              { AOM_CDF2(20372) },
                                              { AOM_CDF2(26108) },
                                              { AOM_CDF2(25698) },
-#if CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(23235) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(23235) } },
                                            { { AOM_CDF2(29266) },
                                              { AOM_CDF2(29841) },
                                              { AOM_CDF2(31056) },
                                              { AOM_CDF2(31670) },
-#if CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(29626) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(29626) } },
                                            { { AOM_CDF2(6865) },
                                              { AOM_CDF2(16538) },
                                              { AOM_CDF2(17412) },
                                              { AOM_CDF2(15905) },
-#if CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(11282) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                              { AOM_CDF2(11282) } } };
 static const aom_cdf_prob default_comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
-#if CONFIG_SAME_REF_COMPOUND
                                                [INTER_REFS_PER_FRAME - 1]
-#else
-                                               [INTER_REFS_PER_FRAME - 2]
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                [CDF_SIZE(2)] = {
                                                  { { { AOM_CDF2(901) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(901) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(4025) },
                                                      { AOM_CDF2(11946) },
                                                      { AOM_CDF2(12060) },
                                                      { AOM_CDF2(9161) } },
                                                    { { AOM_CDF2(1294) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(1294) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(2591) },
                                                      { AOM_CDF2(8201) },
                                                      { AOM_CDF2(7951) },
                                                      { AOM_CDF2(4942) } } },
                                                  { { { AOM_CDF2(18827) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(18827) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(29089) },
                                                      { AOM_CDF2(29533) },
                                                      { AOM_CDF2(29695) },
                                                      { AOM_CDF2(28668) } },
                                                    { { AOM_CDF2(20397) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(20397) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(19716) },
                                                      { AOM_CDF2(22602) },
                                                      { AOM_CDF2(23821) },
                                                      { AOM_CDF2(16842) } } },
                                                  { { { AOM_CDF2(10566) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(10566) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(8314) },
                                                      { AOM_CDF2(7659) },
                                                      { AOM_CDF2(7571) },
                                                      { AOM_CDF2(5115) } },
                                                    { { AOM_CDF2(800) },
-#if CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(800) },
-#endif  // CONFIG_SAME_REF_COMPOUND
                                                      { AOM_CDF2(4065) },
                                                      { AOM_CDF2(3440) },
                                                      { AOM_CDF2(2442) },

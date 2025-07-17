@@ -331,9 +331,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   for (int frame = cm->ref_frames_info.num_total_refs - 1; frame >= 0;
        --frame) {
     const MV_REFERENCE_FRAME ref_frame[2] = { frame, NONE_FRAME };
-#if CONFIG_SAME_REF_COMPOUND
     assert(frame <= INTER_REFS_PER_FRAME);
-#endif  // CONFIG_SAME_REF_COMPOUND
     const int ref_disabled = !(cm->ref_frame_flags & (1 << frame));
     ref_buf[frame] = NULL;
     cm->global_motion[frame] = default_warp_params;

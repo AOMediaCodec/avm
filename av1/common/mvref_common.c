@@ -1649,9 +1649,7 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
       ++*ref_match_count;
     }
     if (candidate->ref_frame[1] == rf[0]
-#if CONFIG_SAME_REF_COMPOUND
         && candidate->ref_frame[0] != candidate->ref_frame[1]
-#endif  // CONFIG_SAME_REF_COMPOUND
     ) {
       if (is_inter_compound_mode(candidate->mode) &&
           compound_ref1_mode(candidate->mode) == NEWMV)
@@ -1882,9 +1880,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         }
 
         if (ref == 1
-#if CONFIG_SAME_REF_COMPOUND
             && candidate->ref_frame[0] != candidate->ref_frame[1]
-#endif  // CONFIG_SAME_REF_COMPOUND
         ) {
           if (is_inter_compound_mode(candidate->mode) &&
               compound_ref1_mode(candidate->mode) == NEWMV)
@@ -8608,7 +8604,6 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   )
     return;
 
-#if CONFIG_SAME_REF_COMPOUND
   skip_mode_info->skip_mode_allowed = 1;
 
   if (cm->ref_frames_info.num_total_refs > 1) {
@@ -8635,92 +8630,6 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
     skip_mode_info->ref_frame_idx_1 = 0;
     skip_mode_info->ref_frame_idx_0 = 0;
   }
-#else
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int cur_order_hint = cm->current_frame.display_order_hint;
-#else
-  const int cur_order_hint = cm->current_frame.order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  int ref_order_hints[2] = { -1, INT_MAX };
-  int ref_idx[2] = { INVALID_IDX, INVALID_IDX };
-
-  // Identify the top ranked forward and backward references.
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
-    if (buf == NULL) continue;
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-    const int ref_order_hint = buf->display_order_hint;
-#else
-    const int ref_order_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-    if (get_relative_dist(order_hint_info, ref_order_hint, cur_order_hint) <
-        0) {
-      // Forward reference
-      if (ref_order_hints[0] == -1 ||
-          get_relative_dist(order_hint_info, ref_order_hint,
-                            ref_order_hints[0]) > 0) {
-        ref_order_hints[0] = ref_order_hint;
-        ref_idx[0] = i;
-      }
-    } else if (get_relative_dist(order_hint_info, ref_order_hint,
-                                 cur_order_hint) > 0) {
-      // Backward reference
-      if (ref_order_hints[1] == INT_MAX ||
-          get_relative_dist(order_hint_info, ref_order_hint,
-                            ref_order_hints[1]) < 0) {
-        ref_order_hints[1] = ref_order_hint;
-        ref_idx[1] = i;
-      }
-    }
-  }
-
-  if (ref_idx[0] != INVALID_IDX && ref_idx[1] != INVALID_IDX) {
-    // == Bi-directional prediction ==
-    skip_mode_info->skip_mode_allowed = 1;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-    skip_mode_info->ref_frame_idx_0 = ref_idx[0];
-    skip_mode_info->ref_frame_idx_1 = ref_idx[1];
-#else
-    skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
-    skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-  } else if (ref_idx[0] != INVALID_IDX && ref_idx[1] == INVALID_IDX) {
-    // == Forward prediction only ==
-    // Identify the second nearest forward reference.
-    ref_order_hints[1] = -1;
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-      const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
-      if (buf == NULL) continue;
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      const int ref_order_hint = buf->display_order_hint;
-#else
-      const int ref_order_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-      if ((ref_order_hints[0] != -1 &&
-           get_relative_dist(order_hint_info, ref_order_hint,
-                             ref_order_hints[0]) < 0) &&
-          (ref_order_hints[1] == -1 ||
-           get_relative_dist(order_hint_info, ref_order_hint,
-                             ref_order_hints[1]) > 0)) {
-        // Second closest forward reference
-        ref_order_hints[1] = ref_order_hint;
-        ref_idx[1] = i;
-      }
-    }
-    if (ref_order_hints[1] != -1) {
-      skip_mode_info->skip_mode_allowed = 1;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-      skip_mode_info->ref_frame_idx_0 = ref_idx[0];
-      skip_mode_info->ref_frame_idx_1 = ref_idx[1];
-#else
-      skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
-      skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-    }
-  }
-#endif  // CONFIG_SAME_REF_COMPOUND
 }
 
 #if CONFIG_BANK_IMPROVE

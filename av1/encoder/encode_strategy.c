@@ -1353,11 +1353,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
 #endif  // CONFIG_BRU
-#if CONFIG_SAME_REF_COMPOUND
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,
                cm->ref_frames_info.num_total_refs);
-#endif  // CONFIG_SAME_REF_COMPOUND
 #if CONFIG_IMPROVED_GLOBAL_MOTION
     cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION

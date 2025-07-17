@@ -1383,10 +1383,8 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
 
   const int ref_frame[2] = { cm->current_frame.skip_mode_info.ref_frame_idx_0,
                              cm->current_frame.skip_mode_info.ref_frame_idx_1 };
-#if CONFIG_SAME_REF_COMPOUND
   assert(ref_frame[0] <= INTER_REFS_PER_FRAME &&
          ref_frame[1] <= INTER_REFS_PER_FRAME);
-#endif  // CONFIG_SAME_REF_COMPOUND
   if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0])) ||
       !(cpi->common.ref_frame_flags & (1 << ref_frame[1])))
     return 0;

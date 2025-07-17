@@ -487,7 +487,6 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
                tile->mi_col_end - mi_col - 1);
 }
 
-#if CONFIG_SAME_REF_COMPOUND
 // Converts a pair of distinct indices (rf) each in [0, n-1],
 // to a combined index in [0, n*(n+1)/2].
 // The order of the combined index is as follows:
@@ -529,45 +528,6 @@ static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
   assert(rf[0] >= 0);
   assert(rf[1] >= rf[0]);
 }
-#else
-// Converts a pair of distinct indices (rf) each in [0, n-1],
-// to a combined index in [0, n*(n-1)/2].
-// The order of the combined index is as follows:
-// (0, 1), (0, 2), (0, 3), ..., (0, n-1),
-//         (1, 2), (1, 3), ..., (1, n-1),
-//                 (2, 3), ..., (2, n-1),
-//                         ...
-//                              (n-2, n-1)
-static INLINE int8_t single2comb(int n, const int8_t *const rf) {
-  assert(rf[0] < n && rf[1] < n);
-  int8_t rfr[2] = { rf[0], rf[1] };
-  if (rf[1] < rf[0]) {
-    rfr[0] = rf[1];
-    rfr[1] = rf[0];
-  }
-  int off = n * rfr[0] - rfr[0] * (rfr[0] + 1) / 2;
-  int combindex = off + rfr[1] - rfr[0] - 1;
-  return combindex;
-}
-
-// Converts a combined index in [0, n*(n-1)/2] to a pair of single
-// ref indices (rf) each in [0, n-1]. See comment above for order
-// of the combined indexing.
-static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
-  assert(combindex < n * (n - 1) / 2);
-  int i = n - 1, j = n - 1;
-  rf[0] = 0;
-  // Starting form n-1, keep reducing the row length by 1 until
-  // combindex < i
-  while (i <= combindex) {
-    rf[0]++;
-    j--;
-    i += j;
-  }
-  rf[1] = combindex - i + j + rf[0] + 1;
-  assert(rf[1] > rf[0]);
-}
-#endif  // CONFIG_SAME_REF_COMPOUND
 
 static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   if (!is_inter_ref_frame(rf[0])) {

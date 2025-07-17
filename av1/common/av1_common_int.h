@@ -573,10 +573,8 @@ typedef struct SequenceHeader {
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
   int max_reference_frames;       // Number of reference frames allowed
-#if CONFIG_SAME_REF_COMPOUND
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
-#endif                        // CONFIG_SAME_REF_COMPOUND
 #if CONFIG_EXTRA_DPB
   int num_extra_dpb;    // number of extra decoded picture buffers
 #endif                  // CONFIG_EXTRA_DPB
@@ -1496,12 +1494,10 @@ typedef struct {
    * Number of references with the same order hint.
    */
   int num_cur_refs;
-#if CONFIG_SAME_REF_COMPOUND
   /*!
    * Number of references for the compound mode with the same slot.
    */
   int num_same_ref_compound;
-#endif  // CONFIG_SAME_REF_COMPOUND
 } RefFramesInfo;
 
 /*!
@@ -5237,11 +5233,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     return (allowed_motion_modes & enabled_motion_modes);
   }
 
-#if CONFIG_SAME_REF_COMPOUND
   if (mbmi->ref_frame[0] == mbmi->ref_frame[1]) {
     return (allowed_motion_modes & enabled_motion_modes);
   }
-#endif  // CONFIG_SAME_REF_COMPOUND
 
   if (xd->cur_frame_force_integer_mv == 0) {
     const TransformationType gm_type =

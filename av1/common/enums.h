@@ -1288,26 +1288,17 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
 //       possible to have a reference pair not listed for explicit signaling.
-#if CONFIG_SAME_REF_COMPOUND
 #define MODE_CTX_REF_FRAMES                                \
   (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + \
    2)  // additional combinations for the same reference of compound mode
-#else
-#define MODE_CTX_REF_FRAMES \
-  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 1) / 2 + 2)
-#endif  // CONFIG_SAME_REF_COMPOUND
 
 // With k=INTER_REFS_PER_FRAMES, indices 0 to k-1 represent rank 1 to rank k
 // references. The next k(k-1)/2 indices are left for compound reference types
 // (there are k choose 2 compound combinations). Then, index for intra frame is
 // defined as k+k(k-1)/2.
-#if CONFIG_SAME_REF_COMPOUND
 #define INTRA_FRAME                                    \
   (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / \
    2)  // additional combinations for the same reference of compound mode
-#else
-#define INTRA_FRAME (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 1) / 2)
-#endif  // CONFIG_SAME_REF_COMPOUND
 // Used for indexing into arrays that contain reference data for
 // inter and intra.
 #define INTRA_FRAME_INDEX INTER_REFS_PER_FRAME

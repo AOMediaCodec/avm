@@ -892,9 +892,6 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
 // blocks. Context will be 0 if A<B, 1 if A=B, and 2 if A>B.
 int av1_get_ref_pred_context(const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref,
                              int num_total_refs) {
-#if !CONFIG_SAME_REF_COMPOUND
-  assert((ref + 1) < num_total_refs);
-#endif  // !CONFIG_SAME_REF_COMPOUND
   const uint8_t *const ref_counts = &xd->neighbors_ref_counts[0];
   const int this_ref_count = ref_counts[ref];
   int next_refs_count = 0;
