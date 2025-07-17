@@ -6728,8 +6728,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
       const int order_hint_bits =
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       aom_wb_write_literal(wb, current_frame->order_hint, order_hint_bits);
-      if (features->error_resilient_mode || cm->number_temporal_layers > 1 ||
-          cm->number_spatial_layers > 1)
+      if (features->error_resilient_mode ||
+          seq_params->operating_points_cnt_minus_1 > 0)
         aom_wb_write_uvlc(wb,
                           current_frame->display_order_hint >> order_hint_bits);
     }
@@ -6955,9 +6955,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
           !seq_params->order_hint_info.enable_order_hint;
       assert(
           IMPLIES(cm->features.error_resilient_mode, explicit_ref_frame_map));
-      assert(IMPLIES(
-          cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1,
-          explicit_ref_frame_map));
+      assert(IMPLIES(seq_params->operating_points_cnt_minus_1 > 0,
+                     explicit_ref_frame_map));
       if (explicit_ref_frame_map) {
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >

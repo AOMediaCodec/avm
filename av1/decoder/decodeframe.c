@@ -8018,8 +8018,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     const int order_hint_bits =
         seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
     current_frame->order_hint = aom_rb_read_literal(rb, order_hint_bits);
-    if (features->error_resilient_mode || cm->number_temporal_layers > 1 ||
-        cm->number_spatial_layers > 1) {
+    if (features->error_resilient_mode ||
+        seq_params->operating_points_cnt_minus_1 > 0) {
       const int display_order_hint_high_bits = (int)aom_rb_read_uvlc(rb);
       if (display_order_hint_high_bits < 0 ||
           display_order_hint_high_bits >=
@@ -8396,7 +8396,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            "Error resilient mode must be coded with "
                            "explicit_Ref_frame_map=1.");
       }
-      if ((cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1) &&
+      if (seq_params->operating_points_cnt_minus_1 > 0 &&
           !explicit_ref_frame_map) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                            "Multilayer coding must be coded with "

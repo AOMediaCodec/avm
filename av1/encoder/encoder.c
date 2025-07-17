@@ -392,10 +392,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
   if (seq->enable_bru || tool_cfg->error_resilient_mode ||
-      cm->number_temporal_layers > 1 || cm->number_spatial_layers > 1) {
+      seq->operating_points_cnt_minus_1 > 0) {
 #else
-  if (tool_cfg->error_resilient_mode || cm->number_temporal_layers > 1 ||
-      cm->number_spatial_layers > 1) {
+  if (tool_cfg->error_resilient_mode || seq->operating_points_cnt_minus_1 > 0) {
 #endif  // CONFIG_BRU
     seq->explicit_ref_frame_map = 1;
   } else {
