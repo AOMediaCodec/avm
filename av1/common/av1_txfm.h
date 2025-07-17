@@ -35,17 +35,14 @@ extern "C" {
 
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
-#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 #define TXFM_KERNEL_SIZE4 16
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 #if CONFIG_INTER_DDT
 extern const int32_t ddt4_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE4];
 extern const int32_t ddt8_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 extern const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // CONFIG_INTER_DDT
-#if CONFIG_ADST_TUNED
 #if USE_TUNED_ADST8
 // 8 point kernel: Graph Fourier Transform with self-loop of 1.5 using matrix
 // multiplication
@@ -55,7 +52,6 @@ extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 // 16-point kernel: DST-7 using matrix multiplication
 extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // USE_TUNED_ADST16
-#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_INTER_DDT
 #define REPLACE_ADST4 0
@@ -71,14 +67,12 @@ extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
 static const int cos_bit_min = 10;
 static const int cos_bit_max = 16;
 
-#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 // Round shift bits for the ADST forward and inverse transforms
 #define FWD_ADST_BIT 12
 #define INV_ADST_BIT 7
 #if CONFIG_FIX_INTER_DDT_PRECISION
 #define INV_DDT_BIT 6
 #endif  // CONFIG_FIX_INTER_DDT_PRECISION
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 
 #define NewSqrt2Bits ((int32_t)12)
 // 2^12 * sqrt(2)
@@ -271,11 +265,9 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
-#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size, int8_t bit,
                           int8_t clamp);
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];
 static INLINE int get_txw_idx(TX_SIZE tx_size) {

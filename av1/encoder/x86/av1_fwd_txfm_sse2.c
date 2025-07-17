@@ -1477,7 +1477,7 @@ static void fddt8x4_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#if USE_TUNED_ADST4
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -1591,7 +1591,7 @@ static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
   output[2] = _mm_srli_si128(output[0], 8);
   output[3] = _mm_srli_si128(output[1], 8);
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#endif  // USE_TUNED_ADST4
 
 #if CONFIG_INTER_DDT
 static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1603,7 +1603,7 @@ static void fddt4x8_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#if USE_TUNED_ADST8
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit);
 
@@ -1708,9 +1708,9 @@ static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#endif  // USE_TUNED_ADST8
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#if USE_TUNED_ADST4
 static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -1825,7 +1825,7 @@ static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
   output[2] = _mm_packs_epi32(u_lo[2], u_hi[2]);
   output[3] = _mm_packs_epi32(u_lo[3], u_hi[3]);
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#endif  // USE_TUNED_ADST4
 
 #if CONFIG_INTER_DDT
 static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1861,7 +1861,7 @@ static void fddt8x8_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#if USE_TUNED_ADST8
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
   (void)cos_bit;
@@ -1982,7 +1982,7 @@ static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#endif  // USE_TUNED_ADST8
 
 #if CONFIG_INTER_DDT
 static void fddt8x16_new_sse2(const __m128i *input, __m128i *output,
@@ -2019,7 +2019,7 @@ static void fddt8x16_new_sse2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#if USE_TUNED_ADST16
 static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
                                int8_t cos_bit) {
   const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
@@ -2237,7 +2237,7 @@ static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
   output[14] = x8[15];
   output[15] = x8[0];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#endif  // USE_TUNED_ADST16
 
 #if CONFIG_INTER_DDT
 static const transform_1d_sse2 col_txfm4x4_arr_inter[TX_TYPES] = {

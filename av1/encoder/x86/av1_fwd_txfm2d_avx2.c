@@ -1310,7 +1310,7 @@ static INLINE void fddt16x16_new_avx2(const __m256i *input, __m256i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#if USE_TUNED_ADST16
 static INLINE void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
                                        int8_t cos_bit) {
   (void)cos_bit;
@@ -1468,7 +1468,7 @@ static INLINE void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
   output[14] = x1[15];
   output[15] = x1[0];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#endif  // USE_TUNED_ADST16
 
 static INLINE void fidentity16x16_new_avx2(const __m256i *input,
                                            __m256i *output, int8_t cos_bit) {
@@ -2342,7 +2342,7 @@ static INLINE void fddt8x8_new_avx2(const __m256i *input, __m256i *output,
 }
 #endif  //  CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#if USE_TUNED_ADST8
 static INLINE void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
                                      int8_t cos_bit) {
   (void)cos_bit;
@@ -2483,7 +2483,7 @@ static INLINE void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#endif  // USE_TUNED_ADST8
 
 static INLINE void fidentity8x8_new_avx2(const __m256i *input, __m256i *output,
                                          int8_t cos_bit) {
@@ -2691,7 +2691,7 @@ static INLINE void fddt8x16_new_avx2(const __m128i *input, __m128i *output,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#if USE_TUNED_ADST16
 static INLINE void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
                                       int8_t cos_bit) {
   (void)cos_bit;
@@ -2949,7 +2949,7 @@ static INLINE void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
   btf_16_avx2(&cospi_arr[18], &cospi_arr[19], &in0, &in1, &output[3],
               &output[12], &output[1], &output[14], &__rounding_256, &cos_bit);
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#endif  // USE_TUNED_ADST16
 
 static INLINE void fidentity8x16_new_avx2(const __m128i *input, __m128i *output,
                                           int8_t cos_bit) {

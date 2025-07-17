@@ -14,9 +14,7 @@
 #include "config/av1_rtcd.h"
 
 #include "av1/common/av1_txfm.h"
-#if CONFIG_ADST_TUNED
 #include "av1/common/av1_inv_txfm1d.h"
-#endif  // CONFIG_ADST_TUNED
 
 // av1_cospi_arr[i][j] = (int)round(cos(PI*j/128) * (1<<(cos_bit_min+i)));
 const int32_t av1_cospi_arr_data[7][64] = {
@@ -84,7 +82,6 @@ const int32_t av1_sinpi_arr_data[7][5] = {
   { 0, 21133, 39716, 53510, 60849 }
 };
 
-#if CONFIG_ADST_TUNED
 #if USE_TUNED_ADST8
 const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8] = {
   {
@@ -161,7 +158,6 @@ const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
   }
 };
 #endif  // USE_TUNED_ADST16
-#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_INTER_DDT
 // Quantized with 2^10 and scale factor 1.41421356
@@ -272,7 +268,6 @@ const int32_t ddt16_kernel[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
 };
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 #define TXFM_SIZE_MAX 16
 #define STAGE_RANGE_MAX 30
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
@@ -296,7 +291,6 @@ void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
       output[i] = clamp_value(output[i], clamp);
   }
 }
-#endif  // CONFIG_ADST_TUNED || CONFIG_INTER_DDT
 
 void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
   int i;

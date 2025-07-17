@@ -332,9 +332,6 @@ set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")
 set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1
                    "Enable ext warp filter for chroma blocks with bw=4 or bh=4")
 
-set_aom_config_var(CONFIG_ADST_TUNED 1
-                   "AV2 experiment to replace the ADST 4, 8 and 16 basis")
-
 # CWG-F082: Extended DPB mode for AV2 in RTC
 set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
 

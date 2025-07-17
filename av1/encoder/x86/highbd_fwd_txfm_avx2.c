@@ -214,7 +214,7 @@ static INLINE void fwd_txfm_transpose_16x16_avx2(const __m256i *in,
   fwd_txfm_transpose_8x8_avx2(&in[17], &out[17], 2, 2);
 }
 
-#if !(CONFIG_ADST_TUNED && USE_TUNED_ADST16)
+#if !USE_TUNED_ADST16
 static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
                                         const __m256i *w1, const __m256i *n1,
                                         const __m256i *rounding, int bit) {
@@ -227,7 +227,7 @@ static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
   x = _mm256_srai_epi32(x, bit);
   return x;
 }
-#endif  // !(CONFIG_ADST_TUNED && USE_TUNED_ADST16)
+#endif  // !USE_TUNED_ADST16
 
 #define TRANSPOSE_4X4_AVX2(x0, x1, x2, x3, y0, y1, y2, y3) \
   do {                                                     \
@@ -403,7 +403,7 @@ static void fddt8_avx2(__m256i *in, __m256i *out, const int8_t bit,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#if USE_TUNED_ADST8
 static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         const int col_num, const int outstride) {
   (void)bit;
@@ -603,7 +603,7 @@ static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[7 * outstirde + col] = v0;
   }
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#endif  // USE_TUNED_ADST8
 static void idtx8_avx2(__m256i *in, __m256i *out, const int8_t bit, int col_num,
                        int outstride) {
   (void)bit;
@@ -1170,7 +1170,7 @@ static void fddt16_avx2(__m256i *in, __m256i *out, const int8_t bit,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#if USE_TUNED_ADST16
 static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                          const int num_cols, const int outstride) {
   (void)bit;
@@ -1449,7 +1449,7 @@ static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[15 * outstride + col] = v[0];
   }
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#endif  // USE_TUNED_ADST16
 
 static void idtx16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         int col_num, const int outstride) {

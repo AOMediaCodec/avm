@@ -698,7 +698,7 @@ void av1_iddt16(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 #endif  // CONFIG_INTER_DDT
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#if USE_TUNED_ADST4
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   const int32_t size = 4;
@@ -812,9 +812,9 @@ void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[2] = round_shift(x2, bit);
   output[3] = round_shift(x3, bit);
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST4
+#endif  // USE_TUNED_ADST4
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#if USE_TUNED_ADST8
 void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   (void)stage_range;
@@ -930,9 +930,9 @@ void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[6] = bf0[5];
   bf1[7] = -bf0[1];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST8
+#endif  // USE_TUNED_ADST8
 
-#if CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#if USE_TUNED_ADST16
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   (void)stage_range;
@@ -1148,7 +1148,7 @@ void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[14] = bf0[9];
   bf1[15] = -bf0[1];
 }
-#endif  // CONFIG_ADST_TUNED && USE_TUNED_ADST16
+#endif  // USE_TUNED_ADST16
 
 void av1_iidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {
