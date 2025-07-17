@@ -3677,13 +3677,8 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   }
 #endif  // CONFIG_ASYM_DF
 
-#if CONFIG_DF_PAR_BITS
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
-#else
-  const uint8_t df_par_bits = DF_PAR_BITS;
-  const uint8_t df_par_offset = DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
 
 #if DF_DUAL
   if (lf->filter_level[0]) {
@@ -7195,9 +7190,7 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_global_motion = aom_rb_read_bit(rb);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#if CONFIG_DF_PAR_BITS
   seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2);
-#endif  // CONFIG_DF_PAR_BITS
 #if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFRESH_FLAG

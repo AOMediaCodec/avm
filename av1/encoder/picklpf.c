@@ -121,17 +121,11 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #endif
 ) {
   const AV1_COMMON *const cm = &cpi->common;
-#if CONFIG_DF_PAR_BITS
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const int df_par_min_val = (-(1 << (df_par_bits - 1)));
   const int df_par_max_val = ((1 << (df_par_bits - 1)) - 1);
   const int min_filter_offset = df_par_min_val;
   const int max_filter_offset = df_par_max_val;
-#else
-  const uint8_t df_par_bits = DF_PAR_BITS;
-  const int min_filter_offset = DF_PAR_MIN_VAL;
-  const int max_filter_offset = DF_PAR_MAX_VAL;
-#endif  // CONFIG_DF_PAR_BITS
   int filt_direction = 0;
   int64_t best_err, start_err;
   int offset_best;

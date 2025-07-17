@@ -763,9 +763,7 @@ typedef struct SequenceHeader {
   AV1_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
 
-#if CONFIG_DF_PAR_BITS
   uint8_t df_par_bits_minus2;
-#endif  // CONFIG_DF_PAR_BITS
 
   // IMPORTANT: the op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.

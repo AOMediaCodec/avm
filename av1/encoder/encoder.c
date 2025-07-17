@@ -1420,9 +1420,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
                               seq->quantizer_matrix_4x8 };
   av1_qm_init(&cm->quant_params, av1_num_planes(cm), fund_mat);
 
-#if CONFIG_DF_PAR_BITS
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
-#endif  // CONFIG_DF_PAR_BITS
   av1_loop_filter_init(cm);
 #if CONFIG_ENABLE_SR
   cm->superres_scale_denominator = SCALE_NUMERATOR;

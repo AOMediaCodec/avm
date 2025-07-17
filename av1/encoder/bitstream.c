@@ -4994,13 +4994,8 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
       aom_wb_write_bit(wb, lf->filter_level_v);
     }
   }
-#if CONFIG_DF_PAR_BITS
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
-#else
-  const uint8_t df_par_bits = DF_PAR_BITS;
-  const uint8_t df_par_offset = DF_PAR_OFFSET;
-#endif  // CONFIG_DF_PAR_BITS
 #if DF_DUAL
   if (lf->filter_level[0]) {
     int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
@@ -6322,9 +6317,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_global_motion);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#if CONFIG_DF_PAR_BITS
   aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2);
-#endif  // CONFIG_DF_PAR_BITS
 #if CONFIG_REFRESH_FLAG
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #endif  // CONFIG_REFRESH_FLAG
