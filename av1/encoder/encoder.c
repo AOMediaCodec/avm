@@ -569,9 +569,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_DRL_REORDER_CONTROL
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
@@ -2772,31 +2770,20 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
     // Find CDEF parameters
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
-#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS
                     &cpi->td,
-#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#endif  // CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
-#if CONFIG_FIX_CDEF_SYNTAX
     if (cm->cdef_info.cdef_frame_enable)
-#endif  // CONFIG_FIX_CDEF_SYNTAX
       av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif
   } else {
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-#if !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
 #if CONFIG_BRU
     // if not use ccso, need to init
     cm->ccso_info.ccso_frame_flag = false;
@@ -3847,16 +3834,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-#if !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
@@ -4057,16 +4035,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   } else {
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-#if !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;

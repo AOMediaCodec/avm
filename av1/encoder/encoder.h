@@ -949,10 +949,8 @@ typedef struct {
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
   int enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   // Indicates if cdf average (frame or tile) should be enabled for
   // initialization.
@@ -1700,10 +1698,8 @@ typedef struct FRAME_COUNTS {
   unsigned int switchable_flex_restore_cnts[MAX_LR_FLEX_SWITCHABLE_BITS]
                                            [MAX_MB_PLANE][2];  // placeholder
   unsigned int default_ccso_cnts[3][CCSO_CONTEXT][2];
-#if CONFIG_CDEF_ENHANCEMENTS
   unsigned int cdef_strength_index0_cnts[CDEF_STRENGTH_INDEX0_CTX][2];
   unsigned int cdef_cnts[CDEF_STRENGTHS_NUM - 1][CDEF_STRENGTHS_NUM];
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];

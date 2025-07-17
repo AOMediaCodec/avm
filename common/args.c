@@ -176,9 +176,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_DRL_REORDER_CONTROL
     GET_PARAMS(enable_drl_reorder);
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
     GET_PARAMS(enable_cdef_on_skip_txfm);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     GET_PARAMS(enable_avg_cdf);
     GET_PARAMS(avg_cdf_type);

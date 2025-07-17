@@ -1994,9 +1994,7 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   )
     return;
-#if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
@@ -2016,15 +2014,9 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 
   // Write CDEF strength to the first non-skip coding block in this CDEF unit.
   if (!xd->cdef_transmitted[index] &&
-#if CONFIG_CDEF_ENHANCEMENTS
-      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip)
-#else
-      !skip
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-  ) {
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip)) {
     const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
     const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
-#if CONFIG_CDEF_ENHANCEMENTS
     if (cm->cdef_info.nb_cdef_strengths > 1) {
       const int cdef_strength_index0_ctx = av1_get_cdef_context(cm, xd);
       const int is_strength_index0 = mbmi->cdef_strength == 0;
@@ -2038,9 +2030,6 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
                          nb_cdef_strengths - 1);
       }
     }
-#else
-    aom_write_literal(w, mbmi->cdef_strength, cm->cdef_info.cdef_bits);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
   }
 }
@@ -5126,23 +5115,16 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
-#if CONFIG_FIX_CDEF_SYNTAX
   aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
   if (!cdef_info->cdef_frame_enable) return;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
   const int num_planes = av1_num_planes(cm);
   int i;
   aom_wb_write_literal(wb, cdef_info->cdef_damping - 3, 2);
-#if CONFIG_CDEF_ENHANCEMENTS
   aom_wb_write_literal(wb, cdef_info->nb_cdef_strengths - 1, 3);
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
     aom_wb_write_bit(wb, cdef_info->cdef_on_skip_txfm_frame_enable);
   }
-#else
-  aom_wb_write_literal(wb, cdef_info->cdef_bits, 2);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   for (i = 0; i < cdef_info->nb_cdef_strengths; i++) {
-#if CONFIG_CDEF_ENHANCEMENTS
     aom_wb_write_bit(wb, cdef_info->cdef_strengths[i] < 4);
     if (cdef_info->cdef_strengths[i] < 4) {
       aom_wb_write_literal(wb, cdef_info->cdef_strengths[i], 2);
@@ -5159,13 +5141,6 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                              CDEF_STRENGTH_BITS);
       }
     }
-#else
-    aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
-                         CDEF_STRENGTH_BITS);
-    if (num_planes > 1)
-      aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
-                           CDEF_STRENGTH_BITS);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   }
 }
 
@@ -6188,7 +6163,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
                      seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   const int is_cdef_on_skip_txfm_always_on =
       (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
   aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);
@@ -6196,7 +6170,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(
         wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
   if (seq_params->enable_avg_cdf) {

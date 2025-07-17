@@ -47,9 +47,9 @@ extern "C" {
 void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
                      MACROBLOCKD *xd,
-#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS
                      ThreadData *td,
-#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult);
 
 #ifdef __cplusplus

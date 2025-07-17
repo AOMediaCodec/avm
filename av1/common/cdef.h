@@ -64,12 +64,10 @@ av1_get_cdef_transmitted_index(int mi_row, int mi_col) {
 extern "C" {
 #endif
 
-int av1_cdef_compute_sb_list(
-#if CONFIG_CDEF_ENHANCEMENTS
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-    const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
-    cdef_list *dlist, BLOCK_SIZE bsize);
+int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
+                             const CommonModeInfoParams *const mi_params,
+                             int mi_row, int mi_col, cdef_list *dlist,
+                             BLOCK_SIZE bsize);
 
 static INLINE int fetch_cdef_mi_grid_index(const AV1_COMMON *const cm,
                                            const MACROBLOCKD *const xd) {

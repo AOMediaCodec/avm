@@ -3833,17 +3833,12 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
-#if CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
   if (!cdef_info->cdef_frame_enable) {
-#if CONFIG_CDEF_ENHANCEMENTS
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     return;
   }
-#endif  // CONFIG_FIX_CDEF_SYNTAX
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
-#if CONFIG_CDEF_ENHANCEMENTS
   cdef_info->nb_cdef_strengths = aom_rb_read_literal(rb, 3) + 1;
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
     cdef_info->cdef_on_skip_txfm_frame_enable = aom_rb_read_bit(rb);
@@ -3853,12 +3848,7 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
   } else {
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
   }
-#else
-  cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
-  cdef_info->nb_cdef_strengths = 1 << cdef_info->cdef_bits;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   for (int i = 0; i < cdef_info->nb_cdef_strengths; i++) {
-#if CONFIG_CDEF_ENHANCEMENTS
     int less_4 = aom_rb_read_bit(rb);
     if (less_4) {
       cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, 2);
@@ -3866,12 +3856,8 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
       cdef_info->cdef_strengths[i] =
           aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
     }
-#else
-    cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
     if (num_planes > 1) {
-#if CONFIG_CDEF_ENHANCEMENTS
       less_4 = aom_rb_read_bit(rb);
       if (less_4) {
         cdef_info->cdef_uv_strengths[i] = aom_rb_read_literal(rb, 2);
@@ -3879,10 +3865,6 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
         cdef_info->cdef_uv_strengths[i] =
             aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
       }
-#else
-      cdef_info->cdef_uv_strengths[i] =
-          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     } else {
       cdef_info->cdef_uv_strengths[i] = 0;
     }
@@ -4614,14 +4596,9 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
 
     // Figure out single_tile_decoding by loopfilter_level.
     const int no_loopfilter = !(lf->filter_level[0] || lf->filter_level[1]);
-    const int no_cdef =
-#if CONFIG_CDEF_ENHANCEMENTS
-        cdef_info->nb_cdef_strengths == 1 &&
-#else
-        cdef_info->cdef_bits == 0 &&
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-        cdef_info->cdef_strengths[0] == 0 &&
-        cdef_info->cdef_uv_strengths[0] == 0;
+    const int no_cdef = cdef_info->nb_cdef_strengths == 1 &&
+                        cdef_info->cdef_strengths[0] == 0 &&
+                        cdef_info->cdef_uv_strengths[0] == 0;
     const int no_restoration =
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
@@ -7040,7 +7017,6 @@ void av1_read_sequence_header_beyond_av1(
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   if (aom_rb_read_bit(rb)) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
   } else {
@@ -7048,7 +7024,6 @@ void av1_read_sequence_header_beyond_av1(
                                                ? CDEF_ON_SKIP_TXFM_DISABLED
                                                : CDEF_ON_SKIP_TXFM_ADAPTIVE;
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq_params->enable_avg_cdf = aom_rb_read_bit(rb);
   if (seq_params->enable_avg_cdf) {
@@ -8759,14 +8734,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-    cm->cdef_info.cdef_bits = 0;
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
 #if CONFIG_GDF
     cm->gdf_info.gdf_mode = 0;
 #endif  // CONFIG_GDF
@@ -8850,16 +8818,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->gdf_info.gdf_mode = 0;
 #endif  // CONFIG_GDF
 
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-#if !CONFIG_CDEF_ENHANCEMENTS
-      cm->cdef_info.cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-      cm->cdef_info.cdef_strengths[0] = 0;
-      cm->cdef_info.nb_cdef_strengths = 1;
-      cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
@@ -9031,17 +8990,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->lf.filter_level[1] = 0;
   }
   if (features->coded_lossless || !seq_params->enable_cdef) {
-#if CONFIG_FIX_CDEF_SYNTAX
     cm->cdef_info.cdef_frame_enable = 0;
-#else
-#if CONFIG_CDEF_ENHANCEMENTS
-      cm->cdef_info.nb_cdef_strengths = 1;
-#else
-      cm->cdef_info.cdef_bits = 0;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-      cm->cdef_info.cdef_strengths[0] = 0;
-      cm->cdef_info.cdef_uv_strengths[0] = 0;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
   }
   if (features->all_lossless || !seq_params->enable_restoration) {
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
@@ -9658,18 +9607,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
     const int do_cdef = !pbi->skip_loop_filter &&
                         !cm->features.coded_lossless &&
-#if CONFIG_FIX_CDEF_SYNTAX
                         cm->cdef_info.cdef_frame_enable;
-#else
-                          (
-#if CONFIG_CDEF_ENHANCEMENTS
-                              cdef_info->nb_cdef_strengths != 1 ||
-#else
-                              cm->cdef_info.cdef_bits ||
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-                              cm->cdef_info.cdef_strengths[0] ||
-                              cm->cdef_info.cdef_uv_strengths[0]);
-#endif  // CONFIG_FIX_CDEF_SYNTAX
 #if CONFIG_ENABLE_SR
     const int do_superres = av1_superres_scaled(cm);
 #endif  // CONFIG_ENABLE_SR

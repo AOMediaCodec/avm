@@ -1824,7 +1824,6 @@ int main(int argc, const char **argv) {
                      "default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
 
-#if CONFIG_CDEF_ENHANCEMENTS
   cts_each_dim[0] = CDEF_STRENGTH_INDEX0_CTX;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
@@ -1841,7 +1840,6 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob "
       "default_cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)]",
       0, &total_count, mem_wanted, "Filters");
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
   cts_each_dim[0] = MAX_LR_FLEX_SWITCHABLE_BITS;
   cts_each_dim[1] = MAX_MB_PLANE;

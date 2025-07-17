@@ -6929,7 +6929,6 @@ static const aom_cdf_prob default_ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)] = {
     { AOM_CDF2(7846), 37 } }
 };
 
-#if CONFIG_CDEF_ENHANCEMENTS
 static const aom_cdf_prob
     default_cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)] = {
       { AOM_CDF2(24690), 37 },
@@ -6947,7 +6946,6 @@ static const aom_cdf_prob
       { AOM_CDF6(5461, 10923, 16384, 21845, 27307) },
       { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) },
     };
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 #if CONFIG_GDF
 static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
@@ -7659,10 +7657,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     av1_copy(fc->ccso_cdf[plane], default_ccso_cdf[plane]);
   }
-#if CONFIG_CDEF_ENHANCEMENTS
   av1_copy(fc->cdef_strength_index0_cdf, default_cdef_strength_index0_cdf);
   av1_copy(fc->cdef_cdf, default_cdef_cdf);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   av1_copy(fc->gdf_cdf, default_gdf_cdf);
 #endif  // CONFIG_GDF
@@ -8194,14 +8190,12 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
                          ctx_tr->switchable_flex_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
-#if CONFIG_CDEF_ENHANCEMENTS
   CUMULATIVE_AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
                          ctx_tr->cdef_strength_index0_cdf, 2);
   for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
     CUMULATIVE_AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
                               CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   CUMULATIVE_AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
 #endif
@@ -8633,12 +8627,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   SHIFT_CDF(ctx_ptr->switchable_flex_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->ccso_cdf, 2);
-#if CONFIG_CDEF_ENHANCEMENTS
   SHIFT_CDF(ctx_ptr->cdef_strength_index0_cdf, 2);
   for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
     SHIFT_CDF_STRIDE(ctx_ptr->cdef_cdf[j], j + 2, CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   SHIFT_CDF(ctx_ptr->gdf_cdf, 2);
 #endif
@@ -9100,14 +9092,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
               ctx_tr->switchable_flex_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
-#if CONFIG_CDEF_ENHANCEMENTS
   AVERAGE_CDF(ctx_left->cdef_strength_index0_cdf,
               ctx_tr->cdef_strength_index0_cdf, 2);
   for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
     AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
                    CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
 #endif

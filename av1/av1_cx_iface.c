@@ -248,9 +248,7 @@ struct av1_extracfg {
 #if CONFIG_DRL_REORDER_CONTROL
   int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   int enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int enable_avg_cdf;
   int avg_cdf_type;
@@ -616,9 +614,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_DRL_REORDER_CONTROL
   1,    // enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   1,    // enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   1,  // enable_avg_cdf
   1,  // avg_cdf_type
@@ -1120,9 +1116,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_DRL_REORDER_CONTROL
   cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
@@ -1270,9 +1264,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_DRL_REORDER_CONTROL
   extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   extra_cfg->enable_cdef_on_skip_txfm = cfg->enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   extra_cfg->enable_avg_cdf = cfg->enable_avg_cdf;
   extra_cfg->avg_cdf_type = cfg->avg_cdf_type;
@@ -1575,9 +1567,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   tool_cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   tool_cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   if (tool_cfg->enable_avg_cdf) {
@@ -4509,12 +4499,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_drl_reorder = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
                               argv, err_string)) {
     extra_cfg.enable_cdef_on_skip_txfm = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_avg_cdf, argv,
                               err_string)) {
@@ -4886,9 +4874,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_DRL_REORDER_CONTROL
         1,
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
         1,
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
         1,  // enable_avg_cdf
         1,  // avg_cdf_type

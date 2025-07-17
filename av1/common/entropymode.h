@@ -91,10 +91,8 @@ extern "C" {
 
 #define CCSO_CONTEXT 4
 
-#if CONFIG_CDEF_ENHANCEMENTS
 #define CDEF_STRENGTH_INDEX0_CTX 4
 #define CDEF_STRENGTHS_NUM 7
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 // Parameters which determine the warp delta coding
 // The raw values which can be signaled are
@@ -532,12 +530,10 @@ typedef struct frame_contexts {
   aom_cdf_prob switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
                                           [MAX_LR_FLEX_MB_PLANE][CDF_SIZE(2)];
   aom_cdf_prob ccso_cdf[3][CCSO_CONTEXT][CDF_SIZE(2)];
-#if CONFIG_CDEF_ENHANCEMENTS
   // CDF for CDEF strength index 0
   aom_cdf_prob cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)];
   // CDF for CDEF all other strength index
   aom_cdf_prob cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)];
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_GDF

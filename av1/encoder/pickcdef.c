@@ -290,9 +290,6 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, 0, bd) >>
                 (bd - 8 + QUANT_TABLE_BITS);
   CdefInfo *const cdef_info = &cm->cdef_info;
-#if !CONFIG_CDEF_ENHANCEMENTS
-  cdef_info->cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
   cdef_info->nb_cdef_strengths = 1;
 
   int damping_offset =
@@ -359,7 +356,6 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   }
 }
 
-#if CONFIG_CDEF_ENHANCEMENTS
 static AOM_INLINE int get_cdef_context(const AV1_COMMON *const cm,
                                        int cur_cdef_pos) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -415,16 +411,14 @@ static AOM_INLINE void reset_frame_mi_cdef_strength(AV1_COMMON *cm) {
     }
   }
 }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
                      MACROBLOCKD *xd,
-#if CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS
                      ThreadData *td,
-#endif  // CONFIG_CDEF_ENHANCEMENTS && CONFIG_ENTROPY_STATS
+#endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult) {
-#if CONFIG_CDEF_ENHANCEMENTS
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 0;
   } else {
@@ -432,19 +426,16 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   }
 
   reset_frame_mi_cdef_strength(cm);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
   if (pick_method == CDEF_PICK_FROM_Q) {
     pick_cdef_from_qp(cm);
     return;
   }
 
-#if CONFIG_CDEF_ENHANCEMENTS
   aom_cdf_prob cdef_strength_index0_cdf[CDEF_STRENGTH_INDEX0_CTX][CDF_SIZE(2)];
   aom_cdf_prob cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)];
   av1_copy(cdef_strength_index0_cdf, cm->fc->cdef_strength_index0_cdf);
   av1_copy(cdef_cdf, cm->fc->cdef_cdf);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
   cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
@@ -503,10 +494,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   for (int fbr = 0; fbr < nvfb; ++fbr) {
     for (int fbc = 0; fbc < nhfb; ++fbc) {
       // No filtering if the entire filter block is skipped
-      if (
-#if CONFIG_CDEF_ENHANCEMENTS
-          cm->cdef_info.cdef_on_skip_txfm_frame_enable == 0 &&
-#endif  // CONFIG_CDEF_ENHANCEMENTS
+      if (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 0 &&
           sb_all_skip(mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64)) {
         continue;
       }
@@ -566,10 +554,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       }
 
       const int cdef_count = av1_cdef_compute_sb_list(
-#if CONFIG_CDEF_ENHANCEMENTS
-          cm,
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-          mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
+          cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
 
       const int yoff = CDEF_VBORDER * (fbr != 0);
       const int xoff = CDEF_HBORDER * (fbc != 0);
@@ -614,21 +599,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   }
 
   /* Search for different number of signalling bits. */
-#if !CONFIG_CDEF_ENHANCEMENTS
-  int nb_strength_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-#if CONFIG_CDEF_ENHANCEMENTS
   int best_nb_strength = 0;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   uint64_t best_rd = UINT64_MAX;
   CdefInfo *const cdef_info = &cm->cdef_info;
   int best_cdef_on = 0;
-#if CONFIG_CDEF_ENHANCEMENTS
   for (int nb_strengths = 1; nb_strengths <= 8; nb_strengths++) {
-#else
-  for (int i = 0; i <= 3; i++) {
-    const int nb_strengths = 1 << i;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     int best_lev0[CDEF_MAX_STRENGTHS];
     int best_lev1[CDEF_MAX_STRENGTHS] = { 0 };
     uint64_t tot_mse;
@@ -640,7 +615,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                                       pick_method);
     }
 
-#if CONFIG_CDEF_ENHANCEMENTS
     int luma_strength_less_4_count = 0;
     int chroma_strength_less_4_count = 0;
     for (int level = 0; level < nb_strengths; ++level) {
@@ -665,38 +639,14 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       // Bits to indicate if each strength is less than 4
       chroma_bits += nb_strengths;
     }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
-#if CONFIG_FIX_CDEF_SYNTAX
     /* check if cdef is on for the current frame, and assign total bits
      * accordingly. */
-    const int cdef_on_bits =
-#if CONFIG_CDEF_ENHANCEMENTS
-        luma_bits + chroma_bits + 1 + 2 + 3;
-#else
-        sb_count * i +
-        nb_strengths * CDEF_STRENGTH_BITS * (num_planes > 1 ? 2 : 1) + 1 + 2 +
-        2;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
+    const int cdef_on_bits = luma_bits + chroma_bits + 1 + 2 + 3;
 
     const int cdef_off_bit = 1;
-#if CONFIG_CDEF_ENHANCEMENTS
     const int is_cdef_on = (nb_strengths != 1 || best_lev0[0] || best_lev1[0]);
-#else
-    const int is_cdef_on = (i || best_lev0[0] || best_lev1[0]);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     const int total_bits = is_cdef_on ? cdef_on_bits : cdef_off_bit;
-#else
-    const int total_bits =
-#if CONFIG_CDEF_ENHANCEMENTS
-        offset_bits + luma_bits +
-        chroma_bits
-#else
-        sb_count * i +
-        nb_strengths * CDEF_STRENGTH_BITS * (num_planes > 1 ? 2 : 1);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-#endif  // CONFIG_FIX_CDEF_SYNTAX
-#if CONFIG_CDEF_ENHANCEMENTS
     int rate_cost = av1_cost_literal(total_bits);
     if (is_cdef_on) {
       tot_mse = 0;
@@ -705,7 +655,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         uint64_t best_rdo = UINT64_MAX;
         int best_sb_rate_cost = 0;
         int best_gi = 0;
-#if CONFIG_CDEF_ENHANCEMENTS
         int strength_index0_cost_from_cdf[CDEF_STRENGTH_INDEX0_CTX][2];
         int cost_from_cdf[CDEF_STRENGTHS_NUM - 1][CDEF_STRENGTHS_NUM];
         if (nb_strengths >= 2) {
@@ -720,11 +669,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         }
         const int strength_index0_ctx =
             get_cdef_context(cm, sb_index[count_idx]);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
         for (int gi = 0; gi < nb_strengths; gi++) {
           uint64_t curr = mse[0][count_idx][best_lev0[gi]];
           if (num_planes > 1) curr += mse[1][count_idx][best_lev1[gi]];
-#if CONFIG_CDEF_ENHANCEMENTS
           int sb_rate_cost = 0;
           if (nb_strengths >= 2) {
             if (gi == 0) {
@@ -741,7 +688,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
           }
 
           const uint64_t curr_rdo = RDCOST(rdmult, sb_rate_cost, curr * 16);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
           if (curr_rdo < best_rdo) {
             best_gi = gi;
             best_sb_rate_cost = sb_rate_cost;
@@ -751,7 +697,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         }
         rate_cost += best_sb_rate_cost;
         tot_mse += best_mse;
-#if CONFIG_CDEF_ENHANCEMENTS
         if (nb_strengths >= 2) {
           update_cdf(cdef_strength_index0_cdf[strength_index0_ctx],
                      best_gi == 0, 2);
@@ -781,23 +726,14 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
             }
           }
         }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
       }
     }
-#else
-        const int rate_cost = av1_cost_literal(total_bits);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     const uint64_t dist = tot_mse * 16;
     const uint64_t rd = RDCOST(rdmult, rate_cost, dist);
     if (rd < best_rd) {
       best_cdef_on = is_cdef_on;
       best_rd = rd;
-#if !CONFIG_CDEF_ENHANCEMENTS
-      nb_strength_bits = i;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-#if CONFIG_CDEF_ENHANCEMENTS
       best_nb_strength = nb_strengths;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
       memcpy(cdef_info->cdef_strengths, best_lev0,
              nb_strengths * sizeof(best_lev0[0]));
       if (num_planes > 1) {
@@ -811,38 +747,20 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     const uint64_t unfiltered_rd =
         RDCOST(rdmult, av1_cost_literal(1), unfiltered_mse * 16);
     if (unfiltered_rd < best_rd) {
-#if !CONFIG_CDEF_ENHANCEMENTS
-      nb_strength_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-#if CONFIG_CDEF_ENHANCEMENTS
       best_nb_strength = 1;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
       cm->cdef_info.cdef_frame_enable = 0;
-#if !CONFIG_CDEF_ENHANCEMENTS
-      cm->cdef_info.cdef_bits = 0;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
       cm->cdef_info.cdef_strengths[0] = 0;
       cm->cdef_info.nb_cdef_strengths = 1;
       cm->cdef_info.cdef_uv_strengths[0] = 0;
     }
   }
 
-#if CONFIG_CDEF_ENHANCEMENTS
   av1_copy(cdef_strength_index0_cdf, cm->fc->cdef_strength_index0_cdf);
   av1_copy(cdef_cdf, cm->fc->cdef_cdf);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-#if !CONFIG_CDEF_ENHANCEMENTS
-  cdef_info->cdef_bits = nb_strength_bits;
-#endif  // !CONFIG_CDEF_ENHANCEMENTS
-#if CONFIG_CDEF_ENHANCEMENTS
   cdef_info->nb_cdef_strengths = best_nb_strength;
-#else
-  cdef_info->nb_cdef_strengths = 1 << nb_strength_bits;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   for (int i = 0; i < sb_count; i++) {
     uint64_t best_mse = UINT64_MAX;
     int best_gi = 0;
-#if CONFIG_CDEF_ENHANCEMENTS
     int strength_index0_cost_from_cdf[CDEF_STRENGTH_INDEX0_CTX][2];
     int cost_from_cdf[CDEF_STRENGTHS_NUM - 1][CDEF_STRENGTHS_NUM];
     if (best_nb_strength >= 2) {
@@ -856,11 +774,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       }
     }
     const int strength_index0_ctx = get_cdef_context(cm, sb_index[i]);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     for (int gi = 0; gi < best_nb_strength; gi++) {
       uint64_t curr = mse[0][i][cdef_info->cdef_strengths[gi]];
       if (num_planes > 1) curr += mse[1][i][cdef_info->cdef_uv_strengths[gi]];
-#if CONFIG_CDEF_ENHANCEMENTS
       int sb_rate_cost = 0;
       if (best_nb_strength >= 2) {
         if (gi == 0) {
@@ -874,13 +790,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       }
 
       curr = RDCOST(rdmult, sb_rate_cost, curr * 16);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
       if (curr < best_mse) {
         best_gi = gi;
         best_mse = curr;
       }
     }
-#if CONFIG_CDEF_ENHANCEMENTS
     if (best_nb_strength >= 2) {
 #if CONFIG_ENTROPY_STATS
       ++td->counts
@@ -896,7 +810,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                    best_nb_strength - 1);
       }
     }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
     mi_params->mi_grid_base[sb_index[i]]->cdef_strength = best_gi;
     BLOCK_SIZE bsize_y =
@@ -905,7 +818,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     const int bw = mi_size_wide[bsize_y];
     int mi_row = sb_index[i] / mi_params->mi_stride;
     int mi_col = sb_index[i] % mi_params->mi_stride;
-#if CONFIG_CDEF_ENHANCEMENTS
     int nhb = AOMMIN(AOMMAX(bw, MI_SIZE_64X64), mi_params->mi_cols - mi_col);
     int nvb = AOMMIN(AOMMAX(bh, MI_SIZE_64X64), mi_params->mi_rows - mi_row);
     for (int j = 0; j < nvb; j++) {
@@ -914,21 +826,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         mi_params->mi_grid_base[grid_idx]->cdef_strength = best_gi;
       }
     }
-#else
-    if (bsize_y == BLOCK_256X256 || bsize_y == BLOCK_256X128 ||
-        bsize_y == BLOCK_128X256 || bsize_y == BLOCK_128X128 ||
-        bsize_y == BLOCK_128X64 || bsize_y == BLOCK_64X128) {
-      const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);
-      const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
-      int idx = mi_params->mi_stride;
-      for (int y = 0; y < y_inside_boundary; ++y) {
-        for (int x = 0; x < x_inside_boundary; ++x) {
-          mi_params->mi_grid_base[sb_index[i] + y * idx + x]->cdef_strength =
-              best_gi;
-        }
-      }
-    }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
   }
 
   if (fast) {
@@ -945,15 +842,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   }
 
   cdef_info->cdef_damping = damping;
-#if CONFIG_FIX_CDEF_SYNTAX
-  cdef_info->cdef_frame_enable = (
-#if CONFIG_CDEF_ENHANCEMENTS
-      cdef_info->nb_cdef_strengths > 1 ||
-#else
-      cdef_info->cdef_bits ||
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-      cdef_info->cdef_strengths[0] || cdef_info->cdef_uv_strengths[0]);
-#endif  // CONFIG_FIX_CDEF_SYNTAX
+  cdef_info->cdef_frame_enable =
+      (cdef_info->nb_cdef_strengths > 1 || cdef_info->cdef_strengths[0] ||
+       cdef_info->cdef_uv_strengths[0]);
 
   aom_free(mse[0]);
   aom_free(mse[1]);

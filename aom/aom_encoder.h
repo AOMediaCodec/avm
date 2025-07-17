@@ -604,12 +604,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_drl_reorder;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   /*!\brief enable CDEF on the blocks with skip_txfm = 1
    *
    */
   unsigned int enable_cdef_on_skip_txfm;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!\brief enable the average of frame or tile cdfs for initialization
    *

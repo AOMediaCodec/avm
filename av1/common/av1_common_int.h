@@ -255,7 +255,6 @@ enum {
 } UENUM1BYTE(DRL_REORDER_TYPE);
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
-#if CONFIG_CDEF_ENHANCEMENTS
 enum {
   /**
    * Always disable the CDEF on the blocks with skip_txfm = 1
@@ -275,7 +274,6 @@ enum {
    */
   CDEF_ON_SKIP_TXFM_TYPES,
 } UENUM1BYTE(CDEF_ON_SKIP_TXFM_TYPE);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 typedef struct {
   int_mv mfmv0;
@@ -505,15 +503,9 @@ typedef struct {
   int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
                                                 chroma */
-#if CONFIG_CDEF_ENHANCEMENTS
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
-#else
-  int cdef_bits; /*!< Number of CDEF strength values in bits */
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-#if CONFIG_FIX_CDEF_SYNTAX
-  int cdef_frame_enable; /*!< CDEF on/off for current frame */
-#endif                   // CONFIG_FIX_CDEF_SYNTAX
+  int cdef_frame_enable;              /*!< CDEF on/off for current frame */
 } CdefInfo;
 
 enum {
@@ -684,15 +676,13 @@ typedef struct SequenceHeader {
   uint8_t enable_bru;  // To turn on/off backward reference updating
 #endif                 // CONFIG_BRU
 #if CONFIG_DRL_REORDER_CONTROL
-  uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
-                               // 1 - DRL reorder with constraints
-                               // 2 - Always reorder DRL
-#endif                         // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
+  uint8_t enable_drl_reorder;        // 0 - DRL reorder is disabled
+                                     // 1 - DRL reorder with constraints
+                                     // 2 - Always reorder DRL
+#endif                               // CONFIG_DRL_REORDER_CONTROL
   uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
   // 1 - CDEF on skip_txfm = 1 is always on
   // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   uint8_t enable_avg_cdf;  // enable CDF averaging
   uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization

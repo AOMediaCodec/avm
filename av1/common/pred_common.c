@@ -766,7 +766,6 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   }
 }
 
-#if CONFIG_CDEF_ENHANCEMENTS
 // This funtion is to check if the 1st mbmi of the current cdef unit is inside
 // the current tile. The 1st mbmi is used to signal the cdef block control flag
 // for the current cdef unit.
@@ -856,7 +855,6 @@ int av1_get_cdef_context(const AV1_COMMON *const cm,
     return 0;
   }
 }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 
 #define IS_BACKWARD_REF_FRAME(ref_frame) \
   (get_dir_rank(cm, ref_frame, NULL) == 1)

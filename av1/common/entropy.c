@@ -405,13 +405,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
       RESET_CDF_COUNTER(fc->ccso_cdf[plane][ctx], 2);
     }
   }
-#if CONFIG_CDEF_ENHANCEMENTS
   RESET_CDF_COUNTER(fc->cdef_strength_index0_cdf, 2);
   for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
     RESET_CDF_COUNTER_STRIDE(fc->cdef_cdf[j], j + 2,
                              CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_GDF
   RESET_CDF_COUNTER(fc->gdf_cdf, 2);
 #endif  // CONFIG_GDF

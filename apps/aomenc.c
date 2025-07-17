@@ -481,9 +481,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_DRL_REORDER_CONTROL
   &g_av1_codec_arg_defs.enable_drl_reorder,
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   &g_av1_codec_arg_defs.enable_avg_cdf,
   &g_av1_codec_arg_defs.avg_cdf_type,
@@ -757,9 +755,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_DRL_REORDER_CONTROL
   config->enable_drl_reorder = 1;
 #endif  // CONFIG_DRL_REORDER_CONTROL
-#if CONFIG_CDEF_ENHANCEMENTS
   config->enable_cdef_on_skip_txfm = 1;
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   config->enable_avg_cdf = 1;
   config->avg_cdf_type = 1;
@@ -1709,12 +1705,9 @@ static void show_stream_config(struct stream_state *stream,
           "CDEF on skip_txfm = 1(%d), CCSO (%d), "
           "LoopRestoration (%d: [%d/%d/%d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
-#if CONFIG_CDEF_ENHANCEMENTS
-          encoder_cfg->enable_cdef_on_skip_txfm,
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-          encoder_cfg->enable_ccso, encoder_cfg->enable_restoration,
-          encoder_cfg->enable_sgrproj, encoder_cfg->enable_pc_wiener,
-          encoder_cfg->enable_wiener_nonsep);
+          encoder_cfg->enable_cdef_on_skip_txfm, encoder_cfg->enable_ccso,
+          encoder_cfg->enable_restoration, encoder_cfg->enable_sgrproj,
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

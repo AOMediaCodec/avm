@@ -95,21 +95,11 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (cm->features.coded_lossless) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) {
-#if CONFIG_FIX_CDEF_SYNTAX
     assert(cm->cdef_info.cdef_frame_enable == 0);
-#else
-#if CONFIG_CDEF_ENHANCEMENTS
-    assert(cm->cdef_info.nb_cdef_strengths == 1);
-#else
-    assert(cm->cdef_info.cdef_bits == 0);
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-#endif  // CONFIG_FIX_CDEF_SYNTAX
     return;
   }
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-#if CONFIG_FIX_CDEF_SYNTAX
   if (!cm->cdef_info.cdef_frame_enable) return;
-#endif  // CONFIG_FIX_CDEF_SYNTAX
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -130,15 +120,9 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   // Read CDEF strength from the first non-skip coding block in this CDEF unit.
   if (!xd->cdef_transmitted[index] &&
-#if CONFIG_CDEF_ENHANCEMENTS
-      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip_txfm)
-#else
-      !skip_txfm
-#endif  // CONFIG_CDEF_ENHANCEMENTS
-  ) {
+      (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 || !skip_txfm)) {
     const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
     MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
-#if CONFIG_CDEF_ENHANCEMENTS
     if (cm->cdef_info.nb_cdef_strengths == 1) {
       mbmi->cdef_strength = 0;
     } else {
@@ -161,14 +145,8 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         }
       }
     }
-#else
-    mbmi->cdef_strength = aom_read_literal(r, cm->cdef_info.cdef_bits,
-                                           ACCT_INFO("cdef_strength"));
-#endif  // CONFIG_CDEF_ENHANCEMENTS
     xd->cdef_transmitted[index] = true;
-  }
-#if CONFIG_CDEF_ENHANCEMENTS
-  else {
+  } else {
     if (!xd->cdef_transmitted[index] &&
         !cm->cdef_info.cdef_on_skip_txfm_frame_enable && skip_txfm) {
       const int grid_idx = fetch_cdef_mi_grid_index(cm, xd);
@@ -176,7 +154,6 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
       mbmi->cdef_strength = -1;
     }
   }
-#endif  // CONFIG_CDEF_ENHANCEMENTS
 }
 
 // This function is to copy the block level ccso control flag when the
