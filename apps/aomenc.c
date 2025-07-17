@@ -159,9 +159,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_GLOBAL_MOTION,
                                         AV1E_SET_ENABLE_WARPED_MOTION,
                                         AV1E_SET_ENABLE_FILTER_INTRA,
-#if CONFIG_DIP
                                         AV1E_SET_ENABLE_INTRA_DIP,
-#endif
                                         AV1E_SET_ENABLE_SMOOTH_INTRA,
                                         AV1E_SET_ENABLE_PAETH_INTRA,
                                         AV1E_SET_ENABLE_CFL_INTRA,
@@ -365,9 +363,7 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_global_motion,
   &g_av1_codec_arg_defs.enable_warped_motion,
   &g_av1_codec_arg_defs.enable_filter_intra,
-#if CONFIG_DIP
   &g_av1_codec_arg_defs.enable_intra_dip,
-#endif
   &g_av1_codec_arg_defs.enable_smooth_intra,
   &g_av1_codec_arg_defs.enable_paeth_intra,
   &g_av1_codec_arg_defs.enable_cfl_intra,
@@ -727,9 +723,7 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_ENABLE_MHCCP
   config->enable_smooth_intra = 1;
   config->enable_filter_intra = 0;
-#if CONFIG_DIP
   config->enable_intra_dip = 1;
-#endif
   config->enable_angle_delta = 1;
   config->enable_opfl_refine = 1;
 #if CONFIG_AFFINE_REFINEMENT
@@ -1581,10 +1575,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : MHCCP: (%d)\n",
           encoder_cfg->enable_mhccp);
 #endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_DIP
   fprintf(stdout, "                               : IntraDIP (%d)\n",
           encoder_cfg->enable_intra_dip);
-#endif
   fprintf(stdout, "                               : IntraDeltaAngle (%d)\n",
           encoder_cfg->enable_angle_delta);
 

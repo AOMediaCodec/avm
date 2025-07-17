@@ -576,11 +576,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_filter_intra = ARG_DEF(NULL, "enable-filter-intra", 1,
                                  "Enable filter intra prediction mode "
                                  "(0: false (default), 1: true)"),
-#if CONFIG_DIP
   .enable_intra_dip = ARG_DEF(NULL, "enable-intra-dip", 1,
                               "Enable intra data-driven prediction mode "
                               "(0: false, 1: true (default))"),
-#endif  // CONFIG_DIP
   .enable_smooth_intra = ARG_DEF(NULL, "enable-smooth-intra", 1,
                                  "Enable smooth intra prediction modes "
                                  "(0: false, 1: true (default))"),

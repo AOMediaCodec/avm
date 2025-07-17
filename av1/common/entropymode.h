@@ -474,10 +474,8 @@ typedef struct frame_contexts {
   aom_cdf_prob filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)];
-#if CONFIG_DIP
   aom_cdf_prob intra_dip_cdf[DIP_CTXS][CDF_SIZE(2)];
   aom_cdf_prob intra_dip_mode_n6_cdf[CDF_SIZE(6)];
-#endif                          // CONFIG_DIP
 #define MAX_LR_FLEX_MB_PLANE 3  // Needs to match MAX_MB_PLANE.
   // The code for switchable resroration mode is to signal a bit for
   // every allowed restoration type in order from 0 (RESTORE_NONE).

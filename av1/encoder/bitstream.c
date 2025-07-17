@@ -1212,7 +1212,6 @@ static AOM_INLINE void write_filter_intra_mode_info(
   }
 }
 
-#if CONFIG_DIP
 static AOM_INLINE void write_intra_dip_mode_info(const AV1_COMMON *cm,
                                                  const MACROBLOCKD *xd,
                                                  const MB_MODE_INFO *const mbmi,
@@ -1234,7 +1233,6 @@ static AOM_INLINE void write_intra_dip_mode_info(const AV1_COMMON *cm,
     }
   }
 }
-#endif  // CONFIG_DIP
 
 static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
                                               const MACROBLOCKD *xd,
@@ -2125,10 +2123,8 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
   // Filter intra.
   write_filter_intra_mode_info(cm, xd, mbmi, w);
 
-#if CONFIG_DIP
   // Intra ML prediction
   write_intra_dip_mode_info(cm, xd, mbmi, w);
-#endif  // CONFIG_DIP
 }
 
 static INLINE int16_t mode_context_analyzer(
@@ -5804,9 +5800,7 @@ static AOM_INLINE void write_sequence_header(
 
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
-#if CONFIG_DIP
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
-#endif  // CONFIG_DIP
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {
     // Encode allowed motion modes

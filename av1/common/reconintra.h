@@ -194,19 +194,14 @@ static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
 }
 
-#if CONFIG_DIP
 static INLINE int av1_intra_dip_allowed_bsize(const AV1_COMMON *const cm,
                                               BLOCK_SIZE bs) {
   if (!cm->seq_params.enable_intra_dip || bs == BLOCK_INVALID) return 0;
   int width = block_size_wide[bs];
   int height = block_size_high[bs];
   int equal_or_greater_rect_16x8 = width * height >= (8 * 16);
-#if CONFIG_DIP_EXT
   int width_and_height_greater_than_4 = width > 4 && height > 4;
   int allow = equal_or_greater_rect_16x8 && width_and_height_greater_than_4;
-#else
-  int allow = equal_or_greater_rect_16x8;
-#endif  // CONFIG_DIP_EXT
   return allow;
 }
 
@@ -225,7 +220,6 @@ static INLINE int get_intra_dip_ctx(const MB_MODE_INFO *nbr0,
   int ctx1 = nbr1 ? nbr1->use_intra_dip != 0 : 0;
   return ctx0 + ctx1;
 }
-#endif  // CONFIG_DIP
 
 #if DF_RESTRICT_ORIP
 static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,

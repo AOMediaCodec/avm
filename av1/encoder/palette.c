@@ -482,9 +482,7 @@ void av1_rd_pick_palette_intra_sby(
     mbmi->joint_y_mode_delta_angle = DC_PRED;
     mbmi->y_mode_idx = DC_PRED;
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
     mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
 
     uint16_t color_cache[2 * PALETTE_MAX_SIZE];
     const int n_cache = av1_get_palette_cache(xd, 0, color_cache);

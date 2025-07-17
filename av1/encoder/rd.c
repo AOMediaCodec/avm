@@ -221,14 +221,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_DIP
   for (i = 0; i < DIP_CTXS; i++) {
     av1_cost_tokens_from_cdf(mode_costs->intra_dip_cost[i],
                              fc->intra_dip_cdf[i], NULL);
   }
   av1_cost_tokens_from_cdf(mode_costs->intra_dip_mode_cost,
                            fc->intra_dip_mode_n6_cdf, NULL);
-#endif  // CONFIG_DIP
 
   for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; ++i)
     av1_cost_tokens_from_cdf(mode_costs->switchable_interp_costs[i],

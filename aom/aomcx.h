@@ -1235,11 +1235,9 @@ enum aome_enc_control_id {
   /*!\brief Control to set frame output order derivation method
    */
   AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION = 166,
-#if CONFIG_DIP
   /*!\brief Control to enable intra_dip mode
    */
   AV1E_SET_ENABLE_INTRA_DIP = 167,
-#endif
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   /*!\brief Control to enable CDF averaging for context initialization
    */
@@ -1577,10 +1575,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_WARPED_MOTION, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FILTER_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_FILTER_INTRA
 
-#if CONFIG_DIP
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_INTRA_DIP, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_INTRA_DIP
-#endif
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_SMOOTH_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_SMOOTH_INTRA

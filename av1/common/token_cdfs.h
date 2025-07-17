@@ -10368,7 +10368,6 @@ static const aom_cdf_prob
                                   },
                                 };
 
-#if CONFIG_DIP
 static const aom_cdf_prob default_intra_dip_mode_n6_cdf[CDF_SIZE(6)] = {
   AOM_CDF6(5461, 10923, 16384, 21845, 27307)
 };
@@ -10380,6 +10379,5 @@ static const aom_cdf_prob
       { { AOM_CDF2(9008) }, { AOM_CDF2(11031) }, { AOM_CDF2(16384) } },
       { { AOM_CDF2(26870) }, { AOM_CDF2(21845) }, { AOM_CDF2(16384) } }
     };
-#endif  // CONFIG_DIP
 
 #endif  // AOM_AV1_COMMON_TOKEN_CDFS_H_

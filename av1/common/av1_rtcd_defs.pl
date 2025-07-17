@@ -276,10 +276,8 @@ add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
     "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
 
 # Data-driven intra prediction (DIP)
-if (aom_config("CONFIG_DIP") eq "yes") {
-  add_proto qw/void av1_dip_matrix_multiplication/, "const uint16_t *A, const uint16_t *B, uint16_t *C, int bd";
-  specialize qw/av1_dip_matrix_multiplication avx2/
-}
+add_proto qw/void av1_dip_matrix_multiplication/, "const uint16_t *A, const uint16_t *B, uint16_t *C, int bd";
+specialize qw/av1_dip_matrix_multiplication avx2/;
 
 # build compound seg mask functions
 add_proto qw/void av1_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint16_t *src0, int src0_stride, const uint16_t *src1, int src1_stride, int h, int w, int bd";

@@ -84,10 +84,8 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->coeff_br_ph_cdf, av1_default_coeff_br_ph_cdfs[index]);
   av1_copy(cm->fc->coeff_base_bob_cdf,
            av1_default_coeff_base_bob_multi_cdfs[index]);
-#if CONFIG_DIP
   av1_copy(cm->fc->intra_dip_cdf, default_intra_dip_cdf[index]);
   av1_copy(cm->fc->intra_dip_mode_n6_cdf, default_intra_dip_mode_n6_cdf);
-#endif  // CONFIG_DIP
 }
 
 static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
@@ -361,10 +359,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_ENABLE_MHCCP
   RESET_CDF_COUNTER(fc->filter_intra_cdfs, 2);
   RESET_CDF_COUNTER(fc->filter_intra_mode_cdf, FILTER_INTRA_MODES);
-#if CONFIG_DIP
   RESET_CDF_COUNTER(fc->intra_dip_cdf, 2);
   RESET_CDF_COUNTER(fc->intra_dip_mode_n6_cdf, 6);
-#endif  // CONFIG_DIP
   RESET_CDF_COUNTER(fc->switchable_flex_restore_cdf, 2);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     for (int ctx = 0; ctx < CCSO_CONTEXT; ctx++) {

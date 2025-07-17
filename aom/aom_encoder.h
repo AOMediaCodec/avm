@@ -518,12 +518,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_filter_intra;
-#if CONFIG_DIP
   /*!\brief enable intra_dip
    *
    */
   unsigned int enable_intra_dip;
-#endif
   /*!\brief enable intra angle delta
    *
    */

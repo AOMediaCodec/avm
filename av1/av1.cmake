@@ -109,14 +109,11 @@ list(
   "${AOM_ROOT}/av1/common/entropy_inits_mv.h"
   "${AOM_ROOT}/av1/common/entropy_sideinfo.h")
 
-if(CONFIG_DIP)
-  list(
-    APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/intra_matrix.c"
-    "${AOM_ROOT}/av1/common/intra_matrix.h"
-    "${AOM_ROOT}/av1/common/intra_dip.cc" "${AOM_ROOT}/av1/common/intra_dip.h")
-  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
-       "${AOM_ROOT}/av1/common/x86/intra_matrix_avx2.c")
-endif()
+list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/intra_matrix.c"
+     "${AOM_ROOT}/av1/common/intra_matrix.h"
+     "${AOM_ROOT}/av1/common/intra_dip.cc" "${AOM_ROOT}/av1/common/intra_dip.h")
+list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+     "${AOM_ROOT}/av1/common/x86/intra_matrix_avx2.c")
 
 if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/encoder/erp_tflite.cc"
@@ -323,14 +320,12 @@ if(CONFIG_ML_PART_SPLIT)
     "${AOM_ROOT}/av1/encoder/sms_part_split_prune_tflite_model.h")
 endif()
 
-if(CONFIG_DIP_EXT_PRUNING)
-  list(
-    APPEND
-    AOM_AV1_ENCODER_SOURCES
-    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.h"
-    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.cc"
-    "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_weights.cc")
-endif()
+list(
+  APPEND
+  AOM_AV1_ENCODER_SOURCES
+  "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.h"
+  "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_tflite.cc"
+  "${AOM_ROOT}/av1/encoder/intra_dip_mode_prune_weights.cc")
 
 list(
   APPEND AOM_AV1_COMMON_INTRIN_SSE2 "${AOM_ROOT}/av1/common/cdef_block_sse2.c"

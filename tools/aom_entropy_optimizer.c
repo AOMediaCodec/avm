@@ -1784,7 +1784,6 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_DIP
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = DIP_CTXS;
   cts_each_dim[2] = 2;
@@ -1798,7 +1797,6 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_intra_dip_mode_n6_cdf[CDF_SIZE(6)]",
                      0, &total_count, 0, mem_wanted, "Intra");
-#endif
 
   /* forward skip coding flag */
   cts_each_dim[0] = FSC_MODE_CONTEXTS;

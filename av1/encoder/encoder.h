@@ -271,12 +271,10 @@ typedef struct {
    * enabled.
    */
   bool enable_filter_intra;
-#if CONFIG_DIP
   /*!
    * Flag to indicate if data-drive intra prediction should be enabled.
    */
   bool enable_intra_dip;
-#endif  // CONFIG_DIP
   /*!
    * Flag to indicate if smooth intra prediction modes should be enabled.
    */
@@ -1681,10 +1679,8 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int filter_intra[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_DIP
   unsigned int intra_dip[TOKEN_CDF_Q_CTXS][DIP_CTXS][2];
   unsigned int intra_dip_mode_n6[6];
-#endif  // CONFIG_DIP
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
   unsigned int sgrproj_restore[2];
   unsigned int wienerns_4part_cnts[WIENERNS_4PART_CTX_MAX]
@@ -1941,9 +1937,7 @@ typedef struct ThreadData {
 #if CONFIG_ML_PART_SPLIT
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
-#if CONFIG_DIP_EXT_PRUNING
   void *dip_pruning_model;
-#endif  // CONFIG_DIP_EXT_PRUNING
 } ThreadData;
 
 struct EncWorkerData;

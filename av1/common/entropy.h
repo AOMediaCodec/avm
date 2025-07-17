@@ -28,10 +28,8 @@ extern "C" {
 
 #define TOKEN_CDF_Q_CTXS 4
 
-#if CONFIG_DIP
 // Number of contexts for intra_dip_cdf.
 #define DIP_CTXS 3
-#endif  // CONFIG_DIP
 
 #if CONFIG_CONTEXT_DERIVATION
 #define CROSS_COMPONENT_CONTEXTS 3

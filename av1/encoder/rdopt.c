@@ -7060,9 +7060,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
     memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
     mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 1;
     assert(xd->tree_type != CHROMA_PART);
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
@@ -7642,9 +7640,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -7970,9 +7966,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
       search_state->best_mbmode.interintra_mode =
           (INTERINTRA_MODE)(II_DC_PRED - 1);
       search_state->best_mbmode.filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
       search_state->best_mbmode.use_intra_dip = 0;
-#endif  // CONFIG_DIP
 
       set_default_interp_filters(&search_state->best_mbmode, cm,
 #if CONFIG_COMPOUND_4XN
@@ -8064,9 +8058,7 @@ static AOM_INLINE void rd_pick_skip_mode(
   }
 
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -8155,9 +8147,7 @@ static AOM_INLINE void rd_pick_skip_mode(
     search_state->best_mbmode.interintra_mode =
         (INTERINTRA_MODE)(II_DC_PRED - 1);
     search_state->best_mbmode.filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
     search_state->best_mbmode.use_intra_dip = 0;
-#endif  // CONFIG_DIP
 
     set_default_interp_filters(&search_state->best_mbmode, cm,
 #if CONFIG_COMPOUND_4XN
@@ -9030,9 +9020,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   pmi->palette_size[0] = 0;
   pmi->palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
   mbmi->cwp_idx = CWP_EQUAL;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -10462,9 +10450,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             mbmi->angle_delta[PLANE_TYPE_Y] = 0;
             mbmi->angle_delta[PLANE_TYPE_UV] = 0;
             mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
             mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
 #if CONFIG_LOSSLESS_DPCM
             mbmi->use_dpcm_y = 0;
             mbmi->dpcm_mode_y = 0;
@@ -11088,9 +11074,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   mbmi->mode = GLOBALMV;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->uv_mode = UV_DC_PRED;
