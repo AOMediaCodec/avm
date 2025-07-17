@@ -6830,14 +6830,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
-      const int order_hint_bits =
-          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
-        aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->order_hint,
-                             order_hint_bits);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-        aom_wb_write_uvlc(wb, cm->ref_frame_map[ref_idx]->display_order_hint >>
-                                  order_hint_bits);
+        aom_wb_write_svlc(wb, cm->ref_frame_map[ref_idx]->display_order_hint -
+                                  current_frame->display_order_hint);
+#else
+          aom_wb_write_literal(
+              wb, cm->ref_frame_map[ref_idx]->order_hint,
+              seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       }
     }

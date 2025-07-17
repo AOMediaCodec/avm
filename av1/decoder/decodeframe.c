@@ -8184,19 +8184,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {
+      const int order_hint_bits =
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
-        // Read order hint from bit stream
-        const int order_hint_bits =
-            seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
-        unsigned int order_hint = aom_rb_read_literal(rb, order_hint_bits);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-        const int display_order_hint_high_bits = (int)aom_rb_read_uvlc(rb);
-        if (display_order_hint_high_bits < 0 ||
-            display_order_hint_high_bits >=
-                (1 << (DISPLAY_ORDER_HINT_BITS - order_hint_bits))) {
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Invalid value of display_order_hint_high_bits");
-        }
+        int display_order_hint_diff = (int)aom_rb_read_svlc(rb);
+        unsigned int ref_display_order_hint =
+            current_frame->display_order_hint + display_order_hint_diff;
+        unsigned int order_hint =
+            ref_display_order_hint % (1 << order_hint_bits);
+#else
+          // Read order hint from bit stream
+          unsigned int order_hint = aom_rb_read_literal(rb, order_hint_bits);
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         // Get buffer
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
@@ -8248,9 +8247,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->ref_frame_map[ref_idx] = buf;
           buf->order_hint = order_hint;
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-          buf->display_order_hint =
-              (display_order_hint_high_bits << order_hint_bits) +
-              buf->order_hint;
+          buf->display_order_hint = ref_display_order_hint;
 #else
             buf->display_order_hint = order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
