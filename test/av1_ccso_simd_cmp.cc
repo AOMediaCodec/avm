@@ -30,31 +30,20 @@ using libaom_test::FunctionEquivalenceTest;
 
 namespace {
 
-#if CONFIG_CCSO_FU_BUGFIX
 #define CCSO_BLK_SIZE_PARAMS(blk_size_x, blk_size_y) blk_size_x, blk_size_y
-#else
-#define CCSO_BLK_SIZE_PARAMS(blk_size_x, blk_size_y) blk_size_y
-#endif  // CONFIG_CCSO_FU_BUGFIX
 
 //////////////////////////////////////////////////////////////////////////////
 // ccso_filter_block_hbd_wo_buf
 //////////////////////////////////////////////////////////////////////////////
 
-typedef void (*CCSO_WO_BUF)(const uint16_t *src_y, uint16_t *dst_yuv,
-                            const int x, const int y, const int pic_width,
-                            const int pic_height, int *src_cls,
-                            const int8_t *offset_buf, const int src_y_stride,
-                            const int dst_stride, const int y_uv_hscale,
-                            const int y_uv_vscale, const int thr,
-                            const int neg_thr, const int *src_loc,
-                            const int max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                            const int blk_size_x, const int blk_size_y,
-#else
-                            const int blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-                            const bool isSingleBand, const uint8_t shift_bits,
-                            const int edge_clf, const uint8_t ccso_bo_only);
+typedef void (*CCSO_WO_BUF)(
+    const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y,
+    const int pic_width, const int pic_height, int *src_cls,
+    const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
+    const int y_uv_hscale, const int y_uv_vscale, const int thr,
+    const int neg_thr, const int *src_loc, const int max_val,
+    const int blk_size_x, const int blk_size_y, const bool isSingleBand,
+    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only);
 typedef libaom_test::FuncParam<CCSO_WO_BUF> TestFuncsCCSO_WO_BUF;
 
 template <typename F>
@@ -171,20 +160,13 @@ TEST_P(CCSOWOBUFTest, RandomValues) {
 //////////////////////////////////////////////////////////////////////////////
 // ccso_filter_block_hbd_with_buf
 //////////////////////////////////////////////////////////////////////////////
-typedef void (*CCSO_With_BUF)(const uint16_t *src_y, uint16_t *dst_yuv,
-                              const uint8_t *src_cls0, const uint8_t *src_cls1,
-                              const int src_y_stride, const int dst_stride,
-                              const int ccso_stride, const int x, const int y,
-                              const int pic_width, const int pic_height,
-                              const int8_t *offset_buf,
-#if CONFIG_CCSO_FU_BUGFIX
-                              const int blk_size_x, const int blk_size_y,
-#else
-                              const int blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-                              const int y_uv_hscale, const int y_uv_vscale,
-                              const int max_val, const uint8_t shift_bits,
-                              const uint8_t ccso_bo_only);
+typedef void (*CCSO_With_BUF)(
+    const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0,
+    const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,
+    const int ccso_stride, const int x, const int y, const int pic_width,
+    const int pic_height, const int8_t *offset_buf, const int blk_size_x,
+    const int blk_size_y, const int y_uv_hscale, const int y_uv_vscale,
+    const int max_val, const uint8_t shift_bits, const uint8_t ccso_bo_only);
 typedef libaom_test::FuncParam<CCSO_With_BUF> TestFuncsCCSO_With_BUF;
 
 class CCSOWITHBUFTest : public CCSOFilterTest<CCSO_With_BUF> {
@@ -241,13 +223,8 @@ typedef void (*CCSO_Derive_Src)(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int pic_width, const int pic_height,
                                 const int y_uv_hscale, const int y_uv_vscale,
                                 const int thr, const int neg_thr,
-                                const int *src_loc,
-#if CONFIG_CCSO_FU_BUGFIX
-                                const int blk_size_x, const int blk_size_y,
-#else
-                                const int blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-                                const int edge_clf);
+                                const int *src_loc, const int blk_size_x,
+                                const int blk_size_y, const int edge_clf);
 typedef libaom_test::FuncParam<CCSO_Derive_Src> TestFuncsCCSO_Derive_Src;
 
 class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {

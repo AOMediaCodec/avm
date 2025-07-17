@@ -118,20 +118,10 @@ void ccso_filter_block_hbd_wo_buf_c(
     const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
     const int y_uv_hscale, const int y_uv_vscale, const int thr,
     const int neg_thr, const int *src_loc, const int max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-    const int blk_size_x, const int blk_size_y,
-#else
-    const int blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-    const bool isSingleBand, const uint8_t shift_bits, const int edge_clf,
-    const uint8_t ccso_bo_only) {
-#if CONFIG_CCSO_FU_BUGFIX
+    const int blk_size_x, const int blk_size_y, const bool isSingleBand,
+    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only) {
   const int y_end = AOMMIN(pic_height - y, blk_size_y);
   const int x_end = AOMMIN(pic_width - x, blk_size_x);
-#else
-  const int y_end = AOMMIN(pic_height - y, blk_size);
-  const int x_end = AOMMIN(pic_width - x, blk_size);
-#endif  // CONFIG_CCSO_FU_BUGFIX
   for (int y_start = 0; y_start < y_end; y_start++) {
     const int y_pos = y_start;
     for (int x_start = 0; x_start < x_end; x_start++) {
@@ -178,12 +168,8 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int neg_thr = thr * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-#if CONFIG_CCSO_FU_BUGFIX
   assert(plane == 0);  // function must only be called for plane == 0
   const int blk_log2 = CCSO_BLK_SIZE;
-#else
-  const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-#endif  // CONFIG_CCSO_FU_BUGFIX
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
 #if CCSO_REFACTORING
@@ -192,17 +178,9 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-#if CONFIG_CCSO_FU_BUGFIX
       const int ccso_blk_idx =
           (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2) * mi_params->mi_stride +
           (blk_size >> MI_SIZE_LOG2) * (x >> blk_log2);
-#else
-      const int ccso_blk_idx =
-          (blk_size >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2) * mi_params->mi_stride +
-          (blk_size >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2);
-#endif  // CONFIG_CCSO_FU_BUGFIX
       const bool use_ccso = mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y;
       if (!use_ccso) continue;
 #if CCSO_REFACTORING
@@ -236,22 +214,14 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-                unit_size, false, shift_bits, edge_clf,
+                max_val, unit_size, unit_size, false, shift_bits, edge_clf,
                 cm->ccso_info.ccso_bo_only[plane]);
           } else {
             ccso_filter_block_hbd_wo_buf(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-                unit_size, false, shift_bits, edge_clf, 0);
+                max_val, unit_size, unit_size, false, shift_bits, edge_clf, 0);
           }
         }
         dst_unit_yuv += (dst_stride << unit_log2);
@@ -262,21 +232,14 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         ccso_filter_block_hbd_wo_buf_c(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride, 0,
-            0, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size, false, shift_bits, edge_clf,
-            cm->ccso_info.ccso_bo_only[plane]);
+            0, thr, neg_thr, src_loc, max_val, blk_size, blk_size, false,
+            shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
       } else {
         ccso_filter_block_hbd_wo_buf(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride, 0,
-            0, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size, false, shift_bits, edge_clf, 0);
+            0, thr, neg_thr, src_loc, max_val, blk_size, blk_size, false,
+            shift_bits, edge_clf, 0);
       }
 #endif  // CCSO_REFACTORING
     }
@@ -306,12 +269,8 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int neg_thr = thr * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-#if CONFIG_CCSO_FU_BUGFIX
   assert(plane == 0);  // function must only be called for plane == 0
   const int blk_log2 = CCSO_BLK_SIZE;
-#else
-  const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-#endif  // CONFIG_CCSO_FU_BUGFIX
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
 #if CCSO_REFACTORING
@@ -320,17 +279,9 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-#if CONFIG_CCSO_FU_BUGFIX
       const int ccso_blk_idx =
           (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2) * mi_params->mi_stride +
           (blk_size >> MI_SIZE_LOG2) * (x >> blk_log2);
-#else
-      const int ccso_blk_idx =
-          (blk_size >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2) * mi_params->mi_stride +
-          (blk_size >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2);
-#endif  // CONFIG_CCSO_FU_BUGFIX
       const bool use_ccso = mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y;
       if (!use_ccso) continue;
 #if CCSO_REFACTORING
@@ -364,22 +315,14 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size,
-#endif
-                unit_size, true, shift_bits, edge_clf,
+                max_val, unit_size, unit_size, true, shift_bits, edge_clf,
                 cm->ccso_info.ccso_bo_only[plane]);
           } else {
             ccso_filter_block_hbd_wo_buf(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size,
-#endif
-                unit_size, true, shift_bits, edge_clf, 0);
+                max_val, unit_size, unit_size, true, shift_bits, edge_clf, 0);
           }
         }
         dst_unit_yuv += (dst_stride << unit_log2);
@@ -390,21 +333,14 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         ccso_filter_block_hbd_wo_buf_c(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride, 0,
-            0, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size, true, shift_bits, edge_clf,
-            cm->ccso_info.ccso_bo_only[plane]);
+            0, thr, neg_thr, src_loc, max_val, blk_size, blk_size, true,
+            shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
       } else {
         ccso_filter_block_hbd_wo_buf(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride, 0,
-            0, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size, true, shift_bits, edge_clf, 0);
+            0, thr, neg_thr, src_loc, max_val, blk_size, blk_size, true,
+            shift_bits, edge_clf, 0);
       }
 #endif  // CCSO_REFACTORING
     }
@@ -435,19 +371,12 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int neg_thr = thr * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-#if CONFIG_CCSO_FU_BUGFIX
   assert(plane > 0);  // function must only be called for plane > 0
   const int blk_size = 1 << CCSO_BLK_SIZE;
   const int blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
   const int blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
-#else
-  const int blk_log2_y = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-  const int blk_log2_x = blk_log2_y;
-  const int blk_size_y = 1 << blk_log2_y;
-  const int blk_size_x = 1 << blk_log2_y;
-#endif  // CONFIG_CCSO_FU_BUGFIX
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
 #if CCSO_REFACTORING
   const int unit_log2_x =
@@ -459,17 +388,9 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
-#if CONFIG_CCSO_FU_BUGFIX
       const int ccso_blk_idx = (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2_y) *
                                    mi_params->mi_stride +
                                (blk_size >> MI_SIZE_LOG2) * (x >> blk_log2_x);
-#else
-      const int ccso_blk_idx =
-          (blk_size_y >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2_y) * mi_params->mi_stride +
-          (blk_size_x >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2_y);
-#endif  // CONFIG_CCSO_FU_BUGFIX
       const bool use_ccso =
           (plane == 1) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
                        : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
@@ -505,22 +426,15 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size_x,
-#endif
-                unit_size_y, false, shift_bits, edge_clf,
-                cm->ccso_info.ccso_bo_only[plane]);
+                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
+                shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
             ccso_filter_block_hbd_wo_buf(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size_x,
-#endif
-                unit_size_y, false, shift_bits, edge_clf, 0);
+                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
+                shift_bits, edge_clf, 0);
           }
         }
         dst_unit_yuv += (dst_stride << unit_log2_y);
@@ -532,20 +446,14 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size_x,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size_y, false, shift_bits, edge_clf,
+            blk_size_x, blk_size_y, false, shift_bits, edge_clf,
             cm->ccso_info.ccso_bo_only[plane]);
       } else {
         ccso_filter_block_hbd_wo_buf(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size_x,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size_y, false, shift_bits, edge_clf, 0);
+            blk_size_x, blk_size_y, false, shift_bits, edge_clf, 0);
       }
 #endif  // CCSO_REFACTORING
     }
@@ -577,19 +485,12 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int neg_thr = thr * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-#if CONFIG_CCSO_FU_BUGFIX
   assert(plane > 0);  // function must only be called for plane > 0
   const int blk_size = 1 << CCSO_BLK_SIZE;
   const int blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
   const int blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
-#else
-  const int blk_log2_y = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
-  const int blk_log2_x = blk_log2_y;
-  const int blk_size_y = 1 << blk_log2_y;
-  const int blk_size_x = 1 << blk_log2_y;
-#endif  // CONFIG_CCSO_FU_BUGFIX
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
 #if CCSO_REFACTORING
   const int unit_log2_x =
@@ -601,17 +502,9 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
-#if CONFIG_CCSO_FU_BUGFIX
       const int ccso_blk_idx = (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2_y) *
                                    mi_params->mi_stride +
                                (blk_size >> MI_SIZE_LOG2) * (x >> blk_log2_x);
-#else
-      const int ccso_blk_idx =
-          (blk_size_y >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_y)) *
-              (y >> blk_log2_y) * mi_params->mi_stride +
-          (blk_size_x >> (MI_SIZE_LOG2 - xd->plane[plane].subsampling_x)) *
-              (x >> blk_log2_y);
-#endif  // CONFIG_CCSO_FU_BUGFIX
       const bool use_ccso =
           (plane == 1) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
                        : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
@@ -647,22 +540,15 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size_x,
-#endif
-                unit_size_y, true, shift_bits, edge_clf,
-                cm->ccso_info.ccso_bo_only[plane]);
+                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
+                shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
             ccso_filter_block_hbd_wo_buf(
                 src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-                unit_size_x,
-#endif
-                unit_size_y, true, shift_bits, edge_clf, 0);
+                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
+                shift_bits, edge_clf, 0);
           }
         }
         dst_unit_yuv += (dst_stride << unit_log2_y);
@@ -674,20 +560,14 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size_x,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size_y, true, shift_bits, edge_clf,
+            blk_size_x, blk_size_y, true, shift_bits, edge_clf,
             cm->ccso_info.ccso_bo_only[plane]);
       } else {
         ccso_filter_block_hbd_wo_buf(
             src_y, dst_yuv, x, y, pic_width, pic_height, src_cls,
             cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
             y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
-#if CONFIG_CCSO_FU_BUGFIX
-            blk_size_x,
-#endif  // CONFIG_CCSO_FU_BUGFIX
-            blk_size_y, true, shift_bits, edge_clf, 0);
+            blk_size_x, blk_size_y, true, shift_bits, edge_clf, 0);
       }
 #endif  // CCSO_REFACTORING
     }

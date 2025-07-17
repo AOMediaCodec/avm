@@ -372,9 +372,6 @@ set_aom_config_var(CONFIG_BANK_IMPROVE 1
                    "Enable to improve refmv bank and warp parameter bank")
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
-set_aom_config_var(CONFIG_CCSO_FU_BUGFIX 1 "Bugfix to CCSO FU size")
-set_aom_config_var(CONFIG_CCSO_SIGNALING_IMPROV 1
-                   "CCSO reuse reference frame index signaling improvement")
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
                    "Improvement of all inter mode related contexts")
 
@@ -525,8 +522,6 @@ set_aom_config_var(CONFIG_SCC_DETERMINATION 1
 
 set_aom_config_var(CONFIG_IST_ANY_SET 1
                    "Enable R-D Optimized IST set selection from CWG-D159.")
-
-set_aom_config_var(CONFIG_CCSO_BO_REDUCE 1 "Reduce band only 128 case.")
 
 set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
