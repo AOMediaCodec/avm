@@ -185,9 +185,6 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     av1_free_internal_frame_buffers(&ctx->buffer_pool->int_frame_buffers);
   }
 
-#if !CONFIG_IBP_WEIGHT
-  free_ibp_info(ctx->base.ibp_directional_weights);
-#endif  //! CONFIG_IBP_WEIGHT
   aom_free(ctx->frame_worker);
   aom_free(ctx->buffer_pool);
   aom_img_free(&ctx->img);

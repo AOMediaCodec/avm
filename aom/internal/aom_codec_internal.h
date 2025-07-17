@@ -347,12 +347,8 @@ struct aom_codec_iface {
 struct aom_codec_priv {
   const char *err_detail;
   aom_codec_flags_t init_flags;
-#if CONFIG_IBP_WEIGHT
   IbpWeightsType ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
                                         [DIR_MODES_0_90];
-#else
-  uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
-#endif  // CONFIG_IBP_WEIGHT
   struct {
     aom_fixed_buf_t cx_data_dst_buf;
     unsigned int cx_data_pad_before;

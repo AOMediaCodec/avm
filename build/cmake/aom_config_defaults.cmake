@@ -206,9 +206,6 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
 set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
-set_aom_config_var(
-  CONFIG_IBP_DC 1
-  "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
@@ -554,8 +551,6 @@ set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD4 1
                    "AV2 remove worst-case multiplications.")
 set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
-set_aom_config_var(CONFIG_IBP_WEIGHT 1 "Reduce IBP weights memory.")
-set_aom_config_var(CONFIG_FIX_IBP_DC 1 "Simplify prediction of IBP DC mode.")
 set_aom_config_var(CONFIG_WEDGE_TMVP 1
                    "Improvements to tmvp MV storing for wedge mode.")
 set_aom_config_var(
@@ -594,8 +589,6 @@ set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
 
 set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
-
-set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
 
 set_aom_config_var(CONFIG_NEW_PART_CTX 1 "New partition context models")
 

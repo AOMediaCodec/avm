@@ -287,9 +287,7 @@ typedef void (*intra_high_pred_fn)(uint16_t *dst, ptrdiff_t stride,
                                    int bd);
 static intra_high_pred_fn pred_high[INTRA_MODES][TX_SIZES_ALL];
 static intra_high_pred_fn dc_pred_high[2][2][TX_SIZES_ALL];
-#if CONFIG_IBP_DC
 static intra_high_pred_fn ibp_dc_pred_high[2][2][TX_SIZES_ALL];
-#endif
 
 static void init_intra_predictors_internal(void) {
   assert(NELEMENTS(mode_to_angle_map) == INTRA_MODES);
@@ -337,12 +335,10 @@ static void init_intra_predictors_internal(void) {
   INIT_ALL_SIZES(dc_pred_high[0][1], highbd_dc_top);
   INIT_ALL_SIZES(dc_pred_high[1][0], highbd_dc_left);
   INIT_ALL_SIZES(dc_pred_high[1][1], highbd_dc);
-#if CONFIG_IBP_DC
   INIT_ALL_SIZES(ibp_dc_pred_high[0][0], highbd_dc_128);
   INIT_ALL_SIZES(ibp_dc_pred_high[0][1], highbd_ibp_dc_top);
   INIT_ALL_SIZES(ibp_dc_pred_high[1][0], highbd_ibp_dc_left);
   INIT_ALL_SIZES(ibp_dc_pred_high[1][1], highbd_ibp_dc);
-#endif
 #undef intra_pred_allsizes
 }
 
@@ -1224,7 +1220,6 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
   }
 }
 
-#if CONFIG_IBP_WEIGHT
 void av1_highbd_ibp_dr_prediction_z1_c(
     const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
     int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
@@ -1268,44 +1263,6 @@ void av1_highbd_ibp_dr_prediction_z3_c(
     }
   }
 }
-#else
-void av1_highbd_ibp_dr_prediction_z1_c(uint8_t *weights, uint16_t *dst,
-                                       ptrdiff_t stride, uint16_t *second_pred,
-                                       ptrdiff_t second_stride, int bw,
-                                       int bh) {
-  int r, c;
-  for (r = 0; r < bh; ++r) {
-    for (c = 0; c < bw; ++c) {
-      dst[c] = ROUND_POWER_OF_TWO(
-          dst[c] * weights[c] + second_pred[c] * (IBP_WEIGHT_MAX - weights[c]),
-          IBP_WEIGHT_SHIFT);
-    }
-    weights += bw;
-    dst += stride;
-    second_pred += second_stride;
-  }
-}
-
-void av1_highbd_ibp_dr_prediction_z3_c(uint8_t *weights, uint16_t *dst,
-                                       ptrdiff_t stride, uint16_t *second_pred,
-                                       ptrdiff_t second_stride, int bw,
-                                       int bh) {
-  int r, c;
-  for (c = 0; c < bw; ++c) {
-    uint16_t *tmp_dst = dst + c;
-    uint16_t *tmp_second = second_pred + c;
-    for (r = 0; r < bh; ++r) {
-      tmp_dst[0] =
-          ROUND_POWER_OF_TWO(tmp_dst[0] * weights[r] +
-                                 tmp_second[0] * (IBP_WEIGHT_MAX - weights[r]),
-                             IBP_WEIGHT_SHIFT);
-      tmp_dst += stride;
-      tmp_second += second_stride;
-    }
-    weights += bh;
-  }
-}
-#endif  // CONFIG_IBP_WEIGHT
 
 static void build_intra_predictors_high(
     const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
@@ -1314,12 +1271,7 @@ static void build_intra_predictors_high(
     int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
     int n_bottomleft_px, int plane, int is_sb_boundary,
     const int seq_intra_pred_filter_flag, const int seq_ibp_flag,
-#if CONFIG_IBP_WEIGHT
-    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
-#else
-    uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
-#endif  // CONFIG_IBP_WEIGHT
-) {
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
   DECLARE_ALIGNED(16, uint16_t, left_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
@@ -1375,13 +1327,9 @@ static void build_intra_predictors_high(
 
   int apply_sub_block_based_refinement_filter =
       seq_intra_pred_filter_flag && (mrl_index == 0);
-#if CONFIG_DISABLE_4X4_IBP_ORIP
   const bool is_ibp_orip_allowed_blk_sz = tx_size != TX_4X4;
   apply_sub_block_based_refinement_filter &= is_ibp_orip_allowed_blk_sz;
   const int apply_ibp = seq_ibp_flag && is_ibp_orip_allowed_blk_sz;
-#else
-  const int apply_ibp = seq_ibp_flag;
-#endif  // CONFIG_DISABLE_4X4_IBP_ORIP
 #if CONFIG_WAIP
 #if CONFIG_NEW_TX_PARTITION
   const int txb_idx = get_tx_partition_idx(xd->mi[0], plane);
@@ -1691,11 +1639,7 @@ static void build_intra_predictors_high(
       ) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
-#if CONFIG_IBP_WEIGHT
           if (is_ibp_enabled[mode_index]) {
-#else
-          uint8_t *weights = ibp_weights[tx_size][mode_index];
-#endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
             if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
@@ -1707,30 +1651,18 @@ static void build_intra_predictors_high(
                   upsample_above, upsample_left, p_angle, xd->bd);
             }
 #else
-          highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                     left_col, upsample_above, upsample_left,
-                                     p_angle, xd->bd);
+            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
+                                       left_col, upsample_above, upsample_left,
+                                       p_angle, xd->bd);
 #endif  // CONFIG_IDIF
-            av1_highbd_ibp_dr_prediction_z1_c(
-#if CONFIG_IBP_WEIGHT
-                ibp_weights, mode_index
-#else
-              weights
-#endif  // CONFIG_IBP_WEIGHT
-                ,
-                dst, dst_stride, second_pred, txwpx, txwpx, txhpx);
-#if CONFIG_IBP_WEIGHT
+            av1_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
+                                              dst_stride, second_pred, txwpx,
+                                              txwpx, txhpx);
           }
-#endif  // CONFIG_IBP_WEIGHT
         }
         if (p_angle > 180 && p_angle < 270) {
           int mode_index = angle_to_mode_index[270 - p_angle];
-#if CONFIG_IBP_WEIGHT
           if (is_ibp_enabled[mode_index]) {
-#else
-          int transpose_tsize = transpose_tx_size[tx_size];
-          uint8_t *weights = ibp_weights[transpose_tsize][mode_index];
-#endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
             if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
@@ -1742,21 +1674,14 @@ static void build_intra_predictors_high(
                   upsample_above, upsample_left, p_angle, xd->bd);
             }
 #else
-          highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                     left_col, upsample_above, upsample_left,
-                                     p_angle, xd->bd);
+            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
+                                       left_col, upsample_above, upsample_left,
+                                       p_angle, xd->bd);
 #endif  // CONFIG_IDIF
-            av1_highbd_ibp_dr_prediction_z3_c(
-#if CONFIG_IBP_WEIGHT
-                ibp_weights, mode_index
-#else
-              weights
-#endif  // CONFIG_IBP_WEIGHT
-                ,
-                dst, dst_stride, second_pred, txwpx, txwpx, txhpx);
-#if CONFIG_IBP_WEIGHT
+            av1_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
+                                              dst_stride, second_pred, txwpx,
+                                              txwpx, txhpx);
           }
-#endif  // CONFIG_IBP_WEIGHT
         }
       }
     }
@@ -1779,13 +1704,11 @@ static void build_intra_predictors_high(
   if (mode == DC_PRED) {
     dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
         dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
-#if CONFIG_IBP_DC
     if (apply_ibp && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
         ((n_left_px > 0) || (n_top_px > 0))) {
       ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
           dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
     }
-#endif
   } else {
     pred_high[mode][tx_size](dst, dst_stride, above_row_1st, left_col_1st,
                              xd->bd);

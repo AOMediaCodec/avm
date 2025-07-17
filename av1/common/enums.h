@@ -144,10 +144,8 @@ enum {
 #define REFINEMV_SUBBLOCK_HEIGHT 16
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_IBP_WEIGHT
 #define IBP_WEIGHT_SIZE_LOG2 4
 #define IBP_WEIGHT_SIZE (1 << IBP_WEIGHT_SIZE_LOG2)
-#endif  // CONFIG_IBP_WEIGHT
 
 #define BUGFIX_AMVD_AMVR 1
 // Supported scale modes for JOINT_NEWMV
@@ -1380,15 +1378,9 @@ enum {
 
 #define DIR_MODES_0_90 17
 #define IBP_WEIGHT_SHIFT 8
-#if CONFIG_FIX_IBP_DC
 #define IBP_WEIGHT_MAX 256
 #define IBP_WEIGHT_REF IBP_WEIGHT_MAX
 typedef uint16_t IbpWeightsType;
-#else
-#define IBP_WEIGHT_MAX 255
-typedef uint8_t IbpWeightsType;
-#define IBP_WEIGHT_REF 256
-#endif  // CONFIG_FIX_IBP_DC
 
 /*!\enum Warp projection type
  * \brief This enumeration defines various warp projection type supported

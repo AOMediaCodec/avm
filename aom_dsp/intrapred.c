@@ -531,7 +531,7 @@ static INLINE void highbd_dc_predictor(uint16_t *dst, ptrdiff_t stride, int bw,
     dst += stride;
   }
 }
-#if CONFIG_IBP_DC
+
 const uint8_t ibp_weights[5][16] = {
   { 192, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 171, 213, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -596,12 +596,10 @@ static INLINE void highbd_ibp_dc_predictor(uint16_t *dst, ptrdiff_t stride,
   int len_w = bw >> 2;
   int row_start = 0;
   int col_start = 0;
-#if CONFIG_FIX_IBP_DC
   if (bw >= bh)
     row_start = len_h;
   else
     col_start = len_w;
-#endif  // CONFIG_FIX_IBP_DC
   uint8_t weights_index = size_to_weights_index[bh >> 3];
   const uint8_t *weights = ibp_weights[weights_index];
   for (r = 0; r < len_h; r++) {
@@ -678,12 +676,10 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
   int len_h = bh >> 2;
   int row_start = 0;
   int col_start = 0;
-#if CONFIG_FIX_IBP_DC
   if (bw >= bh)
     row_start = len_h;
   else
     col_start = len_w;
-#endif  // CONFIG_FIX_IBP_DC
   for (r = 0; r < len_h; r++) {
     for (c = col_start; c < bw; c++) {
       int val = ROUND_POWER_OF_TWO(
@@ -706,7 +702,6 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
     dst += stride;
   }
 }
-#endif
 
 // The constants (multiplier and shifts) for a given block size are obtained
 // as follows:
@@ -1003,11 +998,9 @@ intra_pred_allsizes(dc_128)
 intra_pred_allsizes(dc_left)
 intra_pred_allsizes(dc_top)
 intra_pred_square(dc)
-#if CONFIG_IBP_DC
 intra_pred_allsizes(ibp_dc_left)
 intra_pred_allsizes(ibp_dc_top)
 intra_pred_allsizes(ibp_dc)
-#endif
 
 /* clang-format on */
 #undef intra_pred_allsizes

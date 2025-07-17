@@ -270,18 +270,10 @@ if (aom_config("CONFIG_IDIF") eq "yes") {
     specialize qw/av1_highbd_dr_prediction_z3_idif avx2/
 }
 
-if (aom_config("CONFIG_IBP_WEIGHT") eq "yes") {
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
-      "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
-      "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-}
-else {
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
-    "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-  add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
-    "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-}
+add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
+    "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
+    "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
 
 # Data-driven intra prediction (DIP)
 if (aom_config("CONFIG_DIP") eq "yes") {
