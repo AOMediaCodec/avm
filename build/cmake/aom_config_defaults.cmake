@@ -197,7 +197,6 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
-set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1

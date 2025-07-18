@@ -444,7 +444,6 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
             shared_bufs);
         av1_copy_tree_context(dst->none[cur_region_type],
                               src->none[cur_region_type], num_planes);
-#if CONFIG_MVP_IMPROVEMENT
         if (is_inter_block(&src->none[cur_region_type]->mic, xd->tree_type)) {
 #if CONFIG_BANK_IMPROVE
           xd->mi_row = mi_row;
@@ -469,7 +468,6 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
                                        &dst->none[cur_region_type]->mic);
         }
 #endif  // CONFIG_BANK_IMPROVE
-#endif  // CONFIG_MVP_IMPROVEMENT
       }
       break;
     // PARTITION_SPLIT

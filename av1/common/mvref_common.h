@@ -20,16 +20,12 @@
 extern "C" {
 #endif
 
-#if CONFIG_MVP_IMPROVEMENT
 #define MVREF_ROWS 1
 #if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define MVREF_COLS 2
 #else
 #define MVREF_COLS 3
 #endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-#else
-#define MVREF_ROW_COLS 3
-#endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_TMVP_MV_COMPRESSION
 // Set the upper limit of the motion vector component magnitude.
@@ -679,9 +675,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm);
 void av1_setup_frame_sign_bias(AV1_COMMON *cm);
 void av1_setup_skip_mode_allowed(AV1_COMMON *cm);
 void av1_setup_motion_field(AV1_COMMON *cm);
-#if CONFIG_MVP_IMPROVEMENT
 void av1_setup_ref_frame_sides(AV1_COMMON *cm);
-#endif  // CONFIG_MVP_IMPROVEMENT
 
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);

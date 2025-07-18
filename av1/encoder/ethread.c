@@ -460,9 +460,6 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     av1_crc32c_calculator_init(
         &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_MVP_IMPROVEMENT
-    td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
-#endif
 
     av1_zero(td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
@@ -836,11 +833,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
           thread_data->td->mb.opfl_dst_bufs;
     }
     av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_MVP_IMPROVEMENT
-    thread_data->td->mb.e_mbd.ref_mv_bank_pt =
-        &thread_data->td->mb.e_mbd.ref_mv_bank;
-
-#endif
     av1_zero(thread_data->td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
     thread_data->td->mb.e_mbd.warp_param_bank_pt =

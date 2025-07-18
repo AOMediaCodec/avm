@@ -622,9 +622,7 @@ static AOM_INLINE void perform_two_partition_passes(
   // First pass
   SB_FIRST_PASS_STATS sb_fp_stats;
   av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -639,9 +637,7 @@ static AOM_INLINE void perform_two_partition_passes(
   av1_reset_simple_motion_tree_partition(sms_root, sb_size);
 
   av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_MVP_IMPROVEMENT
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
@@ -1238,9 +1234,6 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->mib_size) {
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_MVP_IMPROVEMENT
-    td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
-#endif
 
     av1_zero(td->mb.e_mbd.warp_param_bank);
 #if !WARP_CU_BANK
@@ -1358,8 +1351,8 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-    // Turn off skip mode if the temporal distances of the reference pair to the
-    // current frame are different by more than 1 frame.
+  // Turn off skip mode if the temporal distances of the reference pair to the
+  // current frame are different by more than 1 frame.
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_offset = (int)cm->current_frame.display_order_hint;
 #else
@@ -1865,11 +1858,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     av1_setup_motion_field(cm);
   }
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-#if CONFIG_MVP_IMPROVEMENT
   else {
     av1_setup_ref_frame_sides(cm);
   }
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
