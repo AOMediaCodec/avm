@@ -673,6 +673,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->number_temporal_layers = 1;
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
+#if CONFIG_MULTILAYER_CORE
+  cm->layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);

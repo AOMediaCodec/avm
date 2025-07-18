@@ -41,10 +41,19 @@ static void bubble_sort_ref_scores(RefScoreData *scores, int n_ranked) {
 
 // Checks to see if a particular reference frame is already in the reference
 // frame map
-static int is_in_ref_score(RefScoreData *map, int disp_order, int score,
-                           int n_frames) {
+static int is_in_ref_score(RefScoreData *map, int disp_order,
+#if CONFIG_MULTILAYER_CORE
+                           int layer_id,
+#endif  // CONFIG_MULTILAYER_CORE
+                           int score, int n_frames) {
   for (int i = 0; i < n_frames; i++) {
+#if CONFIG_MULTILAYER_CORE
+    if (disp_order == map[i].disp_order && layer_id == map[i].layer_id &&
+        score == map[i].score)
+      return 1;
+#else
     if (disp_order == map[i].disp_order && score == map[i].score) return 1;
+#endif  // CONFIG_MULTILAYER_CORE
   }
   return 0;
 }
@@ -153,18 +162,37 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     const int ref_disp = cur_ref.disp_order;
+#if CONFIG_MULTILAYER_CORE
+    const int ref_layer_id = cur_ref.layer_id;
+    const int cur_layer_id = cm->current_frame.layer_id;
+    if (ref_layer_id > cur_layer_id) {
+      continue;
+    }
+#endif  // CONFIG_MULTILAYER_CORE
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
+#if CONFIG_MULTILAYER_CORE
+    const int layer_diff = cur_layer_id - ref_layer_id;
+    const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
+                                            cur_frame_disp, ref_disp) +
+                          layer_diff;
+#else
     const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
                                             cur_frame_disp, ref_disp);
+#endif  // CONFIG_MULTILAYER_CORE
     int tdist = abs(disp_diff);
     const int score =
         max_disp > cur_frame_disp
             ? ((tdist << DIST_WEIGHT_BITS) + ref_base_qindex)
             : temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
                   AOMMAX(tdist - DECAY_DIST_CAP, 0) + ref_base_qindex;
-    if (is_in_ref_score(scores, ref_disp, score, n_ranked)) continue;
+    if (is_in_ref_score(scores, ref_disp,
+#if CONFIG_MULTILAYER_CORE
+                        ref_layer_id,
+#endif  // CONFIG_MULTILAYER_CORE
+                        score, n_ranked))
+      continue;
 
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;

@@ -6977,6 +6977,10 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
+#if CONFIG_MULTILAYER_CORE
+  int max_layer_id = 0;
+  int ref_order_hint = 0;
+#endif  // CONFIG_MULTILAYER_CORE
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
@@ -6984,13 +6988,35 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
         || buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_MULTILAYER_CORE
+        || buf->layer_id > current_frame->layer_id
+#endif  // CONFIG_MULTILAYER_CORE
     )
       continue;
-    if ((int)buf->display_order_hint > max_disp_order_hint)
+#if CONFIG_MULTILAYER_CORE
+    // the equality in the following comparisons is needed to properly update
+    // max_layer_id and ref_order_hint
+    if ((int)buf->display_order_hint >= max_disp_order_hint) {
       max_disp_order_hint = buf->display_order_hint;
+      if (buf->layer_id >= max_layer_id) {
+        max_layer_id = buf->layer_id;
+        ref_order_hint = (int)buf->order_hint;
+      }
+    }
+#else
+      if ((int)buf->display_order_hint > max_disp_order_hint)
+        max_disp_order_hint = buf->display_order_hint;
+#endif  // CONFIG_MULTILAYER_CORE
   }
 
   int cur_disp_order_hint = current_frame->order_hint;
+#if CONFIG_MULTILAYER_CORE
+  if (max_layer_id < current_frame->layer_id &&
+      cur_disp_order_hint == ref_order_hint) {
+    return max_disp_order_hint;
+  }
+#endif  // CONFIG_MULTILAYER_CORE
+
   int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -7013,17 +7039,40 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
                                                 const RefCntBuffer *const buf) {
   // Find the reference frame with the largest order_hint
   int max_disp_order_hint = 0;
+#if CONFIG_MULTILAYER_CORE
+  int max_layer_id = 0;
+  int ref_order_hint = 0;
+#endif  // CONFIG_MULTILAYER_CORE
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_MULTILAYER_CORE
+    if (buf->layer_id > cm->current_frame.layer_id) continue;
+    // the equality in the following comparisons is needed to properly update
+    // max_layer_id and ref_order_hint
+    if ((int)buf->ref_display_order_hint[map_idx] >= max_disp_order_hint) {
+      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+      if (buf->ref_layer_ids[map_idx] >= max_layer_id) {
+        max_layer_id = buf->ref_layer_ids[map_idx];
+        ref_order_hint = (int)buf->ref_order_hints[map_idx];
+      }
+    }
+#else
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+#endif  // CONFIG_MULTILAYER_CORE
   }
 
   const int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
   int disp_order_hint = buf->order_hint;
+#if CONFIG_MULTILAYER_CORE
+  if (max_layer_id < buf->layer_id && disp_order_hint == ref_order_hint) {
+    return max_disp_order_hint;
+  }
+#endif  // CONFIG_MULTILAYER_CORE
+
   while (abs(max_disp_order_hint - disp_order_hint) >=
          (display_order_hint_factor >> 1)) {
     if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
@@ -7862,6 +7911,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                         (int)current_frame->display_order_hint,
                         (int)cm->ref_frame_map_pairs[ref].disp_order)
                   : 1;
+#if CONFIG_MULTILAYER_CORE
+          if (scores[i].distance == 0 &&
+              current_frame->layer_id !=
+                  cm->ref_frame_map_pairs[ref].layer_id) {
+            scores[i].distance = 1;
+          }
+#endif  // CONFIG_MULTILAYER_CORE
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);

@@ -39,12 +39,18 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
       ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_MULTILAYER_CORE
+      ref_frame_map_pairs[map_idx].layer_id = buf->layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
       ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
       ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
     }
     if (ref_frame_map_pairs[map_idx].ref_frame_for_inference == -1) continue;
     ref_frame_map_pairs[map_idx].ref_frame_for_inference = 1;
     if (buf == NULL
+#if CONFIG_MULTILAYER_CORE
+        || buf->layer_id > cm->current_frame.layer_id
+#endif  // CONFIG_MULTILAYER_CORE
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
         // If the temporal_layer_id of the reference frame is greater than
         // the temporal_layer_id of the current frame, the reference frame
@@ -84,6 +90,9 @@ typedef struct {
   int disp_order;
   // Quality of the reference frame
   int base_qindex;
+#if CONFIG_MULTILAYER_CORE
+  int layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 } RefScoreData;
 /*!\endcond */
 

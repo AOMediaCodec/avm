@@ -945,6 +945,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     cm->temporal_layer_id = obu_header.temporal_layer_id;
     cm->spatial_layer_id = obu_header.spatial_layer_id;
+#if CONFIG_MULTILAYER_CORE
+    cm->layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
         obu_header.type != OBU_SEQUENCE_HEADER &&

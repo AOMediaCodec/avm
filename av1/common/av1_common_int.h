@@ -300,6 +300,10 @@ typedef struct RefCntBuffer {
   unsigned int order_hint;
   int ref_order_hints[INTER_REFS_PER_FRAME];
   int ref_display_order_hint[INTER_REFS_PER_FRAME];
+#if CONFIG_MULTILAYER_CORE
+  int layer_id;
+  int ref_layer_ids[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_MULTILAYER_CORE
 
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
@@ -380,6 +384,9 @@ typedef struct {
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
+#if CONFIG_MULTILAYER_CORE
+  int layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 } RefFrameMapPair;
 
 typedef struct BufferPool {
@@ -731,6 +738,9 @@ typedef struct {
   unsigned int absolute_poc;
   unsigned int key_frame_number;
   unsigned int frame_number;
+#if CONFIG_MULTILAYER_CORE
+  int layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
 } CurrentFrame;
@@ -1974,6 +1984,18 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
+
+#if CONFIG_MULTILAYER_CORE
+  /*!
+   * Number of multiple layers
+   */
+  unsigned int number_layers;
+  /*!
+   * Multi-layer ID of this frame
+   * (in the range 0 ... (number_layers - 1)).
+   */
+  int layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 
   /*!
    * Weights for IBP of directional modes.

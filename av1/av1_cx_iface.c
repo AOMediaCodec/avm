@@ -3716,6 +3716,9 @@ static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
   if (spatial_layer_id >= MAX_NUM_SPATIAL_LAYERS)
     return AOM_CODEC_INVALID_PARAM;
   ctx->cpi->common.spatial_layer_id = spatial_layer_id;
+#if CONFIG_MULTILAYER_CORE
+  ctx->cpi->common.layer_id = spatial_layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
   return AOM_CODEC_OK;
 }
 

@@ -138,6 +138,10 @@ set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 
+# Multilayer coding
+set_aom_config_var(
+  CONFIG_MULTILAYER_CORE 1
+  "Core changes in the codebase for multilayer coding support.")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
