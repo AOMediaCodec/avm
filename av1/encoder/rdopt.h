@@ -194,7 +194,6 @@ static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     return;
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_SEP_COMP_DRL
   if (has_second_drl(xd->mi[0])) {
     MV_REFERENCE_FRAME rf[2];
     av1_set_ref_frame(rf, ref_frame);
@@ -213,12 +212,6 @@ static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
            USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
   }
-#else
-  memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
-         USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
-  memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
-         USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
-#endif  // CONFIG_SEP_COMP_DRL
 }
 
 #define PRUNE_SINGLE_REFS 0
@@ -331,10 +324,7 @@ static INLINE int prune_ref_by_selective_ref_frame(
 // MB_MODE_INFO_EXT to MB_MODE_INFO_EXT_FRAME.
 static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
     MB_MODE_INFO_EXT_FRAME *mbmi_ext_best,
-    const MB_MODE_INFO_EXT *const mbmi_ext,
-#if CONFIG_SEP_COMP_DRL
-    MB_MODE_INFO *mbmi,
-#endif  // CONFIG_SEP_COMP_DRL
+    const MB_MODE_INFO_EXT *const mbmi_ext, MB_MODE_INFO *mbmi,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     uint8_t skip_mode,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -349,7 +339,6 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_SEP_COMP_DRL
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame_type);
   if (!has_second_drl(mbmi))
@@ -370,13 +359,7 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
            sizeof(mbmi_ext->weight[0]));
     mbmi_ext_best->ref_mv_count[1] = mbmi_ext->ref_mv_count[rf[1]];
   }
-#else
-  memcpy(mbmi_ext_best->ref_mv_stack, mbmi_ext->ref_mv_stack[ref_frame_type],
-         sizeof(mbmi_ext->ref_mv_stack[0]));
-  memcpy(mbmi_ext_best->weight, mbmi_ext->weight[ref_frame_type],
-         sizeof(mbmi_ext->weight[0]));
-  mbmi_ext_best->ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
-#endif  // CONFIG_SEP_COMP_DRL
+
   mbmi_ext_best->mode_context = mbmi_ext->mode_context[ref_frame_type];
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));

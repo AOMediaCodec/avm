@@ -520,7 +520,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                          FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
                          aom_reader *r) {
-#if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
@@ -550,19 +549,6 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
       has_second_drl(mbmi) && mbmi->mode == NEAR_NEARMV &&
       mbmi->ref_mv_idx[0] < max_drl_bits)
     assert(mbmi->ref_mv_idx[0] < mbmi->ref_mv_idx[1]);
-#else
-  mbmi->ref_mv_idx = 0;
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-  assert(!mbmi->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-  for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, ec_ctx, mode_ctx, idx);
-    int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_INFO("drl_idx"));
-    mbmi->ref_mv_idx = idx + drl_idx;
-    if (!drl_idx) break;
-  }
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-#endif  // CONFIG_SEP_COMP_DRL
 }
 
 #if CONFIG_WEDGE_MOD_EXT
@@ -3825,30 +3811,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   av1_initialize_warp_wrl_list(xd->warp_param_stack,
                                xd->valid_num_warp_candidates);
 
-#if !CONFIG_SEP_COMP_DRL
-  av1_find_mv_refs(
-      cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack, xd->weight,
-      ref_mvs, /*global_mvs=*/NULL
-#if !CONFIG_C076_INTER_MOD_CTX
-      ,
-      inter_mode_ctx
-#endif  // !CONFIG_C076_INTER_MOD_CTX
-      ,
-      xd->warp_param_stack,
-      ref_frame < INTER_REFS_PER_FRAME ? MAX_WARP_REF_CANDIDATES : 0,
-      xd->valid_num_warp_candidates);
-#endif  // !CONFIG_SEP_COMP_DRL
-
 #if CONFIG_C076_INTER_MOD_CTX
   av1_find_mode_ctx(cm, xd, inter_mode_ctx, ref_frame);
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
-#else
-  mbmi->ref_mv_idx = 0;
-#endif  // CONFIG_SEP_COMP_DRL
 
   mbmi->cwp_idx = CWP_EQUAL;
   mbmi->jmvd_scale_mode = 0;
@@ -3897,7 +3865,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                  ec_ctx, mbmi, r);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-#if CONFIG_SEP_COMP_DRL
     av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -3906,21 +3873,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // !CONFIG_C076_INTER_MOD_CTX
                      ,
                      NULL, 0, NULL);
-#endif  // CONFIG_SEP_COMP_DRL
 
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 #if CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_SEP_COMP_DRL
     mbmi->ref_frame[0] =
         xd->skip_mvp_candidate_list.ref_frame0[get_ref_mv_idx(mbmi, 0)];
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[get_ref_mv_idx(mbmi, 1)];
-#else
-    mbmi->ref_frame[0] =
-        xd->skip_mvp_candidate_list.ref_frame0[mbmi->ref_mv_idx];
-    mbmi->ref_frame[1] =
-        xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
-#endif
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
@@ -3981,7 +3940,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
             aom_read_symbol(r, ec_ctx->amvd_mode_cdf[amvd_index][amvd_ctx], 2,
                             ACCT_INFO("use_amvd"));
       }
-#if CONFIG_SEP_COMP_DRL
       av1_find_mv_refs(
           cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
           xd->weight, ref_mvs, /*global_mvs=*/NULL
@@ -3993,7 +3951,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->warp_param_stack,
           ref_frame < SINGLE_REF_FRAMES ? MAX_WARP_REF_CANDIDATES : 0,
           xd->valid_num_warp_candidates);
-#endif  // CONFIG_SEP_COMP_DRL
 
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
@@ -4110,61 +4067,39 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                 bsize, xd->mi_col, xd->mi_row);
 
   } else {
-#if CONFIG_SEP_COMP_DRL
     if (has_second_drl(mbmi))
       ref_mv[0] =
           xd->ref_mv_stack[mbmi->ref_frame[0]][get_ref_mv_idx(mbmi, 0)].this_mv;
     else
       ref_mv[0] = xd->ref_mv_stack[ref_frame][get_ref_mv_idx(mbmi, 0)].this_mv;
-#else
-    ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
-#endif  // CONFIG_SEP_COMP_DRL
   }
 
   if (is_compound && mbmi->mode != GLOBAL_GLOBALMV) {
-#if CONFIG_SEP_COMP_DRL
     if (has_second_drl(mbmi))
       ref_mv[1] =
           xd->ref_mv_stack[mbmi->ref_frame[1]][get_ref_mv_idx(mbmi, 1)].this_mv;
     else
       ref_mv[1] = xd->ref_mv_stack[ref_frame][get_ref_mv_idx(mbmi, 1)].comp_mv;
-#else
-    ref_mv[1] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].comp_mv;
-#endif
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     if (mbmi->skip_mode) {
-#if CONFIG_SEP_COMP_DRL
       ref_mv[0] =
           xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 0)]
               .this_mv;
       ref_mv[1] =
           xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
               .comp_mv;
-#else
-      ref_mv[0] =
-          xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].this_mv;
-      ref_mv[1] =
-          xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].comp_mv;
-#endif  // CONFIG_SEP_COMP_DRL
     }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
 #if CONFIG_D072_SKIP_MODE_IMPROVE
   if (!is_compound && mbmi->skip_mode) {
-#if CONFIG_SEP_COMP_DRL
     ref_mv[0] =
         xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 0)]
             .this_mv;
     ref_mv[1] =
         xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
             .comp_mv;
-#else
-    ref_mv[0] =
-        xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].this_mv;
-    ref_mv[1] =
-        xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].comp_mv;
-#endif  // CONFIG_SEP_COMP_DRL
   }
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
@@ -4365,11 +4300,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->cwp_idx = read_cwp_idx(xd, r, cm, mbmi);
     if (is_cwp_allowed(mbmi) && mbmi->skip_mode)
       mbmi->cwp_idx =
-#if CONFIG_SEP_COMP_DRL
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
-#else
-          xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
-#endif  // CONFIG_SEP_COMP_DRL
   }
 #if CONFIG_REFINEMV
   if (mbmi->skip_mode) {
@@ -4481,12 +4412,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   if (mbmi->motion_mode == WARP_EXTEND) {
-#if CONFIG_SEP_COMP_DRL
     CANDIDATE_MV *neighbor =
         &xd->ref_mv_stack[ref_frame][get_ref_mv_idx(mbmi, 0)];
-#else
-    CANDIDATE_MV *neighbor = &xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx];
-#endif
     POSITION base_pos = { 0, 0 };
     if (!get_extend_base_pos(cm, xd, mbmi, neighbor->row_offset,
                              neighbor->col_offset, &base_pos)) {

@@ -3986,9 +3986,7 @@ void av1_find_mv_refs(
   bool derive_wrl = (warp_param_stack && valid_num_warp_candidates &&
                      max_num_of_warp_candidates);
   derive_wrl &= (ref_frame < INTER_REFS_PER_FRAME);
-#if CONFIG_SEP_COMP_DRL
   if (has_second_drl(mi)) derive_wrl = 0;
-#endif  // CONFIG_SEP_COMP_DRL
 
   derive_wrl &= is_motion_variation_allowed_bsize(mi->sb_type[PLANE_TYPE_Y],
                                                   mi_row, mi_col);
@@ -4023,7 +4021,6 @@ void av1_find_mv_refs(
                       ,
                       NULL, 0, NULL);
   } else {
-#if CONFIG_SEP_COMP_DRL
     MV_REFERENCE_FRAME rf[2];
     av1_set_ref_frame(rf, ref_frame);
     if (!has_second_drl(mi))
@@ -4088,37 +4085,6 @@ void av1_find_mv_refs(
                         derive_wrl ? &valid_num_warp_candidates[rf[1]] : NULL);
     }
     if (derive_wrl) assert(rf[0] == ref_frame);
-#else
-    if (ref_frame == INTRA_FRAME) {
-#if CONFIG_IBC_MAX_DRL
-      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
-                                  cm->features.max_bvp_drl_bits + 1);
-#else
-      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
-                                  MAX_REF_BV_STACK_SIZE);
-#endif  // CONFIG_IBC_MAX_DRL
-    } else {
-      av1_initialize_ref_mv_stack(ref_mv_stack[ref_frame],
-                                  MAX_REF_MV_STACK_SIZE);
-    }
-    setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
-                      ref_mv_stack[ref_frame], ref_mv_weight[ref_frame],
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                      NULL, NULL,
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                      mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
-                      mi_row, mi_col
-#if !CONFIG_C076_INTER_MOD_CTX
-                      ,
-                      mode_context
-#endif  //! CONFIG_C076_INTER_MOD_CTX
-                      ,
-                      derive_wrl ? warp_param_stack[ref_frame] : NULL,
-                      derive_wrl ? max_num_of_warp_candidates : 0,
-                      derive_wrl ? &valid_num_warp_candidates[ref_frame] : NULL
-
-    );
-#endif  // CONFIG_SEP_COMP_DRL
   }
 #else
   if (ref_frame == INTRA_FRAME) {

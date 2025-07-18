@@ -3765,7 +3765,6 @@ static INLINE int get_max_allowed_ref_frames(
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
 
-#if CONFIG_SEP_COMP_DRL
 /*!\brief Return whether the current coding block has two separate DRLs,
  * the mdoe info is used as inputs */
 static INLINE int has_second_drl_by_mode(const PREDICTION_MODE mode,
@@ -3773,7 +3772,6 @@ static INLINE int has_second_drl_by_mode(const PREDICTION_MODE mode,
   return (mode == NEAR_NEARMV || mode == NEAR_NEWMV) &&
          !is_tip_ref_frame(ref_frame[0]);
 }
-#endif  // CONFIG_SEP_COMP_DRL
 
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.

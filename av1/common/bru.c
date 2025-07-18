@@ -233,12 +233,8 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 #endif  // CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
-#else
-  mbmi->ref_mv_idx = 0;
-#endif
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
   mbmi->warpmv_with_mvd_flag = 0;

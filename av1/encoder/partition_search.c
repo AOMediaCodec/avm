@@ -751,27 +751,16 @@ static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
-#if CONFIG_SEP_COMP_DRL
   assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
   assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
-#else
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-#endif  // CONFIG_SEP_COMP_DRL
+
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf = fc->skip_drl_cdf[AOMMIN(idx, 2)];
-#if CONFIG_SEP_COMP_DRL
     update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
 #if CONFIG_ENTROPY_STATS
     counts->skip_drl_cnts[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
     if (mbmi->ref_mv_idx[0] == idx) break;
-#else
-    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
-#if CONFIG_ENTROPY_STATS
-    counts->skip_drl_cnts[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
-#endif  // CONFIG_ENTROPY_STATS
-    if (mbmi->ref_mv_idx == idx) break;
-#endif  // CONFIG_SEP_COMP_DRL
   }
 }
 
@@ -782,27 +771,15 @@ static void update_tip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
-#if CONFIG_SEP_COMP_DRL
   assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
   assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
-#else
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-#endif  // CONFIG_SEP_COMP_DRL
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf = fc->tip_drl_cdf[AOMMIN(idx, 2)];
-#if CONFIG_SEP_COMP_DRL
     update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
 #if CONFIG_ENTROPY_STATS
     counts->tip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
     if (mbmi->ref_mv_idx[0] == idx) break;
-#else
-    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
-#if CONFIG_ENTROPY_STATS
-    counts->tip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
-#endif  // CONFIG_ENTROPY_STATS
-    if (mbmi->ref_mv_idx == idx) break;
-#endif  // CONFIG_SEP_COMP_DRL
   }
 }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -821,7 +798,6 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   assert(have_drl_index(mbmi->mode));
   assert(IMPLIES(mbmi->mode == WARPMV, 0));
 
-#if CONFIG_SEP_COMP_DRL
   assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
   assert(mbmi->ref_mv_idx[1] < max_drl_bits + 1);
   for (int ref = 0; ref < 1 + has_second_drl(mbmi); ++ref) {
@@ -838,18 +814,6 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
       if (mbmi->ref_mv_idx[ref] == idx) break;
     }
   }
-#else
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-  for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, fc, mode_ctx, idx);
-#if CONFIG_ENTROPY_STATS
-    int drl_ctx = av1_drl_ctx(mode_ctx);
-    counts->drl_mode[AOMMIN(idx, 2)][drl_ctx][mbmi->ref_mv_idx != idx]++;
-#endif  // CONFIG_ENTROPY_STATS
-    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
-    if (mbmi->ref_mv_idx == idx) break;
-  }
-#endif  // CONFIG_SEP_COMP_DRL
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
@@ -2273,10 +2237,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     av1_copy_mbmi_ext_to_mbmi_ext_frame(
-        x->mbmi_ext_frame, x->mbmi_ext,
-#if CONFIG_SEP_COMP_DRL
-        mbmi,
-#endif  // CONFIG_SEP_COMP_DRL
+        x->mbmi_ext_frame, x->mbmi_ext, mbmi,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT

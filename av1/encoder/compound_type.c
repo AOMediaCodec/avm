@@ -1188,12 +1188,8 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
     rd_stats->mode = mbmi->mode;
     rd_stats->interp_fltr = mbmi->interp_fltr;
-#if CONFIG_SEP_COMP_DRL
     rd_stats->ref_mv_idx[0] = mbmi->ref_mv_idx[0];
     rd_stats->ref_mv_idx[1] = mbmi->ref_mv_idx[1];
-#else
-    rd_stats->ref_mv_idx = mbmi->ref_mv_idx;
-#endif  // CONFIG_SEP_COMP_DRL
     rd_stats->cwp_idx = mbmi->cwp_idx;
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {

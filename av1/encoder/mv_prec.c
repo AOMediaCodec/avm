@@ -24,41 +24,25 @@
 static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
     const MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     int ref_idx) {
-#if CONFIG_SEP_COMP_DRL
   const int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
-#else
-  const int ref_mv_idx = mbmi->ref_mv_idx;
-#endif  // CONFIG_SEP_COMP_DRL
   assert(IMPLIES(have_nearmv_newmv_in_inter_mode(mbmi->mode),
                  has_second_ref(mbmi)));
 
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
-#if CONFIG_SEP_COMP_DRL
   const CANDIDATE_MV *curr_ref_mv_stack =
       has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]
                            : mbmi_ext_frame->ref_mv_stack[0];
-#else
-  const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
-#endif  // CONFIG_SEP_COMP_DRL
 
   if (is_inter_ref_frame(ref_frames[1])) {
     assert(ref_idx == 0 || ref_idx == 1);
-#if CONFIG_SEP_COMP_DRL
     return ref_idx && !has_second_drl(mbmi)
                ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-#else
-    return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-#endif  // CONFIG_SEP_COMP_DRL
                : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
   assert(ref_idx == 0);
-#if CONFIG_SEP_COMP_DRL
   if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0]) {
-#else
-  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count) {
-#endif  // CONFIG_SEP_COMP_DRL
     return curr_ref_mv_stack[ref_mv_idx].this_mv;
   } else if (is_tip_ref_frame(ref_frame_type)) {
     int_mv zero_mv;

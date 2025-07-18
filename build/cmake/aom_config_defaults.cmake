@@ -303,8 +303,7 @@ set_aom_config_var(CONFIG_PRIMARY_REF_FRAME_OPT 1
                    "Enable the primary reference frame improvement")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
-set_aom_config_var(CONFIG_SEP_COMP_DRL 1
-                   "Use separate drl list for compound modes")
+
 set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
                    "Reuse the mvs of compound mode from non-opfl path")
 

@@ -368,21 +368,12 @@ typedef struct {
  * memory.
  */
 typedef struct {
-#if CONFIG_SEP_COMP_DRL
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
   CANDIDATE_MV ref_mv_stack[2][USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::weight
   uint16_t weight[2][USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
   uint8_t ref_mv_count[2];
-#else
-  //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
-  CANDIDATE_MV ref_mv_stack[USABLE_REF_MV_STACK_SIZE];
-  //! \copydoc MB_MODE_INFO_EXT::weight
-  uint16_t weight[USABLE_REF_MV_STACK_SIZE];
-  //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
-  uint8_t ref_mv_count;
-#endif  // CONFIG_SEP_COMP_DRL
   //! skip_mvp_candidate_list is the MVP list for skip mode.
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
@@ -498,11 +489,7 @@ typedef struct {
   //! Current interpolation filter.
   InterpFilter interp_fltr;
   //! Refmv index in the drl.
-#if CONFIG_SEP_COMP_DRL
   int ref_mv_idx[2];
-#else
-  int ref_mv_idx;
-#endif  // CONFIG_SEP_COMP_DRL
   //! Whether the predictors are GLOBALMV.
   int is_global[2];
   //! Current parameters for interinter mode.

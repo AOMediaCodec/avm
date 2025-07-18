@@ -340,11 +340,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       this_mv.as_mv.col += sub_mv_offset.col;
     }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_SEP_COMP_DRL
     const int ref_mv_idx = av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx);
-#else
-    const int ref_mv_idx = mbmi->ref_mv_idx;
-#endif  // CONFIG_SEP_COMP_DRL
     const int this_mv_rate =
         av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs,
                         MV_COST_WEIGHT, is_adaptive_mvd);
@@ -611,11 +607,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
       this_mv.as_mv.col += sub_mv_offset.col;
     }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_SEP_COMP_DRL
     const int ref_mv_idx = av1_ref_mv_idx_type(mbmi, mbmi->ref_mv_idx);
-#else
-    const int ref_mv_idx = mbmi->ref_mv_idx;
-#endif  // CONFIG_SEP_COMP_DRL
     const int this_mv_rate = av1_mv_bit_cost(
         &this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs, MV_COST_WEIGHT, 0);
 

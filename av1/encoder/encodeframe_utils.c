@@ -203,11 +203,8 @@ static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
     ,
     int skip_mode
 #endif
-#if CONFIG_SEP_COMP_DRL
     ,
-    PREDICTION_MODE this_mode
-#endif  // CONFIG_SEP_COMP_DRL
-) {
+    PREDICTION_MODE this_mode) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (skip_mode) {
     memcpy(&(mbmi_ext->skip_mvp_candidate_list),
@@ -216,7 +213,6 @@ static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
   }
 #endif
 
-#if CONFIG_SEP_COMP_DRL
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame_type);
   if (has_second_drl_by_mode(this_mode, rf)) {
@@ -237,13 +233,7 @@ static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
            sizeof(mbmi_ext->weight[0]));
     mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count[0];
   }
-#else
-  memcpy(mbmi_ext->ref_mv_stack[ref_frame_type], mbmi_ext_best->ref_mv_stack,
-         sizeof(mbmi_ext->ref_mv_stack[0]));
-  memcpy(mbmi_ext->weight[ref_frame_type], mbmi_ext_best->weight,
-         sizeof(mbmi_ext->weight[0]));
-  mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count;
-#endif  // CONFIG_SEP_COMP_DRL
+
   mbmi_ext->mode_context[ref_frame_type] = mbmi_ext_best->mode_context;
   memcpy(mbmi_ext->global_mvs, mbmi_ext_best->global_mvs,
          sizeof(mbmi_ext->global_mvs));
@@ -291,11 +281,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                                         ,
                                     mi->skip_mode
 #endif
-#if CONFIG_SEP_COMP_DRL
                                     ,
-                                    ctx->mic.mode
-#endif  // CONFIG_SEP_COMP_DRL
-    );
+                                    ctx->mic.mode);
 
   for (i = 0; i < num_planes; ++i) {
     const int num_blk_plane =

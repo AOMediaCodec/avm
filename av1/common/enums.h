@@ -827,9 +827,7 @@ enum {
 #define CFL_CONTEXT_V(js) \
   (CFL_SIGN_V(js) * CFL_SIGNS + CFL_SIGN_U(js) - CFL_SIGNS)
 
-#if CONFIG_SEP_COMP_DRL
 #define SEP_COMP_DRL_SIZE 3
-#endif  // CONFIG_SEP_COMP_DRL
 
 enum {
   PALETTE_MAP,

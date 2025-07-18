@@ -1286,30 +1286,17 @@ void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,
                                  int ref_mv_idx,
-                                 const MB_MODE_INFO_EXT *mbmi_ext
-#if CONFIG_SEP_COMP_DRL
-                                 ,
-                                 const MB_MODE_INFO *mbmi
-#endif  // CONFIG_SEP_COMP_DRL
-) {
+                                 const MB_MODE_INFO_EXT *mbmi_ext,
+                                 const MB_MODE_INFO *mbmi) {
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#if CONFIG_SEP_COMP_DRL
   const CANDIDATE_MV *curr_ref_mv_stack =
       has_second_drl(mbmi) ? mbmi_ext->ref_mv_stack[ref_frame[ref_idx]]
                            : mbmi_ext->ref_mv_stack[ref_frame_type];
-#else
-  const CANDIDATE_MV *curr_ref_mv_stack =
-      mbmi_ext->ref_mv_stack[ref_frame_type];
-#endif  // CONFIG_SEP_COMP_DRL
 
   if (is_inter_ref_frame(ref_frame[1])) {
     assert(ref_idx == 0 || ref_idx == 1);
-#if CONFIG_SEP_COMP_DRL
     return ref_idx && !has_second_drl(mbmi)
                ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-#else
-    return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-#endif  // CONFIG_SEP_COMP_DRL
                : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
@@ -1331,14 +1318,9 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
   if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
     assert(has_second_ref(mbmi));
   }
-#if CONFIG_SEP_COMP_DRL
   const int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
   return av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
                                    x->mbmi_ext, mbmi);
-#else
-  return av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, mbmi->ref_mv_idx,
-                                   x->mbmi_ext);
-#endif  // CONFIG_SEP_COMP_DRL
 }
 
 /**
@@ -1354,9 +1336,7 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
  */
 
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-#if CONFIG_SEP_COMP_DRL
                                        const MB_MODE_INFO *mbmi,
-#endif  // CONFIG_SEP_COMP_DRL
                                        MV_REFERENCE_FRAME ref_frame,
                                        MvSubpelPrecision precision) {
   int_mv mv;
@@ -1364,11 +1344,7 @@ int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame], MAX_REF_MV_STACK_SIZE);
   for (int i = 0; i < range; i++) {
-#if CONFIG_SEP_COMP_DRL
     mv = av1_get_ref_mv_from_stack(0, ref_frames, i, mbmi_ext, mbmi);
-#else
-    mv = av1_get_ref_mv_from_stack(0, ref_frames, i, mbmi_ext);
-#endif  // CONFIG_SEP_COMP_DRL
     if (mv.as_int != 0 && mv.as_int != INVALID_MV) {
       found_ref_mv = true;
       break;
@@ -1385,16 +1361,12 @@ int_mv av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
   int_mv mv;
   const int ref_idx = 0;
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
-#if CONFIG_SEP_COMP_DRL
   // this function is not called in this software.
   MB_MODE_INFO mbmi;
   mbmi.skip_mode = 0;
   mbmi.mode = NEWMV;
   mbmi.ref_frame[0] = ref_frame;
   mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext, &mbmi);
-#else
-  mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
-#endif  // CONFIG_SEP_COMP_DRL
   lower_mv_precision(&mv.as_mv, precision);
   return mv;
 }
