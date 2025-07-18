@@ -1351,8 +1351,8 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-  // Turn off skip mode if the temporal distances of the reference pair to the
-  // current frame are different by more than 1 frame.
+    // Turn off skip mode if the temporal distances of the reference pair to the
+    // current frame are different by more than 1 frame.
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_offset = (int)cm->current_frame.display_order_hint;
 #else
