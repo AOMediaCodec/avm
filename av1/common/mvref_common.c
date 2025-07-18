@@ -31,11 +31,7 @@ typedef struct single_mv_candidate {
 } SINGLE_MV_CANDIDATE;
 
 #define TMVP_SEARCH_COUNT 2
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define SMVP_COL_SEARCH_COUNT 2
-#else
-#define SMVP_COL_SEARCH_COUNT 3
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 typedef struct mvp_unit_status {
   int is_available;
   int row_offset;
@@ -646,17 +642,10 @@ static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
 }
 #endif  // CONFIG_TMVP_MEM_OPT
 
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define ADJACENT_SMVP_WEIGHT 1
 #define OTHER_SMVP_WEIGHT 0
 #define TMVP_WEIGHT 1
 #define HIGH_PRIORITY_TMVP_WEIGHT 2
-#else
-#define ADJACENT_SMVP_WEIGHT 2
-#define OTHER_SMVP_WEIGHT 0
-#define TMVP_WEIGHT 2
-#define HIGH_PRIORITY_TMVP_WEIGHT 6
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
 #if CONFIG_IMPROVE_TMVP_LIST
 // Check if a given block uses a valid warp affine transformation
@@ -1693,11 +1682,7 @@ static AOM_INLINE void add_ref_mv_candidate(
   if (is_intrabc != is_intrabc_block(candidate, SHARED_PART)) return;
 #endif  // CONFIG_IBC_SR_EXT
 
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-  assert(weight % 2 == 0);
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   int index, ref;
-
   const TIP *tip_ref = &cm->tip_ref;
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT && \
@@ -2489,9 +2474,7 @@ static AOM_INLINE void scan_blk_mbmi(
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates,
     MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count) {
 
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return;
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
   const TileInfo *const tile = &xd->tile;
   POSITION mi_pos;
@@ -2507,9 +2490,6 @@ static AOM_INLINE void scan_blk_mbmi(
     const SUBMB_INFO *const submi =
         xd->submi[mi_pos.row * xd->mi_stride + mi_pos.col];
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-    const int len = mi_size_wide[BLOCK_8X8];
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
     uint16_t weight = ADJACENT_SMVP_WEIGHT;
     // Don't add weight to (-1,-1) which is in the outer area
@@ -2551,14 +2531,7 @@ static AOM_INLINE void scan_blk_mbmi(
 #if CONFIG_ACROSS_SCALE_TPL_MVS
                          xd,
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-                         row_offset, col_offset,
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-                         weight
-#else
-                         weight * len
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-                         ,
-                         precision);
+                         row_offset, col_offset, weight, precision);
   }  // Analyze a single 8x8 block motion information.
 }
 
@@ -2666,9 +2639,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           int16_t *mode_context
 #endif  // !CONFIG_C076_INTER_MOD_CTX
 ) {
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return 0;
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
   POSITION mi_pos;
   mi_pos.row = (mi_row & 0x01) ? blk_row : blk_row + 1;
@@ -3512,12 +3483,10 @@ static AOM_INLINE void setup_ref_mv_list(
   uint16_t derived_mv_weight[MAX_REF_MV_STACK_SIZE];
   uint8_t derived_mv_count = 0;
 
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int width_at_least_two = xd->up_available ? (xd->width > 1) : 0;
 #endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int height_at_least_two = xd->left_available ? (xd->height > 1) : 0;
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
 #if CONFIG_DRL_REORDER_CONTROL
   const int is_tmvp_high_priority = assign_tmvp_high_priority(cm, rf);
@@ -3575,11 +3544,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   max_num_of_warp_candidates, valid_num_warp_candidates,
                   ref_frame, refmv_count);
   }
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
+
   if (height_at_least_two) {
-#else
-  if (xd->left_available) {
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
     scan_blk_mbmi(
         cm, xd, mi_row, mi_col, rf, 0, -1, ref_mv_stack, ref_mv_weight,
         &col_match_count, &newmv_count, gm_mv_candidates,
@@ -3598,11 +3564,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   if (row_smvp_state[1].is_available) {
 #else
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
   if (width_at_least_two) {
-#else
-  if (xd->up_available) {
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
@@ -3660,54 +3622,6 @@ static AOM_INLINE void setup_ref_mv_list(
                   ref_frame, refmv_count);
   }
 
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-  if (xd->up_available && xd->left_available) {
-    uint8_t dummy_ref_match_count = 0;
-    uint8_t dummy_new_mv_count = 0;
-    scan_blk_mbmi(
-        cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack, ref_mv_weight,
-        &dummy_ref_match_count, &dummy_new_mv_count, gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT && \
-    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
-        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
-        &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
-  }
-
-  if (xd->left_available) {
-    scan_blk_mbmi(
-        cm, xd, mi_row, mi_col, rf, (xd->height >> 1), -1, ref_mv_stack,
-        ref_mv_weight, &col_match_count, &newmv_count, gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT && \
-    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
-        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
-        &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
-    update_processed_cols(xd, mi_row, mi_col, (xd->height >> 1), -1,
-                          max_col_offset, &processed_cols);
-  }
-
-  if (xd->up_available) {
-    scan_blk_mbmi(
-        cm, xd, mi_row, mi_col, rf, -1, (xd->width >> 1), ref_mv_stack,
-        ref_mv_weight, &row_match_count, &newmv_count, gm_mv_candidates,
-#if CONFIG_SKIP_MODE_ENHANCEMENT && \
-    !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        ref_frame_idx0, ref_frame_idx1,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
-        // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
-        &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
-  }
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-
 #if !CONFIG_C076_INTER_MOD_CTX
   const uint8_t nearest_match = (row_match_count > 0) + (col_match_count > 0);
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -3730,7 +3644,6 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   if (row_smvp_state[3].is_available) {
 #else
@@ -3756,16 +3669,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   max_num_of_warp_candidates, valid_num_warp_candidates,
                   ref_frame, refmv_count);
   }
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
   const uint8_t nearest_refmv_count = *refmv_count;
-
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-  // TODO(yunqing): for comp_search, do it for all 3 cases.
-  for (int idx = 0; idx < nearest_refmv_count; ++idx) {
-    ref_mv_weight[idx] += REF_CAT_LEVEL;
-  }
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
   if (xd->left_available) {
     for (int idx = 2; idx <= MVREF_COLS; ++idx) {
@@ -3773,9 +3678,6 @@ static AOM_INLINE void setup_ref_mv_list(
       const MVP_UNIT_STATUS col_units_status[SMVP_COL_SEARCH_COUNT] = {
         { 1, (xd->height - 1), col_offset },
         { xd->height > 1, 0, col_offset },
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-        { xd->height > 2, (xd->height >> 1), col_offset },
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
       };
       if (abs(col_offset) <= abs(max_col_offset) &&
           abs(col_offset) > processed_cols) {

@@ -4304,67 +4304,6 @@ static bool ref_mv_idx_early_breakout(
   if (is_comp_pred && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
       mbmi->mode == NEAR_NEARMV && ref_mv_idx[0] >= ref_mv_idx[1])
     return true;
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-  const AV1_COMMON *const cm = &cpi->common;
-  const SPEED_FEATURES *const sf = &cpi->sf;
-  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-#if CONFIG_SEP_COMP_DRL
-  if (sf->inter_sf.reduce_inter_modes &&
-      (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0)) {
-#else
-  if (sf->inter_sf.reduce_inter_modes && ref_mv_idx > 0) {
-#endif
-    // NOTE: This section changes the stats.
-    int ranks[2][2], dir[2] = { -1, -1 };
-    if (mbmi->ref_frame[0] != INTRA_FRAME)
-      dir[0] = get_dir_rank(cm, mbmi->ref_frame[0], ranks[0]);
-    if (is_inter_ref_frame(mbmi->ref_frame[1]))
-      dir[1] = get_dir_rank(cm, mbmi->ref_frame[1], ranks[1]);
-    if ((dir[0] != -1 && ranks[0][dir[0]] > 3) ||
-        (dir[1] != -1 && ranks[1][dir[1]] > 2)) {
-#if CONFIG_SEP_COMP_DRL  // To be updated
-      if (has_second_drl(mbmi)) {
-        if (mbmi_ext->weight[mbmi->ref_frame[0]][ref_mv_idx[0]] <
-                REF_CAT_LEVEL &&
-            mbmi_ext->weight[mbmi->ref_frame[1]][ref_mv_idx[1]] < REF_CAT_LEVEL)
-          return true;
-      } else {
-        if (mbmi_ext->weight[ref_frame_type][ref_mv_idx[0]] < REF_CAT_LEVEL)
-          return true;
-      }
-#else
-      if (mbmi_ext->weight[ref_frame_type][ref_mv_idx] < REF_CAT_LEVEL) {
-        return true;
-      }
-#endif
-    }
-    // TODO(any): Experiment with reduce_inter_modes for compound prediction
-    if (sf->inter_sf.reduce_inter_modes >= 2 && !is_comp_pred &&
-        have_newmv_in_inter_mode(mbmi->mode)) {
-      if ((cm->ref_frames_info.num_future_refs == 0 ||
-           mbmi->ref_frame[0] != cm->ref_frames_info.future_refs[0]) &&
-          (cm->ref_frames_info.num_past_refs == 0 ||
-           mbmi->ref_frame[0] != cm->ref_frames_info.past_refs[0])) {
-#if CONFIG_SEP_COMP_DRL  //????????? to be updated
-        if (has_second_drl(mbmi)) {
-          if (mbmi_ext->weight[mbmi->ref_frame[0]][ref_mv_idx[0]] <
-                  REF_CAT_LEVEL &&
-              mbmi_ext->weight[mbmi->ref_frame[1]][ref_mv_idx[1]] <
-                  REF_CAT_LEVEL)
-            return true;
-        } else {
-          if (mbmi_ext->weight[ref_frame_type][ref_mv_idx[0]] < REF_CAT_LEVEL)
-            return true;
-        }
-#else
-        if (mbmi_ext->weight[ref_frame_type][ref_mv_idx] < REF_CAT_LEVEL) {
-          return true;
-        }
-#endif
-      }
-    }
-  }
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
 #if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = ref_mv_idx[0];

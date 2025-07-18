@@ -21,11 +21,7 @@ extern "C" {
 #endif
 
 #define MVREF_ROWS 1
-#if CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 #define MVREF_COLS 2
-#else
-#define MVREF_COLS 3
-#endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
 #if CONFIG_TMVP_MV_COMPRESSION
 // Set the upper limit of the motion vector component magnitude.

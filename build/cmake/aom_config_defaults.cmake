@@ -342,8 +342,6 @@ set_aom_config_var(CONFIG_SKIP_MODE_NO_REFINEMENTS 1
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
                    "Always enable motion field hole filling")
 
-set_aom_config_var(CONFIG_CWG_E099_DRL_WRL_SIMPLIFY 1
-                   "Enable the simplification of DRL and WRL")
 set_aom_config_var(CONFIG_BANK_IMPROVE 1
                    "Enable to improve refmv bank and warp parameter bank")
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
