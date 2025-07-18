@@ -3854,7 +3854,6 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
 
-#if CONFIG_DSMVP_REFBANK_MV_SWAP
   const int is_compound = is_inter_ref_frame(rf[1]);
   if (is_compound) {
     add_derived_smvp_candidates(cm, xd, rf,
@@ -3874,7 +3873,6 @@ static AOM_INLINE void setup_ref_mv_list(
         // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                  refmv_count, ref_mv_stack, ref_mv_weight);
   } else {
-#endif  // CONFIG_DSMVP_REFBANK_MV_SWAP
     if (cm->seq_params.enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame,
 #if CONFIG_SKIP_MODE_ENHANCEMENT && \
@@ -3891,9 +3889,7 @@ static AOM_INLINE void setup_ref_mv_list(
         // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 refmv_count, ref_mv_stack, ref_mv_weight,
                                 derived_mv_stack, derived_mv_count);
-#if CONFIG_DSMVP_REFBANK_MV_SWAP
   }
-#endif  // CONFIG_DSMVP_REFBANK_MV_SWAP
 
   for (int idx = 0; idx < *refmv_count; ++idx) {
     clamp_mv_ref(&ref_mv_stack[idx].this_mv.as_mv, xd->width << MI_SIZE_LOG2,

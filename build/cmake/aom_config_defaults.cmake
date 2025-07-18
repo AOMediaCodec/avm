@@ -333,8 +333,6 @@ set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
 set_aom_config_var(
   CONFIG_COMPOUND_WARP_CAUSAL 0
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
-set_aom_config_var(CONFIG_DSMVP_REFBANK_MV_SWAP 1
-                   "Swap ref bank mv and derived smvp in DRL generation")
 set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
                    "Enable to improve skip mode")
 
