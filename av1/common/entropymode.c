@@ -5019,9 +5019,6 @@ static const aom_cdf_prob
       { AOM_CDF2(22319), 76 },  { AOM_CDF2(21114), 1 },
       { AOM_CDF2(17583), 1 },   { AOM_CDF2(14631), 1 },
       { AOM_CDF2(13520), 6 },   { AOM_CDF2(9907), 1 },
-#if !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-      { AOM_CDF2(7557), 1 },    { AOM_CDF2(6286), 6 },
-#endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
     };
 
 #if CONFIG_OPT_INTER_MODE_CTX

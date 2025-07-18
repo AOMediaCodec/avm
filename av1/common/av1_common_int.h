@@ -3392,14 +3392,9 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
     int mi_col = 0;
     while (mi_col < block_mi_wide && row_hits < BANK_SB_ABOVE_ROW_MAX_HITS) {
       // Previous row position of SB boundary
-#if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
       const int col_aligned_to_8x8 = ((mi_col >> 1) << 1);
       const int mi_grid_idx = get_mi_grid_idx(mi_params, sb_mi_row - 1,
                                               sb_mi_col + col_aligned_to_8x8);
-#else
-      const int mi_grid_idx =
-          get_mi_grid_idx(mi_params, sb_mi_row - 1, sb_mi_col + mi_col);
-#endif  // CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
       const MB_MODE_INFO *const candidate =
           mi_params->mi_grid_base[mi_grid_idx];
       const int candidate_bsize = candidate->sb_type[0];

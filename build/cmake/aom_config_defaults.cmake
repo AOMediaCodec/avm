@@ -365,11 +365,6 @@ set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
 
 set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1 "Improve SMVP with TIP (F043)")
 set_aom_config_var(CONFIG_TMVP_MV_COMPRESSION 1 "Enable to compress TMVP MV")
-set_aom_config_var(
-  CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
-  1
-  "Reduce the line buffer size for DRL and WRL. The access unit is changed from 4x4 to 8x8"
-)
 set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
 
 set_aom_config_var(CONFIG_TIP_MV_SIMPLIFICATION 1
