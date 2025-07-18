@@ -244,9 +244,7 @@ struct av1_extracfg {
   unsigned int max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   int enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   int enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   int enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int enable_avg_cdf;
@@ -609,9 +607,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,    // max_drl_refbvs
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   1,    // enable_refmvbank
-#if CONFIG_DRL_REORDER_CONTROL
   1,    // enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   1,    // enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   1,  // enable_avg_cdf
@@ -1110,9 +1106,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
@@ -1257,9 +1251,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->max_drl_refbvs = cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   extra_cfg->enable_refmvbank = cfg->enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   extra_cfg->enable_cdef_on_skip_txfm = cfg->enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   extra_cfg->enable_avg_cdf = cfg->enable_avg_cdf;
@@ -1553,7 +1545,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
 
-#if CONFIG_DRL_REORDER_CONTROL
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
   if (tool_cfg->enable_drl_reorder == 1) {
     if (cfg->g_lag_in_frames == 0 && extra_cfg->content != AOM_CONTENT_SCREEN) {
@@ -1562,7 +1553,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       tool_cfg->enable_drl_reorder = DRL_REORDER_ALWAYS;
     }
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
   tool_cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   tool_cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
@@ -4490,11 +4480,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refmvbank,
                               argv, err_string)) {
     extra_cfg.enable_refmvbank = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_DRL_REORDER_CONTROL
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_drl_reorder,
                               argv, err_string)) {
     extra_cfg.enable_drl_reorder = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_DRL_REORDER_CONTROL
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_cdef_on_skip_txfm,
                               argv, err_string)) {
@@ -4865,11 +4853,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        1,
-#if CONFIG_DRL_REORDER_CONTROL
-        1,
-#endif  // CONFIG_DRL_REORDER_CONTROL
-        1,
+        1,   1, 1,
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
         1,  // enable_avg_cdf
         1,  // avg_cdf_type

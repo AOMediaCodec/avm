@@ -947,10 +947,8 @@ typedef struct {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
   int enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT

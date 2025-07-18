@@ -562,9 +562,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                      seq->base_uv_dc_delta_q == seq->base_uv_ac_delta_q));
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;

@@ -295,9 +295,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t max_drl_refbvs;
 #endif  //  CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   arg_def_t enable_refmvbank;
-#if CONFIG_DRL_REORDER_CONTROL
   arg_def_t enable_drl_reorder;
-#endif  // CONFIG_DRL_REORDER_CONTROL
   arg_def_t enable_cdef_on_skip_txfm;
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   arg_def_t enable_avg_cdf;

@@ -223,7 +223,6 @@ static const int tip_pred_index_to_mode[TIP_PRED_MODES] = {
   NEWMV,
 };
 
-#if CONFIG_DRL_REORDER_CONTROL
 enum {
   /**
    * DRL reorder is disabled
@@ -246,7 +245,6 @@ enum {
    */
   DRL_REORDER_TYPES,
 } UENUM1BYTE(DRL_REORDER_TYPE);
-#endif  // CONFIG_DRL_REORDER_CONTROL
 
 enum {
   /**
@@ -662,13 +660,11 @@ typedef struct SequenceHeader {
 #endif                       // CONFIG_LF_SUB_PU
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
 #if CONFIG_BRU
-  uint8_t enable_bru;  // To turn on/off backward reference updating
-#endif                 // CONFIG_BRU
-#if CONFIG_DRL_REORDER_CONTROL
-  uint8_t enable_drl_reorder;        // 0 - DRL reorder is disabled
-                                     // 1 - DRL reorder with constraints
-                                     // 2 - Always reorder DRL
-#endif                               // CONFIG_DRL_REORDER_CONTROL
+  uint8_t enable_bru;          // To turn on/off backward reference updating
+#endif                         // CONFIG_BRU
+  uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
+                               // 1 - DRL reorder with constraints
+                               // 2 - Always reorder DRL
   uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
   // 1 - CDEF on skip_txfm = 1 is always on
   // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level

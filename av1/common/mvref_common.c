@@ -14,9 +14,7 @@
 
 #include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
-#if CONFIG_DRL_REORDER_CONTROL
 #include "av1/common/reconintra.h"
-#endif  // CONFIG_DRL_REORDER_CONTROL
 #include "av1/common/tip.h"
 #include "av1/common/warped_motion.h"
 
@@ -3022,7 +3020,6 @@ static AOM_INLINE void add_tmvp_candidate(
   }
 }
 
-#if CONFIG_DRL_REORDER_CONTROL
 // This function determines whether to put TMVP candidate before
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
@@ -3041,7 +3038,6 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
   }
   return 0;
 }
-#endif  // CONFIG_DRL_REORDER_CONTROL
 
 static AOM_INLINE void add_derived_smvp_candidates(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
@@ -3488,7 +3484,6 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // !CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   const int height_at_least_two = xd->left_available ? (xd->height > 1) : 0;
 
-#if CONFIG_DRL_REORDER_CONTROL
   const int is_tmvp_high_priority = assign_tmvp_high_priority(cm, rf);
   if (is_tmvp_high_priority) {
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
@@ -3503,7 +3498,6 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  //! CONFIG_C076_INTER_MOD_CTX
                        mi_row, mi_col);
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
 
   if (xd->left_available) {
     scan_blk_mbmi(
@@ -3626,9 +3620,7 @@ static AOM_INLINE void setup_ref_mv_list(
   const uint8_t nearest_match = (row_match_count > 0) + (col_match_count > 0);
 #endif  //! CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_DRL_REORDER_CONTROL
   if (!is_tmvp_high_priority) {
-#endif  // CONFIG_DRL_REORDER_CONTROL
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
                        ref_mv_weight,
 #if CONFIG_SKIP_MODE_ENHANCEMENT && \
@@ -3640,9 +3632,7 @@ static AOM_INLINE void setup_ref_mv_list(
                        gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
                        mi_row, mi_col);
-#if CONFIG_DRL_REORDER_CONTROL
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
 
 #if CONFIG_DRL_WRL_LINE_BUFFER_REDUCTION
   if (row_smvp_state[3].is_available) {
@@ -3715,11 +3705,9 @@ static AOM_INLINE void setup_ref_mv_list(
   mode_context[ref_frame] |= (ref_ctx << REFMV_OFFSET);
 #endif  //! CONFIG_C076_INTER_MOD_CTX
 
-#if CONFIG_DRL_REORDER_CONTROL
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS ||
       (cm->seq_params.enable_drl_reorder == DRL_REORDER_CONSTRAINT &&
        (!is_tmvp_high_priority && nearest_refmv_count >= 4))) {
-#endif  // CONFIG_DRL_REORDER_CONTROL
     if (nearest_refmv_count > 1) {
       int max_weight = ref_mv_weight[0];
       int max_weight_idx = 0;
@@ -3752,9 +3740,7 @@ static AOM_INLINE void setup_ref_mv_list(
         // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       }
     }
-#if CONFIG_DRL_REORDER_CONTROL
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
 
   const int is_compound = is_inter_ref_frame(rf[1]);
   if (is_compound) {

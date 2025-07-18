@@ -354,9 +354,6 @@ set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
 
 set_aom_config_var(CONFIG_KEY_OVERLAY 1
                    "Enable to support the key overlay frame")
-
-set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
-                   "Enable to have a flag to turn on and off DRL reorder")
 set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
                    "Enable optimization of the CDFs for use optflow flag")
 

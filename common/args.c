@@ -172,9 +172,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(max_drl_refbvs);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     GET_PARAMS(enable_refmvbank);
-#if CONFIG_DRL_REORDER_CONTROL
     GET_PARAMS(enable_drl_reorder);
-#endif  // CONFIG_DRL_REORDER_CONTROL
     GET_PARAMS(enable_cdef_on_skip_txfm);
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     GET_PARAMS(enable_avg_cdf);

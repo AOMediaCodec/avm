@@ -5973,7 +5973,7 @@ static AOM_INLINE void write_sequence_header(
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
-#if CONFIG_DRL_REORDER_CONTROL
+
   const int is_drl_reorder_disable =
       (seq_params->enable_drl_reorder == DRL_REORDER_DISABLED);
   aom_wb_write_bit(wb, is_drl_reorder_disable);
@@ -5981,7 +5981,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb,
                      seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
+
   const int is_cdef_on_skip_txfm_always_on =
       (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
   aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);

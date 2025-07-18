@@ -848,12 +848,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_refmvbank = ARG_DEF(NULL, "enable-refmvbank", 1,
                               "Enable reference MV bank (0: false "
                               "1: true)"),
-#if CONFIG_DRL_REORDER_CONTROL
   .enable_drl_reorder =
       ARG_DEF(NULL, "enable-drl-reorder", 1,
               "Enable DRL reorder (0: no reorder, 1: reorder with constraints "
               "(default), 2: always reorder"),
-#endif  // CONFIG_DRL_REORDER_CONTROL
   .enable_cdef_on_skip_txfm = ARG_DEF(
       NULL, "enable-cdef-on-skip-txfm", 1,
       "Enable CDEF on skip_txfm = 1 blocks (0: always off, 1: always on "

@@ -6752,14 +6752,13 @@ void av1_read_sequence_header_beyond_av1(
     struct aom_internal_error_info *error_info) {
   // printf("print sps\n");
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
-#if CONFIG_DRL_REORDER_CONTROL
   if (aom_rb_read_bit(rb)) {
     seq_params->enable_drl_reorder = DRL_REORDER_DISABLED;
   } else {
     seq_params->enable_drl_reorder =
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
-#endif  // CONFIG_DRL_REORDER_CONTROL
+
   if (aom_rb_read_bit(rb)) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
   } else {
