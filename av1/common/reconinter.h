@@ -301,7 +301,11 @@ typedef struct InterPredParams {
 // Delta to use for computing gradients in bits, with 0 referring to
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
+#if CONFIG_OPFL_GRAD_COEFF_RED
 #define SUBPEL_GRAD_DELTA_BITS 1
+#else
+#define SUBPEL_GRAD_DELTA_BITS 2
+#endif  // CONFIG_OPFL_GRAD_COEFF_RED
 
 // Bilinear and bicubic coefficients. Note that, at boundary, we apply
 // coefficients that are doubled because spatial distance between the two
@@ -321,12 +325,24 @@ static const int32_t coeffs_bilinear[4][2] = {
 #endif
 
 #if OPFL_BICUBIC_GRAD
+#if CONFIG_OPFL_GRAD_COEFF_RED
 static const int bicubic_bits = 4;
+#else
+static const int bicubic_bits = 7;
+#endif  // CONFIG_OPFL_GRAD_COEFF_RED
 static const int32_t coeffs_bicubic[4][2][2] = {
+#if CONFIG_OPFL_GRAD_COEFF_RED
+  // TODO(kslu) clean up this array and remove unused ones
   { { 128, 256 }, { 0, 0 } },   // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
   { { 11, 22 }, { -1, -2 } },   // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
   { { 42, 84 }, { -5, -10 } },  // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
   { { 21, 42 }, { -3, -6 } },   // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
+#else
+  { { 128, 256 }, { 0, 0 } },    // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
+  { { 80, 160 }, { -8, -16 } },  // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
+  { { 42, 84 }, { -5, -10 } },   // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
+  { { 21, 42 }, { -3, -6 } },    // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
+#endif  // CONFIG_OPFL_GRAD_COEFF_RED
 };
 #endif
 

@@ -608,7 +608,8 @@ set_aom_config_var(CONFIG_WARP_INTER_INTRA 1
 
 set_aom_config_var(CONFIG_OPFL_MEMBW_REDUCTION 1
                    "Reduce memory bandwith for OPFL/subblk ref/DAMR to 15x15.")
-
+set_aom_config_var(CONFIG_OPFL_GRAD_COEFF_RED 1
+                   "Reduce gradient coefficients in optical flow refinement.")
 set_aom_config_var(CONFIG_WARP_BD_BOX 1 "4x4 warp constraints.")
 
 set_aom_config_var(CONFIG_DISABLE_4X4_IBP_ORIP 1 "Disable 4x4 for IBP/ORIP.")
