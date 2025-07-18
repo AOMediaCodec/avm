@@ -170,9 +170,10 @@ set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
-
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
+set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
+                   "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")

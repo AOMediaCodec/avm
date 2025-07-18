@@ -281,7 +281,17 @@ static AOM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
                                    int tile_col) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   reset_all_banks(rsc);
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (rsc->cm->seq_params.disable_loopfilters_across_tiles) {
+    rsc->tile_stripe0 = get_top_stripe_idx_in_tile(tile_row, tile_col, rsc->cm,
+                                                   RESTORATION_PROC_UNIT_SIZE,
+                                                   RESTORATION_UNIT_OFFSET);
+  } else {
+    rsc->tile_stripe0 = 0;
+  }
+#else
   rsc->tile_stripe0 = 0;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   rsc->ru_idx_base = idx_base;
   int ru_row_start, ru_row_end;
   int ru_col_start, ru_col_end;
@@ -3232,7 +3242,7 @@ static AOM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
   const int is_uv = rsc->plane > 0;
   const int ss_x = is_uv && rsc->cm->seq_params.subsampling_x;
   const int ss_y = is_uv && rsc->cm->seq_params.subsampling_y;
-  const int rstride = rsi->horz_units_per_tile;
+  const int rstride = rsi->horz_units_per_frame;
   for (int rrow = rrow0; rrow < rrow1; ++rrow) {
     for (int rcol = rcol0; rcol < rcol1; ++rcol) {
       const int runit_idx = rcol + rrow * rstride;
@@ -3276,6 +3286,15 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   av1_tile_set_col(&tile_info, rsc->cm, tile_col);
   assert(tile_info.mi_row_start < tile_info.mi_row_end);
   assert(tile_info.mi_col_start < tile_info.mi_col_end);
+  AV1PixelRect indep_tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (rsc->cm->seq_params.disable_loopfilters_across_tiles)
+    indep_tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
+  else
+    indep_tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
+#else
+  indep_tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   reset_rsc(rsc);
   rsc_on_tile(rsc, *processed, tile_row, tile_col);
@@ -3295,11 +3314,11 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
         // RU domain rectangle for the coded SB
         AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
             rsc->cm, is_uv, rrow0, rrow1, rcol0, rcol1, ru_size, ru_size);
-        const int unit_idx0 = rrow0 * rsi->horz_units_per_tile + rcol0;
-        av1_foreach_rest_unit_in_sb(&ru_sb_rect, unit_idx0, rcol1 - rcol0,
-                                    rrow1 - rrow0, rsi->horz_units_per_tile,
-                                    ru_size, ss_y, rsc->plane, fun, rsc, NULL,
-                                    processed);
+        const int unit_idx0 = rrow0 * rsi->horz_units_per_frame + rcol0;
+        av1_foreach_rest_unit_in_sb(
+            &indep_tile_rect, &ru_sb_rect, unit_idx0, rcol1 - rcol0,
+            rrow1 - rrow0, rsi->horz_units_per_frame, ru_size, ss_y, rsc->plane,
+            fun, rsc, NULL, processed);
       }
     }
   }
@@ -4157,16 +4176,52 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
 static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
   const RestorationInfo *rsi = &cm->rst_info[plane];
-  return rsi->units_per_tile;
+  return rsi->horz_units_per_frame * rsi->vert_units_per_frame;
 }
 
 // Set the value of number of units, for a given unit size.
 void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
                                   int is_uv) {
-  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
-  const int max_tile_w = tile_rect.right - tile_rect.left;
-  const int max_tile_h = tile_rect.bottom - tile_rect.top;
-
+  const int unit_size = rsi->restoration_unit_size;
+  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  AV1PixelRect tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    TileInfo tile_info;
+    rsi->vert_units_per_frame = 0;
+    rsi->vert_stripes_per_frame = 0;
+    for (int tr = 0; tr < cm->tiles.rows; ++tr) {
+      av1_tile_init(&tile_info, cm, tr, 0);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+      const int tile_h = tile_rect.bottom - tile_rect.top;
+      rsi->vert_units_per_tile[tr] =
+          av1_lr_count_units_in_tile(unit_size, tile_h);
+      rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
+      rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
+    }
+    rsi->horz_units_per_frame = 0;
+    for (int tc = 0; tc < cm->tiles.cols; ++tc) {
+      av1_tile_init(&tile_info, cm, 0, tc);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+      const int tile_w = tile_rect.right - tile_rect.left;
+      rsi->horz_units_per_tile[tc] =
+          av1_lr_count_units_in_tile(unit_size, tile_w);
+      rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
+    }
+  } else {
+    tile_rect = av1_whole_frame_rect(cm, is_uv);
+    const int tile_w = tile_rect.right - tile_rect.left;
+    const int tile_h = tile_rect.bottom - tile_rect.top;
+    rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
+    rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
+    rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
+    rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
+    rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+  }
+#else
+  tile_rect = av1_whole_frame_rect(cm, is_uv);
+  const int tile_w = tile_rect.right - tile_rect.left;
+  const int tile_h = tile_rect.bottom - tile_rect.top;
   // To calculate hpertile and vpertile (horizontal and vertical units per
   // tile), we basically want to divide the largest tile width or height by the
   // size of a restoration unit. Rather than rounding up unconditionally as you
@@ -4174,13 +4229,12 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   // restoration unit can extend to up to 150% its normal width or height. The
   // max with 1 is to deal with tiles that are smaller than half of a
   // restoration unit.
-  const int unit_size = rsi->restoration_unit_size;
-  const int hpertile = av1_lr_count_units_in_tile(unit_size, max_tile_w);
-  const int vpertile = av1_lr_count_units_in_tile(unit_size, max_tile_h);
-
-  rsi->units_per_tile = hpertile * vpertile;
-  rsi->horz_units_per_tile = hpertile;
-  rsi->vert_units_per_tile = vpertile;
+  rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
+  rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
+  rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
+  rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
+  rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
@@ -4253,9 +4307,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   av1_fill_lr_rates(&x->mode_costs, x->e_mbd.tile_ctx);
 
   int ntiles[2];
-  for (int is_uv = 0; is_uv < 2; ++is_uv)
+  for (int is_uv = 0; is_uv < 2; ++is_uv) {
+    cm->rst_info[is_uv].restoration_unit_size = cm->rst_info[is_uv].min_restoration_unit_size;
+    av1_reset_restoration_struct(cm, &cm->rst_info[is_uv], is_uv);
     ntiles[is_uv] = rest_tiles_in_plane(cm, is_uv);
-
+  }
   assert(ntiles[1] <= ntiles[0]);
   RestUnitSearchInfo *rusi =
       (RestUnitSearchInfo *)aom_memalign(16, sizeof(*rusi) * ntiles[0]);

@@ -661,6 +661,9 @@ typedef struct SequenceHeader {
   uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  uint8_t disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   uint8_t enable_cdef;                      // To turn on/off CDEF
   uint8_t enable_gdf;                       // To turn on/off GDF
   uint8_t enable_restoration;               // To turn on/off loop restoration
@@ -1002,6 +1005,7 @@ typedef struct {
  * \brief Params related to tiles.
  */
 typedef struct CommonTileParams {
+  int mib_size_log2; /*!< log2 of sb size in mi_units for convenience */
   int cols;          /*!< number of tile columns that frame is divided into */
   int rows;          /*!< number of tile rows that frame is divided into */
   int max_width_sb;  /*!< maximum tile width in superblock units. */

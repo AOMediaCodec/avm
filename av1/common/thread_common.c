@@ -20,6 +20,7 @@
 #include "av1/common/thread_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/resize.h"
+#include "av1/common/restoration.h"
 
 // Set up nsync by width.
 static INLINE int get_sync_range(int width) {
@@ -568,7 +569,7 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
     num_even_lr_jobs =
-        num_even_lr_jobs + ((ctxt[plane].rsi->vert_units_per_tile + 1) >> 1);
+        num_even_lr_jobs + ((ctxt[plane].rsi->vert_units_per_tile[0] + 1) >> 1);
   }
   lr_job_counter[0] = 0;
   lr_job_counter[1] = num_even_lr_jobs;
@@ -614,7 +615,7 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
           assert(limits.v_start == tile_rect.top);
           lr_job_queue[lr_job_counter[i & 1]].v_copy_start = tile_rect.top;
         }
-        if (i == (ctxt[plane].rsi->vert_units_per_tile - 1)) {
+        if (i == (ctxt[plane].rsi->vert_units_per_tile[0] - 1)) {
           assert(limits.v_end == tile_rect.bottom);
           lr_job_queue[lr_job_counter[i & 1]].v_copy_end = tile_rect.bottom;
         }
@@ -658,12 +659,13 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
   LRWorkerData *lrworkerdata = (LRWorkerData *)arg2;
   AV1LrStruct *lr_ctxt = (AV1LrStruct *)lrworkerdata->lr_ctxt;
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
+  // CommonTileParams *tiles = lr_ctxt->tiles;
   int lr_unit_row;
   int plane;
   const int tile_row = LR_TILE_ROW;
   const int tile_col = LR_TILE_COL;
-  const int tile_cols = LR_TILE_COLS;
-  const int tile_idx = tile_col + tile_row * tile_cols;
+  // const int tile_cols = LR_TILE_COLS;
+  // const int tile_idx = tile_col + tile_row * tile_cols;
   typedef void (*copy_fun)(const YV12_BUFFER_CONFIG *src_ybc,
                            YV12_BUFFER_CONFIG *dst_ybc, int hstart, int hend,
                            int vstart, int vend);
@@ -681,7 +683,8 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
       limits.v_end = cur_job_info->v_end;
       lr_unit_row = cur_job_info->lr_unit_row;
       plane = cur_job_info->plane;
-      const int unit_idx0 = tile_idx * ctxt[plane].rsi->units_per_tile;
+      const int unit_idx0 =
+          get_ru_index_for_tile_start(ctxt[plane].rsi, tile_row, tile_col);
 
       // sync_mode == 1 implies only sync read is required in LR Multi-threading
       // sync_mode == 0 implies only sync write is required.
@@ -693,9 +696,9 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
       av1_foreach_rest_unit_in_row(
           &limits, &(ctxt[plane].tile_rect), lr_ctxt->on_rest_unit, lr_unit_row,
           ctxt[plane].rsi->restoration_unit_size, unit_idx0,
-          ctxt[plane].rsi->horz_units_per_tile,
-          ctxt[plane].rsi->vert_units_per_tile,
-          ctxt[plane].rsi->horz_units_per_tile, plane, &ctxt[plane],
+          ctxt[plane].rsi->horz_units_per_tile[tile_col],
+          ctxt[plane].rsi->vert_units_per_tile[tile_row],
+          ctxt[plane].rsi->horz_units_per_frame, plane, &ctxt[plane],
           lrworkerdata->rlbs, on_sync_read, on_sync_write, lr_sync, NULL);
 
       copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,

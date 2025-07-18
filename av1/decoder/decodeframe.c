@@ -99,7 +99,9 @@ void copy_frame_filters_to_runits_if_needed(AV1_COMMON *cm) {
          rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
         rsi->frame_filters_on) {
       assert(rsi->frame_filters_initialized);
-      for (int runit_idx = 0; runit_idx < rsi->units_per_tile; ++runit_idx) {
+      for (int runit_idx = 0;
+           runit_idx < rsi->horz_units_per_frame * rsi->vert_units_per_frame;
+           ++runit_idx) {
         RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
         if (rui->restoration_type == RESTORE_WIENER_NONSEP) {
           copy_nsfilter_taps(&rui->wienerns_info, &rsi->frame_filters);
@@ -2097,7 +2099,7 @@ static AOM_INLINE void decode_partition(
           read_wienerns_framefilters(cm, xd, plane, reader);
         }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-        const int rstride = cm->rst_info[plane].horz_units_per_tile;
+        const int rstride = cm->rst_info[plane].horz_units_per_frame;
         for (int rrow = rrow0; rrow < rrow1; ++rrow) {
           for (int rcol = rcol0; rcol < rcol1; ++rcol) {
             const int runit_idx = rcol + rrow * rstride;
@@ -6458,6 +6460,9 @@ void av1_read_sequence_header(
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_gdf = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);

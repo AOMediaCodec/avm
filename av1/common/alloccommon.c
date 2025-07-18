@@ -93,19 +93,27 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
   // RESTORATION_CTX_VERT lines of data for each stripe, and also need to be
   // able to quickly answer the question "Where is the <n>'th stripe for tile
   // row <m>?" To make that efficient, we generate the rst_last_stripe array.
+  /*
   int num_stripes = 0;
   for (int i = 0; i < cm->tiles.rows; ++i) {
     TileInfo tile_info;
     av1_tile_set_row(&tile_info, cm, i);
     const int mi_h = tile_info.mi_row_end - tile_info.mi_row_start;
     const int ext_h = RESTORATION_UNIT_OFFSET + (mi_h << MI_SIZE_LOG2);
-    const int tile_stripes = (ext_h + 63) / 64;
+    const int tile_stripes =
+        (ext_h + RESTORATION_PROC_UNIT_SIZE - 1) / RESTORATION_PROC_UNIT_SIZE;
     num_stripes += tile_stripes;
   }
+  */
+  int num_stripes = cm->rst_info[0].vert_stripes_per_frame;
 
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
+#if CONFIG_F054_PIC_BOUNDARY
+  const int frame_w = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+#else
   const int frame_w = cm->width;
+#endif  // CONFIG_F054_PIC_BOUNDARY
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;

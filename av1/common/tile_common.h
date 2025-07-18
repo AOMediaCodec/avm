@@ -71,6 +71,10 @@ void av1_calculate_tile_rows(const struct AV1Common *cm, int cm_mi_rows,
 // Checks if the minimum tile_width requirement is satisfied
 int av1_is_min_tile_width_satisfied(const struct AV1Common *cm);
 
+// Get tile row or col from mi_row or mi_col respectively
+int get_tile_row_from_mi_row(const struct CommonTileParams *tiles, int mi_row);
+int get_tile_col_from_mi_col(const struct CommonTileParams *tiles, int mi_col);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

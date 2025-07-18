@@ -424,6 +424,10 @@ typedef struct {
   uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
 #endif  // ISSUE_253
+  uint16_t tmp_save_left[2][RESTORATION_PROC_UNIT_SIZE + RESTORATION_BORDER * 2]
+                        [RESTORATION_BORDER];
+  uint16_t tmp_save_right[2][RESTORATION_PROC_UNIT_SIZE +
+                             RESTORATION_BORDER * 2][RESTORATION_BORDER];
 } RestorationLineBuffers;
 /*!\endcond */
 
@@ -476,20 +480,32 @@ typedef struct {
    * (one row of) the largest tile in the frame.
    */
   /**@{*/
-  /*!
-   * Number of units per tile for the largest tile in the frame
-   */
-  int units_per_tile;
 
   /*!
    * Number of vertical units per tile
    */
-  int vert_units_per_tile;
+  int vert_units_per_tile[MAX_TILE_ROWS];
 
   /*!
    * Number of horizontal units per tile for the largest tile in the frame
    */
-  int horz_units_per_tile;
+  int horz_units_per_tile[MAX_TILE_COLS];
+
+  /*!
+   * Number of vertical units per frame
+   */
+  int vert_units_per_frame;
+
+  /*!
+   * Number of horizontal units per frame
+   */
+  int horz_units_per_frame;
+
+  /*!
+   * Number of vertical stripes per frame
+   */
+  int vert_stripes_per_frame;
+
   /**@}*/
 
   /*!
@@ -642,6 +658,7 @@ typedef struct AV1LrStruct {
   FilterFrameCtxt ctxt[MAX_MB_PLANE];
   YV12_BUFFER_CONFIG *frame;
   YV12_BUFFER_CONFIG *dst;
+  struct CommonTileParams *tiles;
 } AV1LrStruct;
 
 #if ISSUE_253
@@ -729,7 +746,8 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    void *priv, RestorationLineBuffers *rlbs,
                                    int *processed);
 // Call on_rest_unit for each loop restoration unit in a coded SB.
-void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
+void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
+                                 const AV1PixelRect *sb_rect, int unit_idx0,
                                  int hunits_per_tile, int vunits_per_tile,
                                  int unit_stride, int unit_size, int ss_y,
                                  int plane, rest_unit_visitor_t on_rest_unit,
@@ -780,6 +798,7 @@ AV1PixelRect av1_get_rutile_rect(const struct AV1Common *cm, int is_uv,
                                  int ru_height, int ru_width);
 
 int av1_lr_count_units_in_tile(int unit_size, int tile_size);
+int av1_lr_count_stripes_in_tile(int tile_size, int ss_y);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
 void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
                              const int sb_cols, int plane);
@@ -833,6 +852,31 @@ static INLINE int skip_sym_bit(const WienernsFilterParameters *nsfilter_params,
   assert(num_taps - (asym_taps >> 1) <= WIENERNS_SIGNALED_TAPS_MAX);
 
   return (num_taps > WIENERNS_SIGNALED_TAPS_MAX ? 2 : (asym_taps == 0));
+}
+
+static INLINE int get_top_stripe_idx_in_tile(int tile_row, int tile_col,
+                                             const struct AV1Common *cm,
+                                             int procunit_size,
+                                             int procunit_voffset) {
+  TileInfo tile_info;
+  int top_stripe = 0;
+  for (int tr = 0; tr < tile_row; ++tr) {
+    av1_tile_init(&tile_info, cm, tr, tile_col);
+    const int tile_height =
+        (tile_info.mi_row_end - tile_info.mi_row_start) * MI_SIZE;
+    const int vprocunits_in_tile =
+        (tile_height + procunit_voffset + procunit_size - 1) / procunit_size;
+    top_stripe += vprocunits_in_tile;
+  }
+  return top_stripe;
+}
+
+static INLINE int get_ru_index_for_tile_start(const RestorationInfo *rsi,
+                                              int tile_row, int tile_col) {
+  int x = 0, y = 0;
+  for (int tr = 0; tr < tile_row; ++tr) y += rsi->vert_units_per_tile[tr];
+  for (int tc = 0; tc < tile_col; ++tc) x += rsi->horz_units_per_tile[tc];
+  return y * rsi->horz_units_per_frame + x;
 }
 /*!\endcond */
 

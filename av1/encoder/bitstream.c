@@ -3513,7 +3513,7 @@ static AOM_INLINE void write_modes_sb(
         write_wienerns_framefilters(cm, xd, plane, w);
       }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-      const int rstride = cm->rst_info[plane].horz_units_per_tile;
+      const int rstride = cm->rst_info[plane].horz_units_per_frame;
       for (int rrow = rrow0; rrow < rrow1; ++rrow) {
         for (int rcol = rcol0; rcol < rcol1; ++rcol) {
           const int runit_idx = rcol + rrow * rstride;
@@ -5696,6 +5696,9 @@ static AOM_INLINE void write_sequence_header(
           wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
   }
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  aom_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_gdf);
   aom_wb_write_bit(wb, seq_params->enable_restoration);

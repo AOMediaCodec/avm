@@ -33,6 +33,7 @@ static int tile_log2(int blk_size, int target) {
 
 void av1_get_tile_limits(AV1_COMMON *const cm) {
   CommonTileParams *const tiles = &cm->tiles;
+  tiles->mib_size_log2 = cm->mib_size_log2;
   const int mi_cols =
       ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
   const int mi_rows =
@@ -174,8 +175,13 @@ AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info, const AV1_COMMON *cm,
   r.top = tile_info->mi_row_start * MI_SIZE;
   r.bottom = tile_info->mi_row_end * MI_SIZE;
 
+#if CONFIG_F054_PIC_BOUNDARY
+  const int frame_w = cm->mi_params.mi_cols * MI_SIZE;
+  const int frame_h = cm->mi_params.mi_rows * MI_SIZE;
+#else
   const int frame_w = cm->width;
   const int frame_h = cm->height;
+#endif
   // Make sure we don't fall off the bottom-right of the frame.
   r.right = AOMMIN(r.right, frame_w);
   r.bottom = AOMMIN(r.bottom, frame_h);
@@ -221,4 +227,24 @@ int av1_is_min_tile_width_satisfied(const AV1_COMMON *cm) {
   if (cm->tiles.cols == 1) return 1;
 
   return (cm->tiles.min_inner_width << MI_SIZE_LOG2) >= 64;
+}
+
+int get_tile_row_from_mi_row(const CommonTileParams *tiles, int mi_row) {
+  int row = 0;
+  for (row = 0; row < tiles->rows; ++row) {
+    if (mi_row >= (tiles->row_start_sb[row] << tiles->mib_size_log2) &&
+        mi_row < (tiles->row_start_sb[row + 1] << tiles->mib_size_log2))
+      break;
+  }
+  return row;
+}
+
+int get_tile_col_from_mi_col(const CommonTileParams *tiles, int mi_col) {
+  int col = 0;
+  for (col = 0; col < tiles->cols; ++col) {
+    if (mi_col >= (tiles->col_start_sb[col] << tiles->mib_size_log2) &&
+        mi_col < (tiles->col_start_sb[col + 1] << tiles->mib_size_log2))
+      break;
+  }
+  return col;
 }

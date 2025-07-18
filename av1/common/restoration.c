@@ -32,114 +32,83 @@
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p) - 6, (m) * (1 << ((p) - 6)), k }
 
-#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)          \
-  {                                                                              \
-    { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, asym, \
-      0 },                                                                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                               \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                 \
-  }
+#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)    \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, \
+      asym, 0 },                                                           \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)           \
-  {                                                                             \
-    {                                                                           \
-      (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, 0 \
-    },                                                                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                              \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                \
-  }
+#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)         \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, \
+      0 },                                                                    \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 
 #define AOM_MAKE_WIENERNS_CONFIG2(prec, config, config2, coeff, asym, asym2, \
                                   subset_cfg)                                \
-  {                                                                          \
-    { (prec),                                                                \
-      sizeof(config) / sizeof(config[0]),                                    \
-      sizeof(config2) / sizeof(config2[0]),                                  \
-      (config),                                                              \
-      (config2),                                                             \
-      0,                                                                     \
-      0,                                                                     \
-      asym,                                                                  \
+  { { (prec), sizeof(config) / sizeof(config[0]),                            \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, asym, \
       asym2 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                           \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)             \
-  }
+    sizeof(coeff) / sizeof(coeff[0]),                                        \
+    (coeff),                                                                 \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                              \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                          subset_cfg)                   \
-  {                                                                     \
-    { (prec),                                                           \
-      sizeof(config) / sizeof(config[0]),                               \
-      sizeof(config2) / sizeof(config2[0]),                             \
-      (config),                                                         \
-      (config2),                                                        \
-      0,                                                                \
-      0,                                                                \
-      0,                                                                \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                      \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)        \
-  }
+#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff,   \
+                                          subset_cfg)                     \
+  { { (prec), sizeof(config) / sizeof(config[0]),                         \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                         \
+    sizeof(coeff) / sizeof(coeff[0]),                                     \
+    (coeff),                                                              \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                           \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config only has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg) \
-  {                                                                        \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
-      0,      (config),                                                    \
-      NULL,   0,                                                           \
-      1,      asym,                                                        \
-      0 },                                                                 \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg)     \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      asym, 0 },                                                               \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg) \
-  {                                                                      \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                    \
-      0,      (config),                                                  \
-      NULL,   0,                                                         \
-      1,      0,                                                         \
-      0 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg)       \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      0, 0 },                                                                  \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym, \
-                                     asym2, subset_cfg)                  \
-  {                                                                      \
-    { (prec),                                                            \
-      sizeof(config) / sizeof(config[0]) - 1,                            \
-      sizeof(config2) / sizeof(config2[0]) - 1,                          \
-      (config),                                                          \
-      (config2),                                                         \
-      0,                                                                 \
-      1,                                                                 \
-      asym,                                                              \
-      asym2 },                                                           \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym,   \
+                                     asym2, subset_cfg)                    \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, \
+      asym, asym2 },                                                       \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                             subset_cfg)                   \
-  {                                                                        \
-    { (prec),                                                              \
-      sizeof(config) / sizeof(config[0]) - 1,                              \
-      sizeof(config2) / sizeof(config2[0]) - 1,                            \
-      (config),                                                            \
-      (config2),                                                           \
-      0,                                                                   \
-      1,                                                                   \
-      0,                                                                   \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff,    \
+                                             subset_cfg)                      \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                         \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                             \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 ///////////////////////////////////////////////////////////////////////////
 // First filter configuration
 ///////////////////////////////////////////////////////////////////////////
@@ -342,6 +311,39 @@ int av1_lr_count_units_in_tile(int unit_size, int tile_size) {
   return AOMMAX((tile_size + (unit_size >> 1)) / unit_size, 1);
 }
 
+int av1_lr_count_stripes_in_tile(int tile_size, int ss_y) {
+  const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
+  const int first_stripe_offset = RESTORATION_UNIT_OFFSET >> ss_y;
+  return (tile_size + first_stripe_offset + full_stripe_height - 1) /
+         full_stripe_height;
+}
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+static int get_tile_row_from_ru_row(const AV1_COMMON *cm,
+                                    const RestorationInfo *rsi, int ru_row,
+                                    int *ru_start_tile_row) {
+  int tr;
+  *ru_start_tile_row = 0;
+  for (tr = 0; tr < cm->tiles.rows; ++tr) {
+    if (*ru_start_tile_row + rsi->vert_units_per_tile[tr] > ru_row) break;
+    *ru_start_tile_row += rsi->vert_units_per_tile[tr];
+  }
+  return tr;
+}
+
+static int get_tile_col_from_ru_col(const AV1_COMMON *cm,
+                                    const RestorationInfo *rsi, int ru_col,
+                                    int *ru_start_tile_col) {
+  int tc;
+  *ru_start_tile_col = 0;
+  for (tc = 0; tc < cm->tiles.cols; ++tc) {
+    if (*ru_start_tile_col + rsi->horz_units_per_tile[tc] > ru_col) break;
+    *ru_start_tile_col += rsi->horz_units_per_tile[tc];
+  }
+  return tc;
+}
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
 // Finds a pixel rectangle for a RU, given the limits in ru domain
 // (i.e. ru_start_row, ru_end_row, ru_start_col, ru_end_col)
 // and the ru size (ru_height and ru_width).
@@ -369,51 +371,120 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 #endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    int ru_start_tile_row;
+    int ru_start_tile_col;
+    int tr =
+        get_tile_row_from_ru_row(cm, rsi, ru_start_row, &ru_start_tile_row);
+    int tc =
+        get_tile_col_from_ru_col(cm, rsi, ru_start_col, &ru_start_tile_col);
+
+    TileInfo tile_info;
+    av1_tile_init(&tile_info, cm, tr, tc);
+    AV1PixelRect tile_rect = av1_get_tile_rect(&tile_info, cm, plane > 0);
+
+    // start and end must belong to same tile
+    const int ru_start_row_rem = (ru_start_row - ru_start_tile_row);
+    const int ru_end_row_rem = (ru_end_row - ru_start_tile_row);
+    rect.top =
+        tile_rect.top + AOMMAX(ru_start_row_rem * ru_height - runit_offset, 0);
+    if (tr == cm->tiles.rows - 1 &&
+        ru_end_row_rem == rsi->vert_units_per_tile[tr])
+      rect.bottom = plane_height;
+    else if (ru_end_row_rem == rsi->vert_units_per_tile[tr])
+      rect.bottom = tile_rect.bottom;
+    else
+      rect.bottom =
+          tile_rect.top + AOMMAX(ru_end_row_rem * ru_height - runit_offset, 0);
+
+    // start and end must belong to same tile
+    const int ru_start_col_rem = (ru_start_col - ru_start_tile_col);
+    const int ru_end_col_rem = (ru_end_col - ru_start_tile_col);
+    rect.left = tile_rect.left + ru_start_col_rem * ru_width;
+    if (tc == cm->tiles.cols - 1 &&
+        ru_end_col_rem == rsi->horz_units_per_tile[tc])
+      rect.right = plane_width;
+    else if (ru_end_col_rem == rsi->horz_units_per_tile[tc])
+      rect.right = tile_rect.right;
+    else
+      rect.right = tile_rect.left + ru_end_col_rem * ru_width;
+    return rect;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // Top limit is a multiple of RU height minus the offset, clamped to be
   // non-negative. So the first RU vertically is shorter than the rest.
   // The bottom limit is similar except for the apecial case for the last RU.
   rect.top = AOMMAX(ru_start_row * ru_height - runit_offset, 0);
-  rect.bottom = rsi->vert_units_per_tile == ru_end_row
+  rect.bottom = rsi->vert_units_per_tile[0] == ru_end_row
                     ? plane_height
                     : AOMMAX(ru_end_row * ru_height - runit_offset, 0);
 
   // Left limit is a multiple of RU width.
   // The right limit is similar except for the apecial case for the last RU.
   rect.left = ru_start_col * ru_width;
-  rect.right = rsi->horz_units_per_tile == ru_end_col ? plane_width
-                                                      : ru_end_col * ru_width;
-
+  rect.right = rsi->horz_units_per_tile[0] == ru_end_col
+                   ? plane_width
+                   : ru_end_col * ru_width;
   return rect;
 }
 
 void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
                                   int is_uv) {
   // We need to allocate enough space for restoration units to cover the
-  // largest tile. Without CONFIG_MAX_TILE, this is always the tile at the
-  // top-left and we can use av1_get_tile_rect(). With CONFIG_MAX_TILE, we have
+  // largest tile. Since tiles are all of the same size, we could just use
+  // the tile at the top-left and we can use av1_get_tile_rect().
+  // If the tiles could be of different sizes, we have
   // to do the computation ourselves, iterating over the tiles and keeping
-  // track of the largest width and height, then upscaling.
-  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
-  const int max_tile_w = tile_rect.right - tile_rect.left;
-  const int max_tile_h = tile_rect.bottom - tile_rect.top;
-
-  // To calculate hpertile and vpertile (horizontal and vertical units per
-  // tile), we basically want to divide the largest tile width or height by the
-  // size of a restoration unit. Rather than rounding up unconditionally as you
-  // might expect, we round to nearest, which models the way a right or bottom
-  // restoration unit can extend to up to 150% its normal width or height. The
-  // max with 1 is to deal with tiles that are smaller than half of a
-  // restoration unit.
+  // track of the largest width and height.
   const int unit_size = rsi->restoration_unit_size;
-  const int hpertile = av1_lr_count_units_in_tile(unit_size, max_tile_w);
-  const int vpertile = av1_lr_count_units_in_tile(unit_size, max_tile_h);
+  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  AV1PixelRect tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    TileInfo tile_info;
+    rsi->vert_units_per_frame = 0;
+    rsi->vert_stripes_per_frame = 0;
+    for (int tr = 0; tr < cm->tiles.rows; ++tr) {
+      av1_tile_init(&tile_info, cm, tr, 0);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+      const int tile_h = tile_rect.bottom - tile_rect.top;
+      rsi->vert_units_per_tile[tr] =
+          av1_lr_count_units_in_tile(unit_size, tile_h);
+      rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
+      rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
+    }
+    rsi->horz_units_per_frame = 0;
+    for (int tc = 0; tc < cm->tiles.cols; ++tc) {
+      av1_tile_init(&tile_info, cm, 0, tc);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+      const int tile_w = tile_rect.right - tile_rect.left;
+      rsi->horz_units_per_tile[tc] =
+          av1_lr_count_units_in_tile(unit_size, tile_w);
+      rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
+    }
+  } else {
+    tile_rect = av1_whole_frame_rect(cm, is_uv);
+    const int tile_w = tile_rect.right - tile_rect.left;
+    const int tile_h = tile_rect.bottom - tile_rect.top;
+    rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
+    rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
+    rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
+    rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
+    rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+  }
+#else
+  tile_rect = av1_whole_frame_rect(cm, is_uv);
+  const int tile_w = tile_rect.right - tile_rect.left;
+  const int tile_h = tile_rect.bottom - tile_rect.top;
+  rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
+  rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
+  rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
+  rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
+  rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
-  rsi->units_per_tile = hpertile * vpertile;
-  rsi->horz_units_per_tile = hpertile;
-  rsi->vert_units_per_tile = vpertile;
-
-  const int ntiles = 1;
-  const int nunits = ntiles * rsi->units_per_tile;
+  const int nunits = rsi->horz_units_per_frame * rsi->vert_units_per_frame;
 
   aom_free(rsi->unit_info);
   CHECK_MEM_ERROR(cm, rsi->unit_info,
@@ -530,9 +601,10 @@ static void copy_tile(int width, int height, const uint16_t *src,
 // to decide if we're overwriting the above/below boundary pixels or not.
 static void get_stripe_boundary_info(const RestorationTileLimits *limits,
                                      const AV1PixelRect *tile_rect, int ss_y,
-                                     int *copy_above, int *copy_below) {
-  *copy_above = 1;
-  *copy_below = 1;
+                                     int *tile_boundary_above,
+                                     int *tile_boundary_below) {
+  *tile_boundary_above = 0;
+  *tile_boundary_below = 0;
 
   const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
@@ -543,8 +615,8 @@ static void get_stripe_boundary_info(const RestorationTileLimits *limits,
   const int last_stripe_in_tile =
       (limits->v_start + this_stripe_height >= tile_rect->bottom);
 
-  if (first_stripe_in_tile) *copy_above = 0;
-  if (last_stripe_in_tile) *copy_below = 0;
+  if (first_stripe_in_tile) *tile_boundary_above = 1;
+  if (last_stripe_in_tile) *tile_boundary_below = 1;
 }
 
 // Overwrite the border pixels around a processing stripe so that the conditions
@@ -763,6 +835,81 @@ static void restore_processing_stripe_boundary(
         memcpy(dst, rlbs->tmp_save_below[2], line_size);
 #endif  // ISSUE_253
       }
+    }
+  }
+}
+
+static void setup_processing_stripe_leftright_boundary(
+    uint16_t *data_tl, int w, int h, int data_stride, int border,
+    int tile_boundary_left, int tile_boundary_right,
+    RestorationLineBuffers *rlbs, int is_chroma) {
+  assert(h <= RESTORATION_PROC_UNIT_SIZE);
+  assert(border <= RESTORATION_BORDER);
+  if (tile_boundary_left) {
+    uint16_t *d = data_tl - border * data_stride - border;
+    for (int i = 0; i < border; ++i) {
+      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
+                   border);
+    }
+    for (int i = border; i < h + border; ++i) {
+      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
+                   border);
+    }
+    for (int i = h + border; i < h + 2 * border; ++i) {
+      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
+                   border);
+    }
+  }
+  if (tile_boundary_right) {
+    uint16_t *d = data_tl + w - border * data_stride;
+    for (int i = 0; i < border; ++i) {
+      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
+    }
+    for (int i = border; i < h + border; ++i) {
+      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
+    }
+    for (int i = h + border; i < h + 2 * border; ++i) {
+      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
+             border * sizeof(*d));
+      // Replicate
+      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
+    }
+  }
+}
+
+static void restore_processing_stripe_leftright_boundary(
+    uint16_t *data_tl, int w, int h, int data_stride, int border,
+    int tile_boundary_left, int tile_boundary_right,
+    RestorationLineBuffers *rlbs, int is_chroma) {
+  assert(h <= RESTORATION_PROC_UNIT_SIZE);
+  assert(border <= RESTORATION_BORDER);
+  if (tile_boundary_left) {
+    uint16_t *d = data_tl - border * data_stride - border;
+    for (int i = 0; i < h + 2 * border; ++i) {
+      memcpy(d + i * data_stride, rlbs->tmp_save_left[is_chroma][i],
+             border * sizeof(*d));
+    }
+  }
+  if (tile_boundary_right) {
+    uint16_t *d = data_tl + w - border * data_stride;
+    for (int i = 0; i < h + 2 * border; ++i) {
+      memcpy(d + i * data_stride, rlbs->tmp_save_right[is_chroma][i],
+             border * sizeof(*d));
     }
   }
 }
@@ -1530,6 +1677,7 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
     );
   }
 }
+
 #if ISSUE_253
 uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
                                                 uint16_t **luma_hbd) {
@@ -1568,14 +1716,8 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   int ds_type = cm->seq_params.cfl_ds_filter_index == 1
 #endif
 #endif
-  int first_stripe_height =
-      RESTORATION_PROC_UNIT_SIZE - RESTORATION_UNIT_OFFSET;
-  int precess_unit_rows = height_y <= first_stripe_height
-                              ? 1
-                              : 1 + (height_y - first_stripe_height +
-                                     RESTORATION_PROC_UNIT_SIZE - 1) /
-                                        RESTORATION_PROC_UNIT_SIZE;
-  int resized_luma_height = height_uv + 2 * WIENERNS_UV_BRD * precess_unit_rows;
+  int process_unit_rows = rsi->vert_stripes_per_frame;
+  int resized_luma_height = height_uv + 2 * WIENERNS_UV_BRD * process_unit_rows;
 
   uint16_t *aug_luma = (uint16_t *)malloc(
       sizeof(uint16_t) * resized_luma_stride * resized_luma_height);
@@ -1587,170 +1729,173 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
 
   *luma_hbd = *luma;
 
-  const int ss_x = (((width_y + 1) >> 1) == width_uv);
-  const int ss_y = (((height_y + 1) >> 1) == height_uv);
-
-  AV1PixelRect tile_rect = { 0, 0, width_y, height_y };
-
-  RestorationTileLimits remaining_stripes = { 0, width_y, 0, height_y };
-
-  const int tile_stripe0 = 0;
-
+  const int ss_x = cm->seq_params.subsampling_x;
+  const int ss_y = cm->seq_params.subsampling_y;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int num_tile_rows =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+#else
+  const int num_tile_rows = 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  int tile_stripe0 = 0;
   uint16_t *curr_luma = *luma;
   uint16_t *curr_dgd = dgd;
+  for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
+    AV1PixelRect tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (cm->seq_params.disable_loopfilters_across_tiles) {
+      TileInfo tile_info;
+      av1_tile_init(&tile_info, cm, tile_row, 0);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
+    } else {
+      tile_rect = av1_whole_frame_rect(cm, 0);
+    }
+#else
+    tile_rect = av1_whole_frame_rect(cm, 0);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    for (int rel_tile_stripe = 0;; ++rel_tile_stripe) {
+      const int rel_y0 =
+          AOMMAX(0, rel_tile_stripe * RESTORATION_PROC_UNIT_SIZE -
+                        RESTORATION_UNIT_OFFSET);
+      const int y0 = tile_rect.top + rel_y0;
+      if (y0 >= tile_rect.bottom) {
+        tile_stripe0 += rel_tile_stripe;
+        break;
+      }
+      const int rel_y1 = (rel_tile_stripe + 1) * RESTORATION_PROC_UNIT_SIZE -
+                         RESTORATION_UNIT_OFFSET;
+      const int y1 = AOMMIN(tile_rect.top + rel_y1, tile_rect.bottom);
 
-  for (int i = 0; i < precess_unit_rows; i++) {
-    int copy_above, copy_below;
+      const int frame_stripe = tile_stripe0 + rel_tile_stripe;
+      const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
+      RestorationTileLimits remaining_stripes = { 0, width_y, y0, y1 };
+      int tile_boundary_above, tile_boundary_below;
+      get_stripe_boundary_info(&remaining_stripes, &tile_rect, 0,
+                               &tile_boundary_above, &tile_boundary_below);
+      const int h = y1 - y0;
+      const int h_uv = (ss_y ? (h + 1) >> ss_y : h) +
+                       ((y0 > 0) + (y1 < height_y)) * WIENERNS_UV_BRD;
 
-    const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE;
-    const int runit_offset = RESTORATION_UNIT_OFFSET;
-
-    remaining_stripes.v_start =
-        i == 0 ? 0 : (i * full_stripe_height - runit_offset);
-
-    get_stripe_boundary_info(&remaining_stripes, &tile_rect, 0, &copy_above,
-                             &copy_below);
-
-    // Work out where this stripe's boundaries are within
-    // rsb->stripe_boundary_{above,below}
-    const int tile_stripe =
-        (remaining_stripes.v_start - tile_rect.top + runit_offset) /
-        full_stripe_height;
-
-    assert(tile_stripe == i);
-
-    const int nominal_stripe_height =
-        full_stripe_height - ((tile_stripe == 0) ? runit_offset : 0);
-    const int h = AOMMIN(nominal_stripe_height,
-                         remaining_stripes.v_end - remaining_stripes.v_start);
-
-    const int frame_stripe = tile_stripe0 + tile_stripe;
-    const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
-
-    setup_processing_stripe_boundary(
-        &remaining_stripes, &rsi->boundaries, rsb_row, h, dgd, in_stride,
-        cm->rlbs, copy_above, copy_below, rsi->optimized_lr, 0);
-
-    const int h_uv = (ss_y ? (h + 1) >> ss_y : h) +
-                     (copy_above + copy_below) * WIENERNS_UV_BRD;
-
-    if (copy_above) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
+      setup_processing_stripe_boundary(&remaining_stripes, &rsi->boundaries,
+                                       rsb_row, h, dgd, in_stride, cm->rlbs, 1,
+                                       1, rsi->optimized_lr, 0);
+      if (y0 > 0) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
 
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
-    for (int r = 0; r < h_uv; ++r) {
-      for (int c = 0; c < width_uv; ++c) {
-        curr_luma[r * out_stride + c] =
-            curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-      }
-    }
-#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
-    if (ss_x && ss_y) {  // 420
-      for (int r = 0; r < h_uv; ++r) {
-        for (int c = 0; c < width_uv; ++c) {
-          curr_luma[r * out_stride + c] =
-              (curr_dgd[2 * r * in_stride + 2 * c] +
-               curr_dgd[2 * r * in_stride + 2 * c + 1] +
-               curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-               curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1] + 2) >>
-              2;
-        }
-      }
-    } else if (ss_x && !ss_y) {  // 422
-      for (int r = 0; r < h_uv; ++r) {
-        for (int c = 0; c < width_uv; ++c) {
-          curr_luma[r * out_stride + c] =
-              (curr_dgd[r * in_stride + 2 * c] +
-               curr_dgd[r * in_stride + 2 * c + 1] + 1) >>
-              1;
-        }
-      }
-    } else if (!ss_x && !ss_y) {  // 444
-      for (int r = 0; r < h_uv; ++r) {
-        for (int c = 0; c < width_uv; ++c) {
-          curr_luma[r * out_stride + c] = curr_dgd[r * in_stride + c];
-        }
-      }
-    } else {
-      assert(0 && "Invalid dimensions");
-    }
-#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-#if CONFIG_IMPROVED_DS_CC_WIENER
-    if (ss_x && ss_y) {
-      if (ds_type == 1) {
-        for (int r = 0; r < h_uv; ++r) {
-          for (int c = 0; c < width_uv; ++c) {
-            curr_luma[r * out_stride + c] =
-#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
-                (curr_dgd[2 * r * in_stride + 2 * c] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
-                1;
-#else
-                (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
-                 2 * curr_dgd[2 * r * in_stride + 2 * c] +
-                 curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c -
-                          ((c == 0) ? 0 : 1)] +
-                 2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                3;
-#endif
-          }
-        }
-      } else if (ds_type == 2) {
-        for (int r = 0; r < h_uv; ++r) {
-          for (int c = 0; c < width_uv; ++c) {
-            curr_luma[r * out_stride + c] =
-                curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-          }
-        }
-      } else {
-        for (int r = 0; r < h_uv; ++r) {
-          for (int c = 0; c < width_uv; ++c) {
-            curr_luma[r * out_stride + c] =
-                (curr_dgd[2 * r * in_stride + 2 * c] +
-                 curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                2;
-          }
-        }
-      }
-    } else {
-#else
-    if (ss_x && ss_y && ds_type == 1) {
-      for (int r = 0; r < h_uv; ++r) {
-        for (int c = 0; c < width_uv; ++c) {
-          curr_luma[r * out_stride + c] =
-              (curr_dgd[2 * r * in_stride + 2 * c] +
-               curr_dgd[(2 * r + 1) * in_stride + 2 * c]) /
-              2;
-        }
-      }
-    } else {
-#endif  // CONFIG_IMPROVED_DS_CC_WIENER
       for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
           curr_luma[r * out_stride + c] =
               curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
         }
       }
-    }
+#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
+      if (ss_x && ss_y) {  // 420
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] =
+                (curr_dgd[2 * r * in_stride + 2 * c] +
+                 curr_dgd[2 * r * in_stride + 2 * c + 1] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1] + 2) >>
+                2;
+          }
+        }
+      } else if (ss_x && !ss_y) {  // 422
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] =
+                (curr_dgd[r * in_stride + 2 * c] +
+                 curr_dgd[r * in_stride + 2 * c + 1] + 1) >>
+                1;
+          }
+        }
+      } else if (!ss_x && !ss_y) {  // 444
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] = curr_dgd[r * in_stride + c];
+          }
+        }
+      } else {
+        assert(0 && "Invalid dimensions");
+      }
+#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
+#if CONFIG_IMPROVED_DS_CC_WIENER
+      if (ss_x && ss_y) {
+        if (ds_type == 1) {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
+                  (curr_dgd[2 * r * in_stride + 2 * c] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+                  1;
 #else
-    av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
-                            width_uv, out_stride, bd);
+                  (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
+                   2 * curr_dgd[2 * r * in_stride + 2 * c] +
+                   curr_dgd[2 * r * in_stride + 2 * c + 1] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c -
+                            ((c == 0) ? 0 : 1)] +
+                   2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+                  3;
+#endif
+            }
+          }
+        } else if (ds_type == 2) {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+                  curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+            }
+          }
+        } else {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+                  (curr_dgd[2 * r * in_stride + 2 * c] +
+                   curr_dgd[2 * r * in_stride + 2 * c + 1] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+                  2;
+            }
+          }
+        }
+#else
+      if (ss_x && ss_y && ds_type == 1) {
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] =
+                (curr_dgd[2 * r * in_stride + 2 * c] +
+                 curr_dgd[(2 * r + 1) * in_stride + 2 * c]) /
+                2;
+          }
+        }
+#endif  // CONFIG_IMPROVED_DS_CC_WIENER
+      } else {
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] =
+                curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+          }
+        }
+      }
+#else
+      av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma,
+                              height_uv, width_uv, out_stride, bd);
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
 
-    restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
-                                       in_stride, copy_above, copy_below,
-                                       rsi->optimized_lr, 0);
+      restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
+                                         in_stride, 1, 1, rsi->optimized_lr, 0);
 
-    if (copy_above) curr_dgd += WIENERNS_UV_BRD * in_stride << ss_y;
-    curr_dgd += in_stride * h;
-    curr_luma += out_stride * h_uv;
+      if (y0 > 0) curr_dgd += WIENERNS_UV_BRD * in_stride << ss_y;
+      curr_dgd += in_stride * h;
+      curr_luma += out_stride * h_uv;
+    }
   }
   // extend border by replication
   int internal_luma_height = resized_luma_height - 2 * WIENERNS_UV_BRD;
 
+  // Extend side borders
   for (int r = 0; r < internal_luma_height; ++r) {
     for (int c = -border; c < 0; ++c)
       (*luma)[r * out_stride + c] = (*luma)[r * out_stride];
@@ -1758,10 +1903,12 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
       (*luma)[r * out_stride + width_uv + c] =
           (*luma)[r * out_stride + width_uv - 1];
   }
+  // Extend top border
   for (int r = -border; r < 0; ++r) {
     memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
            (width_uv + 2 * border) * sizeof((*luma)[0]));
   }
+  // Extend bottom border
   for (int r = 0; r < border; ++r)
     memcpy(&(*luma)[(internal_luma_height + r) * out_stride - border],
            &(*luma)[(internal_luma_height - 1) * out_stride - border],
@@ -2018,32 +2165,31 @@ void av1_loop_restoration_filter_unit(
     allocate_pcwiener_line_buffers(procunit_width, tmp_rui->pcwiener_buffers);
   }
 
-  // Convolve the whole tile one stripe at a time
+  // Convolve the whole RU one stripe at a time
   RestorationTileLimits remaining_stripes = *limits;
   int i = 0;
   while (i < unit_h) {
-    int copy_above, copy_below;
     remaining_stripes.v_start = limits->v_start + i;
 
-    get_stripe_boundary_info(&remaining_stripes, tile_rect, ss_y, &copy_above,
-                             &copy_below);
-
+    int tile_boundary_above, tile_boundary_below;
+    get_stripe_boundary_info(&remaining_stripes, tile_rect, ss_y,
+                             &tile_boundary_above, &tile_boundary_below);
     const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
     const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
 
     // Work out where this stripe's boundaries are within
     // rsb->stripe_boundary_{above,below}
-    const int tile_stripe =
+    const int rel_tile_stripe =
         (remaining_stripes.v_start - tile_rect->top + runit_offset) /
         full_stripe_height;
-    const int frame_stripe = tile_stripe0 + tile_stripe;
+    const int frame_stripe = tile_stripe0 + rel_tile_stripe;
     const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
 
     // Calculate this stripe's height, based on two rules:
     // * The topmost stripe in each tile is 8 luma pixels shorter than usual.
     // * We can't extend past the end of the current restoration unit
     const int nominal_stripe_height =
-        full_stripe_height - ((tile_stripe == 0) ? runit_offset : 0);
+        full_stripe_height - ((rel_tile_stripe == 0) ? runit_offset : 0);
     const int h = AOMMIN(nominal_stripe_height,
                          remaining_stripes.v_end - remaining_stripes.v_start);
 #if CONFIG_BRU
@@ -2056,8 +2202,7 @@ void av1_loop_restoration_filter_unit(
     tmp_rui->error = rui->error;
 #endif  // CONFIG_BRU
     setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h, data,
-                                     stride, rlbs, copy_above, copy_below,
-                                     optimized_lr
+                                     stride, rlbs, 1, 1, optimized_lr
 #if ISSUE_253
                                      ,
                                      rui->plane != PLANE_TYPE_Y
@@ -2074,6 +2219,17 @@ void av1_loop_restoration_filter_unit(
 #else
         enable_cross_buffers ? luma_in_ru + i * rui->luma_stride : NULL;
 #endif  // ISSUE_253
+
+    int tile_boundary_left = (remaining_stripes.h_start == tile_rect->left);
+    int tile_boundary_right = (remaining_stripes.h_end == tile_rect->right);
+    const int border = RESTORATION_BORDER >> ss_x;
+    setup_processing_stripe_leftright_boundary(
+        data_tl, unit_w, h, stride, border, tile_boundary_left,
+        tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
+    if (enable_cross_buffers)
+      setup_processing_stripe_leftright_boundary(
+          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride, border,
+          tile_boundary_left, tile_boundary_right, rlbs, 0);
     // pc wiener filter
     tmp_rui->tskip = enable_pcwiener_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
@@ -2087,9 +2243,15 @@ void av1_loop_restoration_filter_unit(
     stripe_filter(tmp_rui, unit_w, h, procunit_width, data_tl + i * stride,
                   stride, dst_tl + i * dst_stride, dst_stride, bit_depth);
 
+    restore_processing_stripe_leftright_boundary(
+        data_tl, unit_w, h, stride, border, tile_boundary_left,
+        tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
+    if (enable_cross_buffers)
+      restore_processing_stripe_leftright_boundary(
+          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride, border,
+          tile_boundary_left, tile_boundary_right, rlbs, 0);
     restore_processing_stripe_boundary(&remaining_stripes, rlbs, h, data,
-                                       stride, copy_above, copy_below,
-                                       optimized_lr
+                                       stride, 1, 1, optimized_lr
 #if ISSUE_253
                                        ,
                                        rui->plane != PLANE_TYPE_Y
@@ -2148,6 +2310,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int bit_depth = seq_params->bit_depth;
   lr_ctxt->dst = &cm->rst_frame;
+  lr_ctxt->tiles = &cm->tiles;
 
 #if CONFIG_F054_PIC_BOUNDARY
   const int frame_width = frame->widths[0];
@@ -2423,35 +2586,35 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
 // expected to be offset only if the tile_rect starts at row 0. Note that
 // this is a simple variation of the function above and could have been
 // combined, but they are kept distinct to avoid confusion in the future.
-void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
+void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
+                                 const AV1PixelRect *sb_rect, int unit_idx0,
                                  int hunits_per_tile, int vunits_per_tile,
                                  int unit_stride, int unit_size, int ss_y,
                                  int plane, rest_unit_visitor_t on_rest_unit,
                                  void *priv, RestorationLineBuffers *rlbs,
                                  int *processed) {
-  const int tile_h = tile_rect->bottom - tile_rect->top;
-
+  const int tile_h = sb_rect->bottom - sb_rect->top;
   int y0 = 0, i = 0;
   while (y0 < tile_h) {
     int remaining_h = tile_h - y0;
     int h = (i == vunits_per_tile - 1) ? remaining_h : unit_size;
 
     RestorationTileLimits limits;
-    limits.v_start = tile_rect->top + y0;
-    limits.v_end = tile_rect->top + y0 + h;
-    assert(limits.v_end <= tile_rect->bottom);
+    limits.v_start = sb_rect->top + y0;
+    limits.v_end = sb_rect->top + y0 + h;
+    assert(limits.v_end <= sb_rect->bottom);
     // Offset the tile upwards to align with the restoration processing stripe
     // if the SB that iuncludes the RUs in this group are the top row
-    if (tile_rect->top == 0) {
+    if (sb_rect->top == tile_rect->top) {
       const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
-      limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
-      if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
+      limits.v_start = AOMMAX(sb_rect->top, limits.v_start - voffset);
+      if (limits.v_end < sb_rect->bottom) limits.v_end -= voffset;
       h = limits.v_end - limits.v_start;
     }
 
     assert(i < vunits_per_tile);
     av1_foreach_rest_unit_in_row(
-        &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
+        &limits, sb_rect, on_rest_unit, i, unit_size, unit_idx0,
         hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, rlbs,
         av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL, processed);
 
@@ -2468,14 +2631,38 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   const RestorationInfo *rsi = &cm->rst_info[plane];
-
-  const int unit_idx0 =
-      (LR_TILE_ROW * LR_TILE_COLS + LR_TILE_COL) * rsi->units_per_tile;
+  int unit_idx0;
   int processed = 0;
+  FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    TileInfo tile_info;
+    for (int tile_row = 0; tile_row < cm->tiles.rows; ++tile_row) {
+      ctxt->tile_stripe0 = get_top_stripe_idx_in_tile(
+          tile_row, 0, cm, RESTORATION_PROC_UNIT_SIZE, RESTORATION_UNIT_OFFSET);
+      for (int tile_col = 0; tile_col < cm->tiles.cols; ++tile_col) {
+        av1_tile_init(&tile_info, cm, tile_row, tile_col);
+        AV1PixelRect this_tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+        unit_idx0 = get_ru_index_for_tile_start(rsi, tile_row, tile_col);
+        av1_foreach_rest_unit_in_tile(
+            &this_tile_rect, unit_idx0, rsi->horz_units_per_tile[tile_col],
+            rsi->vert_units_per_tile[tile_row], rsi->horz_units_per_frame,
+            rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
+            &processed);
+      }
+    }
+    return;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  unit_idx0 = (LR_TILE_ROW * LR_TILE_COLS + LR_TILE_COL);
+  ctxt->tile_stripe0 = get_top_stripe_idx_in_tile(LR_TILE_ROW, LR_TILE_COL, cm,
+                                                  RESTORATION_PROC_UNIT_SIZE,
+                                                  RESTORATION_UNIT_OFFSET);
   av1_foreach_rest_unit_in_tile(
-      tile_rect, unit_idx0, rsi->horz_units_per_tile, rsi->vert_units_per_tile,
-      rsi->horz_units_per_tile, rsi->restoration_unit_size, ss_y, plane,
-      on_rest_unit, priv, rlbs, &processed);
+      tile_rect, unit_idx0, rsi->horz_units_per_tile[0],
+      rsi->vert_units_per_tile[0], rsi->horz_units_per_frame,
+      rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
+      &processed);
 }
 
 int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
@@ -2490,12 +2677,27 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
 
   const int is_uv = plane > 0;
 
-  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
+  AV1PixelRect tile_rect;
+  int mi_top = 0, mi_left = 0;
+  int tile_row = 0, tile_col = 0;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
+    tile_col = get_tile_col_from_mi_col(&cm->tiles, mi_col);
+    TileInfo tile_info;
+    av1_tile_init(&tile_info, cm, tile_row, tile_col);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+    mi_top = cm->tiles.row_start_sb[tile_row] << cm->mib_size_log2;
+    mi_left = cm->tiles.col_start_sb[tile_col] << cm->mib_size_log2;
+  } else {
+    tile_rect = av1_whole_frame_rect(cm, is_uv);
+  }
+#else
+  tile_rect = av1_whole_frame_rect(cm, is_uv);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
   const int tile_w = tile_rect.right - tile_rect.left;
   const int tile_h = tile_rect.bottom - tile_rect.top;
-
-  const int mi_top = 0;
-  const int mi_left = 0;
 
   // Compute the mi-unit corners of the superblock relative to the top-left of
   // the tile
@@ -2546,6 +2748,15 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   // unit might not exist, in which case we'll clamp accordingly.
   *rcol1 = AOMMIN((mi_rel_col1 * mi_to_num_x + rnd_x) / denom_x, horz_units);
   *rrow1 = AOMMIN((mi_rel_row1 * mi_to_num_y + rnd_y) / denom_y, vert_units);
+
+  for (int tc = 0; tc < tile_col; ++tc) {
+    *rcol0 += rsi->horz_units_per_tile[tc];
+    *rcol1 += rsi->horz_units_per_tile[tc];
+  }
+  for (int tr = 0; tr < tile_row; ++tr) {
+    *rrow0 += rsi->vert_units_per_tile[tr];
+    *rrow1 += rsi->vert_units_per_tile[tr];
+  }
 
   return *rcol0 < *rcol1 && *rrow0 < *rrow1;
 }
@@ -2654,11 +2865,6 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
   const int stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
   const int stripe_off = RESTORATION_UNIT_OFFSET >> ss_y;
 
-  // Get the tile rectangle, with height rounded up to the next multiple of 8
-  // luma pixels (only relevant for the bottom tile of the frame)
-  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
-  const int stripe0 = 0;
-
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
 #if CONFIG_F054_PIC_BOUNDARY
@@ -2666,49 +2872,75 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
 #else
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
 #endif  // CONFIG_F054_PIC_BOUNDARY
+  (void)plane_height;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int num_tile_rows =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+#else
+  const int num_tile_rows = 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
-  int tile_stripe;
-  for (tile_stripe = 0;; ++tile_stripe) {
-    const int rel_y0 = AOMMAX(0, tile_stripe * stripe_height - stripe_off);
-    const int y0 = tile_rect.top + rel_y0;
-    if (y0 >= tile_rect.bottom) break;
-
-    const int rel_y1 = (tile_stripe + 1) * stripe_height - stripe_off;
-    const int y1 = AOMMIN(tile_rect.top + rel_y1, tile_rect.bottom);
-
-    const int frame_stripe = stripe0 + tile_stripe;
-
-    // In this case, we should only use CDEF pixels at the top
-    // and bottom of the frame as a whole; internal tile boundaries
-    // can use deblocked pixels from adjacent tiles for context.
-    const int use_deblock_above = (frame_stripe > 0);
-    const int use_deblock_below = (y1 < plane_height);
-
-    if (!after_cdef) {
-      // Save deblocked context where needed.
-      if (use_deblock_above) {
-        save_deblock_boundary_lines(frame, cm, plane, y0 - RESTORATION_CTX_VERT,
-                                    frame_stripe, 1, boundaries);
-      }
-      if (use_deblock_below) {
-        save_deblock_boundary_lines(frame, cm, plane, y1, frame_stripe, 0,
-                                    boundaries);
-      }
+  int tile_stripe0 = 0;
+  // int frame_stripe = 0;
+  for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
+    AV1PixelRect tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (cm->seq_params.disable_loopfilters_across_tiles) {
+      TileInfo tile_info;
+      av1_tile_init(&tile_info, cm, tile_row, 0);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
     } else {
-      // Save CDEF context where needed. Note that we need to save the CDEF
-      // context for a particular boundary iff we *didn't* save deblocked
-      // context for that boundary.
-      //
-      // In addition, we need to save copies of the outermost line within
-      // the tile, rather than using data from outside the tile.
-      if (!use_deblock_above) {
-        save_cdef_boundary_lines(frame, cm, plane, y0, frame_stripe, 1,
-                                 boundaries);
+      tile_rect = av1_whole_frame_rect(cm, is_uv);
+    }
+#else
+    tile_rect = av1_whole_frame_rect(cm, is_uv);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    for (int rel_tile_stripe = 0;; ++rel_tile_stripe) {
+      const int rel_y0 =
+          AOMMAX(0, rel_tile_stripe * stripe_height - stripe_off);
+      const int y0 = tile_rect.top + rel_y0;
+      if (y0 >= tile_rect.bottom) {
+        tile_stripe0 += rel_tile_stripe;
+        break;
       }
-      if (!use_deblock_below) {
-        save_cdef_boundary_lines(frame, cm, plane, y1 - 1, frame_stripe, 0,
-                                 boundaries);
+      const int frame_stripe = tile_stripe0 + rel_tile_stripe;
+      const int rel_y1 = (rel_tile_stripe + 1) * stripe_height - stripe_off;
+      const int y1 = AOMMIN(tile_rect.top + rel_y1, tile_rect.bottom);
+
+      // In this case, we should only use CDEF pixels at the top
+      // and bottom of the frame as a whole; internal tile boundaries
+      // can use deblocked pixels from adjacent tiles for context.
+      const int use_deblock_above = (rel_tile_stripe > 0);
+      const int use_deblock_below = (y1 < tile_rect.bottom);
+
+      if (!after_cdef) {
+        // Save deblocked context where needed.
+        if (use_deblock_above) {
+          save_deblock_boundary_lines(frame, cm, plane,
+                                      y0 - RESTORATION_CTX_VERT, frame_stripe,
+                                      1, boundaries);
+        }
+        if (use_deblock_below) {
+          save_deblock_boundary_lines(frame, cm, plane, y1, frame_stripe, 0,
+                                      boundaries);
+        }
+      } else {
+        // Save CDEF context where needed. Note that we need to save the CDEF
+        // context for a particular boundary iff we *didn't* save deblocked
+        // context for that boundary.
+        //
+        // In addition, we need to save copies of the outermost line within
+        // the tile, rather than using data from outside the tile.
+        if (!use_deblock_above) {
+          save_cdef_boundary_lines(frame, cm, plane, y0, frame_stripe, 1,
+                                   boundaries);
+        }
+        if (!use_deblock_below) {
+          save_cdef_boundary_lines(frame, cm, plane, y1 - 1, frame_stripe, 0,
+                                   boundaries);
+        }
       }
+      // frame_stripe++;
     }
   }
 }
