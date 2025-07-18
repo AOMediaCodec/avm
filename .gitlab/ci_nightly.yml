@@ -53,6 +53,7 @@ Linux All Unit Test:
     - ./test_libaom
     - >-
       gcovr
+      --gcov-ignore-parse-errors
       --gcov-executable gcov-14
       --exclude ../third_party --exclude _deps --exclude abseil-cpp --exclude
       benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude
