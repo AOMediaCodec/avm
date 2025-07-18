@@ -387,9 +387,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->interp_sf.use_interp_filter = 1;
     sf->intra_sf.prune_palette_search_level = 1;
-#if CONFIG_DIP
     sf->intra_sf.skip_intra_dip_search = true;
-#endif  // CONFIG_DIP
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
@@ -786,9 +784,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->src_var_thresh_intra_skip = 1;
   intra_sf->prune_palette_search_level = 0;
   intra_sf->reuse_uv_mode_rd_info = false;
-#if CONFIG_DIP
   intra_sf->skip_intra_dip_search = false;
-#endif  // CONFIG_DIP
 
   for (int i = 0; i < TX_SIZES; i++) {
     intra_sf->intra_y_mode_mask[i] = INTRA_ALL;
@@ -1090,11 +1086,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     if (sf->inter_sf.disable_wedge_interintra_search) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
     }
-#if CONFIG_DIP
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
-#endif  // CONFIG_DIP
 #if CONFIG_TCQ
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {

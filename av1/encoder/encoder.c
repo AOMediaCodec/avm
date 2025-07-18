@@ -69,7 +69,6 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/hash_motion.h"
-#include "av1/encoder/intra_dip_mode_prune_tflite.h"
 #include "av1/encoder/intra_mode_search.h"
 #include "av1/encoder/mv_prec.h"
 #include "av1/encoder/pass2_strategy.h"
@@ -92,6 +91,10 @@
 #if CONFIG_ML_PART_SPLIT
 #include "av1/encoder/part_split_prune_tflite.h"
 #endif  // CONFIG_ML_PART_SPLIT
+
+#if CONFIG_DIP_EXT_PRUNING
+#include "av1/encoder/intra_dip_mode_prune_tflite.h"
+#endif  // CONFIG_DIP_EXT_PRUNING
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
@@ -1015,7 +1018,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 #if CONFIG_ML_PART_SPLIT
       av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
       intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
       av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
@@ -1481,7 +1486,9 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 #if CONFIG_ML_PART_SPLIT
     av2_part_split_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
     intra_dip_mode_prune_close(&(thread_data->td->dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
     aom_free(thread_data->td);
   }
 }
@@ -2248,7 +2255,9 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
 #if CONFIG_ML_PART_SPLIT
       av2_part_split_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
+#if CONFIG_DIP_EXT_PRUNING
       intra_dip_mode_prune_close(&(cpi->td.dip_pruning_model));
+#endif  // CONFIG_DIP_EXT_PRUNING
       av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);

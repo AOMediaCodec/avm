@@ -164,8 +164,6 @@ set_aom_config_var(CONFIG_CDF_SCALE 1
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
 set_aom_config_var(CONFIG_INTRA_SDP_SIMPLIFICATION 1 NUMBER
                    "Simplify intra sdp logic")
-set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
-set_aom_config_var(CONFIG_DIP_EXT 1 "AV2 DIP Improvements.")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")

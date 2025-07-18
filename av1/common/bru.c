@@ -252,9 +252,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   mbmi->seg_id_predicted = 0;
   mbmi->use_amvd = 0;
   // todo find del idx

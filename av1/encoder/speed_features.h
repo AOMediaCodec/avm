@@ -819,9 +819,7 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // False: No reuse
   // True: Reuse UV mode RD info.
   bool reuse_uv_mode_rd_info;
-#if CONFIG_DIP
   bool skip_intra_dip_search;
-#endif  // CONFIG_DIP
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

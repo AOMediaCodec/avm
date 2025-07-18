@@ -102,6 +102,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/hiprec_convolve_test_util.h"
     "${AOM_ROOT}/test/intrabc_test.cc"
     "${AOM_ROOT}/test/intrapred_test.cc"
+    "${AOM_ROOT}/test/intra_matrix_test.cc"
     "${AOM_ROOT}/test/opt_flow_test.cc"
     "${AOM_ROOT}/test/scan_test.cc"
     "${AOM_ROOT}/test/selfguided_filter_test.cc"
@@ -110,11 +111,6 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(CONFIG_GDF)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES "${AOM_ROOT}/test/gdf_test.cc")
-  endif()
-
-  if(CONFIG_DIP)
-    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
-         "${AOM_ROOT}/test/intra_matrix_test.cc")
   endif()
 
   if(CONFIG_ACCOUNTING)

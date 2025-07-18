@@ -745,7 +745,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                    FILTER_INTRA_MODES);
       }
     }
-#if CONFIG_DIP
     if (av1_intra_dip_allowed(cm, mbmi)) {
       const int use_intra_dip = mbmi->use_intra_dip;
       int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
@@ -763,7 +762,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(mode_cdf, mbmi->intra_dip_mode & 15, n_modes);
       }
     }
-#endif  // CONFIG_DIP
   }
 
   if (!xd->is_chroma_ref) return;

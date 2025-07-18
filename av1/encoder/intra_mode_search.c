@@ -150,7 +150,6 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 }
 
-#if CONFIG_DIP
 #if CONFIG_DIP_EXT_PRUNING
 // Check if the mode is found in the modelrd list
 static uint8_t skip_this_dip_mode(
@@ -416,7 +415,6 @@ static int rd_pick_intra_dip_sby(const AV1_COMP *const cpi, ThreadData *td,
     return 0;
   }
 }
-#endif  // CONFIG_DIP
 
 void av1_count_colors_highbd(const uint16_t *src, int stride, int rows,
                              int cols, int bit_depth, int *val_count,
@@ -1272,9 +1270,7 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   TX_SIZE best_tx_partition = mbmi->tx_partition_type[0];
   av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
   mbmi->filter_intra_mode_info.use_filter_intra = 1;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   for (FILTER_INTRA_MODE fi_mode = FILTER_DC_PRED; fi_mode < FILTER_INTRA_MODES;
        ++fi_mode) {
     mbmi->filter_intra_mode_info.filter_intra_mode = fi_mode;
@@ -1328,7 +1324,6 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 }
 
-#if CONFIG_DIP
 /*!\brief Search for the best data-driven intra mode when coding inter frame.
  *
  * \ingroup intra_mode_search
@@ -1429,7 +1424,6 @@ static INLINE void handle_intra_dip_mode(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->use_intra_dip = 0;
   }
 }
-#endif  // CONFIG_DIP
 
 int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const AV1_COMP *cpi, MACROBLOCK *x,
@@ -1597,7 +1591,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     }
   }
 
-#if CONFIG_DIP
   if (mode == DC_PRED && xd->tree_type != CHROMA_PART &&
       av1_intra_dip_allowed_bsize(cm, bsize)) {
     int try_intra_dip = 1;
@@ -1615,7 +1608,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                             best_rd_so_far);
     }
   }
-#endif  // CONFIG_DIP
 
   if (rd_stats_y->rate == INT_MAX) return INT64_MAX;
 
@@ -1852,9 +1844,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
 #else
         mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
 #endif
-#if CONFIG_DIP
           mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
           mbmi->filter_intra_mode_info.use_filter_intra = 0;
           mbmi->palette_mode_info.palette_size[0] = 0;
           int64_t this_rd;
@@ -2033,9 +2023,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
                               directional_mode_skip_mask);
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_DIP
   mbmi->use_intra_dip = 0;
-#endif  // CONFIG_DIP
   pmi->palette_size[0] = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -2276,7 +2264,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
     }
   }
 
-#if CONFIG_DIP
   // Try Intra ML prediction (within intra frame).
   const int try_intra_dip = !cpi->sf.intra_sf.skip_intra_dip_search &&
                             av1_intra_dip_allowed_bsize(&cpi->common, bsize);
@@ -2293,7 +2280,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
       best_mbmi = *mbmi;
     }
   }
-#endif  // CONFIG_DIP
 
   // No mode is identified with less rd value than best_rd passed to this
   // function. In such cases winner mode processing is not necessary and

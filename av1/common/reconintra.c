@@ -1291,9 +1291,7 @@ static void build_intra_predictors_high(
   int p_angle = 0;
   const int is_dr_mode = av1_is_directional_mode(mode);
   const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
-#if CONFIG_DIP
   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
-#endif  // CONFIG_DIP
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
@@ -1357,9 +1355,7 @@ static void build_intra_predictors_high(
 #endif
   }
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
-#if CONFIG_DIP
   if (use_intra_dip) need_left = need_above = need_above_left = 1;
-#endif  // CONFIG_DIP
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
   assert(n_left_px >= 0);
@@ -1384,20 +1380,16 @@ static void build_intra_predictors_high(
   if (need_left) {
     int need_bottom = extend_modes[mode] & NEED_BOTTOMLEFT;
     if (use_filter_intra) need_bottom = 0;
-#if CONFIG_DIP
     if (use_intra_dip) need_bottom = 1;
-#endif  // CONFIG_DIP
     if (is_dr_mode)
       need_bottom =
           apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
     int num_left_pixels_needed =
         txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1);
-#if CONFIG_DIP
     if (use_intra_dip) {
       // DIP mode requires left edge + 1/4 tx height for overhang feature.
       num_left_pixels_needed = txhpx + (txhpx >> 2);
     }
-#endif  // CONFIG_DIP
     i = 0;
     if (n_left_px > 0) {
       for (; i < n_left_px; i++) {
@@ -1427,19 +1419,15 @@ static void build_intra_predictors_high(
   if (need_above) {
     int need_right = extend_modes[mode] & NEED_ABOVERIGHT;
     if (use_filter_intra) need_right = 0;
-#if CONFIG_DIP
     if (use_intra_dip) need_right = 1;
-#endif  // CONFIG_DIP
     if (is_dr_mode)
       need_right = apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
     int num_top_pixels_needed =
         txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
-#if CONFIG_DIP
     if (use_intra_dip) {
       // DIP mode requires above line + 1/4 tx width for overhang feature.
       num_top_pixels_needed = txwpx + (txwpx >> 2);
     }
-#endif  // CONFIG_DIP
     if (n_top_px > 0) {
       memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
       memcpy(above_row_2nd, above_ref_2nd, n_top_px * sizeof(above_ref_2nd[0]));
@@ -1495,7 +1483,6 @@ static void build_intra_predictors_high(
     return;
   }
 
-#if CONFIG_DIP
   if (use_intra_dip) {
     av1_highbd_intra_dip_predictor(mbmi->intra_dip_mode, dst, dst_stride,
                                    above_row_1st, left_col_1st, tx_size, xd->bd
@@ -1506,7 +1493,6 @@ static void build_intra_predictors_high(
     );
     return;
   }
-#endif  // CONFIG_DIP
 
   if (is_dr_mode) {
     int upsample_above = 0;

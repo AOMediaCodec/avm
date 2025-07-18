@@ -270,7 +270,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                                  .filter_intra_mode];
     }
   }
-#if CONFIG_DIP
   const int use_intra_dip = mbmi->use_intra_dip;
   if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
     int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
@@ -285,7 +284,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       }
     }
   }
-#endif  // CONFIG_DIP
   if (av1_allow_intrabc(&cpi->common, xd
 #if CONFIG_ENABLE_IBC_NAT
                         ,
@@ -418,7 +416,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   }
-#if CONFIG_DIP
   const int use_intra_dip = mbmi->use_intra_dip;
   if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
     int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
@@ -434,7 +431,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
     }
   }
-#endif  // CONFIG_DIP
   this_rd =
       RDCOST(x->rdmult, this_rd_stats.rate + mode_cost, this_rd_stats.dist);
   return this_rd;

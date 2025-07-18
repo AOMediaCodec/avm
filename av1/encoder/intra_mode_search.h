@@ -148,6 +148,7 @@ int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
                      MACROBLOCKD *xd, CFL_ALLOWED_TYPE cfl_allowed,
                      int mode_index);
 
+#if CONFIG_DIP_EXT_PRUNING
 /*! \brief Holds the rate and distortion information of DIP modes.
  */
 typedef struct {
@@ -158,6 +159,7 @@ typedef struct {
 } DIPModeRDInfo;
 /*! \brief Number of DIP model RD candidates to consider for full RD search. */
 #define TOP_DIP_INTRA_MODEL_COUNT 5
+#endif  // CONFIG_DIP_EXT_PRUNING
 
 /*!\brief Evaluate a given intra-mode for inter frames.
  *
