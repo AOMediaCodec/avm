@@ -2936,11 +2936,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   uint16_t weight = TMVP_WEIGHT;
 
   if (rf[1] == NONE_FRAME) {
-#if CONFIG_TMVP_IMPROVE
     if (abs(cur_offset_0) <= 2) {
       weight = HIGH_PRIORITY_TMVP_WEIGHT;
     }
-#endif  // CONFIG_TMVP_IMPROVE
 
 #if !CONFIG_C076_INTER_MOD_CTX
     if (blk_row == 0 && blk_col == 0) {
@@ -4011,15 +4009,6 @@ static AOM_INLINE void setup_ref_mv_list(
 #if !CONFIG_C076_INTER_MOD_CTX
   const uint8_t nearest_match = (row_match_count > 0) + (col_match_count > 0);
 #endif  //! CONFIG_C076_INTER_MOD_CTX
-#if !CONFIG_MVP_IMPROVEMENT || !CONFIG_TMVP_IMPROVE
-  const uint8_t nearest_refmv_count = *refmv_count;
-
-#if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-  // TODO(yunqing): for comp_search, do it for all 3 cases.
-  for (int idx = 0; idx < nearest_refmv_count; ++idx)
-    ref_mv_weight[idx] += REF_CAT_LEVEL;
-#endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-#endif  // !CONFIG_MVP_IMPROVEMENT || !CONFIG_TMVP_IMPROVE
 
 #if CONFIG_DRL_REORDER_CONTROL
   if (!is_tmvp_high_priority) {
@@ -4069,7 +4058,6 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
 
-#if CONFIG_TMVP_IMPROVE
   const uint8_t nearest_refmv_count = *refmv_count;
 
 #if !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
@@ -4078,7 +4066,6 @@ static AOM_INLINE void setup_ref_mv_list(
     ref_mv_weight[idx] += REF_CAT_LEVEL;
   }
 #endif  // !CONFIG_CWG_E099_DRL_WRL_SIMPLIFY
-#endif  // CONFIG_TMVP_IMPROVE
 
 #if !CONFIG_MVP_IMPROVEMENT
   // Scan the second outer area.

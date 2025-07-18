@@ -80,11 +80,6 @@ macro(fix_experiment_configs)
                            !CONFIG_AFFINE_REFINEMENT)
   endif()
 
-  # CONFIG_TMVP_IMPROVE depends on CONFIG_MVP_IMPROVEMENT
-  if(NOT CONFIG_MVP_IMPROVEMENT AND CONFIG_TMVP_IMPROVE)
-    change_config_and_warn(CONFIG_TMVP_IMPROVE 0 !CONFIG_MVP_IMPROVEMENT)
-  endif()
-
   if(CONFIG_ML_PART_SPLIT)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_ML_PART_SPLIT)
   endif()
