@@ -187,7 +187,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, TMVP_SHIFT_BITS);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-#if CONFIG_IMPROVE_REFINED_MV
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int use_4x4 = !tip_ref_frame;
   const bool is_opfl_mode =
@@ -197,14 +196,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_4XN
                                     mi, AOM_PLANE_Y, tip_ref_frame);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, use_4x4);
-#else
-  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                       xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                       mi);
-  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, 1);
-#endif  // CONFIG_IMPROVE_REFINED_MV
 #if CONFIG_AFFINE_REFINEMENT_SB
   int sb_idx = 0;
   int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
@@ -219,7 +210,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
 
   int apply_sub_block_refinemv =
-#if CONFIG_IMPROVE_REFINED_MV
       tip_ref_frame ||
 #if CONFIG_AFFINE_REFINEMENT
       (mi->refinemv_flag && (is_damr_allowed_with_refinemv(mi->mode) ||
@@ -227,14 +217,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #else
       mi->refinemv_flag;
 #endif  // CONFIG_AFFINE_REFINEMENT
-#else
-      mi->refinemv_flag &&
-#if CONFIG_AFFINE_REFINEMENT
-      (is_damr_allowed_with_refinemv(mi->mode) ||
-       mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
-#endif  // CONFIG_AFFINE_REFINEMENT
-      !is_tip_ref_frame(mi->ref_frame[0]);
-#endif  // CONFIG_IMPROVE_REFINED_MV
 
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
@@ -248,14 +230,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         mv->mv[idx].as_int = 0;
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
-        if (!is_inter_ref_frame(ref_frame)
-#if CONFIG_IMPROVE_REFINED_MV
-            && !tip_ref_frame
-#else
-            || is_tip_ref_frame(ref_frame)
-#endif  // CONFIG_IMPROVE_REFINED_MV
-        )
-          continue;
+        if (!is_inter_ref_frame(ref_frame) && !tip_ref_frame) continue;
 
         int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
@@ -362,11 +337,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           continue;
 #endif
         mv->ref_frame[idx] =
-#if CONFIG_IMPROVE_REFINED_MV
             tip_ref_frame ? cm->tip_ref.ref_frame[idx] : ref_frame;
-#else
-            ref_frame;
-#endif  // CONFIG_IMPROVE_REFINED_MV
         mv->mv[idx].as_int = refined_mv.as_int;
         process_mv_for_tmvp(&mv->mv[idx].as_mv);
       }

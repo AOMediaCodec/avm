@@ -152,15 +152,8 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
 void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
                                        const MV *src_mv,
                                        InterPredParams *inter_pred_params) {
-#if CONFIG_IMPROVE_REFINED_MV
   const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(src_mv);
-#endif  // CONFIG_IMPROVE_REFINED_MV
-  av1_build_one_inter_predictor(dst, dst_stride,
-#if CONFIG_IMPROVE_REFINED_MV
-                                &mv_1_16th_pel,
-#else
-                                src_mv,
-#endif  // CONFIG_IMPROVE_REFINED_MV
+  av1_build_one_inter_predictor(dst, dst_stride, &mv_1_16th_pel,
                                 inter_pred_params, NULL /* xd */, 0 /* mi_x */,
                                 0 /* mi_y */, 0 /* ref */, NULL /* mc_buf */,
                                 av1_enc_calc_subpel_params);

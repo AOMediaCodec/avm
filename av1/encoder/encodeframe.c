@@ -1441,11 +1441,7 @@ static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
       for (int8_t wtd_index = 0; wtd_index < MAX_TIP_WTD_NUM; wtd_index++) {
         cm->tip_global_wtd_index = wtd_index;
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params
-#if CONFIG_IMPROVE_REFINED_MV
-                            ,
-                            0 /* copy_refined_mvs */
-#endif                        // CONFIG_IMPROVE_REFINED_MV
+                            av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
 
         int64_t this_sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
@@ -1468,11 +1464,7 @@ static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
     }
 
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av1_enc_calc_subpel_params
-#if CONFIG_IMPROVE_REFINED_MV
-                        ,
-                        0 /* copy_refined_mvs */
-#endif                    // CONFIG_IMPROVE_REFINED_MV
+                        av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
     );
   }
 }
@@ -1514,11 +1506,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
         decide_tip_setting_and_setup_tip_frame(cpi);
 #else
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params
-#if CONFIG_IMPROVE_REFINED_MV
-                            ,
-                            0 /* copy_refined_mvs */
-#endif  // CONFIG_IMPROVE_REFINED_MV
+                            av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
 #endif  // CONFIG_TIP_ENHANCEMENT
       }

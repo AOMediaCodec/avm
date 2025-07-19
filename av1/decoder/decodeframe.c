@@ -867,11 +867,8 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     CONV_BUF_TYPE *tmp_conv_dst) {
   av1_setup_tip_motion_field(cm);
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
-                      dec_calc_subpel_params_and_extend
-#if CONFIG_IMPROVE_REFINED_MV
-                      ,
+                      dec_calc_subpel_params_and_extend,
                       1 /* copy_refined_mvs */
-#endif                  // CONFIG_IMPROVE_REFINED_MV
   );
   if (cm->seq_params.enable_tip_explicit_qp == 0) {
     const int avg_u_ac_delta_q =
@@ -1175,19 +1172,7 @@ static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
         AOMMIN(bw, cm->mi_params.mi_cols - xd->mi_col);
     const int y_inside_boundary =
         AOMMIN(bh, cm->mi_params.mi_rows - xd->mi_row);
-#if CONFIG_IMPROVE_REFINED_MV
     if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
-#else
-    if (opfl_allowed_for_cur_block(cm,
-#if CONFIG_COMPOUND_4XN
-                                   xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                   mi)
-#if CONFIG_REFINEMV
-        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
-#endif  // CONFIG_REFINEMV
-    ) {
-#endif  // CONFIG_IMPROVE_REFINED_MV
       av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
                                  x_inside_boundary, y_inside_boundary);
     }
@@ -8906,9 +8891,7 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 #endif  // CONFIG_TMVP_MEM_OPT
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-#if CONFIG_IMPROVE_REFINED_MV
     xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
-#endif  // CONFIG_IMPROVE_REFINED_MV
     av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
   } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
     av1_setup_tip_motion_field(cm);
@@ -8918,9 +8901,6 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
-#if !CONFIG_IMPROVE_REFINED_MV
-    av1_copy_tip_frame_tmvp_mvs(cm);
-#endif  // !CONFIG_IMPROVE_REFINED_MV
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {

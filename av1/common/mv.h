@@ -714,7 +714,6 @@ static INLINE void clamp_fullmv(FULLPEL_MV *mv, const FullMvLimits *mv_limits) {
   mv->row = clamp(mv->row, mv_limits->row_min, mv_limits->row_max);
 }
 
-#if CONFIG_IMPROVE_REFINED_MV
 // Convert the 1/8th pel motion vector to 1/16th pel.
 static INLINE MV convert_mv_to_1_16th_pel(const MV *in_mv) {
   MV mv;
@@ -722,7 +721,6 @@ static INLINE MV convert_mv_to_1_16th_pel(const MV *in_mv) {
   mv.row = clamp((in_mv->row * 2), INT16_MIN, INT16_MAX);
   return mv;
 }
-#endif  // CONFIG_IMPROVE_REFINED_MV
 
 #if CONFIG_MV_RANGE_EXTENSION
 static INLINE int get_map_shell_class(const int shell_class) {

@@ -35,12 +35,8 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm);
 // Generate the whole TIP frame with the temporal motion field
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CONV_BUF_TYPE *tmp_conv_dst,
-                         CalcSubpelParamsFunc calc_subpel_params_func
-#if CONFIG_IMPROVE_REFINED_MV
-                         ,
-                         int copy_refined_mvs
-#endif  // CONFIG_IMPROVE_REFINED_MV
-);
+                         CalcSubpelParamsFunc calc_subpel_params_func,
+                         int copy_refined_mvs);
 
 // Derive TMVP from closest forward and closet backward reference frames
 void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm);

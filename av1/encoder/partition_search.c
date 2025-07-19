@@ -2088,19 +2088,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
     const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
-#if CONFIG_IMPROVE_REFINED_MV
     if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
-#else
-    if (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                   xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                   mi)
-#if CONFIG_REFINEMV
-        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
-#endif  // CONFIG_REFINEMV
-    ) {
-#endif  // CONFIG_IMPROVE_REFINED_MV
 #if !CONFIG_TMVP_MVS_WRITING_FLOW_OPT
       const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
       const int bh = mi_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];

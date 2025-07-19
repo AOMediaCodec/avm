@@ -677,7 +677,6 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   }
 }
 
-#if CONFIG_IMPROVE_REFINED_MV
 // Check if refined MV needs to be stored in the TMVP list.
 static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
@@ -695,7 +694,6 @@ static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
 #endif  // CONFIG_REFINEMV
       || is_tip_ref_frame(mbmi->ref_frame[0]));
 }
-#endif  // CONFIG_IMPROVE_REFINED_MV
 
 static INLINE int allow_amvd_mode(PREDICTION_MODE mode) {
   return (mode == NEAR_NEWMV || mode == NEW_NEARMV ||
