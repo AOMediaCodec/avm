@@ -316,7 +316,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   x_inside_boundary = ROUND_POWER_OF_TWO(x_inside_boundary, TMVP_SHIFT_BITS);
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, TMVP_SHIFT_BITS);
 
-#if CONFIG_WEDGE_TMVP
   const uint8_t *decisions = NULL;
   const BLOCK_SIZE bsize = mi->sb_type[xd->tree_type == CHROMA_PART];
   const int bw = block_size_wide[bsize];
@@ -329,9 +328,7 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
     decisions = av1_get_contiguous_soft_mask_decision(
         mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign, bsize);
   }
-#else
-  (void)xd;
-#endif  // CONFIG_WEDGE_TMVP
+
   WarpedMotionParams warp_params[2];
   int is_warp[2] = { 0 };
   for (int idx = 0; idx < 2; idx++) {
@@ -357,7 +354,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                 get_sub_block_warp_mv(&warp_params[idx], pixel_x, pixel_y,
                                       TMVP_MI_SIZE, TMVP_MI_SIZE);
           } else {
-#if CONFIG_WEDGE_TMVP
             if (is_wedge) {
               const int this_decision =
                   decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
@@ -365,7 +361,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
               if (this_decision == 0 && idx == 1) continue;
               if (this_decision == 1 && idx == 0) continue;
             }
-#endif  // CONFIG_WEDGE_TMVP
             sub_block_mv.as_mv = mi->mv[idx].as_mv;
           }
           if ((abs(sub_block_mv.as_mv.row) > REFMVS_LIMIT) ||
@@ -650,7 +645,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
   int w, h;
 
-#if CONFIG_WEDGE_TMVP
   const uint8_t *decisions = NULL;
   const BLOCK_SIZE bsize = mi->sb_type[xd->tree_type == CHROMA_PART];
   const int bw = block_size_wide[bsize];
@@ -663,7 +657,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
     decisions = av1_get_contiguous_soft_mask_decision(
         mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign, bsize);
   }
-#endif  // CONFIG_WEDGE_TMVP
   WarpedMotionParams warp_params[2];
   int is_warp[2] = { 0 };
   for (int idx = 0; idx < 2; idx++) {
@@ -708,7 +701,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                   get_sub_block_warp_mv(&warp_params[idx], pixel_x, pixel_y,
                                         TMVP_MI_SIZE, TMVP_MI_SIZE);
             } else {
-#if CONFIG_WEDGE_TMVP
               if (is_wedge) {
                 const int this_decision =
                     decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
@@ -716,7 +708,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                 if (this_decision == 0 && idx == 1) continue;
                 if (this_decision == 1 && idx == 0) continue;
               }
-#endif  // CONFIG_WEDGE_TMVP
               sub_block_mv.as_mv = mi->mv[idx].as_mv;
             }
             if ((abs(sub_block_mv.as_mv.row) > REFMVS_LIMIT) ||
