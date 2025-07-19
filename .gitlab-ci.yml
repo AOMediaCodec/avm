@@ -591,9 +591,6 @@ Example Test (x86_64):
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
           export ASAN_OPTIONS="${SANITIZER_OPTIONS}"
           ;;
-        memory)
-          export MSAN_OPTIONS="${SANITIZER_OPTIONS}"
-          ;;
         thread)
           # The thread sanitizer uses a subset.
           TSAN_OPTIONS="handle_sigfpe=1"
@@ -689,6 +686,86 @@ Linux Sanitizer (thread) Test:
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [thread]'
+
+# Memory sanitizer (MSan) needs special setup where some standard libraries
+# have to be built with memory sanitizer. Hence, the separate build and test
+# jobs for MSan.
+Linux Sanitizers (x86_64-clang) (Memory):
+  stage: build
+  interruptible: true
+  script:
+    - LLVM_VERSION_MAJOR=18
+    - LLVM_VERSION="${LLVM_VERSION_MAJOR}.1.3"
+    - export PATH="/usr/lib/llvm-${LLVM_VERSION_MAJOR}/bin:${PATH}"
+    # Build cxx and cxxabi with msan.
+    - git clone --depth=1 --branch llvmorg-${LLVM_VERSION}  https://github.com/llvm/llvm-project
+    - LLVM_MSAN_BUILD_DIR=${PWD}/llvm-project/msan_out
+    - cmake -G Ninja -S llvm-project/runtimes -B "${LLVM_MSAN_BUILD_DIR}"
+        -DCMAKE_BUILD_TYPE=Release
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"
+        -DCMAKE_C_COMPILER=clang
+        -DCMAKE_CXX_COMPILER=clang++
+        -DLLVM_USE_SANITIZER=MemoryWithOrigins
+        -DLIBCXXABI_USE_LLVM_UNWINDER=OFF
+    - cmake --build "${LLVM_MSAN_BUILD_DIR}" --config Release -- cxx cxxabi unwind
+    # Build AVM with msan.
+    - AVM_MSAN_BUILD_DIR="aom_build/memory"
+    - |
+      MSAN_COMPILER_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2"
+      MSAN_COMPILER_FLAGS="${MSAN_COMPILER_FLAGS} -fno-omit-frame-pointer -g -O2"
+      MSAN_COMPILER_FLAGS="${MSAN_COMPILER_FLAGS} -I${LLVM_MSAN_BUILD_DIR}/include"
+      MSAN_COMPILER_FLAGS="${MSAN_COMPILER_FLAGS} -I${LLVM_MSAN_BUILD_DIR}/include/c++/v1"
+      MSAN_COMPILER_FLAGS="${MSAN_COMPILER_FLAGS} -stdlib=libc++"
+    - MSAN_LD_FLAGS="${MSAN_COMPILER_FLAGS} -L${LLVM_MSAN_BUILD_DIR}/lib -lc++abi"
+    - export CFLAGS="${MSAN_COMPILER_FLAGS}"
+    - export CXXFLAGS="${MSAN_COMPILER_FLAGS}"
+    - export LDFLAGS="${MSAN_LD_FLAGS}"
+    - echo "CFLAGS = ${CFLAGS}"
+    - echo "CXXFLAGS = ${CXXFLAGS}"
+    - echo "LDFLAGS = ${LDFLAGS}"
+    - cmake -B "${AVM_MSAN_BUILD_DIR}" -G Ninja
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DAOM_TARGET_CPU=generic
+        -DCMAKE_C_COMPILER=clang
+        -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DENABLE_CCACHE=1
+        -DENABLE_EXAMPLES=0
+    - cmake --build "${AVM_MSAN_BUILD_DIR}" --target test_libaom
+  needs: []
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - aom_build/*/test_libaom
+      - llvm-project/msan_out/lib/
+
+Linux Sanitizer (memory) Test:
+  stage: test
+  interruptible: true
+  parallel: 20
+  variables:
+    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
+    GTEST_OUTPUT: "xml:report.xml"
+    SANITIZER_OPTIONS: "\
+     :handle_segv=1\
+     :handle_abort=1\
+     :handle_sigfpe=1\
+     :fast_unwind_on_fatal=1\
+     :allocator_may_return_null=1"
+  before_script:
+    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
+    - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
+  script:
+    - export MSAN_OPTIONS="${SANITIZER_OPTIONS}"
+    - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${PWD}/llvm-project/msan_out/lib"
+    - filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*:*UninstantiatedParameterizedTestSuite*"
+    - ./aom_build/memory/test_libaom --gtest_filter="${filter}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - when: on_success
+
 
 # Encoder run and compare with target branch (MR) or previous runs
 .enc-run-common:
