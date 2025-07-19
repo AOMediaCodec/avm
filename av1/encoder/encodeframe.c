@@ -1520,14 +1520,12 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
     cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
   }
 
-#if CONFIG_TMVP_MEM_OPT
   if (cm->features.allow_ref_frame_mvs &&
       cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
     // TPL mvs at non-sampled locations will be filled after it is hole-filled
     // and smoothed.
     av1_fill_tpl_mvs_sample_gap(cm);
   }
-#endif  // CONFIG_TMVP_MEM_OPT
 
 #if CONFIG_TIP_LD
   const int cur_order_hint = cm->current_frame.display_order_hint;

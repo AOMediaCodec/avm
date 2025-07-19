@@ -507,9 +507,6 @@ set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_WEDGE_TMVP 1
                    "Improvements to tmvp MV storing for wedge mode.")
-set_aom_config_var(
-  CONFIG_TMVP_MEM_OPT 1
-  "Enables directional storage and adaptive sampling for TMVP MVs.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
 set_aom_config_var(CONFIG_ADAPTATION_RATE_IMPROVE 1

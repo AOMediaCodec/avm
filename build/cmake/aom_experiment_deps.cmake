@@ -88,11 +88,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_DIP_EXT_PRUNING)
   endif()
 
-  # CONFIG_MV_TRAJECTORY depends on CONFIG_TMVP_MEM_OPT
-  if(NOT CONFIG_TMVP_MEM_OPT AND CONFIG_MV_TRAJECTORY)
-    change_config_and_warn(CONFIG_MV_TRAJECTORY 0 !CONFIG_TMVP_MEM_OPT)
-  endif()
-
   if(CONFIG_TCQ)
     change_config_and_warn(CONFIG_CONTEXT_DERIVATION 1 CONFIG_TCQ)
   endif()

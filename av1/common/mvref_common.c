@@ -50,14 +50,9 @@ enum {
   BLOCK_WIDTH_TYPES,
 } UENUM1BYTE(BLOCK_WIDTH_TYPE);
 
-#if CONFIG_TMVP_MEM_OPT
 #define TIP_MFMV_STACK_SIZE 3  // The limit for original TMVP w/ TIP.
 #define MFMV_STACK_SIZE 4      // The total limit of motion field candidates.
-#else
-#define MFMV_STACK_SIZE 3
-#endif  // CONFIG_TMVP_MEM_OPT
 
-#if CONFIG_TMVP_MEM_OPT
 // Check and make sure that the MVs are stored to the correct slots.
 static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
   if (mv->ref_frame[0] != NONE_FRAME && mv->ref_frame[1] == NONE_FRAME) {
@@ -116,7 +111,6 @@ static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
     }
   }
 }
-#endif  // CONFIG_TMVP_MEM_OPT
 
 #define ADJACENT_SMVP_WEIGHT 1
 #define OTHER_SMVP_WEIGHT 0
@@ -299,9 +293,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         mv->mv[idx].as_int = refined_mv.as_int;
         process_mv_for_tmvp(&mv->mv[idx].as_mv);
       }
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
-#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -408,9 +400,7 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           break;
         }
       }
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
-#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -547,9 +537,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
           process_mv_for_tmvp(&mv->mv[idx].as_mv);
         }
       }
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
-#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -607,9 +595,7 @@ void bru_copy_sb_mvs(const AV1_COMMON *const cm, int src_ref_idx,
           }
         }
       }
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, dst_ref);
-#endif  // CONFIG_TMVP_MEM_OPT
       dst_ref++;
       src_ref++;
     }
@@ -639,9 +625,7 @@ void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
       dst_ref->ref_frame[1] = NONE_FRAME;
       dst_ref->mv[0].as_int = 0;
       dst_ref->mv[1].as_int = 0;
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, dst_ref);
-#endif  // CONFIG_TMVP_MEM_OPT
       dst_ref++;
     }
     dst_frame_mvs += frame_mvs_stride;
@@ -745,9 +729,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
           }
         }
       }
-#if CONFIG_TMVP_MEM_OPT
       check_frame_mv_slot(cm, mv);
-#endif  // CONFIG_TMVP_MEM_OPT
       mv++;
     }
     frame_mvs += frame_mvs_stride;
@@ -3477,7 +3459,6 @@ static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
   return 0;
 }
 
-#if CONFIG_TMVP_MEM_OPT
 // Performs a topological sort on the reference frames so they are sorted by
 // their dependency.
 static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
@@ -4380,12 +4361,8 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
 #if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
-  const int mf_sb_size_log2 = get_mf_sb_size_log2(sb_size, cm->mib_size_log2
-#if CONFIG_TMVP_MEM_OPT
-                                                  ,
-                                                  cm->tmvp_sample_step
-#endif  // CONFIG_TMVP_MEM_OPT
-  );
+  const int mf_sb_size_log2 =
+      get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
   const int mf_sb_size = (1 << mf_sb_size_log2);
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
@@ -4531,12 +4508,8 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
 #if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
-  const int mf_sb_size_log2 = get_mf_sb_size_log2(sb_size, cm->mib_size_log2
-#if CONFIG_TMVP_MEM_OPT
-                                                  ,
-                                                  cm->tmvp_sample_step
-#endif  // CONFIG_TMVP_MEM_OPT
-  );
+  const int mf_sb_size_log2 =
+      get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
   const int mf_sb_size = (1 << mf_sb_size_log2);
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
@@ -4645,329 +4618,6 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
   }
 }
 #endif  // CONFIG_MV_TRAJECTORY
-#else
-// Note: motion_filed_projection finds motion vectors of current frame's
-// reference frame, and projects them to current frame. To make it clear,
-// let's call current frame's reference frame as start frame.
-// Call Start frame's reference frames as reference frames.
-// Call ref_offset as frame distances between start frame and its reference
-// frames.
-static int motion_field_projection_bwd(AV1_COMMON *cm,
-                                       MV_REFERENCE_FRAME start_frame, int dir,
-                                       int overwrite_mv) {
-  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-  int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-
-  const RefCntBuffer *const start_frame_buf =
-      get_ref_frame_buf(cm, start_frame);
-  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int start_frame_order_hint = start_frame_buf->display_order_hint;
-  const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int start_frame_order_hint = start_frame_buf->order_hint;
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
-
-  if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) {
-    return 0;
-  }
-
-  if (dir == 2) start_to_current_frame_offset = -start_to_current_frame_offset;
-
-  int temporal_scale_factor[REF_FRAMES] = { 0 };
-  int ref_abs_offset[REF_FRAMES] = { 0 };
-  int has_bwd_ref = 0;
-
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  const int is_scaled = (start_frame_buf->width != cm->width ||
-                         start_frame_buf->height != cm->height);
-  struct scale_factors sf_;
-  // Inverse scale factor
-  av1_setup_scale_factors_for_frame(&sf_, cm->width, cm->height,
-                                    start_frame_buf->width,
-                                    start_frame_buf->height);
-  const struct scale_factors *sf = &sf_;
-#else
-  assert(start_frame_buf->width == cm->width &&
-         start_frame_buf->height == cm->height);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int *const ref_order_hints =
-      &start_frame_buf->ref_display_order_hint[0];
-#else
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
-    if (ref_order_hints[rf] != -1) {
-      ref_offset[rf] =
-          get_relative_dist(&cm->seq_params.order_hint_info,
-                            start_frame_order_hint, ref_order_hints[rf]);
-      has_bwd_ref |= (ref_offset[rf] < 0);
-      ref_abs_offset[rf] = abs(ref_offset[rf]);
-      temporal_scale_factor[rf] = tip_derive_scale_factor(
-          start_to_current_frame_offset, ref_abs_offset[rf]);
-    }
-  }
-  if (has_bwd_ref == 0) return 0;
-
-  MV_REF *mv_ref_base = start_frame_buf->mvs;
-  const int mvs_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-  const int mvs_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int mvs_stride = mvs_cols;
-  const int start_mvs_rows =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
-  const int start_mvs_cols =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
-  (void)mvs_rows;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  uint32_t scaled_blk_col_hr_0 = 0;
-  uint32_t scaled_blk_col_hr_step = 0;
-  uint32_t scaled_blk_col_hr = 0;
-  uint32_t scaled_blk_row_hr_0 = 0;
-  uint32_t scaled_blk_row_hr_step = 0;
-  uint32_t scaled_blk_row_hr = 0;
-  if (is_scaled) {
-    scaled_blk_col_hr_0 =
-        (uint32_t)sf->x_scale_fp * 4;  // center of first block
-    scaled_blk_col_hr_step = (uint32_t)sf->x_scale_fp * 8;  // step
-    scaled_blk_row_hr_0 =
-        (uint32_t)sf->y_scale_fp * 4;  // center of first block
-    scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
-    scaled_blk_row_hr = scaled_blk_row_hr_0;
-  }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-
-  const int enable_compound_mv = cm->seq_params.enable_tip != 0;
-  for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
-    int scaled_blk_row = blk_row;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    if (is_scaled) {
-      scaled_blk_col_hr = scaled_blk_col_hr_0;
-      scaled_blk_row =
-          ROUND_POWER_OF_TWO(scaled_blk_row_hr, REF_SCALE_SHIFT + 3);
-      scaled_blk_row = AOMMIN(scaled_blk_row, mvs_rows - 1);
-    }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    for (int blk_col = 0; blk_col < start_mvs_cols; ++blk_col) {
-      MV_REF *mv_ref = &mv_ref_base[blk_row * start_mvs_cols + blk_col];
-      for (int idx = 0; idx < 1 + enable_compound_mv; ++idx) {
-        const MV_REFERENCE_FRAME ref_frame = mv_ref->ref_frame[idx];
-        if (is_inter_ref_frame(ref_frame)) {
-          int ref_frame_offset = ref_offset[ref_frame];
-          int pos_valid = ref_frame_offset < 0 &&
-                          ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
-          if (pos_valid) {
-            MV ref_mv = mv_ref->mv[idx].as_mv;
-            fetch_mv_from_tmvp(&ref_mv);
-            int scaled_blk_col = blk_col;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-            if (is_scaled) {
-              scaled_blk_col =
-                  ROUND_POWER_OF_TWO(scaled_blk_col_hr, REF_SCALE_SHIFT + 3);
-              scaled_blk_col = AOMMIN(scaled_blk_col, mvs_cols - 1);
-              ref_mv.row = sf->scale_value_y_gen(ref_mv.row, sf);
-              ref_mv.col = sf->scale_value_x_gen(ref_mv.col, sf);
-            }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-            int_mv this_mv;
-            int mi_r = scaled_blk_row;
-            int mi_c = scaled_blk_col;
-            if (mv_ref->mv[idx].as_int != 0) {
-              tip_get_mv_projection(&this_mv.as_mv, ref_mv,
-                                    temporal_scale_factor[ref_frame]);
-              pos_valid = get_block_position(cm, &mi_r, &mi_c, scaled_blk_row,
-                                             scaled_blk_col, this_mv.as_mv, 0);
-            }
-            if (pos_valid) {
-              ref_mv.row = -ref_mv.row;
-              ref_mv.col = -ref_mv.col;
-
-              const int mi_offset = mi_r * mvs_stride + mi_c;
-              if (overwrite_mv ||
-                  tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
-                tpl_mvs_base[mi_offset].mfmv0.as_mv.row = ref_mv.row;
-                tpl_mvs_base[mi_offset].mfmv0.as_mv.col = ref_mv.col;
-                tpl_mvs_base[mi_offset].ref_frame_offset =
-                    ref_abs_offset[ref_frame];
-              }
-            }
-          }
-        }
-      }
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-      if (is_scaled) scaled_blk_col_hr += scaled_blk_col_hr_step;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    }
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    if (is_scaled) scaled_blk_row_hr += scaled_blk_row_hr_step;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  }
-
-  return 1;
-}
-
-static int motion_field_projection(AV1_COMMON *cm,
-                                   MV_REFERENCE_FRAME start_frame, int dir,
-                                   int overwrite_mv) {
-  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-  int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-
-  const RefCntBuffer *const start_frame_buf =
-      get_ref_frame_buf(cm, start_frame);
-  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int start_frame_order_hint = start_frame_buf->display_order_hint;
-  const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int start_frame_order_hint = start_frame_buf->order_hint;
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
-
-  if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) {
-    return 0;
-  }
-
-  if (dir == 2) start_to_current_frame_offset = -start_to_current_frame_offset;
-
-  int temporal_scale_factor[REF_FRAMES] = { 0 };
-  int ref_abs_offset[REF_FRAMES] = { 0 };
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  const int is_scaled = (start_frame_buf->width != cm->width ||
-                         start_frame_buf->height != cm->height);
-  struct scale_factors sf_;
-  // Inverse scale factor
-  av1_setup_scale_factors_for_frame(&sf_, cm->width, cm->height,
-                                    start_frame_buf->width,
-                                    start_frame_buf->height);
-  const struct scale_factors *sf = &sf_;
-#else
-  assert(start_frame_buf->width == cm->width &&
-         start_frame_buf->height == cm->height);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const int *const ref_order_hints =
-      &start_frame_buf->ref_display_order_hint[0];
-#else
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
-    if (ref_order_hints[rf] != -1) {
-      ref_offset[rf] =
-          get_relative_dist(&cm->seq_params.order_hint_info,
-                            start_frame_order_hint, ref_order_hints[rf]);
-      ref_abs_offset[rf] = abs(ref_offset[rf]);
-      temporal_scale_factor[rf] = tip_derive_scale_factor(
-          start_to_current_frame_offset, ref_abs_offset[rf]);
-    }
-  }
-
-  MV_REF *mv_ref_base = start_frame_buf->mvs;
-  const int mvs_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-  const int mvs_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int mvs_stride = mvs_cols;
-  const int start_mvs_rows =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
-  const int start_mvs_cols =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
-  (void)mvs_rows;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  uint32_t scaled_blk_col_hr_0 = 0;
-  uint32_t scaled_blk_col_hr_step = 0;
-  uint32_t scaled_blk_col_hr = 0;
-  uint32_t scaled_blk_row_hr_0 = 0;
-  uint32_t scaled_blk_row_hr_step = 0;
-  uint32_t scaled_blk_row_hr = 0;
-  if (is_scaled) {
-    scaled_blk_col_hr_0 =
-        (uint32_t)sf->x_scale_fp * 4;  // center of first block
-    scaled_blk_col_hr_step = (uint32_t)sf->x_scale_fp * 8;  // step
-    scaled_blk_row_hr_0 =
-        (uint32_t)sf->y_scale_fp * 4;  // center of first block
-    scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
-    scaled_blk_row_hr = scaled_blk_row_hr_0;
-  }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  const int enable_compound_mv = cm->seq_params.enable_tip != 0;
-  for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
-    int scaled_blk_row = blk_row;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    if (is_scaled) {
-      scaled_blk_col_hr = scaled_blk_col_hr_0;
-      scaled_blk_row =
-          ROUND_POWER_OF_TWO(scaled_blk_row_hr, REF_SCALE_SHIFT + 3);
-      scaled_blk_row = AOMMIN(scaled_blk_row, mvs_rows - 1);
-    }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    for (int blk_col = 0; blk_col < start_mvs_cols; ++blk_col) {
-      MV_REF *mv_ref = &mv_ref_base[blk_row * start_mvs_cols + blk_col];
-      for (int idx = 0; idx < 1 + enable_compound_mv; ++idx) {
-        const MV_REFERENCE_FRAME ref_frame = mv_ref->ref_frame[idx];
-        if (is_inter_ref_frame(ref_frame)) {
-          const int ref_frame_offset = ref_offset[ref_frame];
-          int pos_valid = ref_frame_offset > 0 &&
-                          ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
-          if (pos_valid) {
-            MV ref_mv = mv_ref->mv[idx].as_mv;
-            fetch_mv_from_tmvp(&ref_mv);
-            int scaled_blk_col = blk_col;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-            if (is_scaled) {
-              scaled_blk_col =
-                  ROUND_POWER_OF_TWO(scaled_blk_col_hr, REF_SCALE_SHIFT + 3);
-              scaled_blk_col = AOMMIN(scaled_blk_col, mvs_cols - 1);
-              ref_mv.row = sf->scale_value_y_gen(ref_mv.row, sf);
-              ref_mv.col = sf->scale_value_x_gen(ref_mv.col, sf);
-            }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-            int_mv this_mv;
-            int mi_r = scaled_blk_row;
-            int mi_c = scaled_blk_col;
-            if (mv_ref->mv[idx].as_int != 0) {
-              tip_get_mv_projection(&this_mv.as_mv, ref_mv,
-                                    temporal_scale_factor[ref_frame]);
-              pos_valid =
-                  get_block_position(cm, &mi_r, &mi_c, scaled_blk_row,
-                                     scaled_blk_col, this_mv.as_mv, dir >> 1);
-            }
-            if (pos_valid) {
-              assert(mi_r < mvs_rows);
-              assert(mi_c < mvs_cols);
-              const int mi_offset = mi_r * mvs_stride + mi_c;
-              if (overwrite_mv ||
-                  tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
-                tpl_mvs_base[mi_offset].mfmv0.as_mv.row = ref_mv.row;
-                tpl_mvs_base[mi_offset].mfmv0.as_mv.col = ref_mv.col;
-                tpl_mvs_base[mi_offset].ref_frame_offset = ref_frame_offset;
-              }
-            }
-          }
-        }
-      }
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-      if (is_scaled) scaled_blk_col_hr += scaled_blk_col_hr_step;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    }
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    if (is_scaled) scaled_blk_row_hr += scaled_blk_row_hr_step;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  }
-
-  return 1;
-}
-#endif  // CONFIG_TMVP_MEM_OPT
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
@@ -5043,7 +4693,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
                             (cm->ref_frames_info.num_past_refs > 0);
 
-#if CONFIG_TMVP_MEM_OPT
   (void)ref_buf;
 #if CONFIG_MV_TRAJECTORY
   if (cm->seq_params.enable_mv_traj) {
@@ -5285,111 +4934,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     fill_id_offset_sample_gap(cm);
   }
 #endif  // CONFIG_MV_TRAJECTORY
-#else
-  if (cm->seq_params.enable_tip) {
-    av1_derive_tip_nearest_ref_frames_motion_projection(cm);
-  }
-
-  int n_refs_used = 0;
-
-  // Implements a strategy where the closest references in the past
-  // and future ranked lists are processed first, followed by
-  // processing the second closest references up to MFMV_STACK_SIZE.
-  //
-  // Find two closest past and future references
-  int dist[2][2] = { { INT_MAX, INT_MAX }, { INT_MAX, INT_MAX } };
-  int closest_ref[2][2] = { { -1, -1 }, { -1, -1 } };
-  for (int ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
-       ref_frame++) {
-    const int dir = cm->ref_frame_side[ref_frame];
-    if (dir == -1 || is_ref_overlay(cm, ref_frame) ||
-        !is_ref_motion_field_eligible(cm, ref_buf[ref_frame]))
-      continue;
-    const int absdist = abs(cm->ref_frames_info.ref_frame_distance[ref_frame]);
-    if (absdist < dist[dir][0]) {
-      dist[dir][1] = dist[dir][0];
-      closest_ref[dir][1] = closest_ref[dir][0];
-      dist[dir][0] = absdist;
-      closest_ref[dir][0] = ref_frame;
-    } else if (absdist < dist[dir][1]) {
-      dist[dir][1] = absdist;
-      closest_ref[dir][1] = ref_frame;
-    }
-  }
-
-#if CONFIG_MF_IMPROVEMENT
-  // Do projection on group 0 (closest past (backward MV), closest future),
-  // group 1(second closest future, second closest past (backward MV)),
-  // closest past (forward MV), and then second closest past (forward MVs),
-  // without overwriting the MVs.
-  // The projection order of the ref frames in group 0 and group 1 depends
-  // on the ref frame to its own first ref frame that has interpolation
-  // property relative to current frame. Interpolation means two frames are on
-  // two sides of current frame
-  for (int group_idx = 0; group_idx < 2; ++group_idx) {
-    const int past_ref_to_its_ref_dist =
-        get_dist_to_closest_interp_ref(cm, closest_ref[0][group_idx], 0);
-    const int future_ref_to_its_ref_dist =
-        get_dist_to_closest_interp_ref(cm, closest_ref[1][group_idx], 1);
-    if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
-      if (closest_ref[1][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-        n_refs_used +=
-            motion_field_projection(cm, closest_ref[1][group_idx], 0, 0);
-      }
-
-      if (closest_ref[0][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-        n_refs_used +=
-            motion_field_projection_bwd(cm, closest_ref[0][group_idx], 2, 0);
-      }
-    } else {
-      if (closest_ref[0][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-        n_refs_used +=
-            motion_field_projection_bwd(cm, closest_ref[0][group_idx], 2, 0);
-      }
-      if (closest_ref[1][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-        n_refs_used +=
-            motion_field_projection(cm, closest_ref[1][group_idx], 0, 0);
-      }
-    }
-  }
-
-  if (closest_ref[0][0] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    n_refs_used += motion_field_projection(cm, closest_ref[0][0], 2, 0);
-  }
-
-  if (closest_ref[0][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    motion_field_projection(cm, closest_ref[0][1], 2, 0);
-  }
-#else
-  // Do projection on closest past (backward MV), closest future, second
-  // closest future, second closest past (backward MV), closest path (forward
-  // MV), and then second closest past (forward MVs), without overwriting
-  // the MVs.
-  if (closest_ref[0][0] != -1) {
-    const int ret = motion_field_projection_bwd(cm, closest_ref[0][0], 2, 0);
-    n_refs_used += ret;
-  }
-  if (closest_ref[1][0] != -1) {
-    const int ret = motion_field_projection(cm, closest_ref[1][0], 0, 0);
-    n_refs_used += ret;
-  }
-  if (closest_ref[1][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    const int ret = motion_field_projection(cm, closest_ref[1][1], 0, 0);
-    n_refs_used += ret;
-  }
-  if (closest_ref[0][0] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    const int ret = motion_field_projection(cm, closest_ref[0][0], 2, 0);
-    n_refs_used += ret;
-  }
-  if (closest_ref[0][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    const int ret = motion_field_projection_bwd(cm, closest_ref[0][1], 2, 0);
-    n_refs_used += ret;
-  }
-  if (closest_ref[0][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
-    motion_field_projection(cm, closest_ref[0][1], 2, 0);
-  }
-#endif  // CONFIG_MF_IMPROVEMENT
-#endif  // #if CONFIG_TMVP_MEM_OPT
 }
 
 void av1_setup_ref_frame_sides(AV1_COMMON *cm) {

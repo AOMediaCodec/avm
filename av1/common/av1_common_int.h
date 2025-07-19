@@ -127,9 +127,7 @@ extern "C" {
 #define MAX_SB_TMVP_SIZE_LOG2 (MAX_MIB_SIZE_LOG2 - TMVP_SHIFT_BITS)
 #define MAX_SB_TMVP_SIZE (1 << MAX_SB_TMVP_SIZE_LOG2)
 
-#if CONFIG_TMVP_MEM_OPT
 #define TMVP_SAMPLE_STEP 2
-#endif  // CONFIG_TMVP_MEM_OPT
 
 #define MIN_BSIZE_WARP_DELTA 8
 
@@ -355,10 +353,8 @@ typedef struct RefCntBuffer {
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   MV_REF *mvs;
-#if CONFIG_TMVP_MEM_OPT
   int64_t avg_row[2];
   int64_t avg_col[2];
-#endif  // CONFIG_TMVP_MEM_OPT
   uint8_t *seg_map;
   struct segmentation seg;
   int mi_rows;
@@ -1983,7 +1979,6 @@ typedef struct AV1Common {
    */
   TPL_MV_REF *tpl_mvs;
 
-#if CONFIG_TMVP_MEM_OPT
   /*!
    * Step size for tmvp sampling. Should be 1 (no sampling) or 2.
    */
@@ -2000,7 +1995,6 @@ typedef struct AV1Common {
    * Projection range extension in col
    */
   int tmvp_col_offset;
-#endif  // CONFIG_TMVP_MEM_OPT
 
 #if CONFIG_MV_TRAJECTORY
   /*!
@@ -2446,10 +2440,8 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
         cm, buf->seg_map,
         (uint8_t *)aom_calloc(mi_params->mi_rows * mi_params->mi_cols,
                               sizeof(*buf->seg_map)));
-#if CONFIG_TMVP_MEM_OPT
     buf->avg_row[0] = -1;
     buf->avg_row[1] = -1;
-#endif  // CONFIG_TMVP_MEM_OPT
   }
 
   if (buf->ccso_info.sb_filter_control[0] == NULL ||

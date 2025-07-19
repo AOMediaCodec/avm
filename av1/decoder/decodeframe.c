@@ -8881,14 +8881,12 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 
   if (!cm->features.allow_ref_frame_mvs) return;
 
-#if CONFIG_TMVP_MEM_OPT
   if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) {
     // TPL mvs at non-sampled locations will be filled after it is hole-filled
     // and smoothed.
     av1_fill_tpl_mvs_sample_gap(cm);
     return;
   }
-#endif  // CONFIG_TMVP_MEM_OPT
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
