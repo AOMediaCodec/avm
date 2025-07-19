@@ -1284,9 +1284,13 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     // to one only for the coded frames to be outputted. When enable_overlay ==
     // 1, showable_frame of the filtered frame is set to zero by default.
     cpi->common.showable_frame =
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+         1 ||
+#else
         (!cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
          (num_frames_for_filtering == 1 || is_second_arf)) ||
         cpi->oxcf.ref_frm_cfg.enable_frame_output_order ||
+#endif
 #else   // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     cpi->common.showable_frame = num_frames_for_filtering == 1 ||
                                  is_second_arf ||
