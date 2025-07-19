@@ -1826,7 +1826,6 @@ static void set_mv_search_params(AV1_COMP *cpi) {
 static void set_hole_fill_decision(AV1_COMP *cpi, int width, int height,
                                    int blk_w, int blk_h, int counts_1,
                                    int counts_2) {
-#if CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE
   (void)width;
   (void)height;
   (void)blk_w;
@@ -1835,28 +1834,6 @@ static void set_hole_fill_decision(AV1_COMP *cpi, int width, int height,
   (void)counts_2;
   AV1_COMMON *const cm = &cpi->common;
   cm->seq_params.enable_tip_hole_fill = 1;
-#else
-  AV1_COMMON *const cm = &cpi->common;
-  const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-  const bool is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
-  if (is_4k_or_larger) {
-    cm->seq_params.enable_tip_hole_fill = 1;
-  } else if (!is_720p_or_larger) {
-    cm->seq_params.enable_tip_hole_fill = 0;
-  } else {
-    const int a[4] = { 168, -555, -7690, 25007 };
-    const int norm = (width * height) / (blk_h * blk_w);
-    const int64_t decision =
-        a[0] + (int64_t)a[1] * counts_1 / norm +
-        (int64_t)a[2] * counts_2 / norm +
-        (int64_t)a[3] * counts_1 * counts_2 / (norm * norm);
-    if (decision > 0) {
-      cm->seq_params.enable_tip_hole_fill = 1;
-    } else {
-      cm->seq_params.enable_tip_hole_fill = 0;
-    }
-  }
-#endif  // CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE
 }
 
 static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
