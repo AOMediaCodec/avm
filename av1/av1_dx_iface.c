@@ -843,8 +843,13 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
     // When multiple layers are enabled, use the mechanism of
     // show_existing_frame
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    if (pbi->common.seq_params.order_hint_info.enable_order_hint)
+#else
     if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
-        pbi->common.seq_params.enable_frame_output_order) {
+        pbi->common.seq_params.enable_frame_output_order)
+#endif
+    {
       if (!pbi->common.show_existing_frame ||
           pbi->common.current_frame.frame_type == KEY_FRAME)
         decrease_ref_count(pbi->output_frames[0], pool);
@@ -866,9 +871,15 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    if (data == NULL && data_sz == 0 &&
+        pbi->common.seq_params.order_hint_info.enable_order_hint)
+#else
     if (data == NULL && data_sz == 0 &&
         pbi->common.seq_params.order_hint_info.enable_order_hint &&
-        pbi->common.seq_params.enable_frame_output_order) {
+        pbi->common.seq_params.enable_frame_output_order)
+#endif
+    {
       res = flush_showable_frames(ctx, user_priv);
       return res;
     }

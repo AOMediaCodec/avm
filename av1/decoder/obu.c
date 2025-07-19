@@ -271,6 +271,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                        "BRU enabled but explicit_ref_frame_map is 0.");
   }
 #endif  // CONFIG_BRU
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   if (!seq_params->order_hint_info.enable_order_hint &&
       seq_params->enable_frame_output_order) {
@@ -279,7 +280,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                        "when enable_order_hint is disabled.");
   }
 #endif
-
+#endif
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

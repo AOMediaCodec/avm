@@ -976,7 +976,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   // when enable_frame_output_order == 1, show_existing mechanism is
   // used for alt_ref in encoder side internally, but the OBU with
   // show_existing_frame == 1 is not signaled in the bitstream.
-  if (cm->seq_params.enable_frame_output_order) show_existing_alt_ref = 1;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+  if (cm->seq_params.enable_frame_output_order)
+#endif
+    show_existing_alt_ref = 1;
 #endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   set_show_existing_alt_ref(&cpi->gf_group, apply_filtering,
                             oxcf->algo_cfg.enable_overlay,
@@ -1208,8 +1211,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
+#else
     mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||
                               !frame_params.show_existing_frame);
+#endif
 #endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
@@ -1221,8 +1228,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
+#else
     mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||
                               !frame_params.show_existing_frame);
+#endif
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 

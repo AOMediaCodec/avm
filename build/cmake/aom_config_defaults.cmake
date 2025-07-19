@@ -151,6 +151,8 @@ set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
 set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
 
 # AV2 experiment flags.
+set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1 "Remove enable_frame_output_order in sequence header.")
+
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")

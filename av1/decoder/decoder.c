@@ -661,9 +661,13 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   if (frame_decoded) {
     lock_buffer_pool(pool);
 
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    pbi->num_output_frames = 0;
+#else
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (cm->seq_params.enable_frame_output_order) pbi->num_output_frames = 0;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#endif
     // In ext-tile decoding, the camera frame header is only decoded once. So,
     // we don't update the references here.
     if (!pbi->camera_frame_header_ready) {
@@ -677,8 +681,12 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
              mask >>= 1) {
           if (mask & 1) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+            if (is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
+#else
             if (cm->seq_params.enable_frame_output_order &&
                 is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
+#endif
               output_frame_buffers(pbi, ref_index);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
             decrease_ref_count(cm->ref_frame_map[ref_index], pool);
@@ -694,13 +702,22 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
                           pbi->enable_subgop_stats);
     }
     if (cm->seq_params.order_hint_info.enable_order_hint &&
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
         cm->seq_params.enable_frame_output_order &&
+#endif
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
-    } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
+    }
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+    else if (!cm->seq_params.order_hint_info.enable_order_hint &&
+             (cm->show_existing_frame || cm->show_frame))
+#else
+    else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
                 !cm->seq_params.enable_frame_output_order) &&
-               (cm->show_existing_frame || cm->show_frame)) {
+               (cm->show_existing_frame || cm->show_frame))
+#endif
+    {
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
         if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS) {
@@ -865,12 +882,21 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
   const size_t out_frame_idx =
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  pbi->common.seq_params.order_hint_info.enable_order_hint
+#else
       (pbi->common.seq_params.order_hint_info.enable_order_hint &&
        pbi->common.seq_params.enable_frame_output_order)
+#endif
           ? pbi->output_frames_offset
           : pbi->num_output_frames - 1;
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  if (pbi->common.seq_params.order_hint_info.enable_order_hint)
+#else
   if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
-      pbi->common.seq_params.enable_frame_output_order) {
+      pbi->common.seq_params.enable_frame_output_order)
+#endif
+  {
     if (pbi->num_output_frames <= out_frame_idx) return -1;
   }
   *frame = pbi->output_frames[out_frame_idx]->buf;
