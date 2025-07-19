@@ -31,6 +31,8 @@
 #define DF_MV_THRESH 8
 #endif
 
+#define ISSUE_665 1
+
 #define MAX_SIDE_TABLE 296
 // based on int side_threshold = (int)(32 * AOMMAX(0.0444 * q_ind - 2.9936, 0.31
 // * q_ind - 39) );
@@ -1007,7 +1009,17 @@ static TX_SIZE set_lpf_parameters(
               else
 #endif  // !DF_CHROMA_WIDE
 #if CONFIG_ASYM_DF
-              {
+#if ISSUE_665
+              if (plane != 0) {
+                if (horz_superblock_edge || vert_tile_edge) {
+                  params->filter_length_neg = 6;
+                  params->filter_length_pos = 8;
+                } else {
+                  params->filter_length_neg = 8;
+                  params->filter_length_pos = 8;
+                }
+              } else {
+#endif
                 params->filter_length_neg = 8;
                 params->filter_length_pos = 8;
               }
