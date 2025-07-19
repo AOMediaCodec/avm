@@ -395,19 +395,9 @@ static INLINE int_mv get_int_warp_mv_for_fb(const MACROBLOCKD *xd,
   const int yc =
       get_subblk_offset_y_hp(mat, x, y, (1 << WARPEDMODEL_PREC_BITS));
 
-#if CONFIG_IMPROVE_TMVP_LIST
   // down shift to 1/8th pel, match with warped_motion.c
   tx = xc >> (WARPEDMODEL_PREC_BITS - 3);
   ty = yc >> (WARPEDMODEL_PREC_BITS - 3);
-#else
-  // down shift to int, match with warped_motion.c
-  int abs_xc = xc > 0 ? xc : -xc;
-  int abs_yc = yc > 0 ? yc : -yc;
-  int abs_tx = (abs_xc >> WARPEDMODEL_PREC_BITS) << 3;
-  int abs_ty = (abs_yc >> WARPEDMODEL_PREC_BITS) << 3;
-  tx = xc > 0 ? abs_tx : -abs_tx;
-  ty = yc > 0 ? abs_ty : -abs_ty;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 
   res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
   res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);

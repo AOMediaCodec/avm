@@ -123,7 +123,6 @@ static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
 #define TMVP_WEIGHT 1
 #define HIGH_PRIORITY_TMVP_WEIGHT 2
 
-#if CONFIG_IMPROVE_TMVP_LIST
 // Check if a given block uses a valid warp affine transformation
 // (either global or local) for motion compensation and set the corresponding
 // warp parameters.
@@ -166,7 +165,6 @@ static INLINE MV get_sub_block_warp_mv(const WarpedMotionParams *warp_params,
   submv.row = ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
   return submv;
 }
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 
 #define OPFL_MVS_CLAMPED 0
 // Overwrite the MVs in TMVP list by optical flow refined MVs (for TIP frame
@@ -242,56 +240,16 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #endif  // CONFIG_REFINEMV
         ) {
           // Apply offsets based on the affine parameters
-#if CONFIG_IMPROVE_TMVP_LIST
           const int32_t src_x = mi_col * MI_SIZE + w * 8;
           const int32_t src_y = mi_row * MI_SIZE + h * 8;
           WarpedMotionParams warp_params;
-#else
-          const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
-          const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 #if CONFIG_AFFINE_REFINEMENT_SB
-#if CONFIG_IMPROVE_TMVP_LIST
           warp_params = xd->wm_params_sb[2 * sb_idx + idx];
 #else
-          const int64_t dst_x =
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
-          const int64_t dst_y =
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
-              (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
-#endif  // CONFIG_IMPROVE_TMVP_LIST
-#else
-#if CONFIG_IMPROVE_TMVP_LIST
           warp_params = mi->wm_params[idx];
-#else
-          const int64_t dst_x = (int64_t)mi->wm_params[idx].wmmat[2] * src_x +
-                                (int64_t)mi->wm_params[idx].wmmat[3] * src_y +
-                                (int64_t)mi->wm_params[idx].wmmat[0];
-          const int64_t dst_y = (int64_t)mi->wm_params[idx].wmmat[4] * src_x +
-                                (int64_t)mi->wm_params[idx].wmmat[5] * src_y +
-                                (int64_t)mi->wm_params[idx].wmmat[1];
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-#if CONFIG_IMPROVE_TMVP_LIST
           refined_mv.as_mv = get_sub_block_warp_mv(&warp_params, src_x, src_y,
                                                    TMVP_MI_SIZE, TMVP_MI_SIZE);
-#else
-          const int32_t submv_x_hp = (int32_t)clamp64(
-              dst_x - ((int64_t)src_x << WARPEDMODEL_PREC_BITS), INT32_MIN,
-              INT32_MAX);
-          const int32_t submv_y_hp = (int32_t)clamp64(
-              dst_y - ((int64_t)src_y << WARPEDMODEL_PREC_BITS), INT32_MIN,
-              INT32_MAX);
-          const int mv_offset_y =
-              ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
-          const int mv_offset_x =
-              ROUND_POWER_OF_TWO_SIGNED(submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
-          refined_mv.as_mv.row = mv_offset_y;
-          refined_mv.as_mv.col = mv_offset_x;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
         } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_REFINEMV
@@ -382,13 +340,11 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #else
   (void)xd;
 #endif  // CONFIG_WEDGE_TMVP
-#if CONFIG_IMPROVE_TMVP_LIST
   WarpedMotionParams warp_params[2];
   int is_warp[2] = { 0 };
   for (int idx = 0; idx < 2; idx++) {
     is_warp[idx] = is_warp_affine_block(xd, mi, idx, &warp_params[idx]);
   }
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
@@ -401,7 +357,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
       for (int idx = 0; idx < 2; ++idx) {
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame) && !is_tip_ref_frame(ref_frame)) {
-#if CONFIG_IMPROVE_TMVP_LIST
           int_mv sub_block_mv;
           if (is_warp[idx]) {
             const int32_t pixel_x = mi_col * MI_SIZE + w * TMVP_MI_SIZE;
@@ -424,27 +379,8 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           if ((abs(sub_block_mv.as_mv.row) > REFMVS_LIMIT) ||
               (abs(sub_block_mv.as_mv.col) > REFMVS_LIMIT))
             continue;
-#else
-          if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
-              (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
-            continue;
-
-#if CONFIG_WEDGE_TMVP
-          if (is_wedge) {
-            const int this_decision =
-                decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
-
-            if (this_decision == 0 && idx == 1) continue;
-            if (this_decision == 1 && idx == 0) continue;
-          }
-#endif  // CONFIG_WEDGE_TMVP
-#endif  // CONFIG_IMPROVE_TMVP_LIST
           mv->ref_frame[idx] = ref_frame;
-#if CONFIG_IMPROVE_TMVP_LIST
           mv->mv[idx].as_int = sub_block_mv.as_int;
-#else
-          mv->mv[idx].as_int = mi->mv[idx].as_int;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
           process_mv_for_tmvp(&mv->mv[idx].as_mv);
         } else if (is_tip_ref_frame(ref_frame)) {
           int_mv this_mv[2] = { { 0 } };
@@ -542,10 +478,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
-#if !CONFIG_IMPROVE_TMVP_LIST
-          int8_t ref_idx = cm->ref_frame_side[ref_frame];
-          if (ref_idx) continue;
-#endif  // !CONFIG_IMPROVE_TMVP_LIST
           int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
           if (is_opfl_mode && xd->use_affine_opfl &&
@@ -556,54 +488,16 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #endif  // CONFIG_REFINEMV
           ) {
             // Apply offsets based on the affine parameters
-#if CONFIG_IMPROVE_TMVP_LIST
             const int32_t src_x = mi_col * MI_SIZE + w * 8;
             const int32_t src_y = mi_row * MI_SIZE + h * 8;
             WarpedMotionParams warp_params;
-#else
-            const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
-            const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 #if CONFIG_AFFINE_REFINEMENT_SB
-#if CONFIG_IMPROVE_TMVP_LIST
             warp_params = xd->wm_params_sb[2 * sb_idx + idx];
 #else
-            const int64_t dst_x =
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
-            const int64_t dst_y =
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
-                (int64_t)xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
-#endif  // CONFIG_IMPROVE_TMVP_LIST
-#else
-#if CONFIG_IMPROVE_TMVP_LIST
             warp_params = mi->wm_params[idx];
-#else
-            const int64_t dst_x = (int64_t)mi->wm_params[idx].wmmat[2] * src_x +
-                                  (int64_t)mi->wm_params[idx].wmmat[3] * src_y +
-                                  (int64_t)mi->wm_params[idx].wmmat[0];
-            const int64_t dst_y = (int64_t)mi->wm_params[idx].wmmat[4] * src_x +
-                                  (int64_t)mi->wm_params[idx].wmmat[5] * src_y +
-                                  (int64_t)mi->wm_params[idx].wmmat[1];
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
-#if CONFIG_IMPROVE_TMVP_LIST
             refined_mv.as_mv = get_sub_block_warp_mv(
                 &warp_params, src_x, src_y, TMVP_MI_SIZE, TMVP_MI_SIZE);
-#else
-            const int32_t submv_x_hp = (int32_t)clamp64(
-                dst_x - (src_x << WARPEDMODEL_PREC_BITS), INT32_MIN, INT32_MAX);
-            const int32_t submv_y_hp = (int32_t)clamp64(
-                dst_y - (src_y << WARPEDMODEL_PREC_BITS), INT32_MIN, INT32_MAX);
-            const int mv_offset_y = ROUND_POWER_OF_TWO_SIGNED(
-                submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
-            const int mv_offset_x = ROUND_POWER_OF_TWO_SIGNED(
-                submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
-            refined_mv.as_mv.row = mv_offset_y;
-            refined_mv.as_mv.col = mv_offset_x;
-#endif  // CONFIG_IMPROVE_TMVP_LIST
           } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_REFINEMV
@@ -786,13 +680,11 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
         mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign, bsize);
   }
 #endif  // CONFIG_WEDGE_TMVP
-#if CONFIG_IMPROVE_TMVP_LIST
   WarpedMotionParams warp_params[2];
   int is_warp[2] = { 0 };
   for (int idx = 0; idx < 2; idx++) {
     is_warp[idx] = is_warp_affine_block(xd, mi, idx, &warp_params[idx]);
   }
-#endif  // CONFIG_IMPROVE_TMVP_LIST
 
   for (h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
@@ -804,7 +696,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
 
       if (is_inter_ref_frame(mi->ref_frame[0]) &&
           mi->ref_frame[1] == NONE_FRAME) {
-#if CONFIG_IMPROVE_TMVP_LIST
         int_mv sub_block_mv;
         if (is_warp[0]) {
           const int32_t pixel_x = mi_col * MI_SIZE + w * TMVP_MI_SIZE;
@@ -821,19 +712,10 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
           mv->mv[0].as_mv = sub_block_mv.as_mv;
           process_mv_for_tmvp(&mv->mv[0].as_mv);
         }
-#else
-        if ((abs(mi->mv[0].as_mv.row) <= REFMVS_LIMIT) &&
-            (abs(mi->mv[0].as_mv.col) <= REFMVS_LIMIT)) {
-          mv->ref_frame[0] = mi->ref_frame[0];
-          mv->mv[0].as_int = mi->mv[0].as_int;
-          process_mv_for_tmvp(&mv->mv[0].as_mv);
-        }
-#endif  // CONFIG_IMPROVE_TMVP_LIST
       } else {
         for (int idx = 0; idx < 2; ++idx) {
           MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
           if (is_inter_ref_frame(ref_frame)) {
-#if CONFIG_IMPROVE_TMVP_LIST
             int_mv sub_block_mv;
             if (is_warp[idx]) {
               const int32_t pixel_x = mi_col * MI_SIZE + w * TMVP_MI_SIZE;
@@ -860,25 +742,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
             mv->ref_frame[idx] = ref_frame;
             mv->mv[idx].as_int = sub_block_mv.as_int;
             process_mv_for_tmvp(&mv->mv[idx].as_mv);
-#else
-            int8_t ref_idx = cm->ref_frame_side[ref_frame];
-            if (ref_idx) continue;
-            if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
-                (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
-              continue;
-#if CONFIG_WEDGE_TMVP
-            if (is_wedge) {
-              const int this_decision =
-                  decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
-
-              if (this_decision == 0 && idx == 1) continue;
-              if (this_decision == 1 && idx == 0) continue;
-            }
-#endif  // CONFIG_WEDGE_TMVP
-            mv->ref_frame[0] = ref_frame;
-            mv->mv[0].as_int = mi->mv[idx].as_int;
-            process_mv_for_tmvp(&mv->mv[0].as_mv);
-#endif  // CONFIG_IMPROVE_TMVP_LIST
           }
         }
       }
