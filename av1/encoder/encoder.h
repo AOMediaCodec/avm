@@ -703,8 +703,10 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Indicates if the implicit frame order derivation is enabled.
   bool enable_frame_output_order;
+#endif
 } RefFrameCfg;
 
 typedef struct {
@@ -3647,12 +3649,17 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
 
   // When enable_frame_output_order == 1, show_existing_frame can be equal to 1
   // only for a forward key frame
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  return (!cm->features.error_resilient_mode &&
+          cm->current_frame.frame_type == KEY_FRAME);
+#else
   if (cm->seq_params.enable_frame_output_order)
     return (!cm->features.error_resilient_mode &&
             cm->current_frame.frame_type == KEY_FRAME);
   else
     return (!cm->features.error_resilient_mode ||
             cm->current_frame.frame_type == KEY_FRAME);
+#endif
 }
 
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given

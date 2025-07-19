@@ -375,7 +375,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  seq->order_hint_info.enable_order_hint = 1;
+#else
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
+#endif
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
@@ -395,10 +399,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   else
 #endif  // CONFIG_BRU
     seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
       oxcf->ref_frm_cfg.enable_frame_output_order &&
       seq->order_hint_info.enable_order_hint;
+#endif
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 

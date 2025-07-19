@@ -5846,8 +5846,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->avg_cdf_type);
   }
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+#endif
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -6737,7 +6739,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
     if (seq_params->film_grain_params_present &&
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F253_REMOVE_OUTPUTFLAG
         (cm->seq_params.enable_frame_output_order || cm->show_frame ||
          cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -6884,7 +6886,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present &&
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F253_REMOVE_OUTPUTFLAG
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
        cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -7782,8 +7784,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+        !cm->seq_params.order_hint_info.enable_order_hint
+#else
         (!cm->seq_params.order_hint_info.enable_order_hint ||
-         !cm->seq_params.enable_frame_output_order)) ||
+         !cm->seq_params.enable_frame_output_order)
+#endif
+        ) ||
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
@@ -7814,6 +7821,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
   // is not signaled for non-error-resilient mode.
   // For error-resilienet mode, still an OBU is signaled.
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  if ((cm->show_existing_frame && !cm->features.error_resilient_mode) ||
+#if CONFIG_BRU
+      cm->bru.frame_inactive_flag ||
+#endif  // CONFIG_BRU
+      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
+#else
   if ((cm->seq_params.order_hint_info.enable_order_hint &&
        cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
        !cm->features.error_resilient_mode) ||
@@ -7823,7 +7837,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||
 #endif  // CONFIG_BRU
-      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
+      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
+#endif
+  {
     data_size = 0;
   } else {
     // Since length_field is determined adaptively after frame header
