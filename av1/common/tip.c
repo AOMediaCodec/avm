@@ -252,9 +252,7 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
           const int ref_frame_order_hint = ref_order_hints[ref_frame[idx]];
           if (ref_frame_order_hint == target_order_hint) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
-#if CONFIG_TMVP_MV_COMPRESSION
             fetch_mv_from_tmvp(&ref_mv);
-#endif  // CONFIG_TMVP_MV_COMPRESSION
             int scaled_blk_col = blk_col;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
             if (is_scaled) {
@@ -1735,9 +1733,7 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
           mv->ref_frame[0] = tip_ref->ref_frame[0];
           mv->mv[0].as_mv.row = this_mv[0].as_mv.row;
           mv->mv[0].as_mv.col = this_mv[0].as_mv.col;
-#if CONFIG_TMVP_MV_COMPRESSION
           process_mv_for_tmvp(&mv->mv[0].as_mv);
-#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
 
         if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
@@ -1745,9 +1741,7 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
           mv->ref_frame[1] = tip_ref->ref_frame[1];
           mv->mv[1].as_mv.row = this_mv[1].as_mv.row;
           mv->mv[1].as_mv.col = this_mv[1].as_mv.col;
-#if CONFIG_TMVP_MV_COMPRESSION
           process_mv_for_tmvp(&mv->mv[1].as_mv);
-#endif  // CONFIG_TMVP_MV_COMPRESSION
         }
       }
       mv++;

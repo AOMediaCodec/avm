@@ -195,7 +195,6 @@ static AOM_INLINE void convert_fullmv_to_mv(int_mv *mv) {
   mv->as_mv = get_mv_from_fullmv(&mv->as_fullmv);
 }
 
-#if CONFIG_TMVP_MV_COMPRESSION
 // Actual mapping algorithm to compress the TMVP MV
 static inline int compute_mapping_val(int16_t range_interval_start_abs,
                                       int16_t domain_interval_start_abs,
@@ -297,7 +296,6 @@ static AOM_INLINE void fetch_mv_from_tmvp(MV *mv) {
   mv->row = uncompression_mv(mv->row);
   mv->col = uncompression_mv(mv->col);
 }
-#endif  // CONFIG_TMVP_MV_COMPRESSION
 
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
 // Reduce the precision of the MV to the target precision
