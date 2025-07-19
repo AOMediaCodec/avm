@@ -188,9 +188,6 @@ set_aom_config_var(CONFIG_24_FULL_SEARCH_DMVR 1
 set_aom_config_var(CONFIG_DMVR_OFF_IN_TIP_DIRECT 1
                    "Disable DMVR in TIP-direct mode")
 
-set_aom_config_var(
-  CONFIG_IDIF 1
-  "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0

@@ -615,7 +615,6 @@ void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
   }
 }
 
-#if CONFIG_IDIF
 // Directional prediction, zone 1: 0 < angle < 90 using IDIF
 void av1_highbd_dr_prediction_z1_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
                                         int bh, const uint16_t *above,
@@ -825,7 +824,6 @@ static void highbd_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
     pred_high[H_PRED][tx_size](dst, stride, above, left, bd);
   }
 }
-#endif  // CONFIG_IDIF
 
 static void highbd_dr_predictor(uint16_t *dst, ptrdiff_t stride,
                                 TX_SIZE tx_size, const uint16_t *above,
@@ -884,7 +882,6 @@ static void highbd_second_dr_predictor(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-#if CONFIG_IDIF
 // Generate the second directional predictor for IBP
 static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
                                             TX_SIZE tx_size, uint16_t *above,
@@ -918,7 +915,6 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
                                      bd, 0);
   }
 }
-#endif  // CONFIG_IDIF
 
 DECLARE_ALIGNED(16, const int8_t,
                 av1_filter_intra_taps[FILTER_INTRA_MODES][8][8]) = {
@@ -1535,23 +1531,8 @@ static void build_intra_predictors_high(
           av1_filter_intra_edge_high(left_col_1st - ab_le, n_px, strength);
         }
       }
-#if !CONFIG_IDIF
-      upsample_above = av1_use_intra_edge_upsample(txwpx, txhpx, angle_above,
-                                                   filt_type_above);
-      if (need_above && upsample_above) {
-        const int n_px = txwpx + (need_right ? txhpx : 0);
-        av1_upsample_intra_edge_high(above_row_1st, n_px, xd->bd);
-      }
-      upsample_left =
-          av1_use_intra_edge_upsample(txhpx, txwpx, angle_left, filt_type_left);
-      if (need_left && upsample_left) {
-        const int n_px = txhpx + (need_bottom ? txwpx : 0);
-        av1_upsample_intra_edge_high(left_col_1st, n_px, xd->bd);
-      }
-#endif  // !CONFIG_IDIF
     }
     const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
-#if CONFIG_IDIF
     if (plane == AOM_PLANE_Y) {
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
                                left_col_1st, p_angle, xd->bd, mrl_index);
@@ -1588,11 +1569,6 @@ static void build_intra_predictors_high(
         }
       }
     }
-#else
-    highbd_dr_predictor(dst, dst_stride, tx_size, above_row, left_col,
-                        upsample_above, upsample_left, p_angle, xd->bd,
-                        mrl_index);
-#endif  // CONFIG_IDIF
     if (apply_ibp) {
       if (mrl_index == 0
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -1602,7 +1578,6 @@ static void build_intra_predictors_high(
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
           if (is_ibp_enabled[mode_index]) {
-#if CONFIG_IDIF
             if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
                                               above_row_1st, left_col_1st,
@@ -1612,11 +1587,6 @@ static void build_intra_predictors_high(
                   second_pred, txwpx, tx_size, above_row_1st, left_col_1st,
                   upsample_above, upsample_left, p_angle, xd->bd);
             }
-#else
-            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                       left_col, upsample_above, upsample_left,
-                                       p_angle, xd->bd);
-#endif  // CONFIG_IDIF
             av1_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
                                               dst_stride, second_pred, txwpx,
                                               txwpx, txhpx);
@@ -1625,7 +1595,6 @@ static void build_intra_predictors_high(
         if (p_angle > 180 && p_angle < 270) {
           int mode_index = angle_to_mode_index[270 - p_angle];
           if (is_ibp_enabled[mode_index]) {
-#if CONFIG_IDIF
             if (plane == AOM_PLANE_Y) {
               highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
                                               above_row_1st, left_col_1st,
@@ -1635,11 +1604,6 @@ static void build_intra_predictors_high(
                   second_pred, txwpx, tx_size, above_row_1st, left_col_1st,
                   upsample_above, upsample_left, p_angle, xd->bd);
             }
-#else
-            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                       left_col, upsample_above, upsample_left,
-                                       p_angle, xd->bd);
-#endif  // CONFIG_IDIF
             av1_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
                                               dst_stride, second_pred, txwpx,
                                               txwpx, txhpx);

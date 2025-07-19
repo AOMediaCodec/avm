@@ -16,9 +16,7 @@
 #include "aom_dsp/x86/intrapred_x86.h"
 #include "aom_dsp/x86/lpf_common_sse2.h"
 #include "aom_dsp/x86/synonyms.h"
-#if CONFIG_IDIF
 #include "av1/common/reconintra.h"
-#endif  // CONFIG_IDIF
 
 static DECLARE_ALIGNED(16, uint8_t, HighbdLoadMaskx[8][16]) = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
@@ -2936,7 +2934,6 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
   return;
 }
 
-#if CONFIG_IDIF
 static INLINE __m256i highbd_clamp_epi16_avx2(__m256i u, int bd) {
   const __m256i zero = _mm256_setzero_si256();
   const int max_i = ((1 << bd) - 1) << POWER_DR_INTERP_FILTER;
@@ -5217,4 +5214,3 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
   }
   return;
 }
-#endif  // CONFIG_IDIF

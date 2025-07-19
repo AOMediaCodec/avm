@@ -449,7 +449,6 @@ static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
       col_off || (plane ? xd->chroma_left_available : xd->left_available);
 }
 
-#if CONFIG_IDIF
 #define POWER_DR_INTERP_FILTER 7
 
 DECLARE_ALIGNED(16, static const int16_t, av1_dr_interp_filter[32][4]) = {
@@ -465,7 +464,6 @@ DECLARE_ALIGNED(16, static const int16_t, av1_dr_interp_filter[32][4]) = {
   { -5, 22, 118, -7 },  { -4, 17, 121, -6 },  { -3, 13, 123, -5 },
   { -2, 8, 125, -3 },   { -1, 4, 127, -2 }
 };
-#endif  // CONFIG_IDIF
 
 #ifdef __cplusplus
 }  // extern "C"
