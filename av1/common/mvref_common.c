@@ -3370,7 +3370,6 @@ void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
   }
 }
 
-#if CONFIG_MF_IMPROVEMENT
 // Get the temporal distance of start_frame to its closest ref frame
 // that has interpolation property relative to current frame. Interpolation
 // means start_frame and its ref frame are on two sides of current frame
@@ -3419,7 +3418,6 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 
   return abs_closest_ref_offset;
 }
-#endif  // CONFIG_MF_IMPROVEMENT
 
 // Check if a reference frame is an overlay frame (i.e., has the same
 // order_hint as the current frame).
@@ -4349,7 +4347,6 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
-#if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
   const int mf_sb_size_log2 =
@@ -4357,7 +4354,6 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
   const int mf_sb_size = (1 << mf_sb_size_log2);
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
-#endif  // CONFIG_MF_IMPROVEMENT
 
   for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
     for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
@@ -4386,10 +4382,8 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
       }
 
       if (DO_AVG_FILL) {
-#if CONFIG_MF_IMPROVEMENT
         const int base_blk_row = (r >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
         const int base_blk_col = (c >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
-#endif  // CONFIG_MF_IMPROVEMENT
 
         int_mv tmp_mv;
         // right
@@ -4496,7 +4490,6 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-#if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
   const int mf_sb_size_log2 =
@@ -4504,7 +4497,6 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
   const int mf_sb_size = (1 << mf_sb_size_log2);
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
-#endif  // CONFIG_MF_IMPROVEMENT
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
       for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
@@ -4530,12 +4522,10 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
         }
 
         if (DO_AVG_FILL) {
-#if CONFIG_MF_IMPROVEMENT
           const int base_blk_row = (r >> sb_tmvp_size_log2)
                                    << sb_tmvp_size_log2;
           const int base_blk_col = (c >> sb_tmvp_size_log2)
                                    << sb_tmvp_size_log2;
-#endif  // CONFIG_MF_IMPROVEMENT
 
           // right
           int offset_right = offset + cm->tmvp_sample_step;

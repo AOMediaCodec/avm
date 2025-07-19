@@ -52,7 +52,6 @@ static AOM_INLINE int get_mf_sb_size_log2(int sb_size, int mib_size_log2,
 static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
                                          int *mi_c, int blk_row, int blk_col,
                                          MV mv, int sign_bias) {
-#if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
   const int mf_sb_size_log2 =
@@ -62,10 +61,6 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
   const int base_blk_row = (blk_row >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
   const int base_blk_col = (blk_col >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
-#else
-  const int base_blk_row = (blk_row >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
-  const int base_blk_col = (blk_col >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
-#endif  // CONFIG_MF_IMPROVEMENT
 
   // The motion vector in units of 1/8-pel
   const int shift = (3 + TMVP_MI_SZ_LOG2);
@@ -84,30 +79,16 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
     return 0;
 
   if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
-#if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - sb_tmvp_size ||
         col >= base_blk_col + (sb_tmvp_size << 1))
-#else
-    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
-#endif  // CONFIG_MF_IMPROVEMENT
       return 0;
   } else {
-#if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - (sb_tmvp_size >> 1) ||
         col >= base_blk_col + sb_tmvp_size + (sb_tmvp_size >> 1))
-#else
-    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
-#endif  // CONFIG_MF_IMPROVEMENT
       return 0;
   }
 
@@ -141,7 +122,6 @@ static AOM_INLINE void get_proc_size_and_offset(const AV1_COMMON *cm,
 
 static AOM_INLINE int check_block_position(const AV1_COMMON *cm, int row,
                                            int col, int blk_row, int blk_col) {
-#if CONFIG_MF_IMPROVEMENT
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int sb_size = block_size_high[seq_params->sb_size];
   const int mf_sb_size_log2 =
@@ -151,40 +131,22 @@ static AOM_INLINE int check_block_position(const AV1_COMMON *cm, int row,
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
   const int base_blk_row = (blk_row >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
   const int base_blk_col = (blk_col >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
-#else
-  const int base_blk_row = (blk_row >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
-  const int base_blk_col = (blk_col >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
-#endif  // CONFIG_MF_IMPROVEMENT
 
   if (row < 0 || row >= (cm->mi_params.mi_rows >> TMVP_SHIFT_BITS) || col < 0 ||
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
   if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
-#if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - sb_tmvp_size ||
         col >= base_blk_col + (sb_tmvp_size << 1))
-#else
-    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
-#endif  // CONFIG_MF_IMPROVEMENT
       return 0;
   } else {
-#if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - (sb_tmvp_size >> 1) ||
         col >= base_blk_col + sb_tmvp_size + (sb_tmvp_size >> 1))
-#else
-    if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
-        row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
-        col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
-        col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
-#endif  // CONFIG_MF_IMPROVEMENT
       return 0;
   }
 
