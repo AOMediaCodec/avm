@@ -5156,13 +5156,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf, MV mi_mv[2],
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-    int subblk_start_x, int subblk_start_y,
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-    int pu_width, int pu_height, uint16_t *dst0_16_refinemv,
-    uint16_t *dst1_16_refinemv, int row_start, int col_start, MV *sb_refined_mv,
-    MV *chroma_refined_mv, int build_for_refine_mv_only,
-    ReferenceArea ref_area[2], int_mv *mv_refined
+    int subblk_start_x, int subblk_start_y, int pu_width, int pu_height,
+    uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv, int row_start,
+    int col_start, MV *sb_refined_mv, MV *chroma_refined_mv,
+    int build_for_refine_mv_only, ReferenceArea ref_area[2], int_mv *mv_refined
 #if CONFIG_IMPROVE_REFINED_MV
     ,
     int *opfl_vxy_bufs
@@ -5707,12 +5704,9 @@ static void build_inter_predictors_8x8_and_bigger(
             refinemv_sb_size_width, refinemv_sb_size_height,
             mi_x + w * (1 << pd->subsampling_x),
             mi_y + h * (1 << pd->subsampling_y), mc_buf, mi_mv,
-            calc_subpel_params_func, dst_buf, dst_stride,
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-            w, h,
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
-            pu_width, pu_height, dst0_16_refinemv, dst1_16_refinemv, row_start,
-            col_start, plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
+            calc_subpel_params_func, dst_buf, dst_stride, w, h, pu_width,
+            pu_height, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
+            plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
             build_for_refine_mv_only, ref_area, mv_refined
 #if CONFIG_IMPROVE_REFINED_MV
             ,

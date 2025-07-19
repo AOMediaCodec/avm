@@ -143,9 +143,7 @@ typedef struct ThreadData {
   decode_block_visitor_fn_t inverse_cctx_block_visit;
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
-#if CONFIG_REFINED_MVS_IN_TMVP
   predict_inter_block_visitor_fn_t copy_frame_mvs_block_visit;
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
   cfl_store_inter_block_visitor_fn_t cfl_store_inter_block_visit;
 
   REF_MV_BANK ref_mv_bank;

@@ -168,7 +168,6 @@ static INLINE MV get_sub_block_warp_mv(const WarpedMotionParams *warp_params,
 }
 #endif  // CONFIG_IMPROVE_TMVP_LIST
 
-#if CONFIG_REFINED_MVS_IN_TMVP
 #define OPFL_MVS_CLAMPED 0
 // Overwrite the MVs in TMVP list by optical flow refined MVs (for TIP frame
 // mode)
@@ -379,7 +378,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
     frame_mvs += frame_mvs_stride;
   }
 }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
 // Copy the MVs into the TMVP list (for TIP frame mode)
 void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
@@ -512,7 +510,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_REFINED_MVS_IN_TMVP
 // Overwrite the MVs in TMVP list by optical flow refined MVs
 void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                                 const MACROBLOCKD *xd,
@@ -693,7 +690,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
     frame_mvs += frame_mvs_stride;
   }
 }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
 #if CONFIG_BRU
 // Copy mvs from bru ref frame to cur frame

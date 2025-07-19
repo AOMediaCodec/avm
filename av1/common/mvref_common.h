@@ -740,13 +740,12 @@ static INLINE int get_amvd_context(const MACROBLOCKD *const xd) {
   return ctx;
 }
 
-#if CONFIG_REFINED_MVS_IN_TMVP
 void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                                 const MACROBLOCKD *xd,
                                 const MB_MODE_INFO *const mi, int mi_row,
                                 int mi_col, int x_inside_boundary,
                                 int y_inside_boundary);
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
+
 #if CONFIG_BRU
 void bru_copy_sb_mvs(const AV1_COMMON *const cm, int src_ref_idx,
                      int dst_ref_idx, int mi_row, int mi_col,

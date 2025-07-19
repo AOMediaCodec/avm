@@ -740,8 +740,6 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_BRU
 } MB_MODE_INFO;
 
-#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_AFFINE_REFINEMENT || \
-    CONFIG_REFINED_MVS_IN_TMVP
 /*! \brief Stores the subblock motion info of the current coding block
  */
 // Note that this can not be stored in MB_MODE_INFO, because The MB_MODE_INFO is
@@ -752,8 +750,6 @@ typedef struct SUBMB_INFO {
   /*! \brief Stored subblock mv for reference. */
   int_mv mv[2];
 } SUBMB_INFO;
-#endif  // CONFIG_C071_SUBBLK_WARPMV || CONFIG_AFFINE_REFINEMENT ||
-        // CONFIG_REFINED_MVS_IN_TMVP
 
 #if CONFIG_REFINEMV
 /*! \brief Stores the subblock refinemv motion info of the current coding block

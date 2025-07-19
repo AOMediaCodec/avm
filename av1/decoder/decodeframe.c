@@ -1162,7 +1162,6 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
 #endif  // CONFIG_INSPECTION
 }
 
-#if CONFIG_REFINED_MVS_IN_TMVP
 static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
                                                   DecoderCodingBlock *dcb,
                                                   BLOCK_SIZE bsize) {
@@ -1200,7 +1199,6 @@ static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
   }
 }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
 static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
                                                   int plane, aom_reader *r) {
@@ -4869,9 +4867,7 @@ static AOM_INLINE void set_decode_func_pointers(ThreadData *td,
   td->inverse_tx_inter_block_visit = decode_block_void;
   td->inverse_cctx_block_visit = decode_block_void;
   td->predict_inter_block_visit = predict_inter_block_void;
-#if CONFIG_REFINED_MVS_IN_TMVP
   td->copy_frame_mvs_block_visit = predict_inter_block_void;
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
   td->cfl_store_inter_block_visit = cfl_store_inter_block_void;
 
   if (parse_decode_flag & 0x1) {
@@ -4884,9 +4880,7 @@ static AOM_INLINE void set_decode_func_pointers(ThreadData *td,
     td->inverse_tx_inter_block_visit = inverse_transform_inter_block;
     td->inverse_cctx_block_visit = inverse_cross_chroma_transform_block;
     td->predict_inter_block_visit = predict_inter_block;
-#if CONFIG_REFINED_MVS_IN_TMVP
     td->copy_frame_mvs_block_visit = copy_frame_mvs_inter_block;
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
     td->cfl_store_inter_block_visit = cfl_store_inter_block;
   }
 }

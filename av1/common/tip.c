@@ -1618,12 +1618,10 @@ static void tip_setup_tip_frame_plane(
                              blk_col << TMVP_SHIFT_BITS,
                              step << TMVP_SHIFT_BITS, step << TMVP_SHIFT_BITS);
 
-#if CONFIG_REFINED_MVS_IN_TMVP
           av1_copy_frame_refined_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
                                      blk_col << TMVP_SHIFT_BITS,
                                      step << TMVP_SHIFT_BITS,
                                      step << TMVP_SHIFT_BITS);
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         }
       }

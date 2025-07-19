@@ -2080,7 +2080,6 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, plane_start,
                     plane_end, rate);
-#if CONFIG_REFINED_MVS_IN_TMVP
   if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
 #if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
@@ -2118,7 +2117,6 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
 #endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
   }
-#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
   if (!dry_run) {
     for (int plane = plane_start; plane < plane_end; ++plane) {
