@@ -1389,9 +1389,6 @@ static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
 
 // Compute TMVP unit offset related to block mv
 static AOM_INLINE int derive_block_mv_tpl_offset(const AV1_COMMON *const cm,
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-                                                 const MV *mv,
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
                                                  const int blk_tpl_row,
                                                  const int blk_tpl_col) {
   const int frame_mvs_tpl_cols =
@@ -1399,15 +1396,8 @@ static AOM_INLINE int derive_block_mv_tpl_offset(const AV1_COMMON *const cm,
   const int frame_mvs_tpl_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
 
-#if CONFIG_TIP_MV_SIMPLIFICATION
   int tpl_row_offset = 0;
   int tpl_col_offset = 0;
-#else
-  FULLPEL_MV fullmv = get_fullmv_from_mv(mv);
-  int tpl_row_offset = ROUND_POWER_OF_TWO_SIGNED(fullmv.row, TMVP_MI_SZ_LOG2);
-  int tpl_col_offset = ROUND_POWER_OF_TWO_SIGNED(fullmv.col, TMVP_MI_SZ_LOG2);
-#endif  // CONFIG_TIP_MV_SIMPLIFICATION
-
   if (blk_tpl_row + tpl_row_offset >= frame_mvs_tpl_rows) {
     tpl_row_offset = frame_mvs_tpl_rows - 1 - blk_tpl_row;
   } else if (blk_tpl_row + tpl_row_offset < 0) {
@@ -1430,17 +1420,10 @@ static AOM_INLINE void get_tip_mv(const AV1_COMMON *cm, const MV *block_mv,
   const int mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
-#if CONFIG_TIP_MV_SIMPLIFICATION
   const int offset_to_within_frame =
       derive_block_mv_tpl_offset(cm, blk_row, blk_col);
   const int tpl_offset =
       blk_row * mvs_stride + blk_col + offset_to_within_frame;
-#else
-  const int blk_to_tip_frame_offset =
-      derive_block_mv_tpl_offset(cm, block_mv, blk_row, blk_col);
-  const int tpl_offset =
-      blk_row * mvs_stride + blk_col + blk_to_tip_frame_offset;
-#endif  // CONFIG_TIP_MV_SIMPLIFICATION
   const TPL_MV_REF *tpl_mvs = cm->tpl_mvs + tpl_offset;
 
   if (tpl_mvs->mfmv0.as_int != 0 && tpl_mvs->mfmv0.as_int != INVALID_MV) {

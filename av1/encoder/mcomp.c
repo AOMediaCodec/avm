@@ -155,17 +155,9 @@ void av1_make_default_fullpel_ms_params(
   ms_params->fine_search_interval = fine_search_interval;
   ms_params->is_intra_mode = 0;
   ms_params->mv_limits = x->mv_limits;
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
-    av1_set_tip_mv_search_range(&ms_params->mv_limits);
-  } else {
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
-    av1_set_mv_search_range(&ms_params->mv_limits, ref_mv, pb_mv_precision);
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-  }
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
-  // Mvcost params
+  av1_set_mv_search_range(&ms_params->mv_limits, ref_mv, pb_mv_precision);
 
+  // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, is_adaptive_mvd,
                       ref_mv, pb_mv_precision
 #if CONFIG_IBC_BV_IMPROVEMENT
@@ -206,16 +198,8 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   ms_params->iters_per_step = cpi->sf.mv_sf.subpel_iters_per_step;
   ms_params->cost_list = cond_cost_list_const(cpi, cost_list);
 
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
-    av1_set_tip_subpel_mv_search_range(&ms_params->mv_limits, &x->mv_limits);
-  } else {
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
-    av1_set_subpel_mv_search_range(&ms_params->mv_limits, &x->mv_limits, ref_mv,
-                                   pb_mv_precision);
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-  }
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
+  av1_set_subpel_mv_search_range(&ms_params->mv_limits, &x->mv_limits, ref_mv,
+                                 pb_mv_precision);
 
   // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, is_adaptive_mvd,
@@ -428,23 +412,6 @@ int opfl_refine_fullpel_mv_one_sided(
   return 0;
 }
 #endif  // CONFIG_OPFL_MV_SEARCH
-
-#if !CONFIG_TIP_MV_SIMPLIFICATION
-void av1_set_tip_mv_search_range(FullMvLimits *mv_limits) {
-  const int tmvp_mv = (TIP_MV_SEARCH_RANGE << TMVP_MI_SZ_LOG2);
-  const int col_min = -tmvp_mv;
-  const int row_min = -tmvp_mv;
-  const int col_max = tmvp_mv;
-  const int row_max = tmvp_mv;
-
-  // Get intersection of UMV window and valid MV window to reduce # of checks
-  // in diamond search.
-  if (mv_limits->col_min < col_min) mv_limits->col_min = col_min;
-  if (mv_limits->col_max > col_max) mv_limits->col_max = col_max;
-  if (mv_limits->row_min < row_min) mv_limits->row_min = row_min;
-  if (mv_limits->row_max > row_max) mv_limits->row_max = row_max;
-}
-#endif  // !CONFIG_TIP_MV_SIMPLIFICATION
 
 int av1_init_search_range(int size
 #if CONFIG_MV_RANGE_EXTENSION
