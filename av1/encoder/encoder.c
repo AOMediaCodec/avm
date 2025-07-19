@@ -438,9 +438,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_tip = tool_cfg->enable_tip;
   seq->enable_tip_hole_fill = seq->enable_tip != 0;
   seq->enable_tip_explicit_qp = 0;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   seq->enable_bawp = tool_cfg->enable_bawp;
   seq->enable_cwp = tool_cfg->enable_cwp;
 #if CONFIG_D071_IMP_MSK_BLD

@@ -355,9 +355,6 @@ set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
 set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
                    "Enable reduction of the CDFs for MVD related sybmols")
 
-set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
-                   "Improvements to TMVP & MV trajectory")
-
 set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1 "Improve SMVP with TIP (F043)")
 set_aom_config_var(CONFIG_TMVP_MV_COMPRESSION 1 "Enable to compress TMVP MV")
 set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")

@@ -104,11 +104,7 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
     return 0;
 
 #if CONFIG_TMVP_MEM_OPT
-  if (cm->tmvp_sample_step > 1
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
-      || (sb_size < 256 && sb_size != 64)
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-  ) {
+  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
 #endif  // CONFIG_TMVP_MEM_OPT
 #if CONFIG_MF_IMPROVEMENT
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
@@ -145,7 +141,6 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
   return 1;
 }
 
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
 static AOM_INLINE void get_proc_size_and_offset(const AV1_COMMON *cm,
                                                 int *proc_blk_size,
                                                 int *row_blk_offset,
@@ -253,7 +248,6 @@ static AOM_INLINE int get_block_position_no_constraint(const AV1_COMMON *cm,
 
   return 1;
 }
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units

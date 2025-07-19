@@ -5970,9 +5970,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
   }
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   aom_wb_write_bit(wb, seq_params->enable_mv_traj);
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   aom_wb_write_bit(wb, seq_params->enable_bawp);
   aom_wb_write_bit(wb, seq_params->enable_cwp);
 #if CONFIG_D071_IMP_MSK_BLD
@@ -6646,7 +6644,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
         assert(features->allow_ref_frame_mvs == 0);
       }
 
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
       if (features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs > 1 &&
           seq_params->order_hint_info.enable_order_hint) {
@@ -6654,7 +6651,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
         assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
         aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
       }
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {

@@ -128,9 +128,7 @@ struct av1_extracfg {
   int enable_extended_sdp;  // enable inter semi-decoupled partitioning
   int enable_mrls;          // enable multiple reference line selection
   int enable_tip;           // enable temporal interpolated prediction
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   int enable_mv_traj;  // enable MV trajectory tracking
-#endif                 // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   int enable_high_motion;  // Enable a large motion search window
 #endif                     // CONFIG_MV_RANGE_EXTENSION
@@ -489,9 +487,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable semi-decoupled partitioning for inter frame
   1,  // enable multiple reference line selection
   1,  // enable temporal interpolated prediction (TIP)
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   1,    // enable mv trajectory tracking
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   0,    // enable a large motion search window
 #endif  // CONFIG_MV_RANGE_EXTENSION
@@ -1025,9 +1021,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_extended_sdp = extra_cfg->enable_extended_sdp;
   cfg->enable_mrls = extra_cfg->enable_mrls;
   cfg->enable_tip = extra_cfg->enable_tip;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   cfg->enable_high_motion = extra_cfg->enable_high_motion;
 #endif  // CONFIG_MV_RANGE_EXTENSION
@@ -1171,9 +1165,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_extended_sdp = cfg->enable_extended_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
   extra_cfg->enable_tip = cfg->enable_tip;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   extra_cfg->enable_mv_traj = cfg->enable_mv_traj;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   extra_cfg->enable_high_motion = cfg->enable_high_motion;
 #endif  // CONFIG_MV_RANGE_EXTENSION
@@ -1575,9 +1567,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   if (extra_cfg->enable_order_hint && extra_cfg->enable_ref_frame_mvs) {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
     tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
     if (tool_cfg->enable_tip) {
 #if !CONFIG_TIP_LD
       if (cfg->g_lag_in_frames == 0) {
@@ -1591,9 +1581,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   } else {
     tool_cfg->enable_tip = 0;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
     tool_cfg->enable_mv_traj = 0;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
   }
 
 #if CONFIG_MV_RANGE_EXTENSION
@@ -4206,11 +4194,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tip, argv,
                               err_string)) {
     extra_cfg.enable_tip = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mv_traj, argv,
                               err_string)) {
     extra_cfg.enable_mv_traj = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_high_motion,
                               argv, err_string)) {
@@ -4800,9 +4786,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,    // enable_tx_partition
         0,   1, 1, /*extended sdp*/ 1,
         1,
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
         1,  // MV traj
-#endif      // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
         0,  // enable_high_motion
 #endif      // CONFIG_MV_RANGE_EXTENSION

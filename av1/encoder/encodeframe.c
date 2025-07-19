@@ -1844,7 +1844,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
 
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   cm->tmvp_sample_step = 1;
   if (features->allow_ref_frame_mvs) {
     cm->tmvp_sample_step = -1;
@@ -1852,13 +1851,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     if (cm->tmvp_sample_step < 0) {
       cm->tmvp_sample_step = 1;
     }
-  }
-#else
-  if (features->allow_ref_frame_mvs) {
-    av1_setup_motion_field(cm);
-  }
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-  else {
+  } else {
     av1_setup_ref_frame_sides(cm);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING

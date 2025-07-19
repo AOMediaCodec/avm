@@ -445,9 +445,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
   &g_av1_codec_arg_defs.enable_tip,
   &g_av1_codec_arg_defs.enable_skip_mode,
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   &g_av1_codec_arg_defs.enable_mv_traj,
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   &g_av1_codec_arg_defs.enable_high_motion,
 #endif  // CONFIG_MV_RANGE_EXTENSION
@@ -1631,10 +1629,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "                               : TIP (%d),  Skip Mode (%d)\n",
           encoder_cfg->enable_tip, encoder_cfg->enable_skip_mode);
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   fprintf(stdout, "                               : MV traj (%d)\n",
           encoder_cfg->enable_mv_traj);
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   fprintf(stdout, "                               : HighMotion (%d)\n",
           encoder_cfg->enable_high_motion);
