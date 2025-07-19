@@ -454,9 +454,7 @@ static INLINE int av1_get_skip_txfm_context(const MACROBLOCKD *xd) {
     }
   }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (xd->mi[0]->skip_mode) ctx += (SKIP_CONTEXTS >> 1);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   return ctx;
 }
 

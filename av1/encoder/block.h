@@ -346,9 +346,7 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[INTER_REFS_PER_FRAME];
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
-#endif
 
   //! Context used to encode the current mode.
   int16_t mode_context[MODE_CTX_REF_FRAMES];
@@ -375,9 +373,7 @@ typedef struct {
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
   uint8_t ref_mv_count[2];
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
-#endif
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
   int_mv global_mvs[INTER_REFS_PER_FRAME];
@@ -1089,12 +1085,10 @@ typedef struct {
   /*! Costs for coding the mv resolution. */
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
   //! tip_drl_mode_cost
   int tip_drl_mode_cost[3][2];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /**@}*/
 
   /*****************************************************************************

@@ -743,7 +743,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #endif
 }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
 static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
                                         FRAME_COUNTS *counts,
                                         const MB_MODE_INFO *mbmi) {
@@ -782,7 +781,6 @@ static void update_tip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
     if (mbmi->ref_mv_idx[0] == idx) break;
   }
 }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
@@ -1037,19 +1035,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 
     if (inter_block || (!inter_block && use_intrabc)) {
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-      if (!mbmi->skip_mode) {
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
-        const int skip_ctx = av1_get_skip_txfm_context(xd);
+      const int skip_ctx = av1_get_skip_txfm_context(xd);
 #if CONFIG_ENTROPY_STATS
-        td->counts->skip_txfm[skip_ctx]
-                             [mbmi->skip_txfm[xd->tree_type == CHROMA_PART]]++;
+      td->counts->skip_txfm[skip_ctx]
+                           [mbmi->skip_txfm[xd->tree_type == CHROMA_PART]]++;
 #endif
-        update_cdf(fc->skip_txfm_cdfs[skip_ctx],
-                   mbmi->skip_txfm[xd->tree_type == CHROMA_PART], 2);
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-      }
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
+      update_cdf(fc->skip_txfm_cdfs[skip_ctx],
+                 mbmi->skip_txfm[xd->tree_type == CHROMA_PART], 2);
     }
   }
 
@@ -1204,12 +1196,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode && have_drl_index(mbmi->mode)) {
     FRAME_COUNTS *const counts = td->counts;
     update_skip_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi);
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_REFINEMV
   if (mbmi->skip_mode && switchable_refinemv_flag(cm, mbmi)) {
@@ -2159,16 +2149,13 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       assert(!frame_is_intra_only(cm));
       rdc->skip_mode_used_flag = 1;
       if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-        assert(has_second_ref(mbmi));
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_D072_SKIP_MODE_IMPROVE
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         if (has_second_ref(mbmi)) {
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
           rdc->compound_ref_used_flag = 1;
-#if CONFIG_D072_SKIP_MODE_IMPROVE
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         }
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     } else {
@@ -2218,19 +2205,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
-  if (xd->tree_type != CHROMA_PART)
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-  {
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+  if (xd->tree_type != CHROMA_PART) {
     av1_copy_mbmi_ext_to_mbmi_ext_frame(
-        x->mbmi_ext_frame, x->mbmi_ext, mbmi,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-        mbmi->skip_mode,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+        x->mbmi_ext_frame, x->mbmi_ext, mbmi, mbmi->skip_mode,
         av1_ref_frame_type(xd->mi[0]->ref_frame));
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   x->rdmult = origin_mult;
 }
 

@@ -4816,9 +4816,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     if (rdcost_no_skip_txfm >= rdcost_skip_txfm) choose_skip_txfm = 1;
   }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) rd_stats->skip_txfm = choose_skip_txfm;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   if (choose_skip_txfm) {
     rd_stats_y->rate = 0;

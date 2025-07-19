@@ -513,14 +513,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->drl_cdf[2][i], NULL);
     }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
       av1_cost_tokens_from_cdf(mode_costs->tip_drl_mode_cost[i],
                                fc->tip_drl_cdf[i], NULL);
     }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPFL_CTX_OPT
     for (i = 0; i < OPFL_MODE_CONTEXTS; ++i) {

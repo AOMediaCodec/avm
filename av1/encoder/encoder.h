@@ -1531,9 +1531,7 @@ typedef struct FRAME_COUNTS {
   unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];  // placeholder
 
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int skip_drl_cnts[3][2];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int tip_drl_mode[3][2];
 
   unsigned int

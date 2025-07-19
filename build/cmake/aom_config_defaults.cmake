@@ -268,10 +268,6 @@ set_aom_config_var(
   1
   "AV2 experiment flag to enable palette line copy and transverse coding, CWG-D114."
 )
-set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
-                   "AV2 experiment flag to fix the SSE calc bug for skip mode.")
-set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
-                   "AV2 experiment flag to enable skip mode enhancement.")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
@@ -327,11 +323,6 @@ set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
 set_aom_config_var(
   CONFIG_COMPOUND_WARP_CAUSAL 0
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
-set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
-                   "Enable to improve skip mode")
-
-set_aom_config_var(CONFIG_SKIP_MODE_NO_REFINEMENTS 1
-                   "Disable refinement algorithms for the skip mode")
 
 set_aom_config_var(CONFIG_BANK_IMPROVE 1
                    "Enable to improve refmv bank and warp parameter bank")

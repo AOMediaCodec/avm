@@ -230,9 +230,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   RESET_CDF_COUNTER(fc->tip_drl_cdf, 2);
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);

@@ -266,9 +266,7 @@ typedef struct frame_contexts {
 #endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   aom_cdf_prob tip_drl_cdf[3][CDF_SIZE(2)];
 
 #if CONFIG_REFINEMV

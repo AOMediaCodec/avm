@@ -4779,9 +4779,7 @@ static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
                                              const MACROBLOCKD *xd,
 #endif  // CONFIG_COMPOUND_4XN
                                              const MB_MODE_INFO *mbmi) {
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
   if (mbmi->skip_mode) return 0;
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
 
   if (!opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN

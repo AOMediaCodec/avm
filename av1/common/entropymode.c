@@ -5175,11 +5175,9 @@ static const aom_cdf_prob default_jmvd_scale_mode_cdf[CDF_SIZE(
 static const aom_cdf_prob default_jmvd_amvd_scale_mode_cdf[CDF_SIZE(
     JOINT_AMVD_SCALE_FACTOR_CNT)] = { AOM_CDF3(24903, 28074), 75 };
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
 static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(25396), 0 }, { AOM_CDF2(23881), 0 }, { AOM_CDF2(21508), 0 }
 };
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 static const aom_cdf_prob default_tip_drl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(31561) }, { AOM_CDF2(27203) }, { AOM_CDF2(21916) }
 };
@@ -6522,26 +6520,14 @@ static const aom_cdf_prob default_lossless_inter_tx_type_cdf[CDF_SIZE(2)] = {
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
 #if CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_SKIP_MODE_ENHANCEMENT
 static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(23601), 0 }, { AOM_CDF2(12657), 75 }, { AOM_CDF2(3777), 90 },
   { AOM_CDF2(23222), 1 }, { AOM_CDF2(8799), 76 },  { AOM_CDF2(1437), 90 },
-#else
-static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
-  { AOM_CDF2(21670) }, { AOM_CDF2(17991) }, { AOM_CDF2(5679) }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 };
 #else
 static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
-  { AOM_CDF2(31671) },
-  { AOM_CDF2(16515) },
-  { AOM_CDF2(4576) }
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-  ,
-  { AOM_CDF2(24549) },
-  { AOM_CDF2(10887) },
-  { AOM_CDF2(3576) }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+  { AOM_CDF2(31671) }, { AOM_CDF2(16515) }, { AOM_CDF2(4576) },
+  { AOM_CDF2(24549) }, { AOM_CDF2(10887) }, { AOM_CDF2(3576) }
 };
 
 #endif  // CONFIG_NEW_CONTEXT_MODELING
@@ -7269,10 +7255,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->warp_param_sign_cdf, default_warp_param_sign_cdf);
 #endif  // CONFIG_WARP_PRECISION
   av1_copy(fc->warp_extend_cdf, default_warp_extend_cdf);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   av1_copy(fc->skip_drl_cdf, default_skip_drl_cdf);
   av1_copy(fc->tip_drl_cdf, default_tip_drl_cdf);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   av1_copy(fc->bawp_cdf[0], default_bawp_cdf[0]);
   av1_copy(fc->bawp_cdf[1], default_bawp_cdf[1]);
   av1_copy(fc->explicit_bawp_cdf, default_explicit_bawp_cdf);
@@ -7647,10 +7631,8 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // CONFIG_REFINEMV
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   CUMULATIVE_AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_compound_mode_is_joint_cdf,
@@ -8117,10 +8099,8 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #endif  // CONFIG_REFINEMV
 
   SHIFT_CDF(ctx_ptr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   SHIFT_CDF(ctx_ptr->skip_drl_cdf, 2);
   SHIFT_CDF(ctx_ptr->tip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   SHIFT_CDF(ctx_ptr->use_optflow_cdf, 2);
 
   SHIFT_CDF(ctx_ptr->inter_compound_mode_is_joint_cdf, NUM_OPTIONS_IS_JOINT);
@@ -8529,10 +8509,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_REFINEMV
 
   AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
   AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
 

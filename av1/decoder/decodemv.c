@@ -522,9 +522,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                          aom_reader *r) {
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-  assert(!mbmi->skip_mode);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+
   if (has_second_drl(mbmi)) {
     if (mbmi->mode == NEAR_NEWMV)
       max_drl_bits = AOMMIN(max_drl_bits, SEP_COMP_DRL_SIZE);
@@ -2214,9 +2212,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (seg->segid_preskip && xd->tree_type != CHROMA_PART)
     mbmi->segment_id = read_intra_segment_id(cm, xd, bsize, r, 0);
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   mbmi->skip_mode = 0;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_MORPH_PRED
   if (xd->tree_type != CHROMA_PART) mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
@@ -3833,11 +3829,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   av1_collect_neighbors_ref_counts(xd);
 
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
-#if CONFIG_D072_SKIP_MODE_IMPROVE
   int is_compound = has_second_ref(mbmi);
-#else
-  const int is_compound = has_second_ref(mbmi);
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
 
@@ -3876,27 +3868,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->warp_inter_intra = 0;
 #endif  // CONFIG_WARP_INTER_INTRA
   if (mbmi->skip_mode) {
-#if !CONFIG_D072_SKIP_MODE_IMPROVE
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(is_compound);
-#endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
+#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
     mbmi->mode = NEAR_NEARMV;
-#else
-    mbmi->mode = (cm->features.opfl_refine_type && !cm->features.enable_cwp
-                      ? NEAR_NEARMV_OPTFLOW
-                      : NEAR_NEARMV);
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
-#else
-    mbmi->mode = NEAR_NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     read_drl_idx(cm->features.max_drl_bits,
                  av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
                  ec_ctx, mbmi, r);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
     av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL
@@ -3908,50 +3887,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                      NULL, 0, NULL);
 
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     mbmi->ref_frame[0] =
         xd->skip_mvp_candidate_list.ref_frame0[get_ref_mv_idx(mbmi, 0)];
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[get_ref_mv_idx(mbmi, 1)];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_D072_SKIP_MODE_IMPROVE
     is_compound = has_second_ref(mbmi);
     if (!is_compound) {
       mbmi->mode = NEARMV;
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      assert(0);
+#endif
     } else {
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-      mbmi->mode =
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
-          NEAR_NEARMV;
-#else
-        (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                 opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                             xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                             mbmi) &&
-                 !cm->features.enable_cwp
-             ? NEAR_NEARMV_OPTFLOW
-             : NEAR_NEARMV);
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
-#if CONFIG_D072_SKIP_MODE_IMPROVE
+      mbmi->mode = NEAR_NEARMV;
+      mbmi->comp_refine_type = COMP_REFINE_NONE;
     }
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-#else
-    mbmi->mode = NEAR_NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
-    mbmi->comp_refine_type = COMP_REFINE_NONE;
-#else
-#if CONFIG_AFFINE_REFINEMENT
-    mbmi->comp_refine_type = mbmi->mode == NEAR_NEARMV_OPTFLOW
-                                 ? COMP_REFINE_TYPE_FOR_SKIP
-                                 : COMP_REFINE_SUBBLK2P;
-#endif  // CONFIG_AFFINE_REFINEMENT
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
@@ -4113,7 +4064,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->ref_mv_stack[mbmi->ref_frame[1]][get_ref_mv_idx(mbmi, 1)].this_mv;
     else
       ref_mv[1] = xd->ref_mv_stack[ref_frame][get_ref_mv_idx(mbmi, 1)].comp_mv;
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     if (mbmi->skip_mode) {
       ref_mv[0] =
           xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 0)]
@@ -4122,11 +4072,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
               .comp_mv;
     }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
-#if CONFIG_D072_SKIP_MODE_IMPROVE
   if (!is_compound && mbmi->skip_mode) {
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    assert(0);
+#endif
     ref_mv[0] =
         xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 0)]
             .this_mv;
@@ -4134,44 +4085,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
             .comp_mv;
   }
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
   if (mbmi->skip_mode) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-#if CONFIG_D072_SKIP_MODE_IMPROVE
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
+#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    assert(mbmi->mode == NEAR_NEARMV);
+#else
     assert(mbmi->mode == (!is_compound ? NEARMV : NEAR_NEARMV));
-#else
-    assert(mbmi->mode ==
-           (!is_compound
-                ? NEARMV
-                : (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                           opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                                       xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                       mbmi) &&
-                           !cm->features.enable_cwp
-                       ? NEAR_NEARMV_OPTFLOW
-                       : NEAR_NEARMV)));
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
-#else
-#if CONFIG_SKIP_MODE_NO_REFINEMENTS
-    assert(mbmi->mode == NEAR_NEARMV);
-#else
-    assert(mbmi->mode == ((cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                                   opfl_allowed_cur_refs_bsize(cm, mbmi)
-                               ? NEAR_NEARMV_OPTFLOW
-                               : NEAR_NEARMV)));
-#endif  // CONFIG_SKIP_MODE_NO_REFINEMENTS
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-#else
-    assert(mbmi->mode == NEAR_NEARMV);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-    assert(mbmi->ref_mv_idx == 0);
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
+#endif
   }
 
   const int mv_corrupted_flag =
@@ -4324,7 +4244,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
     }
   }
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   mbmi->cwp_idx = CWP_EQUAL;
   if (cm->features.enable_cwp) {
     if (is_cwp_allowed(mbmi) && !mbmi->skip_mode)
@@ -4335,17 +4254,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 #if CONFIG_REFINEMV
   if (mbmi->skip_mode) {
-    mbmi->refinemv_flag = (
-#if CONFIG_D072_SKIP_MODE_IMPROVE
-                              is_compound &&
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-                              mbmi->cwp_idx == CWP_EQUAL &&
-                              is_refinemv_allowed_skip_mode(cm, mbmi))
-                              ? 1
-                              : 0;
+    mbmi->refinemv_flag = 0;
   }
 #endif  // CONFIG_REFINEMV
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   read_mb_interp_filter(xd, features->interp_filter, cm, mbmi, r);
 
@@ -4622,13 +4533,8 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
       || (!inter_block && is_intrabc_block(mbmi, xd->tree_type))
 #endif  // CONFIG_IBC_SR_EXT
   ) {
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-    if (mbmi->skip_mode)
-      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
-    else
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
-      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] =
-          read_skip_txfm(cm, xd, mbmi->segment_id, r);
+    mbmi->skip_txfm[xd->tree_type == CHROMA_PART] =
+        read_skip_txfm(cm, xd, mbmi->segment_id, r);
   } else {
     // Segment SEG_LVL_SKIP should be disabled for intra prediction
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {

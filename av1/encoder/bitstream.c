@@ -155,9 +155,6 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                           aom_writer *w) {
   (void)mbmi_ext_frame;
-#if !CONFIG_SKIP_MODE_ENHANCEMENT
-  assert(!mbmi->skip_mode);
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
   assert(IMPLIES(mbmi->mode == WARPMV, 0));
   // Write the DRL index as a sequence of bits encoding a decision tree:
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
@@ -173,12 +170,10 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   if (!mbmi->skip_mode && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
       has_second_drl(mbmi) && mbmi->mode == NEAR_NEARMV)
     assert(mbmi->ref_mv_idx[0] < mbmi->ref_mv_idx[1]);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx[0] <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx[0] < mbmi_ext_frame->ref_mv_count[0]);
   if (has_second_drl(mbmi))
     assert(mbmi->ref_mv_idx[1] < mbmi_ext_frame->ref_mv_count[1]);
@@ -2323,13 +2318,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       || (!is_inter && is_intrabc_block(mbmi, xd->tree_type))
 #endif  // CONFIG_IBC_SR_EXT
   ) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
     skip = write_skip(cm, xd, segment_id, mbmi, w);
-#else
-    assert(IMPLIES(mbmi->skip_mode,
-                   mbmi->skip_txfm[xd->tree_type == CHROMA_PART]));
-    skip = mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);
-#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
   if (xd->tree_type != CHROMA_PART)
@@ -2391,16 +2380,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   }
 #endif  // CONFIG_IBC_SR_EXT
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) {
     av1_collect_neighbors_ref_counts(xd);
     write_drl_idx(cm->features.max_drl_bits, mbmi_ext_frame->mode_context,
                   ec_ctx, mbmi, mbmi_ext_frame, w);
     return;
   }
-#else
-  if (mbmi->skip_mode) return;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   if (!is_inter) {
     write_intra_prediction_modes(cpi, mbmi->region_type == INTRA_REGION, w);
   } else {

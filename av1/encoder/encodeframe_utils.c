@@ -198,20 +198,13 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
 static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
     MB_MODE_INFO_EXT *mbmi_ext,
-    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-    ,
-    int skip_mode
-#endif
-    ,
-    PREDICTION_MODE this_mode) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type,
+    int skip_mode, PREDICTION_MODE this_mode) {
   if (skip_mode) {
     memcpy(&(mbmi_ext->skip_mvp_candidate_list),
            &(mbmi_ext_best->skip_mvp_candidate_list),
            sizeof(mbmi_ext->skip_mvp_candidate_list));
   }
-#endif
 
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame_type);
@@ -276,13 +269,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   if (xd->tree_type != CHROMA_PART)
     copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
-                                    av1_ref_frame_type(ctx->mic.ref_frame)
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-                                        ,
-                                    mi->skip_mode
-#endif
-                                    ,
-                                    ctx->mic.mode);
+                                    av1_ref_frame_type(ctx->mic.ref_frame),
+                                    mi->skip_mode, ctx->mic.mode);
 
   for (i = 0; i < num_planes; ++i) {
     const int num_blk_plane =
@@ -1496,10 +1484,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->drl_cdf[0], ctx_tr->drl_cdf[0], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[1], ctx_tr->drl_cdf[1], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
   AVERAGE_CDF(ctx_left->tip_drl_cdf, ctx_tr->tip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   AVERAGE_CDF(ctx_left->use_optflow_cdf, ctx_tr->use_optflow_cdf, 2);
 

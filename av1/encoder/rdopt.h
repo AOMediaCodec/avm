@@ -187,13 +187,11 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
     MV_REFERENCE_FRAME ref_frame) {
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (xd->mi[0]->skip_mode) {
     memcpy(&(mbmi_ext->skip_mvp_candidate_list), &(xd->skip_mvp_candidate_list),
            sizeof(xd->skip_mvp_candidate_list));
     return;
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   if (has_second_drl(xd->mi[0])) {
     MV_REFERENCE_FRAME rf[2];
     av1_set_ref_frame(rf, ref_frame);
@@ -325,19 +323,13 @@ static INLINE int prune_ref_by_selective_ref_frame(
 static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
     MB_MODE_INFO_EXT_FRAME *mbmi_ext_best,
     const MB_MODE_INFO_EXT *const mbmi_ext, MB_MODE_INFO *mbmi,
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-    uint8_t skip_mode,
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-    uint8_t ref_frame_type) {
-
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+    uint8_t skip_mode, uint8_t ref_frame_type) {
   if (skip_mode) {
     memcpy(&(mbmi_ext_best->skip_mvp_candidate_list),
            &(mbmi_ext->skip_mvp_candidate_list),
            sizeof(mbmi_ext->skip_mvp_candidate_list));
     return;
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame_type);

@@ -1357,7 +1357,6 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.skip_drl_cnts[0][0], probsfile, 2, cts_each_dim,
@@ -1371,7 +1370,6 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_tip_drl_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   cts_each_dim[0] = WARPMV_MODE_CONTEXT;
   cts_each_dim[1] = 2;

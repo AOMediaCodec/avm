@@ -542,11 +542,9 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
     return ec_ctx->tip_drl_cdf[AOMMIN(idx, 2)];
   }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) {
     return ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)];
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   const int ctx = av1_drl_ctx(mode_ctx);
   return ec_ctx->drl_cdf[AOMMIN(idx, 2)][ctx];
@@ -707,9 +705,7 @@ void av1_find_mv_refs(
     int max_num_of_warp_candidates,
     uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]);
 
-#if CONFIG_D072_SKIP_MODE_IMPROVE
 void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]);
-#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
 // Initialize the warp cadidate lists to invalid values
 void av1_initialize_warp_wrl_list(

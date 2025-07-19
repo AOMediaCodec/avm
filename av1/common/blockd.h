@@ -643,11 +643,7 @@ typedef struct MB_MODE_INFO {
   /*! \brief Which ref_mv to use */
   int ref_mv_idx[2];
   /*! \brief Inter skip mode */
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   uint8_t skip_mode : 2;
-#else
-  uint8_t skip_mode : 1;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /*! \brief amvd mode is enabled or not */
   int use_amvd;
   /*! \brief Whether intrabc is used. */
@@ -2034,7 +2030,6 @@ typedef struct {
   int wpb_sb_hits;
 } WARP_PARAM_BANK;
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
 /*! \brief Variables related to mvp list of skip mode.*/
 typedef struct {
   //! MV list
@@ -2054,7 +2049,6 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[2];
 } SKIP_MODE_MVP_LIST;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 /*! \brief Variables related to current coding block.
  *
@@ -2336,12 +2330,10 @@ typedef struct macroblockd {
    */
   uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
 
-/*!
- * skip_mvp_candidate_list is the MVP list for skip mode.
- */
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+  /*!
+   * skip_mvp_candidate_list is the MVP list for skip mode.
+   */
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   /*!
    * warp_param_stack contains the predicted warp parameters

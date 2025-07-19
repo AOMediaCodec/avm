@@ -1019,11 +1019,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #else
        cctx_type == CCTX_NONE || x->plane[AOM_PLANE_U].eobs[block]) &&
 #endif  // CCTX_C2_DROPPED
-#if CONFIG_SKIP_MODE_ENHANCEMENT
       !(mbmi->skip_mode == 1)) {
-#else
-      !mbmi->skip_mode) {
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;
@@ -1400,14 +1396,12 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   // Temporally set the skip_mode to 2, for the encoding trick to not skip the
   // residual coding at RD stage. To be further refined
   if (mbmi->skip_mode == 1 &&
       mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 0) {
     mbmi->skip_mode = 2;
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
   mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
   if (x->txfm_search_info.skip_txfm && dry_run == OUTPUT_ENABLED) {
@@ -1480,12 +1474,10 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     }
   }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
   // trick to avoid reset the skip_txfm for skip mode
   if (mbmi->skip_mode == 2) {
     mbmi->skip_mode = 1;
   }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 }
 
 static void encode_block_intra_and_set_context(int plane, int block,
