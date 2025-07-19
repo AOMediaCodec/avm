@@ -1035,7 +1035,6 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT &&
         // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
-#if CONFIG_IMPROVE_TIP_SMVP
     int_mv cand_tip_mvs[2];
     MV_REFERENCE_FRAME cand_tip_ref_frames[2];
     if (is_tip_ref_frame(candidate->ref_frame[0])) {
@@ -1055,7 +1054,6 @@ static AOM_INLINE void add_ref_mv_candidate(
       cand_tip_ref_frames[0] = NONE_FRAME;
       cand_tip_ref_frames[1] = NONE_FRAME;
     }
-#endif  // CONFIG_IMPROVE_TIP_SMVP
 
     // single reference frame
     for (ref = 0; ref < 2; ++ref) {
@@ -1107,7 +1105,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ++*newmv_count;
           ++*ref_match_count;
         }
-#if CONFIG_IMPROVE_TIP_SMVP
       } else if (cand_tip_ref_frames[ref] == rf[0]) {
         int_mv this_refmv = cand_tip_mvs[ref];
 
@@ -1183,24 +1180,16 @@ static AOM_INLINE void add_ref_mv_candidate(
           derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
           ++(*derived_mv_count);
         }
-#endif  // CONFIG_IMPROVE_TIP_SMVP
       } else if (add_more_mvs &&
-                 (is_inter_ref_frame(candidate->ref_frame[ref])
-#if CONFIG_IMPROVE_TIP_SMVP
-                  || is_tip_ref_frame(candidate->ref_frame[0])
-#endif
-                      ) &&
+                 (is_inter_ref_frame(candidate->ref_frame[ref]) ||
+                  is_tip_ref_frame(candidate->ref_frame[0])) &&
 #if CONFIG_IBC_SR_EXT
                  rf[0] != INTRA_FRAME &&
 #endif  // CONFIG_IBC_SR_EXT
                  !is_tip_ref_frame(rf[0]) &&
-#if !CONFIG_IMPROVE_TIP_SMVP
-                 !is_tip_ref_frame(candidate->ref_frame[0]) &&
-#endif
                  cm->seq_params.order_hint_info.enable_order_hint) {
         int_mv cand_refmv;
         MV_REFERENCE_FRAME cand_ref_frame;
-#if CONFIG_IMPROVE_TIP_SMVP
         if (is_tip_ref_frame(candidate->ref_frame[0])) {
           cand_refmv.as_int = cand_tip_mvs[ref].as_int;
           cand_ref_frame = cand_tip_ref_frames[ref];
@@ -1215,17 +1204,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                                                   ref);
           cand_ref_frame = candidate->ref_frame[ref];
         }
-#else
-        const int is_gm_block = is_global_mv_block(
-            candidate, gm_params[candidate->ref_frame[ref]].wmtype);
-        cand_refmv = is_gm_block ? gm_mv_candidates[0]
-                                 : get_block_mv(candidate,
-#if CONFIG_C071_SUBBLK_WARPMV
-                                                submi,
-#endif  // CONFIG_C071_SUBBLK_WARPMV
-                                                ref);
-        cand_ref_frame = candidate->ref_frame[ref];
-#endif  // CONFIG_IMPROVE_TIP_SMVP
 
 #if CONFIG_MV_TRAJECTORY
         const int frame_mvs_stride =
