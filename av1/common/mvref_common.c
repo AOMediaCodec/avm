@@ -5123,8 +5123,10 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   skip_mode_info->ref_frame_idx_1 = INVALID_IDX;
 
   if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm)
+// This line should be added, however it will have stats change, can be enabled
+// as bug fix if confirmed.
 #if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      || cm->current_frame.reference_mode == SINGLE_REFERENCE
+//      || cm->current_frame.reference_mode == SINGLE_REFERENCE
 #endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   )
     return;
