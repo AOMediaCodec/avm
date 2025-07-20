@@ -7439,9 +7439,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
   if (all_intra) {
     struct macroblock_plane *const p = &x->plane[0];
     tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(0);
-    // const int eob = p->eobs[0];
-    for (int i = 0;
-         i < tx_size_wide[mbmi->tx_size] * tx_size_high[mbmi->tx_size]; ++i) {
+    for (int i = 0; i < av1_get_max_eob(mbmi->tx_size); ++i) {
       if (qcoeff[i] > 0) nz++;
     }
   }
